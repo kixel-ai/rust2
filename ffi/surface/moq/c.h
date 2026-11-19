@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x3ea644117ed47097ULL)
+#define MOQ_CONTRACT ((uint64_t)0x4e64edc3aadb27fcULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -102,10 +102,9 @@ typedef struct moq_Server moq_Server;
 typedef struct moq_Session moq_Session;
 typedef struct moq_Client moq_Client;
 typedef struct moq_Error moq_Error;
+typedef struct moq_Timestamp moq_Timestamp;
 typedef struct moq_Version moq_Version;
 typedef struct moq_Versions moq_Versions;
-typedef struct moq_Timed_Json moq_Timed_Json;
-typedef struct moq_Hops moq_Hops;
 typedef struct moq_Specificity moq_Specificity;
 typedef struct moq_clock_Clock moq_clock_Clock;
 typedef struct moq_clock_Deadline moq_clock_Deadline;
@@ -121,6 +120,7 @@ typedef struct moq_hang_Catalog_Extra moq_hang_Catalog_Extra;
 typedef struct moq_hang_Catalog_Ext moq_hang_Catalog_Ext;
 typedef struct moq_hang_Error moq_hang_Error;
 typedef struct moq_mux_Clock moq_mux_Clock;
+typedef struct moq_mux_Ingest moq_mux_Ingest;
 typedef struct moq_mux_Linger_unit moq_mux_Linger_unit;
 typedef struct moq_mux_Pacer moq_mux_Pacer;
 typedef struct moq_mux_Binding moq_mux_Binding;
@@ -140,16 +140,17 @@ typedef struct moq_auth_Issued moq_auth_Issued;
 typedef struct moq_auth_Grant moq_auth_Grant;
 typedef struct moq_auth_Handle moq_auth_Handle;
 typedef struct moq_auth_Credential moq_auth_Credential;
-typedef struct moq_auth_Dial moq_auth_Dial;
 typedef struct moq_auth_Token moq_auth_Token;
 typedef struct moq_auth_Tokens moq_auth_Tokens;
-typedef struct moq_goaway_Producer moq_goaway_Producer;
 typedef struct moq_goaway_Goaway moq_goaway_Goaway;
 typedef struct moq_goaway_Consumer moq_goaway_Consumer;
 typedef struct moq_path_Relative moq_path_Relative;
+typedef struct moq_reconnect_Backoff moq_reconnect_Backoff;
+typedef struct moq_reconnect_Handover moq_reconnect_Handover;
+typedef struct moq_reconnect_Config moq_reconnect_Config;
 typedef struct moq_server_Handshake moq_server_Handshake;
-typedef struct moq_server_Activity moq_server_Activity;
-typedef struct moq_server_Active moq_server_Active;
+typedef struct moq_server_Admission moq_server_Admission;
+typedef struct moq_server_Admitted moq_server_Admitted;
 typedef struct moq_session_Stats moq_session_Stats;
 typedef struct moq_stats_Tier moq_stats_Tier;
 typedef struct moq_stats_Snapshot moq_stats_Snapshot;
@@ -159,13 +160,20 @@ typedef struct moq_stats_SessionEntry moq_stats_SessionEntry;
 typedef struct moq_stats_Config moq_stats_Config;
 typedef struct moq_stats_Registry moq_stats_Registry;
 typedef struct moq_stats_Handle moq_stats_Handle;
+typedef struct moq_stats_Refusal moq_stats_Refusal;
+typedef struct moq_stats_SessionInfo moq_stats_SessionInfo;
 typedef struct moq_stats_Wire moq_stats_Wire;
 typedef struct moq_stats_Session moq_stats_Session;
+typedef struct moq_stats_Bill moq_stats_Bill;
 typedef struct moq_transport_Wire moq_transport_Wire;
 typedef struct moq_transport_Probe moq_transport_Probe;
+typedef struct moq_transport_ReceiveWindow moq_transport_ReceiveWindow;
+typedef struct moq_transport_Limits moq_transport_Limits;
+typedef struct moq_bandwidth_Limit moq_bandwidth_Limit;
 typedef struct moq_bandwidth_Demand moq_bandwidth_Demand;
 typedef struct moq_bandwidth_Reservation moq_bandwidth_Reservation;
 typedef struct moq_bandwidth_Viewer moq_bandwidth_Viewer;
+typedef struct moq_bandwidth_Cap moq_bandwidth_Cap;
 typedef struct moq_bandwidth_Producer moq_bandwidth_Producer;
 typedef struct moq_bandwidth_Weak moq_bandwidth_Weak;
 typedef struct moq_bandwidth_Allocator moq_bandwidth_Allocator;
@@ -189,71 +197,64 @@ typedef struct moq_datagram_Consumer moq_datagram_Consumer;
 typedef struct moq_datagram_Info moq_datagram_Info;
 typedef struct moq_frame_Producer moq_frame_Producer;
 typedef struct moq_frame_Frame moq_frame_Frame;
-typedef struct moq_frame_Buffer moq_frame_Buffer;
 typedef struct moq_frame_Consumer moq_frame_Consumer;
 typedef struct moq_group_Producer moq_group_Producer;
+typedef struct moq_group_Finished moq_group_Finished;
 typedef struct moq_group_Demand moq_group_Demand;
 typedef struct moq_group_Consumer moq_group_Consumer;
 typedef struct moq_group_Fetch moq_group_Fetch;
+typedef struct moq_track_Finished moq_track_Finished;
 typedef struct moq_track_Requests moq_track_Requests;
 typedef struct moq_track_Demand moq_track_Demand;
 typedef struct moq_track_Subscriber moq_track_Subscriber;
 typedef struct moq_track_Ordered moq_track_Ordered;
+typedef struct moq_track_Item moq_track_Item;
 typedef struct moq_track_Request moq_track_Request;
 typedef struct moq_track_Info moq_track_Info;
+typedef struct moq_track_Refresh moq_track_Refresh;
 typedef struct moq_track_Producer moq_track_Producer;
+typedef struct moq_track_AbortHandle moq_track_AbortHandle;
 typedef struct moq_track_Consumer moq_track_Consumer;
 typedef struct moq_track_Control moq_track_Control;
 typedef struct moq_track_Subscription moq_track_Subscription;
 typedef struct moq_track_Fill moq_track_Fill;
 typedef struct moq_origin_Following moq_origin_Following;
+typedef struct moq_origin_Claim moq_origin_Claim;
 typedef struct moq_origin_Config moq_origin_Config;
 typedef struct moq_origin_Consumer moq_origin_Consumer;
 typedef struct moq_origin_Driver moq_origin_Driver;
-typedef struct moq_origin_Prepared moq_origin_Prepared;
 typedef struct moq_origin_Producer moq_origin_Producer;
-typedef struct moq_origin_Publication moq_origin_Publication;
 typedef struct moq_origin_Request moq_origin_Request;
-typedef struct moq_origin_Requests moq_origin_Requests;
 typedef struct moq_origin_Route moq_origin_Route;
+typedef struct moq_origin_RouteInfo moq_origin_RouteInfo;
+typedef struct moq_origin_RouteOptions moq_origin_RouteOptions;
+typedef struct moq_origin_RouteEvent moq_origin_RouteEvent;
+typedef struct moq_origin_Routes moq_origin_Routes;
 typedef struct moq_announce_Consumer moq_announce_Consumer;
 typedef struct moq_announce_Event moq_announce_Event;
+typedef struct moq_announce_Announce moq_announce_Announce;
 typedef struct moq_hang_stats_Snapshot moq_hang_stats_Snapshot;
-typedef struct moq_hang_stats_Snapshot_string moq_hang_stats_Snapshot_string;
 typedef struct moq_hang_stats_Rendition moq_hang_stats_Rendition;
 typedef struct moq_hang_stats_Transport moq_hang_stats_Transport;
 typedef struct moq_hang_echo_Snapshot moq_hang_echo_Snapshot;
-typedef struct moq_hang_echo_Snapshot_string moq_hang_echo_Snapshot_string;
 typedef struct moq_hang_echo_Rendition moq_hang_echo_Rendition;
 typedef struct moq_hang_echo_Arrival moq_hang_echo_Arrival;
-typedef struct moq_hang_health_Observer moq_hang_health_Observer;
-typedef struct moq_hang_health_Report_echo_Snapshot_string moq_hang_health_Report_echo_Snapshot_string;
-typedef struct moq_hang_health_Report_stats_Snapshot_string moq_hang_health_Report_stats_Snapshot_string;
-typedef struct moq_hang_health_Thresholds moq_hang_health_Thresholds;
-typedef struct moq_hang_health_TransportThresholds moq_hang_health_TransportThresholds;
-typedef struct moq_hang_health_PublisherThresholds moq_hang_health_PublisherThresholds;
-typedef struct moq_hang_health_ViewerThresholds moq_hang_health_ViewerThresholds;
-typedef struct moq_hang_health_Evidence moq_hang_health_Evidence;
-typedef struct moq_hang_health_Connection moq_hang_health_Connection;
-typedef struct moq_hang_health_Rendition moq_hang_health_Rendition;
+typedef struct moq_hang_catalog_Skipped moq_hang_catalog_Skipped;
 typedef struct moq_hang_catalog_Consumer moq_hang_catalog_Consumer;
-typedef struct moq_hang_catalog_Consumer_Extra moq_hang_catalog_Consumer_Extra;
-typedef struct moq_hang_catalog_Consumer_Ext moq_hang_catalog_Consumer_Ext;
 typedef struct moq_hang_catalog_Audio moq_hang_catalog_Audio;
 typedef struct moq_hang_catalog_AudioConfig moq_hang_catalog_AudioConfig;
 typedef struct moq_hang_catalog_Binary moq_hang_catalog_Binary;
 typedef struct moq_hang_catalog_BinaryConfig moq_hang_catalog_BinaryConfig;
+typedef struct moq_hang_catalog_Clock moq_hang_catalog_Clock;
 typedef struct moq_hang_catalog_Container moq_hang_catalog_Container;
-typedef struct moq_hang_catalog_Contribution moq_hang_catalog_Contribution;
 typedef struct moq_hang_catalog_Echo moq_hang_catalog_Echo;
+typedef struct moq_hang_catalog_Include moq_hang_catalog_Include;
 typedef struct moq_hang_catalog_Json moq_hang_catalog_Json;
 typedef struct moq_hang_catalog_JsonConfig moq_hang_catalog_JsonConfig;
-typedef struct moq_hang_catalog_M2ts moq_hang_catalog_M2ts;
-typedef struct moq_hang_catalog_Media moq_hang_catalog_Media;
-typedef struct moq_hang_catalog_Join moq_hang_catalog_Join;
 typedef struct moq_hang_catalog_Stats moq_hang_catalog_Stats;
 typedef struct moq_hang_catalog_Text moq_hang_catalog_Text;
 typedef struct moq_hang_catalog_TextConfig moq_hang_catalog_TextConfig;
+typedef struct moq_hang_catalog_Timeline moq_hang_catalog_Timeline;
 typedef struct moq_hang_catalog_Color moq_hang_catalog_Color;
 typedef struct moq_hang_catalog_Projection moq_hang_catalog_Projection;
 typedef struct moq_hang_catalog_Video moq_hang_catalog_Video;
@@ -263,7 +264,6 @@ typedef struct moq_mux_catalog_Consumer moq_mux_catalog_Consumer;
 typedef struct moq_mux_catalog_Consumer_Extra moq_mux_catalog_Consumer_Extra;
 typedef struct moq_mux_catalog_Consumer_Ext moq_mux_catalog_Consumer_Ext;
 typedef struct moq_mux_catalog_Estimate moq_mux_catalog_Estimate;
-typedef struct moq_mux_catalog_Estimator moq_mux_catalog_Estimator;
 typedef struct moq_mux_catalog_Config moq_mux_catalog_Config;
 typedef struct moq_mux_catalog_Config_Extra moq_mux_catalog_Config_Extra;
 typedef struct moq_mux_catalog_Config_Ext moq_mux_catalog_Config_Ext;
@@ -288,6 +288,36 @@ typedef struct moq_mux_container_GroupConsumer_Container moq_mux_container_Group
 typedef struct moq_mux_container_GroupConsumer_fmp4_Wire moq_mux_container_GroupConsumer_fmp4_Wire;
 typedef struct moq_mux_container_GroupConsumer_legacy_Wire moq_mux_container_GroupConsumer_legacy_Wire;
 typedef struct moq_mux_container_GroupConsumer_loc_Wire moq_mux_container_GroupConsumer_loc_Wire;
+typedef struct moq_mux_container_Finished_Container_AudioConfig moq_mux_container_Finished_Container_AudioConfig;
+typedef struct moq_mux_container_Finished_Container_BinaryConfig moq_mux_container_Finished_Container_BinaryConfig;
+typedef struct moq_mux_container_Finished_Container_JsonConfig moq_mux_container_Finished_Container_JsonConfig;
+typedef struct moq_mux_container_Finished_Container_TextConfig moq_mux_container_Finished_Container_TextConfig;
+typedef struct moq_mux_container_Finished_Container_VideoConfig moq_mux_container_Finished_Container_VideoConfig;
+typedef struct moq_mux_container_Finished_Container moq_mux_container_Finished_Container;
+typedef struct moq_mux_container_Finished_fmp4_Wire_AudioConfig moq_mux_container_Finished_fmp4_Wire_AudioConfig;
+typedef struct moq_mux_container_Finished_fmp4_Wire_BinaryConfig moq_mux_container_Finished_fmp4_Wire_BinaryConfig;
+typedef struct moq_mux_container_Finished_fmp4_Wire_JsonConfig moq_mux_container_Finished_fmp4_Wire_JsonConfig;
+typedef struct moq_mux_container_Finished_fmp4_Wire_TextConfig moq_mux_container_Finished_fmp4_Wire_TextConfig;
+typedef struct moq_mux_container_Finished_fmp4_Wire_VideoConfig moq_mux_container_Finished_fmp4_Wire_VideoConfig;
+typedef struct moq_mux_container_Finished_fmp4_Wire moq_mux_container_Finished_fmp4_Wire;
+typedef struct moq_mux_container_Finished_legacy_Wire_AudioConfig moq_mux_container_Finished_legacy_Wire_AudioConfig;
+typedef struct moq_mux_container_Finished_legacy_Wire_BinaryConfig moq_mux_container_Finished_legacy_Wire_BinaryConfig;
+typedef struct moq_mux_container_Finished_legacy_Wire_JsonConfig moq_mux_container_Finished_legacy_Wire_JsonConfig;
+typedef struct moq_mux_container_Finished_legacy_Wire_TextConfig moq_mux_container_Finished_legacy_Wire_TextConfig;
+typedef struct moq_mux_container_Finished_legacy_Wire_VideoConfig moq_mux_container_Finished_legacy_Wire_VideoConfig;
+typedef struct moq_mux_container_Finished_legacy_Wire moq_mux_container_Finished_legacy_Wire;
+typedef struct moq_mux_container_Finished_loc_Wire_AudioConfig moq_mux_container_Finished_loc_Wire_AudioConfig;
+typedef struct moq_mux_container_Finished_loc_Wire_BinaryConfig moq_mux_container_Finished_loc_Wire_BinaryConfig;
+typedef struct moq_mux_container_Finished_loc_Wire_JsonConfig moq_mux_container_Finished_loc_Wire_JsonConfig;
+typedef struct moq_mux_container_Finished_loc_Wire_TextConfig moq_mux_container_Finished_loc_Wire_TextConfig;
+typedef struct moq_mux_container_Finished_loc_Wire_VideoConfig moq_mux_container_Finished_loc_Wire_VideoConfig;
+typedef struct moq_mux_container_Finished_loc_Wire moq_mux_container_Finished_loc_Wire;
+typedef struct moq_mux_container_Guard_unit moq_mux_container_Guard_unit;
+typedef struct moq_mux_container_Guard_AudioConfig moq_mux_container_Guard_AudioConfig;
+typedef struct moq_mux_container_Guard_BinaryConfig moq_mux_container_Guard_BinaryConfig;
+typedef struct moq_mux_container_Guard_JsonConfig moq_mux_container_Guard_JsonConfig;
+typedef struct moq_mux_container_Guard_TextConfig moq_mux_container_Guard_TextConfig;
+typedef struct moq_mux_container_Guard_VideoConfig moq_mux_container_Guard_VideoConfig;
 typedef struct moq_mux_container_Producer_Container_AudioConfig moq_mux_container_Producer_Container_AudioConfig;
 typedef struct moq_mux_container_Producer_Container_BinaryConfig moq_mux_container_Producer_Container_BinaryConfig;
 typedef struct moq_mux_container_Producer_Container_JsonConfig moq_mux_container_Producer_Container_JsonConfig;
@@ -313,13 +343,12 @@ typedef struct moq_mux_container_Producer_loc_Wire_TextConfig moq_mux_container_
 typedef struct moq_mux_container_Producer_loc_Wire_VideoConfig moq_mux_container_Producer_loc_Wire_VideoConfig;
 typedef struct moq_mux_container_Producer_loc_Wire moq_mux_container_Producer_loc_Wire;
 typedef struct moq_mux_follow_Instances moq_mux_follow_Instances;
-typedef struct moq_mux_follow_Event moq_mux_follow_Event;
-typedef struct moq_mux_import_AudioInit moq_mux_import_AudioInit;
-typedef struct moq_mux_import_ContainerInit moq_mux_import_ContainerInit;
-typedef struct moq_mux_import_VideoInit moq_mux_import_VideoInit;
 typedef struct moq_mux_import_Container moq_mux_import_Container;
 typedef struct moq_mux_import_Container_Extra moq_mux_import_Container_Extra;
 typedef struct moq_mux_import_Container_Ext moq_mux_import_Container_Ext;
+typedef struct moq_mux_import_AudioInit moq_mux_import_AudioInit;
+typedef struct moq_mux_import_ContainerInit moq_mux_import_ContainerInit;
+typedef struct moq_mux_import_VideoInit moq_mux_import_VideoInit;
 typedef struct moq_mux_import_Track moq_mux_import_Track;
 typedef struct moq_mux_import_TrackStream moq_mux_import_TrackStream;
 typedef struct moq_mux_json_Snapshot_Json moq_mux_json_Snapshot_Json;
@@ -327,18 +356,18 @@ typedef struct moq_mux_json_Stream_Json moq_mux_json_Stream_Json;
 typedef struct moq_mux_json_Consumer_Json moq_mux_json_Consumer_Json;
 typedef struct moq_mux_json_Config moq_mux_json_Config;
 typedef struct moq_mux_json_Options moq_mux_json_Options;
-typedef struct moq_mux_rate_Follower moq_mux_rate_Follower;
+typedef struct moq_mux_rate_Grant moq_mux_rate_Grant;
 typedef struct moq_mux_rate_Policy moq_mux_rate_Policy;
 typedef struct moq_mux_rate_Control moq_mux_rate_Control;
 typedef struct moq_mux_select_Broadcast moq_mux_select_Broadcast;
 typedef struct moq_mux_select_Video moq_mux_select_Video;
 typedef struct moq_mux_select_Audio moq_mux_select_Audio;
-typedef struct moq_mux_timeline_Track moq_mux_timeline_Track;
-typedef struct moq_mux_timeline_Producer moq_mux_timeline_Producer;
-typedef struct moq_mux_timeline_Consumer moq_mux_timeline_Consumer;
+typedef struct moq_mux_sync_Track moq_mux_sync_Track;
+typedef struct moq_mux_sync_Schedule moq_mux_sync_Schedule;
+typedef struct moq_mux_sync_Producer moq_mux_sync_Producer;
+typedef struct moq_mux_sync_Consumer moq_mux_sync_Consumer;
 typedef struct moq_tokio_tls_Error moq_tokio_tls_Error;
 typedef struct moq_tokio_tls_Identity moq_tokio_tls_Identity;
-typedef struct moq_tokio_tls_Peers moq_tokio_tls_Peers;
 typedef struct moq_tokio_tls_Connect moq_tokio_tls_Connect;
 typedef struct moq_tokio_tls_Listen moq_tokio_tls_Listen;
 typedef struct moq_tokio_tls_Serve moq_tokio_tls_Serve;
@@ -355,6 +384,7 @@ typedef struct moq_tokio_server_Listener moq_tokio_server_Listener;
 typedef struct moq_tokio_server_Request moq_tokio_server_Request;
 typedef struct moq_transport_memory_Config moq_transport_memory_Config;
 typedef struct moq_transport_memory_Session moq_transport_memory_Session;
+typedef struct moq_transport_memory_Closer moq_transport_memory_Closer;
 typedef struct moq_mux_catalog_hang_Consumer moq_mux_catalog_hang_Consumer;
 typedef struct moq_mux_catalog_hang_Consumer_Extra moq_mux_catalog_hang_Consumer_Extra;
 typedef struct moq_mux_catalog_hang_Consumer_Ext moq_mux_catalog_hang_Consumer_Ext;
@@ -363,6 +393,7 @@ typedef struct moq_mux_catalog_hang_Extra moq_mux_catalog_hang_Extra;
 typedef struct moq_mux_catalog_msf_Consumer moq_mux_catalog_msf_Consumer;
 typedef struct moq_mux_catalog_msf_Consumer_Extra moq_mux_catalog_msf_Consumer_Extra;
 typedef struct moq_mux_catalog_msf_Consumer_Ext moq_mux_catalog_msf_Consumer_Ext;
+typedef struct moq_mux_codec_aac_Config moq_mux_codec_aac_Config;
 typedef struct moq_mux_codec_aac_Error moq_mux_codec_aac_Error;
 typedef struct moq_mux_codec_aac_Import moq_mux_codec_aac_Import;
 typedef struct moq_mux_codec_annexb_Error moq_mux_codec_annexb_Error;
@@ -377,6 +408,7 @@ typedef struct moq_mux_codec_h264_Split moq_mux_codec_h264_Split;
 typedef struct moq_mux_codec_h265_Hvc1 moq_mux_codec_h265_Hvc1;
 typedef struct moq_mux_codec_h265_Error moq_mux_codec_h265_Error;
 typedef struct moq_mux_codec_h265_Hvcc moq_mux_codec_h265_Hvcc;
+typedef struct moq_mux_codec_h265_Sps moq_mux_codec_h265_Sps;
 typedef struct moq_mux_codec_h265_Import moq_mux_codec_h265_Import;
 typedef struct moq_mux_codec_h265_Split moq_mux_codec_h265_Split;
 typedef struct moq_mux_codec_mp3_Import moq_mux_codec_mp3_Import;
@@ -387,23 +419,35 @@ typedef struct moq_mux_codec_vp9_Import moq_mux_codec_vp9_Import;
 typedef struct moq_mux_container_flv_Import moq_mux_container_flv_Import;
 typedef struct moq_mux_container_flv_Import_Extra moq_mux_container_flv_Import_Extra;
 typedef struct moq_mux_container_flv_Import_Ext moq_mux_container_flv_Import_Ext;
+typedef struct moq_mux_container_flv_Finished moq_mux_container_flv_Finished;
+typedef struct moq_mux_container_flv_Finished_Extra moq_mux_container_flv_Finished_Extra;
+typedef struct moq_mux_container_flv_Finished_Ext moq_mux_container_flv_Finished_Ext;
 typedef struct moq_mux_container_fmp4_Wire moq_mux_container_fmp4_Wire;
 typedef struct moq_mux_container_fmp4_Error moq_mux_container_fmp4_Error;
-typedef struct moq_mux_container_fmp4_Fragmenter moq_mux_container_fmp4_Fragmenter;
 typedef struct moq_mux_container_fmp4_Import moq_mux_container_fmp4_Import;
 typedef struct moq_mux_container_fmp4_Import_Extra moq_mux_container_fmp4_Import_Extra;
 typedef struct moq_mux_container_fmp4_Import_Ext moq_mux_container_fmp4_Import_Ext;
+typedef struct moq_mux_container_fmp4_Finished moq_mux_container_fmp4_Finished;
+typedef struct moq_mux_container_fmp4_Finished_Extra moq_mux_container_fmp4_Finished_Extra;
+typedef struct moq_mux_container_fmp4_Finished_Ext moq_mux_container_fmp4_Finished_Ext;
 typedef struct moq_mux_container_fmp4_Muxer moq_mux_container_fmp4_Muxer;
+typedef struct moq_mux_container_legacy_Audio moq_mux_container_legacy_Audio;
 typedef struct moq_mux_container_mkv_Import moq_mux_container_mkv_Import;
 typedef struct moq_mux_container_mkv_Import_Extra moq_mux_container_mkv_Import_Extra;
 typedef struct moq_mux_container_mkv_Import_Ext moq_mux_container_mkv_Import_Ext;
+typedef struct moq_mux_container_mkv_Finished moq_mux_container_mkv_Finished;
+typedef struct moq_mux_container_mkv_Finished_Extra moq_mux_container_mkv_Finished_Extra;
+typedef struct moq_mux_container_mkv_Finished_Ext moq_mux_container_mkv_Finished_Ext;
+typedef struct moq_mux_container_mp4_Finish moq_mux_container_mp4_Finish;
 typedef struct moq_mux_container_ts_Ext moq_mux_container_ts_Ext;
 typedef struct moq_mux_container_ts_Mpegts moq_mux_container_ts_Mpegts;
+typedef struct moq_mux_container_ts_PassthroughTrack moq_mux_container_ts_PassthroughTrack;
 typedef struct moq_mux_container_ts_PesPacket moq_mux_container_ts_PesPacket;
 typedef struct moq_mux_container_ts_Program moq_mux_container_ts_Program;
 typedef struct moq_mux_container_ts_SiEntry moq_mux_container_ts_SiEntry;
 typedef struct moq_mux_container_ts_Track moq_mux_container_ts_Track;
 typedef struct moq_mux_container_ts_Verbatim moq_mux_container_ts_Verbatim;
+typedef struct moq_mux_container_ts_Error moq_mux_container_ts_Error;
 typedef struct moq_mux_container_ts_Export_Consumer_Extra moq_mux_container_ts_Export_Consumer_Extra;
 typedef struct moq_mux_container_ts_Export_Consumer_Ext moq_mux_container_ts_Export_Consumer_Ext;
 typedef struct moq_mux_container_ts_Export_Consumer moq_mux_container_ts_Export_Consumer;
@@ -411,14 +455,28 @@ typedef struct moq_mux_container_ts_Follower moq_mux_container_ts_Follower;
 typedef struct moq_mux_container_ts_Follower_Extra moq_mux_container_ts_Follower_Extra;
 typedef struct moq_mux_container_ts_Follower_Ext moq_mux_container_ts_Follower_Ext;
 typedef struct moq_mux_container_ts_Passthrough moq_mux_container_ts_Passthrough;
+typedef struct moq_mux_container_ts_Passthrough_unit moq_mux_container_ts_Passthrough_unit;
 typedef struct moq_mux_container_ts_Passthrough_Extra moq_mux_container_ts_Passthrough_Extra;
-typedef struct moq_mux_container_ts_Passthrough_Ext moq_mux_container_ts_Passthrough_Ext;
 typedef struct moq_mux_container_ts_Programs moq_mux_container_ts_Programs;
 typedef struct moq_mux_container_ts_Release moq_mux_container_ts_Release;
+typedef struct moq_mux_container_ts_Republish moq_mux_container_ts_Republish;
+typedef struct moq_mux_container_ts_Republished moq_mux_container_ts_Republished;
 typedef struct moq_mux_container_ts_Import moq_mux_container_ts_Import;
 typedef struct moq_mux_container_ts_Import_Extra moq_mux_container_ts_Import_Extra;
 typedef struct moq_mux_container_ts_Import_Ext moq_mux_container_ts_Import_Ext;
+typedef struct moq_mux_container_ts_Finished moq_mux_container_ts_Finished;
+typedef struct moq_mux_container_ts_Finished_Extra moq_mux_container_ts_Finished_Extra;
+typedef struct moq_mux_container_ts_Finished_Ext moq_mux_container_ts_Finished_Ext;
+typedef struct moq_mux_import_container_Finished moq_mux_import_container_Finished;
+typedef struct moq_mux_import_container_Finished_Extra moq_mux_import_container_Finished_Extra;
+typedef struct moq_mux_import_container_Finished_Ext moq_mux_import_container_Finished_Ext;
+typedef struct moq_mux_import_track_Finished moq_mux_import_track_Finished;
 typedef struct moq_mux_codec_aac_adts_Header moq_mux_codec_aac_adts_Header;
+typedef struct moq_mux_container_ts_passthrough_Finished moq_mux_container_ts_passthrough_Finished;
+typedef struct moq_mux_container_ts_passthrough_Finished_unit moq_mux_container_ts_passthrough_Finished_unit;
+typedef struct moq_mux_container_ts_passthrough_Finished_Extra moq_mux_container_ts_passthrough_Finished_Extra;
+typedef struct moq_mux_container_ts_programs_Finished moq_mux_container_ts_programs_Finished;
+typedef struct moq_mux_container_ts_republish_Finished moq_mux_container_ts_republish_Finished;
 typedef struct moq_mux_container_ts_stats_Report moq_mux_container_ts_stats_Report;
 typedef struct moq_mux_container_ts_stats_Snapshot moq_mux_container_ts_stats_Snapshot;
 typedef struct moq_mux_container_ts_stats_Stream moq_mux_container_ts_stats_Stream;
@@ -427,14 +485,16 @@ typedef struct moq_mux_container_ts_stats_Release moq_mux_container_ts_stats_Rel
 typedef struct moq_mux_container_ts_stats_Log moq_mux_container_ts_stats_Log;
 typedef struct moq_moq_tokio_Addrs moq_moq_tokio_Addrs;
 typedef struct moq_moq_tokio_cli_Deprecated moq_moq_tokio_cli_Deprecated;
-typedef struct moq_mp4_atom_Codec moq_mp4_atom_Codec;
+typedef struct moq_moq_tokio_cli_Bound moq_moq_tokio_cli_Bound;
 typedef struct moq_moq_tokio_tcp_TlsAcceptor moq_moq_tokio_tcp_TlsAcceptor;
 typedef struct moq_moq_tokio_accept_Health moq_moq_tokio_accept_Health;
+typedef struct moq_moq_json_Timed_Catalog moq_moq_json_Timed_Catalog;
+typedef struct moq_moq_json_Timed_Json moq_moq_json_Timed_Json;
 typedef struct moq_rustls_ClientConfig moq_rustls_ClientConfig;
 typedef struct moq_rustls_RootCertStore moq_rustls_RootCertStore;
 typedef struct moq_rustls_pki_types_CertificateDer moq_rustls_pki_types_CertificateDer;
 typedef struct moq_moq_tokio_connect_Resolved moq_moq_tokio_connect_Resolved;
-typedef struct moq_moq_tokio_connection_Goaway moq_moq_tokio_connection_Goaway;
+typedef struct moq_moq_tokio_connection_Handover moq_moq_tokio_connection_Handover;
 typedef struct moq_moq_tokio_websocket_Config moq_moq_tokio_websocket_Config;
 typedef struct moq_moq_tokio_connection_Observation moq_moq_tokio_connection_Observation;
 typedef struct moq_moq_tokio_connection_Snapshot moq_moq_tokio_connection_Snapshot;
@@ -444,72 +504,28 @@ typedef struct moq_moq_tokio_unix_Config moq_moq_tokio_unix_Config;
 typedef struct moq_moq_tokio_listen_LoadBalancer moq_moq_tokio_listen_LoadBalancer;
 typedef struct moq_moq_tokio_listen_Reset moq_moq_tokio_listen_Reset;
 typedef struct moq_moq_tokio_quic_Resolved moq_moq_tokio_quic_Resolved;
-typedef struct moq_moq_tokio_quic_Controller moq_moq_tokio_quic_Controller;
 typedef struct moq_moq_tokio_websocket_Listener moq_moq_tokio_websocket_Listener;
 typedef struct moq_moq_tokio_quic_demux_Demux moq_moq_tokio_quic_demux_Demux;
-typedef struct moq_moq_tokio_quic_driver_connection_Connection moq_moq_tokio_quic_driver_connection_Connection;
+typedef struct moq_moq_tokio_server_Streams moq_moq_tokio_server_Streams;
+typedef struct moq_moq_tokio_server_QuicLimits moq_moq_tokio_server_QuicLimits;
 typedef struct moq_moq_quic_Limits moq_moq_quic_Limits;
-typedef struct moq_mp4_atom_Trak moq_mp4_atom_Trak;
 typedef struct moq_moq_tokio_connect_Addr moq_moq_tokio_connect_Addr;
-typedef struct moq_mp4_atom_Avc1 moq_mp4_atom_Avc1;
-typedef struct moq_mp4_atom_Avc3 moq_mp4_atom_Avc3;
-typedef struct moq_mp4_atom_Jpeg moq_mp4_atom_Jpeg;
-typedef struct moq_mp4_atom_Hev1 moq_mp4_atom_Hev1;
-typedef struct moq_mp4_atom_Hvc1 moq_mp4_atom_Hvc1;
-typedef struct moq_mp4_atom_Vp08 moq_mp4_atom_Vp08;
-typedef struct moq_mp4_atom_Vp09 moq_mp4_atom_Vp09;
-typedef struct moq_mp4_atom_Av01 moq_mp4_atom_Av01;
-typedef struct moq_mp4_atom_Tx3g moq_mp4_atom_Tx3g;
 typedef struct moq_rustls_pki_types_TrustAnchor moq_rustls_pki_types_TrustAnchor;
+typedef struct moq_moq_tokio_connection_Phase moq_moq_tokio_connection_Phase;
 typedef struct moq_moq_tokio_quic_ServerId moq_moq_tokio_quic_ServerId;
 typedef struct moq_moq_tokio_listen_Forward moq_moq_tokio_listen_Forward;
-typedef struct moq_mp4_atom_Meta moq_mp4_atom_Meta;
-typedef struct moq_mp4_atom_Mdia moq_mp4_atom_Mdia;
-typedef struct moq_mp4_atom_Udta moq_mp4_atom_Udta;
-typedef struct moq_mp4_atom_Visual moq_mp4_atom_Visual;
 typedef struct moq_rustls_client_danger_DangerousClientConfig moq_rustls_client_danger_DangerousClientConfig;
 typedef struct moq_rustls_client_Resumption moq_rustls_client_Resumption;
 typedef struct moq_rustls_DistinguishedName moq_rustls_DistinguishedName;
 typedef struct moq_moq_tokio_websocket_Resolved moq_moq_tokio_websocket_Resolved;
 typedef struct moq_moq_tokio_unix_Allow moq_moq_tokio_unix_Allow;
 typedef struct moq_moq_tokio_websocket_Error moq_moq_tokio_websocket_Error;
+typedef struct moq_qmux_Session moq_qmux_Session;
 typedef struct moq_moq_sock_demux_Counters moq_moq_sock_demux_Counters;
 typedef struct moq_moq_tokio_quic_demux_WebRtc moq_moq_tokio_quic_demux_WebRtc;
-typedef struct moq_moq_tokio_quic_driver_send_Options moq_moq_tokio_quic_driver_send_Options;
-typedef struct moq_moq_tokio_quic_driver_send_Stream moq_moq_tokio_quic_driver_send_Stream;
-typedef struct moq_moq_tokio_quic_driver_send_Group moq_moq_tokio_quic_driver_send_Group;
-typedef struct moq_moq_tokio_quic_driver_recv_Stream moq_moq_tokio_quic_driver_recv_Stream;
-typedef struct moq_moq_tokio_quic_driver_send_Error moq_moq_tokio_quic_driver_send_Error;
-typedef struct moq_moq_quic_connection_Stats moq_moq_quic_connection_Stats;
-typedef struct moq_moq_quic_crypto_HandshakeData moq_moq_quic_crypto_HandshakeData;
-typedef struct moq_mp4_atom_Spatial moq_mp4_atom_Spatial;
-typedef struct moq_mp4_atom_Any moq_mp4_atom_Any;
-typedef struct moq_mp4_atom_Minf moq_mp4_atom_Minf;
-typedef struct moq_mp4_atom_Compressor moq_mp4_atom_Compressor;
 typedef struct moq_rustls_pki_types_Der moq_rustls_pki_types_Der;
 typedef struct moq_moq_tokio_quic_demux_Datagram moq_moq_tokio_quic_demux_Datagram;
 typedef struct moq_moq_sock_demux_Pin moq_moq_sock_demux_Pin;
-typedef struct moq_moq_tokio_quic_driver_send_Offset moq_moq_tokio_quic_driver_send_Offset;
-typedef struct moq_moq_tokio_quic_driver_recv_Error moq_moq_tokio_quic_driver_recv_Error;
-typedef struct moq_moq_quic_FrameStats moq_moq_quic_FrameStats;
-typedef struct moq_moq_quic_PathStats moq_moq_quic_PathStats;
-typedef struct moq_mp4_atom_Sv3d moq_mp4_atom_Sv3d;
-typedef struct moq_mp4_atom_Vexu moq_mp4_atom_Vexu;
-typedef struct moq_mp4_atom_Iprp moq_mp4_atom_Iprp;
-typedef struct moq_mp4_atom_Ipco moq_mp4_atom_Ipco;
-typedef struct moq_mp4_atom_Moov moq_mp4_atom_Moov;
-typedef struct moq_mp4_atom_Stbl moq_mp4_atom_Stbl;
-typedef struct moq_mp4_atom_Stsd moq_mp4_atom_Stsd;
-typedef struct moq_mp4_atom_Nmhd moq_mp4_atom_Nmhd;
-typedef struct moq_mp4_atom_Sthd moq_mp4_atom_Sthd;
-typedef struct moq_mp4_atom_Moof moq_mp4_atom_Moof;
-typedef struct moq_mp4_atom_Traf moq_mp4_atom_Traf;
-typedef struct moq_mp4_atom_Proj moq_mp4_atom_Proj;
-typedef struct moq_mp4_atom_VexuProj moq_mp4_atom_VexuProj;
-typedef struct moq_mp4_atom_Eyes moq_mp4_atom_Eyes;
-typedef struct moq_mp4_atom_Pack moq_mp4_atom_Pack;
-typedef struct moq_mp4_atom_Cams moq_mp4_atom_Cams;
-typedef struct moq_mp4_atom_Cmfy moq_mp4_atom_Cmfy;
 typedef struct moq_Url moq_Url;
 typedef struct moq_Json moq_Json;
 typedef struct moq_Instant moq_Instant;
@@ -521,8 +537,6 @@ typedef struct moq_rustls_CertDecompressor moq_rustls_CertDecompressor;
 typedef struct moq_rustls_CertCompressor moq_rustls_CertCompressor;
 typedef struct moq_rustls_CompressionCache moq_rustls_CompressionCache;
 typedef struct moq_rustls_CryptoProvider moq_rustls_CryptoProvider;
-typedef struct moq_moq_congestion_Factory moq_moq_congestion_Factory;
-typedef struct moq_moq_quic_Error moq_moq_quic_Error;
 typedef enum moq_EncodeError {
 	MOQ_ENCODEERROR_BOUNDS_EXCEEDED = 0,
 	MOQ_ENCODEERROR_TOO_LARGE = 1,
@@ -532,11 +546,11 @@ typedef enum moq_EncodeError {
 	MOQ_ENCODEERROR_VERSION = 5,
 	MOQ_ENCODEERROR_UNSUPPORTED = 6,
 } moq_EncodeError;
-typedef enum moq_InvalidHop {
-	MOQ_INVALIDHOP_RANGE = 0,
-	MOQ_INVALIDHOP_TOO_MANY = 1,
-	MOQ_INVALIDHOP_DUPLICATE = 2,
-} moq_InvalidHop;
+typedef enum moq_Retry {
+	MOQ_RETRY_SAME = 0,
+	MOQ_RETRY_REROUTE = 1,
+	MOQ_RETRY_NEVER = 2,
+} moq_Retry;
 typedef enum moq_IntersectionError {
 	MOQ_INTERSECTIONERROR_TOO_MANY_PATTERNS = 0,
 } moq_IntersectionError;
@@ -551,7 +565,7 @@ typedef enum moq_tokio_ConnectError {
 } moq_tokio_ConnectError;
 typedef enum moq_tokio_Restart {
 	MOQ_TOKIO_RESTART_REDIAL = 0,
-	MOQ_TOKIO_RESTART_WAIT = 1,
+	MOQ_TOKIO_RESTART_HANDOFF = 1,
 } moq_tokio_Restart;
 typedef enum moq_tokio_Status {
 	MOQ_TOKIO_STATUS_CONNECTED = 0,
@@ -564,18 +578,8 @@ typedef enum moq_tokio_Transport {
 	MOQ_TOKIO_TRANSPORT_TCP = 2,
 	MOQ_TOKIO_TRANSPORT_UNIX = 3,
 	MOQ_TOKIO_TRANSPORT_WEB_TRANSPORT = 4,
-	MOQ_TOKIO_TRANSPORT_WEB_RTC = 5,
+	MOQ_TOKIO_TRANSPORT_TLS = 5,
 } moq_tokio_Transport;
-typedef enum moq_auth_Answer {
-	MOQ_AUTH_ANSWER_GRANTED = 0,
-	MOQ_AUTH_ANSWER_REQUESTS = 1,
-} moq_auth_Answer;
-typedef enum moq_auth_RequestKind {
-	MOQ_AUTH_REQUESTKIND_SUBSCRIBE = 0,
-	MOQ_AUTH_REQUESTKIND_PUBLISH_NAMESPACE = 1,
-	MOQ_AUTH_REQUESTKIND_DISCOVER = 2,
-	MOQ_AUTH_REQUESTKIND_PUBLISH = 3,
-} moq_auth_RequestKind;
 typedef enum moq_path_Error {
 	MOQ_PATH_ERROR_TOO_LONG = 0,
 	MOQ_PATH_ERROR_EMPTY_SEGMENT = 1,
@@ -585,6 +589,20 @@ typedef enum moq_setup_Role {
 	MOQ_SETUP_ROLE_PUBLISHER = 0,
 	MOQ_SETUP_ROLE_SUBSCRIBER = 1,
 } moq_setup_Role;
+typedef enum moq_reconnect_Verdict {
+	MOQ_RECONNECT_VERDICT_RETRY = 0,
+	MOQ_RECONNECT_VERDICT_UNUSABLE = 1,
+	MOQ_RECONNECT_VERDICT_SETTLED = 2,
+} moq_reconnect_Verdict;
+typedef enum moq_reconnect_ConfigError {
+	MOQ_RECONNECT_CONFIGERROR_EMPTY = 0,
+	MOQ_RECONNECT_CONFIGERROR_HEALTHY = 1,
+} moq_reconnect_ConfigError;
+typedef enum moq_reconnect_Redirect {
+	MOQ_RECONNECT_REDIRECT_FOLLOW = 0,
+	MOQ_RECONNECT_REDIRECT_SAME_HOST = 1,
+	MOQ_RECONNECT_REDIRECT_IGNORE = 2,
+} moq_reconnect_Redirect;
 typedef enum moq_stats_Role {
 	MOQ_STATS_ROLE_PUBLISHER = 0,
 	MOQ_STATS_ROLE_SUBSCRIBER = 1,
@@ -611,9 +629,27 @@ typedef enum moq_stats_RefusalKind {
 	MOQ_STATS_REFUSALKIND_UNAVAILABLE = 1,
 	MOQ_STATS_REFUSALKIND_REQUEST = 2,
 	MOQ_STATS_REFUSALKIND_FORBIDDEN = 3,
-	MOQ_STATS_REFUSALKIND_LAN = 4,
+	MOQ_STATS_REFUSALKIND_MEMBERSHIP = 4,
 	MOQ_STATS_REFUSALKIND_EXPIRED = 5,
 } moq_stats_RefusalKind;
+typedef enum moq_stats_RouteClose {
+	MOQ_STATS_ROUTECLOSE_STALLED = 0,
+	MOQ_STATS_ROUTECLOSE_OVERRUN = 1,
+	MOQ_STATS_ROUTECLOSE_MALFORMED = 2,
+	MOQ_STATS_ROUTECLOSE_ROLE = 3,
+	MOQ_STATS_ROUTECLOSE_UNASKED = 4,
+	MOQ_STATS_ROUTECLOSE_REGRESSED = 5,
+	MOQ_STATS_ROUTECLOSE_OTHER = 6,
+} moq_stats_RouteClose;
+typedef enum moq_stats_RouteRefusal {
+	MOQ_STATS_ROUTEREFUSAL_PATH = 0,
+	MOQ_STATS_ROUTEREFUSAL_SCOPE = 1,
+	MOQ_STATS_ROUTEREFUSAL_LOOPED = 2,
+} moq_stats_RouteRefusal;
+typedef enum moq_stats_Withdrawal {
+	MOQ_STATS_WITHDRAWAL_DEAD = 0,
+	MOQ_STATS_WITHDRAWAL_DRAIN = 1,
+} moq_stats_Withdrawal;
 typedef enum moq_transport_Address {
 	MOQ_TRANSPORT_ADDRESS_URI = 0,
 	MOQ_TRANSPORT_ADDRESS_SETUP = 1,
@@ -624,6 +660,14 @@ typedef enum moq_transport_CloseKind {
 	MOQ_TRANSPORT_CLOSEKIND_CLOSED = 2,
 	MOQ_TRANSPORT_CLOSEKIND_EVICTED = 3,
 } moq_transport_CloseKind;
+typedef enum moq_broadcast_Kind {
+	MOQ_BROADCAST_KIND_TRACK = 0,
+	MOQ_BROADCAST_KIND_DATAGRAMS = 1,
+} moq_broadcast_Kind;
+typedef enum moq_track_Compression {
+	MOQ_TRACK_COMPRESSION_NONE = 0,
+	MOQ_TRACK_COMPRESSION_DEFLATE = 1,
+} moq_track_Compression;
 typedef enum moq_track_Order {
 	MOQ_TRACK_ORDER_ASCENDING = 0,
 	MOQ_TRACK_ORDER_DESCENDING = 1,
@@ -633,29 +677,13 @@ typedef enum moq_origin_Link {
 	MOQ_ORIGIN_LINK_PEER = 1,
 	MOQ_ORIGIN_LINK_UPSTREAM = 2,
 } moq_origin_Link;
-typedef enum moq_hang_health_Verdict {
-	MOQ_HANG_HEALTH_VERDICT_UNKNOWN = 0,
-	MOQ_HANG_HEALTH_VERDICT_HEALTHY = 1,
-	MOQ_HANG_HEALTH_VERDICT_DEGRADED = 2,
-	MOQ_HANG_HEALTH_VERDICT_UNHEALTHY = 3,
-} moq_hang_health_Verdict;
-typedef enum moq_hang_health_Role {
-	MOQ_HANG_HEALTH_ROLE_PUBLISHER = 0,
-	MOQ_HANG_HEALTH_ROLE_VIEWER = 1,
-} moq_hang_health_Role;
-typedef enum moq_hang_health_Reset {
-	MOQ_HANG_HEALTH_RESET_DECREASE = 0,
-	MOQ_HANG_HEALTH_RESET_REPLACED = 1,
-} moq_hang_health_Reset;
-typedef enum moq_hang_health_Input {
-	MOQ_HANG_HEALTH_INPUT_RTT = 0,
-	MOQ_HANG_HEALTH_INPUT_LOSS = 1,
-	MOQ_HANG_HEALTH_INPUT_HEADROOM = 2,
-	MOQ_HANG_HEALTH_INPUT_SKIPPED = 3,
-	MOQ_HANG_HEALTH_INPUT_LATE = 4,
-	MOQ_HANG_HEALTH_INPUT_ERRORS = 5,
-	MOQ_HANG_HEALTH_INPUT_STALLED = 6,
-} moq_hang_health_Input;
+typedef enum moq_origin_RouteKind {
+	MOQ_ORIGIN_ROUTEKIND_START = 0,
+	MOQ_ORIGIN_ROUTEKIND_UPDATE = 1,
+	MOQ_ORIGIN_ROUTEKIND_END = 2,
+	MOQ_ORIGIN_ROUTEKIND_OFFLINE = 3,
+	MOQ_ORIGIN_ROUTEKIND_RESTART = 4,
+} moq_origin_RouteKind;
 typedef enum moq_hang_catalog_AudioCodecKind {
 	MOQ_HANG_CATALOG_AUDIOCODECKIND_AAC = 0,
 	MOQ_HANG_CATALOG_AUDIOCODECKIND_OPUS = 1,
@@ -674,10 +702,10 @@ typedef enum moq_hang_catalog_VideoCodecKind {
 	MOQ_HANG_CATALOG_VIDEOCODECKIND_AV1 = 4,
 	MOQ_HANG_CATALOG_VIDEOCODECKIND_UNKNOWN = 5,
 } moq_hang_catalog_VideoCodecKind;
-typedef enum moq_hang_catalog_Range {
-	MOQ_HANG_CATALOG_RANGE_LIMITED = 0,
-	MOQ_HANG_CATALOG_RANGE_FULL = 1,
-} moq_hang_catalog_Range;
+typedef enum moq_hang_catalog_ColorRange {
+	MOQ_HANG_CATALOG_COLORRANGE_LIMITED = 0,
+	MOQ_HANG_CATALOG_COLORRANGE_FULL = 1,
+} moq_hang_catalog_ColorRange;
 typedef enum moq_mux_catalog_CatalogFormat {
 	MOQ_MUX_CATALOG_CATALOGFORMAT_HANG = 0,
 	MOQ_MUX_CATALOG_CATALOGFORMAT_MSF = 1,
@@ -713,15 +741,11 @@ typedef enum moq_mux_import_VideoFormat {
 	MOQ_MUX_IMPORT_VIDEOFORMAT_VP8 = 5,
 	MOQ_MUX_IMPORT_VIDEOFORMAT_VP9 = 6,
 } moq_mux_import_VideoFormat;
-typedef enum moq_mux_timeline_Kind {
-	MOQ_MUX_TIMELINE_KIND_VIDEO = 0,
-	MOQ_MUX_TIMELINE_KIND_AUDIO = 1,
-} moq_mux_timeline_Kind;
-typedef enum moq_mux_timeline_Error {
-	MOQ_MUX_TIMELINE_ERROR_OVERFLOW = 0,
-	MOQ_MUX_TIMELINE_ERROR_BEFORE_ORIGIN = 1,
-	MOQ_MUX_TIMELINE_ERROR_DELAY_OVERFLOW = 2,
-} moq_mux_timeline_Error;
+typedef enum moq_transport_poll_Acked {
+	MOQ_TRANSPORT_POLL_ACKED_DELIVERED = 0,
+	MOQ_TRANSPORT_POLL_ACKED_UNSUPPORTED = 1,
+	MOQ_TRANSPORT_POLL_ACKED_SENT = 2,
+} moq_transport_poll_Acked;
 typedef enum moq_mux_codec_flac_Error {
 	MOQ_MUX_CODEC_FLAC_ERROR_SHORT = 0,
 	MOQ_MUX_CODEC_FLAC_ERROR_INVALID_MARKER = 1,
@@ -749,34 +773,16 @@ typedef enum moq_mux_codec_vp9_Error {
 typedef enum moq_mux_container_ts_Framing {
 	MOQ_MUX_CONTAINER_TS_FRAMING_SECTION = 0,
 } moq_mux_container_ts_Framing;
-typedef enum moq_mux_codec_aac_adts_Error {
-	MOQ_MUX_CODEC_AAC_ADTS_ERROR_TRUNCATED = 0,
-	MOQ_MUX_CODEC_AAC_ADTS_ERROR_SYNCWORD = 1,
-	MOQ_MUX_CODEC_AAC_ADTS_ERROR_SAMPLE_RATE = 2,
-	MOQ_MUX_CODEC_AAC_ADTS_ERROR_FRAME_LENGTH = 3,
-	MOQ_MUX_CODEC_AAC_ADTS_ERROR_PACKET_LENGTH = 4,
-} moq_mux_codec_aac_adts_Error;
-typedef enum moq_mux_container_fmp4_fragment_MissingDuration {
-	MOQ_MUX_CONTAINER_FMP4_FRAGMENT_MISSINGDURATION_REJECT = 0,
-	MOQ_MUX_CONTAINER_FMP4_FRAGMENT_MISSINGDURATION_INFER_FROM_PRESENTATION_TIME = 1,
-} moq_mux_container_fmp4_fragment_MissingDuration;
 typedef enum moq_mux_container_ts_stats_Class {
 	MOQ_MUX_CONTAINER_TS_STATS_CLASS_AUDIO = 1,
 	MOQ_MUX_CONTAINER_TS_STATS_CLASS_VIDEO = 2,
 	MOQ_MUX_CONTAINER_TS_STATS_CLASS_DATA = 0,
 } moq_mux_container_ts_stats_Class;
 typedef enum moq_moq_tokio_quic_CongestionControl {
-	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_LOSS = 0,
-	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_DELAY = 1,
-	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_NONE = 2,
+	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_BBR = 0,
+	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_CUBIC = 1,
+	MOQ_MOQ_TOKIO_QUIC_CONGESTIONCONTROL_UNLIMITED = 2,
 } moq_moq_tokio_quic_CongestionControl;
-typedef enum moq_moq_tokio_connection_Phase {
-	MOQ_MOQ_TOKIO_CONNECTION_PHASE_CONNECTING = 0,
-	MOQ_MOQ_TOKIO_CONNECTION_PHASE_CONNECTED = 1,
-	MOQ_MOQ_TOKIO_CONNECTION_PHASE_DISCONNECTED = 2,
-	MOQ_MOQ_TOKIO_CONNECTION_PHASE_MIGRATING = 3,
-	MOQ_MOQ_TOKIO_CONNECTION_PHASE_CLOSED = 4,
-} moq_moq_tokio_connection_Phase;
 typedef enum moq_moq_tokio_accept_Failure {
 	MOQ_MOQ_TOKIO_ACCEPT_FAILURE_CONNECTION = 0,
 	MOQ_MOQ_TOKIO_ACCEPT_FAILURE_EXHAUSTED = 1,
@@ -787,100 +793,27 @@ typedef enum moq_moq_tokio_Redirect {
 	MOQ_MOQ_TOKIO_REDIRECT_SAME_HOST = 1,
 	MOQ_MOQ_TOKIO_REDIRECT_IGNORE = 2,
 } moq_moq_tokio_Redirect;
-typedef enum moq_mp4_atom_SencBoxVersion {
-	MOQ_MP4_ATOM_SENCBOXVERSION_V0 = 0,
-	MOQ_MP4_ATOM_SENCBOXVERSION_V1 = 1,
-	MOQ_MP4_ATOM_SENCBOXVERSION_V2 = 2,
-} moq_mp4_atom_SencBoxVersion;
 typedef enum moq_rustls_client_Tls12Resumption {
 	MOQ_RUSTLS_CLIENT_TLS12RESUMPTION_DISABLED = 0,
 	MOQ_RUSTLS_CLIENT_TLS12RESUMPTION_SESSION_ID_ONLY = 1,
 	MOQ_RUSTLS_CLIENT_TLS12RESUMPTION_SESSION_ID_OR_TICKETS = 2,
 } moq_rustls_client_Tls12Resumption;
+typedef enum moq_moq_quic_connection_mux_Version {
+	MOQ_MOQ_QUIC_CONNECTION_MUX_VERSION_Q_MUX00 = 0,
+	MOQ_MOQ_QUIC_CONNECTION_MUX_VERSION_Q_MUX01 = 1,
+	MOQ_MOQ_QUIC_CONNECTION_MUX_VERSION_Q_MUX02 = 2,
+} moq_moq_quic_connection_mux_Version;
 typedef enum moq_moq_sock_demux_Discard {
 	MOQ_MOQ_SOCK_DEMUX_DISCARD_STUN = 0,
 	MOQ_MOQ_SOCK_DEMUX_DISCARD_UNKNOWN = 1,
 	MOQ_MOQ_SOCK_DEMUX_DISCARD_UNCLAIMED = 2,
 	MOQ_MOQ_SOCK_DEMUX_DISCARD_OVERFLOW = 3,
 } moq_moq_sock_demux_Discard;
-typedef enum moq_mp4_atom_ClockType {
-	MOQ_MP4_ATOM_CLOCKTYPE_UNKNOWN = 0,
-	MOQ_MP4_ATOM_CLOCKTYPE_DOES_NOT_SYNC = 1,
-	MOQ_MP4_ATOM_CLOCKTYPE_CAN_SYNC = 2,
-	MOQ_MP4_ATOM_CLOCKTYPE_RESERVED = 3,
-} moq_mp4_atom_ClockType;
 typedef enum moq_moq_sock_udp_EcnCodepoint {
 	MOQ_MOQ_SOCK_UDP_ECNCODEPOINT_ECT0 = 2,
 	MOQ_MOQ_SOCK_UDP_ECNCODEPOINT_ECT1 = 1,
 	MOQ_MOQ_SOCK_UDP_ECNCODEPOINT_CE = 3,
 } moq_moq_sock_udp_EcnCodepoint;
-typedef enum moq_moq_quic_Side {
-	MOQ_MOQ_QUIC_SIDE_CLIENT = 0,
-	MOQ_MOQ_QUIC_SIDE_SERVER = 1,
-} moq_moq_quic_Side;
-typedef enum moq_moq_quic_stream_Dir {
-	MOQ_MOQ_QUIC_STREAM_DIR_BI = 0,
-	MOQ_MOQ_QUIC_STREAM_DIR_UNI = 1,
-} moq_moq_quic_stream_Dir;
-typedef enum moq_mp4_atom_ReferenceTime {
-	MOQ_MP4_ATOM_REFERENCETIME_INPUT = 0,
-	MOQ_MP4_ATOM_REFERENCETIME_OUTPUT = 1,
-	MOQ_MP4_ATOM_REFERENCETIME_FINALISED = 2,
-	MOQ_MP4_ATOM_REFERENCETIME_WRITTEN = 3,
-	MOQ_MP4_ATOM_REFERENCETIME_CONSISTENT = 4,
-	MOQ_MP4_ATOM_REFERENCETIME_REAL_TIME = 5,
-} moq_mp4_atom_ReferenceTime;
-typedef enum moq_mp4_atom_VexuProjKind {
-	MOQ_MP4_ATOM_VEXUPROJKIND_RECTILINEAR = 0,
-	MOQ_MP4_ATOM_VEXUPROJKIND_EQUIRECTANGULAR = 1,
-	MOQ_MP4_ATOM_VEXUPROJKIND_HALF_EQUIRECTANGULAR = 2,
-	MOQ_MP4_ATOM_VEXUPROJKIND_FISHEYE = 3,
-	MOQ_MP4_ATOM_VEXUPROJKIND_PARAMETRIC_IMMERSIVE = 4,
-} moq_mp4_atom_VexuProjKind;
-typedef enum moq_mp4_atom_AudioChannelPosition {
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_LEFT = 0,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_RIGHT = 1,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_CENTER = 2,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LFE1 = 3,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LEFT_SURROUND = 4,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_RIGHT_SURROUND = 5,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_LEFT_OF_CENTER = 6,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_RIGHT_OF_CENTER = 7,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_REAR_LEFT = 8,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_REAR_RIGHT = 9,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_REAR_CENTER = 10,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_SURROUND_LEFT = 11,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_SURROUND_RIGHT = 12,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_SIDE_LEFT = 13,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_SIDE_RIGHT = 14,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_LEFT_WIDE = 15,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_FRONT_RIGHT_WIDE = 16,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_FRONT_LEFT = 17,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_FRONT_RIGHT = 18,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_FRONT_CENTER = 19,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_REAR_LEFT = 20,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_REAR_RIGHT = 21,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_REAR_CENTER = 22,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_SIDE_LEFT = 23,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_SIDE_RIGHT = 24,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_CENTER = 25,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LFE2 = 26,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_BOTTOM_FRONT_LEFT = 27,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_BOTTOM_FRONT_RIGHT = 28,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_BOTTOM_FRONT_CENTER = 29,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_SURROUND_LEFT = 30,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_TOP_SURROUND_RIGHT = 31,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LFE3 = 36,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LEOS = 37,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_REOS = 38,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_HWBCAL = 39,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_HWBCAR = 40,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LBS = 41,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_RBS = 42,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_LEFT_EAR = 43,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_RIGHT_EAR = 44,
-	MOQ_MP4_ATOM_AUDIOCHANNELPOSITION_UNKNOWN = 127,
-} moq_mp4_atom_AudioChannelPosition;
 typedef enum moq_Level {
 	MOQ_LEVEL_TRACE = 0,
 	MOQ_LEVEL_DEBUG = 1,
@@ -893,15 +826,6 @@ typedef enum moq_bound {
 	MOQ_BOUND_INCLUDED = 1,
 	MOQ_BOUND_EXCLUDED = 2,
 } moq_bound;
-typedef struct moq_Hop {
-	uint64_t opaque[1];
-} moq_Hop;
-typedef struct moq_vec_Hop {
-	const moq_Hop *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_Hop;
-void moq_vec_Hop_free(moq_vec_Hop vec);
 typedef struct moq_vec_Pattern {
 	moq_Pattern *const *ptr;
 	size_t len;
@@ -934,11 +858,8 @@ typedef struct moq_vec_Segment {
 	void *owner;
 } moq_vec_Segment;
 void moq_vec_Segment_free(moq_vec_Segment vec);
-typedef struct moq_Timestamp {
-	uint64_t opaque[2];
-} moq_Timestamp;
 typedef struct moq_vec_Timestamp {
-	const moq_Timestamp *ptr;
+	moq_Timestamp *const *ptr;
 	size_t len;
 	void *owner;
 } moq_vec_Timestamp;
@@ -967,24 +888,18 @@ typedef struct moq_vec_bytes {
 	void *owner;
 } moq_vec_bytes;
 void moq_vec_bytes_free(moq_vec_bytes vec);
-typedef struct moq_vec_frame_Frame {
-	moq_frame_Frame *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_frame_Frame;
-void moq_vec_frame_Frame_free(moq_vec_frame_Frame vec);
-typedef struct moq_vec_hang_health_Evidence {
-	moq_hang_health_Evidence *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_hang_health_Evidence;
-void moq_vec_hang_health_Evidence_free(moq_vec_hang_health_Evidence vec);
 typedef struct moq_vec_i32 {
 	const int32_t *ptr;
 	size_t len;
 	void *owner;
 } moq_vec_i32;
 void moq_vec_i32_free(moq_vec_i32 vec);
+typedef struct moq_vec_moq_quic_connection_mux_Version {
+	const moq_moq_quic_connection_mux_Version *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_moq_quic_connection_mux_Version;
+void moq_vec_moq_quic_connection_mux_Version_free(moq_vec_moq_quic_connection_mux_Version vec);
 typedef struct moq_vec_moq_sock_demux_Discard {
 	const moq_moq_sock_demux_Discard *ptr;
 	size_t len;
@@ -1009,748 +924,9 @@ typedef struct moq_vec_moq_tokio_connect_Addr {
 	void *owner;
 } moq_vec_moq_tokio_connect_Addr;
 void moq_vec_moq_tokio_connect_Addr_free(moq_vec_moq_tokio_connect_Addr vec);
-typedef struct moq_vec_mp4_atom_Any {
-	moq_mp4_atom_Any *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Any;
-void moq_vec_mp4_atom_Any_free(moq_vec_mp4_atom_Any vec);
-typedef struct moq_mp4_atom_ChplEntry {
-	uint64_t start;
-	moq_buf title;
-} moq_mp4_atom_ChplEntry;
-typedef struct moq_vec_mp4_atom_ChplEntry {
-	const moq_mp4_atom_ChplEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_ChplEntry;
-void moq_vec_mp4_atom_ChplEntry_free(moq_vec_mp4_atom_ChplEntry vec);
-typedef struct moq_vec_mp4_atom_Codec {
-	moq_mp4_atom_Codec *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Codec;
-void moq_vec_mp4_atom_Codec_free(moq_vec_mp4_atom_Codec vec);
-typedef struct moq_mp4_atom_Component {
-	uint16_t component_type;
-	moq_buf component_type_uri;
-} moq_mp4_atom_Component;
-typedef struct moq_vec_mp4_atom_Component {
-	const moq_mp4_atom_Component *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Component;
-void moq_vec_mp4_atom_Component_free(moq_vec_mp4_atom_Component vec);
-typedef struct moq_mp4_atom_Cprt {
-	moq_buf language;
-	moq_buf notice;
-} moq_mp4_atom_Cprt;
-typedef struct moq_vec_mp4_atom_Cprt {
-	const moq_mp4_atom_Cprt *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Cprt;
-void moq_vec_mp4_atom_Cprt_free(moq_vec_mp4_atom_Cprt vec);
-typedef struct moq_mp4_atom_CttsEntry {
-	uint32_t sample_count;
-	int64_t sample_offset;
-} moq_mp4_atom_CttsEntry;
-typedef struct moq_vec_mp4_atom_CttsEntry {
-	const moq_mp4_atom_CttsEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_CttsEntry;
-void moq_vec_mp4_atom_CttsEntry_free(moq_vec_mp4_atom_CttsEntry vec);
-typedef enum moq_mp4_atom_DrefEntry_tag {
-	MOQ_MP4_ATOM_DREFENTRY_URL = 0,
-	MOQ_MP4_ATOM_DREFENTRY_URN = 1,
-	MOQ_MP4_ATOM_DREFENTRY_UNKNOWN = 2,
-} moq_mp4_atom_DrefEntry_tag;
-typedef struct moq_mp4_atom_Url {
-	moq_buf location;
-} moq_mp4_atom_Url;
-typedef struct moq_mp4_atom_DrefEntry_Url {
-	moq_mp4_atom_Url _0;
-} moq_mp4_atom_DrefEntry_Url;
-typedef struct moq_mp4_atom_Urn {
-	moq_buf name;
-	moq_buf location;
-} moq_mp4_atom_Urn;
-typedef struct moq_mp4_atom_DrefEntry_Urn {
-	moq_mp4_atom_Urn _0;
-} moq_mp4_atom_DrefEntry_Urn;
-typedef struct moq_mp4_atom_FourCC {
-	uint8_t opaque[4];
-} moq_mp4_atom_FourCC;
-typedef struct moq_mp4_atom_DrefEntry_Unknown {
-	moq_mp4_atom_FourCC _0;
-	moq_buf _1;
-} moq_mp4_atom_DrefEntry_Unknown;
-typedef struct moq_mp4_atom_DrefEntry {
-	moq_mp4_atom_DrefEntry_tag tag;
-	union {
-		moq_mp4_atom_DrefEntry_Url url;
-		moq_mp4_atom_DrefEntry_Urn urn;
-		moq_mp4_atom_DrefEntry_Unknown unknown;
-	};
-} moq_mp4_atom_DrefEntry;
-typedef struct moq_vec_mp4_atom_DrefEntry {
-	const moq_mp4_atom_DrefEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_DrefEntry;
-void moq_vec_mp4_atom_DrefEntry_free(moq_vec_mp4_atom_DrefEntry vec);
-typedef struct moq_option_u16 {
-	bool some;
-	uint16_t value;
-} moq_option_u16;
-typedef struct moq_mp4_atom_Ec3IndependentSubstream {
-	uint8_t fscod;
-	uint8_t bsid;
-	bool asvc;
-	uint8_t bsmod;
-	uint8_t acmod;
-	bool lfeon;
-	uint8_t num_dep_sub;
-	moq_option_u16 chan_loc;
-} moq_mp4_atom_Ec3IndependentSubstream;
-typedef struct moq_vec_mp4_atom_Ec3IndependentSubstream {
-	const moq_mp4_atom_Ec3IndependentSubstream *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Ec3IndependentSubstream;
-void moq_vec_mp4_atom_Ec3IndependentSubstream_free(moq_vec_mp4_atom_Ec3IndependentSubstream vec);
-typedef struct moq_option_u64 {
-	bool some;
-	uint64_t value;
-} moq_option_u64;
-typedef struct moq_mp4_atom_FixedPoint_i16 {
-	uint16_t opaque[2];
-} moq_mp4_atom_FixedPoint_i16;
-typedef struct moq_mp4_atom_ElstEntry {
-	uint64_t segment_duration;
-	moq_option_u64 media_time;
-	moq_mp4_atom_FixedPoint_i16 media_rate;
-} moq_mp4_atom_ElstEntry;
-typedef struct moq_vec_mp4_atom_ElstEntry {
-	const moq_mp4_atom_ElstEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_ElstEntry;
-void moq_vec_mp4_atom_ElstEntry_free(moq_vec_mp4_atom_ElstEntry vec);
-typedef enum moq_mp4_atom_FlacMetadataBlock_tag {
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_STREAM_INFO = 0,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_PADDING = 1,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_APPLICATION = 2,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_SEEK_TABLE = 3,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_VORBIS_COMMENT = 4,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_CUE_SHEET = 5,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_PICTURE = 6,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_RESERVED = 7,
-	MOQ_MP4_ATOM_FLACMETADATABLOCK_FORBIDDEN = 8,
-} moq_mp4_atom_FlacMetadataBlock_tag;
-typedef struct moq_mp4_atom_u24 {
-	uint8_t opaque[3];
-} moq_mp4_atom_u24;
-typedef struct moq_mp4_atom_FlacMetadataBlock_StreamInfo {
-	uint16_t minimum_block_size;
-	uint16_t maximum_block_size;
-	moq_mp4_atom_u24 minimum_frame_size;
-	moq_mp4_atom_u24 maximum_frame_size;
-	uint32_t sample_rate;
-	uint8_t num_channels_minus_one;
-	uint8_t bits_per_sample_minus_one;
-	uint64_t number_of_interchannel_samples;
-	moq_buf md5_checksum;
-} moq_mp4_atom_FlacMetadataBlock_StreamInfo;
-typedef struct moq_vec_string {
-	const moq_buf *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_string;
-void moq_vec_string_free(moq_vec_string vec);
-typedef struct moq_mp4_atom_FlacMetadataBlock_VorbisComment {
-	moq_buf vendor_string;
-	moq_vec_string comments;
-} moq_mp4_atom_FlacMetadataBlock_VorbisComment;
-typedef struct moq_mp4_atom_FlacMetadataBlock {
-	moq_mp4_atom_FlacMetadataBlock_tag tag;
-	union {
-		moq_mp4_atom_FlacMetadataBlock_StreamInfo stream_info;
-		moq_mp4_atom_FlacMetadataBlock_VorbisComment vorbis_comment;
-	};
-} moq_mp4_atom_FlacMetadataBlock;
-typedef struct moq_vec_mp4_atom_FlacMetadataBlock {
-	const moq_mp4_atom_FlacMetadataBlock *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_FlacMetadataBlock;
-void moq_vec_mp4_atom_FlacMetadataBlock_free(moq_vec_mp4_atom_FlacMetadataBlock vec);
-typedef struct moq_mp4_atom_FontEntry {
-	uint16_t font_id;
-	moq_buf font;
-} moq_mp4_atom_FontEntry;
-typedef struct moq_vec_mp4_atom_FontEntry {
-	const moq_mp4_atom_FontEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_FontEntry;
-void moq_vec_mp4_atom_FontEntry_free(moq_vec_mp4_atom_FontEntry vec);
-typedef struct moq_vec_mp4_atom_FourCC {
-	const moq_mp4_atom_FourCC *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_FourCC;
-void moq_vec_mp4_atom_FourCC_free(moq_vec_mp4_atom_FourCC vec);
-typedef struct moq_mp4_atom_FragmentInfo {
-	uint64_t time;
-	uint64_t moof_offset;
-	uint32_t traf_number;
-	uint32_t trun_number;
-	uint32_t sample_delta;
-} moq_mp4_atom_FragmentInfo;
-typedef struct moq_vec_mp4_atom_FragmentInfo {
-	const moq_mp4_atom_FragmentInfo *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_FragmentInfo;
-void moq_vec_mp4_atom_FragmentInfo_free(moq_vec_mp4_atom_FragmentInfo vec);
-typedef struct moq_mp4_atom_HvcCArray {
-	bool completeness;
-	uint8_t nal_unit_type;
-	moq_vec_bytes nalus;
-} moq_mp4_atom_HvcCArray;
-typedef struct moq_vec_mp4_atom_HvcCArray {
-	const moq_mp4_atom_HvcCArray *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_HvcCArray;
-void moq_vec_mp4_atom_HvcCArray_free(moq_vec_mp4_atom_HvcCArray vec);
-typedef struct moq_mp4_atom_PropertyAssociation {
-	bool essential;
-	uint16_t property_index;
-} moq_mp4_atom_PropertyAssociation;
-typedef struct moq_vec_mp4_atom_PropertyAssociation {
-	const moq_mp4_atom_PropertyAssociation *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_PropertyAssociation;
-void moq_vec_mp4_atom_PropertyAssociation_free(moq_vec_mp4_atom_PropertyAssociation vec);
-typedef struct moq_mp4_atom_PropertyAssociations {
-	uint32_t item_id;
-	moq_vec_mp4_atom_PropertyAssociation associations;
-} moq_mp4_atom_PropertyAssociations;
-typedef struct moq_vec_mp4_atom_PropertyAssociations {
-	const moq_mp4_atom_PropertyAssociations *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_PropertyAssociations;
-void moq_vec_mp4_atom_PropertyAssociations_free(moq_vec_mp4_atom_PropertyAssociations vec);
-typedef struct moq_mp4_atom_Ipma {
-	moq_vec_mp4_atom_PropertyAssociations item_properties;
-} moq_mp4_atom_Ipma;
-typedef struct moq_vec_mp4_atom_Ipma {
-	const moq_mp4_atom_Ipma *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Ipma;
-void moq_vec_mp4_atom_Ipma_free(moq_vec_mp4_atom_Ipma vec);
-typedef struct moq_option_mp4_atom_FourCC {
-	bool some;
-	moq_mp4_atom_FourCC value;
-} moq_option_mp4_atom_FourCC;
-typedef struct moq_mp4_atom_ItemInfoEntry {
-	uint32_t item_id;
-	uint16_t item_protection_index;
-	moq_option_mp4_atom_FourCC item_type;
-	moq_buf item_name;
-	moq_buf content_type;
-	moq_buf content_encoding;
-	moq_buf item_uri_type;
-	bool item_not_in_presentation;
-} moq_mp4_atom_ItemInfoEntry;
-typedef struct moq_vec_mp4_atom_ItemInfoEntry {
-	const moq_mp4_atom_ItemInfoEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_ItemInfoEntry;
-void moq_vec_mp4_atom_ItemInfoEntry_free(moq_vec_mp4_atom_ItemInfoEntry vec);
-typedef struct moq_mp4_atom_ItemLocationExtent {
-	uint64_t item_reference_index;
-	uint64_t offset;
-	uint64_t length;
-} moq_mp4_atom_ItemLocationExtent;
-typedef struct moq_vec_mp4_atom_ItemLocationExtent {
-	const moq_mp4_atom_ItemLocationExtent *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_ItemLocationExtent;
-void moq_vec_mp4_atom_ItemLocationExtent_free(moq_vec_mp4_atom_ItemLocationExtent vec);
-typedef struct moq_mp4_atom_ItemLocation {
-	uint32_t item_id;
-	uint8_t construction_method;
-	uint16_t data_reference_index;
-	uint64_t base_offset;
-	moq_vec_mp4_atom_ItemLocationExtent extents;
-} moq_mp4_atom_ItemLocation;
-typedef struct moq_vec_mp4_atom_ItemLocation {
-	const moq_mp4_atom_ItemLocation *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_ItemLocation;
-void moq_vec_mp4_atom_ItemLocation_free(moq_vec_mp4_atom_ItemLocation vec);
-typedef struct moq_mp4_atom_KeyEntry {
-	moq_mp4_atom_FourCC key_namespace;
-	moq_buf key_value;
-} moq_mp4_atom_KeyEntry;
-typedef struct moq_vec_mp4_atom_KeyEntry {
-	const moq_mp4_atom_KeyEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_KeyEntry;
-void moq_vec_mp4_atom_KeyEntry_free(moq_vec_mp4_atom_KeyEntry vec);
-typedef struct moq_mp4_atom_Kind {
-	moq_buf scheme_uri;
-	moq_buf value;
-} moq_mp4_atom_Kind;
-typedef struct moq_vec_mp4_atom_Kind {
-	const moq_mp4_atom_Kind *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Kind;
-void moq_vec_mp4_atom_Kind_free(moq_vec_mp4_atom_Kind vec);
-typedef struct moq_mp4_atom_Keyd {
-	moq_mp4_atom_FourCC key_namespace;
-	moq_buf key_value;
-} moq_mp4_atom_Keyd;
-typedef enum moq_mp4_atom_DataType_tag {
-	MOQ_MP4_ATOM_DATATYPE_WELL_KNOWN = 0,
-	MOQ_MP4_ATOM_DATATYPE_CUSTOM = 1,
-	MOQ_MP4_ATOM_DATATYPE_UNKNOWN = 2,
-} moq_mp4_atom_DataType_tag;
-typedef struct moq_mp4_atom_DataType_WellKnown {
-	uint32_t _0;
-} moq_mp4_atom_DataType_WellKnown;
-typedef struct moq_mp4_atom_DataType_Custom {
-	moq_buf _0;
-} moq_mp4_atom_DataType_Custom;
-typedef struct moq_mp4_atom_DataType_Unknown {
-	uint32_t _0;
-	moq_buf _1;
-} moq_mp4_atom_DataType_Unknown;
-typedef struct moq_mp4_atom_DataType {
-	moq_mp4_atom_DataType_tag tag;
-	union {
-		moq_mp4_atom_DataType_WellKnown well_known;
-		moq_mp4_atom_DataType_Custom custom;
-		moq_mp4_atom_DataType_Unknown unknown;
-	};
-} moq_mp4_atom_DataType;
-typedef struct moq_mp4_atom_Dtyp {
-	moq_mp4_atom_DataType data_type;
-} moq_mp4_atom_Dtyp;
-typedef struct moq_option_mp4_atom_Dtyp {
-	bool some;
-	moq_mp4_atom_Dtyp value;
-} moq_option_mp4_atom_Dtyp;
-typedef struct moq_mp4_atom_Loca {
-	moq_buf locale;
-} moq_mp4_atom_Loca;
-typedef struct moq_option_mp4_atom_Loca {
-	bool some;
-	moq_mp4_atom_Loca value;
-} moq_option_mp4_atom_Loca;
-typedef struct moq_mp4_atom_Setu {
-	moq_buf data_;
-} moq_mp4_atom_Setu;
-typedef struct moq_option_mp4_atom_Setu {
-	bool some;
-	moq_mp4_atom_Setu value;
-} moq_option_mp4_atom_Setu;
-typedef struct moq_mp4_atom_MebxKey {
-	moq_mp4_atom_FourCC local_key_id;
-	moq_mp4_atom_Keyd keyd;
-	moq_option_mp4_atom_Dtyp dtyp;
-	moq_option_mp4_atom_Loca loca;
-	moq_option_mp4_atom_Setu setu;
-} moq_mp4_atom_MebxKey;
-typedef struct moq_vec_mp4_atom_MebxKey {
-	const moq_mp4_atom_MebxKey *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_MebxKey;
-void moq_vec_mp4_atom_MebxKey_free(moq_vec_mp4_atom_MebxKey vec);
-typedef struct moq_vec_u32 {
-	const uint32_t *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_u32;
-void moq_vec_u32_free(moq_vec_u32 vec);
-typedef struct moq_mp4_atom_Reference {
-	moq_mp4_atom_FourCC reference_type;
-	uint32_t from_item_id;
-	moq_vec_u32 to_item_ids;
-} moq_mp4_atom_Reference;
-typedef struct moq_vec_mp4_atom_Reference {
-	const moq_mp4_atom_Reference *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Reference;
-void moq_vec_mp4_atom_Reference_free(moq_vec_mp4_atom_Reference vec);
-typedef struct moq_mp4_atom_Rtng {
-	moq_mp4_atom_FourCC entity;
-	moq_mp4_atom_FourCC criteria;
-	moq_buf language;
-	moq_buf rating_info;
-} moq_mp4_atom_Rtng;
-typedef struct moq_vec_mp4_atom_Rtng {
-	const moq_mp4_atom_Rtng *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Rtng;
-void moq_vec_mp4_atom_Rtng_free(moq_vec_mp4_atom_Rtng vec);
-typedef struct moq_mp4_atom_AuxInfo {
-	moq_mp4_atom_FourCC aux_info_type;
-	uint32_t aux_info_type_parameter;
-} moq_mp4_atom_AuxInfo;
-typedef struct moq_option_mp4_atom_AuxInfo {
-	bool some;
-	moq_mp4_atom_AuxInfo value;
-} moq_option_mp4_atom_AuxInfo;
-typedef struct moq_vec_u64 {
-	const uint64_t *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_u64;
-void moq_vec_u64_free(moq_vec_u64 vec);
-typedef struct moq_mp4_atom_Saio {
-	moq_option_mp4_atom_AuxInfo aux_info;
-	moq_vec_u64 offsets;
-} moq_mp4_atom_Saio;
-typedef struct moq_vec_mp4_atom_Saio {
-	const moq_mp4_atom_Saio *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Saio;
-void moq_vec_mp4_atom_Saio_free(moq_vec_mp4_atom_Saio vec);
-typedef struct moq_mp4_atom_Saiz {
-	moq_option_mp4_atom_AuxInfo aux_info;
-	uint8_t default_sample_info_size;
-	uint32_t sample_count;
-	moq_buf sample_info_size;
-} moq_mp4_atom_Saiz;
-typedef struct moq_vec_mp4_atom_Saiz {
-	const moq_mp4_atom_Saiz *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Saiz;
-void moq_vec_mp4_atom_Saiz_free(moq_vec_mp4_atom_Saiz vec);
-typedef struct moq_option_u32 {
-	bool some;
-	uint32_t value;
-} moq_option_u32;
-typedef struct moq_mp4_atom_SbgpEntry {
-	uint32_t sample_count;
-	uint32_t group_description_index;
-} moq_mp4_atom_SbgpEntry;
-typedef struct moq_vec_mp4_atom_SbgpEntry {
-	const moq_mp4_atom_SbgpEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SbgpEntry;
-void moq_vec_mp4_atom_SbgpEntry_free(moq_vec_mp4_atom_SbgpEntry vec);
-typedef struct moq_mp4_atom_Sbgp {
-	moq_mp4_atom_FourCC grouping_type;
-	moq_option_u32 grouping_type_parameter;
-	moq_vec_mp4_atom_SbgpEntry entries;
-} moq_mp4_atom_Sbgp;
-typedef struct moq_vec_mp4_atom_Sbgp {
-	const moq_mp4_atom_Sbgp *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Sbgp;
-void moq_vec_mp4_atom_Sbgp_free(moq_vec_mp4_atom_Sbgp vec);
-typedef struct moq_mp4_atom_SchemeIdEntry {
-	moq_buf scheme_id_uri;
-	moq_buf value;
-	bool atleast_once;
-} moq_mp4_atom_SchemeIdEntry;
-typedef struct moq_vec_mp4_atom_SchemeIdEntry {
-	const moq_mp4_atom_SchemeIdEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SchemeIdEntry;
-void moq_vec_mp4_atom_SchemeIdEntry_free(moq_vec_mp4_atom_SchemeIdEntry vec);
-typedef struct moq_mp4_atom_SegmentReference {
-	bool reference_type;
-	uint32_t referenced_size;
-	uint32_t subsegment_duration;
-	bool starts_with_sap;
-	uint8_t sap_type;
-	uint32_t sap_delta_time;
-} moq_mp4_atom_SegmentReference;
-typedef struct moq_vec_mp4_atom_SegmentReference {
-	const moq_mp4_atom_SegmentReference *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SegmentReference;
-void moq_vec_mp4_atom_SegmentReference_free(moq_vec_mp4_atom_SegmentReference vec);
-typedef enum moq_mp4_atom_AnySampleGroupEntry_tag {
-	MOQ_MP4_ATOM_ANYSAMPLEGROUPENTRY_DIRECT_REFERENCE_SAMPLE_LIST = 0,
-	MOQ_MP4_ATOM_ANYSAMPLEGROUPENTRY_UNKNOWN_GROUPING_TYPE = 1,
-} moq_mp4_atom_AnySampleGroupEntry_tag;
-typedef struct moq_mp4_atom_AnySampleGroupEntry_DirectReferenceSampleList {
-	uint32_t _0;
-	moq_vec_u32 _1;
-} moq_mp4_atom_AnySampleGroupEntry_DirectReferenceSampleList;
-typedef struct moq_mp4_atom_AnySampleGroupEntry_UnknownGroupingType {
-	moq_mp4_atom_FourCC _0;
-	moq_buf _1;
-} moq_mp4_atom_AnySampleGroupEntry_UnknownGroupingType;
-typedef struct moq_mp4_atom_AnySampleGroupEntry {
-	moq_mp4_atom_AnySampleGroupEntry_tag tag;
-	union {
-		moq_mp4_atom_AnySampleGroupEntry_DirectReferenceSampleList direct_reference_sample_list;
-		moq_mp4_atom_AnySampleGroupEntry_UnknownGroupingType unknown_grouping_type;
-	};
-} moq_mp4_atom_AnySampleGroupEntry;
-typedef struct moq_mp4_atom_SgpdEntry {
-	moq_option_u32 description_length;
-	moq_mp4_atom_AnySampleGroupEntry entry;
-} moq_mp4_atom_SgpdEntry;
-typedef struct moq_vec_mp4_atom_SgpdEntry {
-	const moq_mp4_atom_SgpdEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SgpdEntry;
-void moq_vec_mp4_atom_SgpdEntry_free(moq_vec_mp4_atom_SgpdEntry vec);
-typedef struct moq_mp4_atom_Sgpd {
-	moq_mp4_atom_FourCC grouping_type;
-	moq_option_u32 default_length;
-	moq_option_u32 default_group_description_index;
-	bool static_group_description;
-	bool static_mapping;
-	bool essential;
-	moq_vec_mp4_atom_SgpdEntry entries;
-} moq_mp4_atom_Sgpd;
-typedef struct moq_vec_mp4_atom_Sgpd {
-	const moq_mp4_atom_Sgpd *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Sgpd;
-void moq_vec_mp4_atom_Sgpd_free(moq_vec_mp4_atom_Sgpd vec);
-typedef enum moq_mp4_atom_SpeakerPosition_tag {
-	MOQ_MP4_ATOM_SPEAKERPOSITION_STANDARD = 0,
-	MOQ_MP4_ATOM_SPEAKERPOSITION_EXPLICIT = 1,
-} moq_mp4_atom_SpeakerPosition_tag;
-typedef struct moq_mp4_atom_SpeakerPosition_Standard {
-	moq_mp4_atom_AudioChannelPosition _0;
-} moq_mp4_atom_SpeakerPosition_Standard;
-typedef struct moq_mp4_atom_ExplicitSpeakerPosition {
-	int16_t azimuth;
-	int8_t elevation;
-} moq_mp4_atom_ExplicitSpeakerPosition;
-typedef struct moq_mp4_atom_SpeakerPosition_Explicit {
-	moq_mp4_atom_ExplicitSpeakerPosition _0;
-} moq_mp4_atom_SpeakerPosition_Explicit;
-typedef struct moq_mp4_atom_SpeakerPosition {
-	moq_mp4_atom_SpeakerPosition_tag tag;
-	union {
-		moq_mp4_atom_SpeakerPosition_Standard standard;
-		moq_mp4_atom_SpeakerPosition_Explicit explicit_;
-	};
-} moq_mp4_atom_SpeakerPosition;
-typedef struct moq_vec_mp4_atom_SpeakerPosition {
-	const moq_mp4_atom_SpeakerPosition *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SpeakerPosition;
-void moq_vec_mp4_atom_SpeakerPosition_free(moq_vec_mp4_atom_SpeakerPosition vec);
-typedef struct moq_mp4_atom_StscEntry {
-	uint32_t first_chunk;
-	uint32_t samples_per_chunk;
-	uint32_t sample_description_index;
-} moq_mp4_atom_StscEntry;
-typedef struct moq_vec_mp4_atom_StscEntry {
-	const moq_mp4_atom_StscEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_StscEntry;
-void moq_vec_mp4_atom_StscEntry_free(moq_vec_mp4_atom_StscEntry vec);
-typedef struct moq_mp4_atom_SttsEntry {
-	uint32_t sample_count;
-	uint32_t sample_delta;
-} moq_mp4_atom_SttsEntry;
-typedef struct moq_vec_mp4_atom_SttsEntry {
-	const moq_mp4_atom_SttsEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SttsEntry;
-void moq_vec_mp4_atom_SttsEntry_free(moq_vec_mp4_atom_SttsEntry vec);
-typedef struct moq_array_u8_3 {
-	uint8_t items[3];
-} moq_array_u8_3;
-typedef enum moq_mp4_atom_SubsSubsampleSize_tag {
-	MOQ_MP4_ATOM_SUBSSUBSAMPLESIZE_U16 = 0,
-	MOQ_MP4_ATOM_SUBSSUBSAMPLESIZE_U32 = 1,
-} moq_mp4_atom_SubsSubsampleSize_tag;
-typedef struct moq_mp4_atom_SubsSubsampleSize_U16 {
-	uint16_t _0;
-} moq_mp4_atom_SubsSubsampleSize_U16;
-typedef struct moq_mp4_atom_SubsSubsampleSize_U32 {
-	uint32_t _0;
-} moq_mp4_atom_SubsSubsampleSize_U32;
-typedef struct moq_mp4_atom_SubsSubsampleSize {
-	moq_mp4_atom_SubsSubsampleSize_tag tag;
-	union {
-		moq_mp4_atom_SubsSubsampleSize_U16 u16;
-		moq_mp4_atom_SubsSubsampleSize_U32 u32;
-	};
-} moq_mp4_atom_SubsSubsampleSize;
-typedef struct moq_mp4_atom_SubsSubsample {
-	moq_mp4_atom_SubsSubsampleSize size;
-	uint8_t priority;
-	bool discardable;
-	moq_buf codec_specific_parameters;
-} moq_mp4_atom_SubsSubsample;
-typedef struct moq_vec_mp4_atom_SubsSubsample {
-	const moq_mp4_atom_SubsSubsample *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SubsSubsample;
-void moq_vec_mp4_atom_SubsSubsample_free(moq_vec_mp4_atom_SubsSubsample vec);
-typedef struct moq_mp4_atom_SubsEntry {
-	uint32_t sample_delta;
-	moq_vec_mp4_atom_SubsSubsample subsamples;
-} moq_mp4_atom_SubsEntry;
-typedef struct moq_vec_mp4_atom_SubsEntry {
-	const moq_mp4_atom_SubsEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_SubsEntry;
-void moq_vec_mp4_atom_SubsEntry_free(moq_vec_mp4_atom_SubsEntry vec);
-typedef struct moq_mp4_atom_Subs {
-	moq_array_u8_3 flags;
-	moq_vec_mp4_atom_SubsEntry entries;
-} moq_mp4_atom_Subs;
-typedef struct moq_vec_mp4_atom_Subs {
-	const moq_mp4_atom_Subs *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Subs;
-void moq_vec_mp4_atom_Subs_free(moq_vec_mp4_atom_Subs vec);
-typedef struct moq_mp4_atom_Tfra {
-	uint32_t track_id;
-	moq_vec_mp4_atom_FragmentInfo entries;
-} moq_mp4_atom_Tfra;
-typedef struct moq_vec_mp4_atom_Tfra {
-	const moq_mp4_atom_Tfra *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Tfra;
-void moq_vec_mp4_atom_Tfra_free(moq_vec_mp4_atom_Tfra vec);
-typedef struct moq_mp4_atom_TrackReferenceTypeBox {
-	moq_mp4_atom_FourCC reference_type;
-	moq_vec_u32 track_ids;
-} moq_mp4_atom_TrackReferenceTypeBox;
-typedef struct moq_vec_mp4_atom_TrackReferenceTypeBox {
-	const moq_mp4_atom_TrackReferenceTypeBox *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_TrackReferenceTypeBox;
-void moq_vec_mp4_atom_TrackReferenceTypeBox_free(moq_vec_mp4_atom_TrackReferenceTypeBox vec);
-typedef struct moq_vec_mp4_atom_Traf {
-	moq_mp4_atom_Traf *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Traf;
-void moq_vec_mp4_atom_Traf_free(moq_vec_mp4_atom_Traf vec);
-typedef struct moq_vec_mp4_atom_Trak {
-	moq_mp4_atom_Trak *const *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Trak;
-void moq_vec_mp4_atom_Trak_free(moq_vec_mp4_atom_Trak vec);
-typedef struct moq_mp4_atom_Trex {
-	uint32_t track_id;
-	uint32_t default_sample_description_index;
-	uint32_t default_sample_duration;
-	uint32_t default_sample_size;
-	uint32_t default_sample_flags;
-} moq_mp4_atom_Trex;
-typedef struct moq_vec_mp4_atom_Trex {
-	const moq_mp4_atom_Trex *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Trex;
-void moq_vec_mp4_atom_Trex_free(moq_vec_mp4_atom_Trex vec);
-typedef struct moq_option_i32 {
-	bool some;
-	int32_t value;
-} moq_option_i32;
-typedef enum moq_mp4_atom_TrunSamples_tag {
-	MOQ_MP4_ATOM_TRUNSAMPLES_INHERITED = 0,
-	MOQ_MP4_ATOM_TRUNSAMPLES_EXPLICIT = 1,
-} moq_mp4_atom_TrunSamples_tag;
-typedef struct moq_mp4_atom_TrunSamples_Inherited {
-	uint32_t count;
-	moq_option_u32 first_flags;
-} moq_mp4_atom_TrunSamples_Inherited;
-typedef struct moq_option_i64 {
-	bool some;
-	int64_t value;
-} moq_option_i64;
-typedef struct moq_mp4_atom_TrunEntry {
-	moq_option_u32 duration;
-	moq_option_u32 size;
-	moq_option_u32 flags;
-	moq_option_i64 cts;
-} moq_mp4_atom_TrunEntry;
-typedef struct moq_vec_mp4_atom_TrunEntry {
-	const moq_mp4_atom_TrunEntry *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_TrunEntry;
-void moq_vec_mp4_atom_TrunEntry_free(moq_vec_mp4_atom_TrunEntry vec);
-typedef struct moq_mp4_atom_TrunSamples_Explicit {
-	moq_vec_mp4_atom_TrunEntry _0;
-} moq_mp4_atom_TrunSamples_Explicit;
-typedef struct moq_mp4_atom_TrunSamples {
-	moq_mp4_atom_TrunSamples_tag tag;
-	union {
-		moq_mp4_atom_TrunSamples_Inherited inherited;
-		moq_mp4_atom_TrunSamples_Explicit explicit_;
-	};
-} moq_mp4_atom_TrunSamples;
-typedef struct moq_mp4_atom_Trun {
-	moq_option_i32 data_offset;
-	moq_mp4_atom_TrunSamples samples;
-} moq_mp4_atom_Trun;
-typedef struct moq_vec_mp4_atom_Trun {
-	const moq_mp4_atom_Trun *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_Trun;
-void moq_vec_mp4_atom_Trun_free(moq_vec_mp4_atom_Trun vec);
-typedef struct moq_mp4_atom_UncompressedComponent {
-	uint16_t component_index;
-	uint8_t component_bit_depth_minus_one;
-	uint8_t component_format;
-	uint8_t component_align_size;
-} moq_mp4_atom_UncompressedComponent;
-typedef struct moq_vec_mp4_atom_UncompressedComponent {
-	const moq_mp4_atom_UncompressedComponent *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mp4_atom_UncompressedComponent;
-void moq_vec_mp4_atom_UncompressedComponent_free(moq_vec_mp4_atom_UncompressedComponent vec);
-typedef struct moq_option_Timestamp {
-	bool some;
-	moq_Timestamp value;
-} moq_option_Timestamp;
 typedef struct moq_mux_container_Frame {
-	moq_Timestamp timestamp;
-	moq_option_Timestamp duration;
+	moq_Timestamp *timestamp;
+	moq_Timestamp *duration;
 	moq_buf payload;
 	bool keyframe;
 } moq_mux_container_Frame;
@@ -1760,17 +936,6 @@ typedef struct moq_vec_mux_container_Frame {
 	void *owner;
 } moq_vec_mux_container_Frame;
 void moq_vec_mux_container_Frame_free(moq_vec_mux_container_Frame vec);
-typedef struct moq_mux_container_fmp4_Fragment {
-	moq_buf data_;
-	bool independent;
-	moq_duration duration;
-} moq_mux_container_fmp4_Fragment;
-typedef struct moq_vec_mux_container_fmp4_Fragment {
-	const moq_mux_container_fmp4_Fragment *ptr;
-	size_t len;
-	void *owner;
-} moq_vec_mux_container_fmp4_Fragment;
-void moq_vec_mux_container_fmp4_Fragment_free(moq_vec_mux_container_fmp4_Fragment vec);
 typedef struct moq_mux_container_ts_Descriptor {
 	uint8_t tag;
 	moq_buf data_;
@@ -1835,6 +1000,18 @@ typedef struct moq_vec_stats_RefusalKind {
 	void *owner;
 } moq_vec_stats_RefusalKind;
 void moq_vec_stats_RefusalKind_free(moq_vec_stats_RefusalKind vec);
+typedef struct moq_vec_stats_RouteClose {
+	const moq_stats_RouteClose *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_stats_RouteClose;
+void moq_vec_stats_RouteClose_free(moq_vec_stats_RouteClose vec);
+typedef struct moq_vec_stats_RouteRefusal {
+	const moq_stats_RouteRefusal *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_stats_RouteRefusal;
+void moq_vec_stats_RouteRefusal_free(moq_vec_stats_RouteRefusal vec);
 typedef struct moq_vec_stats_SessionEntry {
 	moq_stats_SessionEntry *const *ptr;
 	size_t len;
@@ -1847,24 +1024,32 @@ typedef struct moq_vec_stats_TrafficEntry {
 	void *owner;
 } moq_vec_stats_TrafficEntry;
 void moq_vec_stats_TrafficEntry_free(moq_vec_stats_TrafficEntry vec);
+typedef struct moq_vec_stats_Withdrawal {
+	const moq_stats_Withdrawal *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_stats_Withdrawal;
+void moq_vec_stats_Withdrawal_free(moq_vec_stats_Withdrawal vec);
+typedef struct moq_vec_string {
+	const moq_buf *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_string;
+void moq_vec_string_free(moq_vec_string vec);
 typedef enum moq_track_Anchor_tag {
-	MOQ_TRACK_ANCHOR_ABSOLUTE = 0,
-	MOQ_TRACK_ANCHOR_RELATIVE = 1,
+	MOQ_TRACK_ANCHOR_RELATIVE = 0,
+	MOQ_TRACK_ANCHOR_OLDEST = 1,
 	MOQ_TRACK_ANCHOR_TIME = 2,
 } moq_track_Anchor_tag;
-typedef struct moq_track_Anchor_Absolute {
-	uint64_t _0;
-} moq_track_Anchor_Absolute;
 typedef struct moq_track_Anchor_Relative {
 	uint64_t _0;
 } moq_track_Anchor_Relative;
 typedef struct moq_track_Anchor_Time {
-	moq_Timestamp _0;
+	uint64_t _0;
 } moq_track_Anchor_Time;
 typedef struct moq_track_Anchor {
 	moq_track_Anchor_tag tag;
 	union {
-		moq_track_Anchor_Absolute absolute;
 		moq_track_Anchor_Relative relative;
 		moq_track_Anchor_Time time;
 	};
@@ -1883,8 +1068,21 @@ typedef struct moq_vec_track_Range {
 	void *owner;
 } moq_vec_track_Range;
 void moq_vec_track_Range_free(moq_vec_track_Range vec);
-typedef struct moq_stats_Totals {
+typedef struct moq_stats_Activity {
 	uint64_t opaque[2];
+} moq_stats_Activity;
+typedef struct moq_tuple_stats_Tier_stats_Activity {
+	moq_stats_Tier *_0;
+	moq_stats_Activity _1;
+} moq_tuple_stats_Tier_stats_Activity;
+typedef struct moq_vec_tuple_stats_Tier_stats_Activity {
+	const moq_tuple_stats_Tier_stats_Activity *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_tuple_stats_Tier_stats_Activity;
+void moq_vec_tuple_stats_Tier_stats_Activity_free(moq_vec_tuple_stats_Tier_stats_Activity vec);
+typedef struct moq_stats_Totals {
+	uint64_t opaque[4];
 } moq_stats_Totals;
 typedef struct moq_tuple_stats_Tier_stats_Message_stats_Totals {
 	moq_stats_Tier *_0;
@@ -1898,7 +1096,7 @@ typedef struct moq_vec_tuple_stats_Tier_stats_Message_stats_Totals {
 } moq_vec_tuple_stats_Tier_stats_Message_stats_Totals;
 void moq_vec_tuple_stats_Tier_stats_Message_stats_Totals_free(moq_vec_tuple_stats_Tier_stats_Message_stats_Totals vec);
 typedef struct moq_stats_Presence {
-	uint64_t opaque[19];
+	uint64_t opaque[36];
 } moq_stats_Presence;
 typedef struct moq_tuple_stats_Tier_stats_Presence {
 	moq_stats_Tier *_0;
@@ -1954,16 +1152,16 @@ typedef struct moq_vec_tuple_string_hang_catalog_BinaryConfig {
 	void *owner;
 } moq_vec_tuple_string_hang_catalog_BinaryConfig;
 void moq_vec_tuple_string_hang_catalog_BinaryConfig_free(moq_vec_tuple_string_hang_catalog_BinaryConfig vec);
-typedef struct moq_tuple_string_hang_catalog_Contribution {
+typedef struct moq_tuple_string_hang_catalog_Include {
 	moq_buf _0;
-	moq_hang_catalog_Contribution *_1;
-} moq_tuple_string_hang_catalog_Contribution;
-typedef struct moq_vec_tuple_string_hang_catalog_Contribution {
-	const moq_tuple_string_hang_catalog_Contribution *ptr;
+	moq_hang_catalog_Include *_1;
+} moq_tuple_string_hang_catalog_Include;
+typedef struct moq_vec_tuple_string_hang_catalog_Include {
+	const moq_tuple_string_hang_catalog_Include *ptr;
 	size_t len;
 	void *owner;
-} moq_vec_tuple_string_hang_catalog_Contribution;
-void moq_vec_tuple_string_hang_catalog_Contribution_free(moq_vec_tuple_string_hang_catalog_Contribution vec);
+} moq_vec_tuple_string_hang_catalog_Include;
+void moq_vec_tuple_string_hang_catalog_Include_free(moq_vec_tuple_string_hang_catalog_Include vec);
 typedef struct moq_tuple_string_hang_catalog_JsonConfig {
 	moq_buf _0;
 	moq_hang_catalog_JsonConfig *_1;
@@ -2024,6 +1222,16 @@ typedef struct moq_vec_tuple_string_mux_container_ts_Track {
 	void *owner;
 } moq_vec_tuple_string_mux_container_ts_Track;
 void moq_vec_tuple_string_mux_container_ts_Track_free(moq_vec_tuple_string_mux_container_ts_Track vec);
+typedef struct moq_tuple_string_u64 {
+	moq_buf _0;
+	uint64_t _1;
+} moq_tuple_string_u64;
+typedef struct moq_vec_tuple_string_u64 {
+	const moq_tuple_string_u64 *ptr;
+	size_t len;
+	void *owner;
+} moq_vec_tuple_string_u64;
+void moq_vec_tuple_string_u64_free(moq_vec_tuple_string_u64 vec);
 typedef struct moq_tuple_u16_mux_container_ts_stats_Stream {
 	uint16_t _0;
 	moq_mux_container_ts_stats_Stream *_1;
@@ -2054,84 +1262,12 @@ typedef struct moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry {
 	void *owner;
 } moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry;
 void moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry_free(moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry vec);
-typedef enum moq_mp4_atom_IlstDataValue_tag {
-	MOQ_MP4_ATOM_ILSTDATAVALUE_RESERVED = 0,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_UTF8 = 1,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_UTF16 = 2,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_JPEG = 3,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_PNG = 4,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_BMP = 5,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_BE_SIGNED_INT = 6,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_BE_UNSIGNED_INT = 7,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_BE_FLOAT32 = 8,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_BE_FLOAT64 = 9,
-	MOQ_MP4_ATOM_ILSTDATAVALUE_UNKNOWN = 10,
-} moq_mp4_atom_IlstDataValue_tag;
-typedef struct moq_mp4_atom_IlstDataValue_Reserved {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Reserved;
-typedef struct moq_mp4_atom_IlstDataValue_Utf8 {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Utf8;
-typedef struct moq_mp4_atom_IlstDataValue_Utf16 {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Utf16;
-typedef struct moq_mp4_atom_IlstDataValue_Jpeg {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Jpeg;
-typedef struct moq_mp4_atom_IlstDataValue_Png {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Png;
-typedef struct moq_mp4_atom_IlstDataValue_Bmp {
-	moq_buf _0;
-} moq_mp4_atom_IlstDataValue_Bmp;
-typedef struct moq_mp4_atom_IlstDataValue_BeSignedInt {
-	int64_t _0;
-} moq_mp4_atom_IlstDataValue_BeSignedInt;
-typedef struct moq_mp4_atom_IlstDataValue_BeUnsignedInt {
-	uint64_t _0;
-} moq_mp4_atom_IlstDataValue_BeUnsignedInt;
-typedef struct moq_mp4_atom_IlstDataValue_BeFloat32 {
-	float _0;
-} moq_mp4_atom_IlstDataValue_BeFloat32;
-typedef struct moq_mp4_atom_IlstDataValue_BeFloat64 {
-	double _0;
-} moq_mp4_atom_IlstDataValue_BeFloat64;
-typedef struct moq_mp4_atom_IlstDataValue_Unknown {
-	uint32_t _0;
-	moq_buf _1;
-} moq_mp4_atom_IlstDataValue_Unknown;
-typedef struct moq_mp4_atom_IlstDataValue {
-	moq_mp4_atom_IlstDataValue_tag tag;
-	union {
-		moq_mp4_atom_IlstDataValue_Reserved reserved;
-		moq_mp4_atom_IlstDataValue_Utf8 utf8;
-		moq_mp4_atom_IlstDataValue_Utf16 utf16;
-		moq_mp4_atom_IlstDataValue_Jpeg jpeg;
-		moq_mp4_atom_IlstDataValue_Png png;
-		moq_mp4_atom_IlstDataValue_Bmp bmp;
-		moq_mp4_atom_IlstDataValue_BeSignedInt be_signed_int;
-		moq_mp4_atom_IlstDataValue_BeUnsignedInt be_unsigned_int;
-		moq_mp4_atom_IlstDataValue_BeFloat32 be_float32;
-		moq_mp4_atom_IlstDataValue_BeFloat64 be_float64;
-		moq_mp4_atom_IlstDataValue_Unknown unknown;
-	};
-} moq_mp4_atom_IlstDataValue;
-typedef struct moq_mp4_atom_IlstData {
-	uint16_t country_indicator;
-	uint16_t language_indicator;
-	moq_mp4_atom_IlstDataValue value;
-} moq_mp4_atom_IlstData;
-typedef struct moq_tuple_u32_mp4_atom_IlstData {
-	uint32_t _0;
-	moq_mp4_atom_IlstData _1;
-} moq_tuple_u32_mp4_atom_IlstData;
-typedef struct moq_vec_tuple_u32_mp4_atom_IlstData {
-	const moq_tuple_u32_mp4_atom_IlstData *ptr;
+typedef struct moq_vec_u32 {
+	const uint32_t *ptr;
 	size_t len;
 	void *owner;
-} moq_vec_tuple_u32_mp4_atom_IlstData;
-void moq_vec_tuple_u32_mp4_atom_IlstData_free(moq_vec_tuple_u32_mp4_atom_IlstData vec);
+} moq_vec_u32;
+void moq_vec_u32_free(moq_vec_u32 vec);
 typedef struct moq_bound_u64 {
 	moq_bound kind;
 	uint64_t value;
@@ -2144,9 +1280,6 @@ typedef struct moq_range_u64 {
 	uint64_t start;
 	uint64_t end;
 } moq_range_u64;
-typedef struct moq_array_u8_12 {
-	uint8_t items[12];
-} moq_array_u8_12;
 typedef struct moq_array_u8_16 {
 	uint8_t items[16];
 } moq_array_u8_16;
@@ -2162,19 +1295,6 @@ typedef struct moq_array_u8_4 {
 typedef struct moq_array_u8_6 {
 	uint8_t items[6];
 } moq_array_u8_6;
-typedef struct moq_Datagram {
-	uint64_t sequence;
-	moq_option_Timestamp timestamp;
-	moq_buf payload;
-} moq_Datagram;
-typedef struct moq_option_Datagram {
-	bool some;
-	moq_Datagram value;
-} moq_option_Datagram;
-typedef struct moq_option_Hop {
-	bool some;
-	moq_Hop value;
-} moq_option_Hop;
 typedef struct moq_option_Level {
 	bool some;
 	moq_Level value;
@@ -2185,21 +1305,14 @@ typedef enum moq_SessionError_tag {
 	MOQ_SESSIONERROR_UNAUTHORIZED = 2,
 	MOQ_SESSIONERROR_EXPIRED = 3,
 	MOQ_SESSIONERROR_PROTOCOL_VIOLATION = 4,
-	MOQ_SESSIONERROR_KEY_VALUE_FORMATTING = 5,
-	MOQ_SESSIONERROR_TOO_MANY_REQUESTS = 6,
-	MOQ_SESSIONERROR_GOAWAY_TIMEOUT = 7,
-	MOQ_SESSIONERROR_TIMEOUT = 8,
-	MOQ_SESSIONERROR_AUTH_TOKEN_CACHE_OVERFLOW = 9,
-	MOQ_SESSIONERROR_VERSION = 10,
-	MOQ_SESSIONERROR_MALFORMED_AUTH_TOKEN = 11,
-	MOQ_SESSIONERROR_UNKNOWN_AUTH_TOKEN_ALIAS = 12,
-	MOQ_SESSIONERROR_TOO_MANY_REQUEST_UPDATES = 13,
-	MOQ_SESSIONERROR_APP = 14,
-	MOQ_SESSIONERROR_UNKNOWN = 15,
-	MOQ_SESSIONERROR_UNSUPPORTED = 16,
-	MOQ_SESSIONERROR_INVALID_REQUEST_ID = 17,
-	MOQ_SESSIONERROR_INVALID_PATH = 18,
-	MOQ_SESSIONERROR_INVALID_AUTHORITY = 19,
+	MOQ_SESSIONERROR_TOO_MANY_REQUESTS = 5,
+	MOQ_SESSIONERROR_GOAWAY_TIMEOUT = 6,
+	MOQ_SESSIONERROR_TIMEOUT = 7,
+	MOQ_SESSIONERROR_VERSION = 8,
+	MOQ_SESSIONERROR_MALFORMED_AUTH_TOKEN = 9,
+	MOQ_SESSIONERROR_APP = 10,
+	MOQ_SESSIONERROR_UNKNOWN = 11,
+	MOQ_SESSIONERROR_UNSUPPORTED = 12,
 } moq_SessionError_tag;
 typedef struct moq_SessionError_App {
 	uint16_t _0;
@@ -2267,10 +1380,6 @@ typedef struct moq_option_Timescale {
 	bool some;
 	moq_Timescale value;
 } moq_option_Timescale;
-typedef struct moq_option_auth_RequestKind {
-	bool some;
-	moq_auth_RequestKind value;
-} moq_option_auth_RequestKind;
 typedef struct moq_bandwidth_Rate {
 	uint64_t opaque[1];
 } moq_bandwidth_Rate;
@@ -2296,6 +1405,15 @@ typedef struct moq_option_clock_Wall {
 	bool some;
 	moq_clock_Wall value;
 } moq_option_clock_Wall;
+typedef struct moq_datagram_Datagram {
+	uint64_t sequence;
+	moq_Timestamp *timestamp;
+	moq_buf payload;
+} moq_datagram_Datagram;
+typedef struct moq_option_datagram_Datagram {
+	bool some;
+	moq_datagram_Datagram value;
+} moq_option_datagram_Datagram;
 typedef struct moq_option_duration {
 	bool some;
 	moq_duration value;
@@ -2321,13 +1439,10 @@ typedef struct moq_option_hang_catalog_AudioLayout {
 	bool some;
 	moq_hang_catalog_AudioLayout value;
 } moq_option_hang_catalog_AudioLayout;
-typedef struct moq_hang_catalog_Clock {
-	uint64_t opaque[2];
-} moq_hang_catalog_Clock;
-typedef struct moq_option_hang_catalog_Clock {
+typedef struct moq_option_hang_catalog_ColorRange {
 	bool some;
-	moq_hang_catalog_Clock value;
-} moq_option_hang_catalog_Clock;
+	moq_hang_catalog_ColorRange value;
+} moq_option_hang_catalog_ColorRange;
 typedef struct moq_hang_catalog_ContentLight {
 	uint16_t max_cll;
 	uint16_t max_fall;
@@ -2360,10 +1475,6 @@ typedef struct moq_option_hang_catalog_Mastering {
 	bool some;
 	moq_hang_catalog_Mastering value;
 } moq_option_hang_catalog_Mastering;
-typedef struct moq_option_hang_catalog_Range {
-	bool some;
-	moq_hang_catalog_Range value;
-} moq_option_hang_catalog_Range;
 typedef enum moq_hang_catalog_Stereo_tag {
 	MOQ_HANG_CATALOG_STEREO_MONO = 0,
 	MOQ_HANG_CATALOG_STEREO_LEFT_RIGHT = 1,
@@ -2459,6 +1570,10 @@ typedef struct moq_option_hang_catalog_VideoCodec {
 	bool some;
 	moq_hang_catalog_VideoCodec value;
 } moq_option_hang_catalog_VideoCodec;
+typedef struct moq_option_i64 {
+	bool some;
+	int64_t value;
+} moq_option_i64;
 typedef struct moq_option_i8 {
 	bool some;
 	int8_t value;
@@ -2484,13 +1599,6 @@ typedef struct moq_option_moq_quic_Rate {
 	bool some;
 	moq_moq_quic_Rate value;
 } moq_option_moq_quic_Rate;
-typedef struct moq_moq_quic_VarInt {
-	uint64_t opaque[1];
-} moq_moq_quic_VarInt;
-typedef struct moq_option_moq_quic_VarInt {
-	bool some;
-	moq_moq_quic_VarInt value;
-} moq_option_moq_quic_VarInt;
 typedef struct moq_option_moq_sock_udp_EcnCodepoint {
 	bool some;
 	moq_moq_sock_udp_EcnCodepoint value;
@@ -2499,638 +1607,20 @@ typedef struct moq_option_moq_tokio_quic_CongestionControl {
 	bool some;
 	moq_moq_tokio_quic_CongestionControl value;
 } moq_option_moq_tokio_quic_CongestionControl;
-typedef struct moq_mp4_atom_Ainf {
-	bool hidden;
-	uint32_t profile_version;
-	moq_buf apid;
-} moq_mp4_atom_Ainf;
-typedef struct moq_option_mp4_atom_Ainf {
-	bool some;
-	moq_mp4_atom_Ainf value;
-} moq_option_mp4_atom_Ainf;
-typedef struct moq_mp4_atom_FixedPoint_u16 {
-	uint16_t opaque[2];
-} moq_mp4_atom_FixedPoint_u16;
-typedef struct moq_mp4_atom_Audio {
-	uint16_t data_reference_index;
-	uint16_t channel_count;
-	uint16_t sample_size;
-	moq_mp4_atom_FixedPoint_u16 sample_rate;
-} moq_mp4_atom_Audio;
-typedef struct moq_option_mp4_atom_Audio {
-	bool some;
-	moq_mp4_atom_Audio value;
-} moq_option_mp4_atom_Audio;
-typedef struct moq_option_mp4_atom_AudioChannelPosition {
-	bool some;
-	moq_mp4_atom_AudioChannelPosition value;
-} moq_option_mp4_atom_AudioChannelPosition;
-typedef struct moq_mp4_atom_AvccExt {
-	uint8_t chroma_format;
-	uint8_t bit_depth_luma;
-	uint8_t bit_depth_chroma;
-	moq_vec_bytes sequence_parameter_sets_ext;
-} moq_mp4_atom_AvccExt;
-typedef struct moq_option_mp4_atom_AvccExt {
-	bool some;
-	moq_mp4_atom_AvccExt value;
-} moq_option_mp4_atom_AvccExt;
-typedef struct moq_mp4_atom_Blin {
-	uint32_t baseline_value;
-} moq_mp4_atom_Blin;
-typedef struct moq_option_mp4_atom_Blin {
-	bool some;
-	moq_mp4_atom_Blin value;
-} moq_option_mp4_atom_Blin;
-typedef struct moq_mp4_atom_Btrt {
-	uint32_t buffer_size_db;
-	uint32_t max_bitrate;
-	uint32_t avg_bitrate;
-} moq_mp4_atom_Btrt;
-typedef struct moq_option_mp4_atom_Btrt {
-	bool some;
-	moq_mp4_atom_Btrt value;
-} moq_option_mp4_atom_Btrt;
-typedef struct moq_mp4_atom_Ccst {
-	bool all_ref_pics_intra;
-	bool intra_pred_used;
-	uint8_t max_ref_per_pic;
-} moq_mp4_atom_Ccst;
-typedef struct moq_option_mp4_atom_Ccst {
-	bool some;
-	moq_mp4_atom_Ccst value;
-} moq_option_mp4_atom_Ccst;
-typedef enum moq_mp4_atom_ChannelStructure_tag {
-	MOQ_MP4_ATOM_CHANNELSTRUCTURE_EXPLICIT_POSITIONS = 0,
-	MOQ_MP4_ATOM_CHANNELSTRUCTURE_DEFINED_LAYOUT = 1,
-} moq_mp4_atom_ChannelStructure_tag;
-typedef struct moq_mp4_atom_ChannelStructure_ExplicitPositions {
-	moq_vec_mp4_atom_SpeakerPosition positions;
-} moq_mp4_atom_ChannelStructure_ExplicitPositions;
-typedef struct moq_option_u8 {
-	bool some;
-	uint8_t value;
-} moq_option_u8;
-typedef struct moq_mp4_atom_ChannelStructure_DefinedLayout {
-	uint8_t layout;
-	moq_option_u64 omitted_channels_map;
-	moq_option_u8 channel_order_definition;
-} moq_mp4_atom_ChannelStructure_DefinedLayout;
-typedef struct moq_mp4_atom_ChannelStructure {
-	moq_mp4_atom_ChannelStructure_tag tag;
-	union {
-		moq_mp4_atom_ChannelStructure_ExplicitPositions explicit_positions;
-		moq_mp4_atom_ChannelStructure_DefinedLayout defined_layout;
-	};
-} moq_mp4_atom_ChannelStructure;
-typedef struct moq_option_mp4_atom_ChannelStructure {
-	bool some;
-	moq_mp4_atom_ChannelStructure value;
-} moq_option_mp4_atom_ChannelStructure;
-typedef struct moq_mp4_atom_Chnl {
-	moq_option_mp4_atom_ChannelStructure channel_structure;
-	moq_option_u8 object_count;
-	moq_option_u8 format_ordering;
-	moq_option_u8 base_channel_count;
-} moq_mp4_atom_Chnl;
-typedef struct moq_option_mp4_atom_Chnl {
-	bool some;
-	moq_mp4_atom_Chnl value;
-} moq_option_mp4_atom_Chnl;
-typedef struct moq_mp4_atom_Chpl {
-	moq_vec_mp4_atom_ChplEntry entries;
-} moq_mp4_atom_Chpl;
-typedef struct moq_option_mp4_atom_Chpl {
-	bool some;
-	moq_mp4_atom_Chpl value;
-} moq_option_mp4_atom_Chpl;
-typedef struct moq_mp4_atom_Co64 {
-	moq_vec_u64 entries;
-} moq_mp4_atom_Co64;
-typedef struct moq_option_mp4_atom_Co64 {
-	bool some;
-	moq_mp4_atom_Co64 value;
-} moq_option_mp4_atom_Co64;
-typedef enum moq_mp4_atom_Colr_tag {
-	MOQ_MP4_ATOM_COLR_NCLX = 0,
-	MOQ_MP4_ATOM_COLR_NCLC = 1,
-	MOQ_MP4_ATOM_COLR_RICC = 2,
-	MOQ_MP4_ATOM_COLR_PROF = 3,
-} moq_mp4_atom_Colr_tag;
-typedef struct moq_mp4_atom_Colr_Nclx {
-	uint16_t colour_primaries;
-	uint16_t transfer_characteristics;
-	uint16_t matrix_coefficients;
-	bool full_range_flag;
-} moq_mp4_atom_Colr_Nclx;
-typedef struct moq_mp4_atom_Colr_Nclc {
-	uint16_t colour_primaries;
-	uint16_t transfer_characteristics;
-	uint16_t matrix_coefficients;
-} moq_mp4_atom_Colr_Nclc;
-typedef struct moq_mp4_atom_Colr_Ricc {
-	moq_buf profile;
-} moq_mp4_atom_Colr_Ricc;
-typedef struct moq_mp4_atom_Colr_Prof {
-	moq_buf profile;
-} moq_mp4_atom_Colr_Prof;
-typedef struct moq_mp4_atom_Colr {
-	moq_mp4_atom_Colr_tag tag;
-	union {
-		moq_mp4_atom_Colr_Nclx nclx;
-		moq_mp4_atom_Colr_Nclc nclc;
-		moq_mp4_atom_Colr_Ricc ricc;
-		moq_mp4_atom_Colr_Prof prof;
-	};
-} moq_mp4_atom_Colr;
-typedef struct moq_option_mp4_atom_Colr {
-	bool some;
-	moq_mp4_atom_Colr value;
-} moq_option_mp4_atom_Colr;
-typedef struct moq_mp4_atom_Copyright {
-	uint16_t country_indicator;
-	uint16_t language_indicator;
-	moq_buf text;
-} moq_mp4_atom_Copyright;
-typedef struct moq_option_mp4_atom_Copyright {
-	bool some;
-	moq_mp4_atom_Copyright value;
-} moq_option_mp4_atom_Copyright;
-typedef struct moq_mp4_atom_Covr {
-	moq_buf _0;
-} moq_mp4_atom_Covr;
-typedef struct moq_option_mp4_atom_Covr {
-	bool some;
-	moq_mp4_atom_Covr value;
-} moq_option_mp4_atom_Covr;
-typedef struct moq_mp4_atom_Cslg {
-	int64_t composition_to_dts_shift;
-	int64_t least_decode_to_display_shift;
-	int64_t greatest_decode_to_display_delta;
-	int64_t composition_start_time;
-	int64_t composition_end_time;
-} moq_mp4_atom_Cslg;
-typedef struct moq_option_mp4_atom_Cslg {
-	bool some;
-	moq_mp4_atom_Cslg value;
-} moq_option_mp4_atom_Cslg;
-typedef struct moq_mp4_atom_Ctts {
-	moq_vec_mp4_atom_CttsEntry entries;
-} moq_mp4_atom_Ctts;
-typedef struct moq_option_mp4_atom_Ctts {
-	bool some;
-	moq_mp4_atom_Ctts value;
-} moq_option_mp4_atom_Ctts;
-typedef struct moq_mp4_atom_Dadj {
-	int32_t disparity_adjustment;
-} moq_mp4_atom_Dadj;
-typedef struct moq_option_mp4_atom_Dadj {
-	bool some;
-	moq_mp4_atom_Dadj value;
-} moq_option_mp4_atom_Dadj;
-typedef struct moq_mp4_atom_Desc {
-	uint16_t country_indicator;
-	uint16_t language_indicator;
-	moq_buf text;
-} moq_mp4_atom_Desc;
-typedef struct moq_option_mp4_atom_Desc {
-	bool some;
-	moq_mp4_atom_Desc value;
-} moq_option_mp4_atom_Desc;
-typedef struct moq_mp4_atom_Dref {
-	moq_vec_mp4_atom_DrefEntry entries;
-} moq_mp4_atom_Dref;
-typedef struct moq_mp4_atom_Dinf {
-	moq_mp4_atom_Dref dref;
-} moq_mp4_atom_Dinf;
-typedef struct moq_option_mp4_atom_Dinf {
-	bool some;
-	moq_mp4_atom_Dinf value;
-} moq_option_mp4_atom_Dinf;
-typedef struct moq_mp4_atom_Disp {
-	int16_t disparity_shift_in_16th_pel;
-} moq_mp4_atom_Disp;
-typedef struct moq_option_mp4_atom_Disp {
-	bool some;
-	moq_mp4_atom_Disp value;
-} moq_option_mp4_atom_Disp;
-typedef struct moq_mp4_atom_Elst {
-	moq_vec_mp4_atom_ElstEntry entries;
-} moq_mp4_atom_Elst;
-typedef struct moq_option_mp4_atom_Elst {
-	bool some;
-	moq_mp4_atom_Elst value;
-} moq_option_mp4_atom_Elst;
-typedef struct moq_mp4_atom_Edts {
-	moq_option_mp4_atom_Elst elst;
-} moq_mp4_atom_Edts;
-typedef struct moq_option_mp4_atom_Edts {
-	bool some;
-	moq_mp4_atom_Edts value;
-} moq_option_mp4_atom_Edts;
-typedef struct moq_mp4_atom_Fiel {
-	uint8_t field_count;
-	uint8_t field_order;
-} moq_mp4_atom_Fiel;
-typedef struct moq_option_mp4_atom_Fiel {
-	bool some;
-	moq_mp4_atom_Fiel value;
-} moq_option_mp4_atom_Fiel;
-typedef struct moq_mp4_atom_Ftab {
-	moq_vec_mp4_atom_FontEntry font_entries;
-} moq_mp4_atom_Ftab;
-typedef struct moq_option_mp4_atom_Ftab {
-	bool some;
-	moq_mp4_atom_Ftab value;
-} moq_option_mp4_atom_Ftab;
-typedef struct moq_mp4_atom_Hero {
-	uint8_t hero_eye_indicator;
-} moq_mp4_atom_Hero;
-typedef struct moq_option_mp4_atom_Hero {
-	bool some;
-	moq_mp4_atom_Hero value;
-} moq_option_mp4_atom_Hero;
-typedef struct moq_mp4_atom_Hfov {
-	uint32_t field_of_view;
-} moq_mp4_atom_Hfov;
-typedef struct moq_option_mp4_atom_Hfov {
-	bool some;
-	moq_mp4_atom_Hfov value;
-} moq_option_mp4_atom_Hfov;
-typedef struct moq_mp4_atom_Hmhd {
-	uint16_t max_pdu_size;
-	uint16_t avg_pdu_size;
-	uint32_t max_bitrate;
-	uint32_t avg_bitrate;
-} moq_mp4_atom_Hmhd;
-typedef struct moq_option_mp4_atom_Hmhd {
-	bool some;
-	moq_mp4_atom_Hmhd value;
-} moq_option_mp4_atom_Hmhd;
-typedef struct moq_mp4_atom_Idat {
-	moq_buf data_;
-} moq_mp4_atom_Idat;
-typedef struct moq_option_mp4_atom_Idat {
-	bool some;
-	moq_mp4_atom_Idat value;
-} moq_option_mp4_atom_Idat;
-typedef struct moq_mp4_atom_Iinf {
-	moq_vec_mp4_atom_ItemInfoEntry item_infos;
-} moq_mp4_atom_Iinf;
-typedef struct moq_option_mp4_atom_Iinf {
-	bool some;
-	moq_mp4_atom_Iinf value;
-} moq_option_mp4_atom_Iinf;
-typedef struct moq_mp4_atom_Iloc {
-	moq_vec_mp4_atom_ItemLocation item_locations;
-} moq_mp4_atom_Iloc;
-typedef struct moq_option_mp4_atom_Iloc {
-	bool some;
-	moq_mp4_atom_Iloc value;
-} moq_option_mp4_atom_Iloc;
-typedef struct moq_mp4_atom_Name {
-	moq_buf _0;
-} moq_mp4_atom_Name;
-typedef struct moq_option_mp4_atom_Name {
-	bool some;
-	moq_mp4_atom_Name value;
-} moq_option_mp4_atom_Name;
-typedef struct moq_mp4_atom_Year {
-	moq_buf _0;
-} moq_mp4_atom_Year;
-typedef struct moq_option_mp4_atom_Year {
-	bool some;
-	moq_mp4_atom_Year value;
-} moq_option_mp4_atom_Year;
-typedef struct moq_mp4_atom_Tool {
-	uint16_t country_indicator;
-	uint16_t language_indicator;
-	moq_buf text;
-} moq_mp4_atom_Tool;
-typedef struct moq_option_mp4_atom_Tool {
-	bool some;
-	moq_mp4_atom_Tool value;
-} moq_option_mp4_atom_Tool;
-typedef struct moq_mp4_atom_Ilst {
-	moq_option_mp4_atom_Name name;
-	moq_option_mp4_atom_Year year;
-	moq_option_mp4_atom_Covr covr;
-	moq_option_mp4_atom_Desc desc;
-	moq_option_mp4_atom_Tool ctoo;
-	moq_option_mp4_atom_Copyright cprt;
-	moq_vec_tuple_u32_mp4_atom_IlstData mdta;
-} moq_mp4_atom_Ilst;
-typedef struct moq_option_mp4_atom_Ilst {
-	bool some;
-	moq_mp4_atom_Ilst value;
-} moq_option_mp4_atom_Ilst;
-typedef struct moq_mp4_atom_Iref {
-	moq_vec_mp4_atom_Reference references;
-} moq_mp4_atom_Iref;
-typedef struct moq_option_mp4_atom_Iref {
-	bool some;
-	moq_mp4_atom_Iref value;
-} moq_option_mp4_atom_Iref;
-typedef struct moq_mp4_atom_Keys {
-	moq_vec_mp4_atom_KeyEntry entries;
-} moq_mp4_atom_Keys;
-typedef struct moq_option_mp4_atom_Keys {
-	bool some;
-	moq_mp4_atom_Keys value;
-} moq_option_mp4_atom_Keys;
-typedef struct moq_mp4_atom_Lhvc {
-	uint8_t configuration_version;
-	uint16_t min_spatial_segmentation_idc;
-	uint8_t parallelism_type;
-	uint8_t num_temporal_layers;
-	bool temporal_id_nested;
-	uint8_t length_size_minus_one;
-	moq_vec_mp4_atom_HvcCArray arrays;
-} moq_mp4_atom_Lhvc;
-typedef struct moq_option_mp4_atom_Lhvc {
-	bool some;
-	moq_mp4_atom_Lhvc value;
-} moq_option_mp4_atom_Lhvc;
-typedef struct moq_mp4_atom_Mehd {
-	uint64_t fragment_duration;
-} moq_mp4_atom_Mehd;
-typedef struct moq_option_mp4_atom_Mehd {
-	bool some;
-	moq_mp4_atom_Mehd value;
-} moq_option_mp4_atom_Mehd;
-typedef struct moq_mp4_atom_MetaData {
-	uint16_t data_reference_index;
-} moq_mp4_atom_MetaData;
-typedef struct moq_option_mp4_atom_MetaData {
-	bool some;
-	moq_mp4_atom_MetaData value;
-} moq_option_mp4_atom_MetaData;
-typedef struct moq_mp4_atom_Must {
-	moq_vec_mp4_atom_FourCC required_box_types;
-} moq_mp4_atom_Must;
-typedef struct moq_option_mp4_atom_Must {
-	bool some;
-	moq_mp4_atom_Must value;
-} moq_option_mp4_atom_Must;
-typedef struct moq_mp4_atom_Mvex {
-	moq_option_mp4_atom_Mehd mehd;
-	moq_vec_mp4_atom_Trex trex;
-} moq_mp4_atom_Mvex;
-typedef struct moq_option_mp4_atom_Mvex {
-	bool some;
-	moq_mp4_atom_Mvex value;
-} moq_option_mp4_atom_Mvex;
-typedef struct moq_mp4_atom_OpusChannelMapping {
-	uint8_t family;
-	uint8_t stream_count;
-	uint8_t coupled_count;
-	moq_buf channel_mapping;
-} moq_mp4_atom_OpusChannelMapping;
-typedef struct moq_option_mp4_atom_OpusChannelMapping {
-	bool some;
-	moq_mp4_atom_OpusChannelMapping value;
-} moq_option_mp4_atom_OpusChannelMapping;
-typedef struct moq_mp4_atom_Pasp {
-	uint32_t h_spacing;
-	uint32_t v_spacing;
-} moq_mp4_atom_Pasp;
-typedef struct moq_option_mp4_atom_Pasp {
-	bool some;
-	moq_mp4_atom_Pasp value;
-} moq_option_mp4_atom_Pasp;
-typedef struct moq_mp4_atom_PcmC {
-	bool big_endian;
-	uint8_t sample_size;
-} moq_mp4_atom_PcmC;
-typedef struct moq_option_mp4_atom_PcmC {
-	bool some;
-	moq_mp4_atom_PcmC value;
-} moq_option_mp4_atom_PcmC;
-typedef struct moq_mp4_atom_PcmFormat {
-	bool big_endian;
-	uint16_t sample_size;
-	bool float_;
-} moq_mp4_atom_PcmFormat;
-typedef struct moq_option_mp4_atom_PcmFormat {
-	bool some;
-	moq_mp4_atom_PcmFormat value;
-} moq_option_mp4_atom_PcmFormat;
-typedef struct moq_mp4_atom_Pitm {
-	uint32_t item_id;
-} moq_mp4_atom_Pitm;
-typedef struct moq_option_mp4_atom_Pitm {
-	bool some;
-	moq_mp4_atom_Pitm value;
-} moq_option_mp4_atom_Pitm;
-typedef struct moq_mp4_atom_Pkin {
-	moq_mp4_atom_FourCC view_packing_kind;
-} moq_mp4_atom_Pkin;
-typedef struct moq_option_mp4_atom_Pkin {
-	bool some;
-	moq_mp4_atom_Pkin value;
-} moq_option_mp4_atom_Pkin;
-typedef struct moq_mp4_atom_Prhd {
-	int32_t pose_yaw_degrees;
-	int32_t pose_pitch_degrees;
-	int32_t pose_roll_degrees;
-} moq_mp4_atom_Prhd;
-typedef struct moq_option_mp4_atom_Prhd {
-	bool some;
-	moq_mp4_atom_Prhd value;
-} moq_option_mp4_atom_Prhd;
-typedef struct moq_mp4_atom_Prji {
-	moq_mp4_atom_FourCC projection_kind;
-} moq_mp4_atom_Prji;
-typedef struct moq_option_mp4_atom_Prji {
-	bool some;
-	moq_mp4_atom_Prji value;
-} moq_option_mp4_atom_Prji;
-typedef enum moq_mp4_atom_ProjKind_tag {
-	MOQ_MP4_ATOM_PROJKIND_EQUI = 0,
-	MOQ_MP4_ATOM_PROJKIND_CBMP = 1,
-	MOQ_MP4_ATOM_PROJKIND_MSHP = 2,
-} moq_mp4_atom_ProjKind_tag;
-typedef struct moq_mp4_atom_Equi {
-	uint32_t projection_bounds_top;
-	uint32_t projection_bounds_bottom;
-	uint32_t projection_bounds_left;
-	uint32_t projection_bounds_right;
-} moq_mp4_atom_Equi;
-typedef struct moq_mp4_atom_ProjKind_Equi {
-	moq_mp4_atom_Equi _0;
-} moq_mp4_atom_ProjKind_Equi;
-typedef struct moq_mp4_atom_Cbmp {
-	uint32_t layout;
-	uint32_t padding;
-} moq_mp4_atom_Cbmp;
-typedef struct moq_mp4_atom_ProjKind_Cbmp {
-	moq_mp4_atom_Cbmp _0;
-} moq_mp4_atom_ProjKind_Cbmp;
-typedef struct moq_mp4_atom_Mshp {
-	uint32_t crc;
-	moq_mp4_atom_FourCC encoding_four_cc;
-	moq_buf data_;
-} moq_mp4_atom_Mshp;
-typedef struct moq_mp4_atom_ProjKind_Mshp {
-	moq_mp4_atom_Mshp _0;
-} moq_mp4_atom_ProjKind_Mshp;
-typedef struct moq_mp4_atom_ProjKind {
-	moq_mp4_atom_ProjKind_tag tag;
-	union {
-		moq_mp4_atom_ProjKind_Equi equi;
-		moq_mp4_atom_ProjKind_Cbmp cbmp;
-		moq_mp4_atom_ProjKind_Mshp mshp;
-	};
-} moq_mp4_atom_ProjKind;
-typedef struct moq_option_mp4_atom_ProjKind {
-	bool some;
-	moq_mp4_atom_ProjKind value;
-} moq_option_mp4_atom_ProjKind;
-typedef struct moq_mp4_atom_Senc {
-	moq_mp4_atom_SencBoxVersion version;
-	bool use_subsamples;
-	moq_buf data_;
-} moq_mp4_atom_Senc;
-typedef struct moq_option_mp4_atom_Senc {
-	bool some;
-	moq_mp4_atom_Senc value;
-} moq_option_mp4_atom_Senc;
-typedef struct moq_mp4_atom_Silb {
-	moq_vec_mp4_atom_SchemeIdEntry schemes;
-	bool other_schemes;
-} moq_mp4_atom_Silb;
-typedef struct moq_option_mp4_atom_Silb {
-	bool some;
-	moq_mp4_atom_Silb value;
-} moq_option_mp4_atom_Silb;
-typedef struct moq_mp4_atom_FixedPoint_i8 {
-	uint8_t opaque[2];
-} moq_mp4_atom_FixedPoint_i8;
-typedef struct moq_mp4_atom_Smhd {
-	moq_mp4_atom_FixedPoint_i8 balance;
-} moq_mp4_atom_Smhd;
-typedef struct moq_option_mp4_atom_Smhd {
-	bool some;
-	moq_mp4_atom_Smhd value;
-} moq_option_mp4_atom_Smhd;
-typedef struct moq_mp4_atom_St3d {
-	uint8_t stereo_mode;
-} moq_mp4_atom_St3d;
-typedef struct moq_option_mp4_atom_St3d {
-	bool some;
-	moq_mp4_atom_St3d value;
-} moq_option_mp4_atom_St3d;
-typedef struct moq_mp4_atom_Stco {
-	moq_vec_u32 entries;
-} moq_mp4_atom_Stco;
-typedef struct moq_option_mp4_atom_Stco {
-	bool some;
-	moq_mp4_atom_Stco value;
-} moq_option_mp4_atom_Stco;
-typedef struct moq_mp4_atom_Stri {
-	bool eye_views_reversed;
-	bool has_additional_views;
-	bool has_right_eye_view;
-	bool has_left_eye_view;
-} moq_mp4_atom_Stri;
-typedef struct moq_option_mp4_atom_Stri {
-	bool some;
-	moq_mp4_atom_Stri value;
-} moq_option_mp4_atom_Stri;
-typedef struct moq_mp4_atom_Stss {
-	moq_vec_u32 entries;
-} moq_mp4_atom_Stss;
-typedef struct moq_option_mp4_atom_Stss {
-	bool some;
-	moq_mp4_atom_Stss value;
-} moq_option_mp4_atom_Stss;
-typedef struct moq_mp4_atom_Svhd {
-	moq_buf metadata_source;
-} moq_mp4_atom_Svhd;
-typedef struct moq_option_mp4_atom_Svhd {
-	bool some;
-	moq_mp4_atom_Svhd value;
-} moq_option_mp4_atom_Svhd;
-typedef struct moq_mp4_atom_Taic {
-	uint64_t time_uncertainty;
-	uint32_t clock_resolution;
-	int32_t clock_drift_rate;
-	moq_mp4_atom_ClockType clock_type;
-} moq_mp4_atom_Taic;
-typedef struct moq_option_mp4_atom_Taic {
-	bool some;
-	moq_mp4_atom_Taic value;
-} moq_option_mp4_atom_Taic;
-typedef struct moq_mp4_atom_Tfdt {
-	uint64_t base_media_decode_time;
-} moq_mp4_atom_Tfdt;
-typedef struct moq_option_mp4_atom_Tfdt {
-	bool some;
-	moq_mp4_atom_Tfdt value;
-} moq_option_mp4_atom_Tfdt;
-typedef struct moq_mp4_atom_Tref {
-	moq_vec_mp4_atom_TrackReferenceTypeBox track_reference_type_boxes;
-} moq_mp4_atom_Tref;
-typedef struct moq_option_mp4_atom_Tref {
-	bool some;
-	moq_mp4_atom_Tref value;
-} moq_option_mp4_atom_Tref;
-typedef struct moq_option_mp4_atom_TrunEntry {
-	bool some;
-	moq_mp4_atom_TrunEntry value;
-} moq_option_mp4_atom_TrunEntry;
-typedef struct moq_mp4_atom_TxtC {
-	moq_buf text_config;
-} moq_mp4_atom_TxtC;
-typedef struct moq_option_mp4_atom_TxtC {
-	bool some;
-	moq_mp4_atom_TxtC value;
-} moq_option_mp4_atom_TxtC;
-typedef struct moq_mp4_atom_UriI {
-	moq_buf uri_initialization_data;
-} moq_mp4_atom_UriI;
-typedef struct moq_option_mp4_atom_UriI {
-	bool some;
-	moq_mp4_atom_UriI value;
-} moq_option_mp4_atom_UriI;
-typedef struct moq_option_mp4_atom_VexuProjKind {
-	bool some;
-	moq_mp4_atom_VexuProjKind value;
-} moq_option_mp4_atom_VexuProjKind;
-typedef struct moq_mp4_atom_Vlab {
-	moq_buf source_label;
-} moq_mp4_atom_Vlab;
-typedef struct moq_option_mp4_atom_Vlab {
-	bool some;
-	moq_mp4_atom_Vlab value;
-} moq_option_mp4_atom_Vlab;
-typedef struct moq_mp4_atom_RgbColor {
-	uint16_t red;
-	uint16_t green;
-	uint16_t blue;
-} moq_mp4_atom_RgbColor;
-typedef struct moq_mp4_atom_Vmhd {
-	uint16_t graphics_mode;
-	moq_mp4_atom_RgbColor op_color;
-} moq_mp4_atom_Vmhd;
-typedef struct moq_option_mp4_atom_Vmhd {
-	bool some;
-	moq_mp4_atom_Vmhd value;
-} moq_option_mp4_atom_Vmhd;
-typedef struct moq_mp4_atom_esds_DecoderSpecific {
-	uint8_t profile;
-	uint8_t freq_index;
-	uint8_t chan_conf;
-	moq_buf raw;
-} moq_mp4_atom_esds_DecoderSpecific;
-typedef struct moq_option_mp4_atom_esds_DecoderSpecific {
-	bool some;
-	moq_mp4_atom_esds_DecoderSpecific value;
-} moq_option_mp4_atom_esds_DecoderSpecific;
 typedef struct moq_option_mux_catalog_CatalogFormat {
 	bool some;
 	moq_mux_catalog_CatalogFormat value;
 } moq_option_mux_catalog_CatalogFormat;
+typedef struct moq_mux_codec_h265_VideoSignal {
+	uint8_t primaries;
+	uint8_t transfer;
+	uint8_t matrix;
+	bool full_range;
+} moq_mux_codec_h265_VideoSignal;
+typedef struct moq_option_mux_codec_h265_VideoSignal {
+	bool some;
+	moq_mux_codec_h265_VideoSignal value;
+} moq_option_mux_codec_h265_VideoSignal;
 typedef struct moq_mux_codec_opus_Mapping {
 	uint8_t opaque[259];
 } moq_mux_codec_opus_Mapping;
@@ -3152,12 +1642,12 @@ typedef struct moq_mux_container_Read_Frame {
 	moq_mux_container_Frame frame;
 } moq_mux_container_Read_Frame;
 typedef struct moq_mux_container_Read_Gap {
-	moq_Timestamp timestamp;
-	moq_Timestamp duration;
+	moq_Timestamp *timestamp;
+	moq_Timestamp *duration;
 } moq_mux_container_Read_Gap;
 typedef struct moq_mux_container_Read_End {
 	uint64_t group;
-	moq_Timestamp end;
+	moq_Timestamp *end;
 } moq_mux_container_Read_End;
 typedef struct moq_mux_container_Read {
 	moq_mux_container_Read_tag tag;
@@ -3171,20 +1661,15 @@ typedef struct moq_option_mux_container_Read {
 	bool some;
 	moq_mux_container_Read value;
 } moq_option_mux_container_Read;
+typedef struct moq_mux_container_fmp4_Fragment {
+	moq_buf data_;
+	bool independent;
+	moq_duration duration;
+} moq_mux_container_fmp4_Fragment;
 typedef struct moq_option_mux_container_fmp4_Fragment {
 	bool some;
 	moq_mux_container_fmp4_Fragment value;
 } moq_option_mux_container_fmp4_Fragment;
-typedef struct moq_mux_container_mp4_Finish {
-	uint64_t moov_offset;
-	moq_buf moov;
-	uint64_t mdat_offset;
-	moq_buf mdat;
-} moq_mux_container_mp4_Finish;
-typedef struct moq_option_mux_container_mp4_Finish {
-	bool some;
-	moq_mux_container_mp4_Finish value;
-} moq_option_mux_container_mp4_Finish;
 typedef enum moq_mux_rate_Target_tag {
 	MOQ_MUX_RATE_TARGET_ENABLED = 0,
 	MOQ_MUX_RATE_TARGET_DISABLED = 1,
@@ -3206,13 +1691,6 @@ typedef struct moq_option_non_zero_u64 {
 	bool some;
 	uint64_t value;
 } moq_option_non_zero_u64;
-typedef struct moq_origin_HopLimit {
-	uint64_t opaque[1];
-} moq_origin_HopLimit;
-typedef struct moq_option_origin_HopLimit {
-	bool some;
-	moq_origin_HopLimit value;
-} moq_option_origin_HopLimit;
 typedef struct moq_rustls_client_TicketRequest {
 	uint8_t new_session_count;
 	uint8_t resumption_count;
@@ -3276,13 +1754,20 @@ typedef struct moq_option_tokio_listen_Bind {
 	moq_tokio_listen_Bind value;
 } moq_option_tokio_listen_Bind;
 typedef struct moq_track_Position {
-	uint64_t group;
-	uint64_t frame;
+	uint64_t opaque[2];
 } moq_track_Position;
 typedef struct moq_option_track_Position {
 	bool some;
 	moq_track_Position value;
 } moq_option_track_Position;
+typedef struct moq_tuple_u32_u32 {
+	uint32_t _0;
+	uint32_t _1;
+} moq_tuple_u32_u32;
+typedef struct moq_option_tuple_u32_u32 {
+	bool some;
+	moq_tuple_u32_u32 value;
+} moq_option_tuple_u32_u32;
 typedef struct moq_tuple_usize_usize {
 	size_t _0;
 	size_t _1;
@@ -3291,6 +1776,22 @@ typedef struct moq_option_tuple_usize_usize {
 	bool some;
 	moq_tuple_usize_usize value;
 } moq_option_tuple_usize_usize;
+typedef struct moq_option_u16 {
+	bool some;
+	uint16_t value;
+} moq_option_u16;
+typedef struct moq_option_u32 {
+	bool some;
+	uint32_t value;
+} moq_option_u32;
+typedef struct moq_option_u64 {
+	bool some;
+	uint64_t value;
+} moq_option_u64;
+typedef struct moq_option_u8 {
+	bool some;
+	uint8_t value;
+} moq_option_u8;
 typedef struct moq_option_usize {
 	bool some;
 	size_t value;
@@ -3301,9 +1802,6 @@ typedef struct moq_TimeOverflow {
 typedef struct moq_clock_Elapsed {
 	uint8_t opaque[1];
 } moq_clock_Elapsed;
-typedef struct moq_setup_Extensions {
-	uint8_t opaque[3];
-} moq_setup_Extensions;
 typedef struct moq_session_Limits {
 	uint64_t opaque[1];
 } moq_session_Limits;
@@ -3316,15 +1814,24 @@ typedef struct moq_stats_Failures {
 typedef struct moq_stats_Refusals {
 	uint64_t opaque[6];
 } moq_stats_Refusals;
-typedef struct moq_transport_ReceiveWindow {
+typedef struct moq_stats_RouteCloses {
+	uint64_t opaque[7];
+} moq_stats_RouteCloses;
+typedef struct moq_stats_RouteRefusals {
+	uint64_t opaque[3];
+} moq_stats_RouteRefusals;
+typedef struct moq_stats_Routes {
+	uint64_t opaque[16];
+} moq_stats_Routes;
+typedef struct moq_stats_Withdrawals {
 	uint64_t opaque[2];
-} moq_transport_ReceiveWindow;
+} moq_stats_Withdrawals;
 typedef struct moq_frame_Info {
 	uint64_t size;
-	moq_option_Timestamp timestamp;
+	moq_Timestamp *timestamp;
 } moq_frame_Info;
 typedef struct moq_group_Info {
-	uint64_t sequence;
+	uint64_t start;
 } moq_group_Info;
 typedef struct moq_track_Delay {
 	moq_option_duration min;
@@ -3333,17 +1840,9 @@ typedef struct moq_track_Delay {
 typedef struct moq_origin_Cost {
 	uint64_t opaque[1];
 } moq_origin_Cost;
-typedef struct moq_origin_Preference {
+typedef struct moq_origin_Priority {
 	uint8_t opaque[1];
-} moq_origin_Preference;
-typedef struct moq_hang_health_Limits_f64 {
-	double degraded;
-	double unhealthy;
-} moq_hang_health_Limits_f64;
-typedef struct moq_hang_health_Limits_duration {
-	moq_duration degraded;
-	moq_duration unhealthy;
-} moq_hang_health_Limits_duration;
+} moq_origin_Priority;
 typedef struct moq_hang_catalog_AAC {
 	uint8_t profile;
 } moq_hang_catalog_AAC;
@@ -3351,30 +1850,17 @@ typedef struct moq_hang_catalog_Priorities {
 	uint8_t opaque[4];
 } moq_hang_catalog_Priorities;
 typedef struct moq_hang_container_Frame {
-	moq_Timestamp timestamp;
+	moq_Timestamp *timestamp;
 	moq_buf payload;
 } moq_hang_container_Frame;
 typedef struct moq_mux_container_TimestampRewind {
-	moq_Timestamp timestamp;
-	moq_Timestamp floor;
+	moq_Timestamp *timestamp;
+	moq_Timestamp *floor;
 } moq_mux_container_TimestampRewind;
-typedef struct moq_mux_select_Selected {
-	moq_vec_string video;
-	moq_vec_string audio;
-} moq_mux_select_Selected;
-typedef struct moq_mux_timeline_Transition {
-	uint64_t opaque[1];
-} moq_mux_timeline_Transition;
-typedef struct moq_mux_timeline_Audio {
-	moq_duration end;
-	moq_duration buffered;
-	moq_duration target;
-} moq_mux_timeline_Audio;
-typedef struct moq_mux_codec_aac_Config {
-	uint8_t profile;
-	uint32_t sample_rate;
-	uint32_t channel_count;
-} moq_mux_codec_aac_Config;
+typedef struct moq_mux_container_Playout {
+	moq_track_Delay delay;
+	moq_duration warmup;
+} moq_mux_container_Playout;
 typedef struct moq_mux_codec_flac_Config {
 	uint16_t min_block_size;
 	uint16_t max_block_size;
@@ -3403,477 +1889,6 @@ typedef struct moq_mux_container_legacy_Wire {
 typedef struct moq_mux_container_loc_Wire {
 	moq_mux_container_Kind _0;
 } moq_mux_container_loc_Wire;
-typedef struct moq_mux_container_fmp4_fragment_Config {
-	uint8_t opaque[1];
-} moq_mux_container_fmp4_fragment_Config;
-typedef struct moq_mp4_atom_esds_DecoderConfig {
-	uint8_t object_type_indication;
-	uint8_t stream_type;
-	uint8_t up_stream;
-	moq_mp4_atom_u24 buffer_size_db;
-	uint32_t max_bitrate;
-	uint32_t avg_bitrate;
-	moq_option_mp4_atom_esds_DecoderSpecific dec_specific;
-} moq_mp4_atom_esds_DecoderConfig;
-typedef struct moq_mp4_atom_esds_SLConfig {
-	uint8_t opaque[1];
-} moq_mp4_atom_esds_SLConfig;
-typedef struct moq_mp4_atom_esds_EsDescriptor {
-	uint16_t es_id;
-	moq_option_u16 depends_on_es_id;
-	moq_buf url;
-	moq_option_u16 ocr_es_id;
-	uint8_t stream_priority;
-	moq_mp4_atom_esds_DecoderConfig dec_config;
-	moq_mp4_atom_esds_SLConfig sl_config;
-} moq_mp4_atom_esds_EsDescriptor;
-typedef struct moq_mp4_atom_Esds {
-	moq_mp4_atom_esds_EsDescriptor es_desc;
-} moq_mp4_atom_Esds;
-typedef struct moq_mp4_atom_Mp4a {
-	moq_mp4_atom_Audio audio;
-	moq_mp4_atom_Esds esds;
-	moq_option_mp4_atom_Btrt btrt;
-	moq_option_mp4_atom_Taic taic;
-} moq_mp4_atom_Mp4a;
-typedef struct moq_mp4_atom_Mp3 {
-	moq_mp4_atom_Audio audio;
-} moq_mp4_atom_Mp3;
-typedef struct moq_mp4_atom_Dops {
-	uint8_t output_channel_count;
-	uint16_t pre_skip;
-	uint32_t input_sample_rate;
-	int16_t output_gain;
-	moq_option_mp4_atom_OpusChannelMapping channel_mapping;
-} moq_mp4_atom_Dops;
-typedef struct moq_mp4_atom_Opus {
-	moq_mp4_atom_Audio audio;
-	moq_mp4_atom_Dops dops;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Opus;
-typedef struct moq_mp4_atom_Dfla {
-	moq_vec_mp4_atom_FlacMetadataBlock blocks;
-} moq_mp4_atom_Dfla;
-typedef struct moq_mp4_atom_Flac {
-	moq_mp4_atom_Audio audio;
-	moq_mp4_atom_Dfla dfla;
-} moq_mp4_atom_Flac;
-typedef struct moq_mp4_atom_Ac3SpecificBox {
-	uint8_t fscod;
-	uint8_t bsid;
-	uint8_t bsmod;
-	uint8_t acmod;
-	bool lfeon;
-	uint8_t bit_rate_code;
-} moq_mp4_atom_Ac3SpecificBox;
-typedef struct moq_mp4_atom_Ac3 {
-	moq_mp4_atom_Audio audio;
-	moq_mp4_atom_Ac3SpecificBox dac3;
-} moq_mp4_atom_Ac3;
-typedef struct moq_mp4_atom_Ec3SpecificBox {
-	uint16_t data_rate;
-	moq_vec_mp4_atom_Ec3IndependentSubstream substreams;
-} moq_mp4_atom_Ec3SpecificBox;
-typedef struct moq_mp4_atom_Eac3 {
-	moq_mp4_atom_Audio audio;
-	moq_mp4_atom_Ec3SpecificBox dec3;
-} moq_mp4_atom_Eac3;
-typedef struct moq_mp4_atom_Ipcm {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Ipcm;
-typedef struct moq_mp4_atom_Fpcm {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Fpcm;
-typedef struct moq_mp4_atom_Sowt {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Sowt;
-typedef struct moq_mp4_atom_Twos {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Twos;
-typedef struct moq_mp4_atom_Lpcm {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Lpcm;
-typedef struct moq_mp4_atom_In24 {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_In24;
-typedef struct moq_mp4_atom_In32 {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_In32;
-typedef struct moq_mp4_atom_Fl32 {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Fl32;
-typedef struct moq_mp4_atom_Fl64 {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Fl64;
-typedef struct moq_mp4_atom_S16l {
-	moq_mp4_atom_Audio audio;
-	moq_option_mp4_atom_PcmC pcmc;
-	moq_option_mp4_atom_Chnl chnl;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_S16l;
-typedef struct moq_mp4_atom_PlainText {
-	uint16_t data_reference_index;
-} moq_mp4_atom_PlainText;
-typedef struct moq_mp4_atom_VttC {
-	moq_buf config;
-} moq_mp4_atom_VttC;
-typedef struct moq_mp4_atom_Wvtt {
-	moq_mp4_atom_PlainText plaintext;
-	moq_mp4_atom_VttC config;
-	moq_option_mp4_atom_Vlab label;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Wvtt;
-typedef struct moq_mp4_atom_AmrSampleEntry {
-	uint16_t data_reference_index;
-	uint16_t timescale;
-} moq_mp4_atom_AmrSampleEntry;
-typedef struct moq_mp4_atom_Damr {
-	moq_mp4_atom_FourCC vendor;
-	uint8_t decoder_version;
-	uint16_t mode_set;
-	uint8_t mode_change_period;
-	uint8_t frames_per_sample;
-} moq_mp4_atom_Damr;
-typedef struct moq_mp4_atom_Samr {
-	moq_mp4_atom_AmrSampleEntry amrsampleentry;
-	moq_mp4_atom_Damr damr;
-} moq_mp4_atom_Samr;
-typedef struct moq_mp4_atom_Mett {
-	moq_mp4_atom_MetaData metadata;
-	moq_buf content_encoding;
-	moq_buf mime_format;
-	moq_option_mp4_atom_Btrt btrt;
-	moq_option_mp4_atom_TxtC txtc;
-} moq_mp4_atom_Mett;
-typedef struct moq_mp4_atom_Metx {
-	moq_mp4_atom_MetaData metadata;
-	moq_buf content_encoding;
-	moq_buf namespace_;
-	moq_buf schema_location;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Metx;
-typedef struct moq_mp4_atom_Uri {
-	moq_buf the_uri;
-} moq_mp4_atom_Uri;
-typedef struct moq_mp4_atom_Urim {
-	moq_mp4_atom_MetaData metadata;
-	moq_mp4_atom_Uri the_label;
-	moq_option_mp4_atom_UriI init;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Urim;
-typedef struct moq_mp4_atom_Camm {
-	moq_mp4_atom_MetaData metadata;
-} moq_mp4_atom_Camm;
-typedef struct moq_mp4_atom_Evte {
-	moq_mp4_atom_MetaData metadata;
-	moq_option_mp4_atom_Btrt btrt;
-	moq_option_mp4_atom_Silb silb;
-} moq_mp4_atom_Evte;
-typedef struct moq_mp4_atom_Mebx {
-	moq_mp4_atom_MetaData metadata;
-	moq_vec_mp4_atom_MebxKey keys;
-	moq_option_mp4_atom_Btrt btrt;
-} moq_mp4_atom_Mebx;
-typedef struct moq_mp4_atom_FixedPoint_u8 {
-	uint8_t opaque[2];
-} moq_mp4_atom_FixedPoint_u8;
-typedef struct moq_mp4_atom_Matrix {
-	int32_t a;
-	int32_t b;
-	int32_t u;
-	int32_t c;
-	int32_t d;
-	int32_t v;
-	int32_t x;
-	int32_t y;
-	int32_t w;
-} moq_mp4_atom_Matrix;
-typedef struct moq_mp4_atom_Tkhd {
-	uint64_t creation_time;
-	uint64_t modification_time;
-	uint32_t track_id;
-	uint64_t duration;
-	uint16_t layer;
-	uint16_t alternate_group;
-	bool enabled;
-	bool in_movie;
-	bool size_is_aspect_ratio;
-	moq_mp4_atom_FixedPoint_u8 volume;
-	moq_mp4_atom_Matrix matrix;
-	moq_mp4_atom_FixedPoint_u16 width;
-	moq_mp4_atom_FixedPoint_u16 height;
-} moq_mp4_atom_Tkhd;
-typedef struct moq_mp4_atom_Avcc {
-	uint8_t configuration_version;
-	uint8_t avc_profile_indication;
-	uint8_t profile_compatibility;
-	uint8_t avc_level_indication;
-	uint8_t length_size;
-	moq_vec_bytes sequence_parameter_sets;
-	moq_vec_bytes picture_parameter_sets;
-	moq_option_mp4_atom_AvccExt ext;
-} moq_mp4_atom_Avcc;
-typedef struct moq_mp4_atom_Hvcc {
-	uint8_t configuration_version;
-	uint8_t general_profile_space;
-	bool general_tier_flag;
-	uint8_t general_profile_idc;
-	moq_array_u8_4 general_profile_compatibility_flags;
-	moq_array_u8_6 general_constraint_indicator_flags;
-	uint8_t general_level_idc;
-	uint16_t min_spatial_segmentation_idc;
-	uint8_t parallelism_type;
-	uint8_t chroma_format_idc;
-	uint8_t bit_depth_luma_minus8;
-	uint8_t bit_depth_chroma_minus8;
-	uint16_t avg_frame_rate;
-	uint8_t constant_frame_rate;
-	uint8_t num_temporal_layers;
-	bool temporal_id_nested;
-	uint8_t length_size_minus_one;
-	moq_vec_mp4_atom_HvcCArray arrays;
-} moq_mp4_atom_Hvcc;
-typedef struct moq_mp4_atom_VpcC {
-	uint8_t profile;
-	uint8_t level;
-	uint8_t bit_depth;
-	uint8_t chroma_subsampling;
-	bool video_full_range_flag;
-	uint8_t color_primaries;
-	uint8_t transfer_characteristics;
-	uint8_t matrix_coefficients;
-	moq_buf codec_initialization_data;
-} moq_mp4_atom_VpcC;
-typedef struct moq_mp4_atom_Av1c {
-	uint8_t seq_profile;
-	uint8_t seq_level_idx_0;
-	bool seq_tier_0;
-	bool high_bitdepth;
-	bool twelve_bit;
-	bool monochrome;
-	bool chroma_subsampling_x;
-	bool chroma_subsampling_y;
-	uint8_t chroma_sample_position;
-	moq_option_u8 initial_presentation_delay;
-	moq_buf config_obus;
-} moq_mp4_atom_Av1c;
-typedef struct moq_mp4_atom_RgbaColor {
-	uint8_t red;
-	uint8_t green;
-	uint8_t blue;
-	uint8_t alpha;
-} moq_mp4_atom_RgbaColor;
-typedef struct moq_mp4_atom_Cmpd {
-	moq_vec_mp4_atom_Component components;
-} moq_mp4_atom_Cmpd;
-typedef struct moq_mp4_atom_Hdlr {
-	moq_mp4_atom_FourCC handler;
-	moq_buf name;
-} moq_mp4_atom_Hdlr;
-typedef struct moq_mp4_atom_Mdhd {
-	uint64_t creation_time;
-	uint64_t modification_time;
-	uint32_t timescale;
-	uint64_t duration;
-	moq_buf language;
-} moq_mp4_atom_Mdhd;
-typedef struct moq_moq_quic_stream_Id {
-	uint64_t opaque[1];
-} moq_moq_quic_stream_Id;
-typedef struct moq_moq_quic_UdpStats {
-	uint64_t opaque[3];
-} moq_moq_quic_UdpStats;
-typedef struct moq_moq_quic_CreditStats {
-	uint64_t opaque[4];
-} moq_moq_quic_CreditStats;
-typedef struct moq_mp4_atom_Ftyp {
-	moq_mp4_atom_FourCC major_brand;
-	uint32_t minor_version;
-	moq_vec_mp4_atom_FourCC compatible_brands;
-} moq_mp4_atom_Ftyp;
-typedef struct moq_mp4_atom_Styp {
-	moq_mp4_atom_FourCC major_brand;
-	uint32_t minor_version;
-	moq_vec_mp4_atom_FourCC compatible_brands;
-} moq_mp4_atom_Styp;
-typedef struct moq_mp4_atom_Auxc {
-	moq_buf aux_type;
-	moq_buf aux_subtype;
-} moq_mp4_atom_Auxc;
-typedef struct moq_mp4_atom_Clap {
-	uint32_t clean_aperture_width_n;
-	uint32_t clean_aperture_width_d;
-	uint32_t clean_aperture_height_n;
-	uint32_t clean_aperture_height_d;
-	int32_t horiz_off_n;
-	uint32_t horiz_off_d;
-	int32_t vert_off_n;
-	uint32_t vert_off_d;
-} moq_mp4_atom_Clap;
-typedef struct moq_mp4_atom_Imir {
-	uint8_t axis;
-} moq_mp4_atom_Imir;
-typedef struct moq_mp4_atom_Irot {
-	uint8_t angle;
-} moq_mp4_atom_Irot;
-typedef struct moq_mp4_atom_Iscl {
-	uint16_t target_width_numerator;
-	uint16_t target_width_denominator;
-	uint16_t target_height_numerator;
-	uint16_t target_height_denominator;
-} moq_mp4_atom_Iscl;
-typedef struct moq_mp4_atom_Ispe {
-	uint32_t width;
-	uint32_t height;
-} moq_mp4_atom_Ispe;
-typedef struct moq_mp4_atom_Pixi {
-	moq_buf bits_per_channel;
-} moq_mp4_atom_Pixi;
-typedef struct moq_mp4_atom_Rref {
-	moq_vec_mp4_atom_FourCC reference_types;
-} moq_mp4_atom_Rref;
-typedef struct moq_mp4_atom_Mvhd {
-	uint64_t creation_time;
-	uint64_t modification_time;
-	uint32_t timescale;
-	uint64_t duration;
-	moq_mp4_atom_FixedPoint_u16 rate;
-	moq_mp4_atom_FixedPoint_u8 volume;
-	moq_mp4_atom_Matrix matrix;
-	uint32_t next_track_id;
-} moq_mp4_atom_Mvhd;
-typedef struct moq_mp4_atom_Zeroed {
-	size_t size;
-} moq_mp4_atom_Zeroed;
-typedef struct moq_mp4_atom_Skip {
-	moq_mp4_atom_Zeroed zeroed;
-} moq_mp4_atom_Skip;
-typedef struct moq_mp4_atom_Stts {
-	moq_vec_mp4_atom_SttsEntry entries;
-} moq_mp4_atom_Stts;
-typedef struct moq_mp4_atom_Stsc {
-	moq_vec_mp4_atom_StscEntry entries;
-} moq_mp4_atom_Stsc;
-typedef enum moq_mp4_atom_StszSamples_tag {
-	MOQ_MP4_ATOM_STSZSAMPLES_IDENTICAL = 0,
-	MOQ_MP4_ATOM_STSZSAMPLES_DIFFERENT = 1,
-} moq_mp4_atom_StszSamples_tag;
-typedef struct moq_mp4_atom_StszSamples_Identical {
-	uint32_t count;
-	uint32_t size;
-} moq_mp4_atom_StszSamples_Identical;
-typedef struct moq_mp4_atom_StszSamples_Different {
-	moq_vec_u32 sizes;
-} moq_mp4_atom_StszSamples_Different;
-typedef struct moq_mp4_atom_StszSamples {
-	moq_mp4_atom_StszSamples_tag tag;
-	union {
-		moq_mp4_atom_StszSamples_Identical identical;
-		moq_mp4_atom_StszSamples_Different different;
-	};
-} moq_mp4_atom_StszSamples;
-typedef struct moq_mp4_atom_Stsz {
-	moq_mp4_atom_StszSamples samples;
-} moq_mp4_atom_Stsz;
-typedef enum moq_mp4_atom_EmsgTimestamp_tag {
-	MOQ_MP4_ATOM_EMSGTIMESTAMP_RELATIVE = 0,
-	MOQ_MP4_ATOM_EMSGTIMESTAMP_ABSOLUTE = 1,
-} moq_mp4_atom_EmsgTimestamp_tag;
-typedef struct moq_mp4_atom_EmsgTimestamp_Relative {
-	uint32_t _0;
-} moq_mp4_atom_EmsgTimestamp_Relative;
-typedef struct moq_mp4_atom_EmsgTimestamp_Absolute {
-	uint64_t _0;
-} moq_mp4_atom_EmsgTimestamp_Absolute;
-typedef struct moq_mp4_atom_EmsgTimestamp {
-	moq_mp4_atom_EmsgTimestamp_tag tag;
-	union {
-		moq_mp4_atom_EmsgTimestamp_Relative relative;
-		moq_mp4_atom_EmsgTimestamp_Absolute absolute;
-	};
-} moq_mp4_atom_EmsgTimestamp;
-typedef struct moq_mp4_atom_Emsg {
-	uint32_t timescale;
-	moq_mp4_atom_EmsgTimestamp presentation_time;
-	uint32_t event_duration;
-	uint32_t id;
-	moq_buf scheme_id_uri;
-	moq_buf value;
-	moq_buf message_data;
-} moq_mp4_atom_Emsg;
-typedef struct moq_mp4_atom_Mfhd {
-	uint32_t sequence_number;
-} moq_mp4_atom_Mfhd;
-typedef struct moq_mp4_atom_Tfhd {
-	uint32_t track_id;
-	moq_option_u64 base_data_offset;
-	moq_option_u32 sample_description_index;
-	moq_option_u32 default_sample_duration;
-	moq_option_u32 default_sample_size;
-	moq_option_u32 default_sample_flags;
-	bool duration_is_empty;
-	bool default_base_is_moof;
-} moq_mp4_atom_Tfhd;
-typedef struct moq_mp4_atom_Mdat {
-	moq_buf data_;
-} moq_mp4_atom_Mdat;
-typedef struct moq_mp4_atom_Free {
-	moq_mp4_atom_Zeroed zeroed;
-} moq_mp4_atom_Free;
-typedef struct moq_mp4_atom_Sidx {
-	uint32_t reference_id;
-	uint32_t timescale;
-	uint64_t earliest_presentation_time;
-	uint64_t first_offset;
-	moq_vec_mp4_atom_SegmentReference references;
-} moq_mp4_atom_Sidx;
-typedef struct moq_mp4_atom_Prft {
-	uint32_t reference_track_id;
-	uint64_t ntp_timestamp;
-	uint64_t media_time;
-	moq_mp4_atom_ReferenceTime utc_time_semantics;
-} moq_mp4_atom_Prft;
-typedef struct moq_mp4_atom_Mfro {
-	uint32_t parent_size;
-} moq_mp4_atom_Mfro;
-typedef struct moq_mp4_atom_Mfra {
-	moq_vec_mp4_atom_Tfra tfra;
-	moq_mp4_atom_Mfro mfro;
-} moq_mp4_atom_Mfra;
-typedef struct moq_mp4_atom_C2pa {
-	moq_buf box_purpose;
-	moq_buf data_;
-} moq_mp4_atom_C2pa;
-typedef struct moq_mp4_atom_ExtendedType {
-	uint8_t opaque[16];
-} moq_mp4_atom_ExtendedType;
 typedef struct moq_rustls_crypto_hpke_HpkePublicKey {
 	moq_buf _0;
 } moq_rustls_crypto_hpke_HpkePublicKey;
@@ -3892,19 +1907,19 @@ typedef struct moq_InvalidPattern {
 		moq_InvalidPattern_InvalidSegment invalid_segment;
 	};
 } moq_InvalidPattern;
-typedef enum moq_origin_Source_tag {
-	MOQ_ORIGIN_SOURCE_LOCAL = 0,
-	MOQ_ORIGIN_SOURCE_PEER = 1,
-} moq_origin_Source_tag;
-typedef struct moq_origin_Source_Peer {
-	moq_Hop _0;
-} moq_origin_Source_Peer;
-typedef struct moq_origin_Source {
-	moq_origin_Source_tag tag;
+typedef enum moq_transport_LimitsError_tag {
+	MOQ_TRANSPORT_LIMITSERROR_UNSUPPORTED = 0,
+	MOQ_TRANSPORT_LIMITSERROR_REFUSED = 1,
+} moq_transport_LimitsError_tag;
+typedef struct moq_transport_LimitsError_Refused {
+	moq_buf _0;
+} moq_transport_LimitsError_Refused;
+typedef struct moq_transport_LimitsError {
+	moq_transport_LimitsError_tag tag;
 	union {
-		moq_origin_Source_Peer peer;
+		moq_transport_LimitsError_Refused refused;
 	};
-} moq_origin_Source;
+} moq_transport_LimitsError;
 typedef enum moq_hang_catalog_AudioCodec_tag {
 	MOQ_HANG_CATALOG_AUDIOCODEC_AAC = 0,
 	MOQ_HANG_CATALOG_AUDIOCODEC_OPUS = 1,
@@ -3972,6 +1987,34 @@ typedef struct moq_hang_catalog_TextRole {
 		moq_hang_catalog_TextRole_Unknown unknown;
 	};
 } moq_hang_catalog_TextRole;
+typedef enum moq_mux_container_ReorderError_tag {
+	MOQ_MUX_CONTAINER_REORDERERROR_DEPTH = 0,
+	MOQ_MUX_CONTAINER_REORDERERROR_DEEPENED = 1,
+	MOQ_MUX_CONTAINER_REORDERERROR_REORDERED = 2,
+	MOQ_MUX_CONTAINER_REORDERERROR_PRESENTATION = 3,
+	MOQ_MUX_CONTAINER_REORDERERROR_TIE = 4,
+	MOQ_MUX_CONTAINER_REORDERERROR_UNDRAINED = 5,
+} moq_mux_container_ReorderError_tag;
+typedef struct moq_mux_container_ReorderError_Depth {
+	uint8_t reorder;
+	uint32_t max;
+	moq_buf codec;
+} moq_mux_container_ReorderError_Depth;
+typedef struct moq_mux_container_ReorderError_Deepened {
+	uint8_t declared;
+	uint8_t reorder;
+} moq_mux_container_ReorderError_Deepened;
+typedef struct moq_mux_container_ReorderError_Reordered {
+	size_t _0;
+} moq_mux_container_ReorderError_Reordered;
+typedef struct moq_mux_container_ReorderError {
+	moq_mux_container_ReorderError_tag tag;
+	union {
+		moq_mux_container_ReorderError_Depth depth;
+		moq_mux_container_ReorderError_Deepened deepened;
+		moq_mux_container_ReorderError_Reordered reordered;
+	};
+} moq_mux_container_ReorderError;
 typedef enum moq_mux_import_Format_tag {
 	MOQ_MUX_IMPORT_FORMAT_AUDIO = 0,
 	MOQ_MUX_IMPORT_FORMAT_VIDEO = 1,
@@ -4173,6 +2216,7 @@ typedef struct moq_mux_container_fmp4_Chunk {
 typedef enum moq_mux_container_ts_Step_tag {
 	MOQ_MUX_CONTAINER_TS_STEP_REWIND = 0,
 	MOQ_MUX_CONTAINER_TS_STEP_LEAP = 1,
+	MOQ_MUX_CONTAINER_TS_STEP_IDENTITY = 2,
 } moq_mux_container_ts_Step_tag;
 typedef struct moq_mux_container_ts_Step_Rewind {
 	moq_duration by;
@@ -4181,44 +2225,50 @@ typedef struct moq_mux_container_ts_Step_Rewind {
 typedef struct moq_mux_container_ts_Step_Leap {
 	moq_duration by;
 } moq_mux_container_ts_Step_Leap;
+typedef struct moq_mux_container_ts_Step_Identity {
+	uint16_t transport_stream_id;
+	uint16_t program_number;
+} moq_mux_container_ts_Step_Identity;
 typedef struct moq_mux_container_ts_Step {
 	moq_mux_container_ts_Step_tag tag;
 	union {
 		moq_mux_container_ts_Step_Rewind rewind;
 		moq_mux_container_ts_Step_Leap leap;
+		moq_mux_container_ts_Step_Identity identity;
 	};
 } moq_mux_container_ts_Step;
-typedef enum moq_mp4_atom_UncC_tag {
-	MOQ_MP4_ATOM_UNCC_V1 = 0,
-	MOQ_MP4_ATOM_UNCC_V0 = 1,
-} moq_mp4_atom_UncC_tag;
-typedef struct moq_mp4_atom_UncC_V1 {
-	moq_mp4_atom_FourCC profile;
-} moq_mp4_atom_UncC_V1;
-typedef struct moq_mp4_atom_UncC_V0 {
-	moq_mp4_atom_FourCC profile;
-	moq_vec_mp4_atom_UncompressedComponent components;
-	uint8_t sampling_type;
-	uint8_t interleave_type;
-	uint8_t block_size;
-	bool components_little_endian;
-	bool block_pad_lsb;
-	bool block_little_endian;
-	bool block_reversed;
-	bool pad_unknown;
-	uint32_t pixel_size;
-	uint32_t row_align_size;
-	uint32_t tile_align_size;
-	uint32_t num_tile_cols_minus_one;
-	uint32_t num_tile_rows_minus_one;
-} moq_mp4_atom_UncC_V0;
-typedef struct moq_mp4_atom_UncC {
-	moq_mp4_atom_UncC_tag tag;
+typedef enum moq_mux_codec_aac_adts_Error_tag {
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_TRUNCATED = 0,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_SYNCWORD = 1,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_SAMPLE_RATE = 2,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_FRAME_LENGTH = 3,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_PACKET_LENGTH = 4,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_OBJECT_TYPE = 5,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_RATE = 6,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_CHANNEL_CONFIG = 7,
+	MOQ_MUX_CODEC_AAC_ADTS_ERROR_TOO_LARGE = 8,
+} moq_mux_codec_aac_adts_Error_tag;
+typedef struct moq_mux_codec_aac_adts_Error_ObjectType {
+	uint8_t _0;
+} moq_mux_codec_aac_adts_Error_ObjectType;
+typedef struct moq_mux_codec_aac_adts_Error_Rate {
+	uint32_t _0;
+} moq_mux_codec_aac_adts_Error_Rate;
+typedef struct moq_mux_codec_aac_adts_Error_ChannelConfig {
+	uint8_t _0;
+} moq_mux_codec_aac_adts_Error_ChannelConfig;
+typedef struct moq_mux_codec_aac_adts_Error_TooLarge {
+	size_t _0;
+} moq_mux_codec_aac_adts_Error_TooLarge;
+typedef struct moq_mux_codec_aac_adts_Error {
+	moq_mux_codec_aac_adts_Error_tag tag;
 	union {
-		moq_mp4_atom_UncC_V1 v1;
-		moq_mp4_atom_UncC_V0 v0;
+		moq_mux_codec_aac_adts_Error_ObjectType object_type;
+		moq_mux_codec_aac_adts_Error_Rate rate;
+		moq_mux_codec_aac_adts_Error_ChannelConfig channel_config;
+		moq_mux_codec_aac_adts_Error_TooLarge too_large;
 	};
-} moq_mp4_atom_UncC;
+} moq_mux_codec_aac_adts_Error;
 typedef enum moq_moq_tokio_connect_Error_tag {
 	MOQ_MOQ_TOKIO_CONNECT_ERROR_EMPTY_ADDRESSES = 0,
 	MOQ_MOQ_TOKIO_CONNECT_ERROR_UNSUPPORTED_SCHEME = 1,
@@ -4254,24 +2304,6 @@ typedef struct moq_rustls_ProtocolVersion {
 		moq_rustls_ProtocolVersion_Unknown unknown;
 	};
 } moq_rustls_ProtocolVersion;
-typedef enum moq_mp4_atom_Uuid_tag {
-	MOQ_MP4_ATOM_UUID_C2PA = 0,
-	MOQ_MP4_ATOM_UUID_UNKNOWN = 1,
-} moq_mp4_atom_Uuid_tag;
-typedef struct moq_mp4_atom_Uuid_C2pa {
-	moq_mp4_atom_C2pa _0;
-} moq_mp4_atom_Uuid_C2pa;
-typedef struct moq_mp4_atom_Uuid_Unknown {
-	moq_mp4_atom_ExtendedType _0;
-	moq_buf _1;
-} moq_mp4_atom_Uuid_Unknown;
-typedef struct moq_mp4_atom_Uuid {
-	moq_mp4_atom_Uuid_tag tag;
-	union {
-		moq_mp4_atom_Uuid_C2pa c2pa;
-		moq_mp4_atom_Uuid_Unknown unknown;
-	};
-} moq_mp4_atom_Uuid;
 typedef struct moq_transport_Metrics_vtable {
 	void (*free)(void *data);
 } moq_transport_Metrics_vtable;
@@ -4286,30 +2318,7 @@ typedef struct moq_transport_Metrics {
 #define MOQ_SETUP_TOKEN_OUT_OF_BAND ((uint64_t)0ULL)
 #define MOQ_TRANSPORT_MIN_RECEIVE_WINDOW ((uint64_t)1048576ULL)
 #define MOQ_TRANSPORT_SETUP_RECEIVE_WINDOW ((uint64_t)131102ULL)
-#define MOQ_GROUP_MAX_CACHE_BYTES ((uint64_t)33554432ULL)
-#define MOQ_HANG_CATALOG_MOQ_EPOCH_UNIX_MILLIS ((uint64_t)1577836800000ULL)
 #define MOQ_HANG_CATALOG_MAX_SAFE_INTEGER ((uint64_t)9007199254740991ULL)
-#define MOQ_MUX_CONTAINER_DEFAULT_MAX_BUFFER ((size_t)33554432ULL)
-#define MOQ_MUX_CONTAINER_FMP4_MAX_HELD_BYTES ((size_t)33554432ULL)
-#define MOQ_MUX_CONTAINER_FMP4_MAX_METADATA_BYTES ((size_t)2097152ULL)
-#define MOQ_MUX_CONTAINER_FMP4_MAX_FRAGMENT_SAMPLES ((uint64_t)131072ULL)
-#define MOQ_MUX_CONTAINER_FMP4_MAX_TRACKS ((size_t)256ULL)
-#define MOQ_MOQ_QUIC_VARINT_MAX_SIZE ((size_t)8ULL)
-#define MOQ_MP4_ATOM_ST3D_MONO ((uint8_t)0)
-#define MOQ_MP4_ATOM_ST3D_TOP_BOTTOM ((uint8_t)1)
-#define MOQ_MP4_ATOM_ST3D_LEFT_RIGHT ((uint8_t)2)
-#define MOQ_MP4_ATOM_ST3D_STEREO_CUSTOM ((uint8_t)3)
-#define MOQ_MP4_ATOM_ST3D_RIGHT_LEFT ((uint8_t)4)
-#define MOQ_MP4_ATOM_HFOV_DENOMINATOR ((uint32_t)1000U)
-#define MOQ_MP4_ATOM_ESDS_ESDESCRIPTOR_TAG ((uint8_t)3)
-#define MOQ_MP4_ATOM_ESDS_DECODERCONFIG_TAG ((uint8_t)4)
-#define MOQ_MP4_ATOM_ESDS_SLCONFIG_TAG ((uint8_t)6)
-#define MOQ_MP4_ATOM_U24_MAX ((uint32_t)16777215U)
-#define MOQ_MP4_ATOM_HERO_NONE ((uint8_t)0)
-#define MOQ_MP4_ATOM_HERO_LEFT ((uint8_t)1)
-#define MOQ_MP4_ATOM_HERO_RIGHT ((uint8_t)2)
-#define MOQ_MP4_ATOM_ESDS_DECODERSPECIFIC_TAG ((uint8_t)5)
-#define MOQ_MP4_ATOM_DADJ_DENOMINATOR ((int32_t)10000)
 bool moq_TimeOverflow_eq(const moq_TimeOverflow *a, const moq_TimeOverflow *b);
 moq_buf moq_TimeOverflow_to_string(const moq_TimeOverflow *self);
 moq_buf moq_TimeOverflow_debug(const moq_TimeOverflow *self);
@@ -4323,39 +2332,6 @@ moq_Timescale moq_Timescale_MICRO(void);
 moq_Timescale moq_Timescale_NANO(void);
 bool moq_Timescale_new(uint64_t units_per_second, moq_Timescale *out, moq_TimeOverflow *err);
 uint64_t moq_Timescale_as_u64(const moq_Timescale *self);
-bool moq_Timestamp_eq(const moq_Timestamp *a, const moq_Timestamp *b);
-uint64_t moq_Timestamp_hash(const moq_Timestamp *self);
-moq_buf moq_Timestamp_debug(const moq_Timestamp *self);
-moq_Timestamp moq_Timestamp_ZERO(void);
-bool moq_Timestamp_new(uint64_t value, moq_Timescale scale, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_from_scale(uint64_t value, uint64_t units_per_second, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_from_secs(uint64_t seconds, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_from_millis(uint64_t millis, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_from_micros(uint64_t micros, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_from_nanos(uint64_t nanos, moq_Timestamp *out, moq_TimeOverflow *err);
-uint64_t moq_Timestamp_value(const moq_Timestamp *self);
-moq_Timescale moq_Timestamp_scale(const moq_Timestamp *self);
-bool moq_Timestamp_is_zero(const moq_Timestamp *self);
-bool moq_Timestamp_convert(const moq_Timestamp *self, moq_Timescale new_scale, moq_Timestamp *out, moq_TimeOverflow *err);
-moq_u128 moq_Timestamp_as_scale(const moq_Timestamp *self, moq_Timescale target);
-uint64_t moq_Timestamp_as_secs(const moq_Timestamp *self);
-moq_u128 moq_Timestamp_as_millis(const moq_Timestamp *self);
-moq_u128 moq_Timestamp_as_micros(const moq_Timestamp *self);
-moq_u128 moq_Timestamp_as_nanos(const moq_Timestamp *self);
-bool moq_Timestamp_checked_add(const moq_Timestamp *self, moq_Timestamp rhs, moq_Timestamp *out, moq_TimeOverflow *err);
-bool moq_Timestamp_checked_sub(const moq_Timestamp *self, moq_Timestamp rhs, moq_Timestamp *out, moq_TimeOverflow *err);
-moq_Timestamp moq_Timestamp_now(void);
-void moq_Datagram_free(moq_Datagram *self);
-bool moq_Datagram_eq(const moq_Datagram *a, const moq_Datagram *b);
-moq_buf moq_Datagram_debug(const moq_Datagram *self);
-bool moq_Hop_eq(const moq_Hop *a, const moq_Hop *b);
-uint64_t moq_Hop_hash(const moq_Hop *self);
-moq_buf moq_Hop_to_string(const moq_Hop *self);
-moq_buf moq_Hop_debug(const moq_Hop *self);
-moq_Hop moq_Hop_UNKNOWN(void);
-bool moq_Hop_new(uint64_t id, moq_Hop *out, moq_InvalidHop *err);
-moq_Hop moq_Hop_random(void);
-uint64_t moq_Hop_id(const moq_Hop *self);
 bool moq_clock_Instant_eq(const moq_clock_Instant *a, const moq_clock_Instant *b);
 uint64_t moq_clock_Instant_hash(const moq_clock_Instant *self);
 moq_buf moq_clock_Instant_debug(const moq_clock_Instant *self);
@@ -4367,6 +2343,8 @@ moq_option_duration moq_clock_Instant_checked_duration_since(const moq_clock_Ins
 moq_duration moq_clock_Instant_saturating_duration_since(const moq_clock_Instant *self, moq_clock_Instant earlier);
 moq_option_clock_Instant moq_clock_Instant_checked_add(const moq_clock_Instant *self, moq_duration duration);
 moq_option_clock_Instant moq_clock_Instant_checked_sub(const moq_clock_Instant *self, moq_duration duration);
+moq_clock_Instant moq_clock_Instant_saturating_add(const moq_clock_Instant *self, moq_duration duration);
+moq_clock_Instant moq_clock_Instant_saturating_sub(const moq_clock_Instant *self, moq_duration duration);
 moq_Instant *moq_clock_Instant_into_std(const moq_clock_Instant *self);
 moq_clock_Instant moq_clock_Instant_from_std(const moq_Instant *at);
 bool moq_clock_Elapsed_eq(const moq_clock_Elapsed *a, const moq_clock_Elapsed *b);
@@ -4376,21 +2354,13 @@ bool moq_clock_Wall_eq(const moq_clock_Wall *a, const moq_clock_Wall *b);
 uint64_t moq_clock_Wall_hash(const moq_clock_Wall *self);
 moq_buf moq_clock_Wall_debug(const moq_clock_Wall *self);
 moq_clock_Wall moq_clock_Wall_UNIX_EPOCH(void);
+moq_clock_Wall moq_clock_Wall_MOQ_EPOCH(void);
 moq_clock_Wall moq_clock_Wall_now(void);
 moq_option_duration moq_clock_Wall_checked_duration_since(const moq_clock_Wall *self, moq_clock_Wall earlier);
 moq_duration moq_clock_Wall_saturating_duration_since(const moq_clock_Wall *self, moq_clock_Wall earlier);
 moq_option_clock_Wall moq_clock_Wall_checked_add(const moq_clock_Wall *self, moq_duration duration);
 moq_clock_Wall moq_clock_Wall_saturating_add(const moq_clock_Wall *self, moq_duration duration);
 moq_option_clock_Wall moq_clock_Wall_checked_sub(const moq_clock_Wall *self, moq_duration duration);
-bool moq_setup_Extensions_eq(const moq_setup_Extensions *a, const moq_setup_Extensions *b);
-moq_buf moq_setup_Extensions_debug(const moq_setup_Extensions *self);
-moq_setup_Extensions moq_setup_Extensions_default(void);
-bool moq_setup_Extensions_auth_get(const moq_setup_Extensions *self);
-void moq_setup_Extensions_auth_set(moq_setup_Extensions *self, bool value);
-bool moq_setup_Extensions_solicit_get(const moq_setup_Extensions *self);
-void moq_setup_Extensions_solicit_set(moq_setup_Extensions *self, bool value);
-bool moq_setup_Extensions_ietf_get(const moq_setup_Extensions *self);
-void moq_setup_Extensions_ietf_set(moq_setup_Extensions *self, bool value);
 void moq_setup_Token_free(moq_setup_Token *self);
 bool moq_setup_Token_eq(const moq_setup_Token *a, const moq_setup_Token *b);
 moq_buf moq_setup_Token_debug(const moq_setup_Token *self);
@@ -4468,8 +2438,19 @@ uint64_t moq_stats_Presence_wire_tx_get(const moq_stats_Presence *self);
 void moq_stats_Presence_wire_tx_set(moq_stats_Presence *self, uint64_t value);
 uint64_t moq_stats_Presence_wire_rx_get(const moq_stats_Presence *self);
 void moq_stats_Presence_wire_rx_set(moq_stats_Presence *self, uint64_t value);
+uint64_t moq_stats_Presence_routes_refused_get(const moq_stats_Presence *self);
+void moq_stats_Presence_routes_refused_set(moq_stats_Presence *self, uint64_t value);
+moq_stats_Routes moq_stats_Presence_routes_get(const moq_stats_Presence *self);
+void moq_stats_Presence_routes_set(moq_stats_Presence *self, moq_stats_Routes value);
 void moq_stats_Presence_add(moq_stats_Presence *self, moq_stats_Presence other);
 uint64_t moq_stats_Presence_active(const moq_stats_Presence *self);
+bool moq_stats_Activity_eq(const moq_stats_Activity *a, const moq_stats_Activity *b);
+moq_buf moq_stats_Activity_debug(const moq_stats_Activity *self);
+moq_stats_Activity moq_stats_Activity_default(void);
+uint64_t moq_stats_Activity_idle_get(const moq_stats_Activity *self);
+void moq_stats_Activity_idle_set(moq_stats_Activity *self, uint64_t value);
+uint64_t moq_stats_Activity_active_get(const moq_stats_Activity *self);
+void moq_stats_Activity_active_set(moq_stats_Activity *self, uint64_t value);
 bool moq_stats_Totals_eq(const moq_stats_Totals *a, const moq_stats_Totals *b);
 moq_buf moq_stats_Totals_debug(const moq_stats_Totals *self);
 moq_stats_Totals moq_stats_Totals_default(void);
@@ -4477,6 +2458,10 @@ uint64_t moq_stats_Totals_tx_get(const moq_stats_Totals *self);
 void moq_stats_Totals_tx_set(moq_stats_Totals *self, uint64_t value);
 uint64_t moq_stats_Totals_rx_get(const moq_stats_Totals *self);
 void moq_stats_Totals_rx_set(moq_stats_Totals *self, uint64_t value);
+uint64_t moq_stats_Totals_tx_messages_get(const moq_stats_Totals *self);
+void moq_stats_Totals_tx_messages_set(moq_stats_Totals *self, uint64_t value);
+uint64_t moq_stats_Totals_rx_messages_get(const moq_stats_Totals *self);
+void moq_stats_Totals_rx_messages_set(moq_stats_Totals *self, uint64_t value);
 bool moq_stats_Failures_eq(const moq_stats_Failures *a, const moq_stats_Failures *b);
 moq_buf moq_stats_Failures_debug(const moq_stats_Failures *self);
 moq_stats_Failures moq_stats_Failures_default(void);
@@ -4502,20 +2487,75 @@ uint64_t moq_stats_Refusals_request_get(const moq_stats_Refusals *self);
 void moq_stats_Refusals_request_set(moq_stats_Refusals *self, uint64_t value);
 uint64_t moq_stats_Refusals_forbidden_get(const moq_stats_Refusals *self);
 void moq_stats_Refusals_forbidden_set(moq_stats_Refusals *self, uint64_t value);
-uint64_t moq_stats_Refusals_lan_get(const moq_stats_Refusals *self);
-void moq_stats_Refusals_lan_set(moq_stats_Refusals *self, uint64_t value);
+uint64_t moq_stats_Refusals_membership_get(const moq_stats_Refusals *self);
+void moq_stats_Refusals_membership_set(moq_stats_Refusals *self, uint64_t value);
 uint64_t moq_stats_Refusals_expired_get(const moq_stats_Refusals *self);
 void moq_stats_Refusals_expired_set(moq_stats_Refusals *self, uint64_t value);
 uint64_t moq_stats_Refusals_count(const moq_stats_Refusals *self, moq_stats_RefusalKind kind);
 void moq_stats_Refusals_add(moq_stats_Refusals *self, moq_stats_Refusals other);
 bool moq_stats_Refusals_regressed(const moq_stats_Refusals *self, moq_stats_Refusals previous);
-bool moq_transport_ReceiveWindow_eq(const moq_transport_ReceiveWindow *a, const moq_transport_ReceiveWindow *b);
-moq_buf moq_transport_ReceiveWindow_debug(const moq_transport_ReceiveWindow *self);
-uint64_t moq_transport_ReceiveWindow_connection_get(const moq_transport_ReceiveWindow *self);
-void moq_transport_ReceiveWindow_connection_set(moq_transport_ReceiveWindow *self, uint64_t value);
-uint64_t moq_transport_ReceiveWindow_stream_get(const moq_transport_ReceiveWindow *self);
-void moq_transport_ReceiveWindow_stream_set(moq_transport_ReceiveWindow *self, uint64_t value);
-moq_transport_ReceiveWindow moq_transport_ReceiveWindow_new(uint64_t connection, uint64_t stream);
+bool moq_stats_RouteCloses_eq(const moq_stats_RouteCloses *a, const moq_stats_RouteCloses *b);
+moq_buf moq_stats_RouteCloses_debug(const moq_stats_RouteCloses *self);
+moq_stats_RouteCloses moq_stats_RouteCloses_default(void);
+uint64_t moq_stats_RouteCloses_stalled_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_stalled_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_overrun_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_overrun_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_malformed_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_malformed_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_role_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_role_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_unasked_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_unasked_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_regressed_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_regressed_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_other_get(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_other_set(moq_stats_RouteCloses *self, uint64_t value);
+uint64_t moq_stats_RouteCloses_count(const moq_stats_RouteCloses *self, moq_stats_RouteClose kind);
+uint64_t moq_stats_RouteCloses_total(const moq_stats_RouteCloses *self);
+void moq_stats_RouteCloses_add(moq_stats_RouteCloses *self, moq_stats_RouteCloses other);
+bool moq_stats_RouteCloses_regressed(const moq_stats_RouteCloses *self, moq_stats_RouteCloses previous);
+bool moq_stats_RouteRefusals_eq(const moq_stats_RouteRefusals *a, const moq_stats_RouteRefusals *b);
+moq_buf moq_stats_RouteRefusals_debug(const moq_stats_RouteRefusals *self);
+moq_stats_RouteRefusals moq_stats_RouteRefusals_default(void);
+uint64_t moq_stats_RouteRefusals_path_get(const moq_stats_RouteRefusals *self);
+void moq_stats_RouteRefusals_path_set(moq_stats_RouteRefusals *self, uint64_t value);
+uint64_t moq_stats_RouteRefusals_scope_get(const moq_stats_RouteRefusals *self);
+void moq_stats_RouteRefusals_scope_set(moq_stats_RouteRefusals *self, uint64_t value);
+uint64_t moq_stats_RouteRefusals_looped_get(const moq_stats_RouteRefusals *self);
+void moq_stats_RouteRefusals_looped_set(moq_stats_RouteRefusals *self, uint64_t value);
+uint64_t moq_stats_RouteRefusals_count(const moq_stats_RouteRefusals *self, moq_stats_RouteRefusal kind);
+uint64_t moq_stats_RouteRefusals_total(const moq_stats_RouteRefusals *self);
+void moq_stats_RouteRefusals_add(moq_stats_RouteRefusals *self, moq_stats_RouteRefusals other);
+bool moq_stats_RouteRefusals_regressed(const moq_stats_RouteRefusals *self, moq_stats_RouteRefusals previous);
+bool moq_stats_Routes_eq(const moq_stats_Routes *a, const moq_stats_Routes *b);
+moq_buf moq_stats_Routes_debug(const moq_stats_Routes *self);
+moq_stats_Routes moq_stats_Routes_default(void);
+uint64_t moq_stats_Routes_changed_get(const moq_stats_Routes *self);
+void moq_stats_Routes_changed_set(moq_stats_Routes *self, uint64_t value);
+uint64_t moq_stats_Routes_rewritten_get(const moq_stats_Routes *self);
+void moq_stats_Routes_rewritten_set(moq_stats_Routes *self, uint64_t value);
+moq_stats_Withdrawals moq_stats_Routes_sent_get(const moq_stats_Routes *self);
+void moq_stats_Routes_sent_set(moq_stats_Routes *self, moq_stats_Withdrawals value);
+moq_stats_Withdrawals moq_stats_Routes_received_get(const moq_stats_Routes *self);
+void moq_stats_Routes_received_set(moq_stats_Routes *self, moq_stats_Withdrawals value);
+moq_stats_RouteRefusals moq_stats_Routes_refused_get(const moq_stats_Routes *self);
+void moq_stats_Routes_refused_set(moq_stats_Routes *self, moq_stats_RouteRefusals value);
+moq_stats_RouteCloses moq_stats_Routes_closed_get(const moq_stats_Routes *self);
+void moq_stats_Routes_closed_set(moq_stats_Routes *self, moq_stats_RouteCloses value);
+void moq_stats_Routes_add(moq_stats_Routes *self, moq_stats_Routes other);
+bool moq_stats_Routes_regressed(const moq_stats_Routes *self, moq_stats_Routes previous);
+bool moq_stats_Withdrawals_eq(const moq_stats_Withdrawals *a, const moq_stats_Withdrawals *b);
+moq_buf moq_stats_Withdrawals_debug(const moq_stats_Withdrawals *self);
+moq_stats_Withdrawals moq_stats_Withdrawals_default(void);
+uint64_t moq_stats_Withdrawals_dead_get(const moq_stats_Withdrawals *self);
+void moq_stats_Withdrawals_dead_set(moq_stats_Withdrawals *self, uint64_t value);
+uint64_t moq_stats_Withdrawals_drain_get(const moq_stats_Withdrawals *self);
+void moq_stats_Withdrawals_drain_set(moq_stats_Withdrawals *self, uint64_t value);
+uint64_t moq_stats_Withdrawals_count(const moq_stats_Withdrawals *self, moq_stats_Withdrawal kind);
+uint64_t moq_stats_Withdrawals_total(const moq_stats_Withdrawals *self);
+void moq_stats_Withdrawals_add(moq_stats_Withdrawals *self, moq_stats_Withdrawals other);
+bool moq_stats_Withdrawals_regressed(const moq_stats_Withdrawals *self, moq_stats_Withdrawals previous);
 bool moq_bandwidth_Rate_eq(const moq_bandwidth_Rate *a, const moq_bandwidth_Rate *b);
 uint64_t moq_bandwidth_Rate_hash(const moq_bandwidth_Rate *self);
 moq_buf moq_bandwidth_Rate_debug(const moq_bandwidth_Rate *self);
@@ -4527,8 +2567,11 @@ moq_bandwidth_Rate moq_bandwidth_Rate_from_mbps(uint64_t mbps);
 uint64_t moq_bandwidth_Rate_as_bps(const moq_bandwidth_Rate *self);
 moq_bandwidth_Rate moq_bandwidth_Rate_scaled(const moq_bandwidth_Rate *self, double factor);
 moq_bandwidth_Rate moq_bandwidth_Rate_abs_diff(const moq_bandwidth_Rate *self, moq_bandwidth_Rate other);
+void moq_datagram_Datagram_free(moq_datagram_Datagram *self);
+bool moq_datagram_Datagram_eq(const moq_datagram_Datagram *a, const moq_datagram_Datagram *b, moq_status *status);
+moq_buf moq_datagram_Datagram_debug(const moq_datagram_Datagram *self, moq_status *status);
 void moq_frame_Info_free(moq_frame_Info *self);
-moq_buf moq_frame_Info_debug(const moq_frame_Info *self);
+moq_buf moq_frame_Info_debug(const moq_frame_Info *self, moq_status *status);
 void moq_group_Info_free(moq_group_Info *self);
 bool moq_group_Info_eq(const moq_group_Info *a, const moq_group_Info *b);
 uint64_t moq_group_Info_hash(const moq_group_Info *self);
@@ -4539,57 +2582,37 @@ moq_buf moq_track_Delay_debug(const moq_track_Delay *self);
 moq_track_Delay moq_track_Delay_default(void);
 moq_track_Delay moq_track_Delay_with_min(const moq_track_Delay *self, moq_option_duration min);
 moq_track_Delay moq_track_Delay_with_max(const moq_track_Delay *self, moq_option_duration max);
-void moq_track_Position_free(moq_track_Position *self);
 bool moq_track_Position_eq(const moq_track_Position *a, const moq_track_Position *b);
 uint64_t moq_track_Position_hash(const moq_track_Position *self);
 moq_buf moq_track_Position_debug(const moq_track_Position *self);
 moq_track_Position moq_track_Position_default(void);
+uint64_t moq_track_Position_group_get(const moq_track_Position *self);
+void moq_track_Position_group_set(moq_track_Position *self, uint64_t value);
+uint64_t moq_track_Position_frame_get(const moq_track_Position *self);
+void moq_track_Position_frame_set(moq_track_Position *self, uint64_t value);
+moq_track_Position moq_track_Position_new(uint64_t group, uint64_t frame);
 moq_track_Position moq_track_Position_group(uint64_t group);
-moq_option_track_Position moq_track_Position_after(uint64_t group, uint64_t frame);
-moq_option_track_Position moq_track_Position_after_group(uint64_t group);
-moq_bound_u64 moq_track_Position_group_end(const moq_track_Position *self);
 void moq_track_Range_free(moq_track_Range *self);
 bool moq_track_Range_eq(const moq_track_Range *a, const moq_track_Range *b);
 uint64_t moq_track_Range_hash(const moq_track_Range *self);
 moq_buf moq_track_Range_debug(const moq_track_Range *self);
 moq_track_Range moq_track_Range_live(void);
 moq_track_Range moq_track_Range_oldest(void);
-moq_track_Range moq_track_Range_groups(moq_bounds_u64 groups);
 bool moq_origin_Cost_eq(const moq_origin_Cost *a, const moq_origin_Cost *b);
 moq_buf moq_origin_Cost_debug(const moq_origin_Cost *self);
 moq_origin_Cost moq_origin_Cost_default(void);
 moq_origin_Cost moq_origin_Cost_new(uint64_t cost);
 uint64_t moq_origin_Cost_value(const moq_origin_Cost *self);
-moq_origin_Cost moq_origin_Cost_MAX(void);
-moq_origin_Cost moq_origin_Cost_DRAIN(void);
-bool moq_origin_HopLimit_eq(const moq_origin_HopLimit *a, const moq_origin_HopLimit *b);
-uint64_t moq_origin_HopLimit_hash(const moq_origin_HopLimit *self);
-moq_buf moq_origin_HopLimit_debug(const moq_origin_HopLimit *self);
-moq_origin_HopLimit moq_origin_HopLimit_default(void);
-moq_option_origin_HopLimit moq_origin_HopLimit_new(size_t max);
-size_t moq_origin_HopLimit_get(const moq_origin_HopLimit *self);
-bool moq_origin_Preference_eq(const moq_origin_Preference *a, const moq_origin_Preference *b);
-uint64_t moq_origin_Preference_hash(const moq_origin_Preference *self);
-moq_buf moq_origin_Preference_debug(const moq_origin_Preference *self);
-moq_origin_Preference moq_origin_Preference_default(void);
-moq_origin_Preference moq_origin_Preference_new(int8_t preference);
-int8_t moq_origin_Preference_value(const moq_origin_Preference *self);
-void moq_hang_health_Limits_f64_free(moq_hang_health_Limits_f64 *self);
-bool moq_hang_health_Limits_f64_eq(const moq_hang_health_Limits_f64 *a, const moq_hang_health_Limits_f64 *b);
-moq_buf moq_hang_health_Limits_f64_debug(const moq_hang_health_Limits_f64 *self);
-void moq_hang_health_Limits_duration_free(moq_hang_health_Limits_duration *self);
-bool moq_hang_health_Limits_duration_eq(const moq_hang_health_Limits_duration *a, const moq_hang_health_Limits_duration *b);
-moq_buf moq_hang_health_Limits_duration_debug(const moq_hang_health_Limits_duration *self);
+bool moq_origin_Priority_eq(const moq_origin_Priority *a, const moq_origin_Priority *b);
+uint64_t moq_origin_Priority_hash(const moq_origin_Priority *self);
+moq_buf moq_origin_Priority_debug(const moq_origin_Priority *self);
+moq_origin_Priority moq_origin_Priority_default(void);
+moq_origin_Priority moq_origin_Priority_new(int8_t priority);
+int8_t moq_origin_Priority_value(const moq_origin_Priority *self);
 void moq_hang_catalog_AAC_free(moq_hang_catalog_AAC *self);
 bool moq_hang_catalog_AAC_eq(const moq_hang_catalog_AAC *a, const moq_hang_catalog_AAC *b);
 moq_buf moq_hang_catalog_AAC_to_string(const moq_hang_catalog_AAC *self);
 moq_buf moq_hang_catalog_AAC_debug(const moq_hang_catalog_AAC *self);
-bool moq_hang_catalog_Clock_eq(const moq_hang_catalog_Clock *a, const moq_hang_catalog_Clock *b);
-moq_buf moq_hang_catalog_Clock_debug(const moq_hang_catalog_Clock *self);
-moq_Timestamp moq_hang_catalog_Clock_wall_get(const moq_hang_catalog_Clock *self);
-void moq_hang_catalog_Clock_wall_set(moq_hang_catalog_Clock *self, moq_Timestamp value);
-bool moq_hang_catalog_Clock_new(moq_Timestamp wall, moq_hang_catalog_Clock *out, moq_hang_Error **err);
-bool moq_hang_catalog_Clock_wall_clock(const moq_hang_catalog_Clock *self, moq_Timestamp pts, moq_clock_Wall *out, moq_hang_Error **err);
 bool moq_hang_catalog_Priorities_eq(const moq_hang_catalog_Priorities *a, const moq_hang_catalog_Priorities *b);
 moq_buf moq_hang_catalog_Priorities_debug(const moq_hang_catalog_Priorities *self);
 int8_t moq_hang_catalog_Priorities_catalog_get(const moq_hang_catalog_Priorities *self);
@@ -4632,30 +2655,26 @@ void moq_hang_catalog_Display_free(moq_hang_catalog_Display *self);
 bool moq_hang_catalog_Display_eq(const moq_hang_catalog_Display *a, const moq_hang_catalog_Display *b);
 moq_buf moq_hang_catalog_Display_debug(const moq_hang_catalog_Display *self);
 void moq_hang_container_Frame_free(moq_hang_container_Frame *self);
-moq_buf moq_hang_container_Frame_debug(const moq_hang_container_Frame *self);
-bool moq_hang_container_Frame_encode(const moq_hang_container_Frame *self, moq_buf buf, moq_buf *buf_out, moq_hang_Error **err);
+moq_buf moq_hang_container_Frame_debug(const moq_hang_container_Frame *self, moq_status *status);
+bool moq_hang_container_Frame_encode(const moq_hang_container_Frame *self, moq_buf buf, moq_buf *buf_out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_container_Frame_decode(moq_buf buf, moq_hang_container_Frame *out, moq_hang_Error **err);
 bool moq_hang_container_Frame_write_to(const moq_hang_container_Frame *self, moq_group_Producer *group, moq_hang_Error **err, moq_status *status);
 void moq_mux_container_Frame_free(moq_mux_container_Frame *self);
-moq_buf moq_mux_container_Frame_debug(const moq_mux_container_Frame *self);
+moq_buf moq_mux_container_Frame_debug(const moq_mux_container_Frame *self, moq_status *status);
 void moq_mux_container_TimestampRewind_free(moq_mux_container_TimestampRewind *self);
-bool moq_mux_container_TimestampRewind_eq(const moq_mux_container_TimestampRewind *a, const moq_mux_container_TimestampRewind *b);
-moq_buf moq_mux_container_TimestampRewind_to_string(const moq_mux_container_TimestampRewind *self);
-moq_buf moq_mux_container_TimestampRewind_debug(const moq_mux_container_TimestampRewind *self);
-void moq_mux_select_Selected_free(moq_mux_select_Selected *self);
-bool moq_mux_select_Selected_eq(const moq_mux_select_Selected *a, const moq_mux_select_Selected *b);
-moq_buf moq_mux_select_Selected_debug(const moq_mux_select_Selected *self);
-moq_mux_select_Selected moq_mux_select_Selected_default(void);
-moq_mux_select_Selected moq_mux_select_Selected_of_Extra(const moq_hang_Catalog_Extra *catalog, moq_status *status);
-moq_mux_select_Selected moq_mux_select_Selected_of_Ext(const moq_hang_Catalog_Ext *catalog, moq_status *status);
-moq_mux_select_Selected moq_mux_select_Selected_of_unit(const moq_hang_Catalog *catalog, moq_status *status);
-bool moq_mux_timeline_Transition_eq(const moq_mux_timeline_Transition *a, const moq_mux_timeline_Transition *b);
-moq_buf moq_mux_timeline_Transition_debug(const moq_mux_timeline_Transition *self);
-void moq_mux_timeline_Audio_free(moq_mux_timeline_Audio *self);
-moq_buf moq_mux_timeline_Audio_debug(const moq_mux_timeline_Audio *self);
-void moq_mux_codec_aac_Config_free(moq_mux_codec_aac_Config *self);
-bool moq_mux_codec_aac_Config_parse(moq_buf buf, moq_buf *buf_out, moq_mux_codec_aac_Config *out, moq_mux_codec_aac_Error **err);
-bool moq_mux_codec_aac_Config_encode(const moq_mux_codec_aac_Config *self, moq_buf *out, moq_mux_codec_aac_Error **err);
+bool moq_mux_container_TimestampRewind_eq(const moq_mux_container_TimestampRewind *a, const moq_mux_container_TimestampRewind *b, moq_status *status);
+moq_buf moq_mux_container_TimestampRewind_to_string(const moq_mux_container_TimestampRewind *self, moq_status *status);
+moq_buf moq_mux_container_TimestampRewind_debug(const moq_mux_container_TimestampRewind *self, moq_status *status);
+void moq_mux_container_Playout_free(moq_mux_container_Playout *self);
+bool moq_mux_container_Playout_eq(const moq_mux_container_Playout *a, const moq_mux_container_Playout *b);
+moq_buf moq_mux_container_Playout_debug(const moq_mux_container_Playout *self);
+moq_mux_container_Playout moq_mux_container_Playout_default(void);
+moq_mux_container_Playout moq_mux_container_Playout_new(moq_track_Delay delay, moq_duration warmup);
+moq_track_Subscription *moq_mux_container_Playout_subscription(const moq_mux_container_Playout *self, moq_track_Subscription *subscription, moq_status *status);
+moq_mux_container_Consumer_Container *moq_mux_container_Playout_consumer_Container(const moq_mux_container_Playout *self, moq_track_Subscriber *track, moq_mux_catalog_hang_Container *format, moq_status *status);
+moq_mux_container_Consumer_fmp4_Wire *moq_mux_container_Playout_consumer_fmp4_Wire(const moq_mux_container_Playout *self, moq_track_Subscriber *track, moq_mux_container_fmp4_Wire *format, moq_status *status);
+moq_mux_container_Consumer_legacy_Wire *moq_mux_container_Playout_consumer_legacy_Wire(const moq_mux_container_Playout *self, moq_track_Subscriber *track, moq_mux_container_legacy_Wire format, moq_status *status);
+moq_mux_container_Consumer_loc_Wire *moq_mux_container_Playout_consumer_loc_Wire(const moq_mux_container_Playout *self, moq_track_Subscriber *track, moq_mux_container_loc_Wire format, moq_status *status);
 void moq_mux_codec_flac_Config_free(moq_mux_codec_flac_Config *self);
 bool moq_mux_codec_flac_Config_eq(const moq_mux_codec_flac_Config *a, const moq_mux_codec_flac_Config *b);
 moq_buf moq_mux_codec_flac_Config_debug(const moq_mux_codec_flac_Config *self);
@@ -4666,6 +2685,9 @@ moq_buf moq_mux_codec_flac_Config_description(const moq_mux_codec_flac_Config *s
 void moq_mux_codec_h264_Sps_free(moq_mux_codec_h264_Sps *self);
 moq_buf moq_mux_codec_h264_Sps_debug(const moq_mux_codec_h264_Sps *self);
 bool moq_mux_codec_h264_Sps_parse(moq_buf nal, moq_mux_codec_h264_Sps *out, moq_mux_codec_h264_Error **err);
+void moq_mux_codec_h265_VideoSignal_free(moq_mux_codec_h265_VideoSignal *self);
+bool moq_mux_codec_h265_VideoSignal_eq(const moq_mux_codec_h265_VideoSignal *a, const moq_mux_codec_h265_VideoSignal *b);
+moq_buf moq_mux_codec_h265_VideoSignal_debug(const moq_mux_codec_h265_VideoSignal *self);
 void moq_mux_codec_mp3_Config_free(moq_mux_codec_mp3_Config *self);
 bool moq_mux_codec_mp3_Config_parse(moq_buf data_, moq_mux_codec_mp3_Config *out, moq_mux_codec_mp3_Error *err);
 bool moq_mux_codec_opus_Mapping_eq(const moq_mux_codec_opus_Mapping *a, const moq_mux_codec_opus_Mapping *b);
@@ -4678,785 +2700,14 @@ void moq_mux_container_fmp4_Fragment_free(moq_mux_container_fmp4_Fragment *self)
 moq_buf moq_mux_container_fmp4_Fragment_debug(const moq_mux_container_fmp4_Fragment *self);
 void moq_mux_container_legacy_Wire_free(moq_mux_container_legacy_Wire *self);
 void moq_mux_container_loc_Wire_free(moq_mux_container_loc_Wire *self);
-void moq_mux_container_mp4_Finish_free(moq_mux_container_mp4_Finish *self);
-moq_buf moq_mux_container_mp4_Finish_debug(const moq_mux_container_mp4_Finish *self);
 void moq_mux_container_ts_Descriptor_free(moq_mux_container_ts_Descriptor *self);
 bool moq_mux_container_ts_Descriptor_eq(const moq_mux_container_ts_Descriptor *a, const moq_mux_container_ts_Descriptor *b);
 moq_buf moq_mux_container_ts_Descriptor_debug(const moq_mux_container_ts_Descriptor *self);
-moq_buf moq_mux_container_fmp4_fragment_Config_debug(const moq_mux_container_fmp4_fragment_Config *self);
-moq_mux_container_fmp4_fragment_Config moq_mux_container_fmp4_fragment_Config_default(void);
-moq_mux_container_fmp4_fragment_MissingDuration moq_mux_container_fmp4_fragment_Config_missing_duration_get(const moq_mux_container_fmp4_fragment_Config *self);
-void moq_mux_container_fmp4_fragment_Config_missing_duration_set(moq_mux_container_fmp4_fragment_Config *self, moq_mux_container_fmp4_fragment_MissingDuration value);
-bool moq_mp4_atom_FourCC_eq(const moq_mp4_atom_FourCC *a, const moq_mp4_atom_FourCC *b);
-uint64_t moq_mp4_atom_FourCC_hash(const moq_mp4_atom_FourCC *self);
-moq_buf moq_mp4_atom_FourCC_to_string(const moq_mp4_atom_FourCC *self);
-moq_buf moq_mp4_atom_FourCC_debug(const moq_mp4_atom_FourCC *self);
-moq_mp4_atom_FourCC moq_mp4_atom_FourCC_new(moq_array_u8_4 value);
-void moq_mp4_atom_Mp4a_free(moq_mp4_atom_Mp4a *self);
-bool moq_mp4_atom_Mp4a_eq(const moq_mp4_atom_Mp4a *a, const moq_mp4_atom_Mp4a *b);
-moq_buf moq_mp4_atom_Mp4a_debug(const moq_mp4_atom_Mp4a *self);
-void moq_mp4_atom_Mp3_free(moq_mp4_atom_Mp3 *self);
-bool moq_mp4_atom_Mp3_eq(const moq_mp4_atom_Mp3 *a, const moq_mp4_atom_Mp3 *b);
-moq_buf moq_mp4_atom_Mp3_debug(const moq_mp4_atom_Mp3 *self);
-void moq_mp4_atom_Opus_free(moq_mp4_atom_Opus *self);
-bool moq_mp4_atom_Opus_eq(const moq_mp4_atom_Opus *a, const moq_mp4_atom_Opus *b);
-moq_buf moq_mp4_atom_Opus_debug(const moq_mp4_atom_Opus *self);
-void moq_mp4_atom_Flac_free(moq_mp4_atom_Flac *self);
-bool moq_mp4_atom_Flac_eq(const moq_mp4_atom_Flac *a, const moq_mp4_atom_Flac *b);
-moq_buf moq_mp4_atom_Flac_debug(const moq_mp4_atom_Flac *self);
-void moq_mp4_atom_Ac3_free(moq_mp4_atom_Ac3 *self);
-bool moq_mp4_atom_Ac3_eq(const moq_mp4_atom_Ac3 *a, const moq_mp4_atom_Ac3 *b);
-moq_buf moq_mp4_atom_Ac3_debug(const moq_mp4_atom_Ac3 *self);
-void moq_mp4_atom_Eac3_free(moq_mp4_atom_Eac3 *self);
-bool moq_mp4_atom_Eac3_eq(const moq_mp4_atom_Eac3 *a, const moq_mp4_atom_Eac3 *b);
-moq_buf moq_mp4_atom_Eac3_debug(const moq_mp4_atom_Eac3 *self);
-void moq_mp4_atom_Ipcm_free(moq_mp4_atom_Ipcm *self);
-bool moq_mp4_atom_Ipcm_eq(const moq_mp4_atom_Ipcm *a, const moq_mp4_atom_Ipcm *b);
-moq_buf moq_mp4_atom_Ipcm_debug(const moq_mp4_atom_Ipcm *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Ipcm_format(const moq_mp4_atom_Ipcm *self);
-void moq_mp4_atom_Fpcm_free(moq_mp4_atom_Fpcm *self);
-bool moq_mp4_atom_Fpcm_eq(const moq_mp4_atom_Fpcm *a, const moq_mp4_atom_Fpcm *b);
-moq_buf moq_mp4_atom_Fpcm_debug(const moq_mp4_atom_Fpcm *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Fpcm_format(const moq_mp4_atom_Fpcm *self);
-void moq_mp4_atom_Sowt_free(moq_mp4_atom_Sowt *self);
-bool moq_mp4_atom_Sowt_eq(const moq_mp4_atom_Sowt *a, const moq_mp4_atom_Sowt *b);
-moq_buf moq_mp4_atom_Sowt_debug(const moq_mp4_atom_Sowt *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Sowt_format(const moq_mp4_atom_Sowt *self);
-void moq_mp4_atom_Twos_free(moq_mp4_atom_Twos *self);
-bool moq_mp4_atom_Twos_eq(const moq_mp4_atom_Twos *a, const moq_mp4_atom_Twos *b);
-moq_buf moq_mp4_atom_Twos_debug(const moq_mp4_atom_Twos *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Twos_format(const moq_mp4_atom_Twos *self);
-void moq_mp4_atom_Lpcm_free(moq_mp4_atom_Lpcm *self);
-bool moq_mp4_atom_Lpcm_eq(const moq_mp4_atom_Lpcm *a, const moq_mp4_atom_Lpcm *b);
-moq_buf moq_mp4_atom_Lpcm_debug(const moq_mp4_atom_Lpcm *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Lpcm_format(const moq_mp4_atom_Lpcm *self);
-void moq_mp4_atom_In24_free(moq_mp4_atom_In24 *self);
-bool moq_mp4_atom_In24_eq(const moq_mp4_atom_In24 *a, const moq_mp4_atom_In24 *b);
-moq_buf moq_mp4_atom_In24_debug(const moq_mp4_atom_In24 *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_In24_format(const moq_mp4_atom_In24 *self);
-void moq_mp4_atom_In32_free(moq_mp4_atom_In32 *self);
-bool moq_mp4_atom_In32_eq(const moq_mp4_atom_In32 *a, const moq_mp4_atom_In32 *b);
-moq_buf moq_mp4_atom_In32_debug(const moq_mp4_atom_In32 *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_In32_format(const moq_mp4_atom_In32 *self);
-void moq_mp4_atom_Fl32_free(moq_mp4_atom_Fl32 *self);
-bool moq_mp4_atom_Fl32_eq(const moq_mp4_atom_Fl32 *a, const moq_mp4_atom_Fl32 *b);
-moq_buf moq_mp4_atom_Fl32_debug(const moq_mp4_atom_Fl32 *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Fl32_format(const moq_mp4_atom_Fl32 *self);
-void moq_mp4_atom_Fl64_free(moq_mp4_atom_Fl64 *self);
-bool moq_mp4_atom_Fl64_eq(const moq_mp4_atom_Fl64 *a, const moq_mp4_atom_Fl64 *b);
-moq_buf moq_mp4_atom_Fl64_debug(const moq_mp4_atom_Fl64 *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_Fl64_format(const moq_mp4_atom_Fl64 *self);
-void moq_mp4_atom_S16l_free(moq_mp4_atom_S16l *self);
-bool moq_mp4_atom_S16l_eq(const moq_mp4_atom_S16l *a, const moq_mp4_atom_S16l *b);
-moq_buf moq_mp4_atom_S16l_debug(const moq_mp4_atom_S16l *self);
-moq_option_mp4_atom_PcmFormat moq_mp4_atom_S16l_format(const moq_mp4_atom_S16l *self);
-void moq_mp4_atom_Wvtt_free(moq_mp4_atom_Wvtt *self);
-bool moq_mp4_atom_Wvtt_eq(const moq_mp4_atom_Wvtt *a, const moq_mp4_atom_Wvtt *b);
-moq_buf moq_mp4_atom_Wvtt_debug(const moq_mp4_atom_Wvtt *self);
-void moq_mp4_atom_Samr_free(moq_mp4_atom_Samr *self);
-bool moq_mp4_atom_Samr_eq(const moq_mp4_atom_Samr *a, const moq_mp4_atom_Samr *b);
-moq_buf moq_mp4_atom_Samr_debug(const moq_mp4_atom_Samr *self);
-void moq_mp4_atom_Mett_free(moq_mp4_atom_Mett *self);
-bool moq_mp4_atom_Mett_eq(const moq_mp4_atom_Mett *a, const moq_mp4_atom_Mett *b);
-moq_buf moq_mp4_atom_Mett_debug(const moq_mp4_atom_Mett *self);
-void moq_mp4_atom_Metx_free(moq_mp4_atom_Metx *self);
-bool moq_mp4_atom_Metx_eq(const moq_mp4_atom_Metx *a, const moq_mp4_atom_Metx *b);
-moq_buf moq_mp4_atom_Metx_debug(const moq_mp4_atom_Metx *self);
-void moq_mp4_atom_Urim_free(moq_mp4_atom_Urim *self);
-bool moq_mp4_atom_Urim_eq(const moq_mp4_atom_Urim *a, const moq_mp4_atom_Urim *b);
-moq_buf moq_mp4_atom_Urim_debug(const moq_mp4_atom_Urim *self);
-void moq_mp4_atom_Camm_free(moq_mp4_atom_Camm *self);
-bool moq_mp4_atom_Camm_eq(const moq_mp4_atom_Camm *a, const moq_mp4_atom_Camm *b);
-moq_buf moq_mp4_atom_Camm_debug(const moq_mp4_atom_Camm *self);
-void moq_mp4_atom_Evte_free(moq_mp4_atom_Evte *self);
-bool moq_mp4_atom_Evte_eq(const moq_mp4_atom_Evte *a, const moq_mp4_atom_Evte *b);
-moq_buf moq_mp4_atom_Evte_debug(const moq_mp4_atom_Evte *self);
-void moq_mp4_atom_Mebx_free(moq_mp4_atom_Mebx *self);
-bool moq_mp4_atom_Mebx_eq(const moq_mp4_atom_Mebx *a, const moq_mp4_atom_Mebx *b);
-moq_buf moq_mp4_atom_Mebx_debug(const moq_mp4_atom_Mebx *self);
-void moq_mp4_atom_Tkhd_free(moq_mp4_atom_Tkhd *self);
-bool moq_mp4_atom_Tkhd_eq(const moq_mp4_atom_Tkhd *a, const moq_mp4_atom_Tkhd *b);
-moq_buf moq_mp4_atom_Tkhd_debug(const moq_mp4_atom_Tkhd *self);
-moq_mp4_atom_Tkhd moq_mp4_atom_Tkhd_default(void);
-void moq_mp4_atom_Edts_free(moq_mp4_atom_Edts *self);
-bool moq_mp4_atom_Edts_eq(const moq_mp4_atom_Edts *a, const moq_mp4_atom_Edts *b);
-moq_buf moq_mp4_atom_Edts_debug(const moq_mp4_atom_Edts *self);
-moq_mp4_atom_Edts moq_mp4_atom_Edts_default(void);
-void moq_mp4_atom_Senc_free(moq_mp4_atom_Senc *self);
-bool moq_mp4_atom_Senc_eq(const moq_mp4_atom_Senc *a, const moq_mp4_atom_Senc *b);
-moq_buf moq_mp4_atom_Senc_debug(const moq_mp4_atom_Senc *self);
-moq_mp4_atom_Senc moq_mp4_atom_Senc_default(void);
-void moq_mp4_atom_Tref_free(moq_mp4_atom_Tref *self);
-bool moq_mp4_atom_Tref_eq(const moq_mp4_atom_Tref *a, const moq_mp4_atom_Tref *b);
-moq_buf moq_mp4_atom_Tref_debug(const moq_mp4_atom_Tref *self);
-moq_mp4_atom_Tref moq_mp4_atom_Tref_default(void);
-void moq_mp4_atom_Audio_free(moq_mp4_atom_Audio *self);
-bool moq_mp4_atom_Audio_eq(const moq_mp4_atom_Audio *a, const moq_mp4_atom_Audio *b);
-moq_buf moq_mp4_atom_Audio_debug(const moq_mp4_atom_Audio *self);
-void moq_mp4_atom_MetaData_free(moq_mp4_atom_MetaData *self);
-bool moq_mp4_atom_MetaData_eq(const moq_mp4_atom_MetaData *a, const moq_mp4_atom_MetaData *b);
-moq_buf moq_mp4_atom_MetaData_debug(const moq_mp4_atom_MetaData *self);
 void moq_rustls_client_TicketRequest_free(moq_rustls_client_TicketRequest *self);
 bool moq_rustls_client_TicketRequest_eq(const moq_rustls_client_TicketRequest *a, const moq_rustls_client_TicketRequest *b);
 moq_buf moq_rustls_client_TicketRequest_debug(const moq_rustls_client_TicketRequest *self);
-bool moq_moq_quic_VarInt_eq(const moq_moq_quic_VarInt *a, const moq_moq_quic_VarInt *b);
-uint64_t moq_moq_quic_VarInt_hash(const moq_moq_quic_VarInt *self);
-moq_buf moq_moq_quic_VarInt_to_string(const moq_moq_quic_VarInt *self);
-moq_buf moq_moq_quic_VarInt_debug(const moq_moq_quic_VarInt *self);
-moq_moq_quic_VarInt moq_moq_quic_VarInt_default(void);
-moq_moq_quic_VarInt moq_moq_quic_VarInt_MAX(void);
-moq_moq_quic_VarInt moq_moq_quic_VarInt_from_u32(uint32_t x);
-bool moq_moq_quic_VarInt_from_u64(uint64_t x, moq_moq_quic_VarInt *out, moq_buf *err);
-uint64_t moq_moq_quic_VarInt_into_inner(const moq_moq_quic_VarInt *self);
-void moq_moq_quic_VarInt_encode(const moq_moq_quic_VarInt *self, moq_buf output, moq_buf *output_out);
-void moq_mp4_atom_Avcc_free(moq_mp4_atom_Avcc *self);
-bool moq_mp4_atom_Avcc_eq(const moq_mp4_atom_Avcc *a, const moq_mp4_atom_Avcc *b);
-moq_buf moq_mp4_atom_Avcc_debug(const moq_mp4_atom_Avcc *self);
-moq_mp4_atom_Avcc moq_mp4_atom_Avcc_default(void);
-bool moq_mp4_atom_Avcc_new(moq_buf sps, moq_buf pps, moq_mp4_atom_Avcc *out, moq_buf *err);
-void moq_mp4_atom_Btrt_free(moq_mp4_atom_Btrt *self);
-bool moq_mp4_atom_Btrt_eq(const moq_mp4_atom_Btrt *a, const moq_mp4_atom_Btrt *b);
-moq_buf moq_mp4_atom_Btrt_debug(const moq_mp4_atom_Btrt *self);
-moq_mp4_atom_Btrt moq_mp4_atom_Btrt_default(void);
-bool moq_mp4_atom_Btrt_new(uint32_t buffer_size_db, uint32_t max_bitrate, uint32_t avg_bitrate, moq_mp4_atom_Btrt *out, moq_buf *err);
-void moq_mp4_atom_Pasp_free(moq_mp4_atom_Pasp *self);
-bool moq_mp4_atom_Pasp_eq(const moq_mp4_atom_Pasp *a, const moq_mp4_atom_Pasp *b);
-moq_buf moq_mp4_atom_Pasp_debug(const moq_mp4_atom_Pasp *self);
-moq_mp4_atom_Pasp moq_mp4_atom_Pasp_default(void);
-bool moq_mp4_atom_Pasp_new(uint32_t h_spacing, uint32_t v_spacing, moq_mp4_atom_Pasp *out, moq_buf *err);
-void moq_mp4_atom_Taic_free(moq_mp4_atom_Taic *self);
-bool moq_mp4_atom_Taic_eq(const moq_mp4_atom_Taic *a, const moq_mp4_atom_Taic *b);
-moq_buf moq_mp4_atom_Taic_debug(const moq_mp4_atom_Taic *self);
-moq_mp4_atom_Taic moq_mp4_atom_Taic_default(void);
-bool moq_mp4_atom_Taic_new(uint64_t time_uncertainty, uint32_t clock_resolution, int32_t clock_drift_rate, moq_mp4_atom_ClockType clock_type, moq_mp4_atom_Taic *out, moq_buf *err);
-void moq_mp4_atom_Fiel_free(moq_mp4_atom_Fiel *self);
-bool moq_mp4_atom_Fiel_eq(const moq_mp4_atom_Fiel *a, const moq_mp4_atom_Fiel *b);
-moq_buf moq_mp4_atom_Fiel_debug(const moq_mp4_atom_Fiel *self);
-moq_mp4_atom_Fiel moq_mp4_atom_Fiel_default(void);
-bool moq_mp4_atom_Fiel_new(uint8_t field_count, uint8_t field_order, moq_mp4_atom_Fiel *out, moq_buf *err);
-void moq_mp4_atom_Hvcc_free(moq_mp4_atom_Hvcc *self);
-bool moq_mp4_atom_Hvcc_eq(const moq_mp4_atom_Hvcc *a, const moq_mp4_atom_Hvcc *b);
-moq_buf moq_mp4_atom_Hvcc_debug(const moq_mp4_atom_Hvcc *self);
-moq_mp4_atom_Hvcc moq_mp4_atom_Hvcc_default(void);
-moq_mp4_atom_Hvcc moq_mp4_atom_Hvcc_new(void);
-void moq_mp4_atom_Lhvc_free(moq_mp4_atom_Lhvc *self);
-bool moq_mp4_atom_Lhvc_eq(const moq_mp4_atom_Lhvc *a, const moq_mp4_atom_Lhvc *b);
-moq_buf moq_mp4_atom_Lhvc_debug(const moq_mp4_atom_Lhvc *self);
-moq_mp4_atom_Lhvc moq_mp4_atom_Lhvc_default(void);
-void moq_mp4_atom_Ccst_free(moq_mp4_atom_Ccst *self);
-bool moq_mp4_atom_Ccst_eq(const moq_mp4_atom_Ccst *a, const moq_mp4_atom_Ccst *b);
-moq_buf moq_mp4_atom_Ccst_debug(const moq_mp4_atom_Ccst *self);
-moq_mp4_atom_Ccst moq_mp4_atom_Ccst_default(void);
-void moq_mp4_atom_VpcC_free(moq_mp4_atom_VpcC *self);
-bool moq_mp4_atom_VpcC_eq(const moq_mp4_atom_VpcC *a, const moq_mp4_atom_VpcC *b);
-moq_buf moq_mp4_atom_VpcC_debug(const moq_mp4_atom_VpcC *self);
-moq_mp4_atom_VpcC moq_mp4_atom_VpcC_default(void);
-void moq_mp4_atom_Av1c_free(moq_mp4_atom_Av1c *self);
-bool moq_mp4_atom_Av1c_eq(const moq_mp4_atom_Av1c *a, const moq_mp4_atom_Av1c *b);
-moq_buf moq_mp4_atom_Av1c_debug(const moq_mp4_atom_Av1c *self);
-moq_mp4_atom_Av1c moq_mp4_atom_Av1c_default(void);
-void moq_mp4_atom_Esds_free(moq_mp4_atom_Esds *self);
-bool moq_mp4_atom_Esds_eq(const moq_mp4_atom_Esds *a, const moq_mp4_atom_Esds *b);
-moq_buf moq_mp4_atom_Esds_debug(const moq_mp4_atom_Esds *self);
-moq_mp4_atom_Esds moq_mp4_atom_Esds_default(void);
-void moq_mp4_atom_RgbaColor_free(moq_mp4_atom_RgbaColor *self);
-bool moq_mp4_atom_RgbaColor_eq(const moq_mp4_atom_RgbaColor *a, const moq_mp4_atom_RgbaColor *b);
-moq_buf moq_mp4_atom_RgbaColor_debug(const moq_mp4_atom_RgbaColor *self);
-moq_mp4_atom_RgbaColor moq_mp4_atom_RgbaColor_default(void);
-void moq_mp4_atom_Ftab_free(moq_mp4_atom_Ftab *self);
-bool moq_mp4_atom_Ftab_eq(const moq_mp4_atom_Ftab *a, const moq_mp4_atom_Ftab *b);
-moq_buf moq_mp4_atom_Ftab_debug(const moq_mp4_atom_Ftab *self);
-moq_mp4_atom_Ftab moq_mp4_atom_Ftab_default(void);
-void moq_mp4_atom_Disp_free(moq_mp4_atom_Disp *self);
-bool moq_mp4_atom_Disp_eq(const moq_mp4_atom_Disp *a, const moq_mp4_atom_Disp *b);
-moq_buf moq_mp4_atom_Disp_debug(const moq_mp4_atom_Disp *self);
-moq_mp4_atom_Disp moq_mp4_atom_Disp_default(void);
-void moq_mp4_atom_Dops_free(moq_mp4_atom_Dops *self);
-bool moq_mp4_atom_Dops_eq(const moq_mp4_atom_Dops *a, const moq_mp4_atom_Dops *b);
-moq_buf moq_mp4_atom_Dops_debug(const moq_mp4_atom_Dops *self);
-void moq_mp4_atom_Cmpd_free(moq_mp4_atom_Cmpd *self);
-bool moq_mp4_atom_Cmpd_eq(const moq_mp4_atom_Cmpd *a, const moq_mp4_atom_Cmpd *b);
-moq_buf moq_mp4_atom_Cmpd_debug(const moq_mp4_atom_Cmpd *self);
-moq_mp4_atom_Cmpd moq_mp4_atom_Cmpd_default(void);
-void moq_mp4_atom_Dfla_free(moq_mp4_atom_Dfla *self);
-bool moq_mp4_atom_Dfla_eq(const moq_mp4_atom_Dfla *a, const moq_mp4_atom_Dfla *b);
-moq_buf moq_mp4_atom_Dfla_debug(const moq_mp4_atom_Dfla *self);
-void moq_mp4_atom_Ac3SpecificBox_free(moq_mp4_atom_Ac3SpecificBox *self);
-bool moq_mp4_atom_Ac3SpecificBox_eq(const moq_mp4_atom_Ac3SpecificBox *a, const moq_mp4_atom_Ac3SpecificBox *b);
-moq_buf moq_mp4_atom_Ac3SpecificBox_debug(const moq_mp4_atom_Ac3SpecificBox *self);
-void moq_mp4_atom_Ec3SpecificBox_free(moq_mp4_atom_Ec3SpecificBox *self);
-bool moq_mp4_atom_Ec3SpecificBox_eq(const moq_mp4_atom_Ec3SpecificBox *a, const moq_mp4_atom_Ec3SpecificBox *b);
-moq_buf moq_mp4_atom_Ec3SpecificBox_debug(const moq_mp4_atom_Ec3SpecificBox *self);
-void moq_mp4_atom_PcmC_free(moq_mp4_atom_PcmC *self);
-bool moq_mp4_atom_PcmC_eq(const moq_mp4_atom_PcmC *a, const moq_mp4_atom_PcmC *b);
-moq_buf moq_mp4_atom_PcmC_debug(const moq_mp4_atom_PcmC *self);
-void moq_mp4_atom_Chnl_free(moq_mp4_atom_Chnl *self);
-bool moq_mp4_atom_Chnl_eq(const moq_mp4_atom_Chnl *a, const moq_mp4_atom_Chnl *b);
-moq_buf moq_mp4_atom_Chnl_debug(const moq_mp4_atom_Chnl *self);
-bool moq_mp4_atom_Chnl_decode_body_with_channel_count(moq_buf buf, uint16_t channel_count, moq_buf *buf_out, moq_mp4_atom_Chnl *out, moq_buf *err);
-void moq_mp4_atom_PlainText_free(moq_mp4_atom_PlainText *self);
-bool moq_mp4_atom_PlainText_eq(const moq_mp4_atom_PlainText *a, const moq_mp4_atom_PlainText *b);
-moq_buf moq_mp4_atom_PlainText_debug(const moq_mp4_atom_PlainText *self);
-void moq_mp4_atom_VttC_free(moq_mp4_atom_VttC *self);
-bool moq_mp4_atom_VttC_eq(const moq_mp4_atom_VttC *a, const moq_mp4_atom_VttC *b);
-moq_buf moq_mp4_atom_VttC_debug(const moq_mp4_atom_VttC *self);
-void moq_mp4_atom_Vlab_free(moq_mp4_atom_Vlab *self);
-bool moq_mp4_atom_Vlab_eq(const moq_mp4_atom_Vlab *a, const moq_mp4_atom_Vlab *b);
-moq_buf moq_mp4_atom_Vlab_debug(const moq_mp4_atom_Vlab *self);
-void moq_mp4_atom_AmrSampleEntry_free(moq_mp4_atom_AmrSampleEntry *self);
-bool moq_mp4_atom_AmrSampleEntry_eq(const moq_mp4_atom_AmrSampleEntry *a, const moq_mp4_atom_AmrSampleEntry *b);
-moq_buf moq_mp4_atom_AmrSampleEntry_debug(const moq_mp4_atom_AmrSampleEntry *self);
-void moq_mp4_atom_Damr_free(moq_mp4_atom_Damr *self);
-bool moq_mp4_atom_Damr_eq(const moq_mp4_atom_Damr *a, const moq_mp4_atom_Damr *b);
-moq_buf moq_mp4_atom_Damr_debug(const moq_mp4_atom_Damr *self);
-void moq_mp4_atom_TxtC_free(moq_mp4_atom_TxtC *self);
-bool moq_mp4_atom_TxtC_eq(const moq_mp4_atom_TxtC *a, const moq_mp4_atom_TxtC *b);
-moq_buf moq_mp4_atom_TxtC_debug(const moq_mp4_atom_TxtC *self);
-void moq_mp4_atom_Uri_free(moq_mp4_atom_Uri *self);
-bool moq_mp4_atom_Uri_eq(const moq_mp4_atom_Uri *a, const moq_mp4_atom_Uri *b);
-moq_buf moq_mp4_atom_Uri_debug(const moq_mp4_atom_Uri *self);
-void moq_mp4_atom_UriI_free(moq_mp4_atom_UriI *self);
-bool moq_mp4_atom_UriI_eq(const moq_mp4_atom_UriI *a, const moq_mp4_atom_UriI *b);
-moq_buf moq_mp4_atom_UriI_debug(const moq_mp4_atom_UriI *self);
-void moq_mp4_atom_Silb_free(moq_mp4_atom_Silb *self);
-bool moq_mp4_atom_Silb_eq(const moq_mp4_atom_Silb *a, const moq_mp4_atom_Silb *b);
-moq_buf moq_mp4_atom_Silb_debug(const moq_mp4_atom_Silb *self);
-void moq_mp4_atom_MebxKey_free(moq_mp4_atom_MebxKey *self);
-bool moq_mp4_atom_MebxKey_eq(const moq_mp4_atom_MebxKey *a, const moq_mp4_atom_MebxKey *b);
-moq_buf moq_mp4_atom_MebxKey_debug(const moq_mp4_atom_MebxKey *self);
-bool moq_mp4_atom_FixedPoint_i16_eq(const moq_mp4_atom_FixedPoint_i16 *a, const moq_mp4_atom_FixedPoint_i16 *b);
-moq_buf moq_mp4_atom_FixedPoint_i16_debug(const moq_mp4_atom_FixedPoint_i16 *self);
-moq_mp4_atom_FixedPoint_i16 moq_mp4_atom_FixedPoint_i16_default(void);
-moq_mp4_atom_FixedPoint_i16 moq_mp4_atom_FixedPoint_i16_new(int16_t int_, int16_t dec);
-int16_t moq_mp4_atom_FixedPoint_i16_integer(const moq_mp4_atom_FixedPoint_i16 *self);
-int16_t moq_mp4_atom_FixedPoint_i16_decimal(const moq_mp4_atom_FixedPoint_i16 *self);
-bool moq_mp4_atom_FixedPoint_i8_eq(const moq_mp4_atom_FixedPoint_i8 *a, const moq_mp4_atom_FixedPoint_i8 *b);
-moq_buf moq_mp4_atom_FixedPoint_i8_debug(const moq_mp4_atom_FixedPoint_i8 *self);
-moq_mp4_atom_FixedPoint_i8 moq_mp4_atom_FixedPoint_i8_default(void);
-moq_mp4_atom_FixedPoint_i8 moq_mp4_atom_FixedPoint_i8_new(int8_t int_, int8_t dec);
-int8_t moq_mp4_atom_FixedPoint_i8_integer(const moq_mp4_atom_FixedPoint_i8 *self);
-int8_t moq_mp4_atom_FixedPoint_i8_decimal(const moq_mp4_atom_FixedPoint_i8 *self);
-bool moq_mp4_atom_FixedPoint_u16_eq(const moq_mp4_atom_FixedPoint_u16 *a, const moq_mp4_atom_FixedPoint_u16 *b);
-moq_buf moq_mp4_atom_FixedPoint_u16_debug(const moq_mp4_atom_FixedPoint_u16 *self);
-moq_mp4_atom_FixedPoint_u16 moq_mp4_atom_FixedPoint_u16_default(void);
-moq_mp4_atom_FixedPoint_u16 moq_mp4_atom_FixedPoint_u16_new(uint16_t int_, uint16_t dec);
-uint16_t moq_mp4_atom_FixedPoint_u16_integer(const moq_mp4_atom_FixedPoint_u16 *self);
-uint16_t moq_mp4_atom_FixedPoint_u16_decimal(const moq_mp4_atom_FixedPoint_u16 *self);
-bool moq_mp4_atom_FixedPoint_u8_eq(const moq_mp4_atom_FixedPoint_u8 *a, const moq_mp4_atom_FixedPoint_u8 *b);
-moq_buf moq_mp4_atom_FixedPoint_u8_debug(const moq_mp4_atom_FixedPoint_u8 *self);
-moq_mp4_atom_FixedPoint_u8 moq_mp4_atom_FixedPoint_u8_default(void);
-moq_mp4_atom_FixedPoint_u8 moq_mp4_atom_FixedPoint_u8_new(uint8_t int_, uint8_t dec);
-uint8_t moq_mp4_atom_FixedPoint_u8_integer(const moq_mp4_atom_FixedPoint_u8 *self);
-uint8_t moq_mp4_atom_FixedPoint_u8_decimal(const moq_mp4_atom_FixedPoint_u8 *self);
-void moq_mp4_atom_Matrix_free(moq_mp4_atom_Matrix *self);
-bool moq_mp4_atom_Matrix_eq(const moq_mp4_atom_Matrix *a, const moq_mp4_atom_Matrix *b);
-moq_buf moq_mp4_atom_Matrix_to_string(const moq_mp4_atom_Matrix *self);
-moq_buf moq_mp4_atom_Matrix_debug(const moq_mp4_atom_Matrix *self);
-moq_mp4_atom_Matrix moq_mp4_atom_Matrix_default(void);
-void moq_mp4_atom_Elst_free(moq_mp4_atom_Elst *self);
-bool moq_mp4_atom_Elst_eq(const moq_mp4_atom_Elst *a, const moq_mp4_atom_Elst *b);
-moq_buf moq_mp4_atom_Elst_debug(const moq_mp4_atom_Elst *self);
-moq_mp4_atom_Elst moq_mp4_atom_Elst_default(void);
-void moq_mp4_atom_Hdlr_free(moq_mp4_atom_Hdlr *self);
-bool moq_mp4_atom_Hdlr_eq(const moq_mp4_atom_Hdlr *a, const moq_mp4_atom_Hdlr *b);
-moq_buf moq_mp4_atom_Hdlr_debug(const moq_mp4_atom_Hdlr *self);
-moq_mp4_atom_Hdlr moq_mp4_atom_Hdlr_default(void);
-void moq_mp4_atom_Mdhd_free(moq_mp4_atom_Mdhd *self);
-bool moq_mp4_atom_Mdhd_eq(const moq_mp4_atom_Mdhd *a, const moq_mp4_atom_Mdhd *b);
-moq_buf moq_mp4_atom_Mdhd_debug(const moq_mp4_atom_Mdhd *self);
-moq_mp4_atom_Mdhd moq_mp4_atom_Mdhd_default(void);
-void moq_mp4_atom_TrackReferenceTypeBox_free(moq_mp4_atom_TrackReferenceTypeBox *self);
-bool moq_mp4_atom_TrackReferenceTypeBox_eq(const moq_mp4_atom_TrackReferenceTypeBox *a, const moq_mp4_atom_TrackReferenceTypeBox *b);
-moq_buf moq_mp4_atom_TrackReferenceTypeBox_debug(const moq_mp4_atom_TrackReferenceTypeBox *self);
-void moq_mp4_atom_Chpl_free(moq_mp4_atom_Chpl *self);
-bool moq_mp4_atom_Chpl_eq(const moq_mp4_atom_Chpl *a, const moq_mp4_atom_Chpl *b);
-moq_buf moq_mp4_atom_Chpl_debug(const moq_mp4_atom_Chpl *self);
-moq_mp4_atom_Chpl moq_mp4_atom_Chpl_default(void);
-void moq_mp4_atom_Cprt_free(moq_mp4_atom_Cprt *self);
-bool moq_mp4_atom_Cprt_eq(const moq_mp4_atom_Cprt *a, const moq_mp4_atom_Cprt *b);
-moq_buf moq_mp4_atom_Cprt_debug(const moq_mp4_atom_Cprt *self);
-moq_mp4_atom_Cprt moq_mp4_atom_Cprt_default(void);
-void moq_mp4_atom_Kind_free(moq_mp4_atom_Kind *self);
-bool moq_mp4_atom_Kind_eq(const moq_mp4_atom_Kind *a, const moq_mp4_atom_Kind *b);
-moq_buf moq_mp4_atom_Kind_debug(const moq_mp4_atom_Kind *self);
-moq_mp4_atom_Kind moq_mp4_atom_Kind_default(void);
-void moq_mp4_atom_Rtng_free(moq_mp4_atom_Rtng *self);
-bool moq_mp4_atom_Rtng_eq(const moq_mp4_atom_Rtng *a, const moq_mp4_atom_Rtng *b);
-moq_buf moq_mp4_atom_Rtng_debug(const moq_mp4_atom_Rtng *self);
-void moq_mp4_atom_PcmFormat_free(moq_mp4_atom_PcmFormat *self);
-bool moq_mp4_atom_PcmFormat_eq(const moq_mp4_atom_PcmFormat *a, const moq_mp4_atom_PcmFormat *b);
-moq_buf moq_mp4_atom_PcmFormat_debug(const moq_mp4_atom_PcmFormat *self);
-bool moq_moq_quic_stream_Id_eq(const moq_moq_quic_stream_Id *a, const moq_moq_quic_stream_Id *b);
-uint64_t moq_moq_quic_stream_Id_hash(const moq_moq_quic_stream_Id *self);
-moq_buf moq_moq_quic_stream_Id_to_string(const moq_moq_quic_stream_Id *self);
-moq_buf moq_moq_quic_stream_Id_debug(const moq_moq_quic_stream_Id *self);
-moq_moq_quic_stream_Id moq_moq_quic_stream_Id_new(moq_moq_quic_Side initiator, moq_moq_quic_stream_Dir dir, uint64_t index);
-moq_moq_quic_Side moq_moq_quic_stream_Id_initiator(const moq_moq_quic_stream_Id *self);
-moq_moq_quic_stream_Dir moq_moq_quic_stream_Id_dir(const moq_moq_quic_stream_Id *self);
-uint64_t moq_moq_quic_stream_Id_index(const moq_moq_quic_stream_Id *self);
-moq_buf moq_moq_quic_UdpStats_debug(const moq_moq_quic_UdpStats *self);
-moq_moq_quic_UdpStats moq_moq_quic_UdpStats_default(void);
-uint64_t moq_moq_quic_UdpStats_datagrams_get(const moq_moq_quic_UdpStats *self);
-void moq_moq_quic_UdpStats_datagrams_set(moq_moq_quic_UdpStats *self, uint64_t value);
-uint64_t moq_moq_quic_UdpStats_bytes_get(const moq_moq_quic_UdpStats *self);
-void moq_moq_quic_UdpStats_bytes_set(moq_moq_quic_UdpStats *self, uint64_t value);
-uint64_t moq_moq_quic_UdpStats_ios_get(const moq_moq_quic_UdpStats *self);
-void moq_moq_quic_UdpStats_ios_set(moq_moq_quic_UdpStats *self, uint64_t value);
-bool moq_moq_quic_CreditStats_eq(const moq_moq_quic_CreditStats *a, const moq_moq_quic_CreditStats *b);
-moq_buf moq_moq_quic_CreditStats_debug(const moq_moq_quic_CreditStats *self);
-moq_moq_quic_CreditStats moq_moq_quic_CreditStats_default(void);
-uint64_t moq_moq_quic_CreditStats_leased_get(const moq_moq_quic_CreditStats *self);
-void moq_moq_quic_CreditStats_leased_set(moq_moq_quic_CreditStats *self, uint64_t value);
-uint64_t moq_moq_quic_CreditStats_available_get(const moq_moq_quic_CreditStats *self);
-void moq_moq_quic_CreditStats_available_set(moq_moq_quic_CreditStats *self, uint64_t value);
-uint64_t moq_moq_quic_CreditStats_evicted_get(const moq_moq_quic_CreditStats *self);
-void moq_moq_quic_CreditStats_evicted_set(moq_moq_quic_CreditStats *self, uint64_t value);
-uint64_t moq_moq_quic_CreditStats_peak_spent_get(const moq_moq_quic_CreditStats *self);
-void moq_moq_quic_CreditStats_peak_spent_set(moq_moq_quic_CreditStats *self, uint64_t value);
-void moq_mp4_atom_AvccExt_free(moq_mp4_atom_AvccExt *self);
-bool moq_mp4_atom_AvccExt_eq(const moq_mp4_atom_AvccExt *a, const moq_mp4_atom_AvccExt *b);
-moq_buf moq_mp4_atom_AvccExt_debug(const moq_mp4_atom_AvccExt *self);
-moq_mp4_atom_AvccExt moq_mp4_atom_AvccExt_default(void);
-void moq_mp4_atom_St3d_free(moq_mp4_atom_St3d *self);
-bool moq_mp4_atom_St3d_eq(const moq_mp4_atom_St3d *a, const moq_mp4_atom_St3d *b);
-moq_buf moq_mp4_atom_St3d_debug(const moq_mp4_atom_St3d *self);
-moq_mp4_atom_St3d moq_mp4_atom_St3d_default(void);
-void moq_mp4_atom_Hfov_free(moq_mp4_atom_Hfov *self);
-bool moq_mp4_atom_Hfov_eq(const moq_mp4_atom_Hfov *a, const moq_mp4_atom_Hfov *b);
-moq_buf moq_mp4_atom_Hfov_debug(const moq_mp4_atom_Hfov *self);
-moq_mp4_atom_Hfov moq_mp4_atom_Hfov_default(void);
-void moq_mp4_atom_HvcCArray_free(moq_mp4_atom_HvcCArray *self);
-bool moq_mp4_atom_HvcCArray_eq(const moq_mp4_atom_HvcCArray *a, const moq_mp4_atom_HvcCArray *b);
-moq_buf moq_mp4_atom_HvcCArray_debug(const moq_mp4_atom_HvcCArray *self);
-moq_mp4_atom_HvcCArray moq_mp4_atom_HvcCArray_default(void);
-void moq_mp4_atom_esds_EsDescriptor_free(moq_mp4_atom_esds_EsDescriptor *self);
-bool moq_mp4_atom_esds_EsDescriptor_eq(const moq_mp4_atom_esds_EsDescriptor *a, const moq_mp4_atom_esds_EsDescriptor *b);
-moq_buf moq_mp4_atom_esds_EsDescriptor_debug(const moq_mp4_atom_esds_EsDescriptor *self);
-moq_mp4_atom_esds_EsDescriptor moq_mp4_atom_esds_EsDescriptor_default(void);
-void moq_mp4_atom_FontEntry_free(moq_mp4_atom_FontEntry *self);
-bool moq_mp4_atom_FontEntry_eq(const moq_mp4_atom_FontEntry *a, const moq_mp4_atom_FontEntry *b);
-moq_buf moq_mp4_atom_FontEntry_debug(const moq_mp4_atom_FontEntry *self);
-moq_mp4_atom_FontEntry moq_mp4_atom_FontEntry_default(void);
-void moq_mp4_atom_OpusChannelMapping_free(moq_mp4_atom_OpusChannelMapping *self);
-bool moq_mp4_atom_OpusChannelMapping_eq(const moq_mp4_atom_OpusChannelMapping *a, const moq_mp4_atom_OpusChannelMapping *b);
-moq_buf moq_mp4_atom_OpusChannelMapping_debug(const moq_mp4_atom_OpusChannelMapping *self);
-void moq_mp4_atom_Component_free(moq_mp4_atom_Component *self);
-bool moq_mp4_atom_Component_eq(const moq_mp4_atom_Component *a, const moq_mp4_atom_Component *b);
-moq_buf moq_mp4_atom_Component_debug(const moq_mp4_atom_Component *self);
-void moq_mp4_atom_UncompressedComponent_free(moq_mp4_atom_UncompressedComponent *self);
-bool moq_mp4_atom_UncompressedComponent_eq(const moq_mp4_atom_UncompressedComponent *a, const moq_mp4_atom_UncompressedComponent *b);
-moq_buf moq_mp4_atom_UncompressedComponent_debug(const moq_mp4_atom_UncompressedComponent *self);
-void moq_mp4_atom_Ec3IndependentSubstream_free(moq_mp4_atom_Ec3IndependentSubstream *self);
-bool moq_mp4_atom_Ec3IndependentSubstream_eq(const moq_mp4_atom_Ec3IndependentSubstream *a, const moq_mp4_atom_Ec3IndependentSubstream *b);
-moq_buf moq_mp4_atom_Ec3IndependentSubstream_debug(const moq_mp4_atom_Ec3IndependentSubstream *self);
-void moq_mp4_atom_SchemeIdEntry_free(moq_mp4_atom_SchemeIdEntry *self);
-bool moq_mp4_atom_SchemeIdEntry_eq(const moq_mp4_atom_SchemeIdEntry *a, const moq_mp4_atom_SchemeIdEntry *b);
-moq_buf moq_mp4_atom_SchemeIdEntry_debug(const moq_mp4_atom_SchemeIdEntry *self);
-void moq_mp4_atom_Keyd_free(moq_mp4_atom_Keyd *self);
-bool moq_mp4_atom_Keyd_eq(const moq_mp4_atom_Keyd *a, const moq_mp4_atom_Keyd *b);
-moq_buf moq_mp4_atom_Keyd_debug(const moq_mp4_atom_Keyd *self);
-void moq_mp4_atom_Dtyp_free(moq_mp4_atom_Dtyp *self);
-bool moq_mp4_atom_Dtyp_eq(const moq_mp4_atom_Dtyp *a, const moq_mp4_atom_Dtyp *b);
-moq_buf moq_mp4_atom_Dtyp_debug(const moq_mp4_atom_Dtyp *self);
-void moq_mp4_atom_Loca_free(moq_mp4_atom_Loca *self);
-bool moq_mp4_atom_Loca_eq(const moq_mp4_atom_Loca *a, const moq_mp4_atom_Loca *b);
-moq_buf moq_mp4_atom_Loca_debug(const moq_mp4_atom_Loca *self);
-void moq_mp4_atom_Setu_free(moq_mp4_atom_Setu *self);
-bool moq_mp4_atom_Setu_eq(const moq_mp4_atom_Setu *a, const moq_mp4_atom_Setu *b);
-moq_buf moq_mp4_atom_Setu_debug(const moq_mp4_atom_Setu *self);
-void moq_mp4_atom_ElstEntry_free(moq_mp4_atom_ElstEntry *self);
-bool moq_mp4_atom_ElstEntry_eq(const moq_mp4_atom_ElstEntry *a, const moq_mp4_atom_ElstEntry *b);
-moq_buf moq_mp4_atom_ElstEntry_debug(const moq_mp4_atom_ElstEntry *self);
-moq_mp4_atom_ElstEntry moq_mp4_atom_ElstEntry_default(void);
-void moq_mp4_atom_Ftyp_free(moq_mp4_atom_Ftyp *self);
-bool moq_mp4_atom_Ftyp_eq(const moq_mp4_atom_Ftyp *a, const moq_mp4_atom_Ftyp *b);
-moq_buf moq_mp4_atom_Ftyp_debug(const moq_mp4_atom_Ftyp *self);
-void moq_mp4_atom_Styp_free(moq_mp4_atom_Styp *self);
-bool moq_mp4_atom_Styp_eq(const moq_mp4_atom_Styp *a, const moq_mp4_atom_Styp *b);
-moq_buf moq_mp4_atom_Styp_debug(const moq_mp4_atom_Styp *self);
-void moq_mp4_atom_Pitm_free(moq_mp4_atom_Pitm *self);
-bool moq_mp4_atom_Pitm_eq(const moq_mp4_atom_Pitm *a, const moq_mp4_atom_Pitm *b);
-moq_buf moq_mp4_atom_Pitm_debug(const moq_mp4_atom_Pitm *self);
-moq_mp4_atom_Pitm moq_mp4_atom_Pitm_default(void);
-void moq_mp4_atom_Iloc_free(moq_mp4_atom_Iloc *self);
-bool moq_mp4_atom_Iloc_eq(const moq_mp4_atom_Iloc *a, const moq_mp4_atom_Iloc *b);
-moq_buf moq_mp4_atom_Iloc_debug(const moq_mp4_atom_Iloc *self);
-void moq_mp4_atom_Iinf_free(moq_mp4_atom_Iinf *self);
-bool moq_mp4_atom_Iinf_eq(const moq_mp4_atom_Iinf *a, const moq_mp4_atom_Iinf *b);
-moq_buf moq_mp4_atom_Iinf_debug(const moq_mp4_atom_Iinf *self);
-void moq_mp4_atom_Auxc_free(moq_mp4_atom_Auxc *self);
-bool moq_mp4_atom_Auxc_eq(const moq_mp4_atom_Auxc *a, const moq_mp4_atom_Auxc *b);
-moq_buf moq_mp4_atom_Auxc_debug(const moq_mp4_atom_Auxc *self);
-moq_mp4_atom_Auxc moq_mp4_atom_Auxc_default(void);
-void moq_mp4_atom_Clap_free(moq_mp4_atom_Clap *self);
-bool moq_mp4_atom_Clap_eq(const moq_mp4_atom_Clap *a, const moq_mp4_atom_Clap *b);
-moq_buf moq_mp4_atom_Clap_debug(const moq_mp4_atom_Clap *self);
-moq_mp4_atom_Clap moq_mp4_atom_Clap_default(void);
-void moq_mp4_atom_Imir_free(moq_mp4_atom_Imir *self);
-bool moq_mp4_atom_Imir_eq(const moq_mp4_atom_Imir *a, const moq_mp4_atom_Imir *b);
-moq_buf moq_mp4_atom_Imir_debug(const moq_mp4_atom_Imir *self);
-moq_mp4_atom_Imir moq_mp4_atom_Imir_default(void);
-void moq_mp4_atom_Irot_free(moq_mp4_atom_Irot *self);
-bool moq_mp4_atom_Irot_eq(const moq_mp4_atom_Irot *a, const moq_mp4_atom_Irot *b);
-moq_buf moq_mp4_atom_Irot_debug(const moq_mp4_atom_Irot *self);
-moq_mp4_atom_Irot moq_mp4_atom_Irot_default(void);
-void moq_mp4_atom_Iscl_free(moq_mp4_atom_Iscl *self);
-bool moq_mp4_atom_Iscl_eq(const moq_mp4_atom_Iscl *a, const moq_mp4_atom_Iscl *b);
-moq_buf moq_mp4_atom_Iscl_debug(const moq_mp4_atom_Iscl *self);
-moq_mp4_atom_Iscl moq_mp4_atom_Iscl_default(void);
-void moq_mp4_atom_Ispe_free(moq_mp4_atom_Ispe *self);
-bool moq_mp4_atom_Ispe_eq(const moq_mp4_atom_Ispe *a, const moq_mp4_atom_Ispe *b);
-moq_buf moq_mp4_atom_Ispe_debug(const moq_mp4_atom_Ispe *self);
-moq_mp4_atom_Ispe moq_mp4_atom_Ispe_default(void);
-void moq_mp4_atom_Pixi_free(moq_mp4_atom_Pixi *self);
-bool moq_mp4_atom_Pixi_eq(const moq_mp4_atom_Pixi *a, const moq_mp4_atom_Pixi *b);
-moq_buf moq_mp4_atom_Pixi_debug(const moq_mp4_atom_Pixi *self);
-moq_mp4_atom_Pixi moq_mp4_atom_Pixi_default(void);
-void moq_mp4_atom_Rref_free(moq_mp4_atom_Rref *self);
-bool moq_mp4_atom_Rref_eq(const moq_mp4_atom_Rref *a, const moq_mp4_atom_Rref *b);
-moq_buf moq_mp4_atom_Rref_debug(const moq_mp4_atom_Rref *self);
-moq_mp4_atom_Rref moq_mp4_atom_Rref_default(void);
-void moq_mp4_atom_Ipma_free(moq_mp4_atom_Ipma *self);
-bool moq_mp4_atom_Ipma_eq(const moq_mp4_atom_Ipma *a, const moq_mp4_atom_Ipma *b);
-moq_buf moq_mp4_atom_Ipma_debug(const moq_mp4_atom_Ipma *self);
-moq_mp4_atom_Ipma moq_mp4_atom_Ipma_default(void);
-void moq_mp4_atom_Iref_free(moq_mp4_atom_Iref *self);
-bool moq_mp4_atom_Iref_eq(const moq_mp4_atom_Iref *a, const moq_mp4_atom_Iref *b);
-moq_buf moq_mp4_atom_Iref_debug(const moq_mp4_atom_Iref *self);
-void moq_mp4_atom_Idat_free(moq_mp4_atom_Idat *self);
-bool moq_mp4_atom_Idat_eq(const moq_mp4_atom_Idat *a, const moq_mp4_atom_Idat *b);
-moq_buf moq_mp4_atom_Idat_debug(const moq_mp4_atom_Idat *self);
-void moq_mp4_atom_Ilst_free(moq_mp4_atom_Ilst *self);
-bool moq_mp4_atom_Ilst_eq(const moq_mp4_atom_Ilst *a, const moq_mp4_atom_Ilst *b);
-moq_buf moq_mp4_atom_Ilst_debug(const moq_mp4_atom_Ilst *self);
-moq_mp4_atom_Ilst moq_mp4_atom_Ilst_default(void);
-void moq_mp4_atom_Covr_free(moq_mp4_atom_Covr *self);
-bool moq_mp4_atom_Covr_eq(const moq_mp4_atom_Covr *a, const moq_mp4_atom_Covr *b);
-moq_buf moq_mp4_atom_Covr_debug(const moq_mp4_atom_Covr *self);
-void moq_mp4_atom_Desc_free(moq_mp4_atom_Desc *self);
-bool moq_mp4_atom_Desc_eq(const moq_mp4_atom_Desc *a, const moq_mp4_atom_Desc *b);
-moq_buf moq_mp4_atom_Desc_debug(const moq_mp4_atom_Desc *self);
-void moq_mp4_atom_Tool_free(moq_mp4_atom_Tool *self);
-bool moq_mp4_atom_Tool_eq(const moq_mp4_atom_Tool *a, const moq_mp4_atom_Tool *b);
-moq_buf moq_mp4_atom_Tool_debug(const moq_mp4_atom_Tool *self);
-bool moq_mp4_atom_Tool_new(uint16_t country_indicator, uint16_t language_indicator, moq_buf text, moq_mp4_atom_Tool *out, moq_buf *err);
-void moq_mp4_atom_Name_free(moq_mp4_atom_Name *self);
-bool moq_mp4_atom_Name_eq(const moq_mp4_atom_Name *a, const moq_mp4_atom_Name *b);
-moq_buf moq_mp4_atom_Name_debug(const moq_mp4_atom_Name *self);
-void moq_mp4_atom_Year_free(moq_mp4_atom_Year *self);
-bool moq_mp4_atom_Year_eq(const moq_mp4_atom_Year *a, const moq_mp4_atom_Year *b);
-moq_buf moq_mp4_atom_Year_debug(const moq_mp4_atom_Year *self);
-void moq_mp4_atom_Keys_free(moq_mp4_atom_Keys *self);
-bool moq_mp4_atom_Keys_eq(const moq_mp4_atom_Keys *a, const moq_mp4_atom_Keys *b);
-moq_buf moq_mp4_atom_Keys_debug(const moq_mp4_atom_Keys *self);
-moq_mp4_atom_Keys moq_mp4_atom_Keys_default(void);
-void moq_mp4_atom_Mvhd_free(moq_mp4_atom_Mvhd *self);
-bool moq_mp4_atom_Mvhd_eq(const moq_mp4_atom_Mvhd *a, const moq_mp4_atom_Mvhd *b);
-moq_buf moq_mp4_atom_Mvhd_debug(const moq_mp4_atom_Mvhd *self);
-moq_mp4_atom_Mvhd moq_mp4_atom_Mvhd_default(void);
-void moq_mp4_atom_Ainf_free(moq_mp4_atom_Ainf *self);
-bool moq_mp4_atom_Ainf_eq(const moq_mp4_atom_Ainf *a, const moq_mp4_atom_Ainf *b);
-moq_buf moq_mp4_atom_Ainf_debug(const moq_mp4_atom_Ainf *self);
-moq_mp4_atom_Ainf moq_mp4_atom_Ainf_default(void);
-void moq_mp4_atom_Skip_free(moq_mp4_atom_Skip *self);
-bool moq_mp4_atom_Skip_eq(const moq_mp4_atom_Skip *a, const moq_mp4_atom_Skip *b);
-moq_buf moq_mp4_atom_Skip_debug(const moq_mp4_atom_Skip *self);
-moq_mp4_atom_Skip moq_mp4_atom_Skip_default(void);
-void moq_mp4_atom_Stts_free(moq_mp4_atom_Stts *self);
-bool moq_mp4_atom_Stts_eq(const moq_mp4_atom_Stts *a, const moq_mp4_atom_Stts *b);
-moq_buf moq_mp4_atom_Stts_debug(const moq_mp4_atom_Stts *self);
-moq_mp4_atom_Stts moq_mp4_atom_Stts_default(void);
-void moq_mp4_atom_Stsc_free(moq_mp4_atom_Stsc *self);
-bool moq_mp4_atom_Stsc_eq(const moq_mp4_atom_Stsc *a, const moq_mp4_atom_Stsc *b);
-moq_buf moq_mp4_atom_Stsc_debug(const moq_mp4_atom_Stsc *self);
-moq_mp4_atom_Stsc moq_mp4_atom_Stsc_default(void);
-void moq_mp4_atom_Stsz_free(moq_mp4_atom_Stsz *self);
-bool moq_mp4_atom_Stsz_eq(const moq_mp4_atom_Stsz *a, const moq_mp4_atom_Stsz *b);
-moq_buf moq_mp4_atom_Stsz_debug(const moq_mp4_atom_Stsz *self);
-moq_mp4_atom_Stsz moq_mp4_atom_Stsz_default(void);
-void moq_mp4_atom_Stss_free(moq_mp4_atom_Stss *self);
-bool moq_mp4_atom_Stss_eq(const moq_mp4_atom_Stss *a, const moq_mp4_atom_Stss *b);
-moq_buf moq_mp4_atom_Stss_debug(const moq_mp4_atom_Stss *self);
-moq_mp4_atom_Stss moq_mp4_atom_Stss_default(void);
-void moq_mp4_atom_Stco_free(moq_mp4_atom_Stco *self);
-bool moq_mp4_atom_Stco_eq(const moq_mp4_atom_Stco *a, const moq_mp4_atom_Stco *b);
-moq_buf moq_mp4_atom_Stco_debug(const moq_mp4_atom_Stco *self);
-moq_mp4_atom_Stco moq_mp4_atom_Stco_default(void);
-void moq_mp4_atom_Co64_free(moq_mp4_atom_Co64 *self);
-bool moq_mp4_atom_Co64_eq(const moq_mp4_atom_Co64 *a, const moq_mp4_atom_Co64 *b);
-moq_buf moq_mp4_atom_Co64_debug(const moq_mp4_atom_Co64 *self);
-moq_mp4_atom_Co64 moq_mp4_atom_Co64_default(void);
-void moq_mp4_atom_Cslg_free(moq_mp4_atom_Cslg *self);
-bool moq_mp4_atom_Cslg_eq(const moq_mp4_atom_Cslg *a, const moq_mp4_atom_Cslg *b);
-moq_buf moq_mp4_atom_Cslg_debug(const moq_mp4_atom_Cslg *self);
-moq_mp4_atom_Cslg moq_mp4_atom_Cslg_default(void);
-void moq_mp4_atom_Ctts_free(moq_mp4_atom_Ctts *self);
-bool moq_mp4_atom_Ctts_eq(const moq_mp4_atom_Ctts *a, const moq_mp4_atom_Ctts *b);
-moq_buf moq_mp4_atom_Ctts_debug(const moq_mp4_atom_Ctts *self);
-moq_mp4_atom_Ctts moq_mp4_atom_Ctts_default(void);
-void moq_mp4_atom_Sbgp_free(moq_mp4_atom_Sbgp *self);
-bool moq_mp4_atom_Sbgp_eq(const moq_mp4_atom_Sbgp *a, const moq_mp4_atom_Sbgp *b);
-moq_buf moq_mp4_atom_Sbgp_debug(const moq_mp4_atom_Sbgp *self);
-void moq_mp4_atom_Sgpd_free(moq_mp4_atom_Sgpd *self);
-bool moq_mp4_atom_Sgpd_eq(const moq_mp4_atom_Sgpd *a, const moq_mp4_atom_Sgpd *b);
-moq_buf moq_mp4_atom_Sgpd_debug(const moq_mp4_atom_Sgpd *self);
-void moq_mp4_atom_Subs_free(moq_mp4_atom_Subs *self);
-bool moq_mp4_atom_Subs_eq(const moq_mp4_atom_Subs *a, const moq_mp4_atom_Subs *b);
-moq_buf moq_mp4_atom_Subs_debug(const moq_mp4_atom_Subs *self);
-moq_mp4_atom_Subs moq_mp4_atom_Subs_default(void);
-void moq_mp4_atom_Saio_free(moq_mp4_atom_Saio *self);
-bool moq_mp4_atom_Saio_eq(const moq_mp4_atom_Saio *a, const moq_mp4_atom_Saio *b);
-moq_buf moq_mp4_atom_Saio_debug(const moq_mp4_atom_Saio *self);
-moq_mp4_atom_Saio moq_mp4_atom_Saio_default(void);
-void moq_mp4_atom_Saiz_free(moq_mp4_atom_Saiz *self);
-bool moq_mp4_atom_Saiz_eq(const moq_mp4_atom_Saiz *a, const moq_mp4_atom_Saiz *b);
-moq_buf moq_mp4_atom_Saiz_debug(const moq_mp4_atom_Saiz *self);
-moq_mp4_atom_Saiz moq_mp4_atom_Saiz_default(void);
-void moq_mp4_atom_Dinf_free(moq_mp4_atom_Dinf *self);
-bool moq_mp4_atom_Dinf_eq(const moq_mp4_atom_Dinf *a, const moq_mp4_atom_Dinf *b);
-moq_buf moq_mp4_atom_Dinf_debug(const moq_mp4_atom_Dinf *self);
-moq_mp4_atom_Dinf moq_mp4_atom_Dinf_default(void);
-void moq_mp4_atom_Dref_free(moq_mp4_atom_Dref *self);
-bool moq_mp4_atom_Dref_eq(const moq_mp4_atom_Dref *a, const moq_mp4_atom_Dref *b);
-moq_buf moq_mp4_atom_Dref_debug(const moq_mp4_atom_Dref *self);
-moq_mp4_atom_Dref moq_mp4_atom_Dref_default(void);
-void moq_mp4_atom_Hmhd_free(moq_mp4_atom_Hmhd *self);
-bool moq_mp4_atom_Hmhd_eq(const moq_mp4_atom_Hmhd *a, const moq_mp4_atom_Hmhd *b);
-moq_buf moq_mp4_atom_Hmhd_debug(const moq_mp4_atom_Hmhd *self);
-moq_mp4_atom_Hmhd moq_mp4_atom_Hmhd_default(void);
-void moq_mp4_atom_Smhd_free(moq_mp4_atom_Smhd *self);
-bool moq_mp4_atom_Smhd_eq(const moq_mp4_atom_Smhd *a, const moq_mp4_atom_Smhd *b);
-moq_buf moq_mp4_atom_Smhd_debug(const moq_mp4_atom_Smhd *self);
-moq_mp4_atom_Smhd moq_mp4_atom_Smhd_default(void);
-void moq_mp4_atom_Vmhd_free(moq_mp4_atom_Vmhd *self);
-bool moq_mp4_atom_Vmhd_eq(const moq_mp4_atom_Vmhd *a, const moq_mp4_atom_Vmhd *b);
-moq_buf moq_mp4_atom_Vmhd_debug(const moq_mp4_atom_Vmhd *self);
-moq_mp4_atom_Vmhd moq_mp4_atom_Vmhd_default(void);
-void moq_mp4_atom_Mvex_free(moq_mp4_atom_Mvex *self);
-bool moq_mp4_atom_Mvex_eq(const moq_mp4_atom_Mvex *a, const moq_mp4_atom_Mvex *b);
-moq_buf moq_mp4_atom_Mvex_debug(const moq_mp4_atom_Mvex *self);
-moq_mp4_atom_Mvex moq_mp4_atom_Mvex_default(void);
-void moq_mp4_atom_Mehd_free(moq_mp4_atom_Mehd *self);
-bool moq_mp4_atom_Mehd_eq(const moq_mp4_atom_Mehd *a, const moq_mp4_atom_Mehd *b);
-moq_buf moq_mp4_atom_Mehd_debug(const moq_mp4_atom_Mehd *self);
-moq_mp4_atom_Mehd moq_mp4_atom_Mehd_default(void);
-void moq_mp4_atom_Trex_free(moq_mp4_atom_Trex *self);
-bool moq_mp4_atom_Trex_eq(const moq_mp4_atom_Trex *a, const moq_mp4_atom_Trex *b);
-moq_buf moq_mp4_atom_Trex_debug(const moq_mp4_atom_Trex *self);
-moq_mp4_atom_Trex moq_mp4_atom_Trex_default(void);
-void moq_mp4_atom_Emsg_free(moq_mp4_atom_Emsg *self);
-bool moq_mp4_atom_Emsg_eq(const moq_mp4_atom_Emsg *a, const moq_mp4_atom_Emsg *b);
-moq_buf moq_mp4_atom_Emsg_debug(const moq_mp4_atom_Emsg *self);
-void moq_mp4_atom_Mfhd_free(moq_mp4_atom_Mfhd *self);
-bool moq_mp4_atom_Mfhd_eq(const moq_mp4_atom_Mfhd *a, const moq_mp4_atom_Mfhd *b);
-moq_buf moq_mp4_atom_Mfhd_debug(const moq_mp4_atom_Mfhd *self);
-moq_mp4_atom_Mfhd moq_mp4_atom_Mfhd_default(void);
-void moq_mp4_atom_Tfhd_free(moq_mp4_atom_Tfhd *self);
-bool moq_mp4_atom_Tfhd_eq(const moq_mp4_atom_Tfhd *a, const moq_mp4_atom_Tfhd *b);
-moq_buf moq_mp4_atom_Tfhd_debug(const moq_mp4_atom_Tfhd *self);
-moq_mp4_atom_Tfhd moq_mp4_atom_Tfhd_default(void);
-void moq_mp4_atom_Tfdt_free(moq_mp4_atom_Tfdt *self);
-bool moq_mp4_atom_Tfdt_eq(const moq_mp4_atom_Tfdt *a, const moq_mp4_atom_Tfdt *b);
-moq_buf moq_mp4_atom_Tfdt_debug(const moq_mp4_atom_Tfdt *self);
-moq_mp4_atom_Tfdt moq_mp4_atom_Tfdt_default(void);
-void moq_mp4_atom_Trun_free(moq_mp4_atom_Trun *self);
-bool moq_mp4_atom_Trun_eq(const moq_mp4_atom_Trun *a, const moq_mp4_atom_Trun *b);
-moq_buf moq_mp4_atom_Trun_debug(const moq_mp4_atom_Trun *self);
-moq_mp4_atom_Trun moq_mp4_atom_Trun_default(void);
-void moq_mp4_atom_Mdat_free(moq_mp4_atom_Mdat *self);
-bool moq_mp4_atom_Mdat_eq(const moq_mp4_atom_Mdat *a, const moq_mp4_atom_Mdat *b);
-moq_buf moq_mp4_atom_Mdat_debug(const moq_mp4_atom_Mdat *self);
-void moq_mp4_atom_Free_free(moq_mp4_atom_Free *self);
-bool moq_mp4_atom_Free_eq(const moq_mp4_atom_Free *a, const moq_mp4_atom_Free *b);
-moq_buf moq_mp4_atom_Free_debug(const moq_mp4_atom_Free *self);
-void moq_mp4_atom_Sidx_free(moq_mp4_atom_Sidx *self);
-bool moq_mp4_atom_Sidx_eq(const moq_mp4_atom_Sidx *a, const moq_mp4_atom_Sidx *b);
-moq_buf moq_mp4_atom_Sidx_debug(const moq_mp4_atom_Sidx *self);
-moq_mp4_atom_Sidx moq_mp4_atom_Sidx_default(void);
-void moq_mp4_atom_Prft_free(moq_mp4_atom_Prft *self);
-bool moq_mp4_atom_Prft_eq(const moq_mp4_atom_Prft *a, const moq_mp4_atom_Prft *b);
-moq_buf moq_mp4_atom_Prft_debug(const moq_mp4_atom_Prft *self);
-moq_mp4_atom_Prft moq_mp4_atom_Prft_default(void);
-void moq_mp4_atom_Mfra_free(moq_mp4_atom_Mfra *self);
-bool moq_mp4_atom_Mfra_eq(const moq_mp4_atom_Mfra *a, const moq_mp4_atom_Mfra *b);
-moq_buf moq_mp4_atom_Mfra_debug(const moq_mp4_atom_Mfra *self);
-moq_mp4_atom_Mfra moq_mp4_atom_Mfra_default(void);
-void moq_mp4_atom_Tfra_free(moq_mp4_atom_Tfra *self);
-bool moq_mp4_atom_Tfra_eq(const moq_mp4_atom_Tfra *a, const moq_mp4_atom_Tfra *b);
-moq_buf moq_mp4_atom_Tfra_debug(const moq_mp4_atom_Tfra *self);
-moq_mp4_atom_Tfra moq_mp4_atom_Tfra_default(void);
-void moq_mp4_atom_Mfro_free(moq_mp4_atom_Mfro *self);
-bool moq_mp4_atom_Mfro_eq(const moq_mp4_atom_Mfro *a, const moq_mp4_atom_Mfro *b);
-moq_buf moq_mp4_atom_Mfro_debug(const moq_mp4_atom_Mfro *self);
-moq_mp4_atom_Mfro moq_mp4_atom_Mfro_default(void);
-void moq_mp4_atom_ChplEntry_free(moq_mp4_atom_ChplEntry *self);
-bool moq_mp4_atom_ChplEntry_eq(const moq_mp4_atom_ChplEntry *a, const moq_mp4_atom_ChplEntry *b);
-moq_buf moq_mp4_atom_ChplEntry_debug(const moq_mp4_atom_ChplEntry *self);
-void moq_mp4_atom_Svhd_free(moq_mp4_atom_Svhd *self);
-bool moq_mp4_atom_Svhd_eq(const moq_mp4_atom_Svhd *a, const moq_mp4_atom_Svhd *b);
-moq_buf moq_mp4_atom_Svhd_debug(const moq_mp4_atom_Svhd *self);
-moq_mp4_atom_Svhd moq_mp4_atom_Svhd_default(void);
-void moq_mp4_atom_Must_free(moq_mp4_atom_Must *self);
-bool moq_mp4_atom_Must_eq(const moq_mp4_atom_Must *a, const moq_mp4_atom_Must *b);
-moq_buf moq_mp4_atom_Must_debug(const moq_mp4_atom_Must *self);
-moq_mp4_atom_Must moq_mp4_atom_Must_default(void);
-void moq_mp4_atom_esds_DecoderConfig_free(moq_mp4_atom_esds_DecoderConfig *self);
-bool moq_mp4_atom_esds_DecoderConfig_eq(const moq_mp4_atom_esds_DecoderConfig *a, const moq_mp4_atom_esds_DecoderConfig *b);
-moq_buf moq_mp4_atom_esds_DecoderConfig_debug(const moq_mp4_atom_esds_DecoderConfig *self);
-moq_mp4_atom_esds_DecoderConfig moq_mp4_atom_esds_DecoderConfig_default(void);
-bool moq_mp4_atom_esds_SLConfig_eq(const moq_mp4_atom_esds_SLConfig *a, const moq_mp4_atom_esds_SLConfig *b);
-moq_buf moq_mp4_atom_esds_SLConfig_debug(const moq_mp4_atom_esds_SLConfig *self);
-moq_mp4_atom_esds_SLConfig moq_mp4_atom_esds_SLConfig_default(void);
-bool moq_mp4_atom_u24_eq(const moq_mp4_atom_u24 *a, const moq_mp4_atom_u24 *b);
-moq_buf moq_mp4_atom_u24_debug(const moq_mp4_atom_u24 *self);
-moq_mp4_atom_u24 moq_mp4_atom_u24_default(void);
-void moq_mp4_atom_ItemLocation_free(moq_mp4_atom_ItemLocation *self);
-bool moq_mp4_atom_ItemLocation_eq(const moq_mp4_atom_ItemLocation *a, const moq_mp4_atom_ItemLocation *b);
-moq_buf moq_mp4_atom_ItemLocation_debug(const moq_mp4_atom_ItemLocation *self);
-void moq_mp4_atom_ItemInfoEntry_free(moq_mp4_atom_ItemInfoEntry *self);
-bool moq_mp4_atom_ItemInfoEntry_eq(const moq_mp4_atom_ItemInfoEntry *a, const moq_mp4_atom_ItemInfoEntry *b);
-moq_buf moq_mp4_atom_ItemInfoEntry_debug(const moq_mp4_atom_ItemInfoEntry *self);
-void moq_mp4_atom_PropertyAssociations_free(moq_mp4_atom_PropertyAssociations *self);
-bool moq_mp4_atom_PropertyAssociations_eq(const moq_mp4_atom_PropertyAssociations *a, const moq_mp4_atom_PropertyAssociations *b);
-moq_buf moq_mp4_atom_PropertyAssociations_debug(const moq_mp4_atom_PropertyAssociations *self);
-moq_mp4_atom_PropertyAssociations moq_mp4_atom_PropertyAssociations_default(void);
-void moq_mp4_atom_Reference_free(moq_mp4_atom_Reference *self);
-bool moq_mp4_atom_Reference_eq(const moq_mp4_atom_Reference *a, const moq_mp4_atom_Reference *b);
-moq_buf moq_mp4_atom_Reference_debug(const moq_mp4_atom_Reference *self);
-void moq_mp4_atom_Copyright_free(moq_mp4_atom_Copyright *self);
-bool moq_mp4_atom_Copyright_eq(const moq_mp4_atom_Copyright *a, const moq_mp4_atom_Copyright *b);
-moq_buf moq_mp4_atom_Copyright_debug(const moq_mp4_atom_Copyright *self);
-void moq_mp4_atom_IlstData_free(moq_mp4_atom_IlstData *self);
-bool moq_mp4_atom_IlstData_eq(const moq_mp4_atom_IlstData *a, const moq_mp4_atom_IlstData *b);
-moq_buf moq_mp4_atom_IlstData_debug(const moq_mp4_atom_IlstData *self);
-void moq_mp4_atom_KeyEntry_free(moq_mp4_atom_KeyEntry *self);
-bool moq_mp4_atom_KeyEntry_eq(const moq_mp4_atom_KeyEntry *a, const moq_mp4_atom_KeyEntry *b);
-moq_buf moq_mp4_atom_KeyEntry_debug(const moq_mp4_atom_KeyEntry *self);
-void moq_mp4_atom_Zeroed_free(moq_mp4_atom_Zeroed *self);
-bool moq_mp4_atom_Zeroed_eq(const moq_mp4_atom_Zeroed *a, const moq_mp4_atom_Zeroed *b);
-moq_buf moq_mp4_atom_Zeroed_debug(const moq_mp4_atom_Zeroed *self);
-moq_mp4_atom_Zeroed moq_mp4_atom_Zeroed_default(void);
-moq_mp4_atom_Zeroed moq_mp4_atom_Zeroed_new(size_t size);
-void moq_mp4_atom_SttsEntry_free(moq_mp4_atom_SttsEntry *self);
-bool moq_mp4_atom_SttsEntry_eq(const moq_mp4_atom_SttsEntry *a, const moq_mp4_atom_SttsEntry *b);
-moq_buf moq_mp4_atom_SttsEntry_debug(const moq_mp4_atom_SttsEntry *self);
-moq_mp4_atom_SttsEntry moq_mp4_atom_SttsEntry_default(void);
-void moq_mp4_atom_StscEntry_free(moq_mp4_atom_StscEntry *self);
-bool moq_mp4_atom_StscEntry_eq(const moq_mp4_atom_StscEntry *a, const moq_mp4_atom_StscEntry *b);
-moq_buf moq_mp4_atom_StscEntry_debug(const moq_mp4_atom_StscEntry *self);
-moq_mp4_atom_StscEntry moq_mp4_atom_StscEntry_default(void);
-void moq_mp4_atom_CttsEntry_free(moq_mp4_atom_CttsEntry *self);
-bool moq_mp4_atom_CttsEntry_eq(const moq_mp4_atom_CttsEntry *a, const moq_mp4_atom_CttsEntry *b);
-moq_buf moq_mp4_atom_CttsEntry_debug(const moq_mp4_atom_CttsEntry *self);
-moq_mp4_atom_CttsEntry moq_mp4_atom_CttsEntry_default(void);
-void moq_mp4_atom_SbgpEntry_free(moq_mp4_atom_SbgpEntry *self);
-bool moq_mp4_atom_SbgpEntry_eq(const moq_mp4_atom_SbgpEntry *a, const moq_mp4_atom_SbgpEntry *b);
-moq_buf moq_mp4_atom_SbgpEntry_debug(const moq_mp4_atom_SbgpEntry *self);
-void moq_mp4_atom_SgpdEntry_free(moq_mp4_atom_SgpdEntry *self);
-bool moq_mp4_atom_SgpdEntry_eq(const moq_mp4_atom_SgpdEntry *a, const moq_mp4_atom_SgpdEntry *b);
-moq_buf moq_mp4_atom_SgpdEntry_debug(const moq_mp4_atom_SgpdEntry *self);
-void moq_mp4_atom_SubsEntry_free(moq_mp4_atom_SubsEntry *self);
-bool moq_mp4_atom_SubsEntry_eq(const moq_mp4_atom_SubsEntry *a, const moq_mp4_atom_SubsEntry *b);
-moq_buf moq_mp4_atom_SubsEntry_debug(const moq_mp4_atom_SubsEntry *self);
-moq_mp4_atom_SubsEntry moq_mp4_atom_SubsEntry_default(void);
-void moq_mp4_atom_AuxInfo_free(moq_mp4_atom_AuxInfo *self);
-bool moq_mp4_atom_AuxInfo_eq(const moq_mp4_atom_AuxInfo *a, const moq_mp4_atom_AuxInfo *b);
-moq_buf moq_mp4_atom_AuxInfo_debug(const moq_mp4_atom_AuxInfo *self);
-void moq_mp4_atom_RgbColor_free(moq_mp4_atom_RgbColor *self);
-bool moq_mp4_atom_RgbColor_eq(const moq_mp4_atom_RgbColor *a, const moq_mp4_atom_RgbColor *b);
-moq_buf moq_mp4_atom_RgbColor_debug(const moq_mp4_atom_RgbColor *self);
-moq_mp4_atom_RgbColor moq_mp4_atom_RgbColor_default(void);
-void moq_mp4_atom_SegmentReference_free(moq_mp4_atom_SegmentReference *self);
-bool moq_mp4_atom_SegmentReference_eq(const moq_mp4_atom_SegmentReference *a, const moq_mp4_atom_SegmentReference *b);
-moq_buf moq_mp4_atom_SegmentReference_debug(const moq_mp4_atom_SegmentReference *self);
-void moq_mp4_atom_FragmentInfo_free(moq_mp4_atom_FragmentInfo *self);
-bool moq_mp4_atom_FragmentInfo_eq(const moq_mp4_atom_FragmentInfo *a, const moq_mp4_atom_FragmentInfo *b);
-moq_buf moq_mp4_atom_FragmentInfo_debug(const moq_mp4_atom_FragmentInfo *self);
-moq_mp4_atom_FragmentInfo moq_mp4_atom_FragmentInfo_default(void);
-void moq_mp4_atom_C2pa_free(moq_mp4_atom_C2pa *self);
-bool moq_mp4_atom_C2pa_eq(const moq_mp4_atom_C2pa *a, const moq_mp4_atom_C2pa *b);
-moq_buf moq_mp4_atom_C2pa_debug(const moq_mp4_atom_C2pa *self);
-bool moq_mp4_atom_ExtendedType_eq(const moq_mp4_atom_ExtendedType *a, const moq_mp4_atom_ExtendedType *b);
-moq_buf moq_mp4_atom_ExtendedType_to_string(const moq_mp4_atom_ExtendedType *self);
-moq_buf moq_mp4_atom_ExtendedType_debug(const moq_mp4_atom_ExtendedType *self);
-moq_mp4_atom_ExtendedType moq_mp4_atom_ExtendedType_default(void);
-moq_mp4_atom_ExtendedType moq_mp4_atom_ExtendedType_new(moq_array_u8_16 value);
-void moq_mp4_atom_Prhd_free(moq_mp4_atom_Prhd *self);
-bool moq_mp4_atom_Prhd_eq(const moq_mp4_atom_Prhd *a, const moq_mp4_atom_Prhd *b);
-moq_buf moq_mp4_atom_Prhd_debug(const moq_mp4_atom_Prhd *self);
-moq_mp4_atom_Prhd moq_mp4_atom_Prhd_default(void);
-void moq_mp4_atom_Prji_free(moq_mp4_atom_Prji *self);
-bool moq_mp4_atom_Prji_eq(const moq_mp4_atom_Prji *a, const moq_mp4_atom_Prji *b);
-moq_buf moq_mp4_atom_Prji_debug(const moq_mp4_atom_Prji *self);
-moq_mp4_atom_FourCC moq_mp4_atom_Prji_RECTILINEAR(void);
-moq_mp4_atom_FourCC moq_mp4_atom_Prji_EQUIRECTANGULAR(void);
-moq_mp4_atom_FourCC moq_mp4_atom_Prji_HALF_EQUIRECTANGULAR(void);
-moq_mp4_atom_FourCC moq_mp4_atom_Prji_FISHEYE(void);
-moq_mp4_atom_FourCC moq_mp4_atom_Prji_PARAMETRIC_IMMERSIVE(void);
-void moq_mp4_atom_Stri_free(moq_mp4_atom_Stri *self);
-bool moq_mp4_atom_Stri_eq(const moq_mp4_atom_Stri *a, const moq_mp4_atom_Stri *b);
-moq_buf moq_mp4_atom_Stri_debug(const moq_mp4_atom_Stri *self);
-moq_mp4_atom_Stri moq_mp4_atom_Stri_default(void);
-void moq_mp4_atom_Hero_free(moq_mp4_atom_Hero *self);
-bool moq_mp4_atom_Hero_eq(const moq_mp4_atom_Hero *a, const moq_mp4_atom_Hero *b);
-moq_buf moq_mp4_atom_Hero_debug(const moq_mp4_atom_Hero *self);
-moq_mp4_atom_Hero moq_mp4_atom_Hero_default(void);
-void moq_mp4_atom_Pkin_free(moq_mp4_atom_Pkin *self);
-bool moq_mp4_atom_Pkin_eq(const moq_mp4_atom_Pkin *a, const moq_mp4_atom_Pkin *b);
-moq_buf moq_mp4_atom_Pkin_debug(const moq_mp4_atom_Pkin *self);
-moq_mp4_atom_FourCC moq_mp4_atom_Pkin_SIDE_BY_SIDE(void);
-moq_mp4_atom_FourCC moq_mp4_atom_Pkin_OVER_UNDER(void);
-void moq_mp4_atom_esds_DecoderSpecific_free(moq_mp4_atom_esds_DecoderSpecific *self);
-bool moq_mp4_atom_esds_DecoderSpecific_eq(const moq_mp4_atom_esds_DecoderSpecific *a, const moq_mp4_atom_esds_DecoderSpecific *b);
-moq_buf moq_mp4_atom_esds_DecoderSpecific_debug(const moq_mp4_atom_esds_DecoderSpecific *self);
-moq_mp4_atom_esds_DecoderSpecific moq_mp4_atom_esds_DecoderSpecific_default(void);
-void moq_mp4_atom_ExplicitSpeakerPosition_free(moq_mp4_atom_ExplicitSpeakerPosition *self);
-bool moq_mp4_atom_ExplicitSpeakerPosition_eq(const moq_mp4_atom_ExplicitSpeakerPosition *a, const moq_mp4_atom_ExplicitSpeakerPosition *b);
-moq_buf moq_mp4_atom_ExplicitSpeakerPosition_debug(const moq_mp4_atom_ExplicitSpeakerPosition *self);
-void moq_mp4_atom_ItemLocationExtent_free(moq_mp4_atom_ItemLocationExtent *self);
-bool moq_mp4_atom_ItemLocationExtent_eq(const moq_mp4_atom_ItemLocationExtent *a, const moq_mp4_atom_ItemLocationExtent *b);
-moq_buf moq_mp4_atom_ItemLocationExtent_debug(const moq_mp4_atom_ItemLocationExtent *self);
-void moq_mp4_atom_PropertyAssociation_free(moq_mp4_atom_PropertyAssociation *self);
-bool moq_mp4_atom_PropertyAssociation_eq(const moq_mp4_atom_PropertyAssociation *a, const moq_mp4_atom_PropertyAssociation *b);
-moq_buf moq_mp4_atom_PropertyAssociation_debug(const moq_mp4_atom_PropertyAssociation *self);
-moq_mp4_atom_PropertyAssociation moq_mp4_atom_PropertyAssociation_default(void);
-void moq_mp4_atom_SubsSubsample_free(moq_mp4_atom_SubsSubsample *self);
-bool moq_mp4_atom_SubsSubsample_eq(const moq_mp4_atom_SubsSubsample *a, const moq_mp4_atom_SubsSubsample *b);
-moq_buf moq_mp4_atom_SubsSubsample_debug(const moq_mp4_atom_SubsSubsample *self);
-moq_mp4_atom_SubsSubsample moq_mp4_atom_SubsSubsample_default(void);
-void moq_mp4_atom_Url_free(moq_mp4_atom_Url *self);
-bool moq_mp4_atom_Url_eq(const moq_mp4_atom_Url *a, const moq_mp4_atom_Url *b);
-moq_buf moq_mp4_atom_Url_debug(const moq_mp4_atom_Url *self);
-moq_mp4_atom_Url moq_mp4_atom_Url_default(void);
-void moq_mp4_atom_Urn_free(moq_mp4_atom_Urn *self);
-bool moq_mp4_atom_Urn_eq(const moq_mp4_atom_Urn *a, const moq_mp4_atom_Urn *b);
-moq_buf moq_mp4_atom_Urn_debug(const moq_mp4_atom_Urn *self);
-moq_mp4_atom_Urn moq_mp4_atom_Urn_default(void);
-void moq_mp4_atom_TrunEntry_free(moq_mp4_atom_TrunEntry *self);
-bool moq_mp4_atom_TrunEntry_eq(const moq_mp4_atom_TrunEntry *a, const moq_mp4_atom_TrunEntry *b);
-moq_buf moq_mp4_atom_TrunEntry_debug(const moq_mp4_atom_TrunEntry *self);
-moq_mp4_atom_TrunEntry moq_mp4_atom_TrunEntry_default(void);
 void moq_rustls_crypto_hpke_HpkePublicKey_free(moq_rustls_crypto_hpke_HpkePublicKey *self);
 moq_buf moq_rustls_crypto_hpke_HpkePublicKey_debug(const moq_rustls_crypto_hpke_HpkePublicKey *self);
-void moq_mp4_atom_Equi_free(moq_mp4_atom_Equi *self);
-bool moq_mp4_atom_Equi_eq(const moq_mp4_atom_Equi *a, const moq_mp4_atom_Equi *b);
-moq_buf moq_mp4_atom_Equi_debug(const moq_mp4_atom_Equi *self);
-moq_mp4_atom_Equi moq_mp4_atom_Equi_default(void);
-void moq_mp4_atom_Cbmp_free(moq_mp4_atom_Cbmp *self);
-bool moq_mp4_atom_Cbmp_eq(const moq_mp4_atom_Cbmp *a, const moq_mp4_atom_Cbmp *b);
-moq_buf moq_mp4_atom_Cbmp_debug(const moq_mp4_atom_Cbmp *self);
-moq_mp4_atom_Cbmp moq_mp4_atom_Cbmp_default(void);
-void moq_mp4_atom_Mshp_free(moq_mp4_atom_Mshp *self);
-bool moq_mp4_atom_Mshp_eq(const moq_mp4_atom_Mshp *a, const moq_mp4_atom_Mshp *b);
-moq_buf moq_mp4_atom_Mshp_debug(const moq_mp4_atom_Mshp *self);
-void moq_mp4_atom_Blin_free(moq_mp4_atom_Blin *self);
-bool moq_mp4_atom_Blin_eq(const moq_mp4_atom_Blin *a, const moq_mp4_atom_Blin *b);
-moq_buf moq_mp4_atom_Blin_debug(const moq_mp4_atom_Blin *self);
-moq_mp4_atom_Blin moq_mp4_atom_Blin_default(void);
-void moq_mp4_atom_Dadj_free(moq_mp4_atom_Dadj *self);
-bool moq_mp4_atom_Dadj_eq(const moq_mp4_atom_Dadj *a, const moq_mp4_atom_Dadj *b);
-moq_buf moq_mp4_atom_Dadj_debug(const moq_mp4_atom_Dadj *self);
-moq_mp4_atom_Dadj moq_mp4_atom_Dadj_default(void);
 moq_buf moq_EncodeError_to_string(const moq_EncodeError *self);
 moq_buf moq_EncodeError_debug(const moq_EncodeError *self);
 void moq_InvalidPattern_free(moq_InvalidPattern *self);
@@ -5475,9 +2726,8 @@ moq_buf moq_StreamError_to_string(const moq_StreamError *self);
 moq_buf moq_StreamError_debug(const moq_StreamError *self);
 uint32_t moq_StreamError_to_code(const moq_StreamError *self);
 moq_StreamError moq_StreamError_from_code(uint32_t code);
-bool moq_InvalidHop_eq(const moq_InvalidHop *a, const moq_InvalidHop *b);
-moq_buf moq_InvalidHop_to_string(const moq_InvalidHop *self);
-moq_buf moq_InvalidHop_debug(const moq_InvalidHop *self);
+bool moq_Retry_eq(const moq_Retry *a, const moq_Retry *b);
+moq_buf moq_Retry_debug(const moq_Retry *self);
 bool moq_IntersectionError_eq(const moq_IntersectionError *a, const moq_IntersectionError *b);
 moq_buf moq_IntersectionError_to_string(const moq_IntersectionError *self);
 moq_buf moq_IntersectionError_debug(const moq_IntersectionError *self);
@@ -5503,11 +2753,6 @@ uint64_t moq_tokio_Transport_hash(const moq_tokio_Transport *self);
 moq_buf moq_tokio_Transport_to_string(const moq_tokio_Transport *self);
 moq_buf moq_tokio_Transport_debug(const moq_tokio_Transport *self);
 moq_buf moq_tokio_Transport_as_str(const moq_tokio_Transport *self);
-bool moq_auth_Answer_eq(const moq_auth_Answer *a, const moq_auth_Answer *b);
-moq_buf moq_auth_Answer_debug(const moq_auth_Answer *self);
-bool moq_auth_RequestKind_eq(const moq_auth_RequestKind *a, const moq_auth_RequestKind *b);
-uint64_t moq_auth_RequestKind_hash(const moq_auth_RequestKind *self);
-moq_buf moq_auth_RequestKind_debug(const moq_auth_RequestKind *self);
 bool moq_path_Error_eq(const moq_path_Error *a, const moq_path_Error *b);
 moq_buf moq_path_Error_to_string(const moq_path_Error *self);
 moq_buf moq_path_Error_debug(const moq_path_Error *self);
@@ -5515,6 +2760,14 @@ bool moq_setup_Role_eq(const moq_setup_Role *a, const moq_setup_Role *b);
 moq_buf moq_setup_Role_to_string(const moq_setup_Role *self);
 moq_buf moq_setup_Role_debug(const moq_setup_Role *self);
 moq_buf moq_setup_Role_as_str(const moq_setup_Role *self);
+bool moq_reconnect_Verdict_eq(const moq_reconnect_Verdict *a, const moq_reconnect_Verdict *b);
+moq_buf moq_reconnect_Verdict_debug(const moq_reconnect_Verdict *self);
+bool moq_reconnect_ConfigError_eq(const moq_reconnect_ConfigError *a, const moq_reconnect_ConfigError *b);
+moq_buf moq_reconnect_ConfigError_to_string(const moq_reconnect_ConfigError *self);
+moq_buf moq_reconnect_ConfigError_debug(const moq_reconnect_ConfigError *self);
+bool moq_reconnect_Redirect_eq(const moq_reconnect_Redirect *a, const moq_reconnect_Redirect *b);
+moq_buf moq_reconnect_Redirect_debug(const moq_reconnect_Redirect *self);
+moq_reconnect_Redirect moq_reconnect_Redirect_default(void);
 bool moq_stats_Role_eq(const moq_stats_Role *a, const moq_stats_Role *b);
 uint64_t moq_stats_Role_hash(const moq_stats_Role *self);
 moq_buf moq_stats_Role_debug(const moq_stats_Role *self);
@@ -5530,11 +2783,34 @@ bool moq_stats_RefusalKind_eq(const moq_stats_RefusalKind *a, const moq_stats_Re
 moq_buf moq_stats_RefusalKind_debug(const moq_stats_RefusalKind *self);
 moq_vec_stats_RefusalKind moq_stats_RefusalKind_ALL(void);
 moq_buf moq_stats_RefusalKind_as_str(const moq_stats_RefusalKind *self);
+bool moq_stats_RouteClose_eq(const moq_stats_RouteClose *a, const moq_stats_RouteClose *b);
+moq_buf moq_stats_RouteClose_debug(const moq_stats_RouteClose *self);
+moq_vec_stats_RouteClose moq_stats_RouteClose_ALL(void);
+moq_buf moq_stats_RouteClose_as_str(const moq_stats_RouteClose *self);
+bool moq_stats_RouteRefusal_eq(const moq_stats_RouteRefusal *a, const moq_stats_RouteRefusal *b);
+moq_buf moq_stats_RouteRefusal_debug(const moq_stats_RouteRefusal *self);
+moq_vec_stats_RouteRefusal moq_stats_RouteRefusal_ALL(void);
+moq_buf moq_stats_RouteRefusal_as_str(const moq_stats_RouteRefusal *self);
+bool moq_stats_Withdrawal_eq(const moq_stats_Withdrawal *a, const moq_stats_Withdrawal *b);
+moq_buf moq_stats_Withdrawal_debug(const moq_stats_Withdrawal *self);
+moq_vec_stats_Withdrawal moq_stats_Withdrawal_ALL(void);
+moq_buf moq_stats_Withdrawal_as_str(const moq_stats_Withdrawal *self);
 bool moq_transport_Address_eq(const moq_transport_Address *a, const moq_transport_Address *b);
 moq_buf moq_transport_Address_debug(const moq_transport_Address *self);
+void moq_transport_LimitsError_free(moq_transport_LimitsError *self);
+bool moq_transport_LimitsError_eq(const moq_transport_LimitsError *a, const moq_transport_LimitsError *b);
+moq_buf moq_transport_LimitsError_to_string(const moq_transport_LimitsError *self);
+moq_buf moq_transport_LimitsError_debug(const moq_transport_LimitsError *self);
 bool moq_transport_CloseKind_eq(const moq_transport_CloseKind *a, const moq_transport_CloseKind *b);
 moq_buf moq_transport_CloseKind_debug(const moq_transport_CloseKind *self);
 moq_transport_CloseKind moq_transport_CloseKind_default(void);
+bool moq_broadcast_Kind_eq(const moq_broadcast_Kind *a, const moq_broadcast_Kind *b);
+uint64_t moq_broadcast_Kind_hash(const moq_broadcast_Kind *self);
+moq_buf moq_broadcast_Kind_debug(const moq_broadcast_Kind *self);
+bool moq_track_Compression_eq(const moq_track_Compression *a, const moq_track_Compression *b);
+uint64_t moq_track_Compression_hash(const moq_track_Compression *self);
+moq_buf moq_track_Compression_debug(const moq_track_Compression *self);
+moq_track_Compression moq_track_Compression_default(void);
 void moq_track_Anchor_free(moq_track_Anchor *self);
 bool moq_track_Anchor_eq(const moq_track_Anchor *a, const moq_track_Anchor *b);
 uint64_t moq_track_Anchor_hash(const moq_track_Anchor *self);
@@ -5547,24 +2823,8 @@ bool moq_origin_Link_eq(const moq_origin_Link *a, const moq_origin_Link *b);
 uint64_t moq_origin_Link_hash(const moq_origin_Link *self);
 moq_buf moq_origin_Link_debug(const moq_origin_Link *self);
 moq_origin_Link moq_origin_Link_default(void);
-void moq_origin_Source_free(moq_origin_Source *self);
-bool moq_origin_Source_eq(const moq_origin_Source *a, const moq_origin_Source *b);
-uint64_t moq_origin_Source_hash(const moq_origin_Source *self);
-moq_buf moq_origin_Source_debug(const moq_origin_Source *self);
-moq_origin_Source moq_origin_Source_default(void);
-bool moq_hang_health_Verdict_eq(const moq_hang_health_Verdict *a, const moq_hang_health_Verdict *b);
-uint64_t moq_hang_health_Verdict_hash(const moq_hang_health_Verdict *self);
-moq_buf moq_hang_health_Verdict_debug(const moq_hang_health_Verdict *self);
-moq_hang_health_Verdict moq_hang_health_Verdict_default(void);
-bool moq_hang_health_Role_eq(const moq_hang_health_Role *a, const moq_hang_health_Role *b);
-uint64_t moq_hang_health_Role_hash(const moq_hang_health_Role *self);
-moq_buf moq_hang_health_Role_debug(const moq_hang_health_Role *self);
-bool moq_hang_health_Reset_eq(const moq_hang_health_Reset *a, const moq_hang_health_Reset *b);
-uint64_t moq_hang_health_Reset_hash(const moq_hang_health_Reset *self);
-moq_buf moq_hang_health_Reset_debug(const moq_hang_health_Reset *self);
-bool moq_hang_health_Input_eq(const moq_hang_health_Input *a, const moq_hang_health_Input *b);
-uint64_t moq_hang_health_Input_hash(const moq_hang_health_Input *self);
-moq_buf moq_hang_health_Input_debug(const moq_hang_health_Input *self);
+bool moq_origin_RouteKind_eq(const moq_origin_RouteKind *a, const moq_origin_RouteKind *b);
+moq_buf moq_origin_RouteKind_debug(const moq_origin_RouteKind *self);
 void moq_hang_catalog_AudioCodec_free(moq_hang_catalog_AudioCodec *self);
 bool moq_hang_catalog_AudioCodec_eq(const moq_hang_catalog_AudioCodec *a, const moq_hang_catalog_AudioCodec *b);
 moq_buf moq_hang_catalog_AudioCodec_to_string(const moq_hang_catalog_AudioCodec *self);
@@ -5599,9 +2859,9 @@ moq_hang_catalog_VideoCodecKind moq_hang_catalog_VideoCodec_kind(const moq_hang_
 bool moq_hang_catalog_VideoCodecKind_eq(const moq_hang_catalog_VideoCodecKind *a, const moq_hang_catalog_VideoCodecKind *b);
 uint64_t moq_hang_catalog_VideoCodecKind_hash(const moq_hang_catalog_VideoCodecKind *self);
 moq_buf moq_hang_catalog_VideoCodecKind_debug(const moq_hang_catalog_VideoCodecKind *self);
-bool moq_hang_catalog_Range_eq(const moq_hang_catalog_Range *a, const moq_hang_catalog_Range *b);
-uint64_t moq_hang_catalog_Range_hash(const moq_hang_catalog_Range *self);
-moq_buf moq_hang_catalog_Range_debug(const moq_hang_catalog_Range *self);
+bool moq_hang_catalog_ColorRange_eq(const moq_hang_catalog_ColorRange *a, const moq_hang_catalog_ColorRange *b);
+uint64_t moq_hang_catalog_ColorRange_hash(const moq_hang_catalog_ColorRange *self);
+moq_buf moq_hang_catalog_ColorRange_debug(const moq_hang_catalog_ColorRange *self);
 void moq_hang_catalog_Stereo_free(moq_hang_catalog_Stereo *self);
 bool moq_hang_catalog_Stereo_eq(const moq_hang_catalog_Stereo *a, const moq_hang_catalog_Stereo *b);
 moq_buf moq_hang_catalog_Stereo_to_string(const moq_hang_catalog_Stereo *self);
@@ -5616,7 +2876,11 @@ moq_option_mux_catalog_CatalogFormat moq_mux_catalog_CatalogFormat_detect(moq_bu
 bool moq_mux_container_Kind_eq(const moq_mux_container_Kind *a, const moq_mux_container_Kind *b);
 moq_buf moq_mux_container_Kind_debug(const moq_mux_container_Kind *self);
 void moq_mux_container_Read_free(moq_mux_container_Read *self);
-moq_buf moq_mux_container_Read_debug(const moq_mux_container_Read *self);
+moq_buf moq_mux_container_Read_debug(const moq_mux_container_Read *self, moq_status *status);
+void moq_mux_container_ReorderError_free(moq_mux_container_ReorderError *self);
+bool moq_mux_container_ReorderError_eq(const moq_mux_container_ReorderError *a, const moq_mux_container_ReorderError *b);
+moq_buf moq_mux_container_ReorderError_to_string(const moq_mux_container_ReorderError *self);
+moq_buf moq_mux_container_ReorderError_debug(const moq_mux_container_ReorderError *self);
 bool moq_mux_import_AudioFormat_eq(const moq_mux_import_AudioFormat *a, const moq_mux_import_AudioFormat *b);
 uint64_t moq_mux_import_AudioFormat_hash(const moq_mux_import_AudioFormat *self);
 moq_buf moq_mux_import_AudioFormat_to_string(const moq_mux_import_AudioFormat *self);
@@ -5642,18 +2906,16 @@ moq_buf moq_mux_import_VideoFormat_debug(const moq_mux_import_VideoFormat *self)
 void moq_mux_rate_Target_free(moq_mux_rate_Target *self);
 bool moq_mux_rate_Target_eq(const moq_mux_rate_Target *a, const moq_mux_rate_Target *b);
 moq_buf moq_mux_rate_Target_debug(const moq_mux_rate_Target *self);
-bool moq_mux_timeline_Kind_eq(const moq_mux_timeline_Kind *a, const moq_mux_timeline_Kind *b);
-moq_buf moq_mux_timeline_Kind_debug(const moq_mux_timeline_Kind *self);
-bool moq_mux_timeline_Error_eq(const moq_mux_timeline_Error *a, const moq_mux_timeline_Error *b);
-moq_buf moq_mux_timeline_Error_to_string(const moq_mux_timeline_Error *self);
-moq_buf moq_mux_timeline_Error_debug(const moq_mux_timeline_Error *self);
 void moq_tokio_listen_Bind_free(moq_tokio_listen_Bind *self);
 bool moq_tokio_listen_Bind_eq(const moq_tokio_listen_Bind *a, const moq_tokio_listen_Bind *b);
 moq_buf moq_tokio_listen_Bind_to_string(const moq_tokio_listen_Bind *self);
 moq_buf moq_tokio_listen_Bind_debug(const moq_tokio_listen_Bind *self);
+bool moq_tokio_listen_Bind_resolve(const moq_tokio_listen_Bind *self, moq_socket_addr *out, moq_buf *err);
 void moq_transport_memory_Error_free(moq_transport_memory_Error *self);
 moq_buf moq_transport_memory_Error_to_string(const moq_transport_memory_Error *self);
 moq_buf moq_transport_memory_Error_debug(const moq_transport_memory_Error *self);
+bool moq_transport_poll_Acked_eq(const moq_transport_poll_Acked *a, const moq_transport_poll_Acked *b);
+moq_buf moq_transport_poll_Acked_debug(const moq_transport_poll_Acked *self);
 void moq_mux_catalog_msf_Error_free(moq_mux_catalog_msf_Error *self);
 moq_buf moq_mux_catalog_msf_Error_to_string(const moq_mux_catalog_msf_Error *self);
 moq_buf moq_mux_catalog_msf_Error_debug(const moq_mux_catalog_msf_Error *self);
@@ -5681,18 +2943,17 @@ void moq_mux_container_ts_Step_free(moq_mux_container_ts_Step *self);
 bool moq_mux_container_ts_Step_eq(const moq_mux_container_ts_Step *a, const moq_mux_container_ts_Step *b);
 moq_buf moq_mux_container_ts_Step_to_string(const moq_mux_container_ts_Step *self);
 moq_buf moq_mux_container_ts_Step_debug(const moq_mux_container_ts_Step *self);
+void moq_mux_codec_aac_adts_Error_free(moq_mux_codec_aac_adts_Error *self);
 bool moq_mux_codec_aac_adts_Error_eq(const moq_mux_codec_aac_adts_Error *a, const moq_mux_codec_aac_adts_Error *b);
 moq_buf moq_mux_codec_aac_adts_Error_to_string(const moq_mux_codec_aac_adts_Error *self);
 moq_buf moq_mux_codec_aac_adts_Error_debug(const moq_mux_codec_aac_adts_Error *self);
-moq_buf moq_mux_container_fmp4_fragment_MissingDuration_debug(const moq_mux_container_fmp4_fragment_MissingDuration *self);
-moq_mux_container_fmp4_fragment_MissingDuration moq_mux_container_fmp4_fragment_MissingDuration_default(void);
 bool moq_mux_container_ts_stats_Class_eq(const moq_mux_container_ts_stats_Class *a, const moq_mux_container_ts_stats_Class *b);
 moq_buf moq_mux_container_ts_stats_Class_debug(const moq_mux_container_ts_stats_Class *self);
 moq_mux_container_ts_stats_Class moq_mux_container_ts_stats_Class_default(void);
 bool moq_moq_tokio_quic_CongestionControl_eq(const moq_moq_tokio_quic_CongestionControl *a, const moq_moq_tokio_quic_CongestionControl *b);
+uint64_t moq_moq_tokio_quic_CongestionControl_hash(const moq_moq_tokio_quic_CongestionControl *self);
 moq_buf moq_moq_tokio_quic_CongestionControl_debug(const moq_moq_tokio_quic_CongestionControl *self);
-bool moq_moq_tokio_connection_Phase_eq(const moq_moq_tokio_connection_Phase *a, const moq_moq_tokio_connection_Phase *b);
-moq_buf moq_moq_tokio_connection_Phase_debug(const moq_moq_tokio_connection_Phase *self);
+moq_moq_tokio_quic_CongestionControl moq_moq_tokio_quic_CongestionControl_default(void);
 bool moq_moq_tokio_accept_Failure_eq(const moq_moq_tokio_accept_Failure *a, const moq_moq_tokio_accept_Failure *b);
 uint64_t moq_moq_tokio_accept_Failure_hash(const moq_moq_tokio_accept_Failure *self);
 moq_buf moq_moq_tokio_accept_Failure_to_string(const moq_moq_tokio_accept_Failure *self);
@@ -5705,17 +2966,6 @@ moq_moq_tokio_Redirect moq_moq_tokio_Redirect_default(void);
 void moq_moq_quic_Rate_free(moq_moq_quic_Rate *self);
 bool moq_moq_quic_Rate_eq(const moq_moq_quic_Rate *a, const moq_moq_quic_Rate *b);
 moq_buf moq_moq_quic_Rate_debug(const moq_moq_quic_Rate *self);
-void moq_mp4_atom_Colr_free(moq_mp4_atom_Colr *self);
-bool moq_mp4_atom_Colr_eq(const moq_mp4_atom_Colr *a, const moq_mp4_atom_Colr *b);
-moq_buf moq_mp4_atom_Colr_debug(const moq_mp4_atom_Colr *self);
-moq_mp4_atom_Colr moq_mp4_atom_Colr_default(void);
-bool moq_mp4_atom_Colr_new(uint16_t colour_primaries, uint16_t transfer_characteristics, uint16_t matrix_coefficients, bool full_range_flag, moq_mp4_atom_Colr *out, moq_buf *err);
-void moq_mp4_atom_UncC_free(moq_mp4_atom_UncC *self);
-bool moq_mp4_atom_UncC_eq(const moq_mp4_atom_UncC *a, const moq_mp4_atom_UncC *b);
-moq_buf moq_mp4_atom_UncC_debug(const moq_mp4_atom_UncC *self);
-bool moq_mp4_atom_SencBoxVersion_eq(const moq_mp4_atom_SencBoxVersion *a, const moq_mp4_atom_SencBoxVersion *b);
-moq_buf moq_mp4_atom_SencBoxVersion_debug(const moq_mp4_atom_SencBoxVersion *self);
-moq_mp4_atom_SencBoxVersion moq_mp4_atom_SencBoxVersion_default(void);
 void moq_moq_tokio_connect_Error_free(moq_moq_tokio_connect_Error *self);
 bool moq_moq_tokio_connect_Error_eq(const moq_moq_tokio_connect_Error *a, const moq_moq_tokio_connect_Error *b);
 moq_buf moq_moq_tokio_connect_Error_to_string(const moq_moq_tokio_connect_Error *self);
@@ -5727,81 +2977,20 @@ moq_array_u8_2 moq_rustls_ProtocolVersion_to_array(const moq_rustls_ProtocolVers
 moq_buf moq_rustls_ProtocolVersion_as_str(const moq_rustls_ProtocolVersion *self);
 bool moq_rustls_client_Tls12Resumption_eq(const moq_rustls_client_Tls12Resumption *a, const moq_rustls_client_Tls12Resumption *b);
 moq_buf moq_rustls_client_Tls12Resumption_debug(const moq_rustls_client_Tls12Resumption *self);
+bool moq_moq_quic_connection_mux_Version_eq(const moq_moq_quic_connection_mux_Version *a, const moq_moq_quic_connection_mux_Version *b);
+uint64_t moq_moq_quic_connection_mux_Version_hash(const moq_moq_quic_connection_mux_Version *self);
+moq_buf moq_moq_quic_connection_mux_Version_debug(const moq_moq_quic_connection_mux_Version *self);
+moq_vec_moq_quic_connection_mux_Version moq_moq_quic_connection_mux_Version_ALL(void);
+bool moq_moq_quic_connection_mux_Version_uses_records(const moq_moq_quic_connection_mux_Version *self);
+moq_buf moq_moq_quic_connection_mux_Version_alpn(const moq_moq_quic_connection_mux_Version *self);
+moq_buf moq_moq_quic_connection_mux_Version_prefix(const moq_moq_quic_connection_mux_Version *self);
 bool moq_moq_sock_demux_Discard_eq(const moq_moq_sock_demux_Discard *a, const moq_moq_sock_demux_Discard *b);
 moq_buf moq_moq_sock_demux_Discard_debug(const moq_moq_sock_demux_Discard *self);
 moq_vec_moq_sock_demux_Discard moq_moq_sock_demux_Discard_ALL(void);
 moq_buf moq_moq_sock_demux_Discard_as_str(const moq_moq_sock_demux_Discard *self);
-bool moq_mp4_atom_ClockType_eq(const moq_mp4_atom_ClockType *a, const moq_mp4_atom_ClockType *b);
-moq_buf moq_mp4_atom_ClockType_debug(const moq_mp4_atom_ClockType *self);
-moq_mp4_atom_ClockType moq_mp4_atom_ClockType_default(void);
-void moq_mp4_atom_FlacMetadataBlock_free(moq_mp4_atom_FlacMetadataBlock *self);
-bool moq_mp4_atom_FlacMetadataBlock_eq(const moq_mp4_atom_FlacMetadataBlock *a, const moq_mp4_atom_FlacMetadataBlock *b);
-moq_buf moq_mp4_atom_FlacMetadataBlock_debug(const moq_mp4_atom_FlacMetadataBlock *self);
-void moq_mp4_atom_ChannelStructure_free(moq_mp4_atom_ChannelStructure *self);
-bool moq_mp4_atom_ChannelStructure_eq(const moq_mp4_atom_ChannelStructure *a, const moq_mp4_atom_ChannelStructure *b);
-moq_buf moq_mp4_atom_ChannelStructure_debug(const moq_mp4_atom_ChannelStructure *self);
-void moq_mp4_atom_Uuid_free(moq_mp4_atom_Uuid *self);
-bool moq_mp4_atom_Uuid_eq(const moq_mp4_atom_Uuid *a, const moq_mp4_atom_Uuid *b);
-moq_buf moq_mp4_atom_Uuid_debug(const moq_mp4_atom_Uuid *self);
 bool moq_moq_sock_udp_EcnCodepoint_eq(const moq_moq_sock_udp_EcnCodepoint *a, const moq_moq_sock_udp_EcnCodepoint *b);
 moq_buf moq_moq_sock_udp_EcnCodepoint_debug(const moq_moq_sock_udp_EcnCodepoint *self);
 moq_option_moq_sock_udp_EcnCodepoint moq_moq_sock_udp_EcnCodepoint_from_bits(uint8_t x);
-bool moq_moq_quic_Side_eq(const moq_moq_quic_Side *a, const moq_moq_quic_Side *b);
-uint64_t moq_moq_quic_Side_hash(const moq_moq_quic_Side *self);
-moq_buf moq_moq_quic_Side_debug(const moq_moq_quic_Side *self);
-bool moq_moq_quic_Side_is_client(const moq_moq_quic_Side *self);
-bool moq_moq_quic_Side_is_server(const moq_moq_quic_Side *self);
-bool moq_moq_quic_stream_Dir_eq(const moq_moq_quic_stream_Dir *a, const moq_moq_quic_stream_Dir *b);
-uint64_t moq_moq_quic_stream_Dir_hash(const moq_moq_quic_stream_Dir *self);
-moq_buf moq_moq_quic_stream_Dir_to_string(const moq_moq_quic_stream_Dir *self);
-moq_buf moq_moq_quic_stream_Dir_debug(const moq_moq_quic_stream_Dir *self);
-void moq_mp4_atom_SpeakerPosition_free(moq_mp4_atom_SpeakerPosition *self);
-bool moq_mp4_atom_SpeakerPosition_eq(const moq_mp4_atom_SpeakerPosition *a, const moq_mp4_atom_SpeakerPosition *b);
-moq_buf moq_mp4_atom_SpeakerPosition_debug(const moq_mp4_atom_SpeakerPosition *self);
-void moq_mp4_atom_DataType_free(moq_mp4_atom_DataType *self);
-bool moq_mp4_atom_DataType_eq(const moq_mp4_atom_DataType *a, const moq_mp4_atom_DataType *b);
-moq_buf moq_mp4_atom_DataType_debug(const moq_mp4_atom_DataType *self);
-void moq_mp4_atom_StszSamples_free(moq_mp4_atom_StszSamples *self);
-bool moq_mp4_atom_StszSamples_eq(const moq_mp4_atom_StszSamples *a, const moq_mp4_atom_StszSamples *b);
-moq_buf moq_mp4_atom_StszSamples_debug(const moq_mp4_atom_StszSamples *self);
-moq_mp4_atom_StszSamples moq_mp4_atom_StszSamples_default(void);
-void moq_mp4_atom_DrefEntry_free(moq_mp4_atom_DrefEntry *self);
-bool moq_mp4_atom_DrefEntry_eq(const moq_mp4_atom_DrefEntry *a, const moq_mp4_atom_DrefEntry *b);
-moq_buf moq_mp4_atom_DrefEntry_debug(const moq_mp4_atom_DrefEntry *self);
-moq_mp4_atom_FourCC moq_mp4_atom_DrefEntry_kind(const moq_mp4_atom_DrefEntry *self);
-void moq_mp4_atom_EmsgTimestamp_free(moq_mp4_atom_EmsgTimestamp *self);
-bool moq_mp4_atom_EmsgTimestamp_eq(const moq_mp4_atom_EmsgTimestamp *a, const moq_mp4_atom_EmsgTimestamp *b);
-moq_buf moq_mp4_atom_EmsgTimestamp_debug(const moq_mp4_atom_EmsgTimestamp *self);
-void moq_mp4_atom_TrunSamples_free(moq_mp4_atom_TrunSamples *self);
-bool moq_mp4_atom_TrunSamples_eq(const moq_mp4_atom_TrunSamples *a, const moq_mp4_atom_TrunSamples *b);
-moq_buf moq_mp4_atom_TrunSamples_debug(const moq_mp4_atom_TrunSamples *self);
-moq_mp4_atom_TrunSamples moq_mp4_atom_TrunSamples_default(void);
-size_t moq_mp4_atom_TrunSamples_len(const moq_mp4_atom_TrunSamples *self);
-bool moq_mp4_atom_TrunSamples_is_empty(const moq_mp4_atom_TrunSamples *self);
-moq_option_mp4_atom_TrunEntry moq_mp4_atom_TrunSamples_get(const moq_mp4_atom_TrunSamples *self, size_t index);
-bool moq_mp4_atom_ReferenceTime_eq(const moq_mp4_atom_ReferenceTime *a, const moq_mp4_atom_ReferenceTime *b);
-moq_buf moq_mp4_atom_ReferenceTime_debug(const moq_mp4_atom_ReferenceTime *self);
-moq_mp4_atom_ReferenceTime moq_mp4_atom_ReferenceTime_default(void);
-void moq_mp4_atom_ProjKind_free(moq_mp4_atom_ProjKind *self);
-bool moq_mp4_atom_ProjKind_eq(const moq_mp4_atom_ProjKind *a, const moq_mp4_atom_ProjKind *b);
-moq_buf moq_mp4_atom_ProjKind_debug(const moq_mp4_atom_ProjKind *self);
-bool moq_mp4_atom_VexuProjKind_eq(const moq_mp4_atom_VexuProjKind *a, const moq_mp4_atom_VexuProjKind *b);
-moq_buf moq_mp4_atom_VexuProjKind_debug(const moq_mp4_atom_VexuProjKind *self);
-moq_mp4_atom_FourCC moq_mp4_atom_VexuProjKind_kind(const moq_mp4_atom_VexuProjKind *self);
-bool moq_mp4_atom_AudioChannelPosition_eq(const moq_mp4_atom_AudioChannelPosition *a, const moq_mp4_atom_AudioChannelPosition *b);
-moq_buf moq_mp4_atom_AudioChannelPosition_debug(const moq_mp4_atom_AudioChannelPosition *self);
-moq_option_mp4_atom_AudioChannelPosition moq_mp4_atom_AudioChannelPosition_from_u8(uint8_t value);
-void moq_mp4_atom_IlstDataValue_free(moq_mp4_atom_IlstDataValue *self);
-bool moq_mp4_atom_IlstDataValue_eq(const moq_mp4_atom_IlstDataValue *a, const moq_mp4_atom_IlstDataValue *b);
-moq_buf moq_mp4_atom_IlstDataValue_debug(const moq_mp4_atom_IlstDataValue *self);
-void moq_mp4_atom_AnySampleGroupEntry_free(moq_mp4_atom_AnySampleGroupEntry *self);
-bool moq_mp4_atom_AnySampleGroupEntry_eq(const moq_mp4_atom_AnySampleGroupEntry *a, const moq_mp4_atom_AnySampleGroupEntry *b);
-moq_buf moq_mp4_atom_AnySampleGroupEntry_debug(const moq_mp4_atom_AnySampleGroupEntry *self);
-void moq_mp4_atom_SubsSubsampleSize_free(moq_mp4_atom_SubsSubsampleSize *self);
-bool moq_mp4_atom_SubsSubsampleSize_eq(const moq_mp4_atom_SubsSubsampleSize *a, const moq_mp4_atom_SubsSubsampleSize *b);
-moq_buf moq_mp4_atom_SubsSubsampleSize_debug(const moq_mp4_atom_SubsSubsampleSize *self);
-moq_mp4_atom_SubsSubsampleSize moq_mp4_atom_SubsSubsampleSize_default(void);
-uint32_t moq_mp4_atom_SubsSubsampleSize_value(const moq_mp4_atom_SubsSubsampleSize *self);
 bool moq_Level_eq(const moq_Level *a, const moq_Level *b);
 uint64_t moq_Level_hash(const moq_Level *self);
 moq_buf moq_Level_to_string(const moq_Level *self);
@@ -5869,7 +3058,6 @@ moq_Path *moq_Path_from_static(moq_buf s);
 bool moq_Path_has_prefix(const moq_Path *self, const moq_Path *prefix, moq_status *status);
 moq_Path *moq_Path_strip_prefix(const moq_Path *self, const moq_Path *prefix, moq_status *status);
 moq_Path *moq_Path_head(const moq_Path *self, size_t n, moq_status *status);
-moq_vec_string moq_Path_parts(const moq_Path *self, moq_status *status);
 moq_buf moq_Path_as_str(const moq_Path *self, moq_status *status);
 moq_Path *moq_Path_empty(void);
 bool moq_Path_is_empty(const moq_Path *self, moq_status *status);
@@ -5932,24 +3120,39 @@ moq_Server *moq_Server_new(void);
 moq_Server *moq_Server_with_publisher_Producer(moq_Server *self, const moq_origin_Producer *publish, moq_status *status);
 moq_Server *moq_Server_with_publisher_Consumer(moq_Server *self, const moq_origin_Consumer *publish, moq_status *status);
 moq_Server *moq_Server_with_subscriber(moq_Server *self, moq_origin_Producer *subscribe, moq_status *status);
+moq_Server *moq_Server_with_allocator(moq_Server *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 moq_Server *moq_Server_with_stats(moq_Server *self, moq_stats_Session *stats, moq_status *status);
 moq_Server *moq_Server_with_limits(moq_Server *self, moq_session_Limits limits, moq_status *status);
 moq_Server *moq_Server_with_versions(moq_Server *self, moq_Versions *versions, moq_status *status);
-moq_Server *moq_Server_with_extensions(moq_Server *self, moq_setup_Extensions extensions, moq_status *status);
 moq_Server *moq_Server_with_implementation(moq_Server *self, moq_buf implementation, moq_status *status);
-typedef struct moq_Server_accept_Session_future moq_Server_accept_Session_future;
-moq_Server_accept_Session_future *moq_Server_accept_Session(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
-moq_poll moq_Server_accept_Session_start(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Server_accept_Session_future **future, moq_status *status);
-moq_poll moq_Server_accept_Session_poll(moq_Server_accept_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
-void moq_Server_accept_Session_future_free(moq_Server_accept_Session_future *future);
-typedef struct moq_Server_accept_request_Session_future moq_Server_accept_request_Session_future;
-moq_Server_accept_request_Session_future *moq_Server_accept_request_Session(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
-moq_poll moq_Server_accept_request_Session_start(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_server_Handshake **out, moq_Error **err, moq_Server_accept_request_Session_future **future, moq_status *status);
-moq_poll moq_Server_accept_request_Session_poll(moq_Server_accept_request_Session_future *future, moq_waker waker, moq_server_Handshake **out, moq_Error **err);
-void moq_Server_accept_request_Session_future_free(moq_Server_accept_request_Session_future *future);
+moq_Server *moq_Server_with_timeout(moq_Server *self, moq_option_duration timeout, moq_status *status);
+moq_option_clock_Instant moq_Server_deadline(const moq_Server *self, moq_clock_Instant arrived, moq_status *status);
+moq_Server *moq_Server_with_receive_window(moq_Server *self, uint64_t window, moq_status *status);
+typedef struct moq_Server_accept_memory_Session_future moq_Server_accept_memory_Session_future;
+moq_Server_accept_memory_Session_future *moq_Server_accept_memory_Session(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
+moq_poll moq_Server_accept_memory_Session_start(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Server_accept_memory_Session_future **future, moq_status *status);
+moq_poll moq_Server_accept_memory_Session_poll(moq_Server_accept_memory_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
+void moq_Server_accept_memory_Session_future_free(moq_Server_accept_memory_Session_future *future);
+typedef struct moq_Server_accept_qmux_Session_future moq_Server_accept_qmux_Session_future;
+moq_Server_accept_qmux_Session_future *moq_Server_accept_qmux_Session(const moq_Server *self, moq_clock_Instant now, moq_qmux_Session *session, moq_status *status);
+moq_poll moq_Server_accept_qmux_Session_start(const moq_Server *self, moq_clock_Instant now, moq_qmux_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Server_accept_qmux_Session_future **future, moq_status *status);
+moq_poll moq_Server_accept_qmux_Session_poll(moq_Server_accept_qmux_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
+void moq_Server_accept_qmux_Session_future_free(moq_Server_accept_qmux_Session_future *future);
+typedef struct moq_Server_handshake_memory_Session_future moq_Server_handshake_memory_Session_future;
+moq_Server_handshake_memory_Session_future *moq_Server_handshake_memory_Session(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
+moq_poll moq_Server_handshake_memory_Session_start(const moq_Server *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_server_Handshake **out, moq_Error **err, moq_Server_handshake_memory_Session_future **future, moq_status *status);
+moq_poll moq_Server_handshake_memory_Session_poll(moq_Server_handshake_memory_Session_future *future, moq_waker waker, moq_server_Handshake **out, moq_Error **err);
+void moq_Server_handshake_memory_Session_future_free(moq_Server_handshake_memory_Session_future *future);
+typedef struct moq_Server_handshake_qmux_Session_future moq_Server_handshake_qmux_Session_future;
+moq_Server_handshake_qmux_Session_future *moq_Server_handshake_qmux_Session(const moq_Server *self, moq_clock_Instant now, moq_qmux_Session *session, moq_status *status);
+moq_poll moq_Server_handshake_qmux_Session_start(const moq_Server *self, moq_clock_Instant now, moq_qmux_Session *session, moq_server_Handshake **out, moq_Error **err, moq_Server_handshake_qmux_Session_future **future, moq_status *status);
+moq_poll moq_Server_handshake_qmux_Session_poll(moq_Server_handshake_qmux_Session_future *future, moq_waker waker, moq_server_Handshake **out, moq_Error **err);
+void moq_Server_handshake_qmux_Session_future_free(moq_Server_handshake_qmux_Session_future *future);
 void moq_Session_free(moq_Session *self);
 void moq_Session_drop(moq_Session *self, moq_status *status);
 moq_Session *moq_Session_clone(const moq_Session *self, moq_status *status);
+bool moq_Session_eq(const moq_Session *a, const moq_Session *b, moq_status *status);
+moq_buf moq_Session_debug(const moq_Session *self, moq_status *status);
 moq_Version *moq_Session_version(const moq_Session *self, moq_status *status);
 typedef struct moq_Session_peer_implementation_future moq_Session_peer_implementation_future;
 moq_Session_peer_implementation_future *moq_Session_peer_implementation(const moq_Session *self, moq_status *status);
@@ -5972,13 +3175,8 @@ moq_Session_closed_future *moq_Session_closed(const moq_Session *self, moq_statu
 moq_poll moq_Session_closed_start(const moq_Session *self, moq_Error **out, moq_Session_closed_future **future, moq_status *status);
 moq_poll moq_Session_closed_poll(moq_Session_closed_future *future, moq_waker waker, moq_Error **out);
 void moq_Session_closed_future_free(moq_Session_closed_future *future);
-moq_goaway_Producer *moq_Session_drain(const moq_Session *self, moq_status *status);
+bool moq_Session_goaway(const moq_Session *self, moq_goaway_Goaway *goaway, moq_Error **err, moq_status *status);
 moq_goaway_Consumer *moq_Session_draining(const moq_Session *self, moq_status *status);
-typedef struct moq_Session_idle_future moq_Session_idle_future;
-moq_Session_idle_future *moq_Session_idle(const moq_Session *self, moq_status *status);
-moq_poll moq_Session_idle_start(const moq_Session *self, moq_Session_idle_future **future, moq_status *status);
-moq_poll moq_Session_idle_poll(moq_Session_idle_future *future, moq_waker waker);
-void moq_Session_idle_future_free(moq_Session_idle_future *future);
 moq_auth_Handle *moq_Session_auth(const moq_Session *self, moq_status *status);
 void moq_Client_free(moq_Client *self);
 void moq_Client_drop(moq_Client *self, moq_status *status);
@@ -5989,23 +3187,27 @@ moq_Client *moq_Client_with_publisher_Producer(moq_Client *self, const moq_origi
 moq_Client *moq_Client_with_publisher_Consumer(moq_Client *self, const moq_origin_Consumer *publish, moq_status *status);
 moq_Client *moq_Client_with_subscriber(moq_Client *self, moq_origin_Producer *subscribe, moq_status *status);
 moq_Client *moq_Client_with_stats(moq_Client *self, moq_stats_Session *stats, moq_status *status);
-moq_Client *moq_Client_with_origin(moq_Client *self, moq_origin_Producer *origin, moq_status *status);
 moq_Client *moq_Client_with_limits(moq_Client *self, moq_session_Limits limits, moq_status *status);
 moq_Client *moq_Client_with_allocator(moq_Client *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 moq_Client *moq_Client_with_viewers(moq_Client *self, moq_bandwidth_Viewers *viewers, moq_status *status);
 moq_Client *moq_Client_with_versions(moq_Client *self, moq_Versions *versions, moq_status *status);
 moq_Client *moq_Client_with_url(moq_Client *self, moq_Url *url, moq_status *status);
+moq_Url *moq_Client_url(const moq_Client *self, moq_status *status);
 moq_Client *moq_Client_with_token(moq_Client *self, moq_setup_Token token, moq_status *status);
 moq_Client *moq_Client_with_auth(moq_Client *self, moq_auth_Handle *auth, moq_status *status);
-moq_Client *moq_Client_with_extensions(moq_Client *self, moq_setup_Extensions extensions, moq_status *status);
 moq_Client *moq_Client_with_implementation(moq_Client *self, moq_buf implementation, moq_status *status);
 moq_Client *moq_Client_with_cost(moq_Client *self, moq_origin_Cost cost, moq_status *status);
-moq_Client *moq_Client_with_peer_hop(moq_Client *self, moq_Hop hop, moq_status *status);
-typedef struct moq_Client_connect_Session_future moq_Client_connect_Session_future;
-moq_Client_connect_Session_future *moq_Client_connect_Session(const moq_Client *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
-moq_poll moq_Client_connect_Session_start(const moq_Client *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Client_connect_Session_future **future, moq_status *status);
-moq_poll moq_Client_connect_Session_poll(moq_Client_connect_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
-void moq_Client_connect_Session_future_free(moq_Client_connect_Session_future *future);
+moq_Client *moq_Client_with_peer_node(moq_Client *self, uint64_t node, moq_status *status);
+typedef struct moq_Client_connect_memory_Session_future moq_Client_connect_memory_Session_future;
+moq_Client_connect_memory_Session_future *moq_Client_connect_memory_Session(const moq_Client *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_status *status);
+moq_poll moq_Client_connect_memory_Session_start(const moq_Client *self, moq_clock_Instant now, moq_transport_memory_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Client_connect_memory_Session_future **future, moq_status *status);
+moq_poll moq_Client_connect_memory_Session_poll(moq_Client_connect_memory_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
+void moq_Client_connect_memory_Session_future_free(moq_Client_connect_memory_Session_future *future);
+typedef struct moq_Client_connect_qmux_Session_future moq_Client_connect_qmux_Session_future;
+moq_Client_connect_qmux_Session_future *moq_Client_connect_qmux_Session(const moq_Client *self, moq_clock_Instant now, moq_qmux_Session *session, moq_status *status);
+moq_poll moq_Client_connect_qmux_Session_start(const moq_Client *self, moq_clock_Instant now, moq_qmux_Session *session, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_Client_connect_qmux_Session_future **future, moq_status *status);
+moq_poll moq_Client_connect_qmux_Session_poll(moq_Client_connect_qmux_Session_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
+void moq_Client_connect_qmux_Session_future_free(moq_Client_connect_qmux_Session_future *future);
 void moq_Error_free(moq_Error *self);
 void moq_Error_drop(moq_Error *self, moq_status *status);
 bool moq_Error_borrowed(const moq_Error *self);
@@ -6016,6 +3218,33 @@ moq_option_SessionError moq_Error_session(const moq_Error *self, moq_status *sta
 moq_option_StreamError moq_Error_stream(const moq_Error *self, moq_status *status);
 moq_Error *moq_Error_from_transport_Error(moq_Error *err_, moq_status *status);
 moq_Error *moq_Error_from_transport_memory_Error(moq_transport_memory_Error err_);
+moq_Retry moq_Error_retry(const moq_Error *self, moq_status *status);
+void moq_Timestamp_free(moq_Timestamp *self);
+void moq_Timestamp_drop(moq_Timestamp *self, moq_status *status);
+bool moq_Timestamp_borrowed(const moq_Timestamp *self);
+moq_Timestamp *moq_Timestamp_clone(const moq_Timestamp *self, moq_status *status);
+bool moq_Timestamp_eq(const moq_Timestamp *a, const moq_Timestamp *b, moq_status *status);
+uint64_t moq_Timestamp_hash(const moq_Timestamp *self, moq_status *status);
+moq_buf moq_Timestamp_debug(const moq_Timestamp *self, moq_status *status);
+moq_Timestamp *moq_Timestamp_ZERO(void);
+bool moq_Timestamp_new(uint64_t value, moq_Timescale scale, moq_Timestamp **out, moq_TimeOverflow *err);
+moq_Timestamp *moq_Timestamp_unscaled(uint64_t key);
+bool moq_Timestamp_from_scale(uint64_t value, uint64_t units_per_second, moq_Timestamp **out, moq_TimeOverflow *err);
+bool moq_Timestamp_from_secs(uint64_t seconds, moq_Timestamp **out, moq_TimeOverflow *err);
+bool moq_Timestamp_from_millis(uint64_t millis, moq_Timestamp **out, moq_TimeOverflow *err);
+bool moq_Timestamp_from_micros(uint64_t micros, moq_Timestamp **out, moq_TimeOverflow *err);
+bool moq_Timestamp_from_nanos(uint64_t nanos, moq_Timestamp **out, moq_TimeOverflow *err);
+uint64_t moq_Timestamp_value(const moq_Timestamp *self, moq_status *status);
+moq_option_Timescale moq_Timestamp_scale(const moq_Timestamp *self, moq_status *status);
+bool moq_Timestamp_is_zero(const moq_Timestamp *self, moq_status *status);
+bool moq_Timestamp_convert(const moq_Timestamp *self, moq_Timescale new_scale, moq_Timestamp **out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_as_scale(const moq_Timestamp *self, moq_Timescale target, moq_u128 *out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_as_secs(const moq_Timestamp *self, uint64_t *out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_as_millis(const moq_Timestamp *self, moq_u128 *out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_as_micros(const moq_Timestamp *self, moq_u128 *out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_as_nanos(const moq_Timestamp *self, moq_u128 *out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_checked_add(const moq_Timestamp *self, const moq_Timestamp *rhs, moq_Timestamp **out, moq_TimeOverflow *err, moq_status *status);
+bool moq_Timestamp_checked_sub(const moq_Timestamp *self, const moq_Timestamp *rhs, moq_Timestamp **out, moq_TimeOverflow *err, moq_status *status);
 void moq_Version_free(moq_Version *self);
 bool moq_Version_borrowed(const moq_Version *self);
 moq_Version *moq_Version_clone(const moq_Version *self);
@@ -6023,10 +3252,9 @@ bool moq_Version_eq(const moq_Version *a, const moq_Version *b);
 uint64_t moq_Version_hash(const moq_Version *self);
 moq_buf moq_Version_to_string(const moq_Version *self);
 moq_buf moq_Version_debug(const moq_Version *self);
-bool moq_Version_has_setup_token(const moq_Version *self);
+moq_vec_Version moq_Version_ALL(void);
+bool moq_Version_has_request_path(const moq_Version *self);
 moq_buf moq_Version_as_str(const moq_Version *self);
-moq_Version *moq_Version_from_code(uint64_t code);
-uint64_t moq_Version_code(const moq_Version *self);
 moq_buf moq_Version_alpn(const moq_Version *self);
 bool moq_Version_is_lite(const moq_Version *self);
 void moq_Versions_free(moq_Versions *self);
@@ -6041,28 +3269,6 @@ moq_Versions *moq_Versions_filter(const moq_Versions *self, const moq_Versions *
 moq_Version *moq_Versions_select(const moq_Versions *self, const moq_Version *version, moq_status *status);
 bool moq_Versions_contains(const moq_Versions *self, const moq_Version *version, moq_status *status);
 moq_vec_Version moq_Versions_iter(const moq_Versions *self, moq_status *status);
-void moq_Timed_Json_free(moq_Timed_Json *self);
-void moq_Timed_Json_drop(moq_Timed_Json *self, moq_status *status);
-moq_Timed_Json *moq_Timed_Json_clone(const moq_Timed_Json *self, moq_status *status);
-moq_buf moq_Timed_Json_debug(const moq_Timed_Json *self, moq_status *status);
-moq_Json *moq_Timed_Json_value_get(const moq_Timed_Json *self, moq_status *status);
-void moq_Timed_Json_value_set(moq_Timed_Json *self, moq_Json *value, moq_status *status);
-moq_option_Timestamp moq_Timed_Json_at_get(const moq_Timed_Json *self, moq_status *status);
-void moq_Timed_Json_at_set(moq_Timed_Json *self, moq_option_Timestamp value, moq_status *status);
-moq_Timed_Json *moq_Timed_Json_at(moq_Timed_Json *self, moq_Timestamp at, moq_status *status);
-void moq_Hops_free(moq_Hops *self);
-void moq_Hops_drop(moq_Hops *self, moq_status *status);
-moq_Hops *moq_Hops_clone(const moq_Hops *self, moq_status *status);
-bool moq_Hops_eq(const moq_Hops *a, const moq_Hops *b, moq_status *status);
-moq_buf moq_Hops_debug(const moq_Hops *self, moq_status *status);
-moq_Hops *moq_Hops_default(void);
-moq_Hops *moq_Hops_new(void);
-bool moq_Hops_push(moq_Hops *self, moq_Hop hop, moq_InvalidHop *err, moq_status *status);
-bool moq_Hops_contains(const moq_Hops *self, moq_Hop hop, moq_status *status);
-size_t moq_Hops_len(const moq_Hops *self, moq_status *status);
-bool moq_Hops_is_empty(const moq_Hops *self, moq_status *status);
-moq_vec_Hop moq_Hops_iter(const moq_Hops *self, moq_status *status);
-moq_vec_Hop moq_Hops_as_slice(const moq_Hops *self, moq_status *status);
 void moq_Specificity_free(moq_Specificity *self);
 bool moq_Specificity_borrowed(const moq_Specificity *self);
 moq_Specificity *moq_Specificity_clone(const moq_Specificity *self);
@@ -6152,36 +3358,30 @@ moq_hang_catalog_Video *moq_hang_Catalog_video_get(const moq_hang_Catalog *self,
 void moq_hang_Catalog_video_set(moq_hang_Catalog *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_hang_Catalog_audio_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_audio_set(moq_hang_Catalog *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_hang_Catalog_media_get(const moq_hang_Catalog *self, moq_status *status);
-void moq_hang_Catalog_media_set(moq_hang_Catalog *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_hang_Catalog_sync_get(const moq_hang_Catalog *self, moq_status *status);
+void moq_hang_Catalog_sync_set(moq_hang_Catalog *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_hang_Catalog_text_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_text_set(moq_hang_Catalog *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_hang_Catalog_json_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_json_set(moq_hang_Catalog *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_hang_Catalog_binary_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_binary_set(moq_hang_Catalog *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_hang_Catalog_m2ts_get(const moq_hang_Catalog *self, moq_status *status);
-void moq_hang_Catalog_m2ts_set(moq_hang_Catalog *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_hang_Catalog_stats_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_stats_set(moq_hang_Catalog *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_hang_Catalog_echo_get(const moq_hang_Catalog *self, moq_status *status);
 void moq_hang_Catalog_echo_set(moq_hang_Catalog *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_hang_Catalog_contributions_get(const moq_hang_Catalog *self, moq_status *status);
-void moq_hang_Catalog_contributions_set(moq_hang_Catalog *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_hang_Catalog_include_get(const moq_hang_Catalog *self, moq_status *status);
+void moq_hang_Catalog_include_set(moq_hang_Catalog *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
+moq_hang_catalog_Skipped *moq_hang_Catalog_skipped_get(const moq_hang_Catalog *self, moq_status *status);
+void moq_hang_Catalog_skipped_set(moq_hang_Catalog *self, moq_hang_catalog_Skipped *value, moq_status *status);
 moq_buf moq_hang_Catalog_DEFAULT_NAME(void);
 moq_track_Info *moq_hang_Catalog_default_track_info(void);
 moq_track_Subscription *moq_hang_Catalog_default_subscription(void);
 bool moq_hang_Catalog_check_renditions(const moq_hang_Catalog *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_hang_Catalog_media(const moq_hang_Catalog *self, moq_status *status);
-typedef struct moq_hang_Catalog_subscribe_future moq_hang_Catalog_subscribe_future;
-moq_hang_Catalog_subscribe_future *moq_hang_Catalog_subscribe(const moq_broadcast_Consumer *broadcast, moq_status *status);
-moq_poll moq_hang_Catalog_subscribe_start(const moq_broadcast_Consumer *broadcast, moq_hang_catalog_Consumer **out, moq_hang_Error **err, moq_hang_Catalog_subscribe_future **future, moq_status *status);
-moq_poll moq_hang_Catalog_subscribe_poll(moq_hang_Catalog_subscribe_future *future, moq_waker waker, moq_hang_catalog_Consumer **out, moq_hang_Error **err);
-void moq_hang_Catalog_subscribe_future_free(moq_hang_Catalog_subscribe_future *future);
+moq_hang_Catalog *moq_hang_Catalog_without_ext(const moq_hang_Catalog *self, moq_status *status);
 bool moq_hang_Catalog_from_slice(moq_buf v, moq_hang_Catalog **out, moq_hang_Error **err);
 bool moq_hang_Catalog_from_reader(moq_buf reader, moq_hang_Catalog **out, moq_hang_Error **err);
 bool moq_hang_Catalog_to_json(const moq_hang_Catalog *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_hang_Catalog_to_json_pretty(const moq_hang_Catalog *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_to_vec(const moq_hang_Catalog *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_to_writer(const moq_hang_Catalog *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_hang_Catalog_Extra_free(moq_hang_Catalog_Extra *self);
@@ -6194,35 +3394,29 @@ moq_hang_catalog_Video *moq_hang_Catalog_Extra_video_get(const moq_hang_Catalog_
 void moq_hang_Catalog_Extra_video_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_hang_Catalog_Extra_audio_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_audio_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_hang_Catalog_Extra_media_get(const moq_hang_Catalog_Extra *self, moq_status *status);
-void moq_hang_Catalog_Extra_media_set(moq_hang_Catalog_Extra *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_hang_Catalog_Extra_sync_get(const moq_hang_Catalog_Extra *self, moq_status *status);
+void moq_hang_Catalog_Extra_sync_set(moq_hang_Catalog_Extra *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_hang_Catalog_Extra_text_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_text_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_hang_Catalog_Extra_json_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_json_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_hang_Catalog_Extra_binary_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_binary_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_hang_Catalog_Extra_m2ts_get(const moq_hang_Catalog_Extra *self, moq_status *status);
-void moq_hang_Catalog_Extra_m2ts_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_hang_Catalog_Extra_stats_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_stats_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_hang_Catalog_Extra_echo_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_echo_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_hang_Catalog_Extra_contributions_get(const moq_hang_Catalog_Extra *self, moq_status *status);
-void moq_hang_Catalog_Extra_contributions_set(moq_hang_Catalog_Extra *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_hang_Catalog_Extra_include_get(const moq_hang_Catalog_Extra *self, moq_status *status);
+void moq_hang_Catalog_Extra_include_set(moq_hang_Catalog_Extra *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
 moq_mux_catalog_hang_Extra *moq_hang_Catalog_Extra_ext_get(const moq_hang_Catalog_Extra *self, moq_status *status);
 void moq_hang_Catalog_Extra_ext_set(moq_hang_Catalog_Extra *self, moq_mux_catalog_hang_Extra *value, moq_status *status);
+moq_hang_catalog_Skipped *moq_hang_Catalog_Extra_skipped_get(const moq_hang_Catalog_Extra *self, moq_status *status);
+void moq_hang_Catalog_Extra_skipped_set(moq_hang_Catalog_Extra *self, moq_hang_catalog_Skipped *value, moq_status *status);
 bool moq_hang_Catalog_Extra_check_renditions(const moq_hang_Catalog_Extra *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_hang_Catalog_Extra_media(const moq_hang_Catalog_Extra *self, moq_status *status);
-typedef struct moq_hang_Catalog_Extra_subscribe_future moq_hang_Catalog_Extra_subscribe_future;
-moq_hang_Catalog_Extra_subscribe_future *moq_hang_Catalog_Extra_subscribe(const moq_broadcast_Consumer *broadcast, moq_status *status);
-moq_poll moq_hang_Catalog_Extra_subscribe_start(const moq_broadcast_Consumer *broadcast, moq_hang_catalog_Consumer_Extra **out, moq_hang_Error **err, moq_hang_Catalog_Extra_subscribe_future **future, moq_status *status);
-moq_poll moq_hang_Catalog_Extra_subscribe_poll(moq_hang_Catalog_Extra_subscribe_future *future, moq_waker waker, moq_hang_catalog_Consumer_Extra **out, moq_hang_Error **err);
-void moq_hang_Catalog_Extra_subscribe_future_free(moq_hang_Catalog_Extra_subscribe_future *future);
+moq_hang_Catalog *moq_hang_Catalog_Extra_without_ext(const moq_hang_Catalog_Extra *self, moq_status *status);
 bool moq_hang_Catalog_Extra_from_slice(moq_buf v, moq_hang_Catalog_Extra **out, moq_hang_Error **err);
 bool moq_hang_Catalog_Extra_from_reader(moq_buf reader, moq_hang_Catalog_Extra **out, moq_hang_Error **err);
 bool moq_hang_Catalog_Extra_to_json(const moq_hang_Catalog_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_hang_Catalog_Extra_to_json_pretty(const moq_hang_Catalog_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_Extra_to_vec(const moq_hang_Catalog_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_Extra_to_writer(const moq_hang_Catalog_Extra *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_hang_Catalog_Ext_free(moq_hang_Catalog_Ext *self);
@@ -6235,35 +3429,29 @@ moq_hang_catalog_Video *moq_hang_Catalog_Ext_video_get(const moq_hang_Catalog_Ex
 void moq_hang_Catalog_Ext_video_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_hang_Catalog_Ext_audio_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_audio_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_hang_Catalog_Ext_media_get(const moq_hang_Catalog_Ext *self, moq_status *status);
-void moq_hang_Catalog_Ext_media_set(moq_hang_Catalog_Ext *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_hang_Catalog_Ext_sync_get(const moq_hang_Catalog_Ext *self, moq_status *status);
+void moq_hang_Catalog_Ext_sync_set(moq_hang_Catalog_Ext *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_hang_Catalog_Ext_text_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_text_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_hang_Catalog_Ext_json_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_json_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_hang_Catalog_Ext_binary_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_binary_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_hang_Catalog_Ext_m2ts_get(const moq_hang_Catalog_Ext *self, moq_status *status);
-void moq_hang_Catalog_Ext_m2ts_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_hang_Catalog_Ext_stats_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_stats_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_hang_Catalog_Ext_echo_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_echo_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_hang_Catalog_Ext_contributions_get(const moq_hang_Catalog_Ext *self, moq_status *status);
-void moq_hang_Catalog_Ext_contributions_set(moq_hang_Catalog_Ext *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_hang_Catalog_Ext_include_get(const moq_hang_Catalog_Ext *self, moq_status *status);
+void moq_hang_Catalog_Ext_include_set(moq_hang_Catalog_Ext *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
 moq_mux_container_ts_Ext *moq_hang_Catalog_Ext_ext_get(const moq_hang_Catalog_Ext *self, moq_status *status);
 void moq_hang_Catalog_Ext_ext_set(moq_hang_Catalog_Ext *self, moq_mux_container_ts_Ext *value, moq_status *status);
+moq_hang_catalog_Skipped *moq_hang_Catalog_Ext_skipped_get(const moq_hang_Catalog_Ext *self, moq_status *status);
+void moq_hang_Catalog_Ext_skipped_set(moq_hang_Catalog_Ext *self, moq_hang_catalog_Skipped *value, moq_status *status);
 bool moq_hang_Catalog_Ext_check_renditions(const moq_hang_Catalog_Ext *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_hang_Catalog_Ext_media(const moq_hang_Catalog_Ext *self, moq_status *status);
-typedef struct moq_hang_Catalog_Ext_subscribe_future moq_hang_Catalog_Ext_subscribe_future;
-moq_hang_Catalog_Ext_subscribe_future *moq_hang_Catalog_Ext_subscribe(const moq_broadcast_Consumer *broadcast, moq_status *status);
-moq_poll moq_hang_Catalog_Ext_subscribe_start(const moq_broadcast_Consumer *broadcast, moq_hang_catalog_Consumer_Ext **out, moq_hang_Error **err, moq_hang_Catalog_Ext_subscribe_future **future, moq_status *status);
-moq_poll moq_hang_Catalog_Ext_subscribe_poll(moq_hang_Catalog_Ext_subscribe_future *future, moq_waker waker, moq_hang_catalog_Consumer_Ext **out, moq_hang_Error **err);
-void moq_hang_Catalog_Ext_subscribe_future_free(moq_hang_Catalog_Ext_subscribe_future *future);
+moq_hang_Catalog *moq_hang_Catalog_Ext_without_ext(const moq_hang_Catalog_Ext *self, moq_status *status);
 bool moq_hang_Catalog_Ext_from_slice(moq_buf v, moq_hang_Catalog_Ext **out, moq_hang_Error **err);
 bool moq_hang_Catalog_Ext_from_reader(moq_buf reader, moq_hang_Catalog_Ext **out, moq_hang_Error **err);
 bool moq_hang_Catalog_Ext_to_json(const moq_hang_Catalog_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_hang_Catalog_Ext_to_json_pretty(const moq_hang_Catalog_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_Ext_to_vec(const moq_hang_Catalog_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_hang_Catalog_Ext_to_writer(const moq_hang_Catalog_Ext *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_hang_Error_free(moq_hang_Error *self);
@@ -6281,11 +3469,25 @@ moq_mux_Clock *moq_mux_Clock_default(void);
 moq_Timescale moq_mux_Clock_TIMESCALE(void);
 moq_mux_Clock *moq_mux_Clock_new(void);
 bool moq_mux_Clock_at(moq_clock_Instant epoch, moq_clock_Wall wall, moq_mux_Clock **out, moq_mux_Error **err);
-moq_Timestamp moq_mux_Clock_now(const moq_mux_Clock *self, moq_status *status);
-bool moq_mux_Clock_capture(const moq_mux_Clock *self, moq_clock_Instant at, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+moq_Timestamp *moq_mux_Clock_now(const moq_mux_Clock *self, moq_status *status);
+bool moq_mux_Clock_capture(const moq_mux_Clock *self, moq_clock_Instant at, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_Timescale moq_mux_Clock_timescale(const moq_mux_Clock *self, moq_status *status);
-moq_option_hang_catalog_Clock moq_mux_Clock_wall(const moq_mux_Clock *self, moq_status *status);
-bool moq_mux_Clock_wall_clock(const moq_mux_Clock *self, moq_Timestamp pts, moq_clock_Wall *out, moq_mux_Error **err, moq_status *status);
+moq_hang_catalog_Clock *moq_mux_Clock_wall(const moq_mux_Clock *self, moq_status *status);
+bool moq_mux_Clock_wall_clock(const moq_mux_Clock *self, const moq_Timestamp *pts, moq_clock_Wall *out, moq_mux_Error **err, moq_status *status);
+void moq_mux_Ingest_free(moq_mux_Ingest *self);
+void moq_mux_Ingest_drop(moq_mux_Ingest *self, moq_status *status);
+moq_mux_Ingest *moq_mux_Ingest_clone(const moq_mux_Ingest *self, moq_status *status);
+moq_buf moq_mux_Ingest_debug(const moq_mux_Ingest *self, moq_status *status);
+moq_mux_Ingest *moq_mux_Ingest_default(void);
+moq_option_duration moq_mux_Ingest_max_age_get(const moq_mux_Ingest *self, moq_status *status);
+void moq_mux_Ingest_max_age_set(moq_mux_Ingest *self, moq_option_duration value, moq_status *status);
+moq_bandwidth_Allocator *moq_mux_Ingest_bandwidth_get(const moq_mux_Ingest *self, moq_status *status);
+void moq_mux_Ingest_bandwidth_set(moq_mux_Ingest *self, moq_bandwidth_Allocator *value, moq_status *status);
+moq_duration moq_mux_Ingest_linger_get(const moq_mux_Ingest *self, moq_status *status);
+void moq_mux_Ingest_linger_set(moq_mux_Ingest *self, moq_duration value, moq_status *status);
+moq_bandwidth_Limit *moq_mux_Ingest_rate_get(const moq_mux_Ingest *self, moq_status *status);
+void moq_mux_Ingest_rate_set(moq_mux_Ingest *self, moq_bandwidth_Limit *value, moq_status *status);
+moq_mux_catalog_Config *moq_mux_Ingest_catalog(const moq_mux_Ingest *self, moq_status *status);
 void moq_mux_Linger_unit_free(moq_mux_Linger_unit *self);
 void moq_mux_Linger_unit_drop(moq_mux_Linger_unit *self, moq_status *status);
 moq_duration moq_mux_Linger_unit_DEFAULT(void);
@@ -6300,10 +3502,10 @@ void moq_mux_Pacer_drop(moq_mux_Pacer *self, moq_status *status);
 moq_mux_Pacer *moq_mux_Pacer_default(void);
 moq_mux_Pacer *moq_mux_Pacer_with_lead(moq_mux_Pacer *self, moq_duration lead, moq_status *status);
 moq_mux_Pacer *moq_mux_Pacer_with_delay(moq_mux_Pacer *self, moq_duration delay, moq_status *status);
-moq_clock_Instant moq_mux_Pacer_pace(moq_mux_Pacer *self, moq_Timestamp ts, moq_clock_Instant now, moq_status *status);
-moq_option_clock_Instant moq_mux_Pacer_due(const moq_mux_Pacer *self, moq_Timestamp ts, moq_status *status);
+moq_clock_Instant moq_mux_Pacer_pace(moq_mux_Pacer *self, const moq_Timestamp *ts, moq_clock_Instant now, moq_status *status);
+moq_option_clock_Instant moq_mux_Pacer_due(const moq_mux_Pacer *self, const moq_Timestamp *ts, moq_status *status);
 moq_duration moq_mux_Pacer_slack(const moq_mux_Pacer *self, moq_status *status);
-moq_clock_Instant moq_mux_Pacer_hurry(moq_mux_Pacer *self, moq_Timestamp ts, moq_clock_Instant now, moq_status *status);
+moq_clock_Instant moq_mux_Pacer_hurry(moq_mux_Pacer *self, const moq_Timestamp *ts, moq_clock_Instant now, moq_status *status);
 void moq_mux_Binding_free(moq_mux_Binding *self);
 moq_mux_Binding *moq_mux_Binding_new(moq_broadcast_Consumer *broadcast, moq_status *status);
 typedef struct moq_mux_Binding_broadcast_future moq_mux_Binding_broadcast_future;
@@ -6367,27 +3569,27 @@ moq_tokio_Duration *moq_tokio_Backoff_initial_get(const moq_tokio_Backoff *self,
 void moq_tokio_Backoff_initial_set(moq_tokio_Backoff *self, const moq_tokio_Duration *value, moq_status *status);
 uint32_t moq_tokio_Backoff_multiplier_get(const moq_tokio_Backoff *self, moq_status *status);
 void moq_tokio_Backoff_multiplier_set(moq_tokio_Backoff *self, uint32_t value, moq_status *status);
-moq_tokio_Duration *moq_tokio_Backoff_max_get(const moq_tokio_Backoff *self, moq_status *status);
-void moq_tokio_Backoff_max_set(moq_tokio_Backoff *self, const moq_tokio_Duration *value, moq_status *status);
+moq_moq_tokio_cli_Bound *moq_tokio_Backoff_max_get(const moq_tokio_Backoff *self, moq_status *status);
+void moq_tokio_Backoff_max_set(moq_tokio_Backoff *self, const moq_moq_tokio_cli_Bound *value, moq_status *status);
 moq_tokio_Duration *moq_tokio_Backoff_healthy_get(const moq_tokio_Backoff *self, moq_status *status);
 void moq_tokio_Backoff_healthy_set(moq_tokio_Backoff *self, const moq_tokio_Duration *value, moq_status *status);
-moq_tokio_Duration *moq_tokio_Backoff_timeout_get(const moq_tokio_Backoff *self, moq_status *status);
-void moq_tokio_Backoff_timeout_set(moq_tokio_Backoff *self, const moq_tokio_Duration *value, moq_status *status);
+moq_moq_tokio_cli_Bound *moq_tokio_Backoff_timeout_get(const moq_tokio_Backoff *self, moq_status *status);
+void moq_tokio_Backoff_timeout_set(moq_tokio_Backoff *self, const moq_moq_tokio_cli_Bound *value, moq_status *status);
 moq_duration moq_tokio_Backoff_initial(const moq_tokio_Backoff *self, moq_status *status);
-moq_duration moq_tokio_Backoff_max(const moq_tokio_Backoff *self, moq_status *status);
-moq_duration moq_tokio_Backoff_timeout(const moq_tokio_Backoff *self, moq_status *status);
+moq_option_duration moq_tokio_Backoff_max(const moq_tokio_Backoff *self, moq_status *status);
+moq_option_duration moq_tokio_Backoff_timeout(const moq_tokio_Backoff *self, moq_status *status);
 void moq_tokio_Client_free(moq_tokio_Client *self);
 void moq_tokio_Client_drop(moq_tokio_Client *self, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_clone(const moq_tokio_Client *self, moq_status *status);
 bool moq_tokio_Client_new(moq_tokio_client_Config *config, moq_tokio_Client **out, moq_tokio_Error **err, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_publisher_Producer(moq_tokio_Client *self, const moq_origin_Producer *publish, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_publisher_Consumer(moq_tokio_Client *self, const moq_origin_Consumer *publish, moq_status *status);
-moq_tokio_Client *moq_tokio_Client_with_origin(moq_tokio_Client *self, moq_origin_Producer *origin, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_subscriber(moq_tokio_Client *self, moq_origin_Producer *subscribe, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_limits(moq_tokio_Client *self, moq_session_Limits limits, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_stats(moq_tokio_Client *self, moq_stats_Session *stats, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_cost(moq_tokio_Client *self, uint64_t cost, moq_status *status);
-moq_tokio_Client *moq_tokio_Client_with_peer_hop(moq_tokio_Client *self, moq_Hop hop, moq_status *status);
+moq_tokio_Client *moq_tokio_Client_with_peer_node(moq_tokio_Client *self, uint64_t node, moq_status *status);
+moq_tokio_Client *moq_tokio_Client_with_token(moq_tokio_Client *self, moq_setup_Token token, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_reconnect(moq_tokio_Client *self, bool reconnect, moq_status *status);
 moq_tokio_Client *moq_tokio_Client_with_restart(moq_tokio_Client *self, moq_tokio_Restart restart, moq_status *status);
 moq_tokio_Connection *moq_tokio_Client_connect(const moq_tokio_Client *self, moq_moq_tokio_Addrs *addrs, moq_status *status);
@@ -6435,14 +3637,13 @@ moq_auth_Handle *moq_tokio_Connection_auth(const moq_tokio_Connection *self, moq
 moq_auth_Tokens *moq_tokio_Connection_tokens(const moq_tokio_Connection *self, moq_status *status);
 moq_tokio_connection_Monitor *moq_tokio_Connection_monitor(const moq_tokio_Connection *self, moq_status *status);
 void moq_tokio_Error_free(moq_tokio_Error *self);
-void moq_tokio_Error_drop(moq_tokio_Error *self, moq_status *status);
 bool moq_tokio_Error_borrowed(const moq_tokio_Error *self);
-moq_tokio_Error *moq_tokio_Error_clone(const moq_tokio_Error *self, moq_status *status);
-moq_buf moq_tokio_Error_to_string(const moq_tokio_Error *self, moq_status *status);
-moq_buf moq_tokio_Error_debug(const moq_tokio_Error *self, moq_status *status);
-moq_option_tokio_ConnectError moq_tokio_Error_connect_error(const moq_tokio_Error *self, moq_status *status);
-bool moq_tokio_Error_is_auth(const moq_tokio_Error *self, moq_status *status);
-moq_option_u16 moq_tokio_Error_status(const moq_tokio_Error *self, moq_status *status);
+moq_tokio_Error *moq_tokio_Error_clone(const moq_tokio_Error *self);
+moq_buf moq_tokio_Error_to_string(const moq_tokio_Error *self);
+moq_buf moq_tokio_Error_debug(const moq_tokio_Error *self);
+moq_option_tokio_ConnectError moq_tokio_Error_connect_error(const moq_tokio_Error *self);
+bool moq_tokio_Error_is_auth(const moq_tokio_Error *self);
+moq_option_u16 moq_tokio_Error_status(const moq_tokio_Error *self);
 void moq_tokio_Log_free(moq_tokio_Log *self);
 void moq_tokio_Log_drop(moq_tokio_Log *self, moq_status *status);
 moq_tokio_Log *moq_tokio_Log_clone(const moq_tokio_Log *self, moq_status *status);
@@ -6461,16 +3662,6 @@ moq_tokio_Server_serve_publish_future *moq_tokio_Server_serve_publish(moq_tokio_
 moq_poll moq_tokio_Server_serve_publish_start(moq_tokio_Server *self, moq_origin_Consumer *origin, moq_tokio_Error **err, moq_tokio_Server_serve_publish_future **future, moq_status *status);
 moq_poll moq_tokio_Server_serve_publish_poll(moq_tokio_Server_serve_publish_future *future, moq_waker waker, moq_tokio_Error **err);
 void moq_tokio_Server_serve_publish_future_free(moq_tokio_Server_serve_publish_future *future);
-typedef struct moq_tokio_Server_serve_consume_future moq_tokio_Server_serve_consume_future;
-moq_tokio_Server_serve_consume_future *moq_tokio_Server_serve_consume(moq_tokio_Server *self, moq_origin_Producer *origin, moq_status *status);
-moq_poll moq_tokio_Server_serve_consume_start(moq_tokio_Server *self, moq_origin_Producer *origin, moq_tokio_Error **err, moq_tokio_Server_serve_consume_future **future, moq_status *status);
-moq_poll moq_tokio_Server_serve_consume_poll(moq_tokio_Server_serve_consume_future *future, moq_waker waker, moq_tokio_Error **err);
-void moq_tokio_Server_serve_consume_future_free(moq_tokio_Server_serve_consume_future *future);
-typedef struct moq_tokio_Server_serve_both_future moq_tokio_Server_serve_both_future;
-moq_tokio_Server_serve_both_future *moq_tokio_Server_serve_both(moq_tokio_Server *self, moq_origin_Consumer *publish, moq_origin_Producer *subscribe, moq_status *status);
-moq_poll moq_tokio_Server_serve_both_start(moq_tokio_Server *self, moq_origin_Consumer *publish, moq_origin_Producer *subscribe, moq_tokio_Error **err, moq_tokio_Server_serve_both_future **future, moq_status *status);
-moq_poll moq_tokio_Server_serve_both_poll(moq_tokio_Server_serve_both_future *future, moq_waker waker, moq_tokio_Error **err);
-void moq_tokio_Server_serve_both_future_free(moq_tokio_Server_serve_both_future *future);
 moq_moq_tokio_tcp_TlsAcceptor *moq_tokio_Server_tls_acceptor(const moq_tokio_Server *self, moq_status *status);
 moq_tokio_tls_Certificates *moq_tokio_Server_certificates(const moq_tokio_Server *self, moq_status *status);
 moq_vec_moq_tokio_accept_Health moq_tokio_Server_accept_health(const moq_tokio_Server *self, moq_status *status);
@@ -6504,8 +3695,6 @@ void moq_auth_Requests_next_future_free(moq_auth_Requests_next_future *future);
 void moq_auth_Request_free(moq_auth_Request *self);
 void moq_auth_Request_drop(moq_auth_Request *self, moq_status *status);
 moq_buf moq_auth_Request_token(const moq_auth_Request *self, moq_status *status);
-moq_option_auth_RequestKind moq_auth_Request_kind(const moq_auth_Request *self, moq_status *status);
-moq_Path *moq_auth_Request_path(const moq_auth_Request *self, moq_status *status);
 typedef struct moq_auth_Request_closed_future moq_auth_Request_closed_future;
 moq_auth_Request_closed_future *moq_auth_Request_closed(const moq_auth_Request *self, moq_status *status);
 moq_poll moq_auth_Request_closed_start(const moq_auth_Request *self, moq_Error **out, moq_auth_Request_closed_future **future, moq_status *status);
@@ -6541,11 +3730,7 @@ moq_auth_Handle *moq_auth_Handle_clone(const moq_auth_Handle *self, moq_status *
 moq_auth_Handle *moq_auth_Handle_default(void);
 moq_auth_Handle *moq_auth_Handle_new(void);
 moq_auth_Watch *moq_auth_Handle_grant(const moq_auth_Handle *self, moq_status *status);
-typedef struct moq_auth_Handle_add_future moq_auth_Handle_add_future;
-moq_auth_Handle_add_future *moq_auth_Handle_add(const moq_auth_Handle *self, moq_buf token, moq_status *status);
-moq_poll moq_auth_Handle_add_start(const moq_auth_Handle *self, moq_buf token, moq_auth_Credential **out0, moq_auth_Answer *out1, moq_Error **err, moq_auth_Handle_add_future **future, moq_status *status);
-moq_poll moq_auth_Handle_add_poll(moq_auth_Handle_add_future *future, moq_waker waker, moq_auth_Credential **out0, moq_auth_Answer *out1, moq_Error **err);
-void moq_auth_Handle_add_future_free(moq_auth_Handle_add_future *future);
+bool moq_auth_Handle_add(const moq_auth_Handle *self, moq_buf token, moq_auth_Credential **out, moq_Error **err, moq_status *status);
 void moq_auth_Handle_authorize(const moq_auth_Handle *self, const moq_auth_Grant *grant, moq_status *status);
 void moq_auth_Handle_abort(const moq_auth_Handle *self, moq_Error *err_, moq_status *status);
 void moq_auth_Credential_free(moq_auth_Credential *self);
@@ -6560,12 +3745,11 @@ moq_auth_Credential_closed_future *moq_auth_Credential_closed(const moq_auth_Cre
 moq_poll moq_auth_Credential_closed_start(const moq_auth_Credential *self, moq_Error **out, moq_auth_Credential_closed_future **future, moq_status *status);
 moq_poll moq_auth_Credential_closed_poll(moq_auth_Credential_closed_future *future, moq_waker waker, moq_Error **out);
 void moq_auth_Credential_closed_future_free(moq_auth_Credential_closed_future *future);
-void moq_auth_Dial_free(moq_auth_Dial *self);
-void moq_auth_Dial_drop(moq_auth_Dial *self, moq_status *status);
-moq_Url *moq_auth_Dial_url_get(const moq_auth_Dial *self, moq_status *status);
-void moq_auth_Dial_url_set(moq_auth_Dial *self, moq_Url *value, moq_status *status);
-moq_option_setup_Token moq_auth_Dial_token_get(const moq_auth_Dial *self, moq_status *status);
-void moq_auth_Dial_token_set(moq_auth_Dial *self, moq_option_setup_Token value, moq_status *status);
+typedef struct moq_auth_Credential_answered_future moq_auth_Credential_answered_future;
+moq_auth_Credential_answered_future *moq_auth_Credential_answered(const moq_auth_Credential *self, moq_status *status);
+moq_poll moq_auth_Credential_answered_start(const moq_auth_Credential *self, moq_Error **err, moq_auth_Credential_answered_future **future, moq_status *status);
+moq_poll moq_auth_Credential_answered_poll(moq_auth_Credential_answered_future *future, moq_waker waker, moq_Error **err);
+void moq_auth_Credential_answered_future_free(moq_auth_Credential_answered_future *future);
 void moq_auth_Token_free(moq_auth_Token *self);
 void moq_auth_Token_drop(moq_auth_Token *self, moq_status *status);
 bool moq_auth_Token_borrowed(const moq_auth_Token *self);
@@ -6583,12 +3767,6 @@ moq_auth_Tokens_answered_future *moq_auth_Tokens_answered(const moq_auth_Tokens 
 moq_poll moq_auth_Tokens_answered_start(const moq_auth_Tokens *self, moq_Error **err, moq_auth_Tokens_answered_future **future);
 moq_poll moq_auth_Tokens_answered_poll(moq_auth_Tokens_answered_future *future, moq_waker waker, moq_Error **err);
 void moq_auth_Tokens_answered_future_free(moq_auth_Tokens_answered_future *future);
-moq_auth_Dial *moq_auth_Tokens_dial(const moq_auth_Tokens *self, const moq_Url *url, const moq_Versions *versions, moq_status *status);
-void moq_auth_Tokens_connected(const moq_auth_Tokens *self, const moq_Session *session, moq_status *status);
-bool moq_auth_Tokens_changed(const moq_auth_Tokens *self, const moq_auth_Dial *dial, moq_status *status);
-void moq_goaway_Producer_free(moq_goaway_Producer *self);
-void moq_goaway_Producer_drop(moq_goaway_Producer *self, moq_status *status);
-bool moq_goaway_Producer_send(moq_goaway_Producer *self, moq_goaway_Goaway *goaway, moq_Error **err, moq_status *status);
 void moq_goaway_Goaway_free(moq_goaway_Goaway *self);
 void moq_goaway_Goaway_drop(moq_goaway_Goaway *self, moq_status *status);
 bool moq_goaway_Goaway_borrowed(const moq_goaway_Goaway *self);
@@ -6598,7 +3776,7 @@ moq_buf moq_goaway_Goaway_debug(const moq_goaway_Goaway *self, moq_status *statu
 moq_goaway_Goaway *moq_goaway_Goaway_default(void);
 moq_goaway_Goaway *moq_goaway_Goaway_new(void);
 moq_goaway_Goaway *moq_goaway_Goaway_redirect(moq_buf uri);
-moq_goaway_Goaway *moq_goaway_Goaway_with_timeout(moq_goaway_Goaway *self, moq_duration timeout, moq_status *status);
+moq_goaway_Goaway *moq_goaway_Goaway_with_timeout(moq_goaway_Goaway *self, moq_option_duration timeout, moq_status *status);
 moq_buf moq_goaway_Goaway_uri(const moq_goaway_Goaway *self, moq_status *status);
 moq_option_duration moq_goaway_Goaway_timeout(const moq_goaway_Goaway *self, moq_status *status);
 void moq_goaway_Consumer_free(moq_goaway_Consumer *self);
@@ -6622,11 +3800,55 @@ moq_buf moq_path_Relative_as_str(const moq_path_Relative *self, moq_status *stat
 moq_path_Relative *moq_path_Relative_empty(void);
 bool moq_path_Relative_is_empty(const moq_path_Relative *self, moq_status *status);
 size_t moq_path_Relative_len(const moq_path_Relative *self, moq_status *status);
+void moq_reconnect_Backoff_free(moq_reconnect_Backoff *self);
+void moq_reconnect_Backoff_drop(moq_reconnect_Backoff *self, moq_status *status);
+moq_reconnect_Backoff *moq_reconnect_Backoff_clone(const moq_reconnect_Backoff *self, moq_status *status);
+bool moq_reconnect_Backoff_eq(const moq_reconnect_Backoff *a, const moq_reconnect_Backoff *b, moq_status *status);
+moq_buf moq_reconnect_Backoff_debug(const moq_reconnect_Backoff *self, moq_status *status);
+moq_reconnect_Backoff *moq_reconnect_Backoff_default(void);
+moq_duration moq_reconnect_Backoff_initial_get(const moq_reconnect_Backoff *self, moq_status *status);
+void moq_reconnect_Backoff_initial_set(moq_reconnect_Backoff *self, moq_duration value, moq_status *status);
+uint32_t moq_reconnect_Backoff_multiplier_get(const moq_reconnect_Backoff *self, moq_status *status);
+void moq_reconnect_Backoff_multiplier_set(moq_reconnect_Backoff *self, uint32_t value, moq_status *status);
+moq_option_duration moq_reconnect_Backoff_max_get(const moq_reconnect_Backoff *self, moq_status *status);
+void moq_reconnect_Backoff_max_set(moq_reconnect_Backoff *self, moq_option_duration value, moq_status *status);
+moq_duration moq_reconnect_Backoff_healthy_get(const moq_reconnect_Backoff *self, moq_status *status);
+void moq_reconnect_Backoff_healthy_set(moq_reconnect_Backoff *self, moq_duration value, moq_status *status);
+moq_option_duration moq_reconnect_Backoff_timeout_get(const moq_reconnect_Backoff *self, moq_status *status);
+void moq_reconnect_Backoff_timeout_set(moq_reconnect_Backoff *self, moq_option_duration value, moq_status *status);
+void moq_reconnect_Handover_free(moq_reconnect_Handover *self);
+void moq_reconnect_Handover_drop(moq_reconnect_Handover *self, moq_status *status);
+moq_reconnect_Handover *moq_reconnect_Handover_clone(const moq_reconnect_Handover *self, moq_status *status);
+bool moq_reconnect_Handover_eq(const moq_reconnect_Handover *a, const moq_reconnect_Handover *b, moq_status *status);
+moq_buf moq_reconnect_Handover_debug(const moq_reconnect_Handover *self, moq_status *status);
+moq_reconnect_Handover *moq_reconnect_Handover_default(void);
+moq_reconnect_Redirect moq_reconnect_Handover_redirect_get(const moq_reconnect_Handover *self, moq_status *status);
+void moq_reconnect_Handover_redirect_set(moq_reconnect_Handover *self, moq_reconnect_Redirect value, moq_status *status);
+moq_duration moq_reconnect_Handover_handover_get(const moq_reconnect_Handover *self, moq_status *status);
+void moq_reconnect_Handover_handover_set(moq_reconnect_Handover *self, moq_duration value, moq_status *status);
+void moq_reconnect_Config_free(moq_reconnect_Config *self);
+void moq_reconnect_Config_drop(moq_reconnect_Config *self, moq_status *status);
+moq_reconnect_Config *moq_reconnect_Config_clone(const moq_reconnect_Config *self, moq_status *status);
+bool moq_reconnect_Config_eq(const moq_reconnect_Config *a, const moq_reconnect_Config *b, moq_status *status);
+moq_buf moq_reconnect_Config_debug(const moq_reconnect_Config *self, moq_status *status);
+moq_reconnect_Config *moq_reconnect_Config_default(void);
+moq_reconnect_Backoff *moq_reconnect_Config_backoff_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_backoff_set(moq_reconnect_Config *self, const moq_reconnect_Backoff *value, moq_status *status);
+moq_reconnect_Handover *moq_reconnect_Config_goaway_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_goaway_set(moq_reconnect_Config *self, const moq_reconnect_Handover *value, moq_status *status);
+moq_tokio_Restart moq_reconnect_Config_restart_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_restart_set(moq_reconnect_Config *self, moq_tokio_Restart value, moq_status *status);
+moq_option_duration moq_reconnect_Config_timeout_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_timeout_set(moq_reconnect_Config *self, moq_option_duration value, moq_status *status);
+bool moq_reconnect_Config_once_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_once_set(moq_reconnect_Config *self, bool value, moq_status *status);
+bool moq_reconnect_Config_pinned_get(const moq_reconnect_Config *self, moq_status *status);
+void moq_reconnect_Config_pinned_set(moq_reconnect_Config *self, bool value, moq_status *status);
 void moq_server_Handshake_free(moq_server_Handshake *self);
 void moq_server_Handshake_drop(moq_server_Handshake *self, moq_status *status);
 moq_buf moq_server_Handshake_path(const moq_server_Handshake *self, moq_status *status);
 moq_option_setup_Role moq_server_Handshake_role(const moq_server_Handshake *self, moq_status *status);
-moq_option_Hop moq_server_Handshake_peer_hop(const moq_server_Handshake *self, moq_status *status);
+moq_option_non_zero_u64 moq_server_Handshake_peer_node(const moq_server_Handshake *self, moq_status *status);
 moq_buf moq_server_Handshake_peer_implementation(const moq_server_Handshake *self, moq_status *status);
 moq_auth_Handle *moq_server_Handshake_auth(const moq_server_Handshake *self, moq_status *status);
 moq_auth_Requests *moq_server_Handshake_requests(moq_server_Handshake *self, moq_status *status);
@@ -6634,29 +3856,36 @@ moq_option_setup_Token moq_server_Handshake_token(const moq_server_Handshake *se
 moq_server_Handshake *moq_server_Handshake_with_publisher_Producer(moq_server_Handshake *self, const moq_origin_Producer *publish, moq_status *status);
 moq_server_Handshake *moq_server_Handshake_with_publisher_Consumer(moq_server_Handshake *self, const moq_origin_Consumer *publish, moq_status *status);
 moq_server_Handshake *moq_server_Handshake_with_subscriber(moq_server_Handshake *self, moq_origin_Producer *subscribe, moq_status *status);
-moq_server_Handshake *moq_server_Handshake_with_peer_hop(moq_server_Handshake *self, moq_Hop hop, moq_status *status);
+moq_server_Handshake *moq_server_Handshake_with_peer_node(moq_server_Handshake *self, uint64_t node, moq_status *status);
 moq_server_Handshake *moq_server_Handshake_with_stats(moq_server_Handshake *self, moq_stats_Session *stats, moq_status *status);
 moq_server_Handshake *moq_server_Handshake_with_limits(moq_server_Handshake *self, moq_session_Limits limits, moq_status *status);
-moq_server_Handshake *moq_server_Handshake_with_deadline(moq_server_Handshake *self, moq_clock_Instant at, moq_status *status);
+moq_server_Handshake *moq_server_Handshake_with_receive_window(moq_server_Handshake *self, uint64_t window, moq_status *status);
+typedef struct moq_server_Handshake_expired_future moq_server_Handshake_expired_future;
+moq_server_Handshake_expired_future *moq_server_Handshake_expired(moq_server_Handshake *self, moq_status *status);
+moq_poll moq_server_Handshake_expired_start(moq_server_Handshake *self, moq_server_Handshake_expired_future **future, moq_status *status);
+moq_poll moq_server_Handshake_expired_poll(moq_server_Handshake_expired_future *future, moq_waker waker);
+void moq_server_Handshake_expired_future_free(moq_server_Handshake_expired_future *future);
 typedef struct moq_server_Handshake_ok_future moq_server_Handshake_ok_future;
 moq_server_Handshake_ok_future *moq_server_Handshake_ok(moq_server_Handshake *self, moq_status *status);
 moq_poll moq_server_Handshake_ok_start(moq_server_Handshake *self, moq_Session **out0, moq_Driver **out1, moq_Error **err, moq_server_Handshake_ok_future **future, moq_status *status);
 moq_poll moq_server_Handshake_ok_poll(moq_server_Handshake_ok_future *future, moq_waker waker, moq_Session **out0, moq_Driver **out1, moq_Error **err);
 void moq_server_Handshake_ok_future_free(moq_server_Handshake_ok_future *future);
 void moq_server_Handshake_close(moq_server_Handshake *self, moq_Error *err_, moq_status *status);
-void moq_server_Activity_free(moq_server_Activity *self);
-void moq_server_Activity_drop(moq_server_Activity *self, moq_status *status);
-moq_server_Activity *moq_server_Activity_clone(const moq_server_Activity *self, moq_status *status);
-moq_buf moq_server_Activity_debug(const moq_server_Activity *self, moq_status *status);
-moq_server_Activity *moq_server_Activity_default(void);
-moq_server_Active *moq_server_Activity_enter(const moq_server_Activity *self, moq_status *status);
-typedef struct moq_server_Activity_close_future moq_server_Activity_close_future;
-moq_server_Activity_close_future *moq_server_Activity_close(const moq_server_Activity *self, moq_status *status);
-moq_poll moq_server_Activity_close_start(const moq_server_Activity *self, moq_server_Activity_close_future **future, moq_status *status);
-moq_poll moq_server_Activity_close_poll(moq_server_Activity_close_future *future, moq_waker waker);
-void moq_server_Activity_close_future_free(moq_server_Activity_close_future *future);
-void moq_server_Active_free(moq_server_Active *self);
-moq_buf moq_server_Active_debug(const moq_server_Active *self);
+void moq_server_Admission_free(moq_server_Admission *self);
+void moq_server_Admission_drop(moq_server_Admission *self, moq_status *status);
+bool moq_server_Admission_borrowed(const moq_server_Admission *self);
+moq_server_Admission *moq_server_Admission_clone(const moq_server_Admission *self, moq_status *status);
+moq_buf moq_server_Admission_debug(const moq_server_Admission *self, moq_status *status);
+moq_server_Admission *moq_server_Admission_default(void);
+moq_server_Admitted *moq_server_Admission_enter(const moq_server_Admission *self, moq_status *status);
+void moq_server_Admission_drain(const moq_server_Admission *self, moq_status *status);
+typedef struct moq_server_Admission_close_future moq_server_Admission_close_future;
+moq_server_Admission_close_future *moq_server_Admission_close(const moq_server_Admission *self, moq_status *status);
+moq_poll moq_server_Admission_close_start(const moq_server_Admission *self, moq_clock_Instant *out, moq_server_Admission_close_future **future, moq_status *status);
+moq_poll moq_server_Admission_close_poll(moq_server_Admission_close_future *future, moq_waker waker, moq_clock_Instant *out);
+void moq_server_Admission_close_future_free(moq_server_Admission_close_future *future);
+void moq_server_Admitted_free(moq_server_Admitted *self);
+moq_buf moq_server_Admitted_debug(const moq_server_Admitted *self);
 void moq_session_Stats_free(moq_session_Stats *self);
 void moq_session_Stats_drop(moq_session_Stats *self, moq_status *status);
 moq_session_Stats *moq_session_Stats_clone(const moq_session_Stats *self, moq_status *status);
@@ -6681,6 +3910,8 @@ moq_option_u64 moq_session_Stats_packets_lost_get(const moq_session_Stats *self,
 void moq_session_Stats_packets_lost_set(moq_session_Stats *self, moq_option_u64 value, moq_status *status);
 moq_option_u64 moq_session_Stats_streams_evicted_get(const moq_session_Stats *self, moq_status *status);
 void moq_session_Stats_streams_evicted_set(moq_session_Stats *self, moq_option_u64 value, moq_status *status);
+moq_option_u64 moq_session_Stats_datagrams_unrouted_get(const moq_session_Stats *self, moq_status *status);
+void moq_session_Stats_datagrams_unrouted_set(moq_session_Stats *self, moq_option_u64 value, moq_status *status);
 void moq_stats_Tier_free(moq_stats_Tier *self);
 void moq_stats_Tier_drop(moq_stats_Tier *self, moq_status *status);
 bool moq_stats_Tier_borrowed(const moq_stats_Tier *self);
@@ -6702,6 +3933,7 @@ moq_stats_Snapshot *moq_stats_Snapshot_default(void);
 moq_vec_tuple_stats_Tier_stats_Message_stats_Totals moq_stats_Snapshot_control(const moq_stats_Snapshot *self);
 moq_vec_tuple_stats_Tier_stats_Role_stats_Traffic moq_stats_Snapshot_traffic(const moq_stats_Snapshot *self);
 moq_vec_tuple_stats_Tier_stats_Presence moq_stats_Snapshot_sessions(const moq_stats_Snapshot *self);
+moq_vec_tuple_stats_Tier_stats_Activity moq_stats_Snapshot_activity(const moq_stats_Snapshot *self);
 void moq_stats_Report_free(moq_stats_Report *self);
 void moq_stats_Report_drop(moq_stats_Report *self, moq_status *status);
 moq_stats_Report *moq_stats_Report_clone(const moq_stats_Report *self, moq_status *status);
@@ -6755,14 +3987,30 @@ moq_stats_Registry *moq_stats_Registry_disabled(void);
 bool moq_stats_Registry_is_enabled(const moq_stats_Registry *self);
 moq_stats_Handle *moq_stats_Registry_tier(const moq_stats_Registry *self, moq_stats_Tier *tier, moq_status *status);
 moq_stats_Snapshot *moq_stats_Registry_snapshot(const moq_stats_Registry *self);
-void moq_stats_Registry_report(const moq_stats_Registry *self, moq_stats_Report *report, moq_status *status);
+void moq_stats_Registry_report(const moq_stats_Registry *self, moq_stats_Report *report, moq_clock_Instant now, moq_status *status);
 void moq_stats_Handle_free(moq_stats_Handle *self);
 bool moq_stats_Handle_borrowed(const moq_stats_Handle *self);
 moq_stats_Handle *moq_stats_Handle_clone(const moq_stats_Handle *self);
 moq_stats_Handle *moq_stats_Handle_default(void);
-void moq_stats_Handle_refuse(const moq_stats_Handle *self, moq_Path *label, moq_stats_RefusalKind reason, moq_status *status);
-moq_stats_Session *moq_stats_Handle_session(const moq_stats_Handle *self, moq_Path *label, moq_status *status);
+void moq_stats_Handle_refuse(const moq_stats_Handle *self, moq_stats_Refusal *refusal, moq_status *status);
+moq_stats_Session *moq_stats_Handle_session(const moq_stats_Handle *self, moq_stats_SessionInfo *session, moq_status *status);
 moq_stats_Session *moq_stats_Handle_request(const moq_stats_Handle *self, moq_Path *label, moq_status *status);
+void moq_stats_Refusal_free(moq_stats_Refusal *self);
+void moq_stats_Refusal_drop(moq_stats_Refusal *self, moq_status *status);
+moq_stats_Refusal *moq_stats_Refusal_clone(const moq_stats_Refusal *self, moq_status *status);
+moq_buf moq_stats_Refusal_debug(const moq_stats_Refusal *self, moq_status *status);
+moq_Path *moq_stats_Refusal_label_get(const moq_stats_Refusal *self, moq_status *status);
+void moq_stats_Refusal_label_set(moq_stats_Refusal *self, moq_Path *value, moq_status *status);
+moq_stats_RefusalKind moq_stats_Refusal_reason_get(const moq_stats_Refusal *self, moq_status *status);
+void moq_stats_Refusal_reason_set(moq_stats_Refusal *self, moq_stats_RefusalKind value, moq_status *status);
+moq_stats_Refusal *moq_stats_Refusal_new(moq_Path *label, moq_stats_RefusalKind reason, moq_status *status);
+void moq_stats_SessionInfo_free(moq_stats_SessionInfo *self);
+void moq_stats_SessionInfo_drop(moq_stats_SessionInfo *self, moq_status *status);
+moq_stats_SessionInfo *moq_stats_SessionInfo_clone(const moq_stats_SessionInfo *self, moq_status *status);
+moq_buf moq_stats_SessionInfo_debug(const moq_stats_SessionInfo *self, moq_status *status);
+moq_Path *moq_stats_SessionInfo_label_get(const moq_stats_SessionInfo *self, moq_status *status);
+void moq_stats_SessionInfo_label_set(moq_stats_SessionInfo *self, moq_Path *value, moq_status *status);
+moq_stats_SessionInfo *moq_stats_SessionInfo_new(moq_Path *label, moq_status *status);
 void moq_stats_Wire_free(moq_stats_Wire *self);
 moq_stats_Wire *moq_stats_Wire_default(void);
 void moq_stats_Session_free(moq_stats_Session *self);
@@ -6772,6 +4020,12 @@ moq_stats_Session *moq_stats_Session_clone(const moq_stats_Session *self, moq_st
 moq_stats_Session *moq_stats_Session_default(void);
 moq_stats_Wire *moq_stats_Session_wire(const moq_stats_Session *self, moq_transport_Wire *counters, moq_status *status);
 void moq_stats_Session_retag(const moq_stats_Session *self, moq_stats_Tier *tier, moq_Path *label, moq_status *status);
+void moq_stats_Bill_free(moq_stats_Bill *self);
+bool moq_stats_Bill_borrowed(const moq_stats_Bill *self);
+moq_stats_Bill *moq_stats_Bill_clone(const moq_stats_Bill *self);
+moq_buf moq_stats_Bill_debug(const moq_stats_Bill *self);
+moq_stats_Bill *moq_stats_Bill_default(void);
+void moq_stats_Bill_deliver(const moq_stats_Bill *self, uint64_t bytes);
 void moq_transport_Wire_free(moq_transport_Wire *self);
 void moq_transport_Wire_drop(moq_transport_Wire *self, moq_status *status);
 bool moq_transport_Wire_borrowed(const moq_transport_Wire *self);
@@ -6791,6 +4045,37 @@ moq_transport_Probe *moq_transport_Probe_default(void);
 moq_transport_Probe *moq_transport_Probe_new(void);
 moq_bandwidth_Rate moq_transport_Probe_target(const moq_transport_Probe *self);
 void moq_transport_Probe_set_target(const moq_transport_Probe *self, moq_bandwidth_Rate rate);
+void moq_transport_ReceiveWindow_free(moq_transport_ReceiveWindow *self);
+void moq_transport_ReceiveWindow_drop(moq_transport_ReceiveWindow *self, moq_status *status);
+moq_transport_ReceiveWindow *moq_transport_ReceiveWindow_clone(const moq_transport_ReceiveWindow *self, moq_status *status);
+bool moq_transport_ReceiveWindow_eq(const moq_transport_ReceiveWindow *a, const moq_transport_ReceiveWindow *b, moq_status *status);
+moq_buf moq_transport_ReceiveWindow_debug(const moq_transport_ReceiveWindow *self, moq_status *status);
+moq_option_non_zero_u64 moq_transport_ReceiveWindow_connection_get(const moq_transport_ReceiveWindow *self, moq_status *status);
+void moq_transport_ReceiveWindow_connection_set(moq_transport_ReceiveWindow *self, moq_option_non_zero_u64 value, moq_status *status);
+uint64_t moq_transport_ReceiveWindow_stream_get(const moq_transport_ReceiveWindow *self, moq_status *status);
+void moq_transport_ReceiveWindow_stream_set(moq_transport_ReceiveWindow *self, uint64_t value, moq_status *status);
+moq_transport_ReceiveWindow *moq_transport_ReceiveWindow_new(moq_option_non_zero_u64 connection, uint64_t stream);
+void moq_transport_Limits_free(moq_transport_Limits *self);
+void moq_transport_Limits_drop(moq_transport_Limits *self, moq_status *status);
+moq_transport_Limits *moq_transport_Limits_clone(const moq_transport_Limits *self, moq_status *status);
+bool moq_transport_Limits_eq(const moq_transport_Limits *a, const moq_transport_Limits *b, moq_status *status);
+moq_buf moq_transport_Limits_debug(const moq_transport_Limits *self, moq_status *status);
+moq_transport_Limits *moq_transport_Limits_default(void);
+moq_option_non_zero_u64 moq_transport_Limits_receive_window_get(const moq_transport_Limits *self, moq_status *status);
+void moq_transport_Limits_receive_window_set(moq_transport_Limits *self, moq_option_non_zero_u64 value, moq_status *status);
+void moq_bandwidth_Limit_free(moq_bandwidth_Limit *self);
+void moq_bandwidth_Limit_drop(moq_bandwidth_Limit *self, moq_status *status);
+moq_bandwidth_Limit *moq_bandwidth_Limit_clone(const moq_bandwidth_Limit *self, moq_status *status);
+moq_buf moq_bandwidth_Limit_debug(const moq_bandwidth_Limit *self, moq_status *status);
+moq_bandwidth_Limit *moq_bandwidth_Limit_default(void);
+moq_bandwidth_Limit *moq_bandwidth_Limit_new(const moq_bandwidth_Cap *cap, moq_status *status);
+void moq_bandwidth_Limit_set(const moq_bandwidth_Limit *self, const moq_bandwidth_Cap *cap, moq_status *status);
+moq_bandwidth_Cap *moq_bandwidth_Limit_get(moq_bandwidth_Limit *self, moq_status *status);
+typedef struct moq_bandwidth_Limit_changed_future moq_bandwidth_Limit_changed_future;
+moq_bandwidth_Limit_changed_future *moq_bandwidth_Limit_changed(moq_bandwidth_Limit *self, moq_status *status);
+moq_poll moq_bandwidth_Limit_changed_start(moq_bandwidth_Limit *self, moq_bandwidth_Cap **out, moq_bandwidth_Limit_changed_future **future, moq_status *status);
+moq_poll moq_bandwidth_Limit_changed_poll(moq_bandwidth_Limit_changed_future *future, moq_waker waker, moq_bandwidth_Cap **out);
+void moq_bandwidth_Limit_changed_future_free(moq_bandwidth_Limit_changed_future *future);
 void moq_bandwidth_Demand_free(moq_bandwidth_Demand *self);
 void moq_bandwidth_Demand_drop(moq_bandwidth_Demand *self, moq_status *status);
 moq_bandwidth_Demand *moq_bandwidth_Demand_clone(const moq_bandwidth_Demand *self, moq_status *status);
@@ -6808,6 +4093,18 @@ void moq_bandwidth_Viewer_free(moq_bandwidth_Viewer *self);
 moq_option_bandwidth_Rate moq_bandwidth_Viewer_rate(const moq_bandwidth_Viewer *self);
 moq_bandwidth_Consumer *moq_bandwidth_Viewer_consume(const moq_bandwidth_Viewer *self);
 bool moq_bandwidth_Viewer_update(const moq_bandwidth_Viewer *self, moq_bandwidth_Rate max, moq_Error **err);
+void moq_bandwidth_Cap_free(moq_bandwidth_Cap *self);
+void moq_bandwidth_Cap_drop(moq_bandwidth_Cap *self, moq_status *status);
+moq_bandwidth_Cap *moq_bandwidth_Cap_clone(const moq_bandwidth_Cap *self, moq_status *status);
+bool moq_bandwidth_Cap_eq(const moq_bandwidth_Cap *a, const moq_bandwidth_Cap *b, moq_status *status);
+moq_buf moq_bandwidth_Cap_debug(const moq_bandwidth_Cap *self, moq_status *status);
+moq_bandwidth_Rate moq_bandwidth_Cap_rate_get(const moq_bandwidth_Cap *self, moq_status *status);
+void moq_bandwidth_Cap_rate_set(moq_bandwidth_Cap *self, moq_bandwidth_Rate value, moq_status *status);
+moq_duration moq_bandwidth_Cap_burst_get(const moq_bandwidth_Cap *self, moq_status *status);
+void moq_bandwidth_Cap_burst_set(moq_bandwidth_Cap *self, moq_duration value, moq_status *status);
+moq_duration moq_bandwidth_Cap_DEFAULT_BURST(void);
+moq_bandwidth_Cap *moq_bandwidth_Cap_new(moq_bandwidth_Rate rate);
+moq_bandwidth_Cap *moq_bandwidth_Cap_with_burst(const moq_bandwidth_Cap *self, moq_duration burst, moq_status *status);
 void moq_bandwidth_Producer_free(moq_bandwidth_Producer *self);
 moq_bandwidth_Producer *moq_bandwidth_Producer_clone(const moq_bandwidth_Producer *self);
 moq_bandwidth_Producer *moq_bandwidth_Producer_default(void);
@@ -6886,8 +4183,8 @@ moq_buf moq_broadcast_Info_debug(const moq_broadcast_Info *self, moq_status *sta
 moq_broadcast_Info *moq_broadcast_Info_default(void);
 moq_cache_Pool *moq_broadcast_Info_pool_get(const moq_broadcast_Info *self, moq_status *status);
 void moq_broadcast_Info_pool_set(moq_broadcast_Info *self, moq_cache_Pool *value, moq_status *status);
-moq_duration moq_broadcast_Info_cache_duration_get(const moq_broadcast_Info *self, moq_status *status);
-void moq_broadcast_Info_cache_duration_set(moq_broadcast_Info *self, moq_duration value, moq_status *status);
+moq_option_duration moq_broadcast_Info_cache_duration_get(const moq_broadcast_Info *self, moq_status *status);
+void moq_broadcast_Info_cache_duration_set(moq_broadcast_Info *self, moq_option_duration value, moq_status *status);
 moq_Path *moq_broadcast_Info_path_get(const moq_broadcast_Info *self, moq_status *status);
 void moq_broadcast_Info_path_set(moq_broadcast_Info *self, moq_Path *value, moq_status *status);
 moq_Instance *moq_broadcast_Info_instance_get(const moq_broadcast_Info *self, moq_status *status);
@@ -6903,6 +4200,7 @@ moq_broadcast_Demand *moq_broadcast_Producer_demand(const moq_broadcast_Producer
 bool moq_broadcast_Producer_create_track(const moq_broadcast_Producer *self, moq_buf name, moq_track_Info *info, moq_track_Producer **out, moq_Error **err, moq_status *status);
 bool moq_broadcast_Producer_create_datagrams(const moq_broadcast_Producer *self, moq_buf name, const moq_datagram_Info *info, moq_datagram_Producer **out, moq_Error **err, moq_status *status);
 bool moq_broadcast_Producer_reserve_track(const moq_broadcast_Producer *self, moq_buf name, moq_track_Request **out, moq_Error **err, moq_status *status);
+bool moq_broadcast_Producer_reserve_unlisted_track(const moq_broadcast_Producer *self, moq_buf name, moq_track_Request **out, moq_Error **err, moq_status *status);
 bool moq_broadcast_Producer_unique_track(const moq_broadcast_Producer *self, moq_buf suffix, moq_track_Info *info, moq_track_Producer **out, moq_Error **err, moq_status *status);
 moq_buf moq_broadcast_Producer_unique_name(const moq_broadcast_Producer *self, moq_buf suffix, moq_status *status);
 moq_broadcast_Requests *moq_broadcast_Producer_requests(const moq_broadcast_Producer *self, moq_status *status);
@@ -6939,8 +4237,8 @@ moq_poll moq_broadcast_Lister_poll_unwanted_start(const moq_broadcast_Lister *se
 moq_poll moq_broadcast_Lister_poll_unwanted_poll(moq_broadcast_Lister_poll_unwanted_future *future, moq_waker waker, moq_Error **err);
 void moq_broadcast_Lister_poll_unwanted_future_free(moq_broadcast_Lister_poll_unwanted_future *future);
 bool moq_broadcast_Lister_add(const moq_broadcast_Lister *self, moq_buf name, moq_track_Info *info, moq_Error **err, moq_status *status);
-bool moq_broadcast_Lister_remove(const moq_broadcast_Lister *self, moq_buf name, moq_Error **err);
-bool moq_broadcast_Lister_finish(const moq_broadcast_Lister *self, moq_buf name, moq_Error **err);
+bool moq_broadcast_Lister_remove(const moq_broadcast_Lister *self, moq_broadcast_Kind kind, moq_buf name, moq_Error **err);
+bool moq_broadcast_Lister_finish(const moq_broadcast_Lister *self, moq_broadcast_Kind kind, moq_buf name, moq_Error **err);
 void moq_broadcast_Lister_synced(const moq_broadcast_Lister *self);
 void moq_broadcast_Lister_clear(const moq_broadcast_Lister *self);
 void moq_broadcast_Lister_end(const moq_broadcast_Lister *self);
@@ -6989,18 +4287,17 @@ void moq_datagram_Producer_drop(moq_datagram_Producer *self, moq_status *status)
 moq_datagram_Producer *moq_datagram_Producer_clone(const moq_datagram_Producer *self, moq_status *status);
 moq_buf moq_datagram_Producer_name(const moq_datagram_Producer *self, moq_status *status);
 moq_datagram_Info *moq_datagram_Producer_info(const moq_datagram_Producer *self, moq_status *status);
-bool moq_datagram_Producer_append(moq_datagram_Producer *self, moq_option_Timestamp timestamp, moq_buf payload, uint64_t *out, moq_Error **err, moq_status *status);
-bool moq_datagram_Producer_insert(moq_datagram_Producer *self, moq_Datagram datagram, moq_Error **err, moq_status *status);
+bool moq_datagram_Producer_append(moq_datagram_Producer *self, const moq_Timestamp *timestamp, moq_buf payload, uint64_t *out, moq_Error **err, moq_status *status);
+bool moq_datagram_Producer_insert(moq_datagram_Producer *self, moq_datagram_Datagram datagram, moq_Error **err, moq_status *status);
 moq_datagram_Consumer *moq_datagram_Producer_consume(const moq_datagram_Producer *self, moq_status *status);
 void moq_datagram_Producer_finish(moq_datagram_Producer *self, moq_status *status);
 void moq_datagram_Producer_abort(moq_datagram_Producer *self, moq_Error *err_, moq_status *status);
 moq_option_i8 moq_datagram_Producer_priority(const moq_datagram_Producer *self, moq_status *status);
-typedef struct moq_datagram_Producer_poll_priority_future moq_datagram_Producer_poll_priority_future;
-moq_datagram_Producer_poll_priority_future *moq_datagram_Producer_poll_priority(const moq_datagram_Producer *self, moq_option_i8 last, moq_status *status);
-moq_poll moq_datagram_Producer_poll_priority_start(const moq_datagram_Producer *self, moq_option_i8 last, moq_option_i8 *out, moq_datagram_Producer_poll_priority_future **future, moq_status *status);
-moq_poll moq_datagram_Producer_poll_priority_poll(moq_datagram_Producer_poll_priority_future *future, moq_waker waker, moq_option_i8 *out);
-void moq_datagram_Producer_poll_priority_future_free(moq_datagram_Producer_poll_priority_future *future);
-bool moq_datagram_Producer_is_clone(const moq_datagram_Producer *self, const moq_datagram_Producer *other, moq_status *status);
+typedef struct moq_datagram_Producer_priority_changed_future moq_datagram_Producer_priority_changed_future;
+moq_datagram_Producer_priority_changed_future *moq_datagram_Producer_priority_changed(moq_datagram_Producer *self, moq_status *status);
+moq_poll moq_datagram_Producer_priority_changed_start(moq_datagram_Producer *self, moq_option_i8 *out, moq_datagram_Producer_priority_changed_future **future, moq_status *status);
+moq_poll moq_datagram_Producer_priority_changed_poll(moq_datagram_Producer_priority_changed_future *future, moq_waker waker, moq_option_i8 *out);
+void moq_datagram_Producer_priority_changed_future_free(moq_datagram_Producer_priority_changed_future *future);
 void moq_datagram_Request_free(moq_datagram_Request *self);
 void moq_datagram_Request_drop(moq_datagram_Request *self, moq_status *status);
 moq_buf moq_datagram_Request_name(const moq_datagram_Request *self, moq_status *status);
@@ -7018,12 +4315,11 @@ moq_poll moq_datagram_Consumer_info_poll(moq_datagram_Consumer_info_future *futu
 void moq_datagram_Consumer_info_future_free(moq_datagram_Consumer_info_future *future);
 typedef struct moq_datagram_Consumer_recv_future moq_datagram_Consumer_recv_future;
 moq_datagram_Consumer_recv_future *moq_datagram_Consumer_recv(moq_datagram_Consumer *self, moq_status *status);
-moq_poll moq_datagram_Consumer_recv_start(moq_datagram_Consumer *self, moq_option_Datagram *out, moq_Error **err, moq_datagram_Consumer_recv_future **future, moq_status *status);
-moq_poll moq_datagram_Consumer_recv_poll(moq_datagram_Consumer_recv_future *future, moq_waker waker, moq_option_Datagram *out, moq_Error **err);
+moq_poll moq_datagram_Consumer_recv_start(moq_datagram_Consumer *self, moq_option_datagram_Datagram *out, moq_Error **err, moq_datagram_Consumer_recv_future **future, moq_status *status);
+moq_poll moq_datagram_Consumer_recv_poll(moq_datagram_Consumer_recv_future *future, moq_waker waker, moq_option_datagram_Datagram *out, moq_Error **err);
 void moq_datagram_Consumer_recv_future_free(moq_datagram_Consumer_recv_future *future);
 int8_t moq_datagram_Consumer_priority(const moq_datagram_Consumer *self, moq_status *status);
 void moq_datagram_Consumer_set_priority(moq_datagram_Consumer *self, int8_t priority, moq_status *status);
-bool moq_datagram_Consumer_is_clone(const moq_datagram_Consumer *self, const moq_datagram_Consumer *other, moq_status *status);
 void moq_datagram_Info_free(moq_datagram_Info *self);
 void moq_datagram_Info_drop(moq_datagram_Info *self, moq_status *status);
 moq_datagram_Info *moq_datagram_Info_clone(const moq_datagram_Info *self, moq_status *status);
@@ -7036,8 +4332,7 @@ int8_t moq_datagram_Info_priority_get(const moq_datagram_Info *self, moq_status 
 void moq_datagram_Info_priority_set(moq_datagram_Info *self, int8_t value, moq_status *status);
 moq_datagram_Info *moq_datagram_Info_with_timescale(const moq_datagram_Info *self, moq_option_Timescale timescale, moq_status *status);
 moq_datagram_Info *moq_datagram_Info_with_priority(const moq_datagram_Info *self, int8_t priority, moq_status *status);
-bool moq_datagram_Info_rescale(const moq_datagram_Info *self, moq_option_Timestamp timestamp, moq_option_Timestamp *out, moq_Error **err, moq_status *status);
-moq_datagram_Producer *moq_datagram_Info_produce(const moq_datagram_Info *self, moq_buf name, moq_status *status);
+bool moq_datagram_Info_rescale(const moq_datagram_Info *self, const moq_Timestamp *timestamp, moq_Timestamp **out, moq_Error **err, moq_status *status);
 void moq_frame_Producer_free(moq_frame_Producer *self);
 void moq_frame_Producer_drop(moq_frame_Producer *self, moq_status *status);
 moq_group_Producer *moq_frame_Producer_group(const moq_frame_Producer *self, moq_status *status);
@@ -7046,28 +4341,17 @@ bool moq_frame_Producer_write(moq_frame_Producer *self, moq_buf chunk, moq_Error
 bool moq_frame_Producer_finish(moq_frame_Producer *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
 bool moq_frame_Producer_abort(moq_frame_Producer *self, moq_Error *err_, moq_Error **err, moq_status *status);
 uint64_t moq_frame_Producer_size_get(const moq_frame_Producer *self, moq_status *status);
-moq_option_Timestamp moq_frame_Producer_timestamp_get(const moq_frame_Producer *self, moq_status *status);
+moq_Timestamp *moq_frame_Producer_timestamp_get(const moq_frame_Producer *self, moq_status *status);
 void moq_frame_Frame_free(moq_frame_Frame *self);
 void moq_frame_Frame_drop(moq_frame_Frame *self, moq_status *status);
 moq_frame_Frame *moq_frame_Frame_clone(const moq_frame_Frame *self, moq_status *status);
 moq_buf moq_frame_Frame_debug(const moq_frame_Frame *self, moq_status *status);
-moq_option_Timestamp moq_frame_Frame_timestamp_get(const moq_frame_Frame *self, moq_status *status);
-void moq_frame_Frame_timestamp_set(moq_frame_Frame *self, moq_option_Timestamp value, moq_status *status);
+moq_Timestamp *moq_frame_Frame_timestamp_get(const moq_frame_Frame *self, moq_status *status);
+void moq_frame_Frame_timestamp_set(moq_frame_Frame *self, const moq_Timestamp *value, moq_status *status);
 moq_buf moq_frame_Frame_payload_get(const moq_frame_Frame *self, moq_status *status);
 void moq_frame_Frame_payload_set(moq_frame_Frame *self, moq_buf value, moq_status *status);
-moq_frame_Frame *moq_frame_Frame_new(moq_option_Timestamp timestamp, moq_buf payload);
+moq_frame_Frame *moq_frame_Frame_new(const moq_Timestamp *timestamp, moq_buf payload, moq_status *status);
 moq_clock_Instant moq_frame_Frame_arrived(const moq_frame_Frame *self, moq_status *status);
-void moq_frame_Buffer_free(moq_frame_Buffer *self);
-void moq_frame_Buffer_drop(moq_frame_Buffer *self, moq_status *status);
-moq_buf moq_frame_Buffer_debug(const moq_frame_Buffer *self, moq_status *status);
-moq_frame_Buffer *moq_frame_Buffer_default(void);
-moq_frame_Buffer *moq_frame_Buffer_new(void);
-size_t moq_frame_Buffer_capacity(const moq_frame_Buffer *self, moq_status *status);
-size_t moq_frame_Buffer_len(const moq_frame_Buffer *self, moq_status *status);
-bool moq_frame_Buffer_is_empty(const moq_frame_Buffer *self, moq_status *status);
-moq_vec_frame_Frame moq_frame_Buffer_filled(const moq_frame_Buffer *self, moq_status *status);
-bool moq_frame_Buffer_push(moq_frame_Buffer *self, moq_frame_Frame *frame, moq_frame_Frame **err, moq_status *status);
-void moq_frame_Buffer_clear(moq_frame_Buffer *self, moq_status *status);
 void moq_frame_Consumer_free(moq_frame_Consumer *self);
 void moq_frame_Consumer_drop(moq_frame_Consumer *self, moq_status *status);
 moq_frame_Consumer *moq_frame_Consumer_clone(const moq_frame_Consumer *self, moq_status *status);
@@ -7082,21 +4366,16 @@ moq_poll moq_frame_Consumer_read_all_start(moq_frame_Consumer *self, moq_buf *ou
 moq_poll moq_frame_Consumer_read_all_poll(moq_frame_Consumer_read_all_future *future, moq_waker waker, moq_buf *out, moq_Error **err);
 void moq_frame_Consumer_read_all_future_free(moq_frame_Consumer_read_all_future *future);
 uint64_t moq_frame_Consumer_size_get(const moq_frame_Consumer *self, moq_status *status);
-moq_option_Timestamp moq_frame_Consumer_timestamp_get(const moq_frame_Consumer *self, moq_status *status);
+moq_Timestamp *moq_frame_Consumer_timestamp_get(const moq_frame_Consumer *self, moq_status *status);
 void moq_group_Producer_free(moq_group_Producer *self);
 void moq_group_Producer_drop(moq_group_Producer *self, moq_status *status);
 moq_option_Timescale moq_group_Producer_timescale(const moq_group_Producer *self, moq_status *status);
 bool moq_group_Producer_start_at(moq_group_Producer *self, uint64_t index, moq_Error **err, moq_status *status);
-bool moq_group_Producer_write_frame(moq_group_Producer *self, moq_option_Timestamp timestamp, moq_buf data_, moq_Error **err, moq_status *status);
-bool moq_group_Producer_write_frames_8(moq_group_Producer *self, moq_frame_Buffer *frames, moq_Error **err, moq_status *status);
+bool moq_group_Producer_write_frame(moq_group_Producer *self, const moq_Timestamp *timestamp, moq_buf data_, moq_Error **err, moq_status *status);
 bool moq_group_Producer_create_frame(moq_group_Producer *self, moq_frame_Info frame, moq_frame_Producer **out, moq_Error **err, moq_status *status);
-bool moq_group_Producer_finish(moq_group_Producer *self, moq_Error **err, moq_status *status);
+bool moq_group_Producer_finish_at(moq_group_Producer *self, uint64_t end, moq_group_Finished **out, moq_Error **err, moq_status *status);
+bool moq_group_Producer_finish(moq_group_Producer *self, moq_group_Finished **out, moq_Error **err, moq_status *status);
 bool moq_group_Producer_abort(moq_group_Producer *self, moq_Error *err_, moq_Error **err, moq_status *status);
-typedef struct moq_group_Producer_closed_future moq_group_Producer_closed_future;
-moq_group_Producer_closed_future *moq_group_Producer_closed(const moq_group_Producer *self, moq_status *status);
-moq_poll moq_group_Producer_closed_start(const moq_group_Producer *self, moq_Error **err, moq_group_Producer_closed_future **future, moq_status *status);
-moq_poll moq_group_Producer_closed_poll(moq_group_Producer_closed_future *future, moq_waker waker, moq_Error **err);
-void moq_group_Producer_closed_future_free(moq_group_Producer_closed_future *future);
 typedef struct moq_group_Producer_ready_future moq_group_Producer_ready_future;
 moq_group_Producer_ready_future *moq_group_Producer_ready(const moq_group_Producer *self, moq_frame_Info frame, moq_status *status);
 moq_poll moq_group_Producer_ready_start(const moq_group_Producer *self, moq_frame_Info frame, moq_group_Producer_ready_future **future, moq_status *status);
@@ -7104,12 +4383,23 @@ moq_poll moq_group_Producer_ready_poll(moq_group_Producer_ready_future *future, 
 void moq_group_Producer_ready_future_free(moq_group_Producer_ready_future *future);
 size_t moq_group_Producer_frame_count(const moq_group_Producer *self, moq_status *status);
 moq_group_Consumer *moq_group_Producer_consume(const moq_group_Producer *self, moq_status *status);
+typedef struct moq_group_Producer_closed_future moq_group_Producer_closed_future;
+moq_group_Producer_closed_future *moq_group_Producer_closed(const moq_group_Producer *self, moq_status *status);
+moq_poll moq_group_Producer_closed_start(const moq_group_Producer *self, moq_Error **err, moq_group_Producer_closed_future **future, moq_status *status);
+moq_poll moq_group_Producer_closed_poll(moq_group_Producer_closed_future *future, moq_waker waker, moq_Error **err);
+void moq_group_Producer_closed_future_free(moq_group_Producer_closed_future *future);
 moq_group_Demand *moq_group_Producer_demand(const moq_group_Producer *self, moq_status *status);
-uint64_t moq_group_Producer_sequence_get(const moq_group_Producer *self, moq_status *status);
+uint64_t moq_group_Producer_start_get(const moq_group_Producer *self, moq_status *status);
+void moq_group_Finished_free(moq_group_Finished *self);
+void moq_group_Finished_drop(moq_group_Finished *self, moq_status *status);
+bool moq_group_Finished_abort(moq_group_Finished *self, moq_Error *err_, moq_Error **err, moq_status *status);
+size_t moq_group_Finished_frame_count(const moq_group_Finished *self, moq_status *status);
+moq_group_Consumer *moq_group_Finished_consume(const moq_group_Finished *self, moq_status *status);
+uint64_t moq_group_Finished_start_get(const moq_group_Finished *self, moq_status *status);
 void moq_group_Demand_free(moq_group_Demand *self);
 void moq_group_Demand_drop(moq_group_Demand *self, moq_status *status);
 moq_group_Demand *moq_group_Demand_clone(const moq_group_Demand *self, moq_status *status);
-uint64_t moq_group_Demand_sequence(const moq_group_Demand *self, moq_status *status);
+uint64_t moq_group_Demand_start(const moq_group_Demand *self, moq_status *status);
 bool moq_group_Demand_wanted(const moq_group_Demand *self, moq_status *status);
 typedef struct moq_group_Demand_wanted_changed_future moq_group_Demand_wanted_changed_future;
 moq_group_Demand_wanted_changed_future *moq_group_Demand_wanted_changed(moq_group_Demand *self, moq_status *status);
@@ -7124,13 +4414,13 @@ void moq_group_Demand_closed_future_free(moq_group_Demand_closed_future *future)
 void moq_group_Consumer_free(moq_group_Consumer *self);
 void moq_group_Consumer_drop(moq_group_Consumer *self, moq_status *status);
 moq_group_Consumer *moq_group_Consumer_clone(const moq_group_Consumer *self, moq_status *status);
-void moq_group_Consumer_keep_alive(const moq_group_Consumer *self, moq_status *status);
 moq_option_Timescale moq_group_Consumer_timescale(const moq_group_Consumer *self, moq_status *status);
 moq_clock_Instant moq_group_Consumer_arrived(const moq_group_Consumer *self, moq_status *status);
 uint64_t moq_group_Consumer_index(const moq_group_Consumer *self, moq_status *status);
 moq_group_Consumer *moq_group_Consumer_with_range(moq_group_Consumer *self, moq_bounds_u64 frames, moq_status *status);
 void moq_group_Consumer_skip_to(moq_group_Consumer *self, uint64_t index, moq_status *status);
 size_t moq_group_Consumer_frame_count(const moq_group_Consumer *self, moq_status *status);
+moq_option_u64 moq_group_Consumer_end(const moq_group_Consumer *self, moq_status *status);
 typedef struct moq_group_Consumer_next_frame_future moq_group_Consumer_next_frame_future;
 moq_group_Consumer_next_frame_future *moq_group_Consumer_next_frame(moq_group_Consumer *self, moq_status *status);
 moq_poll moq_group_Consumer_next_frame_start(moq_group_Consumer *self, moq_frame_Consumer **out, moq_Error **err, moq_group_Consumer_next_frame_future **future, moq_status *status);
@@ -7141,22 +4431,12 @@ moq_group_Consumer_read_frame_future *moq_group_Consumer_read_frame(moq_group_Co
 moq_poll moq_group_Consumer_read_frame_start(moq_group_Consumer *self, moq_frame_Frame **out, moq_Error **err, moq_group_Consumer_read_frame_future **future, moq_status *status);
 moq_poll moq_group_Consumer_read_frame_poll(moq_group_Consumer_read_frame_future *future, moq_waker waker, moq_frame_Frame **out, moq_Error **err);
 void moq_group_Consumer_read_frame_future_free(moq_group_Consumer_read_frame_future *future);
-typedef struct moq_group_Consumer_poll_read_frames_8_future moq_group_Consumer_poll_read_frames_8_future;
-moq_group_Consumer_poll_read_frames_8_future *moq_group_Consumer_poll_read_frames_8(moq_group_Consumer *self, moq_frame_Buffer *out_, moq_status *status);
-moq_poll moq_group_Consumer_poll_read_frames_8_start(moq_group_Consumer *self, moq_frame_Buffer *out_, size_t *out, moq_Error **err, moq_group_Consumer_poll_read_frames_8_future **future, moq_status *status);
-moq_poll moq_group_Consumer_poll_read_frames_8_poll(moq_group_Consumer_poll_read_frames_8_future *future, moq_waker waker, size_t *out, moq_Error **err);
-void moq_group_Consumer_poll_read_frames_8_future_free(moq_group_Consumer_poll_read_frames_8_future *future);
-typedef struct moq_group_Consumer_read_frames_8_future moq_group_Consumer_read_frames_8_future;
-moq_group_Consumer_read_frames_8_future *moq_group_Consumer_read_frames_8(moq_group_Consumer *self, moq_frame_Buffer *out_, moq_status *status);
-moq_poll moq_group_Consumer_read_frames_8_start(moq_group_Consumer *self, moq_frame_Buffer *out_, moq_vec_frame_Frame *out, moq_Error **err, moq_group_Consumer_read_frames_8_future **future, moq_status *status);
-moq_poll moq_group_Consumer_read_frames_8_poll(moq_group_Consumer_read_frames_8_future *future, moq_waker waker, moq_vec_frame_Frame *out, moq_Error **err);
-void moq_group_Consumer_read_frames_8_future_free(moq_group_Consumer_read_frames_8_future *future);
 typedef struct moq_group_Consumer_finished_future moq_group_Consumer_finished_future;
 moq_group_Consumer_finished_future *moq_group_Consumer_finished(moq_group_Consumer *self, moq_status *status);
 moq_poll moq_group_Consumer_finished_start(moq_group_Consumer *self, uint64_t *out, moq_Error **err, moq_group_Consumer_finished_future **future, moq_status *status);
 moq_poll moq_group_Consumer_finished_poll(moq_group_Consumer_finished_future *future, moq_waker waker, uint64_t *out, moq_Error **err);
 void moq_group_Consumer_finished_future_free(moq_group_Consumer_finished_future *future);
-uint64_t moq_group_Consumer_sequence_get(const moq_group_Consumer *self, moq_status *status);
+uint64_t moq_group_Consumer_start_get(const moq_group_Consumer *self, moq_status *status);
 void moq_group_Fetch_free(moq_group_Fetch *self);
 void moq_group_Fetch_drop(moq_group_Fetch *self, moq_status *status);
 moq_group_Fetch *moq_group_Fetch_clone(const moq_group_Fetch *self, moq_status *status);
@@ -7168,6 +4448,21 @@ moq_option_duration moq_group_Fetch_max_delay_get(const moq_group_Fetch *self, m
 void moq_group_Fetch_max_delay_set(moq_group_Fetch *self, moq_option_duration value, moq_status *status);
 moq_group_Fetch *moq_group_Fetch_with_priority(moq_group_Fetch *self, int8_t priority, moq_status *status);
 moq_group_Fetch *moq_group_Fetch_with_max_delay(moq_group_Fetch *self, moq_duration max_delay, moq_status *status);
+void moq_track_Finished_free(moq_track_Finished *self);
+void moq_track_Finished_drop(moq_track_Finished *self, moq_status *status);
+moq_buf moq_track_Finished_name(const moq_track_Finished *self, moq_status *status);
+moq_broadcast_Info *moq_track_Finished_broadcast(const moq_track_Finished *self, moq_status *status);
+moq_track_Info *moq_track_Finished_info(const moq_track_Finished *self, moq_status *status);
+moq_track_Requests *moq_track_Finished_requests(const moq_track_Finished *self, moq_status *status);
+bool moq_track_Finished_create_group(const moq_track_Finished *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
+bool moq_track_Finished_abort(moq_track_Finished *self, moq_Error *err_, moq_Error **err, moq_status *status);
+typedef struct moq_track_Finished_closed_future moq_track_Finished_closed_future;
+moq_track_Finished_closed_future *moq_track_Finished_closed(const moq_track_Finished *self, moq_status *status);
+moq_poll moq_track_Finished_closed_start(const moq_track_Finished *self, moq_Error **err, moq_track_Finished_closed_future **future, moq_status *status);
+moq_poll moq_track_Finished_closed_poll(moq_track_Finished_closed_future *future, moq_waker waker, moq_Error **err);
+void moq_track_Finished_closed_future_free(moq_track_Finished_closed_future *future);
+moq_track_Consumer *moq_track_Finished_consume(const moq_track_Finished *self, moq_status *status);
+moq_track_Subscriber *moq_track_Finished_subscribe(const moq_track_Finished *self, moq_track_Subscription *subscription, moq_status *status);
 void moq_track_Requests_free(moq_track_Requests *self);
 moq_track_Requests *moq_track_Requests_clone(const moq_track_Requests *self);
 moq_buf moq_track_Requests_name(const moq_track_Requests *self);
@@ -7181,12 +4476,17 @@ void moq_track_Demand_free(moq_track_Demand *self);
 void moq_track_Demand_drop(moq_track_Demand *self, moq_status *status);
 moq_track_Demand *moq_track_Demand_clone(const moq_track_Demand *self, moq_status *status);
 moq_buf moq_track_Demand_name(const moq_track_Demand *self, moq_status *status);
-moq_option_u64 moq_track_Demand_wanted(const moq_track_Demand *self, moq_status *status);
+bool moq_track_Demand_wanted(const moq_track_Demand *self, moq_status *status);
 typedef struct moq_track_Demand_wanted_changed_future moq_track_Demand_wanted_changed_future;
 moq_track_Demand_wanted_changed_future *moq_track_Demand_wanted_changed(moq_track_Demand *self, moq_status *status);
-moq_poll moq_track_Demand_wanted_changed_start(moq_track_Demand *self, moq_option_u64 *out, moq_Error **err, moq_track_Demand_wanted_changed_future **future, moq_status *status);
-moq_poll moq_track_Demand_wanted_changed_poll(moq_track_Demand_wanted_changed_future *future, moq_waker waker, moq_option_u64 *out, moq_Error **err);
+moq_poll moq_track_Demand_wanted_changed_start(moq_track_Demand *self, bool *out, moq_Error **err, moq_track_Demand_wanted_changed_future **future, moq_status *status);
+moq_poll moq_track_Demand_wanted_changed_poll(moq_track_Demand_wanted_changed_future *future, moq_waker waker, bool *out, moq_Error **err);
 void moq_track_Demand_wanted_changed_future_free(moq_track_Demand_wanted_changed_future *future);
+typedef struct moq_track_Demand_refresh_future moq_track_Demand_refresh_future;
+moq_track_Demand_refresh_future *moq_track_Demand_refresh(const moq_track_Demand *self, moq_status *status);
+moq_poll moq_track_Demand_refresh_start(const moq_track_Demand *self, moq_Error **err, moq_track_Demand_refresh_future **future, moq_status *status);
+moq_poll moq_track_Demand_refresh_poll(moq_track_Demand_refresh_future *future, moq_waker waker, moq_Error **err);
+void moq_track_Demand_refresh_future_free(moq_track_Demand_refresh_future *future);
 typedef struct moq_track_Demand_closed_future moq_track_Demand_closed_future;
 moq_track_Demand_closed_future *moq_track_Demand_closed(const moq_track_Demand *self, moq_status *status);
 moq_poll moq_track_Demand_closed_start(const moq_track_Demand *self, moq_Error **err, moq_track_Demand_closed_future **future, moq_status *status);
@@ -7194,6 +4494,7 @@ moq_poll moq_track_Demand_closed_poll(moq_track_Demand_closed_future *future, mo
 void moq_track_Demand_closed_future_free(moq_track_Demand_closed_future *future);
 void moq_track_Subscriber_free(moq_track_Subscriber *self);
 void moq_track_Subscriber_drop(moq_track_Subscriber *self, moq_status *status);
+moq_stats_Bill *moq_track_Subscriber_bill(moq_track_Subscriber *self, moq_status *status);
 moq_track_Info *moq_track_Subscriber_info(const moq_track_Subscriber *self, moq_status *status);
 moq_buf moq_track_Subscriber_name(const moq_track_Subscriber *self, moq_status *status);
 moq_broadcast_Info *moq_track_Subscriber_broadcast(const moq_track_Subscriber *self, moq_status *status);
@@ -7205,8 +4506,14 @@ moq_poll moq_track_Subscriber_recv_group_poll(moq_track_Subscriber_recv_group_fu
 void moq_track_Subscriber_recv_group_future_free(moq_track_Subscriber_recv_group_future *future);
 moq_track_Ordered *moq_track_Subscriber_ordered(moq_track_Subscriber *self, moq_status *status);
 bool moq_track_Subscriber_is_clone(const moq_track_Subscriber *self, const moq_track_Subscriber *other, moq_status *status);
+typedef struct moq_track_Subscriber_start_future moq_track_Subscriber_start_future;
+moq_track_Subscriber_start_future *moq_track_Subscriber_start(moq_track_Subscriber *self, moq_status *status);
+moq_poll moq_track_Subscriber_start_start(moq_track_Subscriber *self, moq_option_u64 *out, moq_track_Subscriber_start_future **future, moq_status *status);
+moq_poll moq_track_Subscriber_start_poll(moq_track_Subscriber_start_future *future, moq_waker waker, moq_option_u64 *out);
+void moq_track_Subscriber_start_future_free(moq_track_Subscriber_start_future *future);
 moq_option_u64 moq_track_Subscriber_floor(const moq_track_Subscriber *self, moq_status *status);
 moq_option_u64 moq_track_Subscriber_next_in_range(const moq_track_Subscriber *self, uint64_t from, moq_status *status);
+bool moq_track_Subscriber_is_skipped(const moq_track_Subscriber *self, moq_range_u64 groups, moq_status *status);
 typedef struct moq_track_Subscriber_finished_future moq_track_Subscriber_finished_future;
 moq_track_Subscriber_finished_future *moq_track_Subscriber_finished(moq_track_Subscriber *self, moq_status *status);
 moq_poll moq_track_Subscriber_finished_start(moq_track_Subscriber *self, moq_track_Position *out, moq_Error **err, moq_track_Subscriber_finished_future **future, moq_status *status);
@@ -7220,6 +4527,11 @@ moq_track_Subscriber_largest_future *moq_track_Subscriber_largest(moq_track_Subs
 moq_poll moq_track_Subscriber_largest_start(moq_track_Subscriber *self, moq_option_track_Position *out, moq_track_Subscriber_largest_future **future, moq_status *status);
 moq_poll moq_track_Subscriber_largest_poll(moq_track_Subscriber_largest_future *future, moq_waker waker, moq_option_track_Position *out);
 void moq_track_Subscriber_largest_future_free(moq_track_Subscriber_largest_future *future);
+typedef struct moq_track_Subscriber_refresh_future moq_track_Subscriber_refresh_future;
+moq_track_Subscriber_refresh_future *moq_track_Subscriber_refresh(const moq_track_Subscriber *self, moq_status *status);
+moq_poll moq_track_Subscriber_refresh_start(const moq_track_Subscriber *self, moq_Error **err, moq_track_Subscriber_refresh_future **future, moq_status *status);
+moq_poll moq_track_Subscriber_refresh_poll(moq_track_Subscriber_refresh_future *future, moq_waker waker, moq_Error **err);
+void moq_track_Subscriber_refresh_future_free(moq_track_Subscriber_refresh_future *future);
 void moq_track_Ordered_free(moq_track_Ordered *self);
 void moq_track_Ordered_drop(moq_track_Ordered *self, moq_status *status);
 moq_track_Info *moq_track_Ordered_info(const moq_track_Ordered *self, moq_status *status);
@@ -7227,11 +4539,15 @@ moq_buf moq_track_Ordered_name(const moq_track_Ordered *self, moq_status *status
 moq_broadcast_Info *moq_track_Ordered_broadcast(const moq_track_Ordered *self, moq_status *status);
 typedef struct moq_track_Ordered_next_group_future moq_track_Ordered_next_group_future;
 moq_track_Ordered_next_group_future *moq_track_Ordered_next_group(moq_track_Ordered *self, moq_status *status);
-moq_poll moq_track_Ordered_next_group_start(moq_track_Ordered *self, moq_group_Consumer **out, moq_Error **err, moq_track_Ordered_next_group_future **future, moq_status *status);
-moq_poll moq_track_Ordered_next_group_poll(moq_track_Ordered_next_group_future *future, moq_waker waker, moq_group_Consumer **out, moq_Error **err);
+moq_poll moq_track_Ordered_next_group_start(moq_track_Ordered *self, moq_track_Item **out, moq_Error **err, moq_track_Ordered_next_group_future **future, moq_status *status);
+moq_poll moq_track_Ordered_next_group_poll(moq_track_Ordered_next_group_future *future, moq_waker waker, moq_track_Item **out, moq_Error **err);
 void moq_track_Ordered_next_group_future_free(moq_track_Ordered_next_group_future *future);
-moq_track_Ordered *moq_track_Ordered_with_range(moq_track_Ordered *self, moq_bounds_u64 groups, moq_status *status);
 moq_track_Control *moq_track_Ordered_control(const moq_track_Ordered *self, moq_status *status);
+typedef struct moq_track_Ordered_refresh_future moq_track_Ordered_refresh_future;
+moq_track_Ordered_refresh_future *moq_track_Ordered_refresh(const moq_track_Ordered *self, moq_status *status);
+moq_poll moq_track_Ordered_refresh_start(const moq_track_Ordered *self, moq_Error **err, moq_track_Ordered_refresh_future **future, moq_status *status);
+moq_poll moq_track_Ordered_refresh_poll(moq_track_Ordered_refresh_future *future, moq_waker waker, moq_Error **err);
+void moq_track_Ordered_refresh_future_free(moq_track_Ordered_refresh_future *future);
 moq_track_Subscription *moq_track_Ordered_subscription(const moq_track_Ordered *self, moq_status *status);
 bool moq_track_Ordered_update(moq_track_Ordered *self, moq_track_Subscription *subscription, moq_Error **err, moq_status *status);
 typedef struct moq_track_Ordered_finished_future moq_track_Ordered_finished_future;
@@ -7244,7 +4560,11 @@ moq_track_Ordered_largest_future *moq_track_Ordered_largest(moq_track_Ordered *s
 moq_poll moq_track_Ordered_largest_start(moq_track_Ordered *self, moq_option_track_Position *out, moq_track_Ordered_largest_future **future, moq_status *status);
 moq_poll moq_track_Ordered_largest_poll(moq_track_Ordered_largest_future *future, moq_waker waker, moq_option_track_Position *out);
 void moq_track_Ordered_largest_future_free(moq_track_Ordered_largest_future *future);
+bool moq_track_Ordered_is_skipped(const moq_track_Ordered *self, moq_range_u64 groups, moq_status *status);
 bool moq_track_Ordered_is_clone(const moq_track_Ordered *self, const moq_track_Ordered *other, moq_status *status);
+void moq_track_Item_free(moq_track_Item *self);
+void moq_track_Item_drop(moq_track_Item *self, moq_status *status);
+moq_group_Consumer *moq_track_Item_group(moq_track_Item *self, moq_status *status);
 void moq_track_Request_free(moq_track_Request *self);
 void moq_track_Request_drop(moq_track_Request *self, moq_status *status);
 moq_buf moq_track_Request_name(const moq_track_Request *self, moq_status *status);
@@ -7271,16 +4591,30 @@ moq_option_duration moq_track_Info_max_age_get(const moq_track_Info *self, moq_s
 void moq_track_Info_max_age_set(moq_track_Info *self, moq_option_duration value, moq_status *status);
 int8_t moq_track_Info_priority_get(const moq_track_Info *self, moq_status *status);
 void moq_track_Info_priority_set(moq_track_Info *self, int8_t value, moq_status *status);
-bool moq_track_Info_compress_get(const moq_track_Info *self, moq_status *status);
-void moq_track_Info_compress_set(moq_track_Info *self, bool value, moq_status *status);
-moq_option_u32 moq_track_Info_refresh_get(const moq_track_Info *self, moq_status *status);
-void moq_track_Info_refresh_set(moq_track_Info *self, moq_option_u32 value, moq_status *status);
+moq_track_Compression moq_track_Info_compression_get(const moq_track_Info *self, moq_status *status);
+void moq_track_Info_compression_set(moq_track_Info *self, moq_track_Compression value, moq_status *status);
+moq_track_Refresh *moq_track_Info_refresh_get(const moq_track_Info *self, moq_status *status);
+void moq_track_Info_refresh_set(moq_track_Info *self, const moq_track_Refresh *value, moq_status *status);
 moq_track_Info *moq_track_Info_with_timescale(moq_track_Info *self, moq_option_Timescale timescale, moq_status *status);
 moq_track_Info *moq_track_Info_with_max_age(moq_track_Info *self, moq_option_duration max_age, moq_status *status);
 moq_track_Info *moq_track_Info_with_priority(moq_track_Info *self, int8_t priority, moq_status *status);
-moq_track_Info *moq_track_Info_with_compress(moq_track_Info *self, bool compress, moq_status *status);
-moq_track_Info *moq_track_Info_with_refresh(moq_track_Info *self, moq_option_u32 refresh, moq_status *status);
-bool moq_track_Info_rescale(const moq_track_Info *self, moq_option_Timestamp timestamp, moq_option_Timestamp *out, moq_Error **err, moq_status *status);
+moq_track_Info *moq_track_Info_with_compression(moq_track_Info *self, moq_track_Compression compression, moq_status *status);
+moq_track_Info *moq_track_Info_with_refresh(moq_track_Info *self, const moq_track_Refresh *refresh, moq_status *status);
+bool moq_track_Info_rescale(const moq_track_Info *self, const moq_Timestamp *timestamp, moq_Timestamp **out, moq_Error **err, moq_status *status);
+bool moq_track_Info_rescale_in(const moq_track_Info *self, const moq_Timestamp *timestamp, uint64_t key, moq_Timestamp **out, moq_Error **err, moq_status *status);
+void moq_track_Refresh_free(moq_track_Refresh *self);
+void moq_track_Refresh_drop(moq_track_Refresh *self, moq_status *status);
+moq_track_Refresh *moq_track_Refresh_clone(const moq_track_Refresh *self, moq_status *status);
+bool moq_track_Refresh_eq(const moq_track_Refresh *a, const moq_track_Refresh *b, moq_status *status);
+uint64_t moq_track_Refresh_hash(const moq_track_Refresh *self, moq_status *status);
+moq_buf moq_track_Refresh_debug(const moq_track_Refresh *self, moq_status *status);
+moq_track_Refresh *moq_track_Refresh_default(void);
+moq_option_u32 moq_track_Refresh_ratio_get(const moq_track_Refresh *self, moq_status *status);
+void moq_track_Refresh_ratio_set(moq_track_Refresh *self, moq_option_u32 value, moq_status *status);
+moq_option_duration moq_track_Refresh_interval_get(const moq_track_Refresh *self, moq_status *status);
+void moq_track_Refresh_interval_set(moq_track_Refresh *self, moq_option_duration value, moq_status *status);
+moq_track_Refresh *moq_track_Refresh_with_ratio(const moq_track_Refresh *self, moq_option_u32 ratio, moq_status *status);
+moq_track_Refresh *moq_track_Refresh_with_interval(const moq_track_Refresh *self, moq_option_duration interval, moq_status *status);
 void moq_track_Producer_free(moq_track_Producer *self);
 void moq_track_Producer_drop(moq_track_Producer *self, moq_status *status);
 moq_track_Producer *moq_track_Producer_clone(const moq_track_Producer *self, moq_status *status);
@@ -7288,12 +4622,13 @@ moq_buf moq_track_Producer_name(const moq_track_Producer *self, moq_status *stat
 moq_broadcast_Info *moq_track_Producer_broadcast(const moq_track_Producer *self, moq_status *status);
 moq_track_Info *moq_track_Producer_info(const moq_track_Producer *self, moq_status *status);
 bool moq_track_Producer_create_group(const moq_track_Producer *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_track_Producer_append_group(const moq_track_Producer *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_track_Producer_write_frame(moq_track_Producer *self, moq_option_Timestamp timestamp, moq_buf frame, moq_Error **err, moq_status *status);
-bool moq_track_Producer_finish(const moq_track_Producer *self, moq_Error **err, moq_status *status);
-bool moq_track_Producer_finish_at(moq_track_Producer *self, moq_track_Position end, moq_Error *error, moq_Error **err, moq_status *status);
-bool moq_track_Producer_start_at(moq_track_Producer *self, moq_option_u64 sequence, moq_Error **err, moq_status *status);
-void moq_track_Producer_drop_groups(const moq_track_Producer *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_track_Producer_append_group(const moq_track_Producer *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+bool moq_track_Producer_write_frame(moq_track_Producer *self, const moq_Timestamp *timestamp, moq_buf frame, moq_Error **err, moq_status *status);
+bool moq_track_Producer_finish(moq_track_Producer *self, moq_track_Finished **out, moq_Error **err, moq_status *status);
+bool moq_track_Producer_fail(moq_track_Producer *self, moq_Error *err_, moq_track_Finished **out, moq_Error **err, moq_status *status);
+bool moq_track_Producer_finish_at(moq_track_Producer *self, moq_track_Position end, moq_Error **err, moq_status *status);
+bool moq_track_Producer_start_at(moq_track_Producer *self, moq_option_u64 key, moq_Error **err, moq_status *status);
+void moq_track_Producer_skip_groups(const moq_track_Producer *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_track_Producer_finished(const moq_track_Producer *self, moq_status *status);
 bool moq_track_Producer_abort(moq_track_Producer *self, moq_Error *err_, moq_Error **err, moq_status *status);
 bool moq_track_Producer_abort_unwanted(moq_track_Producer *self, moq_Error *err_, moq_track_Producer **err, moq_status *status);
@@ -7305,19 +4640,26 @@ void moq_track_Producer_closed_future_free(moq_track_Producer_closed_future *fut
 bool moq_track_Producer_is_closed(const moq_track_Producer *self, moq_status *status);
 moq_option_track_Position moq_track_Producer_largest(const moq_track_Producer *self, moq_status *status);
 bool moq_track_Producer_is_clone(const moq_track_Producer *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_track_Producer_abort_handle(const moq_track_Producer *self, moq_status *status);
 moq_track_Demand *moq_track_Producer_demand(const moq_track_Producer *self, moq_status *status);
 moq_track_Consumer *moq_track_Producer_consume(const moq_track_Producer *self, moq_status *status);
 moq_track_Subscriber *moq_track_Producer_subscribe(const moq_track_Producer *self, moq_track_Subscription *subscription, moq_status *status);
+moq_track_Subscription *moq_track_Producer_subscription(const moq_track_Producer *self, moq_status *status);
 typedef struct moq_track_Producer_subscription_changed_future moq_track_Producer_subscription_changed_future;
 moq_track_Producer_subscription_changed_future *moq_track_Producer_subscription_changed(moq_track_Producer *self, moq_status *status);
 moq_poll moq_track_Producer_subscription_changed_start(moq_track_Producer *self, moq_track_Subscription **out, moq_Error **err, moq_track_Producer_subscription_changed_future **future, moq_status *status);
 moq_poll moq_track_Producer_subscription_changed_poll(moq_track_Producer_subscription_changed_future *future, moq_waker waker, moq_track_Subscription **out, moq_Error **err);
 void moq_track_Producer_subscription_changed_future_free(moq_track_Producer_subscription_changed_future *future);
-moq_track_Subscription *moq_track_Producer_subscription(const moq_track_Producer *self, moq_status *status);
 moq_track_Requests *moq_track_Producer_requests(const moq_track_Producer *self, moq_status *status);
+void moq_track_AbortHandle_free(moq_track_AbortHandle *self);
+bool moq_track_AbortHandle_borrowed(const moq_track_AbortHandle *self);
+moq_track_AbortHandle *moq_track_AbortHandle_clone(const moq_track_AbortHandle *self);
+bool moq_track_AbortHandle_is_closed(const moq_track_AbortHandle *self);
+void moq_track_AbortHandle_abort(const moq_track_AbortHandle *self, moq_Error *err_, moq_status *status);
 void moq_track_Consumer_free(moq_track_Consumer *self);
 void moq_track_Consumer_drop(moq_track_Consumer *self, moq_status *status);
 moq_track_Consumer *moq_track_Consumer_clone(const moq_track_Consumer *self, moq_status *status);
+moq_track_Consumer *moq_track_Consumer_unmetered(moq_track_Consumer *self, moq_status *status);
 moq_buf moq_track_Consumer_name(const moq_track_Consumer *self, moq_status *status);
 moq_broadcast_Info *moq_track_Consumer_broadcast(const moq_track_Consumer *self, moq_status *status);
 typedef struct moq_track_Consumer_subscribe_future moq_track_Consumer_subscribe_future;
@@ -7326,8 +4668,8 @@ moq_poll moq_track_Consumer_subscribe_start(const moq_track_Consumer *self, moq_
 moq_poll moq_track_Consumer_subscribe_poll(moq_track_Consumer_subscribe_future *future, moq_waker waker, moq_track_Subscriber **out, moq_Error **err);
 void moq_track_Consumer_subscribe_future_free(moq_track_Consumer_subscribe_future *future);
 typedef struct moq_track_Consumer_fetch_group_future moq_track_Consumer_fetch_group_future;
-moq_track_Consumer_fetch_group_future *moq_track_Consumer_fetch_group(const moq_track_Consumer *self, uint64_t sequence, moq_group_Fetch *options, moq_status *status);
-moq_poll moq_track_Consumer_fetch_group_start(const moq_track_Consumer *self, uint64_t sequence, moq_group_Fetch *options, moq_group_Consumer **out, moq_Error **err, moq_track_Consumer_fetch_group_future **future, moq_status *status);
+moq_track_Consumer_fetch_group_future *moq_track_Consumer_fetch_group(const moq_track_Consumer *self, uint64_t key, moq_group_Fetch *options, moq_status *status);
+moq_poll moq_track_Consumer_fetch_group_start(const moq_track_Consumer *self, uint64_t key, moq_group_Fetch *options, moq_group_Consumer **out, moq_Error **err, moq_track_Consumer_fetch_group_future **future, moq_status *status);
 moq_poll moq_track_Consumer_fetch_group_poll(moq_track_Consumer_fetch_group_future *future, moq_waker waker, moq_group_Consumer **out, moq_Error **err);
 void moq_track_Consumer_fetch_group_future_free(moq_track_Consumer_fetch_group_future *future);
 typedef struct moq_track_Consumer_info_future moq_track_Consumer_info_future;
@@ -7344,6 +4686,11 @@ void moq_track_Control_free(moq_track_Control *self);
 moq_track_Control *moq_track_Control_clone(const moq_track_Control *self);
 moq_track_Subscription *moq_track_Control_subscription(const moq_track_Control *self);
 bool moq_track_Control_update(const moq_track_Control *self, moq_track_Subscription *subscription, moq_Error **err, moq_status *status);
+typedef struct moq_track_Control_refresh_future moq_track_Control_refresh_future;
+moq_track_Control_refresh_future *moq_track_Control_refresh(const moq_track_Control *self);
+moq_poll moq_track_Control_refresh_start(const moq_track_Control *self, moq_Error **err, moq_track_Control_refresh_future **future);
+moq_poll moq_track_Control_refresh_poll(moq_track_Control_refresh_future *future, moq_waker waker, moq_Error **err);
+void moq_track_Control_refresh_future_free(moq_track_Control_refresh_future *future);
 void moq_track_Subscription_free(moq_track_Subscription *self);
 void moq_track_Subscription_drop(moq_track_Subscription *self, moq_status *status);
 moq_track_Subscription *moq_track_Subscription_clone(const moq_track_Subscription *self, moq_status *status);
@@ -7361,33 +4708,8 @@ void moq_track_Subscription_order_set(moq_track_Subscription *self, moq_track_Or
 moq_track_Subscription *moq_track_Subscription_with_priority(moq_track_Subscription *self, int8_t priority, moq_status *status);
 moq_track_Subscription *moq_track_Subscription_with_delay(moq_track_Subscription *self, moq_track_Delay delay, moq_status *status);
 moq_track_Subscription *moq_track_Subscription_with_ranges(moq_track_Subscription *self, moq_vec_track_Range ranges, moq_status *status);
-moq_track_Subscription *moq_track_Subscription_with_range(moq_track_Subscription *self, moq_bounds_u64 groups, moq_status *status);
 moq_track_Subscription *moq_track_Subscription_with_order(moq_track_Subscription *self, moq_track_Order order, moq_status *status);
 void moq_track_Fill_free(moq_track_Fill *self);
-void moq_track_Fill_drop(moq_track_Fill *self, moq_status *status);
-moq_track_Fill *moq_track_Fill_clone(const moq_track_Fill *self, moq_status *status);
-moq_track_Position moq_track_Fill_start(const moq_track_Fill *self, moq_status *status);
-uint64_t moq_track_Fill_frame_start(const moq_track_Fill *self, uint64_t sequence, moq_status *status);
-uint64_t moq_track_Fill_end(const moq_track_Fill *self, moq_status *status);
-moq_option_Timestamp moq_track_Fill_time(const moq_track_Fill *self, moq_status *status);
-int8_t moq_track_Fill_priority(const moq_track_Fill *self, moq_status *status);
-moq_option_duration moq_track_Fill_max_delay(const moq_track_Fill *self, moq_status *status);
-moq_track_Order moq_track_Fill_order(const moq_track_Fill *self, moq_status *status);
-bool moq_track_Fill_accept(const moq_track_Fill *self, uint64_t sequence, moq_track_Info *info, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_track_Fill_drop_groups(const moq_track_Fill *self, moq_range_u64 groups, moq_status *status);
-void moq_track_Fill_refuse_groups(const moq_track_Fill *self, moq_range_u64 groups, moq_Error *err_, moq_status *status);
-bool moq_track_Fill_is_wanted(const moq_track_Fill *self, uint64_t sequence, moq_status *status);
-typedef struct moq_track_Fill_unwanted_future moq_track_Fill_unwanted_future;
-moq_track_Fill_unwanted_future *moq_track_Fill_unwanted(const moq_track_Fill *self, uint64_t sequence, moq_status *status);
-moq_poll moq_track_Fill_unwanted_start(const moq_track_Fill *self, uint64_t sequence, moq_track_Fill_unwanted_future **future, moq_status *status);
-moq_poll moq_track_Fill_unwanted_poll(moq_track_Fill_unwanted_future *future, moq_waker waker);
-void moq_track_Fill_unwanted_future_free(moq_track_Fill_unwanted_future *future);
-moq_option_u64 moq_track_Fill_wanted(const moq_track_Fill *self, moq_status *status);
-typedef struct moq_track_Fill_wanted_changed_future moq_track_Fill_wanted_changed_future;
-moq_track_Fill_wanted_changed_future *moq_track_Fill_wanted_changed(moq_track_Fill *self, moq_status *status);
-moq_poll moq_track_Fill_wanted_changed_start(moq_track_Fill *self, moq_option_u64 *out, moq_track_Fill_wanted_changed_future **future, moq_status *status);
-moq_poll moq_track_Fill_wanted_changed_poll(moq_track_Fill_wanted_changed_future *future, moq_waker waker, moq_option_u64 *out);
-void moq_track_Fill_wanted_changed_future_free(moq_track_Fill_wanted_changed_future *future);
 void moq_origin_Following_free(moq_origin_Following *self);
 void moq_origin_Following_drop(moq_origin_Following *self, moq_status *status);
 typedef struct moq_origin_Following_available_future moq_origin_Following_available_future;
@@ -7395,32 +4717,43 @@ moq_origin_Following_available_future *moq_origin_Following_available(moq_origin
 moq_poll moq_origin_Following_available_start(moq_origin_Following *self, moq_broadcast_Consumer **out, moq_Error **err, moq_origin_Following_available_future **future, moq_status *status);
 moq_poll moq_origin_Following_available_poll(moq_origin_Following_available_future *future, moq_waker waker, moq_broadcast_Consumer **out, moq_Error **err);
 void moq_origin_Following_available_future_free(moq_origin_Following_available_future *future);
+void moq_origin_Claim_free(moq_origin_Claim *self);
+moq_origin_Claim *moq_origin_Claim_clone(const moq_origin_Claim *self);
+moq_Instance *moq_origin_Claim_instance(const moq_origin_Claim *self);
+bool moq_origin_Claim_announce(const moq_origin_Claim *self, moq_Error **err);
+void moq_origin_Claim_withdraw(const moq_origin_Claim *self);
+bool moq_origin_Claim_is_announced(const moq_origin_Claim *self);
+bool moq_origin_Claim_set_cost(const moq_origin_Claim *self, moq_origin_Cost cost, moq_Error **err);
+bool moq_origin_Claim_set_auth(const moq_origin_Claim *self, moq_auth_Credential *auth, moq_Error **err, moq_status *status);
+typedef struct moq_origin_Claim_requested_future moq_origin_Claim_requested_future;
+moq_origin_Claim_requested_future *moq_origin_Claim_requested(const moq_origin_Claim *self);
+moq_poll moq_origin_Claim_requested_start(const moq_origin_Claim *self, moq_origin_Request **out, moq_origin_Claim_requested_future **future);
+moq_poll moq_origin_Claim_requested_poll(moq_origin_Claim_requested_future *future, moq_waker waker, moq_origin_Request **out);
+void moq_origin_Claim_requested_future_free(moq_origin_Claim_requested_future *future);
 void moq_origin_Config_free(moq_origin_Config *self);
 void moq_origin_Config_drop(moq_origin_Config *self, moq_status *status);
 moq_origin_Config *moq_origin_Config_clone(const moq_origin_Config *self, moq_status *status);
 moq_buf moq_origin_Config_debug(const moq_origin_Config *self, moq_status *status);
 moq_origin_Config *moq_origin_Config_default(void);
-moq_Hop moq_origin_Config_hop_get(const moq_origin_Config *self, moq_status *status);
-void moq_origin_Config_hop_set(moq_origin_Config *self, moq_Hop value, moq_status *status);
-moq_origin_HopLimit moq_origin_Config_max_hops_get(const moq_origin_Config *self, moq_status *status);
-void moq_origin_Config_max_hops_set(moq_origin_Config *self, moq_origin_HopLimit value, moq_status *status);
+uint64_t moq_origin_Config_node_get(const moq_origin_Config *self, moq_status *status);
+void moq_origin_Config_node_set(moq_origin_Config *self, uint64_t value, moq_status *status);
+size_t moq_origin_Config_max_hops_get(const moq_origin_Config *self, moq_status *status);
+void moq_origin_Config_max_hops_set(moq_origin_Config *self, size_t value, moq_status *status);
 moq_cache_Pool *moq_origin_Config_pool_get(const moq_origin_Config *self, moq_status *status);
 void moq_origin_Config_pool_set(moq_origin_Config *self, moq_cache_Pool *value, moq_status *status);
-moq_duration moq_origin_Config_cache_duration_get(const moq_origin_Config *self, moq_status *status);
-void moq_origin_Config_cache_duration_set(moq_origin_Config *self, moq_duration value, moq_status *status);
-moq_duration moq_origin_Config_update_hold_get(const moq_origin_Config *self, moq_status *status);
-void moq_origin_Config_update_hold_set(moq_origin_Config *self, moq_duration value, moq_status *status);
-moq_origin_Config *moq_origin_Config_new(moq_Hop hop);
+moq_option_duration moq_origin_Config_cache_duration_get(const moq_origin_Config *self, moq_status *status);
+void moq_origin_Config_cache_duration_set(moq_origin_Config *self, moq_option_duration value, moq_status *status);
+moq_origin_Config *moq_origin_Config_new(uint64_t node);
 void moq_origin_Consumer_free(moq_origin_Consumer *self);
 void moq_origin_Consumer_drop(moq_origin_Consumer *self, moq_status *status);
 moq_origin_Consumer *moq_origin_Consumer_clone(const moq_origin_Consumer *self, moq_status *status);
-moq_Hop moq_origin_Consumer_hop(const moq_origin_Consumer *self, moq_status *status);
-moq_origin_Consumer *moq_origin_Consumer_local(moq_origin_Consumer *self, moq_status *status);
+uint64_t moq_origin_Consumer_node(const moq_origin_Consumer *self, moq_status *status);
 moq_origin_Consumer *moq_origin_Consumer_with_hidden(moq_origin_Consumer *self, bool hidden, moq_status *status);
 moq_origin_Consumer *moq_origin_Consumer_covering(moq_origin_Consumer *self, moq_status *status);
 bool moq_origin_Consumer_exclude(const moq_origin_Consumer *self, moq_buf prefix, moq_origin_Consumer **out, moq_Error **err, moq_status *status);
 moq_origin_Consumer *moq_origin_Consumer_with_stats(moq_origin_Consumer *self, moq_stats_Session *session, moq_status *status);
 moq_announce_Consumer *moq_origin_Consumer_announced(const moq_origin_Consumer *self, moq_status *status);
+moq_origin_Routes *moq_origin_Consumer_routes(const moq_origin_Consumer *self, moq_status *status);
 moq_origin_Consumer *moq_origin_Consumer_consume(const moq_origin_Consumer *self, moq_status *status);
 bool moq_origin_Consumer_follow(const moq_origin_Consumer *self, moq_buf path, moq_Instance *instance, moq_origin_Following **out, moq_Error **err, moq_status *status);
 bool moq_origin_Consumer_scope(const moq_origin_Consumer *self, moq_buf root, const moq_Patterns *patterns, moq_origin_Consumer **out, moq_Error **err, moq_status *status);
@@ -7435,79 +4768,85 @@ bool moq_origin_Consumer_absolute(const moq_origin_Consumer *self, moq_buf path,
 void moq_origin_Driver_free(moq_origin_Driver *self);
 void moq_origin_Driver_drop(moq_origin_Driver *self, moq_status *status);
 bool moq_origin_Driver_poll(moq_origin_Driver *self, moq_clock_Instant now, const moq_Waiter *waiter, moq_option_clock_Instant *out, moq_Error **err, moq_status *status);
-void moq_origin_Prepared_free(moq_origin_Prepared *self);
-void moq_origin_Prepared_drop(moq_origin_Prepared *self, moq_status *status);
-moq_broadcast_Producer *moq_origin_Prepared_broadcast(const moq_origin_Prepared *self, moq_status *status);
-bool moq_origin_Prepared_publish(moq_origin_Prepared *self, moq_origin_Publication **out, moq_Error **err, moq_status *status);
 void moq_origin_Producer_free(moq_origin_Producer *self);
 void moq_origin_Producer_drop(moq_origin_Producer *self, moq_status *status);
 moq_origin_Producer *moq_origin_Producer_clone(const moq_origin_Producer *self, moq_status *status);
 void moq_origin_Producer_new(moq_origin_Config *config, moq_origin_Producer **out0, moq_origin_Driver **out1, moq_status *status);
 moq_origin_Producer *moq_origin_Producer_with_stats(moq_origin_Producer *self, moq_stats_Session *session, moq_status *status);
 moq_origin_Producer *moq_origin_Producer_with_link(moq_origin_Producer *self, moq_origin_Link link, moq_status *status);
-moq_origin_Producer *moq_origin_Producer_with_preference(moq_origin_Producer *self, moq_origin_Preference preference, moq_status *status);
+moq_origin_Producer *moq_origin_Producer_with_priority(moq_origin_Producer *self, moq_origin_Priority priority, moq_status *status);
+moq_origin_Producer *moq_origin_Producer_with_proxy(moq_origin_Producer *self, bool proxy, moq_status *status);
 moq_origin_Config *moq_origin_Producer_config(const moq_origin_Producer *self, moq_status *status);
-moq_Hop moq_origin_Producer_hop(const moq_origin_Producer *self, moq_status *status);
-bool moq_origin_Producer_create_broadcast(const moq_origin_Producer *self, moq_buf path, moq_origin_Publication **out, moq_Error **err, moq_status *status);
-bool moq_origin_Producer_publish(const moq_origin_Producer *self, moq_buf path, moq_origin_Route *route, moq_origin_Publication **out, moq_Error **err, moq_status *status);
-bool moq_origin_Producer_requests(const moq_origin_Producer *self, moq_buf prefix, moq_origin_Requests **out, moq_Error **err, moq_status *status);
+uint64_t moq_origin_Producer_node(const moq_origin_Producer *self, moq_status *status);
+bool moq_origin_Producer_is_own(const moq_origin_Producer *self, uint64_t id, moq_status *status);
+bool moq_origin_Producer_route(const moq_origin_Producer *self, moq_buf path, moq_origin_RouteOptions *options, moq_origin_Route **out, moq_Error **err, moq_status *status);
+bool moq_origin_Producer_claim(const moq_origin_Producer *self, moq_buf prefix, moq_origin_RouteOptions *options, moq_origin_Claim **out, moq_Error **err, moq_status *status);
 bool moq_origin_Producer_scope(const moq_origin_Producer *self, moq_buf root, const moq_Patterns *patterns, moq_origin_Producer **out, moq_Error **err, moq_status *status);
+bool moq_origin_Producer_exclude(const moq_origin_Producer *self, moq_buf prefix, moq_origin_Producer **out, moq_Error **err, moq_status *status);
 bool moq_origin_Producer_mount(const moq_origin_Producer *self, moq_buf at, moq_buf target, moq_origin_Producer **out, moq_Error **err, moq_status *status);
 moq_origin_Consumer *moq_origin_Producer_consume(const moq_origin_Producer *self, moq_status *status);
 moq_Path *moq_origin_Producer_root(const moq_origin_Producer *self, moq_status *status);
 moq_Patterns *moq_origin_Producer_allowed(const moq_origin_Producer *self, moq_status *status);
 bool moq_origin_Producer_absolute(const moq_origin_Producer *self, moq_buf path, moq_Path **out, moq_Error **err, moq_status *status);
-void moq_origin_Publication_free(moq_origin_Publication *self);
-moq_origin_Publication *moq_origin_Publication_clone(const moq_origin_Publication *self);
-moq_broadcast_Producer *moq_origin_Publication_broadcast(const moq_origin_Publication *self);
-bool moq_origin_Publication_announce(const moq_origin_Publication *self, moq_origin_Route *route, moq_Error **err, moq_status *status);
-void moq_origin_Publication_unannounce(const moq_origin_Publication *self);
-moq_origin_Route *moq_origin_Publication_route(const moq_origin_Publication *self);
-moq_broadcast_Info *moq_origin_Publication_info(const moq_origin_Publication *self);
-moq_broadcast_Demand *moq_origin_Publication_demand(const moq_origin_Publication *self);
-bool moq_origin_Publication_create_track(const moq_origin_Publication *self, moq_buf name, moq_track_Info *info, moq_track_Producer **out, moq_Error **err, moq_status *status);
-bool moq_origin_Publication_create_datagrams(const moq_origin_Publication *self, moq_buf name, const moq_datagram_Info *info, moq_datagram_Producer **out, moq_Error **err, moq_status *status);
-bool moq_origin_Publication_reserve_track(const moq_origin_Publication *self, moq_buf name, moq_track_Request **out, moq_Error **err);
-bool moq_origin_Publication_unique_track(const moq_origin_Publication *self, moq_buf suffix, moq_track_Info *info, moq_track_Producer **out, moq_Error **err, moq_status *status);
-moq_buf moq_origin_Publication_unique_name(const moq_origin_Publication *self, moq_buf suffix);
-moq_broadcast_Requests *moq_origin_Publication_requests(const moq_origin_Publication *self);
-moq_broadcast_Consumer *moq_origin_Publication_consume(const moq_origin_Publication *self);
-void moq_origin_Publication_close(const moq_origin_Publication *self);
-bool moq_origin_Publication_is_clone(const moq_origin_Publication *self, const moq_broadcast_Producer *other, moq_status *status);
 void moq_origin_Request_free(moq_origin_Request *self);
 void moq_origin_Request_drop(moq_origin_Request *self, moq_status *status);
 moq_Path *moq_origin_Request_path(const moq_origin_Request *self, moq_status *status);
-bool moq_origin_Request_prepare(moq_origin_Request *self, moq_origin_Prepared **out, moq_Error **err, moq_status *status);
+bool moq_origin_Request_route(moq_origin_Request *self, moq_origin_RouteOptions *options, moq_origin_Route **out, moq_Error **err, moq_status *status);
 void moq_origin_Request_serve_Producer(moq_origin_Request *self, const moq_broadcast_Producer *broadcast, moq_status *status);
 void moq_origin_Request_serve_Consumer(moq_origin_Request *self, const moq_broadcast_Consumer *broadcast, moq_status *status);
 void moq_origin_Request_reject(moq_origin_Request *self, moq_Error *err_, moq_status *status);
-void moq_origin_Requests_free(moq_origin_Requests *self);
-moq_origin_Route *moq_origin_Requests_route(const moq_origin_Requests *self);
-typedef struct moq_origin_Requests_requested_broadcast_future moq_origin_Requests_requested_broadcast_future;
-moq_origin_Requests_requested_broadcast_future *moq_origin_Requests_requested_broadcast(const moq_origin_Requests *self);
-moq_poll moq_origin_Requests_requested_broadcast_start(const moq_origin_Requests *self, moq_origin_Request **out, moq_Error **err, moq_origin_Requests_requested_broadcast_future **future);
-moq_poll moq_origin_Requests_requested_broadcast_poll(moq_origin_Requests_requested_broadcast_future *future, moq_waker waker, moq_origin_Request **out, moq_Error **err);
-void moq_origin_Requests_requested_broadcast_future_free(moq_origin_Requests_requested_broadcast_future *future);
 void moq_origin_Route_free(moq_origin_Route *self);
-void moq_origin_Route_drop(moq_origin_Route *self, moq_status *status);
-moq_origin_Route *moq_origin_Route_clone(const moq_origin_Route *self, moq_status *status);
-bool moq_origin_Route_eq(const moq_origin_Route *a, const moq_origin_Route *b, moq_status *status);
-moq_buf moq_origin_Route_debug(const moq_origin_Route *self, moq_status *status);
-moq_origin_Route *moq_origin_Route_default(void);
-moq_Instance *moq_origin_Route_instance_get(const moq_origin_Route *self, moq_status *status);
-void moq_origin_Route_instance_set(moq_origin_Route *self, moq_Instance *value, moq_status *status);
-moq_Hops *moq_origin_Route_hops_get(const moq_origin_Route *self, moq_status *status);
-void moq_origin_Route_hops_set(moq_origin_Route *self, moq_Hops *value, moq_status *status);
-moq_origin_Cost moq_origin_Route_cost_get(const moq_origin_Route *self, moq_status *status);
-void moq_origin_Route_cost_set(moq_origin_Route *self, moq_origin_Cost value, moq_status *status);
-moq_auth_Credential *moq_origin_Route_auth_get(const moq_origin_Route *self, moq_status *status);
-void moq_origin_Route_auth_set(moq_origin_Route *self, moq_auth_Credential *value, moq_status *status);
-moq_origin_Route *moq_origin_Route_with_instance(moq_origin_Route *self, moq_Instance *instance, uint64_t epoch, moq_status *status);
-moq_origin_Route *moq_origin_Route_with_hops(moq_origin_Route *self, moq_Hops *hops, moq_status *status);
-moq_origin_Route *moq_origin_Route_with_cost(moq_origin_Route *self, moq_origin_Cost cost, moq_status *status);
-moq_origin_Route *moq_origin_Route_with_auth(moq_origin_Route *self, moq_auth_Credential *auth, moq_status *status);
-bool moq_origin_Route_is_anonymous(const moq_origin_Route *self, moq_status *status);
-moq_origin_Source moq_origin_Route_source(const moq_origin_Route *self, moq_status *status);
+moq_origin_Route *moq_origin_Route_clone(const moq_origin_Route *self);
+moq_broadcast_Producer *moq_origin_Route_broadcast(const moq_origin_Route *self);
+moq_Instance *moq_origin_Route_instance(const moq_origin_Route *self);
+bool moq_origin_Route_announce(const moq_origin_Route *self, moq_Error **err);
+void moq_origin_Route_withdraw(const moq_origin_Route *self);
+bool moq_origin_Route_is_announced(const moq_origin_Route *self);
+bool moq_origin_Route_set_cost(const moq_origin_Route *self, moq_origin_Cost cost, moq_Error **err);
+bool moq_origin_Route_set_auth(const moq_origin_Route *self, moq_auth_Credential *auth, moq_Error **err, moq_status *status);
+void moq_origin_RouteInfo_free(moq_origin_RouteInfo *self);
+void moq_origin_RouteInfo_drop(moq_origin_RouteInfo *self, moq_status *status);
+bool moq_origin_RouteInfo_borrowed(const moq_origin_RouteInfo *self);
+moq_origin_RouteInfo *moq_origin_RouteInfo_clone(const moq_origin_RouteInfo *self, moq_status *status);
+bool moq_origin_RouteInfo_eq(const moq_origin_RouteInfo *a, const moq_origin_RouteInfo *b, moq_status *status);
+moq_buf moq_origin_RouteInfo_debug(const moq_origin_RouteInfo *self, moq_status *status);
+moq_Instance *moq_origin_RouteInfo_instance(const moq_origin_RouteInfo *self, moq_status *status);
+moq_origin_Cost moq_origin_RouteInfo_cost(const moq_origin_RouteInfo *self, moq_status *status);
+bool moq_origin_RouteInfo_available(const moq_origin_RouteInfo *self, moq_status *status);
+void moq_origin_RouteOptions_free(moq_origin_RouteOptions *self);
+void moq_origin_RouteOptions_drop(moq_origin_RouteOptions *self, moq_status *status);
+bool moq_origin_RouteOptions_borrowed(const moq_origin_RouteOptions *self);
+moq_origin_RouteOptions *moq_origin_RouteOptions_clone(const moq_origin_RouteOptions *self, moq_status *status);
+moq_buf moq_origin_RouteOptions_debug(const moq_origin_RouteOptions *self, moq_status *status);
+moq_origin_RouteOptions *moq_origin_RouteOptions_default(void);
+moq_origin_RouteOptions *moq_origin_RouteOptions_hidden(void);
+moq_origin_RouteOptions *moq_origin_RouteOptions_with_cost(moq_origin_RouteOptions *self, moq_origin_Cost cost, moq_status *status);
+moq_origin_RouteOptions *moq_origin_RouteOptions_with_auth(moq_origin_RouteOptions *self, moq_auth_Credential *auth, moq_status *status);
+moq_origin_RouteOptions *moq_origin_RouteOptions_with_instance(moq_origin_RouteOptions *self, moq_Instance *instance, uint64_t epoch, moq_status *status);
+void moq_origin_RouteEvent_free(moq_origin_RouteEvent *self);
+void moq_origin_RouteEvent_drop(moq_origin_RouteEvent *self, moq_status *status);
+moq_origin_RouteEvent *moq_origin_RouteEvent_clone(const moq_origin_RouteEvent *self, moq_status *status);
+moq_buf moq_origin_RouteEvent_debug(const moq_origin_RouteEvent *self, moq_status *status);
+moq_origin_RouteKind moq_origin_RouteEvent_kind_get(const moq_origin_RouteEvent *self, moq_status *status);
+void moq_origin_RouteEvent_kind_set(moq_origin_RouteEvent *self, moq_origin_RouteKind value, moq_status *status);
+moq_announce_Announce *moq_origin_RouteEvent_announce_get(const moq_origin_RouteEvent *self, moq_status *status);
+void moq_origin_RouteEvent_announce_set(moq_origin_RouteEvent *self, moq_announce_Announce *value, moq_status *status);
+void moq_origin_Routes_free(moq_origin_Routes *self);
+void moq_origin_Routes_drop(moq_origin_Routes *self, moq_status *status);
+typedef struct moq_origin_Routes_next_future moq_origin_Routes_next_future;
+moq_origin_Routes_next_future *moq_origin_Routes_next(moq_origin_Routes *self, moq_status *status);
+moq_poll moq_origin_Routes_next_start(moq_origin_Routes *self, moq_origin_RouteEvent **out, moq_origin_Routes_next_future **future, moq_status *status);
+moq_poll moq_origin_Routes_next_poll(moq_origin_Routes_next_future *future, moq_waker waker, moq_origin_RouteEvent **out);
+void moq_origin_Routes_next_future_free(moq_origin_Routes_next_future *future);
+moq_origin_RouteEvent *moq_origin_Routes_try_next(moq_origin_Routes *self, moq_status *status);
+bool moq_origin_Routes_is_closed(const moq_origin_Routes *self, moq_status *status);
+typedef struct moq_origin_Routes_poll_synced_future moq_origin_Routes_poll_synced_future;
+moq_origin_Routes_poll_synced_future *moq_origin_Routes_poll_synced(const moq_origin_Routes *self, moq_status *status);
+moq_poll moq_origin_Routes_poll_synced_start(const moq_origin_Routes *self, moq_origin_Routes_poll_synced_future **future, moq_status *status);
+moq_poll moq_origin_Routes_poll_synced_poll(moq_origin_Routes_poll_synced_future *future, moq_waker waker);
+void moq_origin_Routes_poll_synced_future_free(moq_origin_Routes_poll_synced_future *future);
+moq_Path *moq_origin_Routes_root(const moq_origin_Routes *self, moq_status *status);
+bool moq_origin_Routes_absolute(const moq_origin_Routes *self, moq_buf prefix, moq_Path **out, moq_Error **err, moq_status *status);
 void moq_announce_Consumer_free(moq_announce_Consumer *self);
 void moq_announce_Consumer_drop(moq_announce_Consumer *self, moq_status *status);
 typedef struct moq_announce_Consumer_next_future moq_announce_Consumer_next_future;
@@ -7528,6 +4867,16 @@ void moq_announce_Event_free(moq_announce_Event *self);
 bool moq_announce_Event_borrowed(const moq_announce_Event *self);
 moq_announce_Event *moq_announce_Event_clone(const moq_announce_Event *self);
 moq_buf moq_announce_Event_debug(const moq_announce_Event *self);
+void moq_announce_Announce_free(moq_announce_Announce *self);
+void moq_announce_Announce_drop(moq_announce_Announce *self, moq_status *status);
+moq_announce_Announce *moq_announce_Announce_clone(const moq_announce_Announce *self, moq_status *status);
+moq_buf moq_announce_Announce_debug(const moq_announce_Announce *self, moq_status *status);
+moq_Path *moq_announce_Announce_prefix_get(const moq_announce_Announce *self, moq_status *status);
+void moq_announce_Announce_prefix_set(moq_announce_Announce *self, moq_Path *value, moq_status *status);
+moq_vec_Pattern moq_announce_Announce_captures_get(const moq_announce_Announce *self, moq_status *status);
+void moq_announce_Announce_captures_set(moq_announce_Announce *self, moq_vec_Pattern value, moq_status *status);
+moq_origin_RouteInfo *moq_announce_Announce_route_get(const moq_announce_Announce *self, moq_status *status);
+void moq_announce_Announce_route_set(moq_announce_Announce *self, moq_origin_RouteInfo *value, moq_status *status);
 void moq_hang_stats_Snapshot_free(moq_hang_stats_Snapshot *self);
 void moq_hang_stats_Snapshot_drop(moq_hang_stats_Snapshot *self, moq_status *status);
 moq_hang_stats_Snapshot *moq_hang_stats_Snapshot_clone(const moq_hang_stats_Snapshot *self, moq_status *status);
@@ -7538,18 +4887,6 @@ moq_hang_stats_Transport *moq_hang_stats_Snapshot_transport_get(const moq_hang_s
 void moq_hang_stats_Snapshot_transport_set(moq_hang_stats_Snapshot *self, moq_hang_stats_Transport *value, moq_status *status);
 moq_vec_tuple_string_hang_stats_Rendition moq_hang_stats_Snapshot_renditions_get(const moq_hang_stats_Snapshot *self, moq_status *status);
 void moq_hang_stats_Snapshot_renditions_set(moq_hang_stats_Snapshot *self, moq_vec_tuple_string_hang_stats_Rendition value, moq_status *status);
-void moq_hang_stats_Snapshot_string_free(moq_hang_stats_Snapshot_string *self);
-void moq_hang_stats_Snapshot_string_drop(moq_hang_stats_Snapshot_string *self, moq_status *status);
-moq_hang_stats_Snapshot_string *moq_hang_stats_Snapshot_string_clone(const moq_hang_stats_Snapshot_string *self, moq_status *status);
-bool moq_hang_stats_Snapshot_string_eq(const moq_hang_stats_Snapshot_string *a, const moq_hang_stats_Snapshot_string *b, moq_status *status);
-moq_buf moq_hang_stats_Snapshot_string_debug(const moq_hang_stats_Snapshot_string *self, moq_status *status);
-moq_hang_stats_Snapshot_string *moq_hang_stats_Snapshot_string_default(void);
-moq_hang_stats_Transport *moq_hang_stats_Snapshot_string_transport_get(const moq_hang_stats_Snapshot_string *self, moq_status *status);
-void moq_hang_stats_Snapshot_string_transport_set(moq_hang_stats_Snapshot_string *self, moq_hang_stats_Transport *value, moq_status *status);
-moq_vec_tuple_string_hang_stats_Rendition moq_hang_stats_Snapshot_string_renditions_get(const moq_hang_stats_Snapshot_string *self, moq_status *status);
-void moq_hang_stats_Snapshot_string_renditions_set(moq_hang_stats_Snapshot_string *self, moq_vec_tuple_string_hang_stats_Rendition value, moq_status *status);
-moq_buf moq_hang_stats_Snapshot_string_ext_get(const moq_hang_stats_Snapshot_string *self, moq_status *status);
-void moq_hang_stats_Snapshot_string_ext_set(moq_hang_stats_Snapshot_string *self, moq_buf value, moq_status *status);
 void moq_hang_stats_Rendition_free(moq_hang_stats_Rendition *self);
 void moq_hang_stats_Rendition_drop(moq_hang_stats_Rendition *self, moq_status *status);
 moq_hang_stats_Rendition *moq_hang_stats_Rendition_clone(const moq_hang_stats_Rendition *self, moq_status *status);
@@ -7592,18 +4929,6 @@ moq_hang_stats_Transport *moq_hang_echo_Snapshot_transport_get(const moq_hang_ec
 void moq_hang_echo_Snapshot_transport_set(moq_hang_echo_Snapshot *self, moq_hang_stats_Transport *value, moq_status *status);
 moq_vec_tuple_string_hang_echo_Rendition moq_hang_echo_Snapshot_renditions_get(const moq_hang_echo_Snapshot *self, moq_status *status);
 void moq_hang_echo_Snapshot_renditions_set(moq_hang_echo_Snapshot *self, moq_vec_tuple_string_hang_echo_Rendition value, moq_status *status);
-void moq_hang_echo_Snapshot_string_free(moq_hang_echo_Snapshot_string *self);
-void moq_hang_echo_Snapshot_string_drop(moq_hang_echo_Snapshot_string *self, moq_status *status);
-moq_hang_echo_Snapshot_string *moq_hang_echo_Snapshot_string_clone(const moq_hang_echo_Snapshot_string *self, moq_status *status);
-bool moq_hang_echo_Snapshot_string_eq(const moq_hang_echo_Snapshot_string *a, const moq_hang_echo_Snapshot_string *b, moq_status *status);
-moq_buf moq_hang_echo_Snapshot_string_debug(const moq_hang_echo_Snapshot_string *self, moq_status *status);
-moq_hang_echo_Snapshot_string *moq_hang_echo_Snapshot_string_default(void);
-moq_hang_stats_Transport *moq_hang_echo_Snapshot_string_transport_get(const moq_hang_echo_Snapshot_string *self, moq_status *status);
-void moq_hang_echo_Snapshot_string_transport_set(moq_hang_echo_Snapshot_string *self, moq_hang_stats_Transport *value, moq_status *status);
-moq_vec_tuple_string_hang_echo_Rendition moq_hang_echo_Snapshot_string_renditions_get(const moq_hang_echo_Snapshot_string *self, moq_status *status);
-void moq_hang_echo_Snapshot_string_renditions_set(moq_hang_echo_Snapshot_string *self, moq_vec_tuple_string_hang_echo_Rendition value, moq_status *status);
-moq_buf moq_hang_echo_Snapshot_string_ext_get(const moq_hang_echo_Snapshot_string *self, moq_status *status);
-void moq_hang_echo_Snapshot_string_ext_set(moq_hang_echo_Snapshot_string *self, moq_buf value, moq_status *status);
 void moq_hang_echo_Rendition_free(moq_hang_echo_Rendition *self);
 void moq_hang_echo_Rendition_drop(moq_hang_echo_Rendition *self, moq_status *status);
 moq_hang_echo_Rendition *moq_hang_echo_Rendition_clone(const moq_hang_echo_Rendition *self, moq_status *status);
@@ -7628,158 +4953,44 @@ moq_duration moq_hang_echo_Rendition_stalled_get(const moq_hang_echo_Rendition *
 void moq_hang_echo_Rendition_stalled_set(moq_hang_echo_Rendition *self, moq_duration value, moq_status *status);
 moq_hang_echo_Arrival *moq_hang_echo_Rendition_arrival_get(const moq_hang_echo_Rendition *self, moq_status *status);
 void moq_hang_echo_Rendition_arrival_set(moq_hang_echo_Rendition *self, moq_hang_echo_Arrival *value, moq_status *status);
-moq_option_duration moq_hang_echo_Rendition_latency_get(const moq_hang_echo_Rendition *self, moq_status *status);
-void moq_hang_echo_Rendition_latency_set(moq_hang_echo_Rendition *self, moq_option_duration value, moq_status *status);
 void moq_hang_echo_Arrival_free(moq_hang_echo_Arrival *self);
 void moq_hang_echo_Arrival_drop(moq_hang_echo_Arrival *self, moq_status *status);
 moq_hang_echo_Arrival *moq_hang_echo_Arrival_clone(const moq_hang_echo_Arrival *self, moq_status *status);
 bool moq_hang_echo_Arrival_eq(const moq_hang_echo_Arrival *a, const moq_hang_echo_Arrival *b, moq_status *status);
 moq_buf moq_hang_echo_Arrival_debug(const moq_hang_echo_Arrival *self, moq_status *status);
-moq_Timestamp moq_hang_echo_Arrival_timestamp_get(const moq_hang_echo_Arrival *self, moq_status *status);
-void moq_hang_echo_Arrival_timestamp_set(moq_hang_echo_Arrival *self, moq_Timestamp value, moq_status *status);
+moq_Timestamp *moq_hang_echo_Arrival_timestamp_get(const moq_hang_echo_Arrival *self, moq_status *status);
+void moq_hang_echo_Arrival_timestamp_set(moq_hang_echo_Arrival *self, const moq_Timestamp *value, moq_status *status);
 moq_clock_Wall moq_hang_echo_Arrival_wall_get(const moq_hang_echo_Arrival *self, moq_status *status);
 void moq_hang_echo_Arrival_wall_set(moq_hang_echo_Arrival *self, moq_clock_Wall value, moq_status *status);
-moq_hang_echo_Arrival *moq_hang_echo_Arrival_new(moq_Timestamp timestamp, moq_clock_Wall wall);
-void moq_hang_health_Observer_free(moq_hang_health_Observer *self);
-void moq_hang_health_Observer_drop(moq_hang_health_Observer *self, moq_status *status);
-moq_hang_health_Observer *moq_hang_health_Observer_clone(const moq_hang_health_Observer *self, moq_status *status);
-bool moq_hang_health_Observer_eq(const moq_hang_health_Observer *a, const moq_hang_health_Observer *b, moq_status *status);
-moq_buf moq_hang_health_Observer_debug(const moq_hang_health_Observer *self, moq_status *status);
-moq_Path *moq_hang_health_Observer_path_get(const moq_hang_health_Observer *self, moq_status *status);
-void moq_hang_health_Observer_path_set(moq_hang_health_Observer *self, moq_Path *value, moq_status *status);
-moq_Instance *moq_hang_health_Observer_instance_get(const moq_hang_health_Observer *self, moq_status *status);
-void moq_hang_health_Observer_instance_set(moq_hang_health_Observer *self, moq_Instance *value, moq_status *status);
-moq_hang_health_Observer *moq_hang_health_Observer_new(moq_Path *path, moq_Instance *instance, moq_status *status);
-void moq_hang_health_Report_echo_Snapshot_string_free(moq_hang_health_Report_echo_Snapshot_string *self);
-void moq_hang_health_Report_echo_Snapshot_string_drop(moq_hang_health_Report_echo_Snapshot_string *self, moq_status *status);
-moq_hang_health_Report_echo_Snapshot_string *moq_hang_health_Report_echo_Snapshot_string_clone(const moq_hang_health_Report_echo_Snapshot_string *self, moq_status *status);
-bool moq_hang_health_Report_echo_Snapshot_string_eq(const moq_hang_health_Report_echo_Snapshot_string *a, const moq_hang_health_Report_echo_Snapshot_string *b, moq_status *status);
-moq_buf moq_hang_health_Report_echo_Snapshot_string_debug(const moq_hang_health_Report_echo_Snapshot_string *self, moq_status *status);
-moq_hang_health_Observer *moq_hang_health_Report_echo_Snapshot_string_observer_get(const moq_hang_health_Report_echo_Snapshot_string *self, moq_status *status);
-void moq_hang_health_Report_echo_Snapshot_string_observer_set(moq_hang_health_Report_echo_Snapshot_string *self, moq_hang_health_Observer *value, moq_status *status);
-moq_hang_echo_Snapshot_string *moq_hang_health_Report_echo_Snapshot_string_snapshot_get(const moq_hang_health_Report_echo_Snapshot_string *self, moq_status *status);
-void moq_hang_health_Report_echo_Snapshot_string_snapshot_set(moq_hang_health_Report_echo_Snapshot_string *self, moq_hang_echo_Snapshot_string *value, moq_status *status);
-moq_hang_health_Report_echo_Snapshot_string *moq_hang_health_Report_echo_Snapshot_string_new(moq_hang_health_Observer *observer, moq_hang_echo_Snapshot_string *snapshot, moq_status *status);
-void moq_hang_health_Report_stats_Snapshot_string_free(moq_hang_health_Report_stats_Snapshot_string *self);
-void moq_hang_health_Report_stats_Snapshot_string_drop(moq_hang_health_Report_stats_Snapshot_string *self, moq_status *status);
-moq_hang_health_Report_stats_Snapshot_string *moq_hang_health_Report_stats_Snapshot_string_clone(const moq_hang_health_Report_stats_Snapshot_string *self, moq_status *status);
-bool moq_hang_health_Report_stats_Snapshot_string_eq(const moq_hang_health_Report_stats_Snapshot_string *a, const moq_hang_health_Report_stats_Snapshot_string *b, moq_status *status);
-moq_buf moq_hang_health_Report_stats_Snapshot_string_debug(const moq_hang_health_Report_stats_Snapshot_string *self, moq_status *status);
-moq_hang_health_Observer *moq_hang_health_Report_stats_Snapshot_string_observer_get(const moq_hang_health_Report_stats_Snapshot_string *self, moq_status *status);
-void moq_hang_health_Report_stats_Snapshot_string_observer_set(moq_hang_health_Report_stats_Snapshot_string *self, moq_hang_health_Observer *value, moq_status *status);
-moq_hang_stats_Snapshot_string *moq_hang_health_Report_stats_Snapshot_string_snapshot_get(const moq_hang_health_Report_stats_Snapshot_string *self, moq_status *status);
-void moq_hang_health_Report_stats_Snapshot_string_snapshot_set(moq_hang_health_Report_stats_Snapshot_string *self, moq_hang_stats_Snapshot_string *value, moq_status *status);
-moq_hang_health_Report_stats_Snapshot_string *moq_hang_health_Report_stats_Snapshot_string_new(moq_hang_health_Observer *observer, moq_hang_stats_Snapshot_string *snapshot, moq_status *status);
-void moq_hang_health_Thresholds_free(moq_hang_health_Thresholds *self);
-void moq_hang_health_Thresholds_drop(moq_hang_health_Thresholds *self, moq_status *status);
-moq_hang_health_Thresholds *moq_hang_health_Thresholds_clone(const moq_hang_health_Thresholds *self, moq_status *status);
-bool moq_hang_health_Thresholds_eq(const moq_hang_health_Thresholds *a, const moq_hang_health_Thresholds *b, moq_status *status);
-moq_buf moq_hang_health_Thresholds_debug(const moq_hang_health_Thresholds *self, moq_status *status);
-moq_hang_health_Thresholds *moq_hang_health_Thresholds_default(void);
-moq_duration moq_hang_health_Thresholds_stale_get(const moq_hang_health_Thresholds *self, moq_status *status);
-void moq_hang_health_Thresholds_stale_set(moq_hang_health_Thresholds *self, moq_duration value, moq_status *status);
-moq_hang_health_TransportThresholds *moq_hang_health_Thresholds_transport_get(const moq_hang_health_Thresholds *self, moq_status *status);
-void moq_hang_health_Thresholds_transport_set(moq_hang_health_Thresholds *self, moq_hang_health_TransportThresholds *value, moq_status *status);
-moq_hang_health_PublisherThresholds *moq_hang_health_Thresholds_publisher_get(const moq_hang_health_Thresholds *self, moq_status *status);
-void moq_hang_health_Thresholds_publisher_set(moq_hang_health_Thresholds *self, moq_hang_health_PublisherThresholds *value, moq_status *status);
-moq_hang_health_ViewerThresholds *moq_hang_health_Thresholds_viewer_get(const moq_hang_health_Thresholds *self, moq_status *status);
-void moq_hang_health_Thresholds_viewer_set(moq_hang_health_Thresholds *self, moq_hang_health_ViewerThresholds *value, moq_status *status);
-void moq_hang_health_TransportThresholds_free(moq_hang_health_TransportThresholds *self);
-void moq_hang_health_TransportThresholds_drop(moq_hang_health_TransportThresholds *self, moq_status *status);
-moq_hang_health_TransportThresholds *moq_hang_health_TransportThresholds_clone(const moq_hang_health_TransportThresholds *self, moq_status *status);
-bool moq_hang_health_TransportThresholds_eq(const moq_hang_health_TransportThresholds *a, const moq_hang_health_TransportThresholds *b, moq_status *status);
-moq_buf moq_hang_health_TransportThresholds_debug(const moq_hang_health_TransportThresholds *self, moq_status *status);
-moq_hang_health_Limits_duration moq_hang_health_TransportThresholds_rtt_get(const moq_hang_health_TransportThresholds *self, moq_status *status);
-void moq_hang_health_TransportThresholds_rtt_set(moq_hang_health_TransportThresholds *self, moq_hang_health_Limits_duration value, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_TransportThresholds_loss_get(const moq_hang_health_TransportThresholds *self, moq_status *status);
-void moq_hang_health_TransportThresholds_loss_set(moq_hang_health_TransportThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_TransportThresholds_headroom_get(const moq_hang_health_TransportThresholds *self, moq_status *status);
-void moq_hang_health_TransportThresholds_headroom_set(moq_hang_health_TransportThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-void moq_hang_health_PublisherThresholds_free(moq_hang_health_PublisherThresholds *self);
-void moq_hang_health_PublisherThresholds_drop(moq_hang_health_PublisherThresholds *self, moq_status *status);
-moq_hang_health_PublisherThresholds *moq_hang_health_PublisherThresholds_clone(const moq_hang_health_PublisherThresholds *self, moq_status *status);
-bool moq_hang_health_PublisherThresholds_eq(const moq_hang_health_PublisherThresholds *a, const moq_hang_health_PublisherThresholds *b, moq_status *status);
-moq_buf moq_hang_health_PublisherThresholds_debug(const moq_hang_health_PublisherThresholds *self, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_PublisherThresholds_skipped_get(const moq_hang_health_PublisherThresholds *self, moq_status *status);
-void moq_hang_health_PublisherThresholds_skipped_set(moq_hang_health_PublisherThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-void moq_hang_health_ViewerThresholds_free(moq_hang_health_ViewerThresholds *self);
-void moq_hang_health_ViewerThresholds_drop(moq_hang_health_ViewerThresholds *self, moq_status *status);
-moq_hang_health_ViewerThresholds *moq_hang_health_ViewerThresholds_clone(const moq_hang_health_ViewerThresholds *self, moq_status *status);
-bool moq_hang_health_ViewerThresholds_eq(const moq_hang_health_ViewerThresholds *a, const moq_hang_health_ViewerThresholds *b, moq_status *status);
-moq_buf moq_hang_health_ViewerThresholds_debug(const moq_hang_health_ViewerThresholds *self, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_ViewerThresholds_late_get(const moq_hang_health_ViewerThresholds *self, moq_status *status);
-void moq_hang_health_ViewerThresholds_late_set(moq_hang_health_ViewerThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_ViewerThresholds_errors_get(const moq_hang_health_ViewerThresholds *self, moq_status *status);
-void moq_hang_health_ViewerThresholds_errors_set(moq_hang_health_ViewerThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-moq_hang_health_Limits_f64 moq_hang_health_ViewerThresholds_stalled_get(const moq_hang_health_ViewerThresholds *self, moq_status *status);
-void moq_hang_health_ViewerThresholds_stalled_set(moq_hang_health_ViewerThresholds *self, moq_hang_health_Limits_f64 value, moq_status *status);
-void moq_hang_health_Evidence_free(moq_hang_health_Evidence *self);
-void moq_hang_health_Evidence_drop(moq_hang_health_Evidence *self, moq_status *status);
-moq_hang_health_Evidence *moq_hang_health_Evidence_clone(const moq_hang_health_Evidence *self, moq_status *status);
-bool moq_hang_health_Evidence_eq(const moq_hang_health_Evidence *a, const moq_hang_health_Evidence *b, moq_status *status);
-moq_buf moq_hang_health_Evidence_debug(const moq_hang_health_Evidence *self, moq_status *status);
-moq_hang_health_Input moq_hang_health_Evidence_input_get(const moq_hang_health_Evidence *self, moq_status *status);
-void moq_hang_health_Evidence_input_set(moq_hang_health_Evidence *self, moq_hang_health_Input value, moq_status *status);
-moq_option_f64 moq_hang_health_Evidence_value_get(const moq_hang_health_Evidence *self, moq_status *status);
-void moq_hang_health_Evidence_value_set(moq_hang_health_Evidence *self, moq_option_f64 value, moq_status *status);
-moq_hang_health_Verdict moq_hang_health_Evidence_verdict_get(const moq_hang_health_Evidence *self, moq_status *status);
-void moq_hang_health_Evidence_verdict_set(moq_hang_health_Evidence *self, moq_hang_health_Verdict value, moq_status *status);
-void moq_hang_health_Connection_free(moq_hang_health_Connection *self);
-void moq_hang_health_Connection_drop(moq_hang_health_Connection *self, moq_status *status);
-moq_hang_health_Connection *moq_hang_health_Connection_clone(const moq_hang_health_Connection *self, moq_status *status);
-bool moq_hang_health_Connection_eq(const moq_hang_health_Connection *a, const moq_hang_health_Connection *b, moq_status *status);
-moq_buf moq_hang_health_Connection_debug(const moq_hang_health_Connection *self, moq_status *status);
-moq_hang_health_Connection *moq_hang_health_Connection_default(void);
-moq_hang_health_Verdict moq_hang_health_Connection_verdict_get(const moq_hang_health_Connection *self, moq_status *status);
-void moq_hang_health_Connection_verdict_set(moq_hang_health_Connection *self, moq_hang_health_Verdict value, moq_status *status);
-moq_vec_hang_health_Evidence moq_hang_health_Connection_evidence_get(const moq_hang_health_Connection *self, moq_status *status);
-void moq_hang_health_Connection_evidence_set(moq_hang_health_Connection *self, moq_vec_hang_health_Evidence value, moq_status *status);
-bool moq_hang_health_Connection_stale_get(const moq_hang_health_Connection *self, moq_status *status);
-void moq_hang_health_Connection_stale_set(moq_hang_health_Connection *self, bool value, moq_status *status);
-moq_option_u64 moq_hang_health_Connection_lost_bytes_get(const moq_hang_health_Connection *self, moq_status *status);
-void moq_hang_health_Connection_lost_bytes_set(moq_hang_health_Connection *self, moq_option_u64 value, moq_status *status);
-moq_option_u64 moq_hang_health_Connection_lost_packets_get(const moq_hang_health_Connection *self, moq_status *status);
-void moq_hang_health_Connection_lost_packets_set(moq_hang_health_Connection *self, moq_option_u64 value, moq_status *status);
-void moq_hang_health_Rendition_free(moq_hang_health_Rendition *self);
-void moq_hang_health_Rendition_drop(moq_hang_health_Rendition *self, moq_status *status);
-moq_hang_health_Rendition *moq_hang_health_Rendition_clone(const moq_hang_health_Rendition *self, moq_status *status);
-bool moq_hang_health_Rendition_eq(const moq_hang_health_Rendition *a, const moq_hang_health_Rendition *b, moq_status *status);
-moq_buf moq_hang_health_Rendition_debug(const moq_hang_health_Rendition *self, moq_status *status);
-moq_hang_health_Rendition *moq_hang_health_Rendition_default(void);
-moq_hang_health_Verdict moq_hang_health_Rendition_verdict_get(const moq_hang_health_Rendition *self, moq_status *status);
-void moq_hang_health_Rendition_verdict_set(moq_hang_health_Rendition *self, moq_hang_health_Verdict value, moq_status *status);
-moq_vec_hang_health_Evidence moq_hang_health_Rendition_evidence_get(const moq_hang_health_Rendition *self, moq_status *status);
-void moq_hang_health_Rendition_evidence_set(moq_hang_health_Rendition *self, moq_vec_hang_health_Evidence value, moq_status *status);
-moq_option_u64 moq_hang_health_Rendition_frames_get(const moq_hang_health_Rendition *self, moq_status *status);
-void moq_hang_health_Rendition_frames_set(moq_hang_health_Rendition *self, moq_option_u64 value, moq_status *status);
-moq_option_u64 moq_hang_health_Rendition_bytes_get(const moq_hang_health_Rendition *self, moq_status *status);
-void moq_hang_health_Rendition_bytes_set(moq_hang_health_Rendition *self, moq_option_u64 value, moq_status *status);
-moq_option_u64 moq_hang_health_Rendition_bitrate_get(const moq_hang_health_Rendition *self, moq_status *status);
-void moq_hang_health_Rendition_bitrate_set(moq_hang_health_Rendition *self, moq_option_u64 value, moq_status *status);
+moq_hang_echo_Arrival *moq_hang_echo_Arrival_new(const moq_Timestamp *timestamp, moq_clock_Wall wall, moq_status *status);
+void moq_hang_catalog_Skipped_free(moq_hang_catalog_Skipped *self);
+void moq_hang_catalog_Skipped_drop(moq_hang_catalog_Skipped *self, moq_status *status);
+moq_hang_catalog_Skipped *moq_hang_catalog_Skipped_clone(const moq_hang_catalog_Skipped *self, moq_status *status);
+bool moq_hang_catalog_Skipped_eq(const moq_hang_catalog_Skipped *a, const moq_hang_catalog_Skipped *b, moq_status *status);
+moq_buf moq_hang_catalog_Skipped_debug(const moq_hang_catalog_Skipped *self, moq_status *status);
+moq_hang_catalog_Skipped *moq_hang_catalog_Skipped_default(void);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_video_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_video_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_audio_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_audio_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_text_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_text_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_json_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_json_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_binary_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_binary_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+moq_vec_tuple_string_u64 moq_hang_catalog_Skipped_include_get(const moq_hang_catalog_Skipped *self, moq_status *status);
+void moq_hang_catalog_Skipped_include_set(moq_hang_catalog_Skipped *self, moq_vec_tuple_string_u64 value, moq_status *status);
+bool moq_hang_catalog_Skipped_is_empty(const moq_hang_catalog_Skipped *self, moq_status *status);
+moq_option_u64 moq_hang_catalog_Skipped_version(const moq_hang_catalog_Skipped *self, moq_status *status);
 void moq_hang_catalog_Consumer_free(moq_hang_catalog_Consumer *self);
 void moq_hang_catalog_Consumer_drop(moq_hang_catalog_Consumer *self, moq_status *status);
-moq_hang_catalog_Consumer *moq_hang_catalog_Consumer_new(moq_track_Subscriber *track, moq_status *status);
-typedef struct moq_hang_catalog_Consumer_next_future moq_hang_catalog_Consumer_next_future;
-moq_hang_catalog_Consumer_next_future *moq_hang_catalog_Consumer_next(moq_hang_catalog_Consumer *self, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_next_start(moq_hang_catalog_Consumer *self, moq_hang_Catalog **out, moq_hang_Error **err, moq_hang_catalog_Consumer_next_future **future, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_next_poll(moq_hang_catalog_Consumer_next_future *future, moq_waker waker, moq_hang_Catalog **out, moq_hang_Error **err);
-void moq_hang_catalog_Consumer_next_future_free(moq_hang_catalog_Consumer_next_future *future);
-void moq_hang_catalog_Consumer_Extra_free(moq_hang_catalog_Consumer_Extra *self);
-void moq_hang_catalog_Consumer_Extra_drop(moq_hang_catalog_Consumer_Extra *self, moq_status *status);
-moq_hang_catalog_Consumer_Extra *moq_hang_catalog_Consumer_Extra_new(moq_track_Subscriber *track, moq_status *status);
-typedef struct moq_hang_catalog_Consumer_Extra_next_future moq_hang_catalog_Consumer_Extra_next_future;
-moq_hang_catalog_Consumer_Extra_next_future *moq_hang_catalog_Consumer_Extra_next(moq_hang_catalog_Consumer_Extra *self, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_Extra_next_start(moq_hang_catalog_Consumer_Extra *self, moq_hang_Catalog_Extra **out, moq_hang_Error **err, moq_hang_catalog_Consumer_Extra_next_future **future, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_Extra_next_poll(moq_hang_catalog_Consumer_Extra_next_future *future, moq_waker waker, moq_hang_Catalog_Extra **out, moq_hang_Error **err);
-void moq_hang_catalog_Consumer_Extra_next_future_free(moq_hang_catalog_Consumer_Extra_next_future *future);
-void moq_hang_catalog_Consumer_Ext_free(moq_hang_catalog_Consumer_Ext *self);
-void moq_hang_catalog_Consumer_Ext_drop(moq_hang_catalog_Consumer_Ext *self, moq_status *status);
-moq_hang_catalog_Consumer_Ext *moq_hang_catalog_Consumer_Ext_new(moq_track_Subscriber *track, moq_status *status);
-typedef struct moq_hang_catalog_Consumer_Ext_next_future moq_hang_catalog_Consumer_Ext_next_future;
-moq_hang_catalog_Consumer_Ext_next_future *moq_hang_catalog_Consumer_Ext_next(moq_hang_catalog_Consumer_Ext *self, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_Ext_next_start(moq_hang_catalog_Consumer_Ext *self, moq_hang_Catalog_Ext **out, moq_hang_Error **err, moq_hang_catalog_Consumer_Ext_next_future **future, moq_status *status);
-moq_poll moq_hang_catalog_Consumer_Ext_next_poll(moq_hang_catalog_Consumer_Ext_next_future *future, moq_waker waker, moq_hang_Catalog_Ext **out, moq_hang_Error **err);
-void moq_hang_catalog_Consumer_Ext_next_future_free(moq_hang_catalog_Consumer_Ext_next_future *future);
+moq_hang_catalog_Consumer *moq_hang_catalog_Consumer_new(moq_track_Consumer *track, moq_duration delay, moq_status *status);
+typedef struct moq_hang_catalog_Consumer_poll_next_future moq_hang_catalog_Consumer_poll_next_future;
+moq_hang_catalog_Consumer_poll_next_future *moq_hang_catalog_Consumer_poll_next(moq_hang_catalog_Consumer *self, moq_status *status);
+moq_poll moq_hang_catalog_Consumer_poll_next_start(moq_hang_catalog_Consumer *self, moq_moq_json_Timed_Catalog **out, moq_hang_Error **err, moq_hang_catalog_Consumer_poll_next_future **future, moq_status *status);
+moq_poll moq_hang_catalog_Consumer_poll_next_poll(moq_hang_catalog_Consumer_poll_next_future *future, moq_waker waker, moq_moq_json_Timed_Catalog **out, moq_hang_Error **err);
+void moq_hang_catalog_Consumer_poll_next_future_free(moq_hang_catalog_Consumer_poll_next_future *future);
 void moq_hang_catalog_Audio_free(moq_hang_catalog_Audio *self);
 void moq_hang_catalog_Audio_drop(moq_hang_catalog_Audio *self, moq_status *status);
 moq_hang_catalog_Audio *moq_hang_catalog_Audio_clone(const moq_hang_catalog_Audio *self, moq_status *status);
@@ -7865,22 +5076,21 @@ void moq_hang_catalog_BinaryConfig_delay_set(moq_hang_catalog_BinaryConfig *self
 moq_vec_tuple_string_Json moq_hang_catalog_BinaryConfig_extra_get(const moq_hang_catalog_BinaryConfig *self, moq_status *status);
 void moq_hang_catalog_BinaryConfig_extra_set(moq_hang_catalog_BinaryConfig *self, moq_vec_tuple_string_Json value, moq_status *status);
 moq_hang_catalog_BinaryConfig *moq_hang_catalog_BinaryConfig_new(moq_hang_catalog_Mode mode);
+void moq_hang_catalog_Clock_free(moq_hang_catalog_Clock *self);
+void moq_hang_catalog_Clock_drop(moq_hang_catalog_Clock *self, moq_status *status);
+moq_hang_catalog_Clock *moq_hang_catalog_Clock_clone(const moq_hang_catalog_Clock *self, moq_status *status);
+bool moq_hang_catalog_Clock_eq(const moq_hang_catalog_Clock *a, const moq_hang_catalog_Clock *b, moq_status *status);
+moq_buf moq_hang_catalog_Clock_debug(const moq_hang_catalog_Clock *self, moq_status *status);
+moq_Timestamp *moq_hang_catalog_Clock_wall_get(const moq_hang_catalog_Clock *self, moq_status *status);
+void moq_hang_catalog_Clock_wall_set(moq_hang_catalog_Clock *self, const moq_Timestamp *value, moq_status *status);
+bool moq_hang_catalog_Clock_new(const moq_Timestamp *wall, moq_hang_catalog_Clock **out, moq_hang_Error **err, moq_status *status);
+bool moq_hang_catalog_Clock_wall_clock(const moq_hang_catalog_Clock *self, const moq_Timestamp *pts, moq_clock_Wall *out, moq_hang_Error **err, moq_status *status);
 void moq_hang_catalog_Container_free(moq_hang_catalog_Container *self);
 void moq_hang_catalog_Container_drop(moq_hang_catalog_Container *self, moq_status *status);
 moq_hang_catalog_Container *moq_hang_catalog_Container_clone(const moq_hang_catalog_Container *self, moq_status *status);
 bool moq_hang_catalog_Container_eq(const moq_hang_catalog_Container *a, const moq_hang_catalog_Container *b, moq_status *status);
 moq_buf moq_hang_catalog_Container_debug(const moq_hang_catalog_Container *self, moq_status *status);
 moq_hang_catalog_Container *moq_hang_catalog_Container_default(void);
-void moq_hang_catalog_Contribution_free(moq_hang_catalog_Contribution *self);
-void moq_hang_catalog_Contribution_drop(moq_hang_catalog_Contribution *self, moq_status *status);
-moq_hang_catalog_Contribution *moq_hang_catalog_Contribution_clone(const moq_hang_catalog_Contribution *self, moq_status *status);
-bool moq_hang_catalog_Contribution_eq(const moq_hang_catalog_Contribution *a, const moq_hang_catalog_Contribution *b, moq_status *status);
-moq_buf moq_hang_catalog_Contribution_debug(const moq_hang_catalog_Contribution *self, moq_status *status);
-moq_path_Relative *moq_hang_catalog_Contribution_broadcast_get(const moq_hang_catalog_Contribution *self, moq_status *status);
-void moq_hang_catalog_Contribution_broadcast_set(moq_hang_catalog_Contribution *self, moq_path_Relative *value, moq_status *status);
-moq_Instance *moq_hang_catalog_Contribution_instance_get(const moq_hang_catalog_Contribution *self, moq_status *status);
-void moq_hang_catalog_Contribution_instance_set(moq_hang_catalog_Contribution *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_Contribution *moq_hang_catalog_Contribution_new(moq_path_Relative *broadcast, moq_status *status);
 void moq_hang_catalog_Echo_free(moq_hang_catalog_Echo *self);
 void moq_hang_catalog_Echo_drop(moq_hang_catalog_Echo *self, moq_status *status);
 moq_hang_catalog_Echo *moq_hang_catalog_Echo_clone(const moq_hang_catalog_Echo *self, moq_status *status);
@@ -7889,6 +5099,16 @@ moq_buf moq_hang_catalog_Echo_debug(const moq_hang_catalog_Echo *self, moq_statu
 moq_path_Relative *moq_hang_catalog_Echo_path_get(const moq_hang_catalog_Echo *self, moq_status *status);
 void moq_hang_catalog_Echo_path_set(moq_hang_catalog_Echo *self, moq_path_Relative *value, moq_status *status);
 moq_hang_catalog_Echo *moq_hang_catalog_Echo_new(moq_path_Relative *path, moq_status *status);
+void moq_hang_catalog_Include_free(moq_hang_catalog_Include *self);
+void moq_hang_catalog_Include_drop(moq_hang_catalog_Include *self, moq_status *status);
+moq_hang_catalog_Include *moq_hang_catalog_Include_clone(const moq_hang_catalog_Include *self, moq_status *status);
+bool moq_hang_catalog_Include_eq(const moq_hang_catalog_Include *a, const moq_hang_catalog_Include *b, moq_status *status);
+moq_buf moq_hang_catalog_Include_debug(const moq_hang_catalog_Include *self, moq_status *status);
+moq_path_Relative *moq_hang_catalog_Include_broadcast_get(const moq_hang_catalog_Include *self, moq_status *status);
+void moq_hang_catalog_Include_broadcast_set(moq_hang_catalog_Include *self, moq_path_Relative *value, moq_status *status);
+moq_Instance *moq_hang_catalog_Include_instance_get(const moq_hang_catalog_Include *self, moq_status *status);
+void moq_hang_catalog_Include_instance_set(moq_hang_catalog_Include *self, moq_Instance *value, moq_status *status);
+moq_hang_catalog_Include *moq_hang_catalog_Include_new(moq_path_Relative *broadcast, moq_status *status);
 void moq_hang_catalog_Json_free(moq_hang_catalog_Json *self);
 void moq_hang_catalog_Json_drop(moq_hang_catalog_Json *self, moq_status *status);
 moq_hang_catalog_Json *moq_hang_catalog_Json_clone(const moq_hang_catalog_Json *self, moq_status *status);
@@ -7924,38 +5144,6 @@ void moq_hang_catalog_JsonConfig_delay_set(moq_hang_catalog_JsonConfig *self, mo
 moq_vec_tuple_string_Json moq_hang_catalog_JsonConfig_extra_get(const moq_hang_catalog_JsonConfig *self, moq_status *status);
 void moq_hang_catalog_JsonConfig_extra_set(moq_hang_catalog_JsonConfig *self, moq_vec_tuple_string_Json value, moq_status *status);
 moq_hang_catalog_JsonConfig *moq_hang_catalog_JsonConfig_new(moq_hang_catalog_Mode mode);
-void moq_hang_catalog_M2ts_free(moq_hang_catalog_M2ts *self);
-void moq_hang_catalog_M2ts_drop(moq_hang_catalog_M2ts *self, moq_status *status);
-moq_hang_catalog_M2ts *moq_hang_catalog_M2ts_clone(const moq_hang_catalog_M2ts *self, moq_status *status);
-bool moq_hang_catalog_M2ts_eq(const moq_hang_catalog_M2ts *a, const moq_hang_catalog_M2ts *b, moq_status *status);
-moq_buf moq_hang_catalog_M2ts_debug(const moq_hang_catalog_M2ts *self, moq_status *status);
-moq_buf moq_hang_catalog_M2ts_track_get(const moq_hang_catalog_M2ts *self, moq_status *status);
-void moq_hang_catalog_M2ts_track_set(moq_hang_catalog_M2ts *self, moq_buf value, moq_status *status);
-bool moq_hang_catalog_M2ts_random_access_get(const moq_hang_catalog_M2ts *self, moq_status *status);
-void moq_hang_catalog_M2ts_random_access_set(moq_hang_catalog_M2ts *self, bool value, moq_status *status);
-moq_option_u64 moq_hang_catalog_M2ts_mux_rate_get(const moq_hang_catalog_M2ts *self, moq_status *status);
-void moq_hang_catalog_M2ts_mux_rate_set(moq_hang_catalog_M2ts *self, moq_option_u64 value, moq_status *status);
-moq_hang_catalog_M2ts *moq_hang_catalog_M2ts_new(moq_buf track);
-void moq_hang_catalog_Media_free(moq_hang_catalog_Media *self);
-void moq_hang_catalog_Media_drop(moq_hang_catalog_Media *self, moq_status *status);
-moq_hang_catalog_Media *moq_hang_catalog_Media_clone(const moq_hang_catalog_Media *self, moq_status *status);
-bool moq_hang_catalog_Media_eq(const moq_hang_catalog_Media *a, const moq_hang_catalog_Media *b, moq_status *status);
-moq_buf moq_hang_catalog_Media_debug(const moq_hang_catalog_Media *self, moq_status *status);
-moq_hang_catalog_Media *moq_hang_catalog_Media_default(void);
-moq_option_hang_catalog_Clock moq_hang_catalog_Media_clock_get(const moq_hang_catalog_Media *self, moq_status *status);
-void moq_hang_catalog_Media_clock_set(moq_hang_catalog_Media *self, moq_option_hang_catalog_Clock value, moq_status *status);
-moq_hang_catalog_Join *moq_hang_catalog_Media_join_get(const moq_hang_catalog_Media *self, moq_status *status);
-void moq_hang_catalog_Media_join_set(moq_hang_catalog_Media *self, const moq_hang_catalog_Join *value, moq_status *status);
-bool moq_hang_catalog_Media_is_empty(const moq_hang_catalog_Media *self, moq_status *status);
-moq_option_duration moq_hang_catalog_Media_interval(const moq_hang_catalog_Media *self, moq_status *status);
-void moq_hang_catalog_Join_free(moq_hang_catalog_Join *self);
-void moq_hang_catalog_Join_drop(moq_hang_catalog_Join *self, moq_status *status);
-moq_hang_catalog_Join *moq_hang_catalog_Join_clone(const moq_hang_catalog_Join *self, moq_status *status);
-bool moq_hang_catalog_Join_eq(const moq_hang_catalog_Join *a, const moq_hang_catalog_Join *b, moq_status *status);
-moq_buf moq_hang_catalog_Join_debug(const moq_hang_catalog_Join *self, moq_status *status);
-moq_duration moq_hang_catalog_Join_interval_get(const moq_hang_catalog_Join *self, moq_status *status);
-void moq_hang_catalog_Join_interval_set(moq_hang_catalog_Join *self, moq_duration value, moq_status *status);
-moq_hang_catalog_Join *moq_hang_catalog_Join_new(moq_duration interval);
 void moq_hang_catalog_Stats_free(moq_hang_catalog_Stats *self);
 void moq_hang_catalog_Stats_drop(moq_hang_catalog_Stats *self, moq_status *status);
 moq_hang_catalog_Stats *moq_hang_catalog_Stats_clone(const moq_hang_catalog_Stats *self, moq_status *status);
@@ -8001,6 +5189,17 @@ void moq_hang_catalog_TextConfig_jitter_set(moq_hang_catalog_TextConfig *self, m
 moq_option_duration moq_hang_catalog_TextConfig_delay_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
 void moq_hang_catalog_TextConfig_delay_set(moq_hang_catalog_TextConfig *self, moq_option_duration value, moq_status *status);
 moq_hang_catalog_TextConfig *moq_hang_catalog_TextConfig_new(moq_hang_catalog_TextFormat format);
+void moq_hang_catalog_Timeline_free(moq_hang_catalog_Timeline *self);
+void moq_hang_catalog_Timeline_drop(moq_hang_catalog_Timeline *self, moq_status *status);
+moq_hang_catalog_Timeline *moq_hang_catalog_Timeline_clone(const moq_hang_catalog_Timeline *self, moq_status *status);
+bool moq_hang_catalog_Timeline_eq(const moq_hang_catalog_Timeline *a, const moq_hang_catalog_Timeline *b, moq_status *status);
+moq_buf moq_hang_catalog_Timeline_debug(const moq_hang_catalog_Timeline *self, moq_status *status);
+moq_hang_catalog_Timeline *moq_hang_catalog_Timeline_default(void);
+moq_hang_catalog_Clock *moq_hang_catalog_Timeline_clock_get(const moq_hang_catalog_Timeline *self, moq_status *status);
+void moq_hang_catalog_Timeline_clock_set(moq_hang_catalog_Timeline *self, const moq_hang_catalog_Clock *value, moq_status *status);
+moq_option_duration moq_hang_catalog_Timeline_interval_get(const moq_hang_catalog_Timeline *self, moq_status *status);
+void moq_hang_catalog_Timeline_interval_set(moq_hang_catalog_Timeline *self, moq_option_duration value, moq_status *status);
+bool moq_hang_catalog_Timeline_is_empty(const moq_hang_catalog_Timeline *self, moq_status *status);
 void moq_hang_catalog_Color_free(moq_hang_catalog_Color *self);
 void moq_hang_catalog_Color_drop(moq_hang_catalog_Color *self, moq_status *status);
 moq_hang_catalog_Color *moq_hang_catalog_Color_clone(const moq_hang_catalog_Color *self, moq_status *status);
@@ -8013,8 +5212,8 @@ moq_option_u8 moq_hang_catalog_Color_transfer_get(const moq_hang_catalog_Color *
 void moq_hang_catalog_Color_transfer_set(moq_hang_catalog_Color *self, moq_option_u8 value, moq_status *status);
 moq_option_u8 moq_hang_catalog_Color_matrix_get(const moq_hang_catalog_Color *self, moq_status *status);
 void moq_hang_catalog_Color_matrix_set(moq_hang_catalog_Color *self, moq_option_u8 value, moq_status *status);
-moq_option_hang_catalog_Range moq_hang_catalog_Color_range_get(const moq_hang_catalog_Color *self, moq_status *status);
-void moq_hang_catalog_Color_range_set(moq_hang_catalog_Color *self, moq_option_hang_catalog_Range value, moq_status *status);
+moq_option_hang_catalog_ColorRange moq_hang_catalog_Color_range_get(const moq_hang_catalog_Color *self, moq_status *status);
+void moq_hang_catalog_Color_range_set(moq_hang_catalog_Color *self, moq_option_hang_catalog_ColorRange value, moq_status *status);
 moq_option_hang_catalog_Mastering moq_hang_catalog_Color_mastering_get(const moq_hang_catalog_Color *self, moq_status *status);
 void moq_hang_catalog_Color_mastering_set(moq_hang_catalog_Color *self, moq_option_hang_catalog_Mastering value, moq_status *status);
 moq_option_hang_catalog_ContentLight moq_hang_catalog_Color_content_light_get(const moq_hang_catalog_Color *self, moq_status *status);
@@ -8106,8 +5305,6 @@ moq_hang_catalog_Container *moq_hang_catalog_VideoConfig_container_get(const moq
 void moq_hang_catalog_VideoConfig_container_set(moq_hang_catalog_VideoConfig *self, moq_hang_catalog_Container *value, moq_status *status);
 moq_option_duration moq_hang_catalog_VideoConfig_jitter_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_jitter_set(moq_hang_catalog_VideoConfig *self, moq_option_duration value, moq_status *status);
-moq_option_duration moq_hang_catalog_VideoConfig_warmup_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
-void moq_hang_catalog_VideoConfig_warmup_set(moq_hang_catalog_VideoConfig *self, moq_option_duration value, moq_status *status);
 moq_option_duration moq_hang_catalog_VideoConfig_delay_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_delay_set(moq_hang_catalog_VideoConfig *self, moq_option_duration value, moq_status *status);
 moq_hang_catalog_VideoConfig *moq_hang_catalog_VideoConfig_new(moq_hang_catalog_VideoCodec codec);
@@ -8151,15 +5348,6 @@ moq_mux_catalog_Estimate *moq_mux_catalog_Estimate_with_jitter(moq_mux_catalog_E
 moq_mux_catalog_Estimate *moq_mux_catalog_Estimate_with_bitrate(moq_mux_catalog_Estimate *self, moq_option_u64 bitrate, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_catalog_Estimate_with_delay(moq_mux_catalog_Estimate *self, moq_option_duration delay, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_catalog_Estimate_with_framerate(moq_mux_catalog_Estimate *self, moq_option_f64 framerate, moq_status *status);
-void moq_mux_catalog_Estimator_free(moq_mux_catalog_Estimator *self);
-void moq_mux_catalog_Estimator_drop(moq_mux_catalog_Estimator *self, moq_status *status);
-moq_mux_catalog_Estimator *moq_mux_catalog_Estimator_default(void);
-moq_mux_catalog_Estimator *moq_mux_catalog_Estimator_new(void);
-void moq_mux_catalog_Estimator_write(moq_mux_catalog_Estimator *self, moq_Timestamp timestamp, size_t bytes, moq_status *status);
-void moq_mux_catalog_Estimator_cut(moq_mux_catalog_Estimator *self, moq_option_Timestamp end, moq_status *status);
-void moq_mux_catalog_Estimator_discontinuity(moq_mux_catalog_Estimator *self, moq_status *status);
-void moq_mux_catalog_Estimator_reorder(moq_mux_catalog_Estimator *self, moq_Timestamp delay, moq_status *status);
-moq_mux_catalog_Estimate *moq_mux_catalog_Estimator_estimate(const moq_mux_catalog_Estimator *self, moq_status *status);
 void moq_mux_catalog_Config_free(moq_mux_catalog_Config *self);
 void moq_mux_catalog_Config_drop(moq_mux_catalog_Config *self, moq_status *status);
 moq_mux_catalog_Config *moq_mux_catalog_Config_clone(const moq_mux_catalog_Config *self, moq_status *status);
@@ -8195,26 +5383,25 @@ moq_hang_catalog_Video *moq_mux_catalog_Guard_video_get(const moq_mux_catalog_Gu
 void moq_mux_catalog_Guard_video_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_mux_catalog_Guard_audio_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_audio_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_mux_catalog_Guard_media_get(const moq_mux_catalog_Guard *self, moq_status *status);
-void moq_mux_catalog_Guard_media_set(moq_mux_catalog_Guard *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_mux_catalog_Guard_sync_get(const moq_mux_catalog_Guard *self, moq_status *status);
+void moq_mux_catalog_Guard_sync_set(moq_mux_catalog_Guard *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_mux_catalog_Guard_text_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_text_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_mux_catalog_Guard_json_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_json_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_mux_catalog_Guard_binary_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_binary_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_mux_catalog_Guard_m2ts_get(const moq_mux_catalog_Guard *self, moq_status *status);
-void moq_mux_catalog_Guard_m2ts_set(moq_mux_catalog_Guard *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_mux_catalog_Guard_stats_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_stats_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_mux_catalog_Guard_echo_get(const moq_mux_catalog_Guard *self, moq_status *status);
 void moq_mux_catalog_Guard_echo_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_mux_catalog_Guard_contributions_get(const moq_mux_catalog_Guard *self, moq_status *status);
-void moq_mux_catalog_Guard_contributions_set(moq_mux_catalog_Guard *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_mux_catalog_Guard_include_get(const moq_mux_catalog_Guard *self, moq_status *status);
+void moq_mux_catalog_Guard_include_set(moq_mux_catalog_Guard *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
+moq_hang_catalog_Skipped *moq_mux_catalog_Guard_skipped_get(const moq_mux_catalog_Guard *self, moq_status *status);
+void moq_mux_catalog_Guard_skipped_set(moq_mux_catalog_Guard *self, moq_hang_catalog_Skipped *value, moq_status *status);
 bool moq_mux_catalog_Guard_check_renditions(const moq_mux_catalog_Guard *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_mux_catalog_Guard_media(const moq_mux_catalog_Guard *self, moq_status *status);
+moq_hang_Catalog *moq_mux_catalog_Guard_without_ext(const moq_mux_catalog_Guard *self, moq_status *status);
 bool moq_mux_catalog_Guard_to_json(const moq_mux_catalog_Guard *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_mux_catalog_Guard_to_json_pretty(const moq_mux_catalog_Guard *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_to_vec(const moq_mux_catalog_Guard *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_to_writer(const moq_mux_catalog_Guard *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_mux_catalog_Guard_Extra_free(moq_mux_catalog_Guard_Extra *self);
@@ -8226,28 +5413,27 @@ moq_hang_catalog_Video *moq_mux_catalog_Guard_Extra_video_get(const moq_mux_cata
 void moq_mux_catalog_Guard_Extra_video_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_mux_catalog_Guard_Extra_audio_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_audio_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_mux_catalog_Guard_Extra_media_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
-void moq_mux_catalog_Guard_Extra_media_set(moq_mux_catalog_Guard_Extra *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_mux_catalog_Guard_Extra_sync_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
+void moq_mux_catalog_Guard_Extra_sync_set(moq_mux_catalog_Guard_Extra *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_mux_catalog_Guard_Extra_text_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_text_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_mux_catalog_Guard_Extra_json_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_json_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_mux_catalog_Guard_Extra_binary_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_binary_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_mux_catalog_Guard_Extra_m2ts_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
-void moq_mux_catalog_Guard_Extra_m2ts_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_mux_catalog_Guard_Extra_stats_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_stats_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_mux_catalog_Guard_Extra_echo_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_echo_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_mux_catalog_Guard_Extra_contributions_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
-void moq_mux_catalog_Guard_Extra_contributions_set(moq_mux_catalog_Guard_Extra *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_mux_catalog_Guard_Extra_include_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
+void moq_mux_catalog_Guard_Extra_include_set(moq_mux_catalog_Guard_Extra *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
 moq_mux_catalog_hang_Extra *moq_mux_catalog_Guard_Extra_ext_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 void moq_mux_catalog_Guard_Extra_ext_set(moq_mux_catalog_Guard_Extra *self, moq_mux_catalog_hang_Extra *value, moq_status *status);
+moq_hang_catalog_Skipped *moq_mux_catalog_Guard_Extra_skipped_get(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
+void moq_mux_catalog_Guard_Extra_skipped_set(moq_mux_catalog_Guard_Extra *self, moq_hang_catalog_Skipped *value, moq_status *status);
 bool moq_mux_catalog_Guard_Extra_check_renditions(const moq_mux_catalog_Guard_Extra *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_mux_catalog_Guard_Extra_media(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
+moq_hang_Catalog *moq_mux_catalog_Guard_Extra_without_ext(const moq_mux_catalog_Guard_Extra *self, moq_status *status);
 bool moq_mux_catalog_Guard_Extra_to_json(const moq_mux_catalog_Guard_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_mux_catalog_Guard_Extra_to_json_pretty(const moq_mux_catalog_Guard_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_Extra_to_vec(const moq_mux_catalog_Guard_Extra *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_Extra_to_writer(const moq_mux_catalog_Guard_Extra *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_mux_catalog_Guard_Ext_free(moq_mux_catalog_Guard_Ext *self);
@@ -8257,28 +5443,27 @@ moq_hang_catalog_Video *moq_mux_catalog_Guard_Ext_video_get(const moq_mux_catalo
 void moq_mux_catalog_Guard_Ext_video_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Video *value, moq_status *status);
 moq_hang_catalog_Audio *moq_mux_catalog_Guard_Ext_audio_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_audio_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Audio *value, moq_status *status);
-moq_hang_catalog_Media *moq_mux_catalog_Guard_Ext_media_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
-void moq_mux_catalog_Guard_Ext_media_set(moq_mux_catalog_Guard_Ext *self, const moq_hang_catalog_Media *value, moq_status *status);
+moq_hang_catalog_Timeline *moq_mux_catalog_Guard_Ext_sync_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
+void moq_mux_catalog_Guard_Ext_sync_set(moq_mux_catalog_Guard_Ext *self, const moq_hang_catalog_Timeline *value, moq_status *status);
 moq_hang_catalog_Text *moq_mux_catalog_Guard_Ext_text_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_text_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Text *value, moq_status *status);
 moq_hang_catalog_Json *moq_mux_catalog_Guard_Ext_json_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_json_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Json *value, moq_status *status);
 moq_hang_catalog_Binary *moq_mux_catalog_Guard_Ext_binary_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_binary_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Binary *value, moq_status *status);
-moq_hang_catalog_M2ts *moq_mux_catalog_Guard_Ext_m2ts_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
-void moq_mux_catalog_Guard_Ext_m2ts_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_M2ts *value, moq_status *status);
 moq_hang_catalog_Stats *moq_mux_catalog_Guard_Ext_stats_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_stats_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Stats *value, moq_status *status);
 moq_hang_catalog_Echo *moq_mux_catalog_Guard_Ext_echo_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_echo_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Echo *value, moq_status *status);
-moq_vec_tuple_string_hang_catalog_Contribution moq_mux_catalog_Guard_Ext_contributions_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
-void moq_mux_catalog_Guard_Ext_contributions_set(moq_mux_catalog_Guard_Ext *self, moq_vec_tuple_string_hang_catalog_Contribution value, moq_status *status);
+moq_vec_tuple_string_hang_catalog_Include moq_mux_catalog_Guard_Ext_include_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
+void moq_mux_catalog_Guard_Ext_include_set(moq_mux_catalog_Guard_Ext *self, moq_vec_tuple_string_hang_catalog_Include value, moq_status *status);
 moq_mux_container_ts_Ext *moq_mux_catalog_Guard_Ext_ext_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 void moq_mux_catalog_Guard_Ext_ext_set(moq_mux_catalog_Guard_Ext *self, moq_mux_container_ts_Ext *value, moq_status *status);
+moq_hang_catalog_Skipped *moq_mux_catalog_Guard_Ext_skipped_get(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
+void moq_mux_catalog_Guard_Ext_skipped_set(moq_mux_catalog_Guard_Ext *self, moq_hang_catalog_Skipped *value, moq_status *status);
 bool moq_mux_catalog_Guard_Ext_check_renditions(const moq_mux_catalog_Guard_Ext *self, moq_hang_Error **err, moq_status *status);
-moq_hang_Catalog *moq_mux_catalog_Guard_Ext_media(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
+moq_hang_Catalog *moq_mux_catalog_Guard_Ext_without_ext(const moq_mux_catalog_Guard_Ext *self, moq_status *status);
 bool moq_mux_catalog_Guard_Ext_to_json(const moq_mux_catalog_Guard_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
-bool moq_mux_catalog_Guard_Ext_to_json_pretty(const moq_mux_catalog_Guard_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_Ext_to_vec(const moq_mux_catalog_Guard_Ext *self, moq_buf *out, moq_hang_Error **err, moq_status *status);
 bool moq_mux_catalog_Guard_Ext_to_writer(const moq_mux_catalog_Guard_Ext *self, moq_buf writer, moq_hang_Error **err, moq_status *status);
 void moq_mux_catalog_Producer_free(moq_mux_catalog_Producer *self);
@@ -8286,7 +5471,7 @@ void moq_mux_catalog_Producer_drop(moq_mux_catalog_Producer *self, moq_status *s
 moq_mux_catalog_Producer *moq_mux_catalog_Producer_clone(const moq_mux_catalog_Producer *self, moq_status *status);
 bool moq_mux_catalog_Producer_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Config *config, moq_mux_catalog_Producer **out, moq_mux_Error **err, moq_status *status);
 moq_track_Info *moq_mux_catalog_Producer_track_info(const moq_mux_catalog_Producer *self, int8_t priority, moq_status *status);
-bool moq_mux_catalog_Producer_timestamp(const moq_mux_catalog_Producer *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Producer_timestamp(const moq_mux_catalog_Producer *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_mutate(moq_mux_catalog_Producer *self, void (*f)(void *data, moq_hang_Catalog *), void *f_data, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_modify(moq_mux_catalog_Producer *self, moq_mux_catalog_Guard **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_modify_homed(moq_mux_catalog_Producer *self, moq_mux_catalog_Guard **out, moq_mux_Error **err, moq_status *status);
@@ -8344,7 +5529,7 @@ void moq_mux_catalog_Producer_Extra_drop(moq_mux_catalog_Producer_Extra *self, m
 moq_mux_catalog_Producer_Extra *moq_mux_catalog_Producer_Extra_clone(const moq_mux_catalog_Producer_Extra *self, moq_status *status);
 bool moq_mux_catalog_Producer_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Config_Extra *config, moq_mux_catalog_Producer_Extra **out, moq_mux_Error **err, moq_status *status);
 moq_track_Info *moq_mux_catalog_Producer_Extra_track_info(const moq_mux_catalog_Producer_Extra *self, int8_t priority, moq_status *status);
-bool moq_mux_catalog_Producer_Extra_timestamp(const moq_mux_catalog_Producer_Extra *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Producer_Extra_timestamp(const moq_mux_catalog_Producer_Extra *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Extra_mutate(moq_mux_catalog_Producer_Extra *self, void (*f)(void *data, moq_hang_Catalog_Extra *), void *f_data, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Extra_modify(moq_mux_catalog_Producer_Extra *self, moq_mux_catalog_Guard_Extra **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Extra_modify_homed(moq_mux_catalog_Producer_Extra *self, moq_mux_catalog_Guard_Extra **out, moq_mux_Error **err, moq_status *status);
@@ -8402,7 +5587,7 @@ void moq_mux_catalog_Producer_Ext_drop(moq_mux_catalog_Producer_Ext *self, moq_s
 moq_mux_catalog_Producer_Ext *moq_mux_catalog_Producer_Ext_clone(const moq_mux_catalog_Producer_Ext *self, moq_status *status);
 bool moq_mux_catalog_Producer_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Config_Ext *config, moq_mux_catalog_Producer_Ext **out, moq_mux_Error **err, moq_status *status);
 moq_track_Info *moq_mux_catalog_Producer_Ext_track_info(const moq_mux_catalog_Producer_Ext *self, int8_t priority, moq_status *status);
-bool moq_mux_catalog_Producer_Ext_timestamp(const moq_mux_catalog_Producer_Ext *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Producer_Ext_timestamp(const moq_mux_catalog_Producer_Ext *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Ext_mutate(moq_mux_catalog_Producer_Ext *self, void (*f)(void *data, moq_hang_Catalog_Ext *), void *f_data, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Ext_modify(moq_mux_catalog_Producer_Ext *self, moq_mux_catalog_Guard_Ext **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Producer_Ext_modify_homed(moq_mux_catalog_Producer_Ext *self, moq_mux_catalog_Guard_Ext **out, moq_mux_Error **err, moq_status *status);
@@ -8458,15 +5643,15 @@ bool moq_mux_catalog_Producer_Ext_finish(moq_mux_catalog_Producer_Ext *self, moq
 void moq_mux_catalog_Timebase_free(moq_mux_catalog_Timebase *self);
 moq_mux_catalog_Timebase *moq_mux_catalog_Timebase_clone(const moq_mux_catalog_Timebase *self);
 moq_mux_catalog_Reserved *moq_mux_catalog_Timebase_reserve(const moq_mux_catalog_Timebase *self);
-bool moq_mux_catalog_Timebase_place(const moq_mux_catalog_Timebase *self, moq_Timestamp pts, moq_clock_Wall wall, moq_mux_Error **err);
+bool moq_mux_catalog_Timebase_place(const moq_mux_catalog_Timebase *self, const moq_Timestamp *pts, moq_clock_Wall wall, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_Timebase_Extra_free(moq_mux_catalog_Timebase_Extra *self);
 moq_mux_catalog_Timebase_Extra *moq_mux_catalog_Timebase_Extra_clone(const moq_mux_catalog_Timebase_Extra *self);
 moq_mux_catalog_Reserved_Extra *moq_mux_catalog_Timebase_Extra_reserve(const moq_mux_catalog_Timebase_Extra *self);
-bool moq_mux_catalog_Timebase_Extra_place(const moq_mux_catalog_Timebase_Extra *self, moq_Timestamp pts, moq_clock_Wall wall, moq_mux_Error **err);
+bool moq_mux_catalog_Timebase_Extra_place(const moq_mux_catalog_Timebase_Extra *self, const moq_Timestamp *pts, moq_clock_Wall wall, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_Timebase_Ext_free(moq_mux_catalog_Timebase_Ext *self);
 moq_mux_catalog_Timebase_Ext *moq_mux_catalog_Timebase_Ext_clone(const moq_mux_catalog_Timebase_Ext *self);
 moq_mux_catalog_Reserved_Ext *moq_mux_catalog_Timebase_Ext_reserve(const moq_mux_catalog_Timebase_Ext *self);
-bool moq_mux_catalog_Timebase_Ext_place(const moq_mux_catalog_Timebase_Ext *self, moq_Timestamp pts, moq_clock_Wall wall, moq_mux_Error **err);
+bool moq_mux_catalog_Timebase_Ext_place(const moq_mux_catalog_Timebase_Ext *self, const moq_Timestamp *pts, moq_clock_Wall wall, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_Reserved_free(moq_mux_catalog_Reserved *self);
 void moq_mux_catalog_Reserved_drop(moq_mux_catalog_Reserved *self, moq_status *status);
 moq_mux_catalog_Reserved *moq_mux_catalog_Reserved_clone(const moq_mux_catalog_Reserved *self, moq_status *status);
@@ -8504,7 +5689,7 @@ bool moq_mux_catalog_Reserved_track_loc_Wire_BinaryConfig(const moq_mux_catalog_
 bool moq_mux_catalog_Reserved_track_loc_Wire_VideoConfig(const moq_mux_catalog_Reserved *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_VideoConfig *config, moq_mux_container_Producer_loc_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_track_loc_Wire_AudioConfig(const moq_mux_catalog_Reserved *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_AudioConfig *config, moq_mux_container_Producer_loc_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_track_loc_Wire_TextConfig(const moq_mux_catalog_Reserved *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_TextConfig *config, moq_mux_container_Producer_loc_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_catalog_Reserved_timestamp(const moq_mux_catalog_Reserved *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Reserved_timestamp(const moq_mux_catalog_Reserved *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_Reserved_Extra_free(moq_mux_catalog_Reserved_Extra *self);
 void moq_mux_catalog_Reserved_Extra_drop(moq_mux_catalog_Reserved_Extra *self, moq_status *status);
 moq_mux_catalog_Reserved_Extra *moq_mux_catalog_Reserved_Extra_clone(const moq_mux_catalog_Reserved_Extra *self, moq_status *status);
@@ -8542,7 +5727,7 @@ bool moq_mux_catalog_Reserved_Extra_track_loc_Wire_BinaryConfig(const moq_mux_ca
 bool moq_mux_catalog_Reserved_Extra_track_loc_Wire_VideoConfig(const moq_mux_catalog_Reserved_Extra *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_VideoConfig *config, moq_mux_container_Producer_loc_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_Extra_track_loc_Wire_AudioConfig(const moq_mux_catalog_Reserved_Extra *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_AudioConfig *config, moq_mux_container_Producer_loc_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_Extra_track_loc_Wire_TextConfig(const moq_mux_catalog_Reserved_Extra *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_TextConfig *config, moq_mux_container_Producer_loc_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_catalog_Reserved_Extra_timestamp(const moq_mux_catalog_Reserved_Extra *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Reserved_Extra_timestamp(const moq_mux_catalog_Reserved_Extra *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_Reserved_Ext_free(moq_mux_catalog_Reserved_Ext *self);
 void moq_mux_catalog_Reserved_Ext_drop(moq_mux_catalog_Reserved_Ext *self, moq_status *status);
 moq_mux_catalog_Reserved_Ext *moq_mux_catalog_Reserved_Ext_clone(const moq_mux_catalog_Reserved_Ext *self, moq_status *status);
@@ -8580,7 +5765,7 @@ bool moq_mux_catalog_Reserved_Ext_track_loc_Wire_BinaryConfig(const moq_mux_cata
 bool moq_mux_catalog_Reserved_Ext_track_loc_Wire_VideoConfig(const moq_mux_catalog_Reserved_Ext *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_VideoConfig *config, moq_mux_container_Producer_loc_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_Ext_track_loc_Wire_AudioConfig(const moq_mux_catalog_Reserved_Ext *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_AudioConfig *config, moq_mux_container_Producer_loc_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_catalog_Reserved_Ext_track_loc_Wire_TextConfig(const moq_mux_catalog_Reserved_Ext *self, moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_hang_catalog_TextConfig *config, moq_mux_container_Producer_loc_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_catalog_Reserved_Ext_timestamp(const moq_mux_catalog_Reserved_Ext *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_catalog_Reserved_Ext_timestamp(const moq_mux_catalog_Reserved_Ext *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_catalog_VideoHint_free(moq_mux_catalog_VideoHint *self);
 void moq_mux_catalog_VideoHint_drop(moq_mux_catalog_VideoHint *self, moq_status *status);
 moq_mux_catalog_VideoHint *moq_mux_catalog_VideoHint_clone(const moq_mux_catalog_VideoHint *self, moq_status *status);
@@ -8616,59 +5801,62 @@ void moq_mux_catalog_VideoHint_container_set(moq_mux_catalog_VideoHint *self, mo
 int32_t moq_mux_catalog_VideoHint_preference_get(const moq_mux_catalog_VideoHint *self, moq_status *status);
 void moq_mux_catalog_VideoHint_preference_set(moq_mux_catalog_VideoHint *self, int32_t value, moq_status *status);
 void moq_mux_catalog_VideoHint_apply(const moq_mux_catalog_VideoHint *self, moq_hang_catalog_VideoConfig *config, moq_status *status);
-moq_hang_catalog_VideoConfig *moq_mux_catalog_VideoHint_to_config(const moq_mux_catalog_VideoHint *self, moq_status *status);
 void moq_mux_container_Consumer_Container_free(moq_mux_container_Consumer_Container *self);
 void moq_mux_container_Consumer_Container_drop(moq_mux_container_Consumer_Container *self, moq_status *status);
 moq_mux_container_Consumer_Container *moq_mux_container_Consumer_Container_new(moq_track_Subscriber *track, moq_mux_catalog_hang_Container *format, moq_status *status);
-moq_mux_container_Consumer_Container *moq_mux_container_Consumer_Container_with_warmup(moq_mux_container_Consumer_Container *self, moq_duration warmup, moq_status *status);
-moq_mux_container_Consumer_Container *moq_mux_container_Consumer_Container_with_delay(moq_mux_container_Consumer_Container *self, moq_track_Delay delay, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_Container_arrival(const moq_mux_container_Consumer_Container *self, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_Container_backlog(const moq_mux_container_Consumer_Container *self, moq_status *status);
 typedef struct moq_mux_container_Consumer_Container_read_future moq_mux_container_Consumer_Container_read_future;
 moq_mux_container_Consumer_Container_read_future *moq_mux_container_Consumer_Container_read(moq_mux_container_Consumer_Container *self, moq_status *status);
 moq_poll moq_mux_container_Consumer_Container_read_start(moq_mux_container_Consumer_Container *self, moq_option_mux_container_Read *out, moq_mux_Error **err, moq_mux_container_Consumer_Container_read_future **future, moq_status *status);
 moq_poll moq_mux_container_Consumer_Container_read_poll(moq_mux_container_Consumer_Container_read_future *future, moq_waker waker, moq_option_mux_container_Read *out, moq_mux_Error **err);
 void moq_mux_container_Consumer_Container_read_future_free(moq_mux_container_Consumer_Container_read_future *future);
+bool moq_mux_container_Consumer_Container_is_skipped(const moq_mux_container_Consumer_Container *self, moq_range_u64 groups, moq_status *status);
 void moq_mux_container_Consumer_Container_set_delay(moq_mux_container_Consumer_Container *self, moq_track_Delay delay, moq_status *status);
-void moq_mux_container_Consumer_Container_set_max_buffer(moq_mux_container_Consumer_Container *self, size_t bytes, moq_status *status);
+void moq_mux_container_Consumer_Container_set_playhead(moq_mux_container_Consumer_Container *self, moq_mux_sync_Consumer *playhead, moq_status *status);
 void moq_mux_container_Consumer_fmp4_Wire_free(moq_mux_container_Consumer_fmp4_Wire *self);
 void moq_mux_container_Consumer_fmp4_Wire_drop(moq_mux_container_Consumer_fmp4_Wire *self, moq_status *status);
 moq_mux_container_Consumer_fmp4_Wire *moq_mux_container_Consumer_fmp4_Wire_new(moq_track_Subscriber *track, moq_mux_container_fmp4_Wire *format, moq_status *status);
-moq_mux_container_Consumer_fmp4_Wire *moq_mux_container_Consumer_fmp4_Wire_with_warmup(moq_mux_container_Consumer_fmp4_Wire *self, moq_duration warmup, moq_status *status);
-moq_mux_container_Consumer_fmp4_Wire *moq_mux_container_Consumer_fmp4_Wire_with_delay(moq_mux_container_Consumer_fmp4_Wire *self, moq_track_Delay delay, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_fmp4_Wire_arrival(const moq_mux_container_Consumer_fmp4_Wire *self, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_fmp4_Wire_backlog(const moq_mux_container_Consumer_fmp4_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Consumer_fmp4_Wire_read_future moq_mux_container_Consumer_fmp4_Wire_read_future;
 moq_mux_container_Consumer_fmp4_Wire_read_future *moq_mux_container_Consumer_fmp4_Wire_read(moq_mux_container_Consumer_fmp4_Wire *self, moq_status *status);
 moq_poll moq_mux_container_Consumer_fmp4_Wire_read_start(moq_mux_container_Consumer_fmp4_Wire *self, moq_option_mux_container_Read *out, moq_mux_container_fmp4_Error **err, moq_mux_container_Consumer_fmp4_Wire_read_future **future, moq_status *status);
 moq_poll moq_mux_container_Consumer_fmp4_Wire_read_poll(moq_mux_container_Consumer_fmp4_Wire_read_future *future, moq_waker waker, moq_option_mux_container_Read *out, moq_mux_container_fmp4_Error **err);
 void moq_mux_container_Consumer_fmp4_Wire_read_future_free(moq_mux_container_Consumer_fmp4_Wire_read_future *future);
+bool moq_mux_container_Consumer_fmp4_Wire_is_skipped(const moq_mux_container_Consumer_fmp4_Wire *self, moq_range_u64 groups, moq_status *status);
 void moq_mux_container_Consumer_fmp4_Wire_set_delay(moq_mux_container_Consumer_fmp4_Wire *self, moq_track_Delay delay, moq_status *status);
-void moq_mux_container_Consumer_fmp4_Wire_set_max_buffer(moq_mux_container_Consumer_fmp4_Wire *self, size_t bytes, moq_status *status);
+void moq_mux_container_Consumer_fmp4_Wire_set_playhead(moq_mux_container_Consumer_fmp4_Wire *self, moq_mux_sync_Consumer *playhead, moq_status *status);
 void moq_mux_container_Consumer_legacy_Wire_free(moq_mux_container_Consumer_legacy_Wire *self);
 void moq_mux_container_Consumer_legacy_Wire_drop(moq_mux_container_Consumer_legacy_Wire *self, moq_status *status);
 moq_mux_container_Consumer_legacy_Wire *moq_mux_container_Consumer_legacy_Wire_new(moq_track_Subscriber *track, moq_mux_container_legacy_Wire format, moq_status *status);
-moq_mux_container_Consumer_legacy_Wire *moq_mux_container_Consumer_legacy_Wire_with_warmup(moq_mux_container_Consumer_legacy_Wire *self, moq_duration warmup, moq_status *status);
-moq_mux_container_Consumer_legacy_Wire *moq_mux_container_Consumer_legacy_Wire_with_delay(moq_mux_container_Consumer_legacy_Wire *self, moq_track_Delay delay, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_legacy_Wire_arrival(const moq_mux_container_Consumer_legacy_Wire *self, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_legacy_Wire_backlog(const moq_mux_container_Consumer_legacy_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Consumer_legacy_Wire_read_future moq_mux_container_Consumer_legacy_Wire_read_future;
 moq_mux_container_Consumer_legacy_Wire_read_future *moq_mux_container_Consumer_legacy_Wire_read(moq_mux_container_Consumer_legacy_Wire *self, moq_status *status);
 moq_poll moq_mux_container_Consumer_legacy_Wire_read_start(moq_mux_container_Consumer_legacy_Wire *self, moq_option_mux_container_Read *out, moq_mux_Error **err, moq_mux_container_Consumer_legacy_Wire_read_future **future, moq_status *status);
 moq_poll moq_mux_container_Consumer_legacy_Wire_read_poll(moq_mux_container_Consumer_legacy_Wire_read_future *future, moq_waker waker, moq_option_mux_container_Read *out, moq_mux_Error **err);
 void moq_mux_container_Consumer_legacy_Wire_read_future_free(moq_mux_container_Consumer_legacy_Wire_read_future *future);
+bool moq_mux_container_Consumer_legacy_Wire_is_skipped(const moq_mux_container_Consumer_legacy_Wire *self, moq_range_u64 groups, moq_status *status);
 void moq_mux_container_Consumer_legacy_Wire_set_delay(moq_mux_container_Consumer_legacy_Wire *self, moq_track_Delay delay, moq_status *status);
-void moq_mux_container_Consumer_legacy_Wire_set_max_buffer(moq_mux_container_Consumer_legacy_Wire *self, size_t bytes, moq_status *status);
+void moq_mux_container_Consumer_legacy_Wire_set_playhead(moq_mux_container_Consumer_legacy_Wire *self, moq_mux_sync_Consumer *playhead, moq_status *status);
 void moq_mux_container_Consumer_loc_Wire_free(moq_mux_container_Consumer_loc_Wire *self);
 void moq_mux_container_Consumer_loc_Wire_drop(moq_mux_container_Consumer_loc_Wire *self, moq_status *status);
 moq_mux_container_Consumer_loc_Wire *moq_mux_container_Consumer_loc_Wire_new(moq_track_Subscriber *track, moq_mux_container_loc_Wire format, moq_status *status);
-moq_mux_container_Consumer_loc_Wire *moq_mux_container_Consumer_loc_Wire_with_warmup(moq_mux_container_Consumer_loc_Wire *self, moq_duration warmup, moq_status *status);
-moq_mux_container_Consumer_loc_Wire *moq_mux_container_Consumer_loc_Wire_with_delay(moq_mux_container_Consumer_loc_Wire *self, moq_track_Delay delay, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_loc_Wire_arrival(const moq_mux_container_Consumer_loc_Wire *self, moq_status *status);
+moq_option_clock_Instant moq_mux_container_Consumer_loc_Wire_backlog(const moq_mux_container_Consumer_loc_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Consumer_loc_Wire_read_future moq_mux_container_Consumer_loc_Wire_read_future;
 moq_mux_container_Consumer_loc_Wire_read_future *moq_mux_container_Consumer_loc_Wire_read(moq_mux_container_Consumer_loc_Wire *self, moq_status *status);
 moq_poll moq_mux_container_Consumer_loc_Wire_read_start(moq_mux_container_Consumer_loc_Wire *self, moq_option_mux_container_Read *out, moq_mux_Error **err, moq_mux_container_Consumer_loc_Wire_read_future **future, moq_status *status);
 moq_poll moq_mux_container_Consumer_loc_Wire_read_poll(moq_mux_container_Consumer_loc_Wire_read_future *future, moq_waker waker, moq_option_mux_container_Read *out, moq_mux_Error **err);
 void moq_mux_container_Consumer_loc_Wire_read_future_free(moq_mux_container_Consumer_loc_Wire_read_future *future);
+bool moq_mux_container_Consumer_loc_Wire_is_skipped(const moq_mux_container_Consumer_loc_Wire *self, moq_range_u64 groups, moq_status *status);
 void moq_mux_container_Consumer_loc_Wire_set_delay(moq_mux_container_Consumer_loc_Wire *self, moq_track_Delay delay, moq_status *status);
-void moq_mux_container_Consumer_loc_Wire_set_max_buffer(moq_mux_container_Consumer_loc_Wire *self, size_t bytes, moq_status *status);
+void moq_mux_container_Consumer_loc_Wire_set_playhead(moq_mux_container_Consumer_loc_Wire *self, moq_mux_sync_Consumer *playhead, moq_status *status);
 void moq_mux_container_GroupConsumer_Container_free(moq_mux_container_GroupConsumer_Container *self);
 void moq_mux_container_GroupConsumer_Container_drop(moq_mux_container_GroupConsumer_Container *self, moq_status *status);
 moq_mux_container_GroupConsumer_Container *moq_mux_container_GroupConsumer_Container_new(moq_group_Consumer *group, moq_mux_catalog_hang_Container *format, moq_status *status);
-uint64_t moq_mux_container_GroupConsumer_Container_sequence(const moq_mux_container_GroupConsumer_Container *self, moq_status *status);
+uint64_t moq_mux_container_GroupConsumer_Container_start(const moq_mux_container_GroupConsumer_Container *self, moq_status *status);
 typedef struct moq_mux_container_GroupConsumer_Container_read_future moq_mux_container_GroupConsumer_Container_read_future;
 moq_mux_container_GroupConsumer_Container_read_future *moq_mux_container_GroupConsumer_Container_read(moq_mux_container_GroupConsumer_Container *self, moq_status *status);
 moq_poll moq_mux_container_GroupConsumer_Container_read_start(moq_mux_container_GroupConsumer_Container *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_GroupConsumer_Container_read_future **future, moq_status *status);
@@ -8677,7 +5865,7 @@ void moq_mux_container_GroupConsumer_Container_read_future_free(moq_mux_containe
 void moq_mux_container_GroupConsumer_fmp4_Wire_free(moq_mux_container_GroupConsumer_fmp4_Wire *self);
 void moq_mux_container_GroupConsumer_fmp4_Wire_drop(moq_mux_container_GroupConsumer_fmp4_Wire *self, moq_status *status);
 moq_mux_container_GroupConsumer_fmp4_Wire *moq_mux_container_GroupConsumer_fmp4_Wire_new(moq_group_Consumer *group, moq_mux_container_fmp4_Wire *format, moq_status *status);
-uint64_t moq_mux_container_GroupConsumer_fmp4_Wire_sequence(const moq_mux_container_GroupConsumer_fmp4_Wire *self, moq_status *status);
+uint64_t moq_mux_container_GroupConsumer_fmp4_Wire_start(const moq_mux_container_GroupConsumer_fmp4_Wire *self, moq_status *status);
 typedef struct moq_mux_container_GroupConsumer_fmp4_Wire_read_future moq_mux_container_GroupConsumer_fmp4_Wire_read_future;
 moq_mux_container_GroupConsumer_fmp4_Wire_read_future *moq_mux_container_GroupConsumer_fmp4_Wire_read(moq_mux_container_GroupConsumer_fmp4_Wire *self, moq_status *status);
 moq_poll moq_mux_container_GroupConsumer_fmp4_Wire_read_start(moq_mux_container_GroupConsumer_fmp4_Wire *self, moq_option_mux_container_Frame *out, moq_mux_container_fmp4_Error **err, moq_mux_container_GroupConsumer_fmp4_Wire_read_future **future, moq_status *status);
@@ -8686,7 +5874,7 @@ void moq_mux_container_GroupConsumer_fmp4_Wire_read_future_free(moq_mux_containe
 void moq_mux_container_GroupConsumer_legacy_Wire_free(moq_mux_container_GroupConsumer_legacy_Wire *self);
 void moq_mux_container_GroupConsumer_legacy_Wire_drop(moq_mux_container_GroupConsumer_legacy_Wire *self, moq_status *status);
 moq_mux_container_GroupConsumer_legacy_Wire *moq_mux_container_GroupConsumer_legacy_Wire_new(moq_group_Consumer *group, moq_mux_container_legacy_Wire format, moq_status *status);
-uint64_t moq_mux_container_GroupConsumer_legacy_Wire_sequence(const moq_mux_container_GroupConsumer_legacy_Wire *self, moq_status *status);
+uint64_t moq_mux_container_GroupConsumer_legacy_Wire_start(const moq_mux_container_GroupConsumer_legacy_Wire *self, moq_status *status);
 typedef struct moq_mux_container_GroupConsumer_legacy_Wire_read_future moq_mux_container_GroupConsumer_legacy_Wire_read_future;
 moq_mux_container_GroupConsumer_legacy_Wire_read_future *moq_mux_container_GroupConsumer_legacy_Wire_read(moq_mux_container_GroupConsumer_legacy_Wire *self, moq_status *status);
 moq_poll moq_mux_container_GroupConsumer_legacy_Wire_read_start(moq_mux_container_GroupConsumer_legacy_Wire *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_GroupConsumer_legacy_Wire_read_future **future, moq_status *status);
@@ -8695,42 +5883,388 @@ void moq_mux_container_GroupConsumer_legacy_Wire_read_future_free(moq_mux_contai
 void moq_mux_container_GroupConsumer_loc_Wire_free(moq_mux_container_GroupConsumer_loc_Wire *self);
 void moq_mux_container_GroupConsumer_loc_Wire_drop(moq_mux_container_GroupConsumer_loc_Wire *self, moq_status *status);
 moq_mux_container_GroupConsumer_loc_Wire *moq_mux_container_GroupConsumer_loc_Wire_new(moq_group_Consumer *group, moq_mux_container_loc_Wire format, moq_status *status);
-uint64_t moq_mux_container_GroupConsumer_loc_Wire_sequence(const moq_mux_container_GroupConsumer_loc_Wire *self, moq_status *status);
+uint64_t moq_mux_container_GroupConsumer_loc_Wire_start(const moq_mux_container_GroupConsumer_loc_Wire *self, moq_status *status);
 typedef struct moq_mux_container_GroupConsumer_loc_Wire_read_future moq_mux_container_GroupConsumer_loc_Wire_read_future;
 moq_mux_container_GroupConsumer_loc_Wire_read_future *moq_mux_container_GroupConsumer_loc_Wire_read(moq_mux_container_GroupConsumer_loc_Wire *self, moq_status *status);
 moq_poll moq_mux_container_GroupConsumer_loc_Wire_read_start(moq_mux_container_GroupConsumer_loc_Wire *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_GroupConsumer_loc_Wire_read_future **future, moq_status *status);
 moq_poll moq_mux_container_GroupConsumer_loc_Wire_read_poll(moq_mux_container_GroupConsumer_loc_Wire_read_future *future, moq_waker waker, moq_option_mux_container_Frame *out, moq_mux_Error **err);
 void moq_mux_container_GroupConsumer_loc_Wire_read_future_free(moq_mux_container_GroupConsumer_loc_Wire_read_future *future);
+void moq_mux_container_Finished_Container_AudioConfig_free(moq_mux_container_Finished_Container_AudioConfig *self);
+void moq_mux_container_Finished_Container_AudioConfig_drop(moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_AudioConfig_name(const moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_AudioConfig_demand(const moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_AudioConfig_info(const moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_AudioConfig_consume(const moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_AudioConfig_estimate(const moq_mux_container_Finished_Container_AudioConfig *self, moq_status *status);
+void moq_mux_container_Finished_Container_AudioConfig_abort(moq_mux_container_Finished_Container_AudioConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_Container_BinaryConfig_free(moq_mux_container_Finished_Container_BinaryConfig *self);
+void moq_mux_container_Finished_Container_BinaryConfig_drop(moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_BinaryConfig_name(const moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_BinaryConfig_demand(const moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_BinaryConfig_info(const moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_BinaryConfig_consume(const moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_BinaryConfig_estimate(const moq_mux_container_Finished_Container_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Finished_Container_BinaryConfig_abort(moq_mux_container_Finished_Container_BinaryConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_Container_JsonConfig_free(moq_mux_container_Finished_Container_JsonConfig *self);
+void moq_mux_container_Finished_Container_JsonConfig_drop(moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_JsonConfig_name(const moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_JsonConfig_demand(const moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_JsonConfig_info(const moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_JsonConfig_consume(const moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_JsonConfig_estimate(const moq_mux_container_Finished_Container_JsonConfig *self, moq_status *status);
+void moq_mux_container_Finished_Container_JsonConfig_abort(moq_mux_container_Finished_Container_JsonConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_Container_TextConfig_free(moq_mux_container_Finished_Container_TextConfig *self);
+void moq_mux_container_Finished_Container_TextConfig_drop(moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_TextConfig_name(const moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_TextConfig_demand(const moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_TextConfig_info(const moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_TextConfig_consume(const moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_TextConfig_estimate(const moq_mux_container_Finished_Container_TextConfig *self, moq_status *status);
+void moq_mux_container_Finished_Container_TextConfig_abort(moq_mux_container_Finished_Container_TextConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_Container_VideoConfig_free(moq_mux_container_Finished_Container_VideoConfig *self);
+void moq_mux_container_Finished_Container_VideoConfig_drop(moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_VideoConfig_name(const moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_VideoConfig_demand(const moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_VideoConfig_info(const moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_VideoConfig_consume(const moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_VideoConfig_estimate(const moq_mux_container_Finished_Container_VideoConfig *self, moq_status *status);
+void moq_mux_container_Finished_Container_VideoConfig_abort(moq_mux_container_Finished_Container_VideoConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_Container_free(moq_mux_container_Finished_Container *self);
+void moq_mux_container_Finished_Container_drop(moq_mux_container_Finished_Container *self, moq_status *status);
+moq_buf moq_mux_container_Finished_Container_name(const moq_mux_container_Finished_Container *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_Container_demand(const moq_mux_container_Finished_Container *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_Container_info(const moq_mux_container_Finished_Container *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_Container_consume(const moq_mux_container_Finished_Container *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_Container_estimate(const moq_mux_container_Finished_Container *self, moq_status *status);
+void moq_mux_container_Finished_Container_abort(moq_mux_container_Finished_Container *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_AudioConfig_free(moq_mux_container_Finished_fmp4_Wire_AudioConfig *self);
+void moq_mux_container_Finished_fmp4_Wire_AudioConfig_drop(moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_AudioConfig_name(const moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_AudioConfig_demand(const moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_AudioConfig_info(const moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_AudioConfig_consume(const moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_AudioConfig_estimate(const moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_AudioConfig_abort(moq_mux_container_Finished_fmp4_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_BinaryConfig_free(moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self);
+void moq_mux_container_Finished_fmp4_Wire_BinaryConfig_drop(moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_BinaryConfig_name(const moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_BinaryConfig_demand(const moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_BinaryConfig_info(const moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_BinaryConfig_consume(const moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_BinaryConfig_estimate(const moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_BinaryConfig_abort(moq_mux_container_Finished_fmp4_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_JsonConfig_free(moq_mux_container_Finished_fmp4_Wire_JsonConfig *self);
+void moq_mux_container_Finished_fmp4_Wire_JsonConfig_drop(moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_JsonConfig_name(const moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_JsonConfig_demand(const moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_JsonConfig_info(const moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_JsonConfig_consume(const moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_JsonConfig_estimate(const moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_JsonConfig_abort(moq_mux_container_Finished_fmp4_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_TextConfig_free(moq_mux_container_Finished_fmp4_Wire_TextConfig *self);
+void moq_mux_container_Finished_fmp4_Wire_TextConfig_drop(moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_TextConfig_name(const moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_TextConfig_demand(const moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_TextConfig_info(const moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_TextConfig_consume(const moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_TextConfig_estimate(const moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_TextConfig_abort(moq_mux_container_Finished_fmp4_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_VideoConfig_free(moq_mux_container_Finished_fmp4_Wire_VideoConfig *self);
+void moq_mux_container_Finished_fmp4_Wire_VideoConfig_drop(moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_VideoConfig_name(const moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_VideoConfig_demand(const moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_VideoConfig_info(const moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_VideoConfig_consume(const moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_VideoConfig_estimate(const moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_VideoConfig_abort(moq_mux_container_Finished_fmp4_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_free(moq_mux_container_Finished_fmp4_Wire *self);
+void moq_mux_container_Finished_fmp4_Wire_drop(moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+moq_buf moq_mux_container_Finished_fmp4_Wire_name(const moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_fmp4_Wire_demand(const moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_fmp4_Wire_info(const moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_fmp4_Wire_consume(const moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_fmp4_Wire_estimate(const moq_mux_container_Finished_fmp4_Wire *self, moq_status *status);
+void moq_mux_container_Finished_fmp4_Wire_abort(moq_mux_container_Finished_fmp4_Wire *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_AudioConfig_free(moq_mux_container_Finished_legacy_Wire_AudioConfig *self);
+void moq_mux_container_Finished_legacy_Wire_AudioConfig_drop(moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_AudioConfig_name(const moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_AudioConfig_demand(const moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_AudioConfig_info(const moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_AudioConfig_consume(const moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_AudioConfig_estimate(const moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_AudioConfig_abort(moq_mux_container_Finished_legacy_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_BinaryConfig_free(moq_mux_container_Finished_legacy_Wire_BinaryConfig *self);
+void moq_mux_container_Finished_legacy_Wire_BinaryConfig_drop(moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_BinaryConfig_name(const moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_BinaryConfig_demand(const moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_BinaryConfig_info(const moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_BinaryConfig_consume(const moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_BinaryConfig_estimate(const moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_BinaryConfig_abort(moq_mux_container_Finished_legacy_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_JsonConfig_free(moq_mux_container_Finished_legacy_Wire_JsonConfig *self);
+void moq_mux_container_Finished_legacy_Wire_JsonConfig_drop(moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_JsonConfig_name(const moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_JsonConfig_demand(const moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_JsonConfig_info(const moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_JsonConfig_consume(const moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_JsonConfig_estimate(const moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_JsonConfig_abort(moq_mux_container_Finished_legacy_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_TextConfig_free(moq_mux_container_Finished_legacy_Wire_TextConfig *self);
+void moq_mux_container_Finished_legacy_Wire_TextConfig_drop(moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_TextConfig_name(const moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_TextConfig_demand(const moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_TextConfig_info(const moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_TextConfig_consume(const moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_TextConfig_estimate(const moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_TextConfig_abort(moq_mux_container_Finished_legacy_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_VideoConfig_free(moq_mux_container_Finished_legacy_Wire_VideoConfig *self);
+void moq_mux_container_Finished_legacy_Wire_VideoConfig_drop(moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_VideoConfig_name(const moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_VideoConfig_demand(const moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_VideoConfig_info(const moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_VideoConfig_consume(const moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_VideoConfig_estimate(const moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_VideoConfig_abort(moq_mux_container_Finished_legacy_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_free(moq_mux_container_Finished_legacy_Wire *self);
+void moq_mux_container_Finished_legacy_Wire_drop(moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+moq_buf moq_mux_container_Finished_legacy_Wire_name(const moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_legacy_Wire_demand(const moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_legacy_Wire_info(const moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_legacy_Wire_consume(const moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_legacy_Wire_estimate(const moq_mux_container_Finished_legacy_Wire *self, moq_status *status);
+void moq_mux_container_Finished_legacy_Wire_abort(moq_mux_container_Finished_legacy_Wire *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_AudioConfig_free(moq_mux_container_Finished_loc_Wire_AudioConfig *self);
+void moq_mux_container_Finished_loc_Wire_AudioConfig_drop(moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_AudioConfig_name(const moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_AudioConfig_demand(const moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_AudioConfig_info(const moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_AudioConfig_consume(const moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_AudioConfig_estimate(const moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_AudioConfig_abort(moq_mux_container_Finished_loc_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_BinaryConfig_free(moq_mux_container_Finished_loc_Wire_BinaryConfig *self);
+void moq_mux_container_Finished_loc_Wire_BinaryConfig_drop(moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_BinaryConfig_name(const moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_BinaryConfig_demand(const moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_BinaryConfig_info(const moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_BinaryConfig_consume(const moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_BinaryConfig_estimate(const moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_BinaryConfig_abort(moq_mux_container_Finished_loc_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_JsonConfig_free(moq_mux_container_Finished_loc_Wire_JsonConfig *self);
+void moq_mux_container_Finished_loc_Wire_JsonConfig_drop(moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_JsonConfig_name(const moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_JsonConfig_demand(const moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_JsonConfig_info(const moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_JsonConfig_consume(const moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_JsonConfig_estimate(const moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_JsonConfig_abort(moq_mux_container_Finished_loc_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_TextConfig_free(moq_mux_container_Finished_loc_Wire_TextConfig *self);
+void moq_mux_container_Finished_loc_Wire_TextConfig_drop(moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_TextConfig_name(const moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_TextConfig_demand(const moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_TextConfig_info(const moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_TextConfig_consume(const moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_TextConfig_estimate(const moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_TextConfig_abort(moq_mux_container_Finished_loc_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_VideoConfig_free(moq_mux_container_Finished_loc_Wire_VideoConfig *self);
+void moq_mux_container_Finished_loc_Wire_VideoConfig_drop(moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_VideoConfig_name(const moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_VideoConfig_demand(const moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_VideoConfig_info(const moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_VideoConfig_consume(const moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_VideoConfig_estimate(const moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_VideoConfig_abort(moq_mux_container_Finished_loc_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_free(moq_mux_container_Finished_loc_Wire *self);
+void moq_mux_container_Finished_loc_Wire_drop(moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+moq_buf moq_mux_container_Finished_loc_Wire_name(const moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+moq_track_Demand *moq_mux_container_Finished_loc_Wire_demand(const moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+moq_track_Info *moq_mux_container_Finished_loc_Wire_info(const moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+moq_track_Subscriber *moq_mux_container_Finished_loc_Wire_consume(const moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+moq_mux_catalog_Estimate *moq_mux_container_Finished_loc_Wire_estimate(const moq_mux_container_Finished_loc_Wire *self, moq_status *status);
+void moq_mux_container_Finished_loc_Wire_abort(moq_mux_container_Finished_loc_Wire *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_Guard_unit_free(moq_mux_container_Guard_unit *self);
+void moq_mux_container_Guard_unit_drop(moq_mux_container_Guard_unit *self, moq_status *status);
+bool moq_mux_container_Guard_unit_commit(moq_mux_container_Guard_unit *self, moq_mux_Error **err, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_free(moq_mux_container_Guard_AudioConfig *self);
+void moq_mux_container_Guard_AudioConfig_drop(moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+bool moq_mux_container_Guard_AudioConfig_commit(moq_mux_container_Guard_AudioConfig *self, moq_mux_Error **err, moq_status *status);
+moq_path_Relative *moq_mux_container_Guard_AudioConfig_broadcast_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_broadcast_set(moq_mux_container_Guard_AudioConfig *self, moq_path_Relative *value, moq_status *status);
+moq_buf moq_mux_container_Guard_AudioConfig_track_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_track_set(moq_mux_container_Guard_AudioConfig *self, moq_buf value, moq_status *status);
+moq_Instance *moq_mux_container_Guard_AudioConfig_instance_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_instance_set(moq_mux_container_Guard_AudioConfig *self, moq_Instance *value, moq_status *status);
+moq_buf moq_mux_container_Guard_AudioConfig_label_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_label_set(moq_mux_container_Guard_AudioConfig *self, moq_buf value, moq_status *status);
+moq_hang_catalog_AudioCodec moq_mux_container_Guard_AudioConfig_codec_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_codec_set(moq_mux_container_Guard_AudioConfig *self, moq_hang_catalog_AudioCodec value, moq_status *status);
+uint32_t moq_mux_container_Guard_AudioConfig_sample_rate_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_sample_rate_set(moq_mux_container_Guard_AudioConfig *self, uint32_t value, moq_status *status);
+uint32_t moq_mux_container_Guard_AudioConfig_channel_count_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_channel_count_set(moq_mux_container_Guard_AudioConfig *self, uint32_t value, moq_status *status);
+moq_option_hang_catalog_AudioLayout moq_mux_container_Guard_AudioConfig_layout_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_layout_set(moq_mux_container_Guard_AudioConfig *self, moq_option_hang_catalog_AudioLayout value, moq_status *status);
+moq_option_u64 moq_mux_container_Guard_AudioConfig_bitrate_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_bitrate_set(moq_mux_container_Guard_AudioConfig *self, moq_option_u64 value, moq_status *status);
+bool moq_mux_container_Guard_AudioConfig_enabled_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_enabled_set(moq_mux_container_Guard_AudioConfig *self, bool value, moq_status *status);
+moq_buf moq_mux_container_Guard_AudioConfig_description_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_description_set(moq_mux_container_Guard_AudioConfig *self, moq_buf value, moq_status *status);
+moq_hang_catalog_Container *moq_mux_container_Guard_AudioConfig_container_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_container_set(moq_mux_container_Guard_AudioConfig *self, moq_hang_catalog_Container *value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_AudioConfig_jitter_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_jitter_set(moq_mux_container_Guard_AudioConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_AudioConfig_warmup_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_warmup_set(moq_mux_container_Guard_AudioConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_AudioConfig_delay_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+void moq_mux_container_Guard_AudioConfig_delay_set(moq_mux_container_Guard_AudioConfig *self, moq_option_duration value, moq_status *status);
+bool moq_mux_container_Guard_AudioConfig_same_identity(const moq_mux_container_Guard_AudioConfig *self, const moq_hang_catalog_AudioConfig *other, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_free(moq_mux_container_Guard_BinaryConfig *self);
+void moq_mux_container_Guard_BinaryConfig_drop(moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+bool moq_mux_container_Guard_BinaryConfig_commit(moq_mux_container_Guard_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
+moq_path_Relative *moq_mux_container_Guard_BinaryConfig_broadcast_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_broadcast_set(moq_mux_container_Guard_BinaryConfig *self, moq_path_Relative *value, moq_status *status);
+moq_buf moq_mux_container_Guard_BinaryConfig_track_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_track_set(moq_mux_container_Guard_BinaryConfig *self, moq_buf value, moq_status *status);
+moq_Instance *moq_mux_container_Guard_BinaryConfig_instance_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_instance_set(moq_mux_container_Guard_BinaryConfig *self, moq_Instance *value, moq_status *status);
+moq_hang_catalog_Mode moq_mux_container_Guard_BinaryConfig_mode_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_mode_set(moq_mux_container_Guard_BinaryConfig *self, moq_hang_catalog_Mode value, moq_status *status);
+moq_buf moq_mux_container_Guard_BinaryConfig_mime_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_mime_set(moq_mux_container_Guard_BinaryConfig *self, moq_buf value, moq_status *status);
+moq_option_u64 moq_mux_container_Guard_BinaryConfig_bitrate_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_bitrate_set(moq_mux_container_Guard_BinaryConfig *self, moq_option_u64 value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_BinaryConfig_jitter_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_jitter_set(moq_mux_container_Guard_BinaryConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_BinaryConfig_delay_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_delay_set(moq_mux_container_Guard_BinaryConfig *self, moq_option_duration value, moq_status *status);
+moq_vec_tuple_string_Json moq_mux_container_Guard_BinaryConfig_extra_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+void moq_mux_container_Guard_BinaryConfig_extra_set(moq_mux_container_Guard_BinaryConfig *self, moq_vec_tuple_string_Json value, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_free(moq_mux_container_Guard_JsonConfig *self);
+void moq_mux_container_Guard_JsonConfig_drop(moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+bool moq_mux_container_Guard_JsonConfig_commit(moq_mux_container_Guard_JsonConfig *self, moq_mux_Error **err, moq_status *status);
+moq_path_Relative *moq_mux_container_Guard_JsonConfig_broadcast_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_broadcast_set(moq_mux_container_Guard_JsonConfig *self, moq_path_Relative *value, moq_status *status);
+moq_buf moq_mux_container_Guard_JsonConfig_track_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_track_set(moq_mux_container_Guard_JsonConfig *self, moq_buf value, moq_status *status);
+moq_Instance *moq_mux_container_Guard_JsonConfig_instance_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_instance_set(moq_mux_container_Guard_JsonConfig *self, moq_Instance *value, moq_status *status);
+moq_hang_catalog_Mode moq_mux_container_Guard_JsonConfig_mode_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_mode_set(moq_mux_container_Guard_JsonConfig *self, moq_hang_catalog_Mode value, moq_status *status);
+moq_buf moq_mux_container_Guard_JsonConfig_schema_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_schema_set(moq_mux_container_Guard_JsonConfig *self, moq_buf value, moq_status *status);
+moq_option_u64 moq_mux_container_Guard_JsonConfig_bitrate_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_bitrate_set(moq_mux_container_Guard_JsonConfig *self, moq_option_u64 value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_JsonConfig_jitter_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_jitter_set(moq_mux_container_Guard_JsonConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_JsonConfig_delay_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_delay_set(moq_mux_container_Guard_JsonConfig *self, moq_option_duration value, moq_status *status);
+moq_vec_tuple_string_Json moq_mux_container_Guard_JsonConfig_extra_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+void moq_mux_container_Guard_JsonConfig_extra_set(moq_mux_container_Guard_JsonConfig *self, moq_vec_tuple_string_Json value, moq_status *status);
+void moq_mux_container_Guard_TextConfig_free(moq_mux_container_Guard_TextConfig *self);
+void moq_mux_container_Guard_TextConfig_drop(moq_mux_container_Guard_TextConfig *self, moq_status *status);
+bool moq_mux_container_Guard_TextConfig_commit(moq_mux_container_Guard_TextConfig *self, moq_mux_Error **err, moq_status *status);
+moq_path_Relative *moq_mux_container_Guard_TextConfig_broadcast_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_broadcast_set(moq_mux_container_Guard_TextConfig *self, moq_path_Relative *value, moq_status *status);
+moq_buf moq_mux_container_Guard_TextConfig_track_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_track_set(moq_mux_container_Guard_TextConfig *self, moq_buf value, moq_status *status);
+moq_Instance *moq_mux_container_Guard_TextConfig_instance_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_instance_set(moq_mux_container_Guard_TextConfig *self, moq_Instance *value, moq_status *status);
+moq_hang_catalog_TextFormat moq_mux_container_Guard_TextConfig_format_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_format_set(moq_mux_container_Guard_TextConfig *self, moq_hang_catalog_TextFormat value, moq_status *status);
+moq_hang_catalog_TextRole moq_mux_container_Guard_TextConfig_role_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_role_set(moq_mux_container_Guard_TextConfig *self, moq_hang_catalog_TextRole value, moq_status *status);
+moq_buf moq_mux_container_Guard_TextConfig_lang_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_lang_set(moq_mux_container_Guard_TextConfig *self, moq_buf value, moq_status *status);
+moq_buf moq_mux_container_Guard_TextConfig_label_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_label_set(moq_mux_container_Guard_TextConfig *self, moq_buf value, moq_status *status);
+moq_hang_catalog_Container *moq_mux_container_Guard_TextConfig_container_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_container_set(moq_mux_container_Guard_TextConfig *self, moq_hang_catalog_Container *value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_TextConfig_jitter_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_jitter_set(moq_mux_container_Guard_TextConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_TextConfig_delay_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+void moq_mux_container_Guard_TextConfig_delay_set(moq_mux_container_Guard_TextConfig *self, moq_option_duration value, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_free(moq_mux_container_Guard_VideoConfig *self);
+void moq_mux_container_Guard_VideoConfig_drop(moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+bool moq_mux_container_Guard_VideoConfig_commit(moq_mux_container_Guard_VideoConfig *self, moq_mux_Error **err, moq_status *status);
+moq_path_Relative *moq_mux_container_Guard_VideoConfig_broadcast_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_broadcast_set(moq_mux_container_Guard_VideoConfig *self, moq_path_Relative *value, moq_status *status);
+moq_buf moq_mux_container_Guard_VideoConfig_track_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_track_set(moq_mux_container_Guard_VideoConfig *self, moq_buf value, moq_status *status);
+moq_Instance *moq_mux_container_Guard_VideoConfig_instance_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_instance_set(moq_mux_container_Guard_VideoConfig *self, moq_Instance *value, moq_status *status);
+moq_buf moq_mux_container_Guard_VideoConfig_label_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_label_set(moq_mux_container_Guard_VideoConfig *self, moq_buf value, moq_status *status);
+moq_hang_catalog_VideoCodec moq_mux_container_Guard_VideoConfig_codec_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_codec_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_VideoCodec value, moq_status *status);
+moq_buf moq_mux_container_Guard_VideoConfig_description_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_description_set(moq_mux_container_Guard_VideoConfig *self, moq_buf value, moq_status *status);
+moq_option_u32 moq_mux_container_Guard_VideoConfig_coded_width_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_coded_width_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u32 value, moq_status *status);
+moq_option_u32 moq_mux_container_Guard_VideoConfig_coded_height_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_coded_height_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u32 value, moq_status *status);
+moq_option_u32 moq_mux_container_Guard_VideoConfig_display_aspect_width_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_display_aspect_width_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u32 value, moq_status *status);
+moq_option_u32 moq_mux_container_Guard_VideoConfig_display_aspect_height_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_display_aspect_height_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u32 value, moq_status *status);
+moq_hang_catalog_Color *moq_mux_container_Guard_VideoConfig_color_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_color_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_Color *value, moq_status *status);
+moq_hang_catalog_Projection *moq_mux_container_Guard_VideoConfig_projection_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_projection_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_Projection *value, moq_status *status);
+moq_option_hang_catalog_Stereo moq_mux_container_Guard_VideoConfig_stereo_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_stereo_set(moq_mux_container_Guard_VideoConfig *self, moq_option_hang_catalog_Stereo value, moq_status *status);
+bool moq_mux_container_Guard_VideoConfig_interlaced_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_interlaced_set(moq_mux_container_Guard_VideoConfig *self, bool value, moq_status *status);
+moq_option_u64 moq_mux_container_Guard_VideoConfig_bitrate_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_bitrate_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u64 value, moq_status *status);
+bool moq_mux_container_Guard_VideoConfig_enabled_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_enabled_set(moq_mux_container_Guard_VideoConfig *self, bool value, moq_status *status);
+int32_t moq_mux_container_Guard_VideoConfig_preference_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_preference_set(moq_mux_container_Guard_VideoConfig *self, int32_t value, moq_status *status);
+moq_option_f64 moq_mux_container_Guard_VideoConfig_framerate_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_framerate_set(moq_mux_container_Guard_VideoConfig *self, moq_option_f64 value, moq_status *status);
+moq_option_u8 moq_mux_container_Guard_VideoConfig_reorder_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_reorder_set(moq_mux_container_Guard_VideoConfig *self, moq_option_u8 value, moq_status *status);
+moq_option_bool moq_mux_container_Guard_VideoConfig_optimize_for_latency_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_optimize_for_latency_set(moq_mux_container_Guard_VideoConfig *self, moq_option_bool value, moq_status *status);
+moq_hang_catalog_Container *moq_mux_container_Guard_VideoConfig_container_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_container_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_Container *value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_VideoConfig_jitter_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_jitter_set(moq_mux_container_Guard_VideoConfig *self, moq_option_duration value, moq_status *status);
+moq_option_duration moq_mux_container_Guard_VideoConfig_delay_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+void moq_mux_container_Guard_VideoConfig_delay_set(moq_mux_container_Guard_VideoConfig *self, moq_option_duration value, moq_status *status);
+bool moq_mux_container_Guard_VideoConfig_same_identity(const moq_mux_container_Guard_VideoConfig *self, const moq_hang_catalog_VideoConfig *other, moq_status *status);
 void moq_mux_container_Producer_Container_AudioConfig_free(moq_mux_container_Producer_Container_AudioConfig *self);
 void moq_mux_container_Producer_Container_AudioConfig_drop(moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_set(moq_mux_container_Producer_Container_AudioConfig *self, moq_hang_catalog_AudioConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_set_bitrate(moq_mux_container_Producer_Container_AudioConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_timestamp(const moq_mux_container_Producer_Container_AudioConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_modify(moq_mux_container_Producer_Container_AudioConfig *self, moq_mux_container_Guard_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_timestamp(const moq_mux_container_Producer_Container_AudioConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_AudioConfig_name(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_AudioConfig_demand(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_AudioConfig_estimate(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
-void moq_mux_container_Producer_Container_AudioConfig_reorder(moq_mux_container_Producer_Container_AudioConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_AudioConfig_history(moq_mux_container_Producer_Container_AudioConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_AudioConfig_reorder(moq_mux_container_Producer_Container_AudioConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_AudioConfig_history(moq_mux_container_Producer_Container_AudioConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_needs_keyframe(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_mux_container_Producer_Container_AudioConfig *moq_mux_container_Producer_Container_AudioConfig_with_buffer(moq_mux_container_Producer_Container_AudioConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container_AudioConfig *moq_mux_container_Producer_Container_AudioConfig_with_bandwidth(moq_mux_container_Producer_Container_AudioConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_AudioConfig_report_skipped(const moq_mux_container_Producer_Container_AudioConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_AudioConfig_report_bitrate(const moq_mux_container_Producer_Container_AudioConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_AudioConfig_track(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_AudioConfig_live_edge(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_AudioConfig_live_edge(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_write(moq_mux_container_Producer_Container_AudioConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_cut(moq_mux_container_Producer_Container_AudioConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_seek(moq_mux_container_Producer_Container_AudioConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_cut(moq_mux_container_Producer_Container_AudioConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_seek(moq_mux_container_Producer_Container_AudioConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_discontinuity(moq_mux_container_Producer_Container_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_finish(moq_mux_container_Producer_Container_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_fail(moq_mux_container_Producer_Container_AudioConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_finish(moq_mux_container_Producer_Container_AudioConfig *self, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_fail(moq_mux_container_Producer_Container_AudioConfig *self, moq_Error *err_, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_AudioConfig_abort(moq_mux_container_Producer_Container_AudioConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_abort_unwanted(moq_mux_container_Producer_Container_AudioConfig *self, moq_Error *err_, moq_mux_container_Producer_Container_AudioConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_AudioConfig_consume(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_AudioConfig_broadcast(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_AudioConfig_info(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_create_group(const moq_mux_container_Producer_Container_AudioConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_AudioConfig_append_group(const moq_mux_container_Producer_Container_AudioConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_AudioConfig_drop_groups(const moq_mux_container_Producer_Container_AudioConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_AudioConfig_append_group(const moq_mux_container_Producer_Container_AudioConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_AudioConfig_skip_groups(const moq_mux_container_Producer_Container_AudioConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_AudioConfig_finished(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_AudioConfig_closed_future moq_mux_container_Producer_Container_AudioConfig_closed_future;
 moq_mux_container_Producer_Container_AudioConfig_closed_future *moq_mux_container_Producer_Container_AudioConfig_closed(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
@@ -8740,6 +6274,7 @@ void moq_mux_container_Producer_Container_AudioConfig_closed_future_free(moq_mux
 bool moq_mux_container_Producer_Container_AudioConfig_is_closed(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_AudioConfig_largest(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_AudioConfig_is_clone(const moq_mux_container_Producer_Container_AudioConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_AudioConfig_abort_handle(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_AudioConfig_subscribe(const moq_mux_container_Producer_Container_AudioConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_AudioConfig_subscription(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_AudioConfig_requests(const moq_mux_container_Producer_Container_AudioConfig *self, moq_status *status);
@@ -8747,32 +6282,34 @@ void moq_mux_container_Producer_Container_BinaryConfig_free(moq_mux_container_Pr
 void moq_mux_container_Producer_Container_BinaryConfig_drop(moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_set(moq_mux_container_Producer_Container_BinaryConfig *self, moq_hang_catalog_BinaryConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_set_bitrate(moq_mux_container_Producer_Container_BinaryConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_timestamp(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_modify(moq_mux_container_Producer_Container_BinaryConfig *self, moq_mux_container_Guard_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_timestamp(const moq_mux_container_Producer_Container_BinaryConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_BinaryConfig_name(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_BinaryConfig_demand(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_BinaryConfig_estimate(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
-void moq_mux_container_Producer_Container_BinaryConfig_reorder(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_BinaryConfig_history(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_BinaryConfig_reorder(moq_mux_container_Producer_Container_BinaryConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_BinaryConfig_history(moq_mux_container_Producer_Container_BinaryConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_needs_keyframe(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_mux_container_Producer_Container_BinaryConfig *moq_mux_container_Producer_Container_BinaryConfig_with_buffer(moq_mux_container_Producer_Container_BinaryConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container_BinaryConfig *moq_mux_container_Producer_Container_BinaryConfig_with_bandwidth(moq_mux_container_Producer_Container_BinaryConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_BinaryConfig_report_skipped(const moq_mux_container_Producer_Container_BinaryConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_BinaryConfig_report_bitrate(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_BinaryConfig_track(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_BinaryConfig_live_edge(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_BinaryConfig_live_edge(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_write(moq_mux_container_Producer_Container_BinaryConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_cut(moq_mux_container_Producer_Container_BinaryConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_seek(moq_mux_container_Producer_Container_BinaryConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_cut(moq_mux_container_Producer_Container_BinaryConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_seek(moq_mux_container_Producer_Container_BinaryConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_discontinuity(moq_mux_container_Producer_Container_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_finish(moq_mux_container_Producer_Container_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_fail(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_finish(moq_mux_container_Producer_Container_BinaryConfig *self, moq_mux_container_Finished_Container_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_fail(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Error *err_, moq_mux_container_Finished_Container_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_BinaryConfig_abort(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_abort_unwanted(moq_mux_container_Producer_Container_BinaryConfig *self, moq_Error *err_, moq_mux_container_Producer_Container_BinaryConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_BinaryConfig_consume(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_BinaryConfig_broadcast(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_BinaryConfig_info(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_create_group(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_BinaryConfig_append_group(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_BinaryConfig_drop_groups(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_BinaryConfig_append_group(const moq_mux_container_Producer_Container_BinaryConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_BinaryConfig_skip_groups(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_BinaryConfig_finished(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_BinaryConfig_closed_future moq_mux_container_Producer_Container_BinaryConfig_closed_future;
 moq_mux_container_Producer_Container_BinaryConfig_closed_future *moq_mux_container_Producer_Container_BinaryConfig_closed(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
@@ -8782,6 +6319,7 @@ void moq_mux_container_Producer_Container_BinaryConfig_closed_future_free(moq_mu
 bool moq_mux_container_Producer_Container_BinaryConfig_is_closed(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_BinaryConfig_largest(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_BinaryConfig_is_clone(const moq_mux_container_Producer_Container_BinaryConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_BinaryConfig_abort_handle(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_BinaryConfig_subscribe(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_BinaryConfig_subscription(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_BinaryConfig_requests(const moq_mux_container_Producer_Container_BinaryConfig *self, moq_status *status);
@@ -8789,32 +6327,34 @@ void moq_mux_container_Producer_Container_JsonConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_Container_JsonConfig_drop(moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_set(moq_mux_container_Producer_Container_JsonConfig *self, moq_hang_catalog_JsonConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_set_bitrate(moq_mux_container_Producer_Container_JsonConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_timestamp(const moq_mux_container_Producer_Container_JsonConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_modify(moq_mux_container_Producer_Container_JsonConfig *self, moq_mux_container_Guard_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_timestamp(const moq_mux_container_Producer_Container_JsonConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_JsonConfig_name(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_JsonConfig_demand(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_JsonConfig_estimate(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
-void moq_mux_container_Producer_Container_JsonConfig_reorder(moq_mux_container_Producer_Container_JsonConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_JsonConfig_history(moq_mux_container_Producer_Container_JsonConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_JsonConfig_reorder(moq_mux_container_Producer_Container_JsonConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_JsonConfig_history(moq_mux_container_Producer_Container_JsonConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_needs_keyframe(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_mux_container_Producer_Container_JsonConfig *moq_mux_container_Producer_Container_JsonConfig_with_buffer(moq_mux_container_Producer_Container_JsonConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container_JsonConfig *moq_mux_container_Producer_Container_JsonConfig_with_bandwidth(moq_mux_container_Producer_Container_JsonConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_JsonConfig_report_skipped(const moq_mux_container_Producer_Container_JsonConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_JsonConfig_report_bitrate(const moq_mux_container_Producer_Container_JsonConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_JsonConfig_track(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_JsonConfig_live_edge(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_JsonConfig_live_edge(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_write(moq_mux_container_Producer_Container_JsonConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_cut(moq_mux_container_Producer_Container_JsonConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_seek(moq_mux_container_Producer_Container_JsonConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_cut(moq_mux_container_Producer_Container_JsonConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_seek(moq_mux_container_Producer_Container_JsonConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_discontinuity(moq_mux_container_Producer_Container_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_finish(moq_mux_container_Producer_Container_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_fail(moq_mux_container_Producer_Container_JsonConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_finish(moq_mux_container_Producer_Container_JsonConfig *self, moq_mux_container_Finished_Container_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_fail(moq_mux_container_Producer_Container_JsonConfig *self, moq_Error *err_, moq_mux_container_Finished_Container_JsonConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_JsonConfig_abort(moq_mux_container_Producer_Container_JsonConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_abort_unwanted(moq_mux_container_Producer_Container_JsonConfig *self, moq_Error *err_, moq_mux_container_Producer_Container_JsonConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_JsonConfig_consume(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_JsonConfig_broadcast(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_JsonConfig_info(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_create_group(const moq_mux_container_Producer_Container_JsonConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_JsonConfig_append_group(const moq_mux_container_Producer_Container_JsonConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_JsonConfig_drop_groups(const moq_mux_container_Producer_Container_JsonConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_JsonConfig_append_group(const moq_mux_container_Producer_Container_JsonConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_JsonConfig_skip_groups(const moq_mux_container_Producer_Container_JsonConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_JsonConfig_finished(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_JsonConfig_closed_future moq_mux_container_Producer_Container_JsonConfig_closed_future;
 moq_mux_container_Producer_Container_JsonConfig_closed_future *moq_mux_container_Producer_Container_JsonConfig_closed(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
@@ -8824,6 +6364,7 @@ void moq_mux_container_Producer_Container_JsonConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_Container_JsonConfig_is_closed(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_JsonConfig_largest(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_JsonConfig_is_clone(const moq_mux_container_Producer_Container_JsonConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_JsonConfig_abort_handle(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_JsonConfig_subscribe(const moq_mux_container_Producer_Container_JsonConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_JsonConfig_subscription(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_JsonConfig_requests(const moq_mux_container_Producer_Container_JsonConfig *self, moq_status *status);
@@ -8831,32 +6372,34 @@ void moq_mux_container_Producer_Container_TextConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_Container_TextConfig_drop(moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_set(moq_mux_container_Producer_Container_TextConfig *self, moq_hang_catalog_TextConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_set_bitrate(moq_mux_container_Producer_Container_TextConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_timestamp(const moq_mux_container_Producer_Container_TextConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_modify(moq_mux_container_Producer_Container_TextConfig *self, moq_mux_container_Guard_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_timestamp(const moq_mux_container_Producer_Container_TextConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_TextConfig_name(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_TextConfig_demand(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_TextConfig_estimate(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
-void moq_mux_container_Producer_Container_TextConfig_reorder(moq_mux_container_Producer_Container_TextConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_TextConfig_history(moq_mux_container_Producer_Container_TextConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_TextConfig_reorder(moq_mux_container_Producer_Container_TextConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_TextConfig_history(moq_mux_container_Producer_Container_TextConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_needs_keyframe(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_mux_container_Producer_Container_TextConfig *moq_mux_container_Producer_Container_TextConfig_with_buffer(moq_mux_container_Producer_Container_TextConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container_TextConfig *moq_mux_container_Producer_Container_TextConfig_with_bandwidth(moq_mux_container_Producer_Container_TextConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_TextConfig_report_skipped(const moq_mux_container_Producer_Container_TextConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_TextConfig_report_bitrate(const moq_mux_container_Producer_Container_TextConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_TextConfig_track(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_TextConfig_live_edge(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_TextConfig_live_edge(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_write(moq_mux_container_Producer_Container_TextConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_cut(moq_mux_container_Producer_Container_TextConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_seek(moq_mux_container_Producer_Container_TextConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_cut(moq_mux_container_Producer_Container_TextConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_seek(moq_mux_container_Producer_Container_TextConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_discontinuity(moq_mux_container_Producer_Container_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_finish(moq_mux_container_Producer_Container_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_fail(moq_mux_container_Producer_Container_TextConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_finish(moq_mux_container_Producer_Container_TextConfig *self, moq_mux_container_Finished_Container_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_fail(moq_mux_container_Producer_Container_TextConfig *self, moq_Error *err_, moq_mux_container_Finished_Container_TextConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_TextConfig_abort(moq_mux_container_Producer_Container_TextConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_abort_unwanted(moq_mux_container_Producer_Container_TextConfig *self, moq_Error *err_, moq_mux_container_Producer_Container_TextConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_TextConfig_consume(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_TextConfig_broadcast(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_TextConfig_info(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_create_group(const moq_mux_container_Producer_Container_TextConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_TextConfig_append_group(const moq_mux_container_Producer_Container_TextConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_TextConfig_drop_groups(const moq_mux_container_Producer_Container_TextConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_TextConfig_append_group(const moq_mux_container_Producer_Container_TextConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_TextConfig_skip_groups(const moq_mux_container_Producer_Container_TextConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_TextConfig_finished(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_TextConfig_closed_future moq_mux_container_Producer_Container_TextConfig_closed_future;
 moq_mux_container_Producer_Container_TextConfig_closed_future *moq_mux_container_Producer_Container_TextConfig_closed(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
@@ -8866,6 +6409,7 @@ void moq_mux_container_Producer_Container_TextConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_Container_TextConfig_is_closed(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_TextConfig_largest(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_TextConfig_is_clone(const moq_mux_container_Producer_Container_TextConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_TextConfig_abort_handle(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_TextConfig_subscribe(const moq_mux_container_Producer_Container_TextConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_TextConfig_subscription(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_TextConfig_requests(const moq_mux_container_Producer_Container_TextConfig *self, moq_status *status);
@@ -8873,32 +6417,34 @@ void moq_mux_container_Producer_Container_VideoConfig_free(moq_mux_container_Pro
 void moq_mux_container_Producer_Container_VideoConfig_drop(moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_set(moq_mux_container_Producer_Container_VideoConfig *self, moq_hang_catalog_VideoConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_set_bitrate(moq_mux_container_Producer_Container_VideoConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_timestamp(const moq_mux_container_Producer_Container_VideoConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_modify(moq_mux_container_Producer_Container_VideoConfig *self, moq_mux_container_Guard_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_timestamp(const moq_mux_container_Producer_Container_VideoConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_VideoConfig_name(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_VideoConfig_demand(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_VideoConfig_estimate(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
-void moq_mux_container_Producer_Container_VideoConfig_reorder(moq_mux_container_Producer_Container_VideoConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_VideoConfig_history(moq_mux_container_Producer_Container_VideoConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_VideoConfig_reorder(moq_mux_container_Producer_Container_VideoConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_VideoConfig_history(moq_mux_container_Producer_Container_VideoConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_needs_keyframe(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_mux_container_Producer_Container_VideoConfig *moq_mux_container_Producer_Container_VideoConfig_with_buffer(moq_mux_container_Producer_Container_VideoConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container_VideoConfig *moq_mux_container_Producer_Container_VideoConfig_with_bandwidth(moq_mux_container_Producer_Container_VideoConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_VideoConfig_report_skipped(const moq_mux_container_Producer_Container_VideoConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_VideoConfig_report_bitrate(const moq_mux_container_Producer_Container_VideoConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_VideoConfig_track(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_VideoConfig_live_edge(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_VideoConfig_live_edge(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_write(moq_mux_container_Producer_Container_VideoConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_cut(moq_mux_container_Producer_Container_VideoConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_seek(moq_mux_container_Producer_Container_VideoConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_cut(moq_mux_container_Producer_Container_VideoConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_seek(moq_mux_container_Producer_Container_VideoConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_discontinuity(moq_mux_container_Producer_Container_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_finish(moq_mux_container_Producer_Container_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_fail(moq_mux_container_Producer_Container_VideoConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_finish(moq_mux_container_Producer_Container_VideoConfig *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_fail(moq_mux_container_Producer_Container_VideoConfig *self, moq_Error *err_, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_VideoConfig_abort(moq_mux_container_Producer_Container_VideoConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_abort_unwanted(moq_mux_container_Producer_Container_VideoConfig *self, moq_Error *err_, moq_mux_container_Producer_Container_VideoConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_VideoConfig_consume(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_VideoConfig_broadcast(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_VideoConfig_info(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_create_group(const moq_mux_container_Producer_Container_VideoConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_VideoConfig_append_group(const moq_mux_container_Producer_Container_VideoConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_VideoConfig_drop_groups(const moq_mux_container_Producer_Container_VideoConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_VideoConfig_append_group(const moq_mux_container_Producer_Container_VideoConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_VideoConfig_skip_groups(const moq_mux_container_Producer_Container_VideoConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_VideoConfig_finished(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_VideoConfig_closed_future moq_mux_container_Producer_Container_VideoConfig_closed_future;
 moq_mux_container_Producer_Container_VideoConfig_closed_future *moq_mux_container_Producer_Container_VideoConfig_closed(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
@@ -8908,6 +6454,7 @@ void moq_mux_container_Producer_Container_VideoConfig_closed_future_free(moq_mux
 bool moq_mux_container_Producer_Container_VideoConfig_is_closed(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_VideoConfig_largest(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_Container_VideoConfig_is_clone(const moq_mux_container_Producer_Container_VideoConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_VideoConfig_abort_handle(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_VideoConfig_subscribe(const moq_mux_container_Producer_Container_VideoConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_VideoConfig_subscription(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_VideoConfig_requests(const moq_mux_container_Producer_Container_VideoConfig *self, moq_status *status);
@@ -8916,32 +6463,34 @@ void moq_mux_container_Producer_Container_drop(moq_mux_container_Producer_Contai
 moq_mux_container_Producer_Container *moq_mux_container_Producer_Container_new(moq_track_Producer *track, moq_mux_catalog_hang_Container *container, moq_status *status);
 bool moq_mux_container_Producer_Container_set(moq_mux_container_Producer_Container *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_set_bitrate(moq_mux_container_Producer_Container *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_timestamp(const moq_mux_container_Producer_Container *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_modify(moq_mux_container_Producer_Container *self, moq_mux_container_Guard_unit **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_timestamp(const moq_mux_container_Producer_Container *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_Container_name(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_Container_demand(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_Container_estimate(const moq_mux_container_Producer_Container *self, moq_status *status);
-void moq_mux_container_Producer_Container_reorder(moq_mux_container_Producer_Container *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_Container_history(moq_mux_container_Producer_Container *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_Container_reorder(moq_mux_container_Producer_Container *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_Container_history(moq_mux_container_Producer_Container *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_Container_needs_keyframe(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_mux_container_Producer_Container *moq_mux_container_Producer_Container_with_buffer(moq_mux_container_Producer_Container *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_Container *moq_mux_container_Producer_Container_with_bandwidth(moq_mux_container_Producer_Container *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_Container_report_skipped(const moq_mux_container_Producer_Container *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_Container_report_bitrate(const moq_mux_container_Producer_Container *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_Container_track(const moq_mux_container_Producer_Container *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_Container_live_edge(const moq_mux_container_Producer_Container *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_Container_live_edge(const moq_mux_container_Producer_Container *self, moq_status *status);
 bool moq_mux_container_Producer_Container_write(moq_mux_container_Producer_Container *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_cut(moq_mux_container_Producer_Container *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_seek(moq_mux_container_Producer_Container *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_cut(moq_mux_container_Producer_Container *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_seek(moq_mux_container_Producer_Container *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_Container_discontinuity(moq_mux_container_Producer_Container *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_finish(moq_mux_container_Producer_Container *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_fail(moq_mux_container_Producer_Container *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_finish(moq_mux_container_Producer_Container *self, moq_mux_container_Finished_Container **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_Container_fail(moq_mux_container_Producer_Container *self, moq_Error *err_, moq_mux_container_Finished_Container **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_Container_abort(moq_mux_container_Producer_Container *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_Container_abort_unwanted(moq_mux_container_Producer_Container *self, moq_Error *err_, moq_mux_container_Producer_Container **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_consume(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_Container_broadcast(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_Container_info(const moq_mux_container_Producer_Container *self, moq_status *status);
 bool moq_mux_container_Producer_Container_create_group(const moq_mux_container_Producer_Container *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_Container_append_group(const moq_mux_container_Producer_Container *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_Container_drop_groups(const moq_mux_container_Producer_Container *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_Container_append_group(const moq_mux_container_Producer_Container *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_Container_skip_groups(const moq_mux_container_Producer_Container *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_finished(const moq_mux_container_Producer_Container *self, moq_status *status);
 typedef struct moq_mux_container_Producer_Container_closed_future moq_mux_container_Producer_Container_closed_future;
 moq_mux_container_Producer_Container_closed_future *moq_mux_container_Producer_Container_closed(const moq_mux_container_Producer_Container *self, moq_status *status);
@@ -8951,6 +6500,7 @@ void moq_mux_container_Producer_Container_closed_future_free(moq_mux_container_P
 bool moq_mux_container_Producer_Container_is_closed(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_Container_largest(const moq_mux_container_Producer_Container *self, moq_status *status);
 bool moq_mux_container_Producer_Container_is_clone(const moq_mux_container_Producer_Container *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_Container_abort_handle(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_Container_subscribe(const moq_mux_container_Producer_Container *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_Container_subscription(const moq_mux_container_Producer_Container *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_Container_requests(const moq_mux_container_Producer_Container *self, moq_status *status);
@@ -8958,32 +6508,34 @@ void moq_mux_container_Producer_fmp4_Wire_AudioConfig_free(moq_mux_container_Pro
 void moq_mux_container_Producer_fmp4_Wire_AudioConfig_drop(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_set(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_hang_catalog_AudioConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_set_bitrate(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_modify(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_mux_container_Guard_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_AudioConfig_name(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_AudioConfig_demand(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_AudioConfig_estimate(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_AudioConfig_reorder(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_AudioConfig_history(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_AudioConfig_reorder(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_AudioConfig_history(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_AudioConfig *moq_mux_container_Producer_fmp4_Wire_AudioConfig_with_buffer(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_AudioConfig *moq_mux_container_Producer_fmp4_Wire_AudioConfig_with_bandwidth(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_AudioConfig_report_skipped(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_AudioConfig_report_bitrate(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_AudioConfig_track(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_write(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_cut(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_seek(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_cut(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_seek(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_discontinuity(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_finish(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_fail(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_finish(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_mux_container_Finished_fmp4_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_fail(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_AudioConfig_abort(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_abort_unwanted(moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire_AudioConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_AudioConfig_consume(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_AudioConfig_broadcast(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_AudioConfig_info(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_create_group(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_AudioConfig_drop_groups(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_AudioConfig_skip_groups(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_AudioConfig_finished(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_AudioConfig_closed_future moq_mux_container_Producer_fmp4_Wire_AudioConfig_closed_future;
 moq_mux_container_Producer_fmp4_Wire_AudioConfig_closed_future *moq_mux_container_Producer_fmp4_Wire_AudioConfig_closed(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
@@ -8993,6 +6545,7 @@ void moq_mux_container_Producer_fmp4_Wire_AudioConfig_closed_future_free(moq_mux
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_is_closed(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_AudioConfig_largest(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_AudioConfig_is_clone(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_AudioConfig_abort_handle(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_AudioConfig_subscribe(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_AudioConfig_subscription(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_AudioConfig_requests(const moq_mux_container_Producer_fmp4_Wire_AudioConfig *self, moq_status *status);
@@ -9000,32 +6553,34 @@ void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_free(moq_mux_container_Pr
 void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_drop(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_set(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_hang_catalog_BinaryConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_set_bitrate(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_modify(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_mux_container_Guard_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_BinaryConfig_name(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_demand(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_estimate(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_reorder(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_history(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_reorder(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_history(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_BinaryConfig *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_with_buffer(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_BinaryConfig *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_with_bandwidth(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_report_skipped(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_report_bitrate(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_track(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_write(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_cut(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_seek(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_cut(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_seek(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_discontinuity(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_finish(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_fail(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_finish(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_mux_container_Finished_fmp4_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_fail(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_abort(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_abort_unwanted(moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire_BinaryConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_consume(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_broadcast(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_info(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_create_group(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_drop_groups(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_skip_groups(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_BinaryConfig_finished(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_BinaryConfig_closed_future moq_mux_container_Producer_fmp4_Wire_BinaryConfig_closed_future;
 moq_mux_container_Producer_fmp4_Wire_BinaryConfig_closed_future *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_closed(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
@@ -9035,6 +6590,7 @@ void moq_mux_container_Producer_fmp4_Wire_BinaryConfig_closed_future_free(moq_mu
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_is_closed(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_BinaryConfig_largest(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_BinaryConfig_is_clone(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_abort_handle(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_subscribe(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_subscription(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_BinaryConfig_requests(const moq_mux_container_Producer_fmp4_Wire_BinaryConfig *self, moq_status *status);
@@ -9042,32 +6598,34 @@ void moq_mux_container_Producer_fmp4_Wire_JsonConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_fmp4_Wire_JsonConfig_drop(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_set(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_hang_catalog_JsonConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_set_bitrate(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_modify(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_mux_container_Guard_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_JsonConfig_name(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_JsonConfig_demand(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_JsonConfig_estimate(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_JsonConfig_reorder(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_JsonConfig_history(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_JsonConfig_reorder(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_JsonConfig_history(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_JsonConfig *moq_mux_container_Producer_fmp4_Wire_JsonConfig_with_buffer(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_JsonConfig *moq_mux_container_Producer_fmp4_Wire_JsonConfig_with_bandwidth(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_JsonConfig_report_skipped(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_JsonConfig_report_bitrate(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_JsonConfig_track(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_write(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_cut(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_seek(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_cut(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_seek(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_discontinuity(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_finish(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_fail(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_finish(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_mux_container_Finished_fmp4_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_fail(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_JsonConfig_abort(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_abort_unwanted(moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire_JsonConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_JsonConfig_consume(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_JsonConfig_broadcast(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_JsonConfig_info(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_create_group(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_JsonConfig_drop_groups(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_JsonConfig_skip_groups(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_JsonConfig_finished(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_JsonConfig_closed_future moq_mux_container_Producer_fmp4_Wire_JsonConfig_closed_future;
 moq_mux_container_Producer_fmp4_Wire_JsonConfig_closed_future *moq_mux_container_Producer_fmp4_Wire_JsonConfig_closed(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
@@ -9077,6 +6635,7 @@ void moq_mux_container_Producer_fmp4_Wire_JsonConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_is_closed(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_JsonConfig_largest(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_JsonConfig_is_clone(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_JsonConfig_abort_handle(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_JsonConfig_subscribe(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_JsonConfig_subscription(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_JsonConfig_requests(const moq_mux_container_Producer_fmp4_Wire_JsonConfig *self, moq_status *status);
@@ -9084,32 +6643,34 @@ void moq_mux_container_Producer_fmp4_Wire_TextConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_fmp4_Wire_TextConfig_drop(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_set(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_hang_catalog_TextConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_set_bitrate(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_modify(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_mux_container_Guard_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_TextConfig_name(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_TextConfig_demand(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_TextConfig_estimate(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_TextConfig_reorder(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_TextConfig_history(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_TextConfig_reorder(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_TextConfig_history(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_TextConfig *moq_mux_container_Producer_fmp4_Wire_TextConfig_with_buffer(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_TextConfig *moq_mux_container_Producer_fmp4_Wire_TextConfig_with_bandwidth(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_TextConfig_report_skipped(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_TextConfig_report_bitrate(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_TextConfig_track(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_TextConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_TextConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_write(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_cut(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_seek(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_cut(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_seek(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_discontinuity(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_finish(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_fail(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_finish(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_mux_container_Finished_fmp4_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_fail(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_TextConfig_abort(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_abort_unwanted(moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire_TextConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_TextConfig_consume(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_TextConfig_broadcast(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_TextConfig_info(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_create_group(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_TextConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_TextConfig_drop_groups(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_TextConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_TextConfig_skip_groups(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_TextConfig_finished(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_TextConfig_closed_future moq_mux_container_Producer_fmp4_Wire_TextConfig_closed_future;
 moq_mux_container_Producer_fmp4_Wire_TextConfig_closed_future *moq_mux_container_Producer_fmp4_Wire_TextConfig_closed(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
@@ -9119,6 +6680,7 @@ void moq_mux_container_Producer_fmp4_Wire_TextConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_is_closed(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_TextConfig_largest(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_TextConfig_is_clone(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_TextConfig_abort_handle(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_TextConfig_subscribe(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_TextConfig_subscription(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_TextConfig_requests(const moq_mux_container_Producer_fmp4_Wire_TextConfig *self, moq_status *status);
@@ -9126,32 +6688,34 @@ void moq_mux_container_Producer_fmp4_Wire_VideoConfig_free(moq_mux_container_Pro
 void moq_mux_container_Producer_fmp4_Wire_VideoConfig_drop(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_set(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_hang_catalog_VideoConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_set_bitrate(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_modify(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_mux_container_Guard_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_VideoConfig_name(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_VideoConfig_demand(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_VideoConfig_estimate(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_VideoConfig_reorder(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_VideoConfig_history(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_VideoConfig_reorder(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_VideoConfig_history(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_VideoConfig *moq_mux_container_Producer_fmp4_Wire_VideoConfig_with_buffer(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire_VideoConfig *moq_mux_container_Producer_fmp4_Wire_VideoConfig_with_bandwidth(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_VideoConfig_report_skipped(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_VideoConfig_report_bitrate(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_VideoConfig_track(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_write(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_cut(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_seek(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_cut(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_seek(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_discontinuity(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_finish(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_fail(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_finish(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_mux_container_Finished_fmp4_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_fail(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_VideoConfig_abort(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_abort_unwanted(moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire_VideoConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_VideoConfig_consume(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_VideoConfig_broadcast(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_VideoConfig_info(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_create_group(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_VideoConfig_drop_groups(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_append_group(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_VideoConfig_skip_groups(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_VideoConfig_finished(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_VideoConfig_closed_future moq_mux_container_Producer_fmp4_Wire_VideoConfig_closed_future;
 moq_mux_container_Producer_fmp4_Wire_VideoConfig_closed_future *moq_mux_container_Producer_fmp4_Wire_VideoConfig_closed(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
@@ -9161,6 +6725,7 @@ void moq_mux_container_Producer_fmp4_Wire_VideoConfig_closed_future_free(moq_mux
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_is_closed(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_VideoConfig_largest(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_VideoConfig_is_clone(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_VideoConfig_abort_handle(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_VideoConfig_subscribe(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_VideoConfig_subscription(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_VideoConfig_requests(const moq_mux_container_Producer_fmp4_Wire_VideoConfig *self, moq_status *status);
@@ -9169,32 +6734,34 @@ void moq_mux_container_Producer_fmp4_Wire_drop(moq_mux_container_Producer_fmp4_W
 moq_mux_container_Producer_fmp4_Wire *moq_mux_container_Producer_fmp4_Wire_new(moq_track_Producer *track, moq_mux_container_fmp4_Wire *container, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_set(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_set_bitrate(moq_mux_container_Producer_fmp4_Wire *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_timestamp(const moq_mux_container_Producer_fmp4_Wire *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_modify(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_container_Guard_unit **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_timestamp(const moq_mux_container_Producer_fmp4_Wire *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_fmp4_Wire_name(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_fmp4_Wire_demand(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_fmp4_Wire_estimate(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_reorder(moq_mux_container_Producer_fmp4_Wire *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_history(moq_mux_container_Producer_fmp4_Wire *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_reorder(moq_mux_container_Producer_fmp4_Wire *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_history(moq_mux_container_Producer_fmp4_Wire *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_needs_keyframe(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire *moq_mux_container_Producer_fmp4_Wire_with_buffer(moq_mux_container_Producer_fmp4_Wire *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_fmp4_Wire *moq_mux_container_Producer_fmp4_Wire_with_bandwidth(moq_mux_container_Producer_fmp4_Wire *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_report_skipped(const moq_mux_container_Producer_fmp4_Wire *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_report_bitrate(const moq_mux_container_Producer_fmp4_Wire *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_fmp4_Wire_track(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_fmp4_Wire_live_edge(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_fmp4_Wire_live_edge(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_write(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_cut(moq_mux_container_Producer_fmp4_Wire *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_seek(moq_mux_container_Producer_fmp4_Wire *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_cut(moq_mux_container_Producer_fmp4_Wire *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_seek(moq_mux_container_Producer_fmp4_Wire *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_discontinuity(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_finish(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_fail(moq_mux_container_Producer_fmp4_Wire *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_finish(moq_mux_container_Producer_fmp4_Wire *self, moq_mux_container_Finished_fmp4_Wire **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_fail(moq_mux_container_Producer_fmp4_Wire *self, moq_Error *err_, moq_mux_container_Finished_fmp4_Wire **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_fmp4_Wire_abort(moq_mux_container_Producer_fmp4_Wire *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_abort_unwanted(moq_mux_container_Producer_fmp4_Wire *self, moq_Error *err_, moq_mux_container_Producer_fmp4_Wire **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_consume(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_fmp4_Wire_broadcast(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_fmp4_Wire_info(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_create_group(const moq_mux_container_Producer_fmp4_Wire *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_fmp4_Wire_append_group(const moq_mux_container_Producer_fmp4_Wire *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_fmp4_Wire_drop_groups(const moq_mux_container_Producer_fmp4_Wire *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_fmp4_Wire_append_group(const moq_mux_container_Producer_fmp4_Wire *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_fmp4_Wire_skip_groups(const moq_mux_container_Producer_fmp4_Wire *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_finished(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Producer_fmp4_Wire_closed_future moq_mux_container_Producer_fmp4_Wire_closed_future;
 moq_mux_container_Producer_fmp4_Wire_closed_future *moq_mux_container_Producer_fmp4_Wire_closed(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
@@ -9204,6 +6771,7 @@ void moq_mux_container_Producer_fmp4_Wire_closed_future_free(moq_mux_container_P
 bool moq_mux_container_Producer_fmp4_Wire_is_closed(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_fmp4_Wire_largest(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_fmp4_Wire_is_clone(const moq_mux_container_Producer_fmp4_Wire *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_fmp4_Wire_abort_handle(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_fmp4_Wire_subscribe(const moq_mux_container_Producer_fmp4_Wire *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_fmp4_Wire_subscription(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_fmp4_Wire_requests(const moq_mux_container_Producer_fmp4_Wire *self, moq_status *status);
@@ -9211,32 +6779,34 @@ void moq_mux_container_Producer_legacy_Wire_AudioConfig_free(moq_mux_container_P
 void moq_mux_container_Producer_legacy_Wire_AudioConfig_drop(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_set(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_hang_catalog_AudioConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_set_bitrate(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_modify(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_mux_container_Guard_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_AudioConfig_name(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_AudioConfig_demand(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_AudioConfig_estimate(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_AudioConfig_reorder(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_AudioConfig_history(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_AudioConfig_reorder(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_AudioConfig_history(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_needs_keyframe(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_AudioConfig *moq_mux_container_Producer_legacy_Wire_AudioConfig_with_buffer(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_AudioConfig *moq_mux_container_Producer_legacy_Wire_AudioConfig_with_bandwidth(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_AudioConfig_report_skipped(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_AudioConfig_report_bitrate(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_AudioConfig_track(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_write(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_cut(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_seek(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_cut(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_seek(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_discontinuity(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_finish(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_fail(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_finish(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_mux_container_Finished_legacy_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_fail(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_AudioConfig_abort(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_abort_unwanted(moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire_AudioConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_AudioConfig_consume(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_AudioConfig_broadcast(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_AudioConfig_info(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_create_group(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_AudioConfig_append_group(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_AudioConfig_drop_groups(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_AudioConfig_append_group(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_AudioConfig_skip_groups(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_AudioConfig_finished(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_AudioConfig_closed_future moq_mux_container_Producer_legacy_Wire_AudioConfig_closed_future;
 moq_mux_container_Producer_legacy_Wire_AudioConfig_closed_future *moq_mux_container_Producer_legacy_Wire_AudioConfig_closed(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
@@ -9246,6 +6816,7 @@ void moq_mux_container_Producer_legacy_Wire_AudioConfig_closed_future_free(moq_m
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_is_closed(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_AudioConfig_largest(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_AudioConfig_is_clone(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_AudioConfig_abort_handle(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_AudioConfig_subscribe(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_AudioConfig_subscription(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_AudioConfig_requests(const moq_mux_container_Producer_legacy_Wire_AudioConfig *self, moq_status *status);
@@ -9253,32 +6824,34 @@ void moq_mux_container_Producer_legacy_Wire_BinaryConfig_free(moq_mux_container_
 void moq_mux_container_Producer_legacy_Wire_BinaryConfig_drop(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_set(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_hang_catalog_BinaryConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_set_bitrate(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_modify(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_mux_container_Guard_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_BinaryConfig_name(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_BinaryConfig_demand(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_BinaryConfig_estimate(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_BinaryConfig_reorder(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_BinaryConfig_history(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_BinaryConfig_reorder(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_BinaryConfig_history(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_needs_keyframe(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_BinaryConfig *moq_mux_container_Producer_legacy_Wire_BinaryConfig_with_buffer(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_BinaryConfig *moq_mux_container_Producer_legacy_Wire_BinaryConfig_with_bandwidth(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_BinaryConfig_report_skipped(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_BinaryConfig_report_bitrate(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_BinaryConfig_track(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_write(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_cut(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_seek(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_cut(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_seek(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_discontinuity(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_finish(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_fail(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_finish(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_mux_container_Finished_legacy_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_fail(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_BinaryConfig_abort(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_abort_unwanted(moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire_BinaryConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_BinaryConfig_consume(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_BinaryConfig_broadcast(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_BinaryConfig_info(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_create_group(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_BinaryConfig_drop_groups(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_BinaryConfig_skip_groups(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_BinaryConfig_finished(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_BinaryConfig_closed_future moq_mux_container_Producer_legacy_Wire_BinaryConfig_closed_future;
 moq_mux_container_Producer_legacy_Wire_BinaryConfig_closed_future *moq_mux_container_Producer_legacy_Wire_BinaryConfig_closed(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
@@ -9288,6 +6861,7 @@ void moq_mux_container_Producer_legacy_Wire_BinaryConfig_closed_future_free(moq_
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_is_closed(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_BinaryConfig_largest(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_BinaryConfig_is_clone(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_BinaryConfig_abort_handle(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_BinaryConfig_subscribe(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_BinaryConfig_subscription(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_BinaryConfig_requests(const moq_mux_container_Producer_legacy_Wire_BinaryConfig *self, moq_status *status);
@@ -9295,32 +6869,34 @@ void moq_mux_container_Producer_legacy_Wire_JsonConfig_free(moq_mux_container_Pr
 void moq_mux_container_Producer_legacy_Wire_JsonConfig_drop(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_set(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_hang_catalog_JsonConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_set_bitrate(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_modify(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_mux_container_Guard_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_JsonConfig_name(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_JsonConfig_demand(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_JsonConfig_estimate(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_JsonConfig_reorder(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_JsonConfig_history(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_JsonConfig_reorder(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_JsonConfig_history(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_needs_keyframe(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_JsonConfig *moq_mux_container_Producer_legacy_Wire_JsonConfig_with_buffer(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_JsonConfig *moq_mux_container_Producer_legacy_Wire_JsonConfig_with_bandwidth(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_JsonConfig_report_skipped(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_JsonConfig_report_bitrate(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_JsonConfig_track(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_write(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_cut(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_seek(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_cut(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_seek(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_discontinuity(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_finish(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_fail(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_finish(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_mux_container_Finished_legacy_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_fail(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_JsonConfig_abort(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_abort_unwanted(moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire_JsonConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_JsonConfig_consume(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_JsonConfig_broadcast(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_JsonConfig_info(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_create_group(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_JsonConfig_append_group(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_JsonConfig_drop_groups(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_JsonConfig_append_group(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_JsonConfig_skip_groups(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_JsonConfig_finished(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_JsonConfig_closed_future moq_mux_container_Producer_legacy_Wire_JsonConfig_closed_future;
 moq_mux_container_Producer_legacy_Wire_JsonConfig_closed_future *moq_mux_container_Producer_legacy_Wire_JsonConfig_closed(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
@@ -9330,6 +6906,7 @@ void moq_mux_container_Producer_legacy_Wire_JsonConfig_closed_future_free(moq_mu
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_is_closed(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_JsonConfig_largest(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_JsonConfig_is_clone(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_JsonConfig_abort_handle(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_JsonConfig_subscribe(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_JsonConfig_subscription(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_JsonConfig_requests(const moq_mux_container_Producer_legacy_Wire_JsonConfig *self, moq_status *status);
@@ -9337,32 +6914,34 @@ void moq_mux_container_Producer_legacy_Wire_TextConfig_free(moq_mux_container_Pr
 void moq_mux_container_Producer_legacy_Wire_TextConfig_drop(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_set(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_hang_catalog_TextConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_set_bitrate(moq_mux_container_Producer_legacy_Wire_TextConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_modify(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_mux_container_Guard_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_TextConfig_name(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_TextConfig_demand(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_TextConfig_estimate(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_TextConfig_reorder(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_TextConfig_history(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_TextConfig_reorder(moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_TextConfig_history(moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_needs_keyframe(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_TextConfig *moq_mux_container_Producer_legacy_Wire_TextConfig_with_buffer(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_TextConfig *moq_mux_container_Producer_legacy_Wire_TextConfig_with_bandwidth(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_TextConfig_report_skipped(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_TextConfig_report_bitrate(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_TextConfig_track(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_TextConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_TextConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_write(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_cut(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_seek(moq_mux_container_Producer_legacy_Wire_TextConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_cut(moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_seek(moq_mux_container_Producer_legacy_Wire_TextConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_discontinuity(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_finish(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_fail(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_finish(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_mux_container_Finished_legacy_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_fail(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_TextConfig_abort(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_abort_unwanted(moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire_TextConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_TextConfig_consume(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_TextConfig_broadcast(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_TextConfig_info(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_create_group(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_TextConfig_append_group(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_TextConfig_drop_groups(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_TextConfig_append_group(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_TextConfig_skip_groups(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_TextConfig_finished(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_TextConfig_closed_future moq_mux_container_Producer_legacy_Wire_TextConfig_closed_future;
 moq_mux_container_Producer_legacy_Wire_TextConfig_closed_future *moq_mux_container_Producer_legacy_Wire_TextConfig_closed(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
@@ -9372,6 +6951,7 @@ void moq_mux_container_Producer_legacy_Wire_TextConfig_closed_future_free(moq_mu
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_is_closed(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_TextConfig_largest(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_TextConfig_is_clone(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_TextConfig_abort_handle(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_TextConfig_subscribe(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_TextConfig_subscription(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_TextConfig_requests(const moq_mux_container_Producer_legacy_Wire_TextConfig *self, moq_status *status);
@@ -9379,32 +6959,34 @@ void moq_mux_container_Producer_legacy_Wire_VideoConfig_free(moq_mux_container_P
 void moq_mux_container_Producer_legacy_Wire_VideoConfig_drop(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_set(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_hang_catalog_VideoConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_set_bitrate(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_modify(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_mux_container_Guard_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_VideoConfig_name(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_VideoConfig_demand(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_VideoConfig_estimate(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_VideoConfig_reorder(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_VideoConfig_history(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_VideoConfig_reorder(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_VideoConfig_history(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_needs_keyframe(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_VideoConfig *moq_mux_container_Producer_legacy_Wire_VideoConfig_with_buffer(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire_VideoConfig *moq_mux_container_Producer_legacy_Wire_VideoConfig_with_bandwidth(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_VideoConfig_report_skipped(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_VideoConfig_report_bitrate(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_VideoConfig_track(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_write(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_cut(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_seek(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_cut(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_seek(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_discontinuity(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_finish(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_fail(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_finish(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_mux_container_Finished_legacy_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_fail(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_VideoConfig_abort(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_abort_unwanted(moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire_VideoConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_VideoConfig_consume(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_VideoConfig_broadcast(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_VideoConfig_info(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_create_group(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_VideoConfig_append_group(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_VideoConfig_drop_groups(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_VideoConfig_append_group(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_VideoConfig_skip_groups(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_VideoConfig_finished(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_VideoConfig_closed_future moq_mux_container_Producer_legacy_Wire_VideoConfig_closed_future;
 moq_mux_container_Producer_legacy_Wire_VideoConfig_closed_future *moq_mux_container_Producer_legacy_Wire_VideoConfig_closed(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
@@ -9414,6 +6996,7 @@ void moq_mux_container_Producer_legacy_Wire_VideoConfig_closed_future_free(moq_m
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_is_closed(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_VideoConfig_largest(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_VideoConfig_is_clone(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_VideoConfig_abort_handle(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_VideoConfig_subscribe(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_VideoConfig_subscription(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_VideoConfig_requests(const moq_mux_container_Producer_legacy_Wire_VideoConfig *self, moq_status *status);
@@ -9422,32 +7005,34 @@ void moq_mux_container_Producer_legacy_Wire_drop(moq_mux_container_Producer_lega
 moq_mux_container_Producer_legacy_Wire *moq_mux_container_Producer_legacy_Wire_new(moq_track_Producer *track, moq_mux_container_legacy_Wire container, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_set(moq_mux_container_Producer_legacy_Wire *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_set_bitrate(moq_mux_container_Producer_legacy_Wire *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_timestamp(const moq_mux_container_Producer_legacy_Wire *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_modify(moq_mux_container_Producer_legacy_Wire *self, moq_mux_container_Guard_unit **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_timestamp(const moq_mux_container_Producer_legacy_Wire *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_legacy_Wire_name(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_legacy_Wire_demand(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_legacy_Wire_estimate(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_reorder(moq_mux_container_Producer_legacy_Wire *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_history(moq_mux_container_Producer_legacy_Wire *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_reorder(moq_mux_container_Producer_legacy_Wire *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_history(moq_mux_container_Producer_legacy_Wire *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_needs_keyframe(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_mux_container_Producer_legacy_Wire *moq_mux_container_Producer_legacy_Wire_with_buffer(moq_mux_container_Producer_legacy_Wire *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_legacy_Wire *moq_mux_container_Producer_legacy_Wire_with_bandwidth(moq_mux_container_Producer_legacy_Wire *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_report_skipped(const moq_mux_container_Producer_legacy_Wire *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_report_bitrate(const moq_mux_container_Producer_legacy_Wire *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_legacy_Wire_track(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_legacy_Wire_live_edge(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_legacy_Wire_live_edge(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_write(moq_mux_container_Producer_legacy_Wire *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_cut(moq_mux_container_Producer_legacy_Wire *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_seek(moq_mux_container_Producer_legacy_Wire *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_cut(moq_mux_container_Producer_legacy_Wire *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_seek(moq_mux_container_Producer_legacy_Wire *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_discontinuity(moq_mux_container_Producer_legacy_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_finish(moq_mux_container_Producer_legacy_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_fail(moq_mux_container_Producer_legacy_Wire *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_finish(moq_mux_container_Producer_legacy_Wire *self, moq_mux_container_Finished_legacy_Wire **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_fail(moq_mux_container_Producer_legacy_Wire *self, moq_Error *err_, moq_mux_container_Finished_legacy_Wire **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_legacy_Wire_abort(moq_mux_container_Producer_legacy_Wire *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_abort_unwanted(moq_mux_container_Producer_legacy_Wire *self, moq_Error *err_, moq_mux_container_Producer_legacy_Wire **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_consume(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_legacy_Wire_broadcast(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_legacy_Wire_info(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_create_group(const moq_mux_container_Producer_legacy_Wire *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_legacy_Wire_append_group(const moq_mux_container_Producer_legacy_Wire *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_legacy_Wire_drop_groups(const moq_mux_container_Producer_legacy_Wire *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_legacy_Wire_append_group(const moq_mux_container_Producer_legacy_Wire *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_legacy_Wire_skip_groups(const moq_mux_container_Producer_legacy_Wire *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_finished(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Producer_legacy_Wire_closed_future moq_mux_container_Producer_legacy_Wire_closed_future;
 moq_mux_container_Producer_legacy_Wire_closed_future *moq_mux_container_Producer_legacy_Wire_closed(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
@@ -9457,6 +7042,7 @@ void moq_mux_container_Producer_legacy_Wire_closed_future_free(moq_mux_container
 bool moq_mux_container_Producer_legacy_Wire_is_closed(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_legacy_Wire_largest(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_legacy_Wire_is_clone(const moq_mux_container_Producer_legacy_Wire *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_legacy_Wire_abort_handle(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_legacy_Wire_subscribe(const moq_mux_container_Producer_legacy_Wire *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_legacy_Wire_subscription(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_legacy_Wire_requests(const moq_mux_container_Producer_legacy_Wire *self, moq_status *status);
@@ -9464,32 +7050,34 @@ void moq_mux_container_Producer_loc_Wire_AudioConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_loc_Wire_AudioConfig_drop(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_set(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_hang_catalog_AudioConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_set_bitrate(moq_mux_container_Producer_loc_Wire_AudioConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_modify(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_mux_container_Guard_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_timestamp(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_AudioConfig_name(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_AudioConfig_demand(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_AudioConfig_estimate(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_AudioConfig_reorder(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_AudioConfig_history(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_AudioConfig_reorder(moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_AudioConfig_history(moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_needs_keyframe(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire_AudioConfig *moq_mux_container_Producer_loc_Wire_AudioConfig_with_buffer(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire_AudioConfig *moq_mux_container_Producer_loc_Wire_AudioConfig_with_bandwidth(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_AudioConfig_report_skipped(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_AudioConfig_report_bitrate(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_AudioConfig_track(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_AudioConfig_live_edge(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_write(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_cut(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_seek(moq_mux_container_Producer_loc_Wire_AudioConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_cut(moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_seek(moq_mux_container_Producer_loc_Wire_AudioConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_discontinuity(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_finish(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_fail(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_finish(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_mux_container_Finished_loc_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_fail(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_AudioConfig_abort(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_abort_unwanted(moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire_AudioConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_AudioConfig_consume(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_AudioConfig_broadcast(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_AudioConfig_info(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_create_group(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_AudioConfig_append_group(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_AudioConfig_drop_groups(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_AudioConfig_append_group(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_AudioConfig_skip_groups(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_AudioConfig_finished(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_AudioConfig_closed_future moq_mux_container_Producer_loc_Wire_AudioConfig_closed_future;
 moq_mux_container_Producer_loc_Wire_AudioConfig_closed_future *moq_mux_container_Producer_loc_Wire_AudioConfig_closed(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
@@ -9499,6 +7087,7 @@ void moq_mux_container_Producer_loc_Wire_AudioConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_is_closed(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_AudioConfig_largest(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_AudioConfig_is_clone(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_AudioConfig_abort_handle(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_AudioConfig_subscribe(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_AudioConfig_subscription(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_AudioConfig_requests(const moq_mux_container_Producer_loc_Wire_AudioConfig *self, moq_status *status);
@@ -9506,32 +7095,34 @@ void moq_mux_container_Producer_loc_Wire_BinaryConfig_free(moq_mux_container_Pro
 void moq_mux_container_Producer_loc_Wire_BinaryConfig_drop(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_set(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_hang_catalog_BinaryConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_set_bitrate(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_modify(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_mux_container_Guard_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_timestamp(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_BinaryConfig_name(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_BinaryConfig_demand(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_BinaryConfig_estimate(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_BinaryConfig_reorder(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_BinaryConfig_history(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_BinaryConfig_reorder(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_BinaryConfig_history(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_needs_keyframe(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire_BinaryConfig *moq_mux_container_Producer_loc_Wire_BinaryConfig_with_buffer(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire_BinaryConfig *moq_mux_container_Producer_loc_Wire_BinaryConfig_with_bandwidth(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_BinaryConfig_report_skipped(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_BinaryConfig_report_bitrate(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_BinaryConfig_track(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_BinaryConfig_live_edge(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_write(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_cut(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_seek(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_cut(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_seek(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_discontinuity(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_finish(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_fail(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_finish(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_mux_container_Finished_loc_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_fail(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire_BinaryConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_BinaryConfig_abort(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_abort_unwanted(moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire_BinaryConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_BinaryConfig_consume(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_BinaryConfig_broadcast(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_BinaryConfig_info(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_create_group(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_BinaryConfig_drop_groups(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_BinaryConfig_append_group(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_BinaryConfig_skip_groups(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_BinaryConfig_finished(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_BinaryConfig_closed_future moq_mux_container_Producer_loc_Wire_BinaryConfig_closed_future;
 moq_mux_container_Producer_loc_Wire_BinaryConfig_closed_future *moq_mux_container_Producer_loc_Wire_BinaryConfig_closed(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
@@ -9541,6 +7132,7 @@ void moq_mux_container_Producer_loc_Wire_BinaryConfig_closed_future_free(moq_mux
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_is_closed(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_BinaryConfig_largest(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_BinaryConfig_is_clone(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_BinaryConfig_abort_handle(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_BinaryConfig_subscribe(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_BinaryConfig_subscription(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_BinaryConfig_requests(const moq_mux_container_Producer_loc_Wire_BinaryConfig *self, moq_status *status);
@@ -9548,32 +7140,34 @@ void moq_mux_container_Producer_loc_Wire_JsonConfig_free(moq_mux_container_Produ
 void moq_mux_container_Producer_loc_Wire_JsonConfig_drop(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_set(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_hang_catalog_JsonConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_set_bitrate(moq_mux_container_Producer_loc_Wire_JsonConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_modify(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_mux_container_Guard_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_timestamp(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_JsonConfig_name(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_JsonConfig_demand(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_JsonConfig_estimate(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_JsonConfig_reorder(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_JsonConfig_history(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_JsonConfig_reorder(moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_JsonConfig_history(moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_needs_keyframe(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire_JsonConfig *moq_mux_container_Producer_loc_Wire_JsonConfig_with_buffer(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire_JsonConfig *moq_mux_container_Producer_loc_Wire_JsonConfig_with_bandwidth(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_JsonConfig_report_skipped(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_JsonConfig_report_bitrate(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_JsonConfig_track(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_JsonConfig_live_edge(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_write(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_cut(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_seek(moq_mux_container_Producer_loc_Wire_JsonConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_cut(moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_seek(moq_mux_container_Producer_loc_Wire_JsonConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_discontinuity(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_finish(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_fail(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_finish(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_mux_container_Finished_loc_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_fail(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire_JsonConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_JsonConfig_abort(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_abort_unwanted(moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire_JsonConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_JsonConfig_consume(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_JsonConfig_broadcast(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_JsonConfig_info(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_create_group(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_JsonConfig_append_group(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_JsonConfig_drop_groups(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_JsonConfig_append_group(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_JsonConfig_skip_groups(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_JsonConfig_finished(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_JsonConfig_closed_future moq_mux_container_Producer_loc_Wire_JsonConfig_closed_future;
 moq_mux_container_Producer_loc_Wire_JsonConfig_closed_future *moq_mux_container_Producer_loc_Wire_JsonConfig_closed(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
@@ -9583,6 +7177,7 @@ void moq_mux_container_Producer_loc_Wire_JsonConfig_closed_future_free(moq_mux_c
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_is_closed(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_JsonConfig_largest(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_JsonConfig_is_clone(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_JsonConfig_abort_handle(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_JsonConfig_subscribe(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_JsonConfig_subscription(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_JsonConfig_requests(const moq_mux_container_Producer_loc_Wire_JsonConfig *self, moq_status *status);
@@ -9590,32 +7185,34 @@ void moq_mux_container_Producer_loc_Wire_TextConfig_free(moq_mux_container_Produ
 void moq_mux_container_Producer_loc_Wire_TextConfig_drop(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_set(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_hang_catalog_TextConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_set_bitrate(moq_mux_container_Producer_loc_Wire_TextConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_timestamp(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_modify(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_mux_container_Guard_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_timestamp(const moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_TextConfig_name(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_TextConfig_demand(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_TextConfig_estimate(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_TextConfig_reorder(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_TextConfig_history(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_TextConfig_reorder(moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_TextConfig_history(moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_needs_keyframe(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire_TextConfig *moq_mux_container_Producer_loc_Wire_TextConfig_with_buffer(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire_TextConfig *moq_mux_container_Producer_loc_Wire_TextConfig_with_bandwidth(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_TextConfig_report_skipped(const moq_mux_container_Producer_loc_Wire_TextConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_TextConfig_report_bitrate(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_TextConfig_track(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_TextConfig_live_edge(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_TextConfig_live_edge(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_write(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_cut(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_seek(moq_mux_container_Producer_loc_Wire_TextConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_cut(moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_seek(moq_mux_container_Producer_loc_Wire_TextConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_discontinuity(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_finish(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_fail(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_finish(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_mux_container_Finished_loc_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_fail(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire_TextConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_TextConfig_abort(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_abort_unwanted(moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire_TextConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_TextConfig_consume(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_TextConfig_broadcast(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_TextConfig_info(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_create_group(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_TextConfig_append_group(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_TextConfig_drop_groups(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_TextConfig_append_group(const moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_TextConfig_skip_groups(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_TextConfig_finished(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_TextConfig_closed_future moq_mux_container_Producer_loc_Wire_TextConfig_closed_future;
 moq_mux_container_Producer_loc_Wire_TextConfig_closed_future *moq_mux_container_Producer_loc_Wire_TextConfig_closed(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
@@ -9625,6 +7222,7 @@ void moq_mux_container_Producer_loc_Wire_TextConfig_closed_future_free(moq_mux_c
 bool moq_mux_container_Producer_loc_Wire_TextConfig_is_closed(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_TextConfig_largest(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_TextConfig_is_clone(const moq_mux_container_Producer_loc_Wire_TextConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_TextConfig_abort_handle(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_TextConfig_subscribe(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_TextConfig_subscription(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_TextConfig_requests(const moq_mux_container_Producer_loc_Wire_TextConfig *self, moq_status *status);
@@ -9632,32 +7230,34 @@ void moq_mux_container_Producer_loc_Wire_VideoConfig_free(moq_mux_container_Prod
 void moq_mux_container_Producer_loc_Wire_VideoConfig_drop(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_set(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_hang_catalog_VideoConfig *config, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_set_bitrate(moq_mux_container_Producer_loc_Wire_VideoConfig *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_modify(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_mux_container_Guard_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_timestamp(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_VideoConfig_name(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_VideoConfig_demand(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_VideoConfig_estimate(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_VideoConfig_reorder(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_VideoConfig_history(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_VideoConfig_reorder(moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_VideoConfig_history(moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_needs_keyframe(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire_VideoConfig *moq_mux_container_Producer_loc_Wire_VideoConfig_with_buffer(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire_VideoConfig *moq_mux_container_Producer_loc_Wire_VideoConfig_with_bandwidth(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_VideoConfig_report_skipped(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_VideoConfig_report_bitrate(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_VideoConfig_track(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_VideoConfig_live_edge(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_write(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_cut(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_seek(moq_mux_container_Producer_loc_Wire_VideoConfig *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_cut(moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_seek(moq_mux_container_Producer_loc_Wire_VideoConfig *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_discontinuity(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_finish(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_fail(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_finish(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_mux_container_Finished_loc_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_fail(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_VideoConfig_abort(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_abort_unwanted(moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire_VideoConfig **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_VideoConfig_consume(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_VideoConfig_broadcast(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_VideoConfig_info(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_create_group(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_VideoConfig_append_group(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_VideoConfig_drop_groups(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_VideoConfig_append_group(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_VideoConfig_skip_groups(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_VideoConfig_finished(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_VideoConfig_closed_future moq_mux_container_Producer_loc_Wire_VideoConfig_closed_future;
 moq_mux_container_Producer_loc_Wire_VideoConfig_closed_future *moq_mux_container_Producer_loc_Wire_VideoConfig_closed(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
@@ -9667,6 +7267,7 @@ void moq_mux_container_Producer_loc_Wire_VideoConfig_closed_future_free(moq_mux_
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_is_closed(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_VideoConfig_largest(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_VideoConfig_is_clone(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_VideoConfig_abort_handle(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_VideoConfig_subscribe(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_VideoConfig_subscription(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_VideoConfig_requests(const moq_mux_container_Producer_loc_Wire_VideoConfig *self, moq_status *status);
@@ -9675,32 +7276,34 @@ void moq_mux_container_Producer_loc_Wire_drop(moq_mux_container_Producer_loc_Wir
 moq_mux_container_Producer_loc_Wire *moq_mux_container_Producer_loc_Wire_new(moq_track_Producer *track, moq_mux_container_loc_Wire container, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_set(moq_mux_container_Producer_loc_Wire *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_set_bitrate(moq_mux_container_Producer_loc_Wire *self, uint64_t bitrate, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_timestamp(const moq_mux_container_Producer_loc_Wire *self, moq_option_Timestamp hint, moq_Timestamp *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_modify(moq_mux_container_Producer_loc_Wire *self, moq_mux_container_Guard_unit **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_timestamp(const moq_mux_container_Producer_loc_Wire *self, const moq_Timestamp *hint, moq_Timestamp **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_container_Producer_loc_Wire_name(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_track_Demand *moq_mux_container_Producer_loc_Wire_demand(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_mux_catalog_Estimate *moq_mux_container_Producer_loc_Wire_estimate(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_reorder(moq_mux_container_Producer_loc_Wire *self, moq_Timestamp delay, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_history(moq_mux_container_Producer_loc_Wire *self, moq_Timestamp until, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_reorder(moq_mux_container_Producer_loc_Wire *self, const moq_Timestamp *delay, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_history(moq_mux_container_Producer_loc_Wire *self, const moq_Timestamp *until, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_needs_keyframe(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_mux_container_Producer_loc_Wire *moq_mux_container_Producer_loc_Wire_with_buffer(moq_mux_container_Producer_loc_Wire *self, moq_duration duration, moq_status *status);
 moq_mux_container_Producer_loc_Wire *moq_mux_container_Producer_loc_Wire_with_bandwidth(moq_mux_container_Producer_loc_Wire *self, moq_bandwidth_Allocator *allocator, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_report_skipped(const moq_mux_container_Producer_loc_Wire *self, uint64_t frames, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_report_bitrate(const moq_mux_container_Producer_loc_Wire *self, moq_bandwidth_Rate bitrate, moq_status *status);
 moq_track_Producer *moq_mux_container_Producer_loc_Wire_track(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
-moq_option_Timestamp moq_mux_container_Producer_loc_Wire_live_edge(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
+moq_Timestamp *moq_mux_container_Producer_loc_Wire_live_edge(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_write(moq_mux_container_Producer_loc_Wire *self, moq_mux_container_Frame frame, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_cut(moq_mux_container_Producer_loc_Wire *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_seek(moq_mux_container_Producer_loc_Wire *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_cut(moq_mux_container_Producer_loc_Wire *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_seek(moq_mux_container_Producer_loc_Wire *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_discontinuity(moq_mux_container_Producer_loc_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_finish(moq_mux_container_Producer_loc_Wire *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_fail(moq_mux_container_Producer_loc_Wire *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_finish(moq_mux_container_Producer_loc_Wire *self, moq_mux_container_Finished_loc_Wire **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_fail(moq_mux_container_Producer_loc_Wire *self, moq_Error *err_, moq_mux_container_Finished_loc_Wire **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_Producer_loc_Wire_abort(moq_mux_container_Producer_loc_Wire *self, moq_Error *err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_abort_unwanted(moq_mux_container_Producer_loc_Wire *self, moq_Error *err_, moq_mux_container_Producer_loc_Wire **err, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_consume(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_broadcast_Info *moq_mux_container_Producer_loc_Wire_broadcast(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_track_Info *moq_mux_container_Producer_loc_Wire_info(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_create_group(const moq_mux_container_Producer_loc_Wire *self, moq_group_Info group, moq_group_Producer **out, moq_Error **err, moq_status *status);
-bool moq_mux_container_Producer_loc_Wire_append_group(const moq_mux_container_Producer_loc_Wire *self, moq_group_Producer **out, moq_Error **err, moq_status *status);
-void moq_mux_container_Producer_loc_Wire_drop_groups(const moq_mux_container_Producer_loc_Wire *self, moq_range_u64 groups, moq_StreamError err_, moq_status *status);
+bool moq_mux_container_Producer_loc_Wire_append_group(const moq_mux_container_Producer_loc_Wire *self, const moq_Timestamp *start, moq_group_Producer **out, moq_Error **err, moq_status *status);
+void moq_mux_container_Producer_loc_Wire_skip_groups(const moq_mux_container_Producer_loc_Wire *self, moq_range_u64 groups, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_finished(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 typedef struct moq_mux_container_Producer_loc_Wire_closed_future moq_mux_container_Producer_loc_Wire_closed_future;
 moq_mux_container_Producer_loc_Wire_closed_future *moq_mux_container_Producer_loc_Wire_closed(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
@@ -9710,18 +7313,41 @@ void moq_mux_container_Producer_loc_Wire_closed_future_free(moq_mux_container_Pr
 bool moq_mux_container_Producer_loc_Wire_is_closed(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_option_track_Position moq_mux_container_Producer_loc_Wire_largest(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 bool moq_mux_container_Producer_loc_Wire_is_clone(const moq_mux_container_Producer_loc_Wire *self, const moq_track_Producer *other, moq_status *status);
+moq_track_AbortHandle *moq_mux_container_Producer_loc_Wire_abort_handle(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_track_Subscriber *moq_mux_container_Producer_loc_Wire_subscribe(const moq_mux_container_Producer_loc_Wire *self, moq_track_Subscription *subscription, moq_status *status);
 moq_track_Subscription *moq_mux_container_Producer_loc_Wire_subscription(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 moq_track_Requests *moq_mux_container_Producer_loc_Wire_requests(const moq_mux_container_Producer_loc_Wire *self, moq_status *status);
 void moq_mux_follow_Instances_free(moq_mux_follow_Instances *self);
 void moq_mux_follow_Instances_drop(moq_mux_follow_Instances *self, moq_status *status);
-bool moq_mux_follow_Instances_new(const moq_origin_Consumer *origin, moq_buf path, const moq_Instance *instance, moq_mux_follow_Instances **out, moq_mux_Error **err, moq_status *status);
 typedef struct moq_mux_follow_Instances_next_future moq_mux_follow_Instances_next_future;
 moq_mux_follow_Instances_next_future *moq_mux_follow_Instances_next(moq_mux_follow_Instances *self, moq_status *status);
-moq_poll moq_mux_follow_Instances_next_start(moq_mux_follow_Instances *self, moq_mux_follow_Event **out, moq_mux_Error **err, moq_mux_follow_Instances_next_future **future, moq_status *status);
-moq_poll moq_mux_follow_Instances_next_poll(moq_mux_follow_Instances_next_future *future, moq_waker waker, moq_mux_follow_Event **out, moq_mux_Error **err);
+moq_poll moq_mux_follow_Instances_next_start(moq_mux_follow_Instances *self, moq_broadcast_Consumer **out, moq_mux_Error **err, moq_mux_follow_Instances_next_future **future, moq_status *status);
+moq_poll moq_mux_follow_Instances_next_poll(moq_mux_follow_Instances_next_future *future, moq_waker waker, moq_broadcast_Consumer **out, moq_mux_Error **err);
 void moq_mux_follow_Instances_next_future_free(moq_mux_follow_Instances_next_future *future);
-void moq_mux_follow_Event_free(moq_mux_follow_Event *self);
+void moq_mux_import_Container_free(moq_mux_import_Container *self);
+void moq_mux_import_Container_drop(moq_mux_import_Container *self, moq_status *status);
+bool moq_mux_import_Container_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_decode(moq_mux_import_Container *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_finish(moq_mux_import_Container *self, moq_mux_import_container_Finished **out, moq_mux_Error **err, moq_status *status);
+void moq_mux_import_Container_abort(moq_mux_import_Container *self, moq_Error *err_, moq_status *status);
+bool moq_mux_import_Container_cut(moq_mux_import_Container *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_seek(moq_mux_import_Container *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+void moq_mux_import_Container_Extra_free(moq_mux_import_Container_Extra *self);
+void moq_mux_import_Container_Extra_drop(moq_mux_import_Container_Extra *self, moq_status *status);
+bool moq_mux_import_Container_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container_Extra **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Extra_decode(moq_mux_import_Container_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Extra_finish(moq_mux_import_Container_Extra *self, moq_mux_import_container_Finished_Extra **out, moq_mux_Error **err, moq_status *status);
+void moq_mux_import_Container_Extra_abort(moq_mux_import_Container_Extra *self, moq_Error *err_, moq_status *status);
+bool moq_mux_import_Container_Extra_cut(moq_mux_import_Container_Extra *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Extra_seek(moq_mux_import_Container_Extra *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+void moq_mux_import_Container_Ext_free(moq_mux_import_Container_Ext *self);
+void moq_mux_import_Container_Ext_drop(moq_mux_import_Container_Ext *self, moq_status *status);
+bool moq_mux_import_Container_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container_Ext **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Ext_decode(moq_mux_import_Container_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Ext_finish(moq_mux_import_Container_Ext *self, moq_mux_import_container_Finished_Ext **out, moq_mux_Error **err, moq_status *status);
+void moq_mux_import_Container_Ext_abort(moq_mux_import_Container_Ext *self, moq_Error *err_, moq_status *status);
+bool moq_mux_import_Container_Ext_cut(moq_mux_import_Container_Ext *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Container_Ext_seek(moq_mux_import_Container_Ext *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 void moq_mux_import_AudioInit_free(moq_mux_import_AudioInit *self);
 void moq_mux_import_AudioInit_drop(moq_mux_import_AudioInit *self, moq_status *status);
 moq_mux_import_AudioInit *moq_mux_import_AudioInit_clone(const moq_mux_import_AudioInit *self, moq_status *status);
@@ -9764,30 +7390,6 @@ void moq_mux_import_VideoInit_hint_set(moq_mux_import_VideoInit *self, moq_mux_c
 int8_t moq_mux_import_VideoInit_priority_get(const moq_mux_import_VideoInit *self, moq_status *status);
 void moq_mux_import_VideoInit_priority_set(moq_mux_import_VideoInit *self, int8_t value, moq_status *status);
 moq_mux_import_VideoInit *moq_mux_import_VideoInit_new(moq_mux_import_VideoFormat format, moq_buf data_);
-void moq_mux_import_Container_free(moq_mux_import_Container *self);
-void moq_mux_import_Container_drop(moq_mux_import_Container *self, moq_status *status);
-bool moq_mux_import_Container_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_decode(moq_mux_import_Container *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_finish(moq_mux_import_Container *self, moq_mux_Error **err, moq_status *status);
-void moq_mux_import_Container_abort(moq_mux_import_Container *self, moq_Error *err_, moq_status *status);
-bool moq_mux_import_Container_cut(moq_mux_import_Container *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_seek(moq_mux_import_Container *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-void moq_mux_import_Container_Extra_free(moq_mux_import_Container_Extra *self);
-void moq_mux_import_Container_Extra_drop(moq_mux_import_Container_Extra *self, moq_status *status);
-bool moq_mux_import_Container_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container_Extra **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Extra_decode(moq_mux_import_Container_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Extra_finish(moq_mux_import_Container_Extra *self, moq_mux_Error **err, moq_status *status);
-void moq_mux_import_Container_Extra_abort(moq_mux_import_Container_Extra *self, moq_Error *err_, moq_status *status);
-bool moq_mux_import_Container_Extra_cut(moq_mux_import_Container_Extra *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Extra_seek(moq_mux_import_Container_Extra *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-void moq_mux_import_Container_Ext_free(moq_mux_import_Container_Ext *self);
-void moq_mux_import_Container_Ext_drop(moq_mux_import_Container_Ext *self, moq_status *status);
-bool moq_mux_import_Container_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, const moq_mux_import_ContainerInit *init, moq_mux_import_Container_Ext **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Ext_decode(moq_mux_import_Container_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Ext_finish(moq_mux_import_Container_Ext *self, moq_mux_Error **err, moq_status *status);
-void moq_mux_import_Container_Ext_abort(moq_mux_import_Container_Ext *self, moq_Error *err_, moq_status *status);
-bool moq_mux_import_Container_Ext_cut(moq_mux_import_Container_Ext *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Container_Ext_seek(moq_mux_import_Container_Ext *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
 void moq_mux_import_Track_free(moq_mux_import_Track *self);
 void moq_mux_import_Track_drop(moq_mux_import_Track *self, moq_status *status);
 bool moq_mux_import_Track_audio_Extra(moq_track_Request *request, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_import_AudioInit *init, moq_mux_import_Track **out, moq_mux_Error **err, moq_status *status);
@@ -9796,13 +7398,14 @@ bool moq_mux_import_Track_audio_unit(moq_track_Request *request, moq_mux_catalog
 bool moq_mux_import_Track_video_Extra(moq_track_Request *request, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_import_VideoInit *init, moq_mux_import_Track **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_Track_video_Ext(moq_track_Request *request, moq_mux_catalog_Reserved_Ext *reserved, moq_mux_import_VideoInit *init, moq_mux_import_Track **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_Track_video_unit(moq_track_Request *request, moq_mux_catalog_Reserved *reserved, moq_mux_import_VideoInit *init, moq_mux_import_Track **out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Track_decode(moq_mux_import_Track *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Track_finish(moq_mux_import_Track *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Track_decode(moq_mux_import_Track *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Track_finish(moq_mux_import_Track *self, moq_mux_import_track_Finished **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_import_Track_abort(moq_mux_import_Track *self, moq_Error *err_, moq_status *status);
-bool moq_mux_import_Track_cut(moq_mux_import_Track *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Track_abort_unwanted(moq_mux_import_Track *self, moq_Error *err_, moq_mux_import_Track **err, moq_status *status);
+bool moq_mux_import_Track_cut(moq_mux_import_Track *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_Track_discontinuity(moq_mux_import_Track *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_Track_set_enabled(moq_mux_import_Track *self, bool enabled, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_Track_seek(moq_mux_import_Track *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_Track_seek(moq_mux_import_Track *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_import_Track_demand(const moq_mux_import_Track *self, moq_status *status);
 moq_buf moq_mux_import_Track_name(const moq_mux_import_Track *self, moq_status *status);
 void moq_mux_import_TrackStream_free(moq_mux_import_TrackStream *self);
@@ -9812,11 +7415,12 @@ bool moq_mux_import_TrackStream_video_Ext(moq_track_Request *request, moq_mux_ca
 bool moq_mux_import_TrackStream_video_unit(moq_track_Request *request, moq_mux_catalog_Reserved *reserved, moq_mux_import_VideoInit *init, moq_mux_import_TrackStream **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_TrackStream_initialize(moq_mux_import_TrackStream *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_TrackStream_decode(moq_mux_import_TrackStream *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_TrackStream_finish(moq_mux_import_TrackStream *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_TrackStream_finish(moq_mux_import_TrackStream *self, moq_mux_import_track_Finished **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_import_TrackStream_set_enabled(moq_mux_import_TrackStream *self, bool enabled, moq_mux_Error **err, moq_status *status);
 void moq_mux_import_TrackStream_abort(moq_mux_import_TrackStream *self, moq_Error *err_, moq_status *status);
-bool moq_mux_import_TrackStream_cut(moq_mux_import_TrackStream *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
-bool moq_mux_import_TrackStream_seek(moq_mux_import_TrackStream *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_TrackStream_abort_unwanted(moq_mux_import_TrackStream *self, moq_Error *err_, moq_mux_import_TrackStream **err, moq_status *status);
+bool moq_mux_import_TrackStream_cut(moq_mux_import_TrackStream *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_import_TrackStream_seek(moq_mux_import_TrackStream *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_import_TrackStream_demand(const moq_mux_import_TrackStream *self, moq_status *status);
 moq_buf moq_mux_import_TrackStream_name(const moq_mux_import_TrackStream *self, moq_status *status);
 void moq_mux_json_Snapshot_Json_free(moq_mux_json_Snapshot_Json *self);
@@ -9829,30 +7433,36 @@ moq_mux_json_Snapshot_Json_refresh_future *moq_mux_json_Snapshot_Json_refresh(co
 moq_poll moq_mux_json_Snapshot_Json_refresh_start(const moq_mux_json_Snapshot_Json *self, moq_mux_Error **err, moq_mux_json_Snapshot_Json_refresh_future **future, moq_status *status);
 moq_poll moq_mux_json_Snapshot_Json_refresh_poll(moq_mux_json_Snapshot_Json_refresh_future *future, moq_waker waker, moq_mux_Error **err);
 void moq_mux_json_Snapshot_Json_refresh_future_free(moq_mux_json_Snapshot_Json_refresh_future *future);
-bool moq_mux_json_Snapshot_Json_update(moq_mux_json_Snapshot_Json *self, const moq_Json *value, moq_Timestamp timestamp, moq_mux_Error **err, moq_status *status);
+bool moq_mux_json_Snapshot_Json_update(moq_mux_json_Snapshot_Json *self, const moq_Json *value, const moq_Timestamp *timestamp, moq_mux_Error **err, moq_status *status);
 bool moq_mux_json_Snapshot_Json_finish(moq_mux_json_Snapshot_Json *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_json_Snapshot_Json_abort(moq_mux_json_Snapshot_Json *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_json_Snapshot_Json_abort_unwanted(moq_mux_json_Snapshot_Json *self, moq_Error *err_, moq_mux_json_Snapshot_Json **err, moq_status *status);
 void moq_mux_json_Stream_Json_free(moq_mux_json_Stream_Json *self);
 void moq_mux_json_Stream_Json_drop(moq_mux_json_Stream_Json *self, moq_status *status);
 moq_buf moq_mux_json_Stream_Json_name(const moq_mux_json_Stream_Json *self, moq_status *status);
 moq_track_Subscriber *moq_mux_json_Stream_Json_consume(const moq_mux_json_Stream_Json *self, moq_status *status);
 moq_track_Demand *moq_mux_json_Stream_Json_demand(const moq_mux_json_Stream_Json *self, moq_status *status);
-bool moq_mux_json_Stream_Json_append(moq_mux_json_Stream_Json *self, const moq_Json *value, moq_Timestamp timestamp, moq_mux_Error **err, moq_status *status);
+bool moq_mux_json_Stream_Json_append(moq_mux_json_Stream_Json *self, const moq_Json *value, const moq_Timestamp *timestamp, moq_mux_Error **err, moq_status *status);
 bool moq_mux_json_Stream_Json_finish(moq_mux_json_Stream_Json *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_json_Stream_Json_abort(moq_mux_json_Stream_Json *self, moq_Error *err_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_json_Stream_Json_abort_unwanted(moq_mux_json_Stream_Json *self, moq_Error *err_, moq_mux_json_Stream_Json **err, moq_status *status);
 void moq_mux_json_Consumer_Json_free(moq_mux_json_Consumer_Json *self);
 void moq_mux_json_Consumer_Json_drop(moq_mux_json_Consumer_Json *self, moq_status *status);
-bool moq_mux_json_Consumer_Json_from_track(moq_track_Subscriber *track, const moq_hang_catalog_JsonConfig *config, moq_mux_json_Consumer_Json **out, moq_mux_Error **err, moq_status *status);
+typedef struct moq_mux_json_Consumer_Json_from_track_future moq_mux_json_Consumer_Json_from_track_future;
+moq_mux_json_Consumer_Json_from_track_future *moq_mux_json_Consumer_Json_from_track(moq_track_Consumer *track, const moq_hang_catalog_JsonConfig *config, moq_status *status);
+moq_poll moq_mux_json_Consumer_Json_from_track_start(moq_track_Consumer *track, const moq_hang_catalog_JsonConfig *config, moq_mux_json_Consumer_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_from_track_future **future, moq_status *status);
+moq_poll moq_mux_json_Consumer_Json_from_track_poll(moq_mux_json_Consumer_Json_from_track_future *future, moq_waker waker, moq_mux_json_Consumer_Json **out, moq_mux_Error **err);
+void moq_mux_json_Consumer_Json_from_track_future_free(moq_mux_json_Consumer_Json_from_track_future *future);
 moq_hang_catalog_Mode moq_mux_json_Consumer_Json_mode(const moq_mux_json_Consumer_Json *self, moq_status *status);
 typedef struct moq_mux_json_Consumer_Json_next_future moq_mux_json_Consumer_Json_next_future;
 moq_mux_json_Consumer_Json_next_future *moq_mux_json_Consumer_Json_next(moq_mux_json_Consumer_Json *self, moq_status *status);
-moq_poll moq_mux_json_Consumer_Json_next_start(moq_mux_json_Consumer_Json *self, moq_Timed_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_next_future **future, moq_status *status);
-moq_poll moq_mux_json_Consumer_Json_next_poll(moq_mux_json_Consumer_Json_next_future *future, moq_waker waker, moq_Timed_Json **out, moq_mux_Error **err);
+moq_poll moq_mux_json_Consumer_Json_next_start(moq_mux_json_Consumer_Json *self, moq_moq_json_Timed_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_next_future **future, moq_status *status);
+moq_poll moq_mux_json_Consumer_Json_next_poll(moq_mux_json_Consumer_Json_next_future *future, moq_waker waker, moq_moq_json_Timed_Json **out, moq_mux_Error **err);
 void moq_mux_json_Consumer_Json_next_future_free(moq_mux_json_Consumer_Json_next_future *future);
 typedef struct moq_mux_json_Consumer_Json_latest_future moq_mux_json_Consumer_Json_latest_future;
 moq_mux_json_Consumer_Json_latest_future *moq_mux_json_Consumer_Json_latest(moq_mux_json_Consumer_Json *self, moq_status *status);
-moq_poll moq_mux_json_Consumer_Json_latest_start(moq_mux_json_Consumer_Json *self, moq_Timed_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_latest_future **future, moq_status *status);
-moq_poll moq_mux_json_Consumer_Json_latest_poll(moq_mux_json_Consumer_Json_latest_future *future, moq_waker waker, moq_Timed_Json **out, moq_mux_Error **err);
+moq_poll moq_mux_json_Consumer_Json_latest_start(moq_mux_json_Consumer_Json *self, moq_moq_json_Timed_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_latest_future **future, moq_status *status);
+moq_poll moq_mux_json_Consumer_Json_latest_poll(moq_mux_json_Consumer_Json_latest_future *future, moq_waker waker, moq_moq_json_Timed_Json **out, moq_mux_Error **err);
 void moq_mux_json_Consumer_Json_latest_future_free(moq_mux_json_Consumer_Json_latest_future *future);
 void moq_mux_json_Config_free(moq_mux_json_Config *self);
 void moq_mux_json_Config_drop(moq_mux_json_Config *self, moq_status *status);
@@ -9870,17 +7480,18 @@ moq_mux_json_Options *moq_mux_json_Options_default(void);
 bool moq_mux_json_Options_deltas_get(const moq_mux_json_Options *self, moq_status *status);
 void moq_mux_json_Options_deltas_set(moq_mux_json_Options *self, bool value, moq_status *status);
 moq_mux_json_Options *moq_mux_json_Options_with_deltas(moq_mux_json_Options *self, bool deltas, moq_status *status);
-void moq_mux_rate_Follower_free(moq_mux_rate_Follower *self);
-void moq_mux_rate_Follower_drop(moq_mux_rate_Follower *self, moq_status *status);
-moq_mux_rate_Follower *moq_mux_rate_Follower_new(moq_bandwidth_Consumer *grant, moq_mux_rate_Policy *policy, moq_status *status);
-moq_mux_rate_Policy *moq_mux_rate_Follower_policy(const moq_mux_rate_Follower *self, moq_status *status);
-void moq_mux_rate_Follower_set_policy(moq_mux_rate_Follower *self, moq_mux_rate_Policy *policy, moq_status *status);
-typedef struct moq_mux_rate_Follower_next_future moq_mux_rate_Follower_next_future;
-moq_mux_rate_Follower_next_future *moq_mux_rate_Follower_next(moq_mux_rate_Follower *self, moq_status *status);
-moq_poll moq_mux_rate_Follower_next_start(moq_mux_rate_Follower *self, moq_mux_rate_Target *out, moq_Error **err, moq_mux_rate_Follower_next_future **future, moq_status *status);
-moq_poll moq_mux_rate_Follower_next_poll(moq_mux_rate_Follower_next_future *future, moq_waker waker, moq_mux_rate_Target *out, moq_Error **err);
-void moq_mux_rate_Follower_next_future_free(moq_mux_rate_Follower_next_future *future);
-void moq_mux_rate_Follower_failed(moq_mux_rate_Follower *self, moq_status *status);
+void moq_mux_rate_Grant_free(moq_mux_rate_Grant *self);
+void moq_mux_rate_Grant_drop(moq_mux_rate_Grant *self, moq_status *status);
+moq_mux_rate_Grant *moq_mux_rate_Grant_new(moq_bandwidth_Consumer *grant, moq_mux_rate_Policy *policy, moq_status *status);
+void moq_mux_rate_Grant_assume(moq_mux_rate_Grant *self, moq_mux_rate_Target target, moq_status *status);
+moq_mux_rate_Policy *moq_mux_rate_Grant_policy(const moq_mux_rate_Grant *self, moq_status *status);
+void moq_mux_rate_Grant_set_policy(moq_mux_rate_Grant *self, moq_mux_rate_Policy *policy, moq_status *status);
+typedef struct moq_mux_rate_Grant_next_future moq_mux_rate_Grant_next_future;
+moq_mux_rate_Grant_next_future *moq_mux_rate_Grant_next(moq_mux_rate_Grant *self, moq_status *status);
+moq_poll moq_mux_rate_Grant_next_start(moq_mux_rate_Grant *self, moq_mux_rate_Target *out, moq_Error **err, moq_mux_rate_Grant_next_future **future, moq_status *status);
+moq_poll moq_mux_rate_Grant_next_poll(moq_mux_rate_Grant_next_future *future, moq_waker waker, moq_mux_rate_Target *out, moq_Error **err);
+void moq_mux_rate_Grant_next_future_free(moq_mux_rate_Grant_next_future *future);
+void moq_mux_rate_Grant_failed(moq_mux_rate_Grant *self, moq_status *status);
 void moq_mux_rate_Policy_free(moq_mux_rate_Policy *self);
 void moq_mux_rate_Policy_drop(moq_mux_rate_Policy *self, moq_status *status);
 moq_mux_rate_Policy *moq_mux_rate_Policy_clone(const moq_mux_rate_Policy *self, moq_status *status);
@@ -9911,9 +7522,9 @@ moq_mux_select_Broadcast *moq_mux_select_Broadcast_video(moq_mux_select_Broadcas
 moq_mux_select_Broadcast *moq_mux_select_Broadcast_audio(moq_mux_select_Broadcast *self, moq_mux_select_Audio *audio, moq_status *status);
 bool moq_mux_select_Broadcast_has_video(const moq_mux_select_Broadcast *self, moq_status *status);
 bool moq_mux_select_Broadcast_has_audio(const moq_mux_select_Broadcast *self, moq_status *status);
-void moq_mux_select_Broadcast_retain_Extra(const moq_mux_select_Broadcast *self, moq_hang_Catalog_Extra *catalog, moq_mux_select_Selected selected, moq_status *status);
-void moq_mux_select_Broadcast_retain_Ext(const moq_mux_select_Broadcast *self, moq_hang_Catalog_Ext *catalog, moq_mux_select_Selected selected, moq_status *status);
-void moq_mux_select_Broadcast_retain_unit(const moq_mux_select_Broadcast *self, moq_hang_Catalog *catalog, moq_mux_select_Selected selected, moq_status *status);
+void moq_mux_select_Broadcast_retain_Extra(const moq_mux_select_Broadcast *self, moq_hang_Catalog_Extra *catalog, moq_status *status);
+void moq_mux_select_Broadcast_retain_Ext(const moq_mux_select_Broadcast *self, moq_hang_Catalog_Ext *catalog, moq_status *status);
+void moq_mux_select_Broadcast_retain_unit(const moq_mux_select_Broadcast *self, moq_hang_Catalog *catalog, moq_status *status);
 void moq_mux_select_Video_free(moq_mux_select_Video *self);
 void moq_mux_select_Video_drop(moq_mux_select_Video *self, moq_status *status);
 bool moq_mux_select_Video_borrowed(const moq_mux_select_Video *self);
@@ -9930,36 +7541,45 @@ moq_buf moq_mux_select_Audio_debug(const moq_mux_select_Audio *self, moq_status 
 moq_mux_select_Audio *moq_mux_select_Audio_default(void);
 moq_mux_select_Audio *moq_mux_select_Audio_name(moq_mux_select_Audio *self, moq_buf name, moq_status *status);
 moq_mux_select_Audio *moq_mux_select_Audio_codec(moq_mux_select_Audio *self, moq_hang_catalog_AudioCodecKind codec, moq_status *status);
-void moq_mux_timeline_Track_free(moq_mux_timeline_Track *self);
-void moq_mux_timeline_Track_drop(moq_mux_timeline_Track *self, moq_status *status);
-void moq_mux_timeline_Track_retire(moq_mux_timeline_Track *self, moq_option_clock_Instant drained, moq_status *status);
-bool moq_mux_timeline_Track_map(const moq_mux_timeline_Track *self, moq_Timestamp source, moq_Timestamp *out, moq_mux_timeline_Error *err, moq_status *status);
-moq_mux_timeline_Transition moq_mux_timeline_Track_declare(const moq_mux_timeline_Track *self, moq_status *status);
-bool moq_mux_timeline_Track_end(const moq_mux_timeline_Track *self, moq_Timestamp source, moq_mux_timeline_Error *err, moq_status *status);
-void moq_mux_timeline_Track_plan(const moq_mux_timeline_Track *self, moq_mux_timeline_Transition transition, moq_Timestamp source, moq_option_duration delay, moq_status *status);
-void moq_mux_timeline_Track_gap(const moq_mux_timeline_Track *self, moq_status *status);
-void moq_mux_timeline_Track_abandon(const moq_mux_timeline_Track *self, moq_mux_timeline_Transition transition, moq_status *status);
-void moq_mux_timeline_Producer_free(moq_mux_timeline_Producer *self);
-void moq_mux_timeline_Producer_drop(moq_mux_timeline_Producer *self, moq_status *status);
-bool moq_mux_timeline_Producer_borrowed(const moq_mux_timeline_Producer *self);
-moq_mux_timeline_Producer *moq_mux_timeline_Producer_clone(const moq_mux_timeline_Producer *self, moq_status *status);
-moq_mux_timeline_Producer *moq_mux_timeline_Producer_new(moq_duration delay);
-moq_mux_timeline_Producer *moq_mux_timeline_Producer_reset(moq_mux_timeline_Producer *self, moq_duration delay, moq_status *status);
-moq_mux_timeline_Consumer *moq_mux_timeline_Producer_consume(const moq_mux_timeline_Producer *self, moq_status *status);
-moq_mux_timeline_Track *moq_mux_timeline_Producer_track(const moq_mux_timeline_Producer *self, moq_mux_timeline_Kind kind, moq_status *status);
-bool moq_mux_timeline_Producer_video(const moq_mux_timeline_Producer *self, moq_Timestamp timestamp, moq_clock_Instant now, moq_status *status);
-void moq_mux_timeline_Producer_video_restarted(const moq_mux_timeline_Producer *self, moq_status *status);
-bool moq_mux_timeline_Producer_audio(const moq_mux_timeline_Producer *self, moq_mux_timeline_Audio audio, moq_clock_Instant now, moq_status *status);
-void moq_mux_timeline_Producer_audio_restarted(const moq_mux_timeline_Producer *self, moq_status *status);
-void moq_mux_timeline_Producer_audio_stopped(const moq_mux_timeline_Producer *self, moq_status *status);
-moq_option_clock_Instant moq_mux_timeline_Producer_due(const moq_mux_timeline_Producer *self, moq_Timestamp timestamp, moq_status *status);
-void moq_mux_timeline_Consumer_free(moq_mux_timeline_Consumer *self);
-bool moq_mux_timeline_Consumer_borrowed(const moq_mux_timeline_Consumer *self);
-moq_mux_timeline_Consumer *moq_mux_timeline_Consumer_clone(const moq_mux_timeline_Consumer *self);
-moq_option_duration moq_mux_timeline_Consumer_playhead(const moq_mux_timeline_Consumer *self, moq_clock_Instant now);
-moq_option_duration moq_mux_timeline_Consumer_target(const moq_mux_timeline_Consumer *self);
-moq_option_clock_Instant moq_mux_timeline_Consumer_due(const moq_mux_timeline_Consumer *self, moq_Timestamp timestamp);
-moq_option_usize moq_mux_timeline_Consumer_present(const moq_mux_timeline_Consumer *self, moq_vec_Timestamp timestamps, moq_clock_Instant now);
+void moq_mux_sync_Track_free(moq_mux_sync_Track *self);
+bool moq_mux_sync_Track_received(const moq_mux_sync_Track *self, const moq_Timestamp *timestamp, moq_clock_Instant now, moq_status *status);
+void moq_mux_sync_Track_reset(const moq_mux_sync_Track *self);
+bool moq_mux_sync_Track_set_target(const moq_mux_sync_Track *self, moq_duration target);
+typedef struct moq_mux_sync_Track_delay_changed_future moq_mux_sync_Track_delay_changed_future;
+moq_mux_sync_Track_delay_changed_future *moq_mux_sync_Track_delay_changed(const moq_mux_sync_Track *self, moq_duration seen);
+moq_poll moq_mux_sync_Track_delay_changed_start(const moq_mux_sync_Track *self, moq_duration seen, moq_duration *out, moq_mux_sync_Track_delay_changed_future **future);
+moq_poll moq_mux_sync_Track_delay_changed_poll(moq_mux_sync_Track_delay_changed_future *future, moq_waker waker, moq_duration *out);
+void moq_mux_sync_Track_delay_changed_future_free(moq_mux_sync_Track_delay_changed_future *future);
+void moq_mux_sync_Schedule_free(moq_mux_sync_Schedule *self);
+bool moq_mux_sync_Schedule_borrowed(const moq_mux_sync_Schedule *self);
+moq_mux_sync_Schedule *moq_mux_sync_Schedule_clone(const moq_mux_sync_Schedule *self);
+bool moq_mux_sync_Schedule_eq(const moq_mux_sync_Schedule *a, const moq_mux_sync_Schedule *b);
+moq_buf moq_mux_sync_Schedule_debug(const moq_mux_sync_Schedule *self);
+moq_duration moq_mux_sync_Schedule_delay(const moq_mux_sync_Schedule *self);
+moq_option_clock_Instant moq_mux_sync_Schedule_due(const moq_mux_sync_Schedule *self, const moq_Timestamp *timestamp, moq_status *status);
+void moq_mux_sync_Producer_free(moq_mux_sync_Producer *self);
+void moq_mux_sync_Producer_drop(moq_mux_sync_Producer *self, moq_status *status);
+bool moq_mux_sync_Producer_borrowed(const moq_mux_sync_Producer *self);
+moq_mux_sync_Producer *moq_mux_sync_Producer_clone(const moq_mux_sync_Producer *self, moq_status *status);
+moq_mux_sync_Producer *moq_mux_sync_Producer_new(moq_duration delay);
+moq_mux_sync_Producer *moq_mux_sync_Producer_reset(moq_mux_sync_Producer *self, moq_duration delay, moq_status *status);
+moq_mux_sync_Consumer *moq_mux_sync_Producer_consume(const moq_mux_sync_Producer *self, moq_status *status);
+moq_mux_sync_Track *moq_mux_sync_Producer_track(const moq_mux_sync_Producer *self, moq_mux_container_Kind kind, moq_status *status);
+moq_option_clock_Instant moq_mux_sync_Producer_due(const moq_mux_sync_Producer *self, const moq_Timestamp *timestamp, moq_status *status);
+void moq_mux_sync_Consumer_free(moq_mux_sync_Consumer *self);
+void moq_mux_sync_Consumer_drop(moq_mux_sync_Consumer *self, moq_status *status);
+bool moq_mux_sync_Consumer_borrowed(const moq_mux_sync_Consumer *self);
+moq_mux_sync_Consumer *moq_mux_sync_Consumer_clone(const moq_mux_sync_Consumer *self, moq_status *status);
+moq_duration moq_mux_sync_Consumer_delay(const moq_mux_sync_Consumer *self, moq_status *status);
+moq_option_clock_Instant moq_mux_sync_Consumer_due(const moq_mux_sync_Consumer *self, const moq_Timestamp *timestamp, moq_status *status);
+moq_option_duration moq_mux_sync_Consumer_position(const moq_mux_sync_Consumer *self, moq_clock_Instant at, moq_status *status);
+moq_mux_sync_Schedule *moq_mux_sync_Consumer_schedule(const moq_mux_sync_Consumer *self, moq_status *status);
+typedef struct moq_mux_sync_Consumer_changed_future moq_mux_sync_Consumer_changed_future;
+moq_mux_sync_Consumer_changed_future *moq_mux_sync_Consumer_changed(const moq_mux_sync_Consumer *self, const moq_mux_sync_Schedule *seen, moq_status *status);
+moq_poll moq_mux_sync_Consumer_changed_start(const moq_mux_sync_Consumer *self, const moq_mux_sync_Schedule *seen, moq_mux_sync_Schedule **out, moq_mux_sync_Consumer_changed_future **future, moq_status *status);
+moq_poll moq_mux_sync_Consumer_changed_poll(moq_mux_sync_Consumer_changed_future *future, moq_waker waker, moq_mux_sync_Schedule **out);
+void moq_mux_sync_Consumer_changed_future_free(moq_mux_sync_Consumer_changed_future *future);
+moq_option_usize moq_mux_sync_Consumer_present(const moq_mux_sync_Consumer *self, moq_vec_Timestamp timestamps, moq_clock_Instant now, moq_status *status);
 void moq_tokio_tls_Error_free(moq_tokio_tls_Error *self);
 moq_buf moq_tokio_tls_Error_to_string(const moq_tokio_tls_Error *self);
 moq_buf moq_tokio_tls_Error_debug(const moq_tokio_tls_Error *self);
@@ -9970,16 +7590,6 @@ moq_tokio_tls_Identity *moq_tokio_tls_Identity_clone(const moq_tokio_tls_Identit
 moq_buf moq_tokio_tls_Identity_debug(const moq_tokio_tls_Identity *self, moq_status *status);
 bool moq_tokio_tls_Identity_generate(moq_vec_string hostnames, moq_tokio_tls_Identity **out, moq_tokio_tls_Error **err);
 moq_buf moq_tokio_tls_Identity_fingerprint(const moq_tokio_tls_Identity *self, moq_status *status);
-void moq_tokio_tls_Peers_free(moq_tokio_tls_Peers *self);
-void moq_tokio_tls_Peers_drop(moq_tokio_tls_Peers *self, moq_status *status);
-bool moq_tokio_tls_Peers_borrowed(const moq_tokio_tls_Peers *self);
-moq_tokio_tls_Peers *moq_tokio_tls_Peers_clone(const moq_tokio_tls_Peers *self, moq_status *status);
-moq_buf moq_tokio_tls_Peers_debug(const moq_tokio_tls_Peers *self, moq_status *status);
-moq_tokio_tls_Peers *moq_tokio_tls_Peers_default(void);
-moq_tokio_tls_Peers *moq_tokio_tls_Peers_new(void);
-bool moq_tokio_tls_Peers_insert(const moq_tokio_tls_Peers *self, moq_buf fingerprint, moq_tokio_tls_Error **err, moq_status *status);
-bool moq_tokio_tls_Peers_remove(const moq_tokio_tls_Peers *self, moq_buf fingerprint, moq_tokio_tls_Error **err, moq_status *status);
-bool moq_tokio_tls_Peers_contains(const moq_tokio_tls_Peers *self, moq_buf fingerprint, moq_status *status);
 void moq_tokio_tls_Connect_free(moq_tokio_tls_Connect *self);
 void moq_tokio_tls_Connect_drop(moq_tokio_tls_Connect *self, moq_status *status);
 moq_tokio_tls_Connect *moq_tokio_tls_Connect_clone(const moq_tokio_tls_Connect *self, moq_status *status);
@@ -10016,8 +7626,6 @@ moq_vec_string moq_tokio_tls_Listen_generate_get(const moq_tokio_tls_Listen *sel
 void moq_tokio_tls_Listen_generate_set(moq_tokio_tls_Listen *self, moq_vec_string value, moq_status *status);
 moq_tokio_tls_Identity *moq_tokio_tls_Listen_identity_get(const moq_tokio_tls_Listen *self, moq_status *status);
 void moq_tokio_tls_Listen_identity_set(moq_tokio_tls_Listen *self, moq_tokio_tls_Identity *value, moq_status *status);
-moq_tokio_tls_Peers *moq_tokio_tls_Listen_peers_get(const moq_tokio_tls_Listen *self, moq_status *status);
-void moq_tokio_tls_Listen_peers_set(moq_tokio_tls_Listen *self, moq_tokio_tls_Peers *value, moq_status *status);
 moq_vec_path moq_tokio_tls_Listen_root_get(const moq_tokio_tls_Listen *self, moq_status *status);
 void moq_tokio_tls_Listen_root_set(moq_tokio_tls_Listen *self, moq_vec_path value, moq_status *status);
 bool moq_tokio_tls_Listen_load(const moq_tokio_tls_Listen *self, moq_tokio_tls_Serve **out, moq_tokio_tls_Error **err, moq_status *status);
@@ -10031,14 +7639,15 @@ moq_tokio_tls_Serve *moq_tokio_tls_Serve_clone(const moq_tokio_tls_Serve *self, 
 moq_buf moq_tokio_tls_Serve_debug(const moq_tokio_tls_Serve *self, moq_status *status);
 moq_tokio_tls_Certificates *moq_tokio_tls_Serve_certificates(const moq_tokio_tls_Serve *self, moq_status *status);
 bool moq_tokio_tls_Serve_config(const moq_tokio_tls_Serve *self, moq_vec_bytes alpn, moq_rustls_ServerConfig **out, moq_tokio_tls_Error **err, moq_status *status);
+moq_tokio_tls_PeerIdentity *moq_tokio_tls_Serve_peer(const moq_tokio_tls_Serve *self, moq_vec_rustls_pki_types_CertificateDer chain, moq_status *status);
 void moq_tokio_tls_PeerIdentity_free(moq_tokio_tls_PeerIdentity *self);
 bool moq_tokio_tls_PeerIdentity_borrowed(const moq_tokio_tls_PeerIdentity *self);
 moq_tokio_tls_PeerIdentity *moq_tokio_tls_PeerIdentity_clone(const moq_tokio_tls_PeerIdentity *self);
 moq_buf moq_tokio_tls_PeerIdentity_debug(const moq_tokio_tls_PeerIdentity *self);
-moq_tokio_tls_PeerIdentity *moq_tokio_tls_PeerIdentity_from_chain(moq_vec_rustls_pki_types_CertificateDer chain, moq_status *status);
 moq_vec_rustls_pki_types_CertificateDer moq_tokio_tls_PeerIdentity_chain(const moq_tokio_tls_PeerIdentity *self);
 moq_buf moq_tokio_tls_PeerIdentity_fingerprint(const moq_tokio_tls_PeerIdentity *self);
 moq_buf moq_tokio_tls_PeerIdentity_name(const moq_tokio_tls_PeerIdentity *self);
+bool moq_tokio_tls_PeerIdentity_lineage(const moq_tokio_tls_PeerIdentity *self, moq_vec_string *out, moq_tokio_tls_Error **err);
 moq_buf moq_tokio_tls_PeerIdentity_issuer(const moq_tokio_tls_PeerIdentity *self);
 moq_option_clock_Wall moq_tokio_tls_PeerIdentity_expiry(const moq_tokio_tls_PeerIdentity *self);
 void moq_tokio_tls_Certificates_free(moq_tokio_tls_Certificates *self);
@@ -10079,16 +7688,14 @@ moq_tokio_Duration *moq_tokio_connect_Config_timeout_get(const moq_tokio_connect
 void moq_tokio_connect_Config_timeout_set(moq_tokio_connect_Config *self, const moq_tokio_Duration *value, moq_status *status);
 moq_vec_Version moq_tokio_connect_Config_version_get(const moq_tokio_connect_Config *self, moq_status *status);
 void moq_tokio_connect_Config_version_set(moq_tokio_connect_Config *self, moq_vec_Version value, moq_status *status);
-moq_setup_Extensions moq_tokio_connect_Config_extensions_get(const moq_tokio_connect_Config *self, moq_status *status);
-void moq_tokio_connect_Config_extensions_set(moq_tokio_connect_Config *self, moq_setup_Extensions value, moq_status *status);
 moq_buf moq_tokio_connect_Config_implementation_get(const moq_tokio_connect_Config *self, moq_status *status);
 void moq_tokio_connect_Config_implementation_set(moq_tokio_connect_Config *self, moq_buf value, moq_status *status);
 moq_tokio_tls_Connect *moq_tokio_connect_Config_tls_get(const moq_tokio_connect_Config *self, moq_status *status);
 void moq_tokio_connect_Config_tls_set(moq_tokio_connect_Config *self, moq_tokio_tls_Connect *value, moq_status *status);
 moq_tokio_Backoff *moq_tokio_connect_Config_backoff_get(const moq_tokio_connect_Config *self, moq_status *status);
 void moq_tokio_connect_Config_backoff_set(moq_tokio_connect_Config *self, moq_tokio_Backoff *value, moq_status *status);
-moq_moq_tokio_connection_Goaway *moq_tokio_connect_Config_goaway_get(const moq_tokio_connect_Config *self, moq_status *status);
-void moq_tokio_connect_Config_goaway_set(moq_tokio_connect_Config *self, moq_moq_tokio_connection_Goaway *value, moq_status *status);
+moq_moq_tokio_connection_Handover *moq_tokio_connect_Config_goaway_get(const moq_tokio_connect_Config *self, moq_status *status);
+void moq_tokio_connect_Config_goaway_set(moq_tokio_connect_Config *self, moq_moq_tokio_connection_Handover *value, moq_status *status);
 moq_moq_tokio_websocket_Config *moq_tokio_connect_Config_websocket_get(const moq_tokio_connect_Config *self, moq_status *status);
 void moq_tokio_connect_Config_websocket_set(moq_tokio_connect_Config *self, moq_moq_tokio_websocket_Config *value, moq_status *status);
 moq_moq_tokio_cli_Deprecated *moq_tokio_connect_Config_deprecated(const moq_tokio_connect_Config *self, moq_status *status);
@@ -10131,8 +7738,6 @@ moq_moq_tokio_unix_Config *moq_tokio_listen_Config_unix_get(const moq_tokio_list
 void moq_tokio_listen_Config_unix_set(moq_tokio_listen_Config *self, moq_moq_tokio_unix_Config *value, moq_status *status);
 moq_vec_Version moq_tokio_listen_Config_version_get(const moq_tokio_listen_Config *self, moq_status *status);
 void moq_tokio_listen_Config_version_set(moq_tokio_listen_Config *self, moq_vec_Version value, moq_status *status);
-moq_setup_Extensions moq_tokio_listen_Config_extensions_get(const moq_tokio_listen_Config *self, moq_status *status);
-void moq_tokio_listen_Config_extensions_set(moq_tokio_listen_Config *self, moq_setup_Extensions value, moq_status *status);
 moq_buf moq_tokio_listen_Config_implementation_get(const moq_tokio_listen_Config *self, moq_status *status);
 void moq_tokio_listen_Config_implementation_set(moq_tokio_listen_Config *self, moq_buf value, moq_status *status);
 moq_tokio_Duration *moq_tokio_listen_Config_timeout_get(const moq_tokio_listen_Config *self, moq_status *status);
@@ -10153,7 +7758,9 @@ bool moq_tokio_listen_Config_resolve(const moq_tokio_listen_Config *self, moq_mo
 bool moq_tokio_listen_Config_init(moq_tokio_listen_Config *self, moq_tokio_quic_Config *quic, moq_tokio_Server **out, moq_tokio_Error **err, moq_status *status);
 bool moq_tokio_listen_Config_init_streams(moq_tokio_listen_Config *self, moq_tokio_Server **out, moq_tokio_Error **err, moq_status *status);
 moq_Versions *moq_tokio_listen_Config_versions(const moq_tokio_listen_Config *self, moq_status *status);
+moq_Server *moq_tokio_listen_Config_server(const moq_tokio_listen_Config *self, moq_status *status);
 bool moq_tokio_listen_Config_has_explicit_bind(const moq_tokio_listen_Config *self, moq_status *status);
+bool moq_tokio_listen_Config_serves_quic(const moq_tokio_listen_Config *self, moq_status *status);
 void moq_tokio_quic_Config_free(moq_tokio_quic_Config *self);
 void moq_tokio_quic_Config_drop(moq_tokio_quic_Config *self, moq_status *status);
 moq_tokio_quic_Config *moq_tokio_quic_Config_clone(const moq_tokio_quic_Config *self, moq_status *status);
@@ -10171,8 +7778,6 @@ moq_option_bool moq_tokio_quic_Config_mtu_discovery_get(const moq_tokio_quic_Con
 void moq_tokio_quic_Config_mtu_discovery_set(moq_tokio_quic_Config *self, moq_option_bool value, moq_status *status);
 moq_option_moq_tokio_quic_CongestionControl moq_tokio_quic_Config_congestion_control_get(const moq_tokio_quic_Config *self, moq_status *status);
 void moq_tokio_quic_Config_congestion_control_set(moq_tokio_quic_Config *self, moq_option_moq_tokio_quic_CongestionControl value, moq_status *status);
-moq_moq_tokio_quic_Controller *moq_tokio_quic_Config_controller_get(const moq_tokio_quic_Config *self, moq_status *status);
-void moq_tokio_quic_Config_controller_set(moq_tokio_quic_Config *self, moq_moq_tokio_quic_Controller *value, moq_status *status);
 moq_option_u64 moq_tokio_quic_Config_receive_window_get(const moq_tokio_quic_Config *self, moq_status *status);
 void moq_tokio_quic_Config_receive_window_set(moq_tokio_quic_Config *self, moq_option_u64 value, moq_status *status);
 moq_option_u64 moq_tokio_quic_Config_stream_receive_window_get(const moq_tokio_quic_Config *self, moq_status *status);
@@ -10191,8 +7796,8 @@ void moq_tokio_server_Config_drop(moq_tokio_server_Config *self, moq_status *sta
 moq_tokio_server_Config *moq_tokio_server_Config_default(void);
 moq_tokio_tls_Serve *moq_tokio_server_Config_tls_get(const moq_tokio_server_Config *self, moq_status *status);
 void moq_tokio_server_Config_tls_set(moq_tokio_server_Config *self, moq_tokio_tls_Serve *value, moq_status *status);
-moq_server_Activity *moq_tokio_server_Config_activity_get(const moq_tokio_server_Config *self, moq_status *status);
-void moq_tokio_server_Config_activity_set(moq_tokio_server_Config *self, moq_server_Activity *value, moq_status *status);
+moq_server_Admission *moq_tokio_server_Config_admission_get(const moq_tokio_server_Config *self, moq_status *status);
+void moq_tokio_server_Config_admission_set(moq_tokio_server_Config *self, moq_server_Admission *value, moq_status *status);
 moq_tokio_listen_Config *moq_tokio_server_Config_listen_get(const moq_tokio_server_Config *self, moq_status *status);
 void moq_tokio_server_Config_listen_set(moq_tokio_server_Config *self, moq_tokio_listen_Config *value, moq_status *status);
 moq_tokio_quic_Config *moq_tokio_server_Config_quic_get(const moq_tokio_server_Config *self, moq_status *status);
@@ -10207,6 +7812,8 @@ moq_stats_Session *moq_tokio_server_Config_stats_get(const moq_tokio_server_Conf
 void moq_tokio_server_Config_stats_set(moq_tokio_server_Config *self, moq_stats_Session *value, moq_status *status);
 moq_moq_tokio_quic_demux_Demux *moq_tokio_server_Config_demux_get(const moq_tokio_server_Config *self, moq_status *status);
 void moq_tokio_server_Config_demux_set(moq_tokio_server_Config *self, moq_moq_tokio_quic_demux_Demux *value, moq_status *status);
+moq_moq_tokio_server_Streams *moq_tokio_server_Config_streams_get(const moq_tokio_server_Config *self, moq_status *status);
+void moq_tokio_server_Config_streams_set(moq_tokio_server_Config *self, moq_moq_tokio_server_Streams *value, moq_status *status);
 bool moq_tokio_server_Config_init(moq_tokio_server_Config *self, moq_tokio_Server **out, moq_tokio_Error **err, moq_status *status);
 bool moq_tokio_server_Config_init_streams(moq_tokio_server_Config *self, moq_tokio_Server **out, moq_tokio_Error **err, moq_status *status);
 void moq_tokio_server_Listener_free(moq_tokio_server_Listener *self);
@@ -10221,6 +7828,11 @@ moq_tokio_server_Listener_close_future *moq_tokio_server_Listener_close(moq_toki
 moq_poll moq_tokio_server_Listener_close_start(moq_tokio_server_Listener *self, moq_tokio_server_Listener_close_future **future, moq_status *status);
 moq_poll moq_tokio_server_Listener_close_poll(moq_tokio_server_Listener_close_future *future, moq_waker waker);
 void moq_tokio_server_Listener_close_future_free(moq_tokio_server_Listener_close_future *future);
+typedef struct moq_tokio_server_Listener_close_streams_future moq_tokio_server_Listener_close_streams_future;
+moq_tokio_server_Listener_close_streams_future *moq_tokio_server_Listener_close_streams(moq_tokio_server_Listener *self, moq_status *status);
+moq_poll moq_tokio_server_Listener_close_streams_start(moq_tokio_server_Listener *self, moq_tokio_server_Listener_close_streams_future **future, moq_status *status);
+moq_poll moq_tokio_server_Listener_close_streams_poll(moq_tokio_server_Listener_close_streams_future *future, moq_waker waker);
+void moq_tokio_server_Listener_close_streams_future_free(moq_tokio_server_Listener_close_streams_future *future);
 bool moq_tokio_server_Listener_local_addr(const moq_tokio_server_Listener *self, moq_socket_addr *out, moq_tokio_Error **err, moq_status *status);
 moq_option_socket_addr moq_tokio_server_Listener_websocket_local_addr(const moq_tokio_server_Listener *self, moq_status *status);
 moq_option_socket_addr moq_tokio_server_Listener_tcp_local_addr(const moq_tokio_server_Listener *self, moq_status *status);
@@ -10236,11 +7848,16 @@ void moq_tokio_server_Request_reject_future_free(moq_tokio_server_Request_reject
 moq_tokio_server_Request *moq_tokio_server_Request_with_publisher_Producer(moq_tokio_server_Request *self, const moq_origin_Producer *publish, moq_status *status);
 moq_tokio_server_Request *moq_tokio_server_Request_with_publisher_Consumer(moq_tokio_server_Request *self, const moq_origin_Consumer *publish, moq_status *status);
 moq_tokio_server_Request *moq_tokio_server_Request_with_subscriber(moq_tokio_server_Request *self, moq_origin_Producer *subscribe, moq_status *status);
-moq_tokio_server_Request *moq_tokio_server_Request_with_peer_hop(moq_tokio_server_Request *self, moq_Hop hop, moq_status *status);
+moq_tokio_server_Request *moq_tokio_server_Request_with_peer_node(moq_tokio_server_Request *self, uint64_t node, moq_status *status);
 moq_tokio_server_Request *moq_tokio_server_Request_with_stats(moq_tokio_server_Request *self, moq_stats_Session *stats, moq_status *status);
 moq_tokio_server_Request *moq_tokio_server_Request_with_limits(moq_tokio_server_Request *self, moq_session_Limits limits, moq_status *status);
-moq_moq_tokio_quic_driver_connection_Connection *moq_tokio_server_Request_quic(const moq_tokio_server_Request *self, moq_status *status);
+moq_moq_tokio_server_QuicLimits *moq_tokio_server_Request_quic_limits(const moq_tokio_server_Request *self, moq_status *status);
 bool moq_tokio_server_Request_with_quic_limits(moq_tokio_server_Request *self, const moq_moq_quic_Limits *limits, moq_tokio_server_Request **out, moq_buf *err, moq_status *status);
+typedef struct moq_tokio_server_Request_expired_future moq_tokio_server_Request_expired_future;
+moq_tokio_server_Request_expired_future *moq_tokio_server_Request_expired(moq_tokio_server_Request *self, moq_status *status);
+moq_poll moq_tokio_server_Request_expired_start(moq_tokio_server_Request *self, moq_tokio_server_Request_expired_future **future, moq_status *status);
+moq_poll moq_tokio_server_Request_expired_poll(moq_tokio_server_Request_expired_future *future, moq_waker waker);
+void moq_tokio_server_Request_expired_future_free(moq_tokio_server_Request_expired_future *future);
 typedef struct moq_tokio_server_Request_ok_future moq_tokio_server_Request_ok_future;
 moq_tokio_server_Request_ok_future *moq_tokio_server_Request_ok(moq_tokio_server_Request *self, moq_status *status);
 moq_poll moq_tokio_server_Request_ok_start(moq_tokio_server_Request *self, moq_Session **out, moq_tokio_Error **err, moq_tokio_server_Request_ok_future **future, moq_status *status);
@@ -10258,7 +7875,7 @@ moq_buf moq_tokio_server_Request_alpn(const moq_tokio_server_Request *self, moq_
 moq_option_setup_Role moq_tokio_server_Request_role(const moq_tokio_server_Request *self, moq_status *status);
 moq_auth_Handle *moq_tokio_server_Request_auth(const moq_tokio_server_Request *self, moq_status *status);
 moq_auth_Requests *moq_tokio_server_Request_requests(moq_tokio_server_Request *self, moq_status *status);
-moq_option_Hop moq_tokio_server_Request_peer_hop(const moq_tokio_server_Request *self, moq_status *status);
+moq_option_non_zero_u64 moq_tokio_server_Request_peer_node(const moq_tokio_server_Request *self, moq_status *status);
 moq_buf moq_tokio_server_Request_peer_implementation(const moq_tokio_server_Request *self, moq_status *status);
 moq_option_setup_Token moq_tokio_server_Request_token(const moq_tokio_server_Request *self, moq_status *status);
 moq_tokio_tls_PeerIdentity *moq_tokio_server_Request_peer_identity(const moq_tokio_server_Request *self, moq_status *status);
@@ -10275,13 +7892,21 @@ moq_option_usize moq_transport_memory_Config_max_concurrent_uni_streams_get(cons
 void moq_transport_memory_Config_max_concurrent_uni_streams_set(moq_transport_memory_Config *self, moq_option_usize value, moq_status *status);
 moq_option_usize moq_transport_memory_Config_max_concurrent_bi_streams_get(const moq_transport_memory_Config *self, moq_status *status);
 void moq_transport_memory_Config_max_concurrent_bi_streams_set(moq_transport_memory_Config *self, moq_option_usize value, moq_status *status);
+moq_duration moq_transport_memory_Config_latency_get(const moq_transport_memory_Config *self, moq_status *status);
+void moq_transport_memory_Config_latency_set(moq_transport_memory_Config *self, moq_duration value, moq_status *status);
 void moq_transport_memory_Session_free(moq_transport_memory_Session *self);
 void moq_transport_memory_Session_drop(moq_transport_memory_Session *self, moq_status *status);
 bool moq_transport_memory_Session_borrowed(const moq_transport_memory_Session *self);
 moq_transport_memory_Session *moq_transport_memory_Session_clone(const moq_transport_memory_Session *self, moq_status *status);
+moq_transport_memory_Closer *moq_transport_memory_Session_closer(const moq_transport_memory_Session *self, moq_status *status);
+void moq_transport_memory_Closer_free(moq_transport_memory_Closer *self);
+bool moq_transport_memory_Closer_borrowed(const moq_transport_memory_Closer *self);
+moq_transport_memory_Closer *moq_transport_memory_Closer_clone(const moq_transport_memory_Closer *self);
+void moq_transport_memory_Closer_close(const moq_transport_memory_Closer *self, uint32_t code, moq_buf reason);
+bool moq_transport_memory_Closer_is_closed(const moq_transport_memory_Closer *self);
 void moq_mux_catalog_hang_Consumer_free(moq_mux_catalog_hang_Consumer *self);
 void moq_mux_catalog_hang_Consumer_drop(moq_mux_catalog_hang_Consumer *self, moq_status *status);
-moq_mux_catalog_hang_Consumer *moq_mux_catalog_hang_Consumer_new(moq_track_Subscriber *track, moq_status *status);
+moq_mux_catalog_hang_Consumer *moq_mux_catalog_hang_Consumer_new(moq_track_Consumer *track, moq_status *status);
 typedef struct moq_mux_catalog_hang_Consumer_next_future moq_mux_catalog_hang_Consumer_next_future;
 moq_mux_catalog_hang_Consumer_next_future *moq_mux_catalog_hang_Consumer_next(moq_mux_catalog_hang_Consumer *self, moq_status *status);
 moq_poll moq_mux_catalog_hang_Consumer_next_start(moq_mux_catalog_hang_Consumer *self, moq_hang_Catalog **out, moq_mux_Error **err, moq_mux_catalog_hang_Consumer_next_future **future, moq_status *status);
@@ -10289,7 +7914,7 @@ moq_poll moq_mux_catalog_hang_Consumer_next_poll(moq_mux_catalog_hang_Consumer_n
 void moq_mux_catalog_hang_Consumer_next_future_free(moq_mux_catalog_hang_Consumer_next_future *future);
 void moq_mux_catalog_hang_Consumer_Extra_free(moq_mux_catalog_hang_Consumer_Extra *self);
 void moq_mux_catalog_hang_Consumer_Extra_drop(moq_mux_catalog_hang_Consumer_Extra *self, moq_status *status);
-moq_mux_catalog_hang_Consumer_Extra *moq_mux_catalog_hang_Consumer_Extra_new(moq_track_Subscriber *track, moq_status *status);
+moq_mux_catalog_hang_Consumer_Extra *moq_mux_catalog_hang_Consumer_Extra_new(moq_track_Consumer *track, moq_status *status);
 typedef struct moq_mux_catalog_hang_Consumer_Extra_next_future moq_mux_catalog_hang_Consumer_Extra_next_future;
 moq_mux_catalog_hang_Consumer_Extra_next_future *moq_mux_catalog_hang_Consumer_Extra_next(moq_mux_catalog_hang_Consumer_Extra *self, moq_status *status);
 moq_poll moq_mux_catalog_hang_Consumer_Extra_next_start(moq_mux_catalog_hang_Consumer_Extra *self, moq_hang_Catalog_Extra **out, moq_mux_Error **err, moq_mux_catalog_hang_Consumer_Extra_next_future **future, moq_status *status);
@@ -10297,7 +7922,7 @@ moq_poll moq_mux_catalog_hang_Consumer_Extra_next_poll(moq_mux_catalog_hang_Cons
 void moq_mux_catalog_hang_Consumer_Extra_next_future_free(moq_mux_catalog_hang_Consumer_Extra_next_future *future);
 void moq_mux_catalog_hang_Consumer_Ext_free(moq_mux_catalog_hang_Consumer_Ext *self);
 void moq_mux_catalog_hang_Consumer_Ext_drop(moq_mux_catalog_hang_Consumer_Ext *self, moq_status *status);
-moq_mux_catalog_hang_Consumer_Ext *moq_mux_catalog_hang_Consumer_Ext_new(moq_track_Subscriber *track, moq_status *status);
+moq_mux_catalog_hang_Consumer_Ext *moq_mux_catalog_hang_Consumer_Ext_new(moq_track_Consumer *track, moq_status *status);
 typedef struct moq_mux_catalog_hang_Consumer_Ext_next_future moq_mux_catalog_hang_Consumer_Ext_next_future;
 moq_mux_catalog_hang_Consumer_Ext_next_future *moq_mux_catalog_hang_Consumer_Ext_next(moq_mux_catalog_hang_Consumer_Ext *self, moq_status *status);
 moq_poll moq_mux_catalog_hang_Consumer_Ext_next_start(moq_mux_catalog_hang_Consumer_Ext *self, moq_hang_Catalog_Ext **out, moq_mux_Error **err, moq_mux_catalog_hang_Consumer_Ext_next_future **future, moq_status *status);
@@ -10342,6 +7967,17 @@ moq_mux_catalog_msf_Consumer_Ext_next_future *moq_mux_catalog_msf_Consumer_Ext_n
 moq_poll moq_mux_catalog_msf_Consumer_Ext_next_start(moq_mux_catalog_msf_Consumer_Ext *self, moq_hang_Catalog_Ext **out, moq_mux_Error **err, moq_mux_catalog_msf_Consumer_Ext_next_future **future, moq_status *status);
 moq_poll moq_mux_catalog_msf_Consumer_Ext_next_poll(moq_mux_catalog_msf_Consumer_Ext_next_future *future, moq_waker waker, moq_hang_Catalog_Ext **out, moq_mux_Error **err);
 void moq_mux_catalog_msf_Consumer_Ext_next_future_free(moq_mux_catalog_msf_Consumer_Ext_next_future *future);
+void moq_mux_codec_aac_Config_free(moq_mux_codec_aac_Config *self);
+void moq_mux_codec_aac_Config_drop(moq_mux_codec_aac_Config *self, moq_status *status);
+uint8_t moq_mux_codec_aac_Config_profile_get(const moq_mux_codec_aac_Config *self, moq_status *status);
+void moq_mux_codec_aac_Config_profile_set(moq_mux_codec_aac_Config *self, uint8_t value, moq_status *status);
+uint32_t moq_mux_codec_aac_Config_sample_rate_get(const moq_mux_codec_aac_Config *self, moq_status *status);
+void moq_mux_codec_aac_Config_sample_rate_set(moq_mux_codec_aac_Config *self, uint32_t value, moq_status *status);
+uint32_t moq_mux_codec_aac_Config_channel_count_get(const moq_mux_codec_aac_Config *self, moq_status *status);
+void moq_mux_codec_aac_Config_channel_count_set(moq_mux_codec_aac_Config *self, uint32_t value, moq_status *status);
+moq_mux_codec_aac_Config *moq_mux_codec_aac_Config_new(uint8_t profile, uint32_t sample_rate, uint32_t channel_count);
+bool moq_mux_codec_aac_Config_parse(moq_buf buf, moq_buf *buf_out, moq_mux_codec_aac_Config **out, moq_mux_codec_aac_Error **err);
+bool moq_mux_codec_aac_Config_encode(const moq_mux_codec_aac_Config *self, moq_buf *out, moq_mux_codec_aac_Error **err, moq_status *status);
 void moq_mux_codec_aac_Error_free(moq_mux_codec_aac_Error *self);
 bool moq_mux_codec_aac_Error_borrowed(const moq_mux_codec_aac_Error *self);
 moq_mux_codec_aac_Error *moq_mux_codec_aac_Error_clone(const moq_mux_codec_aac_Error *self);
@@ -10354,12 +7990,13 @@ bool moq_mux_codec_aac_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog
 bool moq_mux_codec_aac_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_aac_Import **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_codec_aac_Import_name(const moq_mux_codec_aac_Import *self, moq_status *status);
 moq_track_Demand *moq_mux_codec_aac_Import_demand(const moq_mux_codec_aac_Import *self, moq_status *status);
-bool moq_mux_codec_aac_Import_finish(moq_mux_codec_aac_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_aac_Import_finish(moq_mux_codec_aac_Import *self, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_aac_Import_abort(moq_mux_codec_aac_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_aac_Import_cut(moq_mux_codec_aac_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_aac_Import_abort_unwanted(moq_mux_codec_aac_Import *self, moq_Error *err_, moq_mux_codec_aac_Import **err, moq_status *status);
+bool moq_mux_codec_aac_Import_cut(moq_mux_codec_aac_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_aac_Import_discontinuity(moq_mux_codec_aac_Import *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_aac_Import_seek(moq_mux_codec_aac_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_aac_Import_decode(moq_mux_codec_aac_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_aac_Import_seek(moq_mux_codec_aac_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_aac_Import_decode(moq_mux_codec_aac_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_annexb_Error_free(moq_mux_codec_annexb_Error *self);
 bool moq_mux_codec_annexb_Error_borrowed(const moq_mux_codec_annexb_Error *self);
 moq_mux_codec_annexb_Error *moq_mux_codec_annexb_Error_clone(const moq_mux_codec_annexb_Error *self);
@@ -10372,19 +8009,20 @@ bool moq_mux_codec_av1_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog
 bool moq_mux_codec_av1_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_av1_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_av1_Import_initialize(moq_mux_codec_av1_Import *self, moq_buf buf, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_codec_av1_Import_demand(const moq_mux_codec_av1_Import *self, moq_status *status);
-bool moq_mux_codec_av1_Import_finish(moq_mux_codec_av1_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_av1_Import_finish(moq_mux_codec_av1_Import *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_av1_Import_abort(moq_mux_codec_av1_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_av1_Import_cut(moq_mux_codec_av1_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_av1_Import_abort_unwanted(moq_mux_codec_av1_Import *self, moq_Error *err_, moq_mux_codec_av1_Import **err, moq_status *status);
+bool moq_mux_codec_av1_Import_cut(moq_mux_codec_av1_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_av1_Import_discontinuity(moq_mux_codec_av1_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_av1_Import_set_enabled(moq_mux_codec_av1_Import *self, bool enabled, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_av1_Import_seek(moq_mux_codec_av1_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_av1_Import_seek(moq_mux_codec_av1_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_av1_Import_decode(moq_mux_codec_av1_Import *self, moq_vec_mux_container_Frame frames, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_av1_Split_free(moq_mux_codec_av1_Split *self);
 void moq_mux_codec_av1_Split_drop(moq_mux_codec_av1_Split *self, moq_status *status);
 moq_mux_codec_av1_Split *moq_mux_codec_av1_Split_default(void);
 moq_mux_codec_av1_Split *moq_mux_codec_av1_Split_new(void);
-bool moq_mux_codec_av1_Split_decode(moq_mux_codec_av1_Split *self, moq_buf data_, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_av1_Split_flush(moq_mux_codec_av1_Split *self, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_av1_Split_decode(moq_mux_codec_av1_Split *self, moq_buf data_, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_av1_Split_flush(moq_mux_codec_av1_Split *self, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_av1_Split_reset(moq_mux_codec_av1_Split *self, moq_status *status);
 void moq_mux_codec_flac_Import_free(moq_mux_codec_flac_Import *self);
 void moq_mux_codec_flac_Import_drop(moq_mux_codec_flac_Import *self, moq_status *status);
@@ -10392,12 +8030,13 @@ bool moq_mux_codec_flac_Import_new_Extra(moq_track_Producer *track, moq_mux_cata
 bool moq_mux_codec_flac_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog_Reserved_Ext *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_flac_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_flac_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_flac_Import **out, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_codec_flac_Import_demand(const moq_mux_codec_flac_Import *self, moq_status *status);
-bool moq_mux_codec_flac_Import_finish(moq_mux_codec_flac_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_flac_Import_finish(moq_mux_codec_flac_Import *self, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_flac_Import_abort(moq_mux_codec_flac_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_flac_Import_cut(moq_mux_codec_flac_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_flac_Import_abort_unwanted(moq_mux_codec_flac_Import *self, moq_Error *err_, moq_mux_codec_flac_Import **err, moq_status *status);
+bool moq_mux_codec_flac_Import_cut(moq_mux_codec_flac_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_flac_Import_discontinuity(moq_mux_codec_flac_Import *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_flac_Import_seek(moq_mux_codec_flac_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_flac_Import_decode(moq_mux_codec_flac_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_flac_Import_seek(moq_mux_codec_flac_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_flac_Import_decode(moq_mux_codec_flac_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h264_Avc1_free(moq_mux_codec_h264_Avc1 *self);
 void moq_mux_codec_h264_Avc1_drop(moq_mux_codec_h264_Avc1 *self, moq_status *status);
 moq_mux_codec_h264_Avc1 *moq_mux_codec_h264_Avc1_default(void);
@@ -10439,22 +8078,23 @@ bool moq_mux_codec_h264_Import_initialize(moq_mux_codec_h264_Import *self, moq_b
 moq_buf moq_mux_codec_h264_Import_name(const moq_mux_codec_h264_Import *self, moq_status *status);
 moq_track_Demand *moq_mux_codec_h264_Import_demand(const moq_mux_codec_h264_Import *self, moq_status *status);
 moq_track_Producer *moq_mux_codec_h264_Import_track(const moq_mux_codec_h264_Import *self, moq_status *status);
-bool moq_mux_codec_h264_Import_finish(moq_mux_codec_h264_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Import_finish(moq_mux_codec_h264_Import *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h264_Import_abort(moq_mux_codec_h264_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_h264_Import_cut(moq_mux_codec_h264_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Import_abort_unwanted(moq_mux_codec_h264_Import *self, moq_Error *err_, moq_mux_codec_h264_Import **err, moq_status *status);
+bool moq_mux_codec_h264_Import_cut(moq_mux_codec_h264_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h264_Import_discontinuity(moq_mux_codec_h264_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h264_Import_set_enabled(moq_mux_codec_h264_Import *self, bool enabled, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h264_Import_report_skipped(const moq_mux_codec_h264_Import *self, uint64_t frames, moq_status *status);
 void moq_mux_codec_h264_Import_report_bitrate(const moq_mux_codec_h264_Import *self, moq_bandwidth_Rate bitrate, moq_status *status);
-bool moq_mux_codec_h264_Import_seek(moq_mux_codec_h264_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_h264_Import_observe_reorder(moq_mux_codec_h264_Import *self, moq_Timestamp reorder, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Import_seek(moq_mux_codec_h264_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Import_observe_reorder(moq_mux_codec_h264_Import *self, const moq_Timestamp *reorder, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h264_Import_decode(moq_mux_codec_h264_Import *self, moq_vec_mux_container_Frame frames, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h264_Split_free(moq_mux_codec_h264_Split *self);
 void moq_mux_codec_h264_Split_drop(moq_mux_codec_h264_Split *self, moq_status *status);
 moq_mux_codec_h264_Split *moq_mux_codec_h264_Split_default(void);
 moq_mux_codec_h264_Split *moq_mux_codec_h264_Split_new(void);
-bool moq_mux_codec_h264_Split_decode(moq_mux_codec_h264_Split *self, moq_buf data_, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_h264_Split_flush(moq_mux_codec_h264_Split *self, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Split_decode(moq_mux_codec_h264_Split *self, moq_buf data_, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h264_Split_flush(moq_mux_codec_h264_Split *self, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h264_Split_reset(moq_mux_codec_h264_Split *self, moq_status *status);
 void moq_mux_codec_h265_Hvc1_free(moq_mux_codec_h265_Hvc1 *self);
 void moq_mux_codec_h265_Hvc1_drop(moq_mux_codec_h265_Hvc1 *self, moq_status *status);
@@ -10480,6 +8120,13 @@ void moq_mux_codec_h265_Hvcc_sps_set(moq_mux_codec_h265_Hvcc *self, moq_vec_byte
 moq_vec_bytes moq_mux_codec_h265_Hvcc_pps_get(const moq_mux_codec_h265_Hvcc *self, moq_status *status);
 void moq_mux_codec_h265_Hvcc_pps_set(moq_mux_codec_h265_Hvcc *self, moq_vec_bytes value, moq_status *status);
 bool moq_mux_codec_h265_Hvcc_parse(moq_buf hvcc, moq_mux_codec_h265_Hvcc **out, moq_mux_codec_h265_Error **err);
+void moq_mux_codec_h265_Sps_free(moq_mux_codec_h265_Sps *self);
+bool moq_mux_codec_h265_Sps_borrowed(const moq_mux_codec_h265_Sps *self);
+moq_mux_codec_h265_Sps *moq_mux_codec_h265_Sps_clone(const moq_mux_codec_h265_Sps *self);
+moq_buf moq_mux_codec_h265_Sps_debug(const moq_mux_codec_h265_Sps *self);
+bool moq_mux_codec_h265_Sps_parse(moq_buf nal, moq_mux_codec_h265_Sps **out, moq_mux_codec_h265_Error **err);
+void moq_mux_codec_h265_Sps_size(const moq_mux_codec_h265_Sps *self, uint32_t *out0, uint32_t *out1);
+moq_option_mux_codec_h265_VideoSignal moq_mux_codec_h265_Sps_video_signal(const moq_mux_codec_h265_Sps *self);
 void moq_mux_codec_h265_Import_free(moq_mux_codec_h265_Import *self);
 void moq_mux_codec_h265_Import_drop(moq_mux_codec_h265_Import *self, moq_status *status);
 bool moq_mux_codec_h265_Import_new_Extra(moq_track_Producer *track, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_h265_Import **out, moq_mux_Error **err, moq_status *status);
@@ -10489,22 +8136,23 @@ bool moq_mux_codec_h265_Import_initialize(moq_mux_codec_h265_Import *self, moq_b
 moq_buf moq_mux_codec_h265_Import_name(const moq_mux_codec_h265_Import *self, moq_status *status);
 moq_track_Demand *moq_mux_codec_h265_Import_demand(const moq_mux_codec_h265_Import *self, moq_status *status);
 moq_track_Producer *moq_mux_codec_h265_Import_track(const moq_mux_codec_h265_Import *self, moq_status *status);
-bool moq_mux_codec_h265_Import_finish(moq_mux_codec_h265_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Import_finish(moq_mux_codec_h265_Import *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h265_Import_abort(moq_mux_codec_h265_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_h265_Import_cut(moq_mux_codec_h265_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Import_abort_unwanted(moq_mux_codec_h265_Import *self, moq_Error *err_, moq_mux_codec_h265_Import **err, moq_status *status);
+bool moq_mux_codec_h265_Import_cut(moq_mux_codec_h265_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h265_Import_discontinuity(moq_mux_codec_h265_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h265_Import_set_enabled(moq_mux_codec_h265_Import *self, bool enabled, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h265_Import_report_skipped(const moq_mux_codec_h265_Import *self, uint64_t frames, moq_status *status);
 void moq_mux_codec_h265_Import_report_bitrate(const moq_mux_codec_h265_Import *self, moq_bandwidth_Rate bitrate, moq_status *status);
-bool moq_mux_codec_h265_Import_seek(moq_mux_codec_h265_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_h265_Import_observe_reorder(moq_mux_codec_h265_Import *self, moq_Timestamp reorder, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Import_seek(moq_mux_codec_h265_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Import_observe_reorder(moq_mux_codec_h265_Import *self, const moq_Timestamp *reorder, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_h265_Import_decode(moq_mux_codec_h265_Import *self, moq_vec_mux_container_Frame frames, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h265_Split_free(moq_mux_codec_h265_Split *self);
 void moq_mux_codec_h265_Split_drop(moq_mux_codec_h265_Split *self, moq_status *status);
 moq_mux_codec_h265_Split *moq_mux_codec_h265_Split_default(void);
 moq_mux_codec_h265_Split *moq_mux_codec_h265_Split_new(void);
-bool moq_mux_codec_h265_Split_decode(moq_mux_codec_h265_Split *self, moq_buf data_, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_h265_Split_flush(moq_mux_codec_h265_Split *self, moq_option_Timestamp pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Split_decode(moq_mux_codec_h265_Split *self, moq_buf data_, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_h265_Split_flush(moq_mux_codec_h265_Split *self, const moq_Timestamp *pts, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_h265_Split_reset(moq_mux_codec_h265_Split *self, moq_status *status);
 void moq_mux_codec_mp3_Import_free(moq_mux_codec_mp3_Import *self);
 void moq_mux_codec_mp3_Import_drop(moq_mux_codec_mp3_Import *self, moq_status *status);
@@ -10512,12 +8160,13 @@ bool moq_mux_codec_mp3_Import_new_Extra(moq_track_Producer *track, moq_mux_catal
 bool moq_mux_codec_mp3_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog_Reserved_Ext *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_mp3_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_mp3_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_mp3_Import **out, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_codec_mp3_Import_demand(const moq_mux_codec_mp3_Import *self, moq_status *status);
-bool moq_mux_codec_mp3_Import_finish(moq_mux_codec_mp3_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_mp3_Import_finish(moq_mux_codec_mp3_Import *self, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_mp3_Import_abort(moq_mux_codec_mp3_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_mp3_Import_cut(moq_mux_codec_mp3_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_mp3_Import_abort_unwanted(moq_mux_codec_mp3_Import *self, moq_Error *err_, moq_mux_codec_mp3_Import **err, moq_status *status);
+bool moq_mux_codec_mp3_Import_cut(moq_mux_codec_mp3_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_mp3_Import_discontinuity(moq_mux_codec_mp3_Import *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_mp3_Import_seek(moq_mux_codec_mp3_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_mp3_Import_decode(moq_mux_codec_mp3_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_mp3_Import_seek(moq_mux_codec_mp3_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_mp3_Import_decode(moq_mux_codec_mp3_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_opus_Config_free(moq_mux_codec_opus_Config *self);
 void moq_mux_codec_opus_Config_drop(moq_mux_codec_opus_Config *self, moq_status *status);
 moq_mux_codec_opus_Config *moq_mux_codec_opus_Config_clone(const moq_mux_codec_opus_Config *self, moq_status *status);
@@ -10544,151 +8193,187 @@ bool moq_mux_codec_opus_Import_new_Ext(moq_track_Producer *track, moq_mux_catalo
 bool moq_mux_codec_opus_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_hang_catalog_AudioConfig *config, moq_mux_codec_opus_Import **out, moq_mux_Error **err, moq_status *status);
 moq_buf moq_mux_codec_opus_Import_name(const moq_mux_codec_opus_Import *self, moq_status *status);
 moq_track_Demand *moq_mux_codec_opus_Import_demand(const moq_mux_codec_opus_Import *self, moq_status *status);
-bool moq_mux_codec_opus_Import_finish(moq_mux_codec_opus_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_opus_Import_finish(moq_mux_codec_opus_Import *self, moq_mux_container_Finished_Container_AudioConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_opus_Import_abort(moq_mux_codec_opus_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_opus_Import_cut(moq_mux_codec_opus_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_opus_Import_abort_unwanted(moq_mux_codec_opus_Import *self, moq_Error *err_, moq_mux_codec_opus_Import **err, moq_status *status);
+bool moq_mux_codec_opus_Import_cut(moq_mux_codec_opus_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_opus_Import_discontinuity(moq_mux_codec_opus_Import *self, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_opus_Import_seek(moq_mux_codec_opus_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_opus_Import_decode(moq_mux_codec_opus_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_opus_Import_seek(moq_mux_codec_opus_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_opus_Import_decode(moq_mux_codec_opus_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_vp8_Import_free(moq_mux_codec_vp8_Import *self);
 void moq_mux_codec_vp8_Import_drop(moq_mux_codec_vp8_Import *self, moq_status *status);
 bool moq_mux_codec_vp8_Import_new_Extra(moq_track_Producer *track, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp8_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp8_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog_Reserved_Ext *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp8_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp8_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp8_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp8_Import_initialize(moq_mux_codec_vp8_Import *self, moq_buf buf, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_vp8_Import_decode(moq_mux_codec_vp8_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp8_Import_decode(moq_mux_codec_vp8_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_codec_vp8_Import_demand(const moq_mux_codec_vp8_Import *self, moq_status *status);
-bool moq_mux_codec_vp8_Import_finish(moq_mux_codec_vp8_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp8_Import_finish(moq_mux_codec_vp8_Import *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_vp8_Import_abort(moq_mux_codec_vp8_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_vp8_Import_cut(moq_mux_codec_vp8_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp8_Import_abort_unwanted(moq_mux_codec_vp8_Import *self, moq_Error *err_, moq_mux_codec_vp8_Import **err, moq_status *status);
+bool moq_mux_codec_vp8_Import_cut(moq_mux_codec_vp8_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp8_Import_discontinuity(moq_mux_codec_vp8_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp8_Import_set_enabled(moq_mux_codec_vp8_Import *self, bool enabled, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_vp8_Import_seek(moq_mux_codec_vp8_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp8_Import_seek(moq_mux_codec_vp8_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_vp9_Import_free(moq_mux_codec_vp9_Import *self);
 void moq_mux_codec_vp9_Import_drop(moq_mux_codec_vp9_Import *self, moq_status *status);
 bool moq_mux_codec_vp9_Import_new_Extra(moq_track_Producer *track, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp9_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp9_Import_new_Ext(moq_track_Producer *track, moq_mux_catalog_Reserved_Ext *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp9_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp9_Import_new_unit(moq_track_Producer *track, moq_mux_catalog_Reserved *reserved, moq_mux_catalog_VideoHint *hint, moq_mux_codec_vp9_Import **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp9_Import_initialize(moq_mux_codec_vp9_Import *self, moq_buf buf, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_vp9_Import_decode(moq_mux_codec_vp9_Import *self, moq_buf frame, moq_option_Timestamp pts, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp9_Import_decode(moq_mux_codec_vp9_Import *self, moq_buf frame, const moq_Timestamp *pts, moq_mux_Error **err, moq_status *status);
 moq_track_Demand *moq_mux_codec_vp9_Import_demand(const moq_mux_codec_vp9_Import *self, moq_status *status);
-bool moq_mux_codec_vp9_Import_finish(moq_mux_codec_vp9_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp9_Import_finish(moq_mux_codec_vp9_Import *self, moq_mux_container_Finished_Container_VideoConfig **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_codec_vp9_Import_abort(moq_mux_codec_vp9_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_codec_vp9_Import_cut(moq_mux_codec_vp9_Import *self, moq_option_Timestamp end, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp9_Import_abort_unwanted(moq_mux_codec_vp9_Import *self, moq_Error *err_, moq_mux_codec_vp9_Import **err, moq_status *status);
+bool moq_mux_codec_vp9_Import_cut(moq_mux_codec_vp9_Import *self, const moq_Timestamp *end, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp9_Import_discontinuity(moq_mux_codec_vp9_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_codec_vp9_Import_set_enabled(moq_mux_codec_vp9_Import *self, bool enabled, moq_mux_Error **err, moq_status *status);
-bool moq_mux_codec_vp9_Import_seek(moq_mux_codec_vp9_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_codec_vp9_Import_seek(moq_mux_codec_vp9_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_flv_Import_free(moq_mux_container_flv_Import *self);
 void moq_mux_container_flv_Import_drop(moq_mux_container_flv_Import *self, moq_status *status);
 moq_mux_container_flv_Import *moq_mux_container_flv_Import_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_status *status);
 moq_mux_container_flv_Import *moq_mux_container_flv_Import_with_container(moq_mux_container_flv_Import *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_flv_Import_decode(moq_mux_container_flv_Import *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_seek(moq_mux_container_flv_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_finish(moq_mux_container_flv_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_seek(moq_mux_container_flv_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_finish(moq_mux_container_flv_Import *self, moq_mux_container_flv_Finished **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_flv_Import_abort(moq_mux_container_flv_Import *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_flv_Import_Extra_free(moq_mux_container_flv_Import_Extra *self);
 void moq_mux_container_flv_Import_Extra_drop(moq_mux_container_flv_Import_Extra *self, moq_status *status);
 moq_mux_container_flv_Import_Extra *moq_mux_container_flv_Import_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, moq_status *status);
 moq_mux_container_flv_Import_Extra *moq_mux_container_flv_Import_Extra_with_container(moq_mux_container_flv_Import_Extra *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_flv_Import_Extra_decode(moq_mux_container_flv_Import_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_Extra_seek(moq_mux_container_flv_Import_Extra *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_Extra_finish(moq_mux_container_flv_Import_Extra *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_Extra_seek(moq_mux_container_flv_Import_Extra *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_Extra_finish(moq_mux_container_flv_Import_Extra *self, moq_mux_container_flv_Finished_Extra **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_flv_Import_Extra_abort(moq_mux_container_flv_Import_Extra *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_flv_Import_Ext_free(moq_mux_container_flv_Import_Ext *self);
 void moq_mux_container_flv_Import_Ext_drop(moq_mux_container_flv_Import_Ext *self, moq_status *status);
 moq_mux_container_flv_Import_Ext *moq_mux_container_flv_Import_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_status *status);
 moq_mux_container_flv_Import_Ext *moq_mux_container_flv_Import_Ext_with_container(moq_mux_container_flv_Import_Ext *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_flv_Import_Ext_decode(moq_mux_container_flv_Import_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_Ext_seek(moq_mux_container_flv_Import_Ext *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_flv_Import_Ext_finish(moq_mux_container_flv_Import_Ext *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_Ext_seek(moq_mux_container_flv_Import_Ext *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_flv_Import_Ext_finish(moq_mux_container_flv_Import_Ext *self, moq_mux_container_flv_Finished_Ext **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_flv_Import_Ext_abort(moq_mux_container_flv_Import_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_flv_Finished_free(moq_mux_container_flv_Finished *self);
+void moq_mux_container_flv_Finished_drop(moq_mux_container_flv_Finished *self, moq_status *status);
+void moq_mux_container_flv_Finished_abort(moq_mux_container_flv_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_flv_Finished_Extra_free(moq_mux_container_flv_Finished_Extra *self);
+void moq_mux_container_flv_Finished_Extra_drop(moq_mux_container_flv_Finished_Extra *self, moq_status *status);
+void moq_mux_container_flv_Finished_Extra_abort(moq_mux_container_flv_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_flv_Finished_Ext_free(moq_mux_container_flv_Finished_Ext *self);
+void moq_mux_container_flv_Finished_Ext_drop(moq_mux_container_flv_Finished_Ext *self, moq_status *status);
+void moq_mux_container_flv_Finished_Ext_abort(moq_mux_container_flv_Finished_Ext *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_fmp4_Wire_free(moq_mux_container_fmp4_Wire *self);
 void moq_mux_container_fmp4_Wire_drop(moq_mux_container_fmp4_Wire *self, moq_status *status);
-bool moq_mux_container_fmp4_Wire_new(moq_mp4_atom_Trak *trak, moq_mux_container_fmp4_Wire **out, moq_mux_container_fmp4_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Wire_from_init(moq_buf init_data, moq_mux_container_fmp4_Wire **out, moq_mux_container_fmp4_Error **err);
-moq_mp4_atom_Trak *moq_mux_container_fmp4_Wire_trak(const moq_mux_container_fmp4_Wire *self, moq_status *status);
 void moq_mux_container_fmp4_Error_free(moq_mux_container_fmp4_Error *self);
 bool moq_mux_container_fmp4_Error_borrowed(const moq_mux_container_fmp4_Error *self);
 moq_mux_container_fmp4_Error *moq_mux_container_fmp4_Error_clone(const moq_mux_container_fmp4_Error *self);
 moq_buf moq_mux_container_fmp4_Error_to_string(const moq_mux_container_fmp4_Error *self);
 moq_buf moq_mux_container_fmp4_Error_debug(const moq_mux_container_fmp4_Error *self);
-void moq_mux_container_fmp4_Fragmenter_free(moq_mux_container_fmp4_Fragmenter *self);
-void moq_mux_container_fmp4_Fragmenter_drop(moq_mux_container_fmp4_Fragmenter *self, moq_status *status);
-bool moq_mux_container_fmp4_Fragmenter_push(moq_mux_container_fmp4_Fragmenter *self, moq_mux_container_Frame frame, moq_vec_mux_container_fmp4_Fragment *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Fragmenter_push_group(moq_mux_container_fmp4_Fragmenter *self, moq_mux_container_Frame frame, moq_vec_mux_container_fmp4_Fragment *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Fragmenter_flush(moq_mux_container_fmp4_Fragmenter *self, moq_option_mux_container_fmp4_Fragment *out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_free(moq_mux_container_fmp4_Import *self);
 void moq_mux_container_fmp4_Import_drop(moq_mux_container_fmp4_Import *self, moq_status *status);
 moq_mux_container_fmp4_Import *moq_mux_container_fmp4_Import_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_status *status);
 bool moq_mux_container_fmp4_Import_cut(moq_mux_container_fmp4_Import *self, moq_mux_Error **err, moq_status *status);
 moq_mux_container_fmp4_Import *moq_mux_container_fmp4_Import_with_select(moq_mux_container_fmp4_Import *self, moq_mux_select_Broadcast *select, moq_status *status);
-moq_mux_container_fmp4_Import *moq_mux_container_fmp4_Import_with_passthrough(moq_mux_container_fmp4_Import *self, bool passthrough, moq_status *status);
+moq_mux_container_fmp4_Import *moq_mux_container_fmp4_Import_with_cmaf(moq_mux_container_fmp4_Import *self, bool cmaf, moq_status *status);
 bool moq_mux_container_fmp4_Import_decode(moq_mux_container_fmp4_Import *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Import_finish(moq_mux_container_fmp4_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_finish(moq_mux_container_fmp4_Import *self, moq_mux_container_fmp4_Finished **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_abort(moq_mux_container_fmp4_Import *self, moq_Error *err_, moq_status *status);
-bool moq_mux_container_fmp4_Import_seek(moq_mux_container_fmp4_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_seek(moq_mux_container_fmp4_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_rejoin(moq_mux_container_fmp4_Import *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Import_discontinuity(moq_mux_container_fmp4_Import *self, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_Extra_free(moq_mux_container_fmp4_Import_Extra *self);
 void moq_mux_container_fmp4_Import_Extra_drop(moq_mux_container_fmp4_Import_Extra *self, moq_status *status);
 moq_mux_container_fmp4_Import_Extra *moq_mux_container_fmp4_Import_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, moq_status *status);
 bool moq_mux_container_fmp4_Import_Extra_cut(moq_mux_container_fmp4_Import_Extra *self, moq_mux_Error **err, moq_status *status);
 moq_mux_container_fmp4_Import_Extra *moq_mux_container_fmp4_Import_Extra_with_select(moq_mux_container_fmp4_Import_Extra *self, moq_mux_select_Broadcast *select, moq_status *status);
-moq_mux_container_fmp4_Import_Extra *moq_mux_container_fmp4_Import_Extra_with_passthrough(moq_mux_container_fmp4_Import_Extra *self, bool passthrough, moq_status *status);
+moq_mux_container_fmp4_Import_Extra *moq_mux_container_fmp4_Import_Extra_with_cmaf(moq_mux_container_fmp4_Import_Extra *self, bool cmaf, moq_status *status);
 bool moq_mux_container_fmp4_Import_Extra_decode(moq_mux_container_fmp4_Import_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Import_Extra_finish(moq_mux_container_fmp4_Import_Extra *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Extra_finish(moq_mux_container_fmp4_Import_Extra *self, moq_mux_container_fmp4_Finished_Extra **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_Extra_abort(moq_mux_container_fmp4_Import_Extra *self, moq_Error *err_, moq_status *status);
-bool moq_mux_container_fmp4_Import_Extra_seek(moq_mux_container_fmp4_Import_Extra *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Extra_seek(moq_mux_container_fmp4_Import_Extra *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Extra_rejoin(moq_mux_container_fmp4_Import_Extra *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Import_Extra_discontinuity(moq_mux_container_fmp4_Import_Extra *self, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_Ext_free(moq_mux_container_fmp4_Import_Ext *self);
 void moq_mux_container_fmp4_Import_Ext_drop(moq_mux_container_fmp4_Import_Ext *self, moq_status *status);
 moq_mux_container_fmp4_Import_Ext *moq_mux_container_fmp4_Import_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_status *status);
 bool moq_mux_container_fmp4_Import_Ext_cut(moq_mux_container_fmp4_Import_Ext *self, moq_mux_Error **err, moq_status *status);
 moq_mux_container_fmp4_Import_Ext *moq_mux_container_fmp4_Import_Ext_with_select(moq_mux_container_fmp4_Import_Ext *self, moq_mux_select_Broadcast *select, moq_status *status);
-moq_mux_container_fmp4_Import_Ext *moq_mux_container_fmp4_Import_Ext_with_passthrough(moq_mux_container_fmp4_Import_Ext *self, bool passthrough, moq_status *status);
+moq_mux_container_fmp4_Import_Ext *moq_mux_container_fmp4_Import_Ext_with_cmaf(moq_mux_container_fmp4_Import_Ext *self, bool cmaf, moq_status *status);
 bool moq_mux_container_fmp4_Import_Ext_decode(moq_mux_container_fmp4_Import_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Import_Ext_finish(moq_mux_container_fmp4_Import_Ext *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Ext_finish(moq_mux_container_fmp4_Import_Ext *self, moq_mux_container_fmp4_Finished_Ext **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_fmp4_Import_Ext_abort(moq_mux_container_fmp4_Import_Ext *self, moq_Error *err_, moq_status *status);
-bool moq_mux_container_fmp4_Import_Ext_seek(moq_mux_container_fmp4_Import_Ext *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Ext_seek(moq_mux_container_fmp4_Import_Ext *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_fmp4_Import_Ext_rejoin(moq_mux_container_fmp4_Import_Ext *self, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Import_Ext_discontinuity(moq_mux_container_fmp4_Import_Ext *self, moq_mux_Error **err, moq_status *status);
+void moq_mux_container_fmp4_Finished_free(moq_mux_container_fmp4_Finished *self);
+void moq_mux_container_fmp4_Finished_drop(moq_mux_container_fmp4_Finished *self, moq_status *status);
+void moq_mux_container_fmp4_Finished_abort(moq_mux_container_fmp4_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_fmp4_Finished_Extra_free(moq_mux_container_fmp4_Finished_Extra *self);
+void moq_mux_container_fmp4_Finished_Extra_drop(moq_mux_container_fmp4_Finished_Extra *self, moq_status *status);
+void moq_mux_container_fmp4_Finished_Extra_abort(moq_mux_container_fmp4_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_fmp4_Finished_Ext_free(moq_mux_container_fmp4_Finished_Ext *self);
+void moq_mux_container_fmp4_Finished_Ext_drop(moq_mux_container_fmp4_Finished_Ext *self, moq_status *status);
+void moq_mux_container_fmp4_Finished_Ext_abort(moq_mux_container_fmp4_Finished_Ext *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_fmp4_Muxer_free(moq_mux_container_fmp4_Muxer *self);
 void moq_mux_container_fmp4_Muxer_drop(moq_mux_container_fmp4_Muxer *self, moq_status *status);
 bool moq_mux_container_fmp4_Muxer_video(const moq_hang_catalog_VideoConfig *config, moq_mux_container_fmp4_Muxer **out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Muxer_audio(const moq_hang_catalog_AudioConfig *config, moq_mux_container_fmp4_Muxer **out, moq_mux_Error **err, moq_status *status);
 moq_Timescale moq_mux_container_fmp4_Muxer_timescale(const moq_mux_container_fmp4_Muxer *self, moq_status *status);
 bool moq_mux_container_fmp4_Muxer_with_timescale(moq_mux_container_fmp4_Muxer *self, moq_Timescale timescale, moq_mux_container_fmp4_Muxer **out, moq_mux_Error **err, moq_status *status);
-moq_mux_container_fmp4_Muxer *moq_mux_container_fmp4_Muxer_with_framerate(moq_mux_container_fmp4_Muxer *self, moq_option_f64 framerate, moq_status *status);
 typedef struct moq_mux_container_fmp4_Muxer_read_future moq_mux_container_fmp4_Muxer_read_future;
 moq_mux_container_fmp4_Muxer_read_future *moq_mux_container_fmp4_Muxer_read(moq_mux_container_fmp4_Muxer *self, moq_group_Consumer *group, moq_status *status);
 moq_poll moq_mux_container_fmp4_Muxer_read_start(moq_mux_container_fmp4_Muxer *self, moq_group_Consumer *group, moq_vec_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_fmp4_Muxer_read_future **future, moq_status *status);
 moq_poll moq_mux_container_fmp4_Muxer_read_poll(moq_mux_container_fmp4_Muxer_read_future *future, moq_waker waker, moq_vec_mux_container_Frame *out, moq_mux_Error **err);
 void moq_mux_container_fmp4_Muxer_read_future_free(moq_mux_container_fmp4_Muxer_read_future *future);
+bool moq_mux_container_fmp4_Muxer_picture_size(moq_mux_container_fmp4_Muxer *self, moq_mux_container_Frame keyframe, moq_option_tuple_u32_u32 *out, moq_mux_Error **err, moq_status *status);
 bool moq_mux_container_fmp4_Muxer_init(const moq_mux_container_fmp4_Muxer *self, moq_buf *out, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_fmp4_Muxer_fragment(const moq_mux_container_fmp4_Muxer *self, uint32_t sequence, moq_vec_mux_container_Frame frames, moq_option_Timestamp end, moq_buf *out, moq_mux_Error **err, moq_status *status);
-moq_mux_container_fmp4_Fragmenter *moq_mux_container_fmp4_Muxer_fragmenter(const moq_mux_container_fmp4_Muxer *self, moq_mux_container_fmp4_fragment_Config config, moq_status *status);
+bool moq_mux_container_fmp4_Muxer_fragment(const moq_mux_container_fmp4_Muxer *self, uint32_t sequence, moq_vec_mux_container_Frame frames, const moq_Timestamp *end, moq_buf *out, moq_mux_Error **err, moq_status *status);
+void moq_mux_container_legacy_Audio_free(moq_mux_container_legacy_Audio *self);
+bool moq_mux_container_legacy_Audio_borrowed(const moq_mux_container_legacy_Audio *self);
+moq_mux_container_legacy_Audio *moq_mux_container_legacy_Audio_clone(const moq_mux_container_legacy_Audio *self);
+bool moq_mux_container_legacy_Audio_eq(const moq_mux_container_legacy_Audio *a, const moq_mux_container_legacy_Audio *b);
+moq_buf moq_mux_container_legacy_Audio_debug(const moq_mux_container_legacy_Audio *self);
+moq_mux_container_legacy_Audio *moq_mux_container_legacy_Audio_new(const moq_hang_catalog_AudioConfig *config, moq_status *status);
+moq_Timestamp *moq_mux_container_legacy_Audio_duration(const moq_mux_container_legacy_Audio *self, moq_buf payload);
 void moq_mux_container_mkv_Import_free(moq_mux_container_mkv_Import *self);
 void moq_mux_container_mkv_Import_drop(moq_mux_container_mkv_Import *self, moq_status *status);
 moq_mux_container_mkv_Import *moq_mux_container_mkv_Import_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_status *status);
 moq_mux_container_mkv_Import *moq_mux_container_mkv_Import_with_container(moq_mux_container_mkv_Import *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_mkv_Import_decode(moq_mux_container_mkv_Import *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_seek(moq_mux_container_mkv_Import *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_finish(moq_mux_container_mkv_Import *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_seek(moq_mux_container_mkv_Import *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_finish(moq_mux_container_mkv_Import *self, moq_mux_container_mkv_Finished **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_mkv_Import_abort(moq_mux_container_mkv_Import *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_mkv_Import_Extra_free(moq_mux_container_mkv_Import_Extra *self);
 void moq_mux_container_mkv_Import_Extra_drop(moq_mux_container_mkv_Import_Extra *self, moq_status *status);
 moq_mux_container_mkv_Import_Extra *moq_mux_container_mkv_Import_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, moq_status *status);
 moq_mux_container_mkv_Import_Extra *moq_mux_container_mkv_Import_Extra_with_container(moq_mux_container_mkv_Import_Extra *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_mkv_Import_Extra_decode(moq_mux_container_mkv_Import_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_Extra_seek(moq_mux_container_mkv_Import_Extra *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_Extra_finish(moq_mux_container_mkv_Import_Extra *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_Extra_seek(moq_mux_container_mkv_Import_Extra *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_Extra_finish(moq_mux_container_mkv_Import_Extra *self, moq_mux_container_mkv_Finished_Extra **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_mkv_Import_Extra_abort(moq_mux_container_mkv_Import_Extra *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_mkv_Import_Ext_free(moq_mux_container_mkv_Import_Ext *self);
 void moq_mux_container_mkv_Import_Ext_drop(moq_mux_container_mkv_Import_Ext *self, moq_status *status);
 moq_mux_container_mkv_Import_Ext *moq_mux_container_mkv_Import_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_status *status);
 moq_mux_container_mkv_Import_Ext *moq_mux_container_mkv_Import_Ext_with_container(moq_mux_container_mkv_Import_Ext *self, moq_hang_catalog_Container *container, moq_status *status);
 bool moq_mux_container_mkv_Import_Ext_decode(moq_mux_container_mkv_Import_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_Ext_seek(moq_mux_container_mkv_Import_Ext *self, uint64_t sequence, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_mkv_Import_Ext_finish(moq_mux_container_mkv_Import_Ext *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_Ext_seek(moq_mux_container_mkv_Import_Ext *self, uint64_t start, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_mkv_Import_Ext_finish(moq_mux_container_mkv_Import_Ext *self, moq_mux_container_mkv_Finished_Ext **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_mkv_Import_Ext_abort(moq_mux_container_mkv_Import_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_mkv_Finished_free(moq_mux_container_mkv_Finished *self);
+void moq_mux_container_mkv_Finished_drop(moq_mux_container_mkv_Finished *self, moq_status *status);
+void moq_mux_container_mkv_Finished_abort(moq_mux_container_mkv_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_mkv_Finished_Extra_free(moq_mux_container_mkv_Finished_Extra *self);
+void moq_mux_container_mkv_Finished_Extra_drop(moq_mux_container_mkv_Finished_Extra *self, moq_status *status);
+void moq_mux_container_mkv_Finished_Extra_abort(moq_mux_container_mkv_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_mkv_Finished_Ext_free(moq_mux_container_mkv_Finished_Ext *self);
+void moq_mux_container_mkv_Finished_Ext_drop(moq_mux_container_mkv_Finished_Ext *self, moq_status *status);
+void moq_mux_container_mkv_Finished_Ext_abort(moq_mux_container_mkv_Finished_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_mp4_Finish_free(moq_mux_container_mp4_Finish *self);
+bool moq_mux_container_mp4_Finish_borrowed(const moq_mux_container_mp4_Finish *self);
+moq_mux_container_mp4_Finish *moq_mux_container_mp4_Finish_clone(const moq_mux_container_mp4_Finish *self);
+moq_buf moq_mux_container_mp4_Finish_debug(const moq_mux_container_mp4_Finish *self);
 void moq_mux_container_ts_Ext_free(moq_mux_container_ts_Ext *self);
 void moq_mux_container_ts_Ext_drop(moq_mux_container_ts_Ext *self, moq_status *status);
 moq_mux_container_ts_Ext *moq_mux_container_ts_Ext_clone(const moq_mux_container_ts_Ext *self, moq_status *status);
@@ -10713,7 +8398,19 @@ moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry moq_mux_container_ts_Mpe
 void moq_mux_container_ts_Mpegts_si_set(moq_mux_container_ts_Mpegts *self, moq_vec_tuple_u16_vec_tuple_u8_mux_container_ts_SiEntry value, moq_status *status);
 moq_option_u64 moq_mux_container_ts_Mpegts_mux_rate_get(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_Mpegts_mux_rate_set(moq_mux_container_ts_Mpegts *self, moq_option_u64 value, moq_status *status);
+moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_Mpegts_passthrough_get(const moq_mux_container_ts_Mpegts *self, moq_status *status);
+void moq_mux_container_ts_Mpegts_passthrough_set(moq_mux_container_ts_Mpegts *self, moq_mux_container_ts_PassthroughTrack *value, moq_status *status);
 bool moq_mux_container_ts_Mpegts_is_empty(const moq_mux_container_ts_Mpegts *self, moq_status *status);
+void moq_mux_container_ts_PassthroughTrack_free(moq_mux_container_ts_PassthroughTrack *self);
+void moq_mux_container_ts_PassthroughTrack_drop(moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
+moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_PassthroughTrack_clone(const moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
+bool moq_mux_container_ts_PassthroughTrack_eq(const moq_mux_container_ts_PassthroughTrack *a, const moq_mux_container_ts_PassthroughTrack *b, moq_status *status);
+moq_buf moq_mux_container_ts_PassthroughTrack_debug(const moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
+moq_buf moq_mux_container_ts_PassthroughTrack_track_get(const moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
+void moq_mux_container_ts_PassthroughTrack_track_set(moq_mux_container_ts_PassthroughTrack *self, moq_buf value, moq_status *status);
+bool moq_mux_container_ts_PassthroughTrack_random_access_get(const moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
+void moq_mux_container_ts_PassthroughTrack_random_access_set(moq_mux_container_ts_PassthroughTrack *self, bool value, moq_status *status);
+moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_PassthroughTrack_new(moq_buf track);
 void moq_mux_container_ts_PesPacket_free(moq_mux_container_ts_PesPacket *self);
 void moq_mux_container_ts_PesPacket_drop(moq_mux_container_ts_PesPacket *self, moq_status *status);
 moq_mux_container_ts_PesPacket *moq_mux_container_ts_PesPacket_clone(const moq_mux_container_ts_PesPacket *self, moq_status *status);
@@ -10771,11 +8468,15 @@ void moq_mux_container_ts_Verbatim_stream_type_set(moq_mux_container_ts_Verbatim
 moq_mux_container_ts_Framing moq_mux_container_ts_Verbatim_framing_get(const moq_mux_container_ts_Verbatim *self, moq_status *status);
 void moq_mux_container_ts_Verbatim_framing_set(moq_mux_container_ts_Verbatim *self, moq_mux_container_ts_Framing value, moq_status *status);
 moq_mux_container_ts_Verbatim *moq_mux_container_ts_Verbatim_new(uint8_t stream_type, moq_mux_container_ts_Framing framing);
+void moq_mux_container_ts_Error_free(moq_mux_container_ts_Error *self);
+bool moq_mux_container_ts_Error_borrowed(const moq_mux_container_ts_Error *self);
+moq_mux_container_ts_Error *moq_mux_container_ts_Error_clone(const moq_mux_container_ts_Error *self);
+moq_buf moq_mux_container_ts_Error_to_string(const moq_mux_container_ts_Error *self);
+moq_buf moq_mux_container_ts_Error_debug(const moq_mux_container_ts_Error *self);
 void moq_mux_container_ts_Export_Consumer_Extra_free(moq_mux_container_ts_Export_Consumer_Extra *self);
 void moq_mux_container_ts_Export_Consumer_Extra_drop(moq_mux_container_ts_Export_Consumer_Extra *self, moq_status *status);
-moq_mux_container_ts_Export_Consumer_Extra *moq_mux_container_ts_Export_Consumer_Extra_new(moq_mux_Source *source, moq_mux_catalog_Consumer_Extra *catalog, moq_status *status);
+moq_mux_container_ts_Export_Consumer_Extra *moq_mux_container_ts_Export_Consumer_Extra_new(moq_mux_Source *source, moq_mux_catalog_Consumer_Extra *catalog, moq_duration delay, moq_status *status);
 moq_mux_container_ts_Export_Consumer_Extra *moq_mux_container_ts_Export_Consumer_Extra_with_mux_rate(moq_mux_container_ts_Export_Consumer_Extra *self, uint64_t mux_rate, moq_status *status);
-moq_mux_container_ts_Export_Consumer_Extra *moq_mux_container_ts_Export_Consumer_Extra_with_delay(moq_mux_container_ts_Export_Consumer_Extra *self, moq_duration delay, moq_status *status);
 typedef struct moq_mux_container_ts_Export_Consumer_Extra_next_future moq_mux_container_ts_Export_Consumer_Extra_next_future;
 moq_mux_container_ts_Export_Consumer_Extra_next_future *moq_mux_container_ts_Export_Consumer_Extra_next(moq_mux_container_ts_Export_Consumer_Extra *self, moq_status *status);
 moq_poll moq_mux_container_ts_Export_Consumer_Extra_next_start(moq_mux_container_ts_Export_Consumer_Extra *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_ts_Export_Consumer_Extra_next_future **future, moq_status *status);
@@ -10786,9 +8487,8 @@ uint64_t moq_mux_container_ts_Export_Consumer_Extra_discontinuity(const moq_mux_
 bool moq_mux_container_ts_Export_Consumer_Extra_follow(moq_mux_container_ts_Export_Consumer_Extra *self, moq_broadcast_Consumer *broadcast, moq_mux_catalog_Consumer_Extra *catalog, moq_mux_container_ts_Export_Consumer_Extra **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_ts_Export_Consumer_Ext_free(moq_mux_container_ts_Export_Consumer_Ext *self);
 void moq_mux_container_ts_Export_Consumer_Ext_drop(moq_mux_container_ts_Export_Consumer_Ext *self, moq_status *status);
-moq_mux_container_ts_Export_Consumer_Ext *moq_mux_container_ts_Export_Consumer_Ext_new(moq_mux_Source *source, moq_mux_catalog_Consumer_Ext *catalog, moq_status *status);
+moq_mux_container_ts_Export_Consumer_Ext *moq_mux_container_ts_Export_Consumer_Ext_new(moq_mux_Source *source, moq_mux_catalog_Consumer_Ext *catalog, moq_duration delay, moq_status *status);
 moq_mux_container_ts_Export_Consumer_Ext *moq_mux_container_ts_Export_Consumer_Ext_with_mux_rate(moq_mux_container_ts_Export_Consumer_Ext *self, uint64_t mux_rate, moq_status *status);
-moq_mux_container_ts_Export_Consumer_Ext *moq_mux_container_ts_Export_Consumer_Ext_with_delay(moq_mux_container_ts_Export_Consumer_Ext *self, moq_duration delay, moq_status *status);
 typedef struct moq_mux_container_ts_Export_Consumer_Ext_next_future moq_mux_container_ts_Export_Consumer_Ext_next_future;
 moq_mux_container_ts_Export_Consumer_Ext_next_future *moq_mux_container_ts_Export_Consumer_Ext_next(moq_mux_container_ts_Export_Consumer_Ext *self, moq_status *status);
 moq_poll moq_mux_container_ts_Export_Consumer_Ext_next_start(moq_mux_container_ts_Export_Consumer_Ext *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_ts_Export_Consumer_Ext_next_future **future, moq_status *status);
@@ -10799,9 +8499,8 @@ uint64_t moq_mux_container_ts_Export_Consumer_Ext_discontinuity(const moq_mux_co
 bool moq_mux_container_ts_Export_Consumer_Ext_follow(moq_mux_container_ts_Export_Consumer_Ext *self, moq_broadcast_Consumer *broadcast, moq_mux_catalog_Consumer_Ext *catalog, moq_mux_container_ts_Export_Consumer_Ext **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_ts_Export_Consumer_free(moq_mux_container_ts_Export_Consumer *self);
 void moq_mux_container_ts_Export_Consumer_drop(moq_mux_container_ts_Export_Consumer *self, moq_status *status);
-moq_mux_container_ts_Export_Consumer *moq_mux_container_ts_Export_Consumer_new(moq_mux_Source *source, moq_mux_catalog_Consumer *catalog, moq_status *status);
+moq_mux_container_ts_Export_Consumer *moq_mux_container_ts_Export_Consumer_new(moq_mux_Source *source, moq_mux_catalog_Consumer *catalog, moq_duration delay, moq_status *status);
 moq_mux_container_ts_Export_Consumer *moq_mux_container_ts_Export_Consumer_with_mux_rate(moq_mux_container_ts_Export_Consumer *self, uint64_t mux_rate, moq_status *status);
-moq_mux_container_ts_Export_Consumer *moq_mux_container_ts_Export_Consumer_with_delay(moq_mux_container_ts_Export_Consumer *self, moq_duration delay, moq_status *status);
 typedef struct moq_mux_container_ts_Export_Consumer_next_future moq_mux_container_ts_Export_Consumer_next_future;
 moq_mux_container_ts_Export_Consumer_next_future *moq_mux_container_ts_Export_Consumer_next(moq_mux_container_ts_Export_Consumer *self, moq_status *status);
 moq_poll moq_mux_container_ts_Export_Consumer_next_start(moq_mux_container_ts_Export_Consumer *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_ts_Export_Consumer_next_future **future, moq_status *status);
@@ -10845,43 +8544,42 @@ moq_poll moq_mux_container_ts_Follower_Ext_next_poll(moq_mux_container_ts_Follow
 void moq_mux_container_ts_Follower_Ext_next_future_free(moq_mux_container_ts_Follower_Ext_next_future *future);
 void moq_mux_container_ts_Passthrough_free(moq_mux_container_ts_Passthrough *self);
 void moq_mux_container_ts_Passthrough_drop(moq_mux_container_ts_Passthrough *self, moq_status *status);
-bool moq_mux_container_ts_Passthrough_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_mux_container_ts_Passthrough **out, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_ts_Passthrough_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_mux_container_ts_Passthrough **out, moq_mux_Error **err, moq_status *status);
 moq_mux_container_ts_Passthrough *moq_mux_container_ts_Passthrough_with_pcr_pid(moq_mux_container_ts_Passthrough *self, uint16_t pid, moq_status *status);
 moq_buf moq_mux_container_ts_Passthrough_track(const moq_mux_container_ts_Passthrough *self, moq_status *status);
 bool moq_mux_container_ts_Passthrough_decode(moq_mux_container_ts_Passthrough *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_ts_Passthrough_finish(moq_mux_container_ts_Passthrough *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_ts_Passthrough_finish(moq_mux_container_ts_Passthrough *self, moq_mux_container_ts_passthrough_Finished **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_ts_Passthrough_abort(moq_mux_container_ts_Passthrough *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_Passthrough_unit_free(moq_mux_container_ts_Passthrough_unit *self);
+void moq_mux_container_ts_Passthrough_unit_drop(moq_mux_container_ts_Passthrough_unit *self, moq_status *status);
+bool moq_mux_container_ts_Passthrough_unit_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_mux_container_ts_Passthrough_unit **out, moq_mux_Error **err, moq_status *status);
+moq_mux_container_ts_Passthrough_unit *moq_mux_container_ts_Passthrough_unit_with_pcr_pid(moq_mux_container_ts_Passthrough_unit *self, uint16_t pid, moq_status *status);
+moq_buf moq_mux_container_ts_Passthrough_unit_track(const moq_mux_container_ts_Passthrough_unit *self, moq_status *status);
+bool moq_mux_container_ts_Passthrough_unit_decode(moq_mux_container_ts_Passthrough_unit *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_ts_Passthrough_unit_finish(moq_mux_container_ts_Passthrough_unit *self, moq_mux_container_ts_passthrough_Finished_unit **out, moq_mux_Error **err, moq_status *status);
+void moq_mux_container_ts_Passthrough_unit_abort(moq_mux_container_ts_Passthrough_unit *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_Passthrough_Extra_free(moq_mux_container_ts_Passthrough_Extra *self);
 void moq_mux_container_ts_Passthrough_Extra_drop(moq_mux_container_ts_Passthrough_Extra *self, moq_status *status);
 bool moq_mux_container_ts_Passthrough_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, moq_mux_container_ts_Passthrough_Extra **out, moq_mux_Error **err, moq_status *status);
 moq_mux_container_ts_Passthrough_Extra *moq_mux_container_ts_Passthrough_Extra_with_pcr_pid(moq_mux_container_ts_Passthrough_Extra *self, uint16_t pid, moq_status *status);
 moq_buf moq_mux_container_ts_Passthrough_Extra_track(const moq_mux_container_ts_Passthrough_Extra *self, moq_status *status);
 bool moq_mux_container_ts_Passthrough_Extra_decode(moq_mux_container_ts_Passthrough_Extra *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_ts_Passthrough_Extra_finish(moq_mux_container_ts_Passthrough_Extra *self, moq_mux_Error **err, moq_status *status);
+bool moq_mux_container_ts_Passthrough_Extra_finish(moq_mux_container_ts_Passthrough_Extra *self, moq_mux_container_ts_passthrough_Finished_Extra **out, moq_mux_Error **err, moq_status *status);
 void moq_mux_container_ts_Passthrough_Extra_abort(moq_mux_container_ts_Passthrough_Extra *self, moq_Error *err_, moq_status *status);
-void moq_mux_container_ts_Passthrough_Ext_free(moq_mux_container_ts_Passthrough_Ext *self);
-void moq_mux_container_ts_Passthrough_Ext_drop(moq_mux_container_ts_Passthrough_Ext *self, moq_status *status);
-bool moq_mux_container_ts_Passthrough_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_mux_container_ts_Passthrough_Ext **out, moq_mux_Error **err, moq_status *status);
-moq_mux_container_ts_Passthrough_Ext *moq_mux_container_ts_Passthrough_Ext_with_pcr_pid(moq_mux_container_ts_Passthrough_Ext *self, uint16_t pid, moq_status *status);
-moq_buf moq_mux_container_ts_Passthrough_Ext_track(const moq_mux_container_ts_Passthrough_Ext *self, moq_status *status);
-bool moq_mux_container_ts_Passthrough_Ext_decode(moq_mux_container_ts_Passthrough_Ext *self, moq_buf data_, moq_mux_Error **err, moq_status *status);
-bool moq_mux_container_ts_Passthrough_Ext_finish(moq_mux_container_ts_Passthrough_Ext *self, moq_mux_Error **err, moq_status *status);
-void moq_mux_container_ts_Passthrough_Ext_abort(moq_mux_container_ts_Passthrough_Ext *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_Programs_free(moq_mux_container_ts_Programs *self);
 void moq_mux_container_ts_Programs_drop(moq_mux_container_ts_Programs *self, moq_status *status);
 moq_mux_container_ts_Programs *moq_mux_container_ts_Programs_new(moq_origin_Producer *origin, moq_Path *name, moq_mux_catalog_Config *config, moq_status *status);
-bool moq_mux_container_ts_Programs_decode(moq_mux_container_ts_Programs *self, moq_buf data_, moq_buf *err, moq_status *status);
+bool moq_mux_container_ts_Programs_decode(moq_mux_container_ts_Programs *self, moq_buf data_, moq_mux_container_ts_Error **err, moq_status *status);
 moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Programs_stats(const moq_mux_container_ts_Programs *self, moq_status *status);
-bool moq_mux_container_ts_Programs_finish(moq_mux_container_ts_Programs *self, moq_vec_broadcast_Producer *out, moq_buf *err, moq_status *status);
+bool moq_mux_container_ts_Programs_finish(moq_mux_container_ts_Programs *self, moq_mux_container_ts_programs_Finished **out, moq_mux_container_ts_Error **err, moq_status *status);
 void moq_mux_container_ts_Programs_abort(moq_mux_container_ts_Programs *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_Release_free(moq_mux_container_ts_Release *self);
 void moq_mux_container_ts_Release_drop(moq_mux_container_ts_Release *self, moq_status *status);
 typedef struct moq_mux_container_ts_Release_new_future moq_mux_container_ts_Release_new_future;
-moq_mux_container_ts_Release_new_future *moq_mux_container_ts_Release_new(moq_mux_Source *source, moq_mux_catalog_CatalogFormat catalog_format, moq_status *status);
-moq_poll moq_mux_container_ts_Release_new_start(moq_mux_Source *source, moq_mux_catalog_CatalogFormat catalog_format, moq_mux_container_ts_Release **out, moq_mux_Error **err, moq_mux_container_ts_Release_new_future **future, moq_status *status);
+moq_mux_container_ts_Release_new_future *moq_mux_container_ts_Release_new(moq_mux_Source *source, moq_mux_catalog_CatalogFormat catalog_format, moq_duration delay, moq_status *status);
+moq_poll moq_mux_container_ts_Release_new_start(moq_mux_Source *source, moq_mux_catalog_CatalogFormat catalog_format, moq_duration delay, moq_mux_container_ts_Release **out, moq_mux_Error **err, moq_mux_container_ts_Release_new_future **future, moq_status *status);
 moq_poll moq_mux_container_ts_Release_new_poll(moq_mux_container_ts_Release_new_future *future, moq_waker waker, moq_mux_container_ts_Release **out, moq_mux_Error **err);
 void moq_mux_container_ts_Release_new_future_free(moq_mux_container_ts_Release_new_future *future);
-moq_mux_container_ts_Release *moq_mux_container_ts_Release_with_delay(moq_mux_container_ts_Release *self, moq_duration delay, moq_status *status);
 uint64_t moq_mux_container_ts_Release_dropped(const moq_mux_container_ts_Release *self, moq_status *status);
 moq_option_f64 moq_mux_container_ts_Release_drift(const moq_mux_container_ts_Release *self, moq_status *status);
 uint64_t moq_mux_container_ts_Release_out_of_tolerance(const moq_mux_container_ts_Release *self, moq_status *status);
@@ -10891,14 +8589,33 @@ moq_mux_container_ts_Release_next_future *moq_mux_container_ts_Release_next(moq_
 moq_poll moq_mux_container_ts_Release_next_start(moq_mux_container_ts_Release *self, moq_option_mux_container_Frame *out, moq_mux_Error **err, moq_mux_container_ts_Release_next_future **future, moq_status *status);
 moq_poll moq_mux_container_ts_Release_next_poll(moq_mux_container_ts_Release_next_future *future, moq_waker waker, moq_option_mux_container_Frame *out, moq_mux_Error **err);
 void moq_mux_container_ts_Release_next_future_free(moq_mux_container_ts_Release_next_future *future);
+void moq_mux_container_ts_Republish_free(moq_mux_container_ts_Republish *self);
+void moq_mux_container_ts_Republish_drop(moq_mux_container_ts_Republish *self, moq_status *status);
+bool moq_mux_container_ts_Republish_new(moq_origin_Producer *origin, moq_Path *name, moq_Instance *instance, moq_mux_catalog_Config *config, moq_mux_container_ts_Republish **out, moq_mux_container_ts_Error **err, moq_status *status);
+moq_mux_container_ts_Republish *moq_mux_container_ts_Republish_with_program(moq_mux_container_ts_Republish *self, uint16_t program, moq_status *status);
+moq_broadcast_Producer *moq_mux_container_ts_Republish_broadcast(const moq_mux_container_ts_Republish *self, moq_status *status);
+moq_mux_catalog_Producer_Ext *moq_mux_container_ts_Republish_catalog(const moq_mux_container_ts_Republish *self, moq_status *status);
+moq_Instance *moq_mux_container_ts_Republish_instance(const moq_mux_container_ts_Republish *self, moq_status *status);
+bool moq_mux_container_ts_Republish_decode(moq_mux_container_ts_Republish *self, moq_buf data_, moq_mux_container_ts_Republished **out, moq_mux_container_ts_Error **err, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Republish_stats(const moq_mux_container_ts_Republish *self, moq_status *status);
+bool moq_mux_container_ts_Republish_finish(moq_mux_container_ts_Republish *self, moq_mux_container_ts_republish_Finished **out, moq_mux_container_ts_Error **err, moq_status *status);
+void moq_mux_container_ts_Republish_abort(moq_mux_container_ts_Republish *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_Republished_free(moq_mux_container_ts_Republished *self);
+void moq_mux_container_ts_Republished_drop(moq_mux_container_ts_Republished *self, moq_status *status);
+moq_mux_container_ts_Republished *moq_mux_container_ts_Republished_clone(const moq_mux_container_ts_Republished *self, moq_status *status);
+moq_buf moq_mux_container_ts_Republished_debug(const moq_mux_container_ts_Republished *self, moq_status *status);
+moq_mux_container_ts_Step moq_mux_container_ts_Republished_step_get(const moq_mux_container_ts_Republished *self, moq_status *status);
+void moq_mux_container_ts_Republished_step_set(moq_mux_container_ts_Republished *self, moq_mux_container_ts_Step value, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Republished_stats_get(const moq_mux_container_ts_Republished *self, moq_status *status);
+void moq_mux_container_ts_Republished_stats_set(moq_mux_container_ts_Republished *self, moq_mux_container_ts_stats_Snapshot *value, moq_status *status);
 void moq_mux_container_ts_Import_free(moq_mux_container_ts_Import *self);
 void moq_mux_container_ts_Import_drop(moq_mux_container_ts_Import *self, moq_status *status);
 moq_mux_container_ts_Import *moq_mux_container_ts_Import_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved *reserved, moq_status *status);
 moq_mux_container_ts_Import *moq_mux_container_ts_Import_with_program(moq_mux_container_ts_Import *self, uint16_t program, moq_status *status);
 moq_mux_container_ts_Import *moq_mux_container_ts_Import_with_container(moq_mux_container_ts_Import *self, moq_hang_catalog_Container *container, moq_status *status);
-bool moq_mux_container_ts_Import_decode(moq_mux_container_ts_Import *self, moq_buf data_, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_seek(moq_mux_container_ts_Import *self, uint64_t sequence, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_finish(moq_mux_container_ts_Import *self, moq_buf *err, moq_status *status);
+bool moq_mux_container_ts_Import_decode(moq_mux_container_ts_Import *self, moq_buf data_, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_seek(moq_mux_container_ts_Import *self, uint64_t sequence, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_finish(moq_mux_container_ts_Import *self, moq_mux_container_ts_Finished **out, moq_mux_container_ts_Error **err, moq_status *status);
 moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Import_stats(const moq_mux_container_ts_Import *self, moq_status *status);
 void moq_mux_container_ts_Import_abort(moq_mux_container_ts_Import *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_Import_Extra_free(moq_mux_container_ts_Import_Extra *self);
@@ -10906,9 +8623,9 @@ void moq_mux_container_ts_Import_Extra_drop(moq_mux_container_ts_Import_Extra *s
 moq_mux_container_ts_Import_Extra *moq_mux_container_ts_Import_Extra_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Extra *reserved, moq_status *status);
 moq_mux_container_ts_Import_Extra *moq_mux_container_ts_Import_Extra_with_program(moq_mux_container_ts_Import_Extra *self, uint16_t program, moq_status *status);
 moq_mux_container_ts_Import_Extra *moq_mux_container_ts_Import_Extra_with_container(moq_mux_container_ts_Import_Extra *self, moq_hang_catalog_Container *container, moq_status *status);
-bool moq_mux_container_ts_Import_Extra_decode(moq_mux_container_ts_Import_Extra *self, moq_buf data_, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_Extra_seek(moq_mux_container_ts_Import_Extra *self, uint64_t sequence, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_Extra_finish(moq_mux_container_ts_Import_Extra *self, moq_buf *err, moq_status *status);
+bool moq_mux_container_ts_Import_Extra_decode(moq_mux_container_ts_Import_Extra *self, moq_buf data_, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_Extra_seek(moq_mux_container_ts_Import_Extra *self, uint64_t sequence, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_Extra_finish(moq_mux_container_ts_Import_Extra *self, moq_mux_container_ts_Finished_Extra **out, moq_mux_container_ts_Error **err, moq_status *status);
 moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Import_Extra_stats(const moq_mux_container_ts_Import_Extra *self, moq_status *status);
 void moq_mux_container_ts_Import_Extra_abort(moq_mux_container_ts_Import_Extra *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_Import_Ext_free(moq_mux_container_ts_Import_Ext *self);
@@ -10916,11 +8633,36 @@ void moq_mux_container_ts_Import_Ext_drop(moq_mux_container_ts_Import_Ext *self,
 moq_mux_container_ts_Import_Ext *moq_mux_container_ts_Import_Ext_new(moq_broadcast_Producer *broadcast, moq_mux_catalog_Reserved_Ext *reserved, moq_status *status);
 moq_mux_container_ts_Import_Ext *moq_mux_container_ts_Import_Ext_with_program(moq_mux_container_ts_Import_Ext *self, uint16_t program, moq_status *status);
 moq_mux_container_ts_Import_Ext *moq_mux_container_ts_Import_Ext_with_container(moq_mux_container_ts_Import_Ext *self, moq_hang_catalog_Container *container, moq_status *status);
-bool moq_mux_container_ts_Import_Ext_decode(moq_mux_container_ts_Import_Ext *self, moq_buf data_, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_Ext_seek(moq_mux_container_ts_Import_Ext *self, uint64_t sequence, moq_buf *err, moq_status *status);
-bool moq_mux_container_ts_Import_Ext_finish(moq_mux_container_ts_Import_Ext *self, moq_buf *err, moq_status *status);
+bool moq_mux_container_ts_Import_Ext_decode(moq_mux_container_ts_Import_Ext *self, moq_buf data_, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_Ext_seek(moq_mux_container_ts_Import_Ext *self, uint64_t sequence, moq_mux_container_ts_Error **err, moq_status *status);
+bool moq_mux_container_ts_Import_Ext_finish(moq_mux_container_ts_Import_Ext *self, moq_mux_container_ts_Finished_Ext **out, moq_mux_container_ts_Error **err, moq_status *status);
 moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Import_Ext_stats(const moq_mux_container_ts_Import_Ext *self, moq_status *status);
 void moq_mux_container_ts_Import_Ext_abort(moq_mux_container_ts_Import_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_Finished_free(moq_mux_container_ts_Finished *self);
+void moq_mux_container_ts_Finished_drop(moq_mux_container_ts_Finished *self, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Finished_stats(const moq_mux_container_ts_Finished *self, moq_status *status);
+void moq_mux_container_ts_Finished_abort(moq_mux_container_ts_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_Finished_Extra_free(moq_mux_container_ts_Finished_Extra *self);
+void moq_mux_container_ts_Finished_Extra_drop(moq_mux_container_ts_Finished_Extra *self, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Finished_Extra_stats(const moq_mux_container_ts_Finished_Extra *self, moq_status *status);
+void moq_mux_container_ts_Finished_Extra_abort(moq_mux_container_ts_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_Finished_Ext_free(moq_mux_container_ts_Finished_Ext *self);
+void moq_mux_container_ts_Finished_Ext_drop(moq_mux_container_ts_Finished_Ext *self, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_Finished_Ext_stats(const moq_mux_container_ts_Finished_Ext *self, moq_status *status);
+void moq_mux_container_ts_Finished_Ext_abort(moq_mux_container_ts_Finished_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_import_container_Finished_free(moq_mux_import_container_Finished *self);
+void moq_mux_import_container_Finished_drop(moq_mux_import_container_Finished *self, moq_status *status);
+void moq_mux_import_container_Finished_abort(moq_mux_import_container_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_import_container_Finished_Extra_free(moq_mux_import_container_Finished_Extra *self);
+void moq_mux_import_container_Finished_Extra_drop(moq_mux_import_container_Finished_Extra *self, moq_status *status);
+void moq_mux_import_container_Finished_Extra_abort(moq_mux_import_container_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_import_container_Finished_Ext_free(moq_mux_import_container_Finished_Ext *self);
+void moq_mux_import_container_Finished_Ext_drop(moq_mux_import_container_Finished_Ext *self, moq_status *status);
+void moq_mux_import_container_Finished_Ext_abort(moq_mux_import_container_Finished_Ext *self, moq_Error *err_, moq_status *status);
+void moq_mux_import_track_Finished_free(moq_mux_import_track_Finished *self);
+void moq_mux_import_track_Finished_drop(moq_mux_import_track_Finished *self, moq_status *status);
+moq_buf moq_mux_import_track_Finished_name(const moq_mux_import_track_Finished *self, moq_status *status);
+void moq_mux_import_track_Finished_abort(moq_mux_import_track_Finished *self, moq_Error *err_, moq_status *status);
 void moq_mux_codec_aac_adts_Header_free(moq_mux_codec_aac_adts_Header *self);
 void moq_mux_codec_aac_adts_Header_drop(moq_mux_codec_aac_adts_Header *self, moq_status *status);
 moq_mux_codec_aac_adts_Header *moq_mux_codec_aac_adts_Header_clone(const moq_mux_codec_aac_adts_Header *self, moq_status *status);
@@ -10935,6 +8677,28 @@ uint8_t moq_mux_codec_aac_adts_Header_blocks_get(const moq_mux_codec_aac_adts_He
 void moq_mux_codec_aac_adts_Header_blocks_set(moq_mux_codec_aac_adts_Header *self, uint8_t value, moq_status *status);
 bool moq_mux_codec_aac_adts_Header_parse(moq_buf data_, moq_mux_codec_aac_adts_Header **out, moq_mux_codec_aac_adts_Error *err);
 bool moq_mux_codec_aac_adts_Header_payload(const moq_mux_codec_aac_adts_Header *self, moq_buf packet, moq_buf *out, moq_mux_codec_aac_adts_Error *err, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_free(moq_mux_container_ts_passthrough_Finished *self);
+void moq_mux_container_ts_passthrough_Finished_drop(moq_mux_container_ts_passthrough_Finished *self, moq_status *status);
+moq_buf moq_mux_container_ts_passthrough_Finished_track(const moq_mux_container_ts_passthrough_Finished *self, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_abort(moq_mux_container_ts_passthrough_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_unit_free(moq_mux_container_ts_passthrough_Finished_unit *self);
+void moq_mux_container_ts_passthrough_Finished_unit_drop(moq_mux_container_ts_passthrough_Finished_unit *self, moq_status *status);
+moq_buf moq_mux_container_ts_passthrough_Finished_unit_track(const moq_mux_container_ts_passthrough_Finished_unit *self, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_unit_abort(moq_mux_container_ts_passthrough_Finished_unit *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_Extra_free(moq_mux_container_ts_passthrough_Finished_Extra *self);
+void moq_mux_container_ts_passthrough_Finished_Extra_drop(moq_mux_container_ts_passthrough_Finished_Extra *self, moq_status *status);
+moq_buf moq_mux_container_ts_passthrough_Finished_Extra_track(const moq_mux_container_ts_passthrough_Finished_Extra *self, moq_status *status);
+void moq_mux_container_ts_passthrough_Finished_Extra_abort(moq_mux_container_ts_passthrough_Finished_Extra *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_programs_Finished_free(moq_mux_container_ts_programs_Finished *self);
+void moq_mux_container_ts_programs_Finished_drop(moq_mux_container_ts_programs_Finished *self, moq_status *status);
+moq_vec_broadcast_Producer moq_mux_container_ts_programs_Finished_broadcasts(const moq_mux_container_ts_programs_Finished *self, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_programs_Finished_stats(const moq_mux_container_ts_programs_Finished *self, moq_status *status);
+void moq_mux_container_ts_programs_Finished_abort(moq_mux_container_ts_programs_Finished *self, moq_Error *err_, moq_status *status);
+void moq_mux_container_ts_republish_Finished_free(moq_mux_container_ts_republish_Finished *self);
+void moq_mux_container_ts_republish_Finished_drop(moq_mux_container_ts_republish_Finished *self, moq_status *status);
+moq_broadcast_Producer *moq_mux_container_ts_republish_Finished_broadcast(const moq_mux_container_ts_republish_Finished *self, moq_status *status);
+moq_mux_container_ts_stats_Snapshot *moq_mux_container_ts_republish_Finished_stats(const moq_mux_container_ts_republish_Finished *self, moq_status *status);
+void moq_mux_container_ts_republish_Finished_abort(moq_mux_container_ts_republish_Finished *self, moq_Error *err_, moq_status *status);
 void moq_mux_container_ts_stats_Report_free(moq_mux_container_ts_stats_Report *self);
 void moq_mux_container_ts_stats_Report_drop(moq_mux_container_ts_stats_Report *self, moq_status *status);
 moq_mux_container_ts_stats_Report *moq_mux_container_ts_stats_Report_clone(const moq_mux_container_ts_stats_Report *self, moq_status *status);
@@ -11064,15 +8828,14 @@ void moq_moq_tokio_cli_Deprecated_flag(moq_moq_tokio_cli_Deprecated *self, moq_b
 void moq_moq_tokio_cli_Deprecated_changed(moq_moq_tokio_cli_Deprecated *self, moq_buf old, moq_buf env, moq_buf new_, moq_buf note, moq_status *status);
 void moq_moq_tokio_cli_Deprecated_removed(moq_moq_tokio_cli_Deprecated *self, moq_buf old, moq_buf env, moq_buf note, moq_status *status);
 void moq_moq_tokio_cli_Deprecated_toml(moq_moq_tokio_cli_Deprecated *self, moq_buf old, moq_buf new_, moq_buf note, moq_status *status);
-void moq_mp4_atom_Codec_free(moq_mp4_atom_Codec *self);
-void moq_mp4_atom_Codec_drop(moq_mp4_atom_Codec *self, moq_status *status);
-bool moq_mp4_atom_Codec_borrowed(const moq_mp4_atom_Codec *self);
-moq_mp4_atom_Codec *moq_mp4_atom_Codec_clone(const moq_mp4_atom_Codec *self, moq_status *status);
-bool moq_mp4_atom_Codec_eq(const moq_mp4_atom_Codec *a, const moq_mp4_atom_Codec *b, moq_status *status);
-moq_buf moq_mp4_atom_Codec_debug(const moq_mp4_atom_Codec *self, moq_status *status);
-moq_mp4_atom_Visual *moq_mp4_atom_Codec_visual(const moq_mp4_atom_Codec *self, moq_status *status);
-moq_option_mp4_atom_Audio moq_mp4_atom_Codec_audio(const moq_mp4_atom_Codec *self, moq_status *status);
-moq_option_mp4_atom_MetaData moq_mp4_atom_Codec_metadata(const moq_mp4_atom_Codec *self, moq_status *status);
+void moq_moq_tokio_cli_Bound_free(moq_moq_tokio_cli_Bound *self);
+bool moq_moq_tokio_cli_Bound_borrowed(const moq_moq_tokio_cli_Bound *self);
+moq_moq_tokio_cli_Bound *moq_moq_tokio_cli_Bound_clone(const moq_moq_tokio_cli_Bound *self);
+bool moq_moq_tokio_cli_Bound_eq(const moq_moq_tokio_cli_Bound *a, const moq_moq_tokio_cli_Bound *b);
+uint64_t moq_moq_tokio_cli_Bound_hash(const moq_moq_tokio_cli_Bound *self);
+moq_buf moq_moq_tokio_cli_Bound_to_string(const moq_moq_tokio_cli_Bound *self);
+moq_buf moq_moq_tokio_cli_Bound_debug(const moq_moq_tokio_cli_Bound *self);
+moq_moq_tokio_cli_Bound *moq_moq_tokio_cli_Bound_NONE(void);
 void moq_moq_tokio_tcp_TlsAcceptor_free(moq_moq_tokio_tcp_TlsAcceptor *self);
 moq_moq_tokio_tcp_TlsAcceptor *moq_moq_tokio_tcp_TlsAcceptor_clone(const moq_moq_tokio_tcp_TlsAcceptor *self);
 moq_rustls_ServerConfig *moq_moq_tokio_tcp_TlsAcceptor_config(const moq_moq_tokio_tcp_TlsAcceptor *self);
@@ -11086,6 +8849,26 @@ moq_buf moq_moq_tokio_accept_Health_listener(const moq_moq_tokio_accept_Health *
 void moq_moq_tokio_accept_Health_accepted(const moq_moq_tokio_accept_Health *self);
 uint64_t moq_moq_tokio_accept_Health_failures(const moq_moq_tokio_accept_Health *self, moq_moq_tokio_accept_Failure failure);
 moq_option_duration moq_moq_tokio_accept_Health_stalled(const moq_moq_tokio_accept_Health *self);
+void moq_moq_json_Timed_Catalog_free(moq_moq_json_Timed_Catalog *self);
+void moq_moq_json_Timed_Catalog_drop(moq_moq_json_Timed_Catalog *self, moq_status *status);
+moq_moq_json_Timed_Catalog *moq_moq_json_Timed_Catalog_clone(const moq_moq_json_Timed_Catalog *self, moq_status *status);
+bool moq_moq_json_Timed_Catalog_eq(const moq_moq_json_Timed_Catalog *a, const moq_moq_json_Timed_Catalog *b, moq_status *status);
+moq_buf moq_moq_json_Timed_Catalog_debug(const moq_moq_json_Timed_Catalog *self, moq_status *status);
+moq_hang_Catalog *moq_moq_json_Timed_Catalog_value_get(const moq_moq_json_Timed_Catalog *self, moq_status *status);
+void moq_moq_json_Timed_Catalog_value_set(moq_moq_json_Timed_Catalog *self, moq_hang_Catalog *value, moq_status *status);
+moq_Timestamp *moq_moq_json_Timed_Catalog_at_get(const moq_moq_json_Timed_Catalog *self, moq_status *status);
+void moq_moq_json_Timed_Catalog_at_set(moq_moq_json_Timed_Catalog *self, const moq_Timestamp *value, moq_status *status);
+moq_moq_json_Timed_Catalog *moq_moq_json_Timed_Catalog_new(moq_hang_Catalog *value, const moq_Timestamp *at, moq_status *status);
+void moq_moq_json_Timed_Json_free(moq_moq_json_Timed_Json *self);
+void moq_moq_json_Timed_Json_drop(moq_moq_json_Timed_Json *self, moq_status *status);
+moq_moq_json_Timed_Json *moq_moq_json_Timed_Json_clone(const moq_moq_json_Timed_Json *self, moq_status *status);
+bool moq_moq_json_Timed_Json_eq(const moq_moq_json_Timed_Json *a, const moq_moq_json_Timed_Json *b, moq_status *status);
+moq_buf moq_moq_json_Timed_Json_debug(const moq_moq_json_Timed_Json *self, moq_status *status);
+moq_Json *moq_moq_json_Timed_Json_value_get(const moq_moq_json_Timed_Json *self, moq_status *status);
+void moq_moq_json_Timed_Json_value_set(moq_moq_json_Timed_Json *self, moq_Json *value, moq_status *status);
+moq_Timestamp *moq_moq_json_Timed_Json_at_get(const moq_moq_json_Timed_Json *self, moq_status *status);
+void moq_moq_json_Timed_Json_at_set(moq_moq_json_Timed_Json *self, const moq_Timestamp *value, moq_status *status);
+moq_moq_json_Timed_Json *moq_moq_json_Timed_Json_new(moq_Json *value, const moq_Timestamp *at, moq_status *status);
 void moq_rustls_ClientConfig_free(moq_rustls_ClientConfig *self);
 void moq_rustls_ClientConfig_drop(moq_rustls_ClientConfig *self, moq_status *status);
 moq_rustls_ClientConfig *moq_rustls_ClientConfig_clone(const moq_rustls_ClientConfig *self, moq_status *status);
@@ -11154,17 +8937,17 @@ moq_duration moq_moq_tokio_connect_Resolved_race_get(const moq_moq_tokio_connect
 void moq_moq_tokio_connect_Resolved_race_set(moq_moq_tokio_connect_Resolved *self, moq_duration value, moq_status *status);
 moq_duration moq_moq_tokio_connect_Resolved_resolution_delay_get(const moq_moq_tokio_connect_Resolved *self, moq_status *status);
 void moq_moq_tokio_connect_Resolved_resolution_delay_set(moq_moq_tokio_connect_Resolved *self, moq_duration value, moq_status *status);
-moq_duration moq_moq_tokio_connect_Resolved_timeout_get(const moq_moq_tokio_connect_Resolved *self, moq_status *status);
-void moq_moq_tokio_connect_Resolved_timeout_set(moq_moq_tokio_connect_Resolved *self, moq_duration value, moq_status *status);
-void moq_moq_tokio_connection_Goaway_free(moq_moq_tokio_connection_Goaway *self);
-void moq_moq_tokio_connection_Goaway_drop(moq_moq_tokio_connection_Goaway *self, moq_status *status);
-moq_moq_tokio_connection_Goaway *moq_moq_tokio_connection_Goaway_clone(const moq_moq_tokio_connection_Goaway *self, moq_status *status);
-moq_buf moq_moq_tokio_connection_Goaway_debug(const moq_moq_tokio_connection_Goaway *self, moq_status *status);
-moq_moq_tokio_connection_Goaway *moq_moq_tokio_connection_Goaway_default(void);
-moq_moq_tokio_Redirect moq_moq_tokio_connection_Goaway_redirect_get(const moq_moq_tokio_connection_Goaway *self, moq_status *status);
-void moq_moq_tokio_connection_Goaway_redirect_set(moq_moq_tokio_connection_Goaway *self, moq_moq_tokio_Redirect value, moq_status *status);
-moq_tokio_Duration *moq_moq_tokio_connection_Goaway_handover_get(const moq_moq_tokio_connection_Goaway *self, moq_status *status);
-void moq_moq_tokio_connection_Goaway_handover_set(moq_moq_tokio_connection_Goaway *self, const moq_tokio_Duration *value, moq_status *status);
+moq_option_duration moq_moq_tokio_connect_Resolved_timeout_get(const moq_moq_tokio_connect_Resolved *self, moq_status *status);
+void moq_moq_tokio_connect_Resolved_timeout_set(moq_moq_tokio_connect_Resolved *self, moq_option_duration value, moq_status *status);
+void moq_moq_tokio_connection_Handover_free(moq_moq_tokio_connection_Handover *self);
+void moq_moq_tokio_connection_Handover_drop(moq_moq_tokio_connection_Handover *self, moq_status *status);
+moq_moq_tokio_connection_Handover *moq_moq_tokio_connection_Handover_clone(const moq_moq_tokio_connection_Handover *self, moq_status *status);
+moq_buf moq_moq_tokio_connection_Handover_debug(const moq_moq_tokio_connection_Handover *self, moq_status *status);
+moq_moq_tokio_connection_Handover *moq_moq_tokio_connection_Handover_default(void);
+moq_moq_tokio_Redirect moq_moq_tokio_connection_Handover_redirect_get(const moq_moq_tokio_connection_Handover *self, moq_status *status);
+void moq_moq_tokio_connection_Handover_redirect_set(moq_moq_tokio_connection_Handover *self, moq_moq_tokio_Redirect value, moq_status *status);
+moq_tokio_Duration *moq_moq_tokio_connection_Handover_handover_get(const moq_moq_tokio_connection_Handover *self, moq_status *status);
+void moq_moq_tokio_connection_Handover_handover_set(moq_moq_tokio_connection_Handover *self, const moq_tokio_Duration *value, moq_status *status);
 void moq_moq_tokio_websocket_Config_free(moq_moq_tokio_websocket_Config *self);
 void moq_moq_tokio_websocket_Config_drop(moq_moq_tokio_websocket_Config *self, moq_status *status);
 moq_moq_tokio_websocket_Config *moq_moq_tokio_websocket_Config_clone(const moq_moq_tokio_websocket_Config *self, moq_status *status);
@@ -11181,18 +8964,12 @@ moq_moq_tokio_connection_Observation *moq_moq_tokio_connection_Observation_clone
 moq_buf moq_moq_tokio_connection_Observation_debug(const moq_moq_tokio_connection_Observation *self, moq_status *status);
 uint64_t moq_moq_tokio_connection_Observation_revision_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
 void moq_moq_tokio_connection_Observation_revision_set(moq_moq_tokio_connection_Observation *self, uint64_t value, moq_status *status);
-moq_moq_tokio_connection_Phase moq_moq_tokio_connection_Observation_phase_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
-void moq_moq_tokio_connection_Observation_phase_set(moq_moq_tokio_connection_Observation *self, moq_moq_tokio_connection_Phase value, moq_status *status);
 uint64_t moq_moq_tokio_connection_Observation_connects_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
 void moq_moq_tokio_connection_Observation_connects_set(moq_moq_tokio_connection_Observation *self, uint64_t value, moq_status *status);
 moq_option_clock_Instant moq_moq_tokio_connection_Observation_last_connected_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
 void moq_moq_tokio_connection_Observation_last_connected_set(moq_moq_tokio_connection_Observation *self, moq_option_clock_Instant value, moq_status *status);
-moq_option_tokio_Transport moq_moq_tokio_connection_Observation_transport_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
-void moq_moq_tokio_connection_Observation_transport_set(moq_moq_tokio_connection_Observation *self, moq_option_tokio_Transport value, moq_status *status);
-moq_tokio_Error *moq_moq_tokio_connection_Observation_failure_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
-void moq_moq_tokio_connection_Observation_failure_set(moq_moq_tokio_connection_Observation *self, moq_tokio_Error *value, moq_status *status);
-moq_Version *moq_moq_tokio_connection_Observation_version_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
-void moq_moq_tokio_connection_Observation_version_set(moq_moq_tokio_connection_Observation *self, const moq_Version *value, moq_status *status);
+moq_moq_tokio_connection_Phase *moq_moq_tokio_connection_Observation_phase_get(const moq_moq_tokio_connection_Observation *self, moq_status *status);
+void moq_moq_tokio_connection_Observation_phase_set(moq_moq_tokio_connection_Observation *self, moq_moq_tokio_connection_Phase *value, moq_status *status);
 void moq_moq_tokio_connection_Snapshot_free(moq_moq_tokio_connection_Snapshot *self);
 void moq_moq_tokio_connection_Snapshot_drop(moq_moq_tokio_connection_Snapshot *self, moq_status *status);
 moq_session_Stats *moq_moq_tokio_connection_Snapshot_stats_get(const moq_moq_tokio_connection_Snapshot *self, moq_status *status);
@@ -11207,8 +8984,6 @@ moq_option_tokio_listen_Bind moq_moq_tokio_listen_Resolved_bind_get(const moq_mo
 void moq_moq_tokio_listen_Resolved_bind_set(moq_moq_tokio_listen_Resolved *self, moq_option_tokio_listen_Bind value, moq_status *status);
 moq_Versions *moq_moq_tokio_listen_Resolved_versions_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
 void moq_moq_tokio_listen_Resolved_versions_set(moq_moq_tokio_listen_Resolved *self, moq_Versions *value, moq_status *status);
-moq_setup_Extensions moq_moq_tokio_listen_Resolved_extensions_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
-void moq_moq_tokio_listen_Resolved_extensions_set(moq_moq_tokio_listen_Resolved *self, moq_setup_Extensions value, moq_status *status);
 moq_buf moq_moq_tokio_listen_Resolved_implementation_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
 void moq_moq_tokio_listen_Resolved_implementation_set(moq_moq_tokio_listen_Resolved *self, moq_buf value, moq_status *status);
 moq_option_duration moq_moq_tokio_listen_Resolved_timeout_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
@@ -11268,16 +9043,14 @@ uint64_t moq_moq_tokio_quic_Resolved_max_streams_get(const moq_moq_tokio_quic_Re
 void moq_moq_tokio_quic_Resolved_max_streams_set(moq_moq_tokio_quic_Resolved *self, uint64_t value, moq_status *status);
 moq_option_bool moq_moq_tokio_quic_Resolved_gso_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_quic_Resolved_gso_set(moq_moq_tokio_quic_Resolved *self, moq_option_bool value, moq_status *status);
-moq_duration moq_moq_tokio_quic_Resolved_idle_timeout_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
-void moq_moq_tokio_quic_Resolved_idle_timeout_set(moq_moq_tokio_quic_Resolved *self, moq_duration value, moq_status *status);
+moq_option_duration moq_moq_tokio_quic_Resolved_idle_timeout_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
+void moq_moq_tokio_quic_Resolved_idle_timeout_set(moq_moq_tokio_quic_Resolved *self, moq_option_duration value, moq_status *status);
 moq_option_duration moq_moq_tokio_quic_Resolved_keep_alive_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_quic_Resolved_keep_alive_set(moq_moq_tokio_quic_Resolved *self, moq_option_duration value, moq_status *status);
 bool moq_moq_tokio_quic_Resolved_mtu_discovery_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_quic_Resolved_mtu_discovery_set(moq_moq_tokio_quic_Resolved *self, bool value, moq_status *status);
-moq_option_moq_tokio_quic_CongestionControl moq_moq_tokio_quic_Resolved_congestion_control_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
-void moq_moq_tokio_quic_Resolved_congestion_control_set(moq_moq_tokio_quic_Resolved *self, moq_option_moq_tokio_quic_CongestionControl value, moq_status *status);
-moq_moq_tokio_quic_Controller *moq_moq_tokio_quic_Resolved_controller_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
-void moq_moq_tokio_quic_Resolved_controller_set(moq_moq_tokio_quic_Resolved *self, moq_moq_tokio_quic_Controller *value, moq_status *status);
+moq_moq_tokio_quic_CongestionControl moq_moq_tokio_quic_Resolved_congestion_control_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
+void moq_moq_tokio_quic_Resolved_congestion_control_set(moq_moq_tokio_quic_Resolved *self, moq_moq_tokio_quic_CongestionControl value, moq_status *status);
 uint64_t moq_moq_tokio_quic_Resolved_receive_window_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_quic_Resolved_receive_window_set(moq_moq_tokio_quic_Resolved *self, uint64_t value, moq_status *status);
 uint64_t moq_moq_tokio_quic_Resolved_stream_receive_window_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
@@ -11288,14 +9061,8 @@ moq_buf moq_moq_tokio_quic_Resolved_qlog_get(const moq_moq_tokio_quic_Resolved *
 void moq_moq_tokio_quic_Resolved_qlog_set(moq_moq_tokio_quic_Resolved *self, moq_buf value, moq_status *status);
 moq_buf moq_moq_tokio_quic_Resolved_keylog_get(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_quic_Resolved_keylog_set(moq_moq_tokio_quic_Resolved *self, moq_buf value, moq_status *status);
-bool moq_moq_tokio_quic_Resolved_has_controller(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 moq_duration moq_moq_tokio_quic_Resolved_keep_alive_interval(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
-void moq_moq_tokio_quic_Controller_free(moq_moq_tokio_quic_Controller *self);
-void moq_moq_tokio_quic_Controller_drop(moq_moq_tokio_quic_Controller *self, moq_status *status);
-moq_moq_tokio_quic_Controller *moq_moq_tokio_quic_Controller_clone(const moq_moq_tokio_quic_Controller *self, moq_status *status);
-moq_buf moq_moq_tokio_quic_Controller_debug(const moq_moq_tokio_quic_Controller *self, moq_status *status);
-moq_moq_congestion_Factory *moq_moq_tokio_quic_Controller_0_get(const moq_moq_tokio_quic_Controller *self, moq_status *status);
-void moq_moq_tokio_quic_Controller_0_set(moq_moq_tokio_quic_Controller *self, moq_moq_congestion_Factory *value, moq_status *status);
+moq_moq_quic_Limits *moq_moq_tokio_quic_Resolved_limits(const moq_moq_tokio_quic_Resolved *self, moq_status *status);
 void moq_moq_tokio_websocket_Listener_free(moq_moq_tokio_websocket_Listener *self);
 void moq_moq_tokio_websocket_Listener_drop(moq_moq_tokio_websocket_Listener *self, moq_status *status);
 typedef struct moq_moq_tokio_websocket_Listener_bind_future moq_moq_tokio_websocket_Listener_bind_future;
@@ -11307,6 +9074,11 @@ bool moq_moq_tokio_websocket_Listener_with_protocols(moq_moq_tokio_websocket_Lis
 moq_moq_tokio_websocket_Listener *moq_moq_tokio_websocket_Listener_with_quic(moq_moq_tokio_websocket_Listener *self, const moq_moq_tokio_quic_Resolved *quic, moq_status *status);
 bool moq_moq_tokio_websocket_Listener_local_addr(const moq_moq_tokio_websocket_Listener *self, moq_socket_addr *out, moq_moq_tokio_websocket_Error **err, moq_status *status);
 moq_moq_tokio_accept_Health *moq_moq_tokio_websocket_Listener_accept_health(const moq_moq_tokio_websocket_Listener *self, moq_status *status);
+typedef struct moq_moq_tokio_websocket_Listener_accept_future moq_moq_tokio_websocket_Listener_accept_future;
+moq_moq_tokio_websocket_Listener_accept_future *moq_moq_tokio_websocket_Listener_accept(const moq_moq_tokio_websocket_Listener *self, moq_status *status);
+moq_poll moq_moq_tokio_websocket_Listener_accept_start(const moq_moq_tokio_websocket_Listener *self, moq_qmux_Session **out, moq_moq_tokio_websocket_Error **err, moq_moq_tokio_websocket_Listener_accept_future **future, moq_status *status);
+moq_poll moq_moq_tokio_websocket_Listener_accept_poll(moq_moq_tokio_websocket_Listener_accept_future *future, moq_waker waker, moq_qmux_Session **out, moq_moq_tokio_websocket_Error **err);
+void moq_moq_tokio_websocket_Listener_accept_future_free(moq_moq_tokio_websocket_Listener_accept_future *future);
 void moq_moq_tokio_quic_demux_Demux_free(moq_moq_tokio_quic_demux_Demux *self);
 void moq_moq_tokio_quic_demux_Demux_drop(moq_moq_tokio_quic_demux_Demux *self, moq_status *status);
 moq_moq_tokio_quic_demux_Demux *moq_moq_tokio_quic_demux_Demux_clone(const moq_moq_tokio_quic_demux_Demux *self, moq_status *status);
@@ -11314,57 +9086,14 @@ moq_buf moq_moq_tokio_quic_demux_Demux_debug(const moq_moq_tokio_quic_demux_Demu
 moq_moq_tokio_quic_demux_Demux *moq_moq_tokio_quic_demux_Demux_default(void);
 moq_moq_sock_demux_Counters *moq_moq_tokio_quic_demux_Demux_counters(const moq_moq_tokio_quic_demux_Demux *self, moq_status *status);
 moq_moq_tokio_quic_demux_WebRtc *moq_moq_tokio_quic_demux_Demux_webrtc(const moq_moq_tokio_quic_demux_Demux *self, moq_status *status);
-void moq_moq_tokio_quic_driver_connection_Connection_free(moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_moq_tokio_quic_driver_connection_Connection *moq_moq_tokio_quic_driver_connection_Connection_clone(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_buf moq_moq_tokio_quic_driver_connection_Connection_debug(const moq_moq_tokio_quic_driver_connection_Connection *self);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_open_uni_future moq_moq_tokio_quic_driver_connection_Connection_open_uni_future;
-moq_moq_tokio_quic_driver_connection_Connection_open_uni_future *moq_moq_tokio_quic_driver_connection_Connection_open_uni(const moq_moq_tokio_quic_driver_connection_Connection *self, const moq_moq_tokio_quic_driver_send_Options *options, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_open_uni_start(const moq_moq_tokio_quic_driver_connection_Connection *self, const moq_moq_tokio_quic_driver_send_Options *options, moq_moq_tokio_quic_driver_send_Stream **out, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_open_uni_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_open_uni_poll(moq_moq_tokio_quic_driver_connection_Connection_open_uni_future *future, moq_waker waker, moq_moq_tokio_quic_driver_send_Stream **out, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_open_uni_future_free(moq_moq_tokio_quic_driver_connection_Connection_open_uni_future *future);
-moq_moq_tokio_quic_driver_send_Group *moq_moq_tokio_quic_driver_connection_Connection_send_group(const moq_moq_tokio_quic_driver_connection_Connection *self, int64_t priority);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_open_bi_future moq_moq_tokio_quic_driver_connection_Connection_open_bi_future;
-moq_moq_tokio_quic_driver_connection_Connection_open_bi_future *moq_moq_tokio_quic_driver_connection_Connection_open_bi(const moq_moq_tokio_quic_driver_connection_Connection *self, const moq_moq_tokio_quic_driver_send_Options *options, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_open_bi_start(const moq_moq_tokio_quic_driver_connection_Connection *self, const moq_moq_tokio_quic_driver_send_Options *options, moq_moq_tokio_quic_driver_send_Stream **out0, moq_moq_tokio_quic_driver_recv_Stream **out1, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_open_bi_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_open_bi_poll(moq_moq_tokio_quic_driver_connection_Connection_open_bi_future *future, moq_waker waker, moq_moq_tokio_quic_driver_send_Stream **out0, moq_moq_tokio_quic_driver_recv_Stream **out1, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_open_bi_future_free(moq_moq_tokio_quic_driver_connection_Connection_open_bi_future *future);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future;
-moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future *moq_moq_tokio_quic_driver_connection_Connection_accept_uni(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_accept_uni_start(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_moq_tokio_quic_driver_recv_Stream **out, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future **future);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_accept_uni_poll(moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future *future, moq_waker waker, moq_moq_tokio_quic_driver_recv_Stream **out, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future_free(moq_moq_tokio_quic_driver_connection_Connection_accept_uni_future *future);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future;
-moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future *moq_moq_tokio_quic_driver_connection_Connection_accept_bi(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_accept_bi_start(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_moq_tokio_quic_driver_send_Stream **out0, moq_moq_tokio_quic_driver_recv_Stream **out1, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future **future);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_accept_bi_poll(moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future *future, moq_waker waker, moq_moq_tokio_quic_driver_send_Stream **out0, moq_moq_tokio_quic_driver_recv_Stream **out1, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future_free(moq_moq_tokio_quic_driver_connection_Connection_accept_bi_future *future);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future;
-moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future *moq_moq_tokio_quic_driver_connection_Connection_read_datagram(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_read_datagram_start(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_buf *out, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future **future);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_read_datagram_poll(moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future *future, moq_waker waker, moq_buf *out, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future_free(moq_moq_tokio_quic_driver_connection_Connection_read_datagram_future *future);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future;
-moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future *moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_start(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_buf *out, moq_buf *err, moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future **future);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_poll(moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future *future, moq_waker waker, moq_buf *out, moq_buf *err);
-void moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future_free(moq_moq_tokio_quic_driver_connection_Connection_poll_recv_datagram_future *future);
-typedef struct moq_moq_tokio_quic_driver_connection_Connection_closed_future moq_moq_tokio_quic_driver_connection_Connection_closed_future;
-moq_moq_tokio_quic_driver_connection_Connection_closed_future *moq_moq_tokio_quic_driver_connection_Connection_closed(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_closed_start(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_moq_quic_Error **out, moq_moq_tokio_quic_driver_connection_Connection_closed_future **future);
-moq_poll moq_moq_tokio_quic_driver_connection_Connection_closed_poll(moq_moq_tokio_quic_driver_connection_Connection_closed_future *future, moq_waker waker, moq_moq_quic_Error **out);
-void moq_moq_tokio_quic_driver_connection_Connection_closed_future_free(moq_moq_tokio_quic_driver_connection_Connection_closed_future *future);
-moq_moq_quic_Error *moq_moq_tokio_quic_driver_connection_Connection_close_reason(const moq_moq_tokio_quic_driver_connection_Connection *self);
-void moq_moq_tokio_quic_driver_connection_Connection_close(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_moq_quic_VarInt error_code, moq_buf reason);
-bool moq_moq_tokio_quic_driver_connection_Connection_send_datagram(const moq_moq_tokio_quic_driver_connection_Connection *self, moq_buf data_, const moq_moq_tokio_quic_driver_send_Options *options, moq_moq_tokio_quic_driver_send_Error **err, moq_status *status);
-moq_option_usize moq_moq_tokio_quic_driver_connection_Connection_max_datagram_size(const moq_moq_tokio_quic_driver_connection_Connection *self);
-size_t moq_moq_tokio_quic_driver_connection_Connection_datagram_send_buffer_space(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_socket_addr moq_moq_tokio_quic_driver_connection_Connection_remote_address(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_duration moq_moq_tokio_quic_driver_connection_Connection_rtt(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_moq_quic_connection_Stats *moq_moq_tokio_quic_driver_connection_Connection_stats(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_moq_quic_crypto_HandshakeData *moq_moq_tokio_quic_driver_connection_Connection_handshake_data(const moq_moq_tokio_quic_driver_connection_Connection *self);
-moq_vec_rustls_pki_types_CertificateDer moq_moq_tokio_quic_driver_connection_Connection_peer_identity(const moq_moq_tokio_quic_driver_connection_Connection *self);
-size_t moq_moq_tokio_quic_driver_connection_Connection_stable_id(const moq_moq_tokio_quic_driver_connection_Connection *self);
-bool moq_moq_tokio_quic_driver_connection_Connection_set_limits(const moq_moq_tokio_quic_driver_connection_Connection *self, const moq_moq_quic_Limits *limits, moq_buf *err, moq_status *status);
+void moq_moq_tokio_server_Streams_free(moq_moq_tokio_server_Streams *self);
+void moq_moq_tokio_server_Streams_drop(moq_moq_tokio_server_Streams *self, moq_status *status);
+moq_buf moq_moq_tokio_server_Streams_debug(const moq_moq_tokio_server_Streams *self, moq_status *status);
+moq_moq_tokio_server_Streams *moq_moq_tokio_server_Streams_default(void);
+void moq_moq_tokio_server_QuicLimits_free(moq_moq_tokio_server_QuicLimits *self);
+moq_moq_tokio_server_QuicLimits *moq_moq_tokio_server_QuicLimits_clone(const moq_moq_tokio_server_QuicLimits *self);
+moq_buf moq_moq_tokio_server_QuicLimits_debug(const moq_moq_tokio_server_QuicLimits *self);
+bool moq_moq_tokio_server_QuicLimits_set(const moq_moq_tokio_server_QuicLimits *self, const moq_moq_quic_Limits *limits, moq_buf *err, moq_status *status);
 void moq_moq_quic_Limits_free(moq_moq_quic_Limits *self);
 void moq_moq_quic_Limits_drop(moq_moq_quic_Limits *self, moq_status *status);
 moq_moq_quic_Limits *moq_moq_quic_Limits_clone(const moq_moq_quic_Limits *self, moq_status *status);
@@ -11384,26 +9113,6 @@ void moq_moq_quic_Limits_receive_rate_set(moq_moq_quic_Limits *self, moq_option_
 moq_option_moq_quic_Rate moq_moq_quic_Limits_send_rate_get(const moq_moq_quic_Limits *self, moq_status *status);
 void moq_moq_quic_Limits_send_rate_set(moq_moq_quic_Limits *self, moq_option_moq_quic_Rate value, moq_status *status);
 bool moq_moq_quic_Limits_validate(const moq_moq_quic_Limits *self, moq_buf *err, moq_status *status);
-void moq_mp4_atom_Trak_free(moq_mp4_atom_Trak *self);
-void moq_mp4_atom_Trak_drop(moq_mp4_atom_Trak *self, moq_status *status);
-moq_mp4_atom_Trak *moq_mp4_atom_Trak_clone(const moq_mp4_atom_Trak *self, moq_status *status);
-bool moq_mp4_atom_Trak_eq(const moq_mp4_atom_Trak *a, const moq_mp4_atom_Trak *b, moq_status *status);
-moq_buf moq_mp4_atom_Trak_debug(const moq_mp4_atom_Trak *self, moq_status *status);
-moq_mp4_atom_Trak *moq_mp4_atom_Trak_default(void);
-moq_mp4_atom_Tkhd moq_mp4_atom_Trak_tkhd_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_tkhd_set(moq_mp4_atom_Trak *self, moq_mp4_atom_Tkhd value, moq_status *status);
-moq_option_mp4_atom_Edts moq_mp4_atom_Trak_edts_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_edts_set(moq_mp4_atom_Trak *self, moq_option_mp4_atom_Edts value, moq_status *status);
-moq_mp4_atom_Meta *moq_mp4_atom_Trak_meta_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_meta_set(moq_mp4_atom_Trak *self, moq_mp4_atom_Meta *value, moq_status *status);
-moq_mp4_atom_Mdia *moq_mp4_atom_Trak_mdia_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_mdia_set(moq_mp4_atom_Trak *self, moq_mp4_atom_Mdia *value, moq_status *status);
-moq_option_mp4_atom_Senc moq_mp4_atom_Trak_senc_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_senc_set(moq_mp4_atom_Trak *self, moq_option_mp4_atom_Senc value, moq_status *status);
-moq_option_mp4_atom_Tref moq_mp4_atom_Trak_tref_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_tref_set(moq_mp4_atom_Trak *self, moq_option_mp4_atom_Tref value, moq_status *status);
-moq_mp4_atom_Udta *moq_mp4_atom_Trak_udta_get(const moq_mp4_atom_Trak *self, moq_status *status);
-void moq_mp4_atom_Trak_udta_set(moq_mp4_atom_Trak *self, moq_mp4_atom_Udta *value, moq_status *status);
 void moq_moq_tokio_connect_Addr_free(moq_moq_tokio_connect_Addr *self);
 void moq_moq_tokio_connect_Addr_drop(moq_moq_tokio_connect_Addr *self, moq_status *status);
 bool moq_moq_tokio_connect_Addr_borrowed(const moq_moq_tokio_connect_Addr *self);
@@ -11414,198 +9123,6 @@ moq_moq_tokio_connect_Addr *moq_moq_tokio_connect_Addr_new(moq_Url *url, moq_sta
 bool moq_moq_tokio_connect_Addr_pinned(moq_Url *url, moq_vec_socket_addr addrs, moq_moq_tokio_connect_Addr **out, moq_moq_tokio_connect_Error *err, moq_status *status);
 moq_Url *moq_moq_tokio_connect_Addr_url(const moq_moq_tokio_connect_Addr *self, moq_status *status);
 moq_vec_socket_addr moq_moq_tokio_connect_Addr_addresses(const moq_moq_tokio_connect_Addr *self, moq_status *status);
-void moq_mp4_atom_Avc1_free(moq_mp4_atom_Avc1 *self);
-void moq_mp4_atom_Avc1_drop(moq_mp4_atom_Avc1 *self, moq_status *status);
-moq_mp4_atom_Avc1 *moq_mp4_atom_Avc1_clone(const moq_mp4_atom_Avc1 *self, moq_status *status);
-bool moq_mp4_atom_Avc1_eq(const moq_mp4_atom_Avc1 *a, const moq_mp4_atom_Avc1 *b, moq_status *status);
-moq_buf moq_mp4_atom_Avc1_debug(const moq_mp4_atom_Avc1 *self, moq_status *status);
-moq_mp4_atom_Avc1 *moq_mp4_atom_Avc1_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Avc1_visual_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_visual_set(moq_mp4_atom_Avc1 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_Avcc moq_mp4_atom_Avc1_avcc_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_avcc_set(moq_mp4_atom_Avc1 *self, moq_mp4_atom_Avcc value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Avc1_btrt_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_btrt_set(moq_mp4_atom_Avc1 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Avc1_colr_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_colr_set(moq_mp4_atom_Avc1 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Avc1_pasp_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_pasp_set(moq_mp4_atom_Avc1 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Taic moq_mp4_atom_Avc1_taic_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_taic_set(moq_mp4_atom_Avc1 *self, moq_option_mp4_atom_Taic value, moq_status *status);
-moq_option_mp4_atom_Fiel moq_mp4_atom_Avc1_fiel_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_fiel_set(moq_mp4_atom_Avc1 *self, moq_option_mp4_atom_Fiel value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Avc1_spatial_get(const moq_mp4_atom_Avc1 *self, moq_status *status);
-void moq_mp4_atom_Avc1_spatial_set(moq_mp4_atom_Avc1 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Avc3_free(moq_mp4_atom_Avc3 *self);
-void moq_mp4_atom_Avc3_drop(moq_mp4_atom_Avc3 *self, moq_status *status);
-moq_mp4_atom_Avc3 *moq_mp4_atom_Avc3_clone(const moq_mp4_atom_Avc3 *self, moq_status *status);
-bool moq_mp4_atom_Avc3_eq(const moq_mp4_atom_Avc3 *a, const moq_mp4_atom_Avc3 *b, moq_status *status);
-moq_buf moq_mp4_atom_Avc3_debug(const moq_mp4_atom_Avc3 *self, moq_status *status);
-moq_mp4_atom_Avc3 *moq_mp4_atom_Avc3_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Avc3_visual_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_visual_set(moq_mp4_atom_Avc3 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_Avcc moq_mp4_atom_Avc3_avcc_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_avcc_set(moq_mp4_atom_Avc3 *self, moq_mp4_atom_Avcc value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Avc3_btrt_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_btrt_set(moq_mp4_atom_Avc3 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Avc3_colr_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_colr_set(moq_mp4_atom_Avc3 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Avc3_pasp_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_pasp_set(moq_mp4_atom_Avc3 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Taic moq_mp4_atom_Avc3_taic_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_taic_set(moq_mp4_atom_Avc3 *self, moq_option_mp4_atom_Taic value, moq_status *status);
-moq_option_mp4_atom_Fiel moq_mp4_atom_Avc3_fiel_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_fiel_set(moq_mp4_atom_Avc3 *self, moq_option_mp4_atom_Fiel value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Avc3_spatial_get(const moq_mp4_atom_Avc3 *self, moq_status *status);
-void moq_mp4_atom_Avc3_spatial_set(moq_mp4_atom_Avc3 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Jpeg_free(moq_mp4_atom_Jpeg *self);
-void moq_mp4_atom_Jpeg_drop(moq_mp4_atom_Jpeg *self, moq_status *status);
-moq_mp4_atom_Jpeg *moq_mp4_atom_Jpeg_clone(const moq_mp4_atom_Jpeg *self, moq_status *status);
-bool moq_mp4_atom_Jpeg_eq(const moq_mp4_atom_Jpeg *a, const moq_mp4_atom_Jpeg *b, moq_status *status);
-moq_buf moq_mp4_atom_Jpeg_debug(const moq_mp4_atom_Jpeg *self, moq_status *status);
-moq_mp4_atom_Jpeg *moq_mp4_atom_Jpeg_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Jpeg_visual_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_visual_set(moq_mp4_atom_Jpeg *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Jpeg_btrt_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_btrt_set(moq_mp4_atom_Jpeg *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Jpeg_colr_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_colr_set(moq_mp4_atom_Jpeg *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Jpeg_pasp_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_pasp_set(moq_mp4_atom_Jpeg *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Fiel moq_mp4_atom_Jpeg_fiel_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_fiel_set(moq_mp4_atom_Jpeg *self, moq_option_mp4_atom_Fiel value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Jpeg_spatial_get(const moq_mp4_atom_Jpeg *self, moq_status *status);
-void moq_mp4_atom_Jpeg_spatial_set(moq_mp4_atom_Jpeg *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Hev1_free(moq_mp4_atom_Hev1 *self);
-void moq_mp4_atom_Hev1_drop(moq_mp4_atom_Hev1 *self, moq_status *status);
-moq_mp4_atom_Hev1 *moq_mp4_atom_Hev1_clone(const moq_mp4_atom_Hev1 *self, moq_status *status);
-bool moq_mp4_atom_Hev1_eq(const moq_mp4_atom_Hev1 *a, const moq_mp4_atom_Hev1 *b, moq_status *status);
-moq_buf moq_mp4_atom_Hev1_debug(const moq_mp4_atom_Hev1 *self, moq_status *status);
-moq_mp4_atom_Hev1 *moq_mp4_atom_Hev1_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Hev1_visual_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_visual_set(moq_mp4_atom_Hev1 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_Hvcc moq_mp4_atom_Hev1_hvcc_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_hvcc_set(moq_mp4_atom_Hev1 *self, moq_mp4_atom_Hvcc value, moq_status *status);
-moq_option_mp4_atom_Lhvc moq_mp4_atom_Hev1_lhvc_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_lhvc_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Lhvc value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Hev1_btrt_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_btrt_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Hev1_colr_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_colr_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Hev1_pasp_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_pasp_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Taic moq_mp4_atom_Hev1_taic_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_taic_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Taic value, moq_status *status);
-moq_option_mp4_atom_Fiel moq_mp4_atom_Hev1_fiel_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_fiel_set(moq_mp4_atom_Hev1 *self, moq_option_mp4_atom_Fiel value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Hev1_spatial_get(const moq_mp4_atom_Hev1 *self, moq_status *status);
-void moq_mp4_atom_Hev1_spatial_set(moq_mp4_atom_Hev1 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Hvc1_free(moq_mp4_atom_Hvc1 *self);
-void moq_mp4_atom_Hvc1_drop(moq_mp4_atom_Hvc1 *self, moq_status *status);
-moq_mp4_atom_Hvc1 *moq_mp4_atom_Hvc1_clone(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-bool moq_mp4_atom_Hvc1_eq(const moq_mp4_atom_Hvc1 *a, const moq_mp4_atom_Hvc1 *b, moq_status *status);
-moq_buf moq_mp4_atom_Hvc1_debug(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-moq_mp4_atom_Hvc1 *moq_mp4_atom_Hvc1_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Hvc1_visual_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_visual_set(moq_mp4_atom_Hvc1 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_Hvcc moq_mp4_atom_Hvc1_hvcc_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_hvcc_set(moq_mp4_atom_Hvc1 *self, moq_mp4_atom_Hvcc value, moq_status *status);
-moq_option_mp4_atom_Lhvc moq_mp4_atom_Hvc1_lhvc_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_lhvc_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Lhvc value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Hvc1_btrt_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_btrt_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Hvc1_colr_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_colr_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Hvc1_pasp_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_pasp_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Taic moq_mp4_atom_Hvc1_taic_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_taic_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Taic value, moq_status *status);
-moq_option_mp4_atom_Fiel moq_mp4_atom_Hvc1_fiel_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_fiel_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Fiel value, moq_status *status);
-moq_option_mp4_atom_Ccst moq_mp4_atom_Hvc1_ccst_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_ccst_set(moq_mp4_atom_Hvc1 *self, moq_option_mp4_atom_Ccst value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Hvc1_spatial_get(const moq_mp4_atom_Hvc1 *self, moq_status *status);
-void moq_mp4_atom_Hvc1_spatial_set(moq_mp4_atom_Hvc1 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Vp08_free(moq_mp4_atom_Vp08 *self);
-void moq_mp4_atom_Vp08_drop(moq_mp4_atom_Vp08 *self, moq_status *status);
-moq_mp4_atom_Vp08 *moq_mp4_atom_Vp08_clone(const moq_mp4_atom_Vp08 *self, moq_status *status);
-bool moq_mp4_atom_Vp08_eq(const moq_mp4_atom_Vp08 *a, const moq_mp4_atom_Vp08 *b, moq_status *status);
-moq_buf moq_mp4_atom_Vp08_debug(const moq_mp4_atom_Vp08 *self, moq_status *status);
-moq_mp4_atom_Vp08 *moq_mp4_atom_Vp08_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Vp08_visual_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_visual_set(moq_mp4_atom_Vp08 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_VpcC moq_mp4_atom_Vp08_vpcc_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_vpcc_set(moq_mp4_atom_Vp08 *self, moq_mp4_atom_VpcC value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Vp08_btrt_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_btrt_set(moq_mp4_atom_Vp08 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Vp08_colr_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_colr_set(moq_mp4_atom_Vp08 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Vp08_pasp_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_pasp_set(moq_mp4_atom_Vp08 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Vp08_spatial_get(const moq_mp4_atom_Vp08 *self, moq_status *status);
-void moq_mp4_atom_Vp08_spatial_set(moq_mp4_atom_Vp08 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Vp09_free(moq_mp4_atom_Vp09 *self);
-void moq_mp4_atom_Vp09_drop(moq_mp4_atom_Vp09 *self, moq_status *status);
-moq_mp4_atom_Vp09 *moq_mp4_atom_Vp09_clone(const moq_mp4_atom_Vp09 *self, moq_status *status);
-bool moq_mp4_atom_Vp09_eq(const moq_mp4_atom_Vp09 *a, const moq_mp4_atom_Vp09 *b, moq_status *status);
-moq_buf moq_mp4_atom_Vp09_debug(const moq_mp4_atom_Vp09 *self, moq_status *status);
-moq_mp4_atom_Vp09 *moq_mp4_atom_Vp09_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Vp09_visual_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_visual_set(moq_mp4_atom_Vp09 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_VpcC moq_mp4_atom_Vp09_vpcc_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_vpcc_set(moq_mp4_atom_Vp09 *self, moq_mp4_atom_VpcC value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Vp09_btrt_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_btrt_set(moq_mp4_atom_Vp09 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Vp09_colr_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_colr_set(moq_mp4_atom_Vp09 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Vp09_pasp_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_pasp_set(moq_mp4_atom_Vp09 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Vp09_spatial_get(const moq_mp4_atom_Vp09 *self, moq_status *status);
-void moq_mp4_atom_Vp09_spatial_set(moq_mp4_atom_Vp09 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Av01_free(moq_mp4_atom_Av01 *self);
-void moq_mp4_atom_Av01_drop(moq_mp4_atom_Av01 *self, moq_status *status);
-moq_mp4_atom_Av01 *moq_mp4_atom_Av01_clone(const moq_mp4_atom_Av01 *self, moq_status *status);
-bool moq_mp4_atom_Av01_eq(const moq_mp4_atom_Av01 *a, const moq_mp4_atom_Av01 *b, moq_status *status);
-moq_buf moq_mp4_atom_Av01_debug(const moq_mp4_atom_Av01 *self, moq_status *status);
-moq_mp4_atom_Av01 *moq_mp4_atom_Av01_default(void);
-moq_mp4_atom_Visual *moq_mp4_atom_Av01_visual_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_visual_set(moq_mp4_atom_Av01 *self, moq_mp4_atom_Visual *value, moq_status *status);
-moq_mp4_atom_Av1c moq_mp4_atom_Av01_av1c_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_av1c_set(moq_mp4_atom_Av01 *self, moq_mp4_atom_Av1c value, moq_status *status);
-moq_option_mp4_atom_Btrt moq_mp4_atom_Av01_btrt_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_btrt_set(moq_mp4_atom_Av01 *self, moq_option_mp4_atom_Btrt value, moq_status *status);
-moq_option_mp4_atom_Ccst moq_mp4_atom_Av01_ccst_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_ccst_set(moq_mp4_atom_Av01 *self, moq_option_mp4_atom_Ccst value, moq_status *status);
-moq_option_mp4_atom_Colr moq_mp4_atom_Av01_colr_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_colr_set(moq_mp4_atom_Av01 *self, moq_option_mp4_atom_Colr value, moq_status *status);
-moq_option_mp4_atom_Pasp moq_mp4_atom_Av01_pasp_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_pasp_set(moq_mp4_atom_Av01 *self, moq_option_mp4_atom_Pasp value, moq_status *status);
-moq_option_mp4_atom_Taic moq_mp4_atom_Av01_taic_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_taic_set(moq_mp4_atom_Av01 *self, moq_option_mp4_atom_Taic value, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Av01_spatial_get(const moq_mp4_atom_Av01 *self, moq_status *status);
-void moq_mp4_atom_Av01_spatial_set(moq_mp4_atom_Av01 *self, moq_mp4_atom_Spatial *value, moq_status *status);
-void moq_mp4_atom_Tx3g_free(moq_mp4_atom_Tx3g *self);
-void moq_mp4_atom_Tx3g_drop(moq_mp4_atom_Tx3g *self, moq_status *status);
-moq_mp4_atom_Tx3g *moq_mp4_atom_Tx3g_clone(const moq_mp4_atom_Tx3g *self, moq_status *status);
-bool moq_mp4_atom_Tx3g_eq(const moq_mp4_atom_Tx3g *a, const moq_mp4_atom_Tx3g *b, moq_status *status);
-moq_buf moq_mp4_atom_Tx3g_debug(const moq_mp4_atom_Tx3g *self, moq_status *status);
-moq_mp4_atom_Tx3g *moq_mp4_atom_Tx3g_default(void);
-uint16_t moq_mp4_atom_Tx3g_data_reference_index_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_data_reference_index_set(moq_mp4_atom_Tx3g *self, uint16_t value, moq_status *status);
-uint32_t moq_mp4_atom_Tx3g_display_flags_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_display_flags_set(moq_mp4_atom_Tx3g *self, uint32_t value, moq_status *status);
-int8_t moq_mp4_atom_Tx3g_horizontal_justification_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_horizontal_justification_set(moq_mp4_atom_Tx3g *self, int8_t value, moq_status *status);
-int8_t moq_mp4_atom_Tx3g_vertical_justification_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_vertical_justification_set(moq_mp4_atom_Tx3g *self, int8_t value, moq_status *status);
-moq_mp4_atom_RgbaColor moq_mp4_atom_Tx3g_bg_color_rgba_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_bg_color_rgba_set(moq_mp4_atom_Tx3g *self, moq_mp4_atom_RgbaColor value, moq_status *status);
-moq_array_u8_12 moq_mp4_atom_Tx3g_style_record_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_style_record_set(moq_mp4_atom_Tx3g *self, moq_array_u8_12 value, moq_status *status);
-moq_option_mp4_atom_Ftab moq_mp4_atom_Tx3g_ftab_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_ftab_set(moq_mp4_atom_Tx3g *self, moq_option_mp4_atom_Ftab value, moq_status *status);
-moq_option_mp4_atom_Disp moq_mp4_atom_Tx3g_disp_get(const moq_mp4_atom_Tx3g *self, moq_status *status);
-void moq_mp4_atom_Tx3g_disp_set(moq_mp4_atom_Tx3g *self, moq_option_mp4_atom_Disp value, moq_status *status);
 void moq_rustls_pki_types_TrustAnchor_free(moq_rustls_pki_types_TrustAnchor *self);
 void moq_rustls_pki_types_TrustAnchor_drop(moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
 moq_rustls_pki_types_TrustAnchor *moq_rustls_pki_types_TrustAnchor_clone(const moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
@@ -11619,6 +9136,11 @@ void moq_rustls_pki_types_TrustAnchor_subject_public_key_info_set(moq_rustls_pki
 moq_rustls_pki_types_Der *moq_rustls_pki_types_TrustAnchor_name_constraints_get(const moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
 void moq_rustls_pki_types_TrustAnchor_name_constraints_set(moq_rustls_pki_types_TrustAnchor *self, moq_rustls_pki_types_Der *value, moq_status *status);
 moq_rustls_pki_types_TrustAnchor *moq_rustls_pki_types_TrustAnchor_to_owned(const moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
+void moq_moq_tokio_connection_Phase_free(moq_moq_tokio_connection_Phase *self);
+void moq_moq_tokio_connection_Phase_drop(moq_moq_tokio_connection_Phase *self, moq_status *status);
+bool moq_moq_tokio_connection_Phase_borrowed(const moq_moq_tokio_connection_Phase *self);
+moq_moq_tokio_connection_Phase *moq_moq_tokio_connection_Phase_clone(const moq_moq_tokio_connection_Phase *self, moq_status *status);
+moq_buf moq_moq_tokio_connection_Phase_debug(const moq_moq_tokio_connection_Phase *self, moq_status *status);
 void moq_moq_tokio_quic_ServerId_free(moq_moq_tokio_quic_ServerId *self);
 void moq_moq_tokio_quic_ServerId_drop(moq_moq_tokio_quic_ServerId *self, moq_status *status);
 bool moq_moq_tokio_quic_ServerId_borrowed(const moq_moq_tokio_quic_ServerId *self);
@@ -11637,102 +9159,6 @@ moq_buf moq_moq_tokio_listen_Forward_key_get(const moq_moq_tokio_listen_Forward 
 void moq_moq_tokio_listen_Forward_key_set(moq_moq_tokio_listen_Forward *self, moq_buf value, moq_status *status);
 moq_buf moq_moq_tokio_listen_Forward_peers_get(const moq_moq_tokio_listen_Forward *self, moq_status *status);
 void moq_moq_tokio_listen_Forward_peers_set(moq_moq_tokio_listen_Forward *self, moq_buf value, moq_status *status);
-bool moq_moq_tokio_listen_Forward_configured(const moq_moq_tokio_listen_Forward *self, moq_status *status);
-void moq_mp4_atom_Meta_free(moq_mp4_atom_Meta *self);
-void moq_mp4_atom_Meta_drop(moq_mp4_atom_Meta *self, moq_status *status);
-moq_mp4_atom_Meta *moq_mp4_atom_Meta_clone(const moq_mp4_atom_Meta *self, moq_status *status);
-bool moq_mp4_atom_Meta_eq(const moq_mp4_atom_Meta *a, const moq_mp4_atom_Meta *b, moq_status *status);
-moq_buf moq_mp4_atom_Meta_debug(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_mp4_atom_Hdlr moq_mp4_atom_Meta_hdlr_get(const moq_mp4_atom_Meta *self, moq_status *status);
-void moq_mp4_atom_Meta_hdlr_set(moq_mp4_atom_Meta *self, moq_mp4_atom_Hdlr value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Meta_items_get(const moq_mp4_atom_Meta *self, moq_status *status);
-void moq_mp4_atom_Meta_items_set(moq_mp4_atom_Meta *self, moq_vec_mp4_atom_Any value, moq_status *status);
-moq_option_mp4_atom_Pitm moq_mp4_atom_Meta_get_Pitm(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Dinf moq_mp4_atom_Meta_get_Dinf(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iloc moq_mp4_atom_Meta_get_Iloc(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iinf moq_mp4_atom_Meta_get_Iinf(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_mp4_atom_Iprp *moq_mp4_atom_Meta_get_Iprp(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iref moq_mp4_atom_Meta_get_Iref(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Idat moq_mp4_atom_Meta_get_Idat(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Ilst moq_mp4_atom_Meta_get_Ilst(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Keys moq_mp4_atom_Meta_get_Keys(const moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Pitm moq_mp4_atom_Meta_get_mut_Pitm(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Dinf moq_mp4_atom_Meta_get_mut_Dinf(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iloc moq_mp4_atom_Meta_get_mut_Iloc(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iinf moq_mp4_atom_Meta_get_mut_Iinf(moq_mp4_atom_Meta *self, moq_status *status);
-moq_mp4_atom_Iprp *moq_mp4_atom_Meta_get_mut_Iprp(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iref moq_mp4_atom_Meta_get_mut_Iref(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Idat moq_mp4_atom_Meta_get_mut_Idat(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Ilst moq_mp4_atom_Meta_get_mut_Ilst(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Keys moq_mp4_atom_Meta_get_mut_Keys(moq_mp4_atom_Meta *self, moq_status *status);
-void moq_mp4_atom_Meta_push_Pitm(moq_mp4_atom_Meta *self, moq_mp4_atom_Pitm atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Dinf(moq_mp4_atom_Meta *self, moq_mp4_atom_Dinf atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Iloc(moq_mp4_atom_Meta *self, moq_mp4_atom_Iloc atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Iinf(moq_mp4_atom_Meta *self, moq_mp4_atom_Iinf atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Iprp(moq_mp4_atom_Meta *self, moq_mp4_atom_Iprp *atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Iref(moq_mp4_atom_Meta *self, moq_mp4_atom_Iref atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Idat(moq_mp4_atom_Meta *self, moq_mp4_atom_Idat atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Ilst(moq_mp4_atom_Meta *self, moq_mp4_atom_Ilst atom, moq_status *status);
-void moq_mp4_atom_Meta_push_Keys(moq_mp4_atom_Meta *self, moq_mp4_atom_Keys atom, moq_status *status);
-moq_option_mp4_atom_Pitm moq_mp4_atom_Meta_remove_Pitm(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Dinf moq_mp4_atom_Meta_remove_Dinf(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iloc moq_mp4_atom_Meta_remove_Iloc(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iinf moq_mp4_atom_Meta_remove_Iinf(moq_mp4_atom_Meta *self, moq_status *status);
-moq_mp4_atom_Iprp *moq_mp4_atom_Meta_remove_Iprp(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Iref moq_mp4_atom_Meta_remove_Iref(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Idat moq_mp4_atom_Meta_remove_Idat(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Ilst moq_mp4_atom_Meta_remove_Ilst(moq_mp4_atom_Meta *self, moq_status *status);
-moq_option_mp4_atom_Keys moq_mp4_atom_Meta_remove_Keys(moq_mp4_atom_Meta *self, moq_status *status);
-void moq_mp4_atom_Mdia_free(moq_mp4_atom_Mdia *self);
-void moq_mp4_atom_Mdia_drop(moq_mp4_atom_Mdia *self, moq_status *status);
-moq_mp4_atom_Mdia *moq_mp4_atom_Mdia_clone(const moq_mp4_atom_Mdia *self, moq_status *status);
-bool moq_mp4_atom_Mdia_eq(const moq_mp4_atom_Mdia *a, const moq_mp4_atom_Mdia *b, moq_status *status);
-moq_buf moq_mp4_atom_Mdia_debug(const moq_mp4_atom_Mdia *self, moq_status *status);
-moq_mp4_atom_Mdia *moq_mp4_atom_Mdia_default(void);
-moq_mp4_atom_Mdhd moq_mp4_atom_Mdia_mdhd_get(const moq_mp4_atom_Mdia *self, moq_status *status);
-void moq_mp4_atom_Mdia_mdhd_set(moq_mp4_atom_Mdia *self, moq_mp4_atom_Mdhd value, moq_status *status);
-moq_mp4_atom_Hdlr moq_mp4_atom_Mdia_hdlr_get(const moq_mp4_atom_Mdia *self, moq_status *status);
-void moq_mp4_atom_Mdia_hdlr_set(moq_mp4_atom_Mdia *self, moq_mp4_atom_Hdlr value, moq_status *status);
-moq_mp4_atom_Minf *moq_mp4_atom_Mdia_minf_get(const moq_mp4_atom_Mdia *self, moq_status *status);
-void moq_mp4_atom_Mdia_minf_set(moq_mp4_atom_Mdia *self, moq_mp4_atom_Minf *value, moq_status *status);
-void moq_mp4_atom_Udta_free(moq_mp4_atom_Udta *self);
-void moq_mp4_atom_Udta_drop(moq_mp4_atom_Udta *self, moq_status *status);
-moq_mp4_atom_Udta *moq_mp4_atom_Udta_clone(const moq_mp4_atom_Udta *self, moq_status *status);
-bool moq_mp4_atom_Udta_eq(const moq_mp4_atom_Udta *a, const moq_mp4_atom_Udta *b, moq_status *status);
-moq_buf moq_mp4_atom_Udta_debug(const moq_mp4_atom_Udta *self, moq_status *status);
-moq_mp4_atom_Udta *moq_mp4_atom_Udta_default(void);
-moq_option_mp4_atom_Chpl moq_mp4_atom_Udta_chpl_get(const moq_mp4_atom_Udta *self, moq_status *status);
-void moq_mp4_atom_Udta_chpl_set(moq_mp4_atom_Udta *self, moq_option_mp4_atom_Chpl value, moq_status *status);
-moq_vec_mp4_atom_Cprt moq_mp4_atom_Udta_cprt_get(const moq_mp4_atom_Udta *self, moq_status *status);
-void moq_mp4_atom_Udta_cprt_set(moq_mp4_atom_Udta *self, moq_vec_mp4_atom_Cprt value, moq_status *status);
-moq_vec_mp4_atom_Kind moq_mp4_atom_Udta_kind_get(const moq_mp4_atom_Udta *self, moq_status *status);
-void moq_mp4_atom_Udta_kind_set(moq_mp4_atom_Udta *self, moq_vec_mp4_atom_Kind value, moq_status *status);
-moq_mp4_atom_Meta *moq_mp4_atom_Udta_meta_get(const moq_mp4_atom_Udta *self, moq_status *status);
-void moq_mp4_atom_Udta_meta_set(moq_mp4_atom_Udta *self, moq_mp4_atom_Meta *value, moq_status *status);
-moq_vec_mp4_atom_Rtng moq_mp4_atom_Udta_rtng_get(const moq_mp4_atom_Udta *self, moq_status *status);
-void moq_mp4_atom_Udta_rtng_set(moq_mp4_atom_Udta *self, moq_vec_mp4_atom_Rtng value, moq_status *status);
-void moq_mp4_atom_Visual_free(moq_mp4_atom_Visual *self);
-void moq_mp4_atom_Visual_drop(moq_mp4_atom_Visual *self, moq_status *status);
-moq_mp4_atom_Visual *moq_mp4_atom_Visual_clone(const moq_mp4_atom_Visual *self, moq_status *status);
-bool moq_mp4_atom_Visual_eq(const moq_mp4_atom_Visual *a, const moq_mp4_atom_Visual *b, moq_status *status);
-moq_buf moq_mp4_atom_Visual_debug(const moq_mp4_atom_Visual *self, moq_status *status);
-moq_mp4_atom_Visual *moq_mp4_atom_Visual_default(void);
-uint16_t moq_mp4_atom_Visual_data_reference_index_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_data_reference_index_set(moq_mp4_atom_Visual *self, uint16_t value, moq_status *status);
-uint16_t moq_mp4_atom_Visual_width_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_width_set(moq_mp4_atom_Visual *self, uint16_t value, moq_status *status);
-uint16_t moq_mp4_atom_Visual_height_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_height_set(moq_mp4_atom_Visual *self, uint16_t value, moq_status *status);
-moq_mp4_atom_FixedPoint_u16 moq_mp4_atom_Visual_horizresolution_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_horizresolution_set(moq_mp4_atom_Visual *self, moq_mp4_atom_FixedPoint_u16 value, moq_status *status);
-moq_mp4_atom_FixedPoint_u16 moq_mp4_atom_Visual_vertresolution_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_vertresolution_set(moq_mp4_atom_Visual *self, moq_mp4_atom_FixedPoint_u16 value, moq_status *status);
-uint16_t moq_mp4_atom_Visual_frame_count_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_frame_count_set(moq_mp4_atom_Visual *self, uint16_t value, moq_status *status);
-moq_mp4_atom_Compressor *moq_mp4_atom_Visual_compressor_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_compressor_set(moq_mp4_atom_Visual *self, moq_mp4_atom_Compressor *value, moq_status *status);
-uint16_t moq_mp4_atom_Visual_depth_get(const moq_mp4_atom_Visual *self, moq_status *status);
-void moq_mp4_atom_Visual_depth_set(moq_mp4_atom_Visual *self, uint16_t value, moq_status *status);
 void moq_rustls_client_danger_DangerousClientConfig_free(moq_rustls_client_danger_DangerousClientConfig *self);
 void moq_rustls_client_danger_DangerousClientConfig_drop(moq_rustls_client_danger_DangerousClientConfig *self, moq_status *status);
 moq_buf moq_rustls_client_danger_DangerousClientConfig_debug(const moq_rustls_client_danger_DangerousClientConfig *self, moq_status *status);
@@ -11772,6 +9198,16 @@ void moq_moq_tokio_unix_Allow_pid_set(moq_moq_tokio_unix_Allow *self, moq_vec_i3
 void moq_moq_tokio_websocket_Error_free(moq_moq_tokio_websocket_Error *self);
 moq_buf moq_moq_tokio_websocket_Error_to_string(const moq_moq_tokio_websocket_Error *self);
 moq_buf moq_moq_tokio_websocket_Error_debug(const moq_moq_tokio_websocket_Error *self);
+void moq_qmux_Session_free(moq_qmux_Session *self);
+void moq_qmux_Session_drop(moq_qmux_Session *self, moq_status *status);
+bool moq_qmux_Session_borrowed(const moq_qmux_Session *self);
+moq_qmux_Session *moq_qmux_Session_clone(const moq_qmux_Session *self, moq_status *status);
+moq_buf moq_qmux_Session_debug(const moq_qmux_Session *self, moq_status *status);
+moq_buf moq_qmux_Session_protocol(const moq_qmux_Session *self, moq_status *status);
+moq_moq_quic_connection_mux_Version moq_qmux_Session_version(const moq_qmux_Session *self, moq_status *status);
+bool moq_qmux_Session_set_limits(const moq_qmux_Session *self, const moq_moq_quic_Limits *limits, moq_buf *err, moq_status *status);
+moq_vec_rustls_pki_types_CertificateDer moq_qmux_Session_peer_certificates(const moq_qmux_Session *self, moq_status *status);
+moq_buf moq_qmux_Session_server_name(const moq_qmux_Session *self, moq_status *status);
 void moq_moq_sock_demux_Counters_free(moq_moq_sock_demux_Counters *self);
 bool moq_moq_sock_demux_Counters_borrowed(const moq_moq_sock_demux_Counters *self);
 moq_moq_sock_demux_Counters *moq_moq_sock_demux_Counters_clone(const moq_moq_sock_demux_Counters *self);
@@ -11787,152 +9223,6 @@ moq_poll moq_moq_tokio_quic_demux_WebRtc_recv_start(const moq_moq_tokio_quic_dem
 moq_poll moq_moq_tokio_quic_demux_WebRtc_recv_poll(moq_moq_tokio_quic_demux_WebRtc_recv_future *future, moq_waker waker, moq_moq_tokio_quic_demux_Datagram **out);
 void moq_moq_tokio_quic_demux_WebRtc_recv_future_free(moq_moq_tokio_quic_demux_WebRtc_recv_future *future);
 moq_moq_sock_demux_Pin *moq_moq_tokio_quic_demux_WebRtc_pin(const moq_moq_tokio_quic_demux_WebRtc *self, moq_socket_addr remote);
-void moq_moq_tokio_quic_driver_send_Options_free(moq_moq_tokio_quic_driver_send_Options *self);
-void moq_moq_tokio_quic_driver_send_Options_drop(moq_moq_tokio_quic_driver_send_Options *self, moq_status *status);
-moq_moq_tokio_quic_driver_send_Options *moq_moq_tokio_quic_driver_send_Options_clone(const moq_moq_tokio_quic_driver_send_Options *self, moq_status *status);
-moq_buf moq_moq_tokio_quic_driver_send_Options_debug(const moq_moq_tokio_quic_driver_send_Options *self, moq_status *status);
-moq_moq_tokio_quic_driver_send_Options *moq_moq_tokio_quic_driver_send_Options_default(void);
-int64_t moq_moq_tokio_quic_driver_send_Options_priority_get(const moq_moq_tokio_quic_driver_send_Options *self, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Options_priority_set(moq_moq_tokio_quic_driver_send_Options *self, int64_t value, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Stream_free(moq_moq_tokio_quic_driver_send_Stream *self);
-void moq_moq_tokio_quic_driver_send_Stream_drop(moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-moq_buf moq_moq_tokio_quic_driver_send_Stream_debug(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-typedef struct moq_moq_tokio_quic_driver_send_Stream_write_all_future moq_moq_tokio_quic_driver_send_Stream_write_all_future;
-moq_moq_tokio_quic_driver_send_Stream_write_all_future *moq_moq_tokio_quic_driver_send_Stream_write_all(moq_moq_tokio_quic_driver_send_Stream *self, moq_buf buf, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_write_all_start(moq_moq_tokio_quic_driver_send_Stream *self, moq_buf buf, moq_moq_tokio_quic_driver_send_Error **err, moq_moq_tokio_quic_driver_send_Stream_write_all_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_write_all_poll(moq_moq_tokio_quic_driver_send_Stream_write_all_future *future, moq_waker waker, moq_moq_tokio_quic_driver_send_Error **err);
-void moq_moq_tokio_quic_driver_send_Stream_write_all_future_free(moq_moq_tokio_quic_driver_send_Stream_write_all_future *future);
-typedef struct moq_moq_tokio_quic_driver_send_Stream_finish_future moq_moq_tokio_quic_driver_send_Stream_finish_future;
-moq_moq_tokio_quic_driver_send_Stream_finish_future *moq_moq_tokio_quic_driver_send_Stream_finish(moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_finish_start(moq_moq_tokio_quic_driver_send_Stream *self, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err, moq_moq_tokio_quic_driver_send_Stream_finish_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_finish_poll(moq_moq_tokio_quic_driver_send_Stream_finish_future *future, moq_waker waker, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err);
-void moq_moq_tokio_quic_driver_send_Stream_finish_future_free(moq_moq_tokio_quic_driver_send_Stream_finish_future *future);
-void moq_moq_tokio_quic_driver_send_Stream_reset(moq_moq_tokio_quic_driver_send_Stream *self, moq_moq_quic_VarInt error_code, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Stream_reset_at(moq_moq_tokio_quic_driver_send_Stream *self, const moq_moq_tokio_quic_driver_send_Offset *offset, moq_moq_quic_VarInt error_code, moq_status *status);
-moq_moq_tokio_quic_driver_send_Offset *moq_moq_tokio_quic_driver_send_Stream_offset(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Stream_set_priority(moq_moq_tokio_quic_driver_send_Stream *self, int64_t priority, moq_status *status);
-int64_t moq_moq_tokio_quic_driver_send_Stream_priority(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Stream_set_group(moq_moq_tokio_quic_driver_send_Stream *self, const moq_moq_tokio_quic_driver_send_Group *group, moq_status *status);
-typedef struct moq_moq_tokio_quic_driver_send_Stream_stopped_future moq_moq_tokio_quic_driver_send_Stream_stopped_future;
-moq_moq_tokio_quic_driver_send_Stream_stopped_future *moq_moq_tokio_quic_driver_send_Stream_stopped(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_stopped_start(const moq_moq_tokio_quic_driver_send_Stream *self, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err, moq_moq_tokio_quic_driver_send_Stream_stopped_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_stopped_poll(moq_moq_tokio_quic_driver_send_Stream_stopped_future *future, moq_waker waker, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err);
-void moq_moq_tokio_quic_driver_send_Stream_stopped_future_free(moq_moq_tokio_quic_driver_send_Stream_stopped_future *future);
-typedef struct moq_moq_tokio_quic_driver_send_Stream_poll_closed_future moq_moq_tokio_quic_driver_send_Stream_poll_closed_future;
-moq_moq_tokio_quic_driver_send_Stream_poll_closed_future *moq_moq_tokio_quic_driver_send_Stream_poll_closed(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_poll_closed_start(const moq_moq_tokio_quic_driver_send_Stream *self, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err, moq_moq_tokio_quic_driver_send_Stream_poll_closed_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_send_Stream_poll_closed_poll(moq_moq_tokio_quic_driver_send_Stream_poll_closed_future *future, moq_waker waker, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_send_Error **err);
-void moq_moq_tokio_quic_driver_send_Stream_poll_closed_future_free(moq_moq_tokio_quic_driver_send_Stream_poll_closed_future *future);
-moq_moq_quic_stream_Id moq_moq_tokio_quic_driver_send_Stream_id(const moq_moq_tokio_quic_driver_send_Stream *self, moq_status *status);
-void moq_moq_tokio_quic_driver_send_Group_free(moq_moq_tokio_quic_driver_send_Group *self);
-bool moq_moq_tokio_quic_driver_send_Group_borrowed(const moq_moq_tokio_quic_driver_send_Group *self);
-moq_moq_tokio_quic_driver_send_Group *moq_moq_tokio_quic_driver_send_Group_clone(const moq_moq_tokio_quic_driver_send_Group *self);
-moq_buf moq_moq_tokio_quic_driver_send_Group_debug(const moq_moq_tokio_quic_driver_send_Group *self);
-void moq_moq_tokio_quic_driver_send_Group_set_priority(const moq_moq_tokio_quic_driver_send_Group *self, int64_t priority);
-int64_t moq_moq_tokio_quic_driver_send_Group_priority(const moq_moq_tokio_quic_driver_send_Group *self);
-void moq_moq_tokio_quic_driver_recv_Stream_free(moq_moq_tokio_quic_driver_recv_Stream *self);
-void moq_moq_tokio_quic_driver_recv_Stream_drop(moq_moq_tokio_quic_driver_recv_Stream *self, moq_status *status);
-moq_buf moq_moq_tokio_quic_driver_recv_Stream_debug(const moq_moq_tokio_quic_driver_recv_Stream *self, moq_status *status);
-typedef struct moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future;
-moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future *moq_moq_tokio_quic_driver_recv_Stream_read_chunk(moq_moq_tokio_quic_driver_recv_Stream *self, size_t max, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_read_chunk_start(moq_moq_tokio_quic_driver_recv_Stream *self, size_t max, moq_buf *out, moq_moq_tokio_quic_driver_recv_Error **err, moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_read_chunk_poll(moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future *future, moq_waker waker, moq_buf *out, moq_moq_tokio_quic_driver_recv_Error **err);
-void moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future_free(moq_moq_tokio_quic_driver_recv_Stream_read_chunk_future *future);
-typedef struct moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future;
-moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future *moq_moq_tokio_quic_driver_recv_Stream_read_to_end(moq_moq_tokio_quic_driver_recv_Stream *self, size_t limit, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_read_to_end_start(moq_moq_tokio_quic_driver_recv_Stream *self, size_t limit, moq_buf *out, moq_moq_tokio_quic_driver_recv_Error **err, moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_read_to_end_poll(moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future *future, moq_waker waker, moq_buf *out, moq_moq_tokio_quic_driver_recv_Error **err);
-void moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future_free(moq_moq_tokio_quic_driver_recv_Stream_read_to_end_future *future);
-void moq_moq_tokio_quic_driver_recv_Stream_set_priority(moq_moq_tokio_quic_driver_recv_Stream *self, int64_t priority, moq_status *status);
-void moq_moq_tokio_quic_driver_recv_Stream_stop(moq_moq_tokio_quic_driver_recv_Stream *self, moq_moq_quic_VarInt error_code, moq_status *status);
-moq_moq_quic_stream_Id moq_moq_tokio_quic_driver_recv_Stream_id(const moq_moq_tokio_quic_driver_recv_Stream *self, moq_status *status);
-typedef struct moq_moq_tokio_quic_driver_recv_Stream_received_reset_future moq_moq_tokio_quic_driver_recv_Stream_received_reset_future;
-moq_moq_tokio_quic_driver_recv_Stream_received_reset_future *moq_moq_tokio_quic_driver_recv_Stream_received_reset(moq_moq_tokio_quic_driver_recv_Stream *self, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_received_reset_start(moq_moq_tokio_quic_driver_recv_Stream *self, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_recv_Error **err, moq_moq_tokio_quic_driver_recv_Stream_received_reset_future **future, moq_status *status);
-moq_poll moq_moq_tokio_quic_driver_recv_Stream_received_reset_poll(moq_moq_tokio_quic_driver_recv_Stream_received_reset_future *future, moq_waker waker, moq_option_moq_quic_VarInt *out, moq_moq_tokio_quic_driver_recv_Error **err);
-void moq_moq_tokio_quic_driver_recv_Stream_received_reset_future_free(moq_moq_tokio_quic_driver_recv_Stream_received_reset_future *future);
-void moq_moq_tokio_quic_driver_send_Error_free(moq_moq_tokio_quic_driver_send_Error *self);
-bool moq_moq_tokio_quic_driver_send_Error_borrowed(const moq_moq_tokio_quic_driver_send_Error *self);
-moq_moq_tokio_quic_driver_send_Error *moq_moq_tokio_quic_driver_send_Error_clone(const moq_moq_tokio_quic_driver_send_Error *self);
-bool moq_moq_tokio_quic_driver_send_Error_eq(const moq_moq_tokio_quic_driver_send_Error *a, const moq_moq_tokio_quic_driver_send_Error *b);
-moq_buf moq_moq_tokio_quic_driver_send_Error_to_string(const moq_moq_tokio_quic_driver_send_Error *self);
-moq_buf moq_moq_tokio_quic_driver_send_Error_debug(const moq_moq_tokio_quic_driver_send_Error *self);
-void moq_moq_quic_connection_Stats_free(moq_moq_quic_connection_Stats *self);
-void moq_moq_quic_connection_Stats_drop(moq_moq_quic_connection_Stats *self, moq_status *status);
-moq_moq_quic_connection_Stats *moq_moq_quic_connection_Stats_clone(const moq_moq_quic_connection_Stats *self, moq_status *status);
-moq_buf moq_moq_quic_connection_Stats_debug(const moq_moq_quic_connection_Stats *self, moq_status *status);
-moq_moq_quic_connection_Stats *moq_moq_quic_connection_Stats_default(void);
-moq_moq_quic_UdpStats moq_moq_quic_connection_Stats_udp_tx_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_udp_tx_set(moq_moq_quic_connection_Stats *self, moq_moq_quic_UdpStats value, moq_status *status);
-moq_moq_quic_UdpStats moq_moq_quic_connection_Stats_udp_rx_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_udp_rx_set(moq_moq_quic_connection_Stats *self, moq_moq_quic_UdpStats value, moq_status *status);
-moq_moq_quic_FrameStats *moq_moq_quic_connection_Stats_frame_tx_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_frame_tx_set(moq_moq_quic_connection_Stats *self, const moq_moq_quic_FrameStats *value, moq_status *status);
-moq_moq_quic_FrameStats *moq_moq_quic_connection_Stats_frame_rx_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_frame_rx_set(moq_moq_quic_connection_Stats *self, const moq_moq_quic_FrameStats *value, moq_status *status);
-moq_moq_quic_PathStats *moq_moq_quic_connection_Stats_path_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_path_set(moq_moq_quic_connection_Stats *self, const moq_moq_quic_PathStats *value, moq_status *status);
-moq_moq_quic_CreditStats moq_moq_quic_connection_Stats_credit_get(const moq_moq_quic_connection_Stats *self, moq_status *status);
-void moq_moq_quic_connection_Stats_credit_set(moq_moq_quic_connection_Stats *self, moq_moq_quic_CreditStats value, moq_status *status);
-void moq_moq_quic_crypto_HandshakeData_free(moq_moq_quic_crypto_HandshakeData *self);
-void moq_moq_quic_crypto_HandshakeData_drop(moq_moq_quic_crypto_HandshakeData *self, moq_status *status);
-moq_moq_quic_crypto_HandshakeData *moq_moq_quic_crypto_HandshakeData_clone(const moq_moq_quic_crypto_HandshakeData *self, moq_status *status);
-bool moq_moq_quic_crypto_HandshakeData_eq(const moq_moq_quic_crypto_HandshakeData *a, const moq_moq_quic_crypto_HandshakeData *b, moq_status *status);
-moq_buf moq_moq_quic_crypto_HandshakeData_debug(const moq_moq_quic_crypto_HandshakeData *self, moq_status *status);
-moq_buf moq_moq_quic_crypto_HandshakeData_alpn_get(const moq_moq_quic_crypto_HandshakeData *self, moq_status *status);
-void moq_moq_quic_crypto_HandshakeData_alpn_set(moq_moq_quic_crypto_HandshakeData *self, moq_buf value, moq_status *status);
-moq_buf moq_moq_quic_crypto_HandshakeData_server_name_get(const moq_moq_quic_crypto_HandshakeData *self, moq_status *status);
-void moq_moq_quic_crypto_HandshakeData_server_name_set(moq_moq_quic_crypto_HandshakeData *self, moq_buf value, moq_status *status);
-void moq_mp4_atom_Spatial_free(moq_mp4_atom_Spatial *self);
-void moq_mp4_atom_Spatial_drop(moq_mp4_atom_Spatial *self, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Spatial_clone(const moq_mp4_atom_Spatial *self, moq_status *status);
-bool moq_mp4_atom_Spatial_eq(const moq_mp4_atom_Spatial *a, const moq_mp4_atom_Spatial *b, moq_status *status);
-moq_buf moq_mp4_atom_Spatial_debug(const moq_mp4_atom_Spatial *self, moq_status *status);
-moq_mp4_atom_Spatial *moq_mp4_atom_Spatial_default(void);
-moq_option_mp4_atom_St3d moq_mp4_atom_Spatial_st3d_get(const moq_mp4_atom_Spatial *self, moq_status *status);
-void moq_mp4_atom_Spatial_st3d_set(moq_mp4_atom_Spatial *self, moq_option_mp4_atom_St3d value, moq_status *status);
-moq_mp4_atom_Sv3d *moq_mp4_atom_Spatial_sv3d_get(const moq_mp4_atom_Spatial *self, moq_status *status);
-void moq_mp4_atom_Spatial_sv3d_set(moq_mp4_atom_Spatial *self, moq_mp4_atom_Sv3d *value, moq_status *status);
-moq_mp4_atom_Vexu *moq_mp4_atom_Spatial_vexu_get(const moq_mp4_atom_Spatial *self, moq_status *status);
-void moq_mp4_atom_Spatial_vexu_set(moq_mp4_atom_Spatial *self, moq_mp4_atom_Vexu *value, moq_status *status);
-moq_option_mp4_atom_Hfov moq_mp4_atom_Spatial_hfov_get(const moq_mp4_atom_Spatial *self, moq_status *status);
-void moq_mp4_atom_Spatial_hfov_set(moq_mp4_atom_Spatial *self, moq_option_mp4_atom_Hfov value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Spatial_unknown_get(const moq_mp4_atom_Spatial *self, moq_status *status);
-void moq_mp4_atom_Spatial_unknown_set(moq_mp4_atom_Spatial *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Any_free(moq_mp4_atom_Any *self);
-void moq_mp4_atom_Any_drop(moq_mp4_atom_Any *self, moq_status *status);
-bool moq_mp4_atom_Any_borrowed(const moq_mp4_atom_Any *self);
-moq_mp4_atom_Any *moq_mp4_atom_Any_clone(const moq_mp4_atom_Any *self, moq_status *status);
-bool moq_mp4_atom_Any_eq(const moq_mp4_atom_Any *a, const moq_mp4_atom_Any *b, moq_status *status);
-moq_buf moq_mp4_atom_Any_debug(const moq_mp4_atom_Any *self, moq_status *status);
-moq_mp4_atom_FourCC moq_mp4_atom_Any_kind(const moq_mp4_atom_Any *self, moq_status *status);
-void moq_mp4_atom_Minf_free(moq_mp4_atom_Minf *self);
-void moq_mp4_atom_Minf_drop(moq_mp4_atom_Minf *self, moq_status *status);
-moq_mp4_atom_Minf *moq_mp4_atom_Minf_clone(const moq_mp4_atom_Minf *self, moq_status *status);
-bool moq_mp4_atom_Minf_eq(const moq_mp4_atom_Minf *a, const moq_mp4_atom_Minf *b, moq_status *status);
-moq_buf moq_mp4_atom_Minf_debug(const moq_mp4_atom_Minf *self, moq_status *status);
-moq_mp4_atom_Minf *moq_mp4_atom_Minf_default(void);
-moq_option_mp4_atom_Vmhd moq_mp4_atom_Minf_vmhd_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_vmhd_set(moq_mp4_atom_Minf *self, moq_option_mp4_atom_Vmhd value, moq_status *status);
-moq_option_mp4_atom_Smhd moq_mp4_atom_Minf_smhd_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_smhd_set(moq_mp4_atom_Minf *self, moq_option_mp4_atom_Smhd value, moq_status *status);
-moq_mp4_atom_Nmhd *moq_mp4_atom_Minf_nmhd_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_nmhd_set(moq_mp4_atom_Minf *self, moq_mp4_atom_Nmhd *value, moq_status *status);
-moq_mp4_atom_Sthd *moq_mp4_atom_Minf_sthd_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_sthd_set(moq_mp4_atom_Minf *self, moq_mp4_atom_Sthd *value, moq_status *status);
-moq_option_mp4_atom_Hmhd moq_mp4_atom_Minf_hmhd_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_hmhd_set(moq_mp4_atom_Minf *self, moq_option_mp4_atom_Hmhd value, moq_status *status);
-moq_mp4_atom_Dinf moq_mp4_atom_Minf_dinf_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_dinf_set(moq_mp4_atom_Minf *self, moq_mp4_atom_Dinf value, moq_status *status);
-moq_mp4_atom_Stbl *moq_mp4_atom_Minf_stbl_get(const moq_mp4_atom_Minf *self, moq_status *status);
-void moq_mp4_atom_Minf_stbl_set(moq_mp4_atom_Minf *self, moq_mp4_atom_Stbl *value, moq_status *status);
-void moq_mp4_atom_Compressor_free(moq_mp4_atom_Compressor *self);
-void moq_mp4_atom_Compressor_drop(moq_mp4_atom_Compressor *self, moq_status *status);
-bool moq_mp4_atom_Compressor_borrowed(const moq_mp4_atom_Compressor *self);
-moq_mp4_atom_Compressor *moq_mp4_atom_Compressor_clone(const moq_mp4_atom_Compressor *self, moq_status *status);
-bool moq_mp4_atom_Compressor_eq(const moq_mp4_atom_Compressor *a, const moq_mp4_atom_Compressor *b, moq_status *status);
-moq_buf moq_mp4_atom_Compressor_debug(const moq_mp4_atom_Compressor *self, moq_status *status);
-moq_mp4_atom_Compressor *moq_mp4_atom_Compressor_default(void);
 void moq_rustls_pki_types_Der_free(moq_rustls_pki_types_Der *self);
 void moq_rustls_pki_types_Der_drop(moq_rustls_pki_types_Der *self, moq_status *status);
 bool moq_rustls_pki_types_Der_borrowed(const moq_rustls_pki_types_Der *self);
@@ -11953,343 +9243,6 @@ moq_buf moq_moq_tokio_quic_demux_Datagram_data_get(const moq_moq_tokio_quic_demu
 void moq_moq_tokio_quic_demux_Datagram_data_set(moq_moq_tokio_quic_demux_Datagram *self, moq_buf value, moq_status *status);
 void moq_moq_sock_demux_Pin_free(moq_moq_sock_demux_Pin *self);
 moq_buf moq_moq_sock_demux_Pin_debug(const moq_moq_sock_demux_Pin *self);
-void moq_moq_tokio_quic_driver_send_Offset_free(moq_moq_tokio_quic_driver_send_Offset *self);
-bool moq_moq_tokio_quic_driver_send_Offset_borrowed(const moq_moq_tokio_quic_driver_send_Offset *self);
-moq_moq_tokio_quic_driver_send_Offset *moq_moq_tokio_quic_driver_send_Offset_clone(const moq_moq_tokio_quic_driver_send_Offset *self);
-bool moq_moq_tokio_quic_driver_send_Offset_eq(const moq_moq_tokio_quic_driver_send_Offset *a, const moq_moq_tokio_quic_driver_send_Offset *b);
-moq_buf moq_moq_tokio_quic_driver_send_Offset_debug(const moq_moq_tokio_quic_driver_send_Offset *self);
-void moq_moq_tokio_quic_driver_recv_Error_free(moq_moq_tokio_quic_driver_recv_Error *self);
-bool moq_moq_tokio_quic_driver_recv_Error_borrowed(const moq_moq_tokio_quic_driver_recv_Error *self);
-moq_moq_tokio_quic_driver_recv_Error *moq_moq_tokio_quic_driver_recv_Error_clone(const moq_moq_tokio_quic_driver_recv_Error *self);
-bool moq_moq_tokio_quic_driver_recv_Error_eq(const moq_moq_tokio_quic_driver_recv_Error *a, const moq_moq_tokio_quic_driver_recv_Error *b);
-moq_buf moq_moq_tokio_quic_driver_recv_Error_to_string(const moq_moq_tokio_quic_driver_recv_Error *self);
-moq_buf moq_moq_tokio_quic_driver_recv_Error_debug(const moq_moq_tokio_quic_driver_recv_Error *self);
-void moq_moq_quic_FrameStats_free(moq_moq_quic_FrameStats *self);
-void moq_moq_quic_FrameStats_drop(moq_moq_quic_FrameStats *self, moq_status *status);
-moq_moq_quic_FrameStats *moq_moq_quic_FrameStats_clone(const moq_moq_quic_FrameStats *self, moq_status *status);
-moq_buf moq_moq_quic_FrameStats_debug(const moq_moq_quic_FrameStats *self, moq_status *status);
-moq_moq_quic_FrameStats *moq_moq_quic_FrameStats_default(void);
-uint64_t moq_moq_quic_FrameStats_acks_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_acks_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_ack_frequency_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_ack_frequency_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_crypto_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_crypto_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_connection_close_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_connection_close_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_data_blocked_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_data_blocked_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_datagram_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_datagram_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint8_t moq_moq_quic_FrameStats_handshake_done_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_handshake_done_set(moq_moq_quic_FrameStats *self, uint8_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_immediate_ack_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_immediate_ack_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_max_data_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_max_data_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_max_stream_data_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_max_stream_data_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_max_streams_bidi_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_max_streams_bidi_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_max_streams_uni_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_max_streams_uni_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_new_connection_id_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_new_connection_id_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_new_token_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_new_token_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_path_challenge_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_path_challenge_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_path_response_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_path_response_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_ping_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_ping_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_reset_stream_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_reset_stream_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_retire_connection_id_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_retire_connection_id_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_stream_data_blocked_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_stream_data_blocked_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_streams_blocked_bidi_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_streams_blocked_bidi_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_streams_blocked_uni_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_streams_blocked_uni_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_stop_sending_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_stop_sending_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_FrameStats_stream_get(const moq_moq_quic_FrameStats *self, moq_status *status);
-void moq_moq_quic_FrameStats_stream_set(moq_moq_quic_FrameStats *self, uint64_t value, moq_status *status);
-void moq_moq_quic_PathStats_free(moq_moq_quic_PathStats *self);
-void moq_moq_quic_PathStats_drop(moq_moq_quic_PathStats *self, moq_status *status);
-moq_moq_quic_PathStats *moq_moq_quic_PathStats_clone(const moq_moq_quic_PathStats *self, moq_status *status);
-moq_buf moq_moq_quic_PathStats_debug(const moq_moq_quic_PathStats *self, moq_status *status);
-moq_moq_quic_PathStats *moq_moq_quic_PathStats_default(void);
-moq_duration moq_moq_quic_PathStats_rtt_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_rtt_set(moq_moq_quic_PathStats *self, moq_duration value, moq_status *status);
-moq_duration moq_moq_quic_PathStats_min_rtt_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_min_rtt_set(moq_moq_quic_PathStats *self, moq_duration value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_cwnd_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_cwnd_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-moq_option_u64 moq_moq_quic_PathStats_bandwidth_estimate_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_bandwidth_estimate_set(moq_moq_quic_PathStats *self, moq_option_u64 value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_congestion_events_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_congestion_events_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_spurious_congestion_events_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_spurious_congestion_events_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_lost_packets_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_lost_packets_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_lost_bytes_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_lost_bytes_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_sent_packets_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_sent_packets_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_sent_plpmtud_probes_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_sent_plpmtud_probes_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_lost_plpmtud_probes_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_lost_plpmtud_probes_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_sent_bandwidth_probes_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_sent_bandwidth_probes_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_sent_bandwidth_probe_bytes_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_sent_bandwidth_probe_bytes_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint64_t moq_moq_quic_PathStats_black_holes_detected_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_black_holes_detected_set(moq_moq_quic_PathStats *self, uint64_t value, moq_status *status);
-uint16_t moq_moq_quic_PathStats_current_mtu_get(const moq_moq_quic_PathStats *self, moq_status *status);
-void moq_moq_quic_PathStats_current_mtu_set(moq_moq_quic_PathStats *self, uint16_t value, moq_status *status);
-void moq_mp4_atom_Sv3d_free(moq_mp4_atom_Sv3d *self);
-void moq_mp4_atom_Sv3d_drop(moq_mp4_atom_Sv3d *self, moq_status *status);
-moq_mp4_atom_Sv3d *moq_mp4_atom_Sv3d_clone(const moq_mp4_atom_Sv3d *self, moq_status *status);
-bool moq_mp4_atom_Sv3d_eq(const moq_mp4_atom_Sv3d *a, const moq_mp4_atom_Sv3d *b, moq_status *status);
-moq_buf moq_mp4_atom_Sv3d_debug(const moq_mp4_atom_Sv3d *self, moq_status *status);
-moq_mp4_atom_Sv3d *moq_mp4_atom_Sv3d_default(void);
-moq_option_mp4_atom_Svhd moq_mp4_atom_Sv3d_svhd_get(const moq_mp4_atom_Sv3d *self, moq_status *status);
-void moq_mp4_atom_Sv3d_svhd_set(moq_mp4_atom_Sv3d *self, moq_option_mp4_atom_Svhd value, moq_status *status);
-moq_mp4_atom_Proj *moq_mp4_atom_Sv3d_proj_get(const moq_mp4_atom_Sv3d *self, moq_status *status);
-void moq_mp4_atom_Sv3d_proj_set(moq_mp4_atom_Sv3d *self, moq_mp4_atom_Proj *value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Sv3d_unknown_get(const moq_mp4_atom_Sv3d *self, moq_status *status);
-void moq_mp4_atom_Sv3d_unknown_set(moq_mp4_atom_Sv3d *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Vexu_free(moq_mp4_atom_Vexu *self);
-void moq_mp4_atom_Vexu_drop(moq_mp4_atom_Vexu *self, moq_status *status);
-moq_mp4_atom_Vexu *moq_mp4_atom_Vexu_clone(const moq_mp4_atom_Vexu *self, moq_status *status);
-bool moq_mp4_atom_Vexu_eq(const moq_mp4_atom_Vexu *a, const moq_mp4_atom_Vexu *b, moq_status *status);
-moq_buf moq_mp4_atom_Vexu_debug(const moq_mp4_atom_Vexu *self, moq_status *status);
-moq_mp4_atom_Vexu *moq_mp4_atom_Vexu_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_Vexu_must_get(const moq_mp4_atom_Vexu *self, moq_status *status);
-void moq_mp4_atom_Vexu_must_set(moq_mp4_atom_Vexu *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_mp4_atom_VexuProj *moq_mp4_atom_Vexu_proj_get(const moq_mp4_atom_Vexu *self, moq_status *status);
-void moq_mp4_atom_Vexu_proj_set(moq_mp4_atom_Vexu *self, moq_mp4_atom_VexuProj *value, moq_status *status);
-moq_mp4_atom_Eyes *moq_mp4_atom_Vexu_eyes_get(const moq_mp4_atom_Vexu *self, moq_status *status);
-void moq_mp4_atom_Vexu_eyes_set(moq_mp4_atom_Vexu *self, moq_mp4_atom_Eyes *value, moq_status *status);
-moq_mp4_atom_Pack *moq_mp4_atom_Vexu_pack_get(const moq_mp4_atom_Vexu *self, moq_status *status);
-void moq_mp4_atom_Vexu_pack_set(moq_mp4_atom_Vexu *self, moq_mp4_atom_Pack *value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Vexu_unknown_get(const moq_mp4_atom_Vexu *self, moq_status *status);
-void moq_mp4_atom_Vexu_unknown_set(moq_mp4_atom_Vexu *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Iprp_free(moq_mp4_atom_Iprp *self);
-void moq_mp4_atom_Iprp_drop(moq_mp4_atom_Iprp *self, moq_status *status);
-moq_mp4_atom_Iprp *moq_mp4_atom_Iprp_clone(const moq_mp4_atom_Iprp *self, moq_status *status);
-bool moq_mp4_atom_Iprp_eq(const moq_mp4_atom_Iprp *a, const moq_mp4_atom_Iprp *b, moq_status *status);
-moq_buf moq_mp4_atom_Iprp_debug(const moq_mp4_atom_Iprp *self, moq_status *status);
-moq_mp4_atom_Iprp *moq_mp4_atom_Iprp_default(void);
-moq_mp4_atom_Ipco *moq_mp4_atom_Iprp_ipco_get(const moq_mp4_atom_Iprp *self, moq_status *status);
-void moq_mp4_atom_Iprp_ipco_set(moq_mp4_atom_Iprp *self, moq_mp4_atom_Ipco *value, moq_status *status);
-moq_vec_mp4_atom_Ipma moq_mp4_atom_Iprp_ipma_get(const moq_mp4_atom_Iprp *self, moq_status *status);
-void moq_mp4_atom_Iprp_ipma_set(moq_mp4_atom_Iprp *self, moq_vec_mp4_atom_Ipma value, moq_status *status);
-void moq_mp4_atom_Ipco_free(moq_mp4_atom_Ipco *self);
-void moq_mp4_atom_Ipco_drop(moq_mp4_atom_Ipco *self, moq_status *status);
-moq_mp4_atom_Ipco *moq_mp4_atom_Ipco_clone(const moq_mp4_atom_Ipco *self, moq_status *status);
-bool moq_mp4_atom_Ipco_eq(const moq_mp4_atom_Ipco *a, const moq_mp4_atom_Ipco *b, moq_status *status);
-moq_buf moq_mp4_atom_Ipco_debug(const moq_mp4_atom_Ipco *self, moq_status *status);
-moq_mp4_atom_Ipco *moq_mp4_atom_Ipco_default(void);
-moq_vec_mp4_atom_Any moq_mp4_atom_Ipco_properties_get(const moq_mp4_atom_Ipco *self, moq_status *status);
-void moq_mp4_atom_Ipco_properties_set(moq_mp4_atom_Ipco *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Moov_free(moq_mp4_atom_Moov *self);
-void moq_mp4_atom_Moov_drop(moq_mp4_atom_Moov *self, moq_status *status);
-moq_mp4_atom_Moov *moq_mp4_atom_Moov_clone(const moq_mp4_atom_Moov *self, moq_status *status);
-bool moq_mp4_atom_Moov_eq(const moq_mp4_atom_Moov *a, const moq_mp4_atom_Moov *b, moq_status *status);
-moq_buf moq_mp4_atom_Moov_debug(const moq_mp4_atom_Moov *self, moq_status *status);
-moq_mp4_atom_Moov *moq_mp4_atom_Moov_default(void);
-moq_mp4_atom_Mvhd moq_mp4_atom_Moov_mvhd_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_mvhd_set(moq_mp4_atom_Moov *self, moq_mp4_atom_Mvhd value, moq_status *status);
-moq_mp4_atom_Meta *moq_mp4_atom_Moov_meta_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_meta_set(moq_mp4_atom_Moov *self, moq_mp4_atom_Meta *value, moq_status *status);
-moq_option_mp4_atom_Mvex moq_mp4_atom_Moov_mvex_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_mvex_set(moq_mp4_atom_Moov *self, moq_option_mp4_atom_Mvex value, moq_status *status);
-moq_vec_mp4_atom_Trak moq_mp4_atom_Moov_trak_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_trak_set(moq_mp4_atom_Moov *self, moq_vec_mp4_atom_Trak value, moq_status *status);
-moq_mp4_atom_Udta *moq_mp4_atom_Moov_udta_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_udta_set(moq_mp4_atom_Moov *self, moq_mp4_atom_Udta *value, moq_status *status);
-moq_option_mp4_atom_Ainf moq_mp4_atom_Moov_ainf_get(const moq_mp4_atom_Moov *self, moq_status *status);
-void moq_mp4_atom_Moov_ainf_set(moq_mp4_atom_Moov *self, moq_option_mp4_atom_Ainf value, moq_status *status);
-void moq_mp4_atom_Stbl_free(moq_mp4_atom_Stbl *self);
-void moq_mp4_atom_Stbl_drop(moq_mp4_atom_Stbl *self, moq_status *status);
-moq_mp4_atom_Stbl *moq_mp4_atom_Stbl_clone(const moq_mp4_atom_Stbl *self, moq_status *status);
-bool moq_mp4_atom_Stbl_eq(const moq_mp4_atom_Stbl *a, const moq_mp4_atom_Stbl *b, moq_status *status);
-moq_buf moq_mp4_atom_Stbl_debug(const moq_mp4_atom_Stbl *self, moq_status *status);
-moq_mp4_atom_Stbl *moq_mp4_atom_Stbl_default(void);
-moq_mp4_atom_Stsd *moq_mp4_atom_Stbl_stsd_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stsd_set(moq_mp4_atom_Stbl *self, moq_mp4_atom_Stsd *value, moq_status *status);
-moq_mp4_atom_Stts moq_mp4_atom_Stbl_stts_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stts_set(moq_mp4_atom_Stbl *self, moq_mp4_atom_Stts value, moq_status *status);
-moq_option_mp4_atom_Ctts moq_mp4_atom_Stbl_ctts_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_ctts_set(moq_mp4_atom_Stbl *self, moq_option_mp4_atom_Ctts value, moq_status *status);
-moq_option_mp4_atom_Stss moq_mp4_atom_Stbl_stss_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stss_set(moq_mp4_atom_Stbl *self, moq_option_mp4_atom_Stss value, moq_status *status);
-moq_mp4_atom_Stsc moq_mp4_atom_Stbl_stsc_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stsc_set(moq_mp4_atom_Stbl *self, moq_mp4_atom_Stsc value, moq_status *status);
-moq_mp4_atom_Stsz moq_mp4_atom_Stbl_stsz_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stsz_set(moq_mp4_atom_Stbl *self, moq_mp4_atom_Stsz value, moq_status *status);
-moq_option_mp4_atom_Stco moq_mp4_atom_Stbl_stco_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_stco_set(moq_mp4_atom_Stbl *self, moq_option_mp4_atom_Stco value, moq_status *status);
-moq_option_mp4_atom_Co64 moq_mp4_atom_Stbl_co64_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_co64_set(moq_mp4_atom_Stbl *self, moq_option_mp4_atom_Co64 value, moq_status *status);
-moq_vec_mp4_atom_Sbgp moq_mp4_atom_Stbl_sbgp_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_sbgp_set(moq_mp4_atom_Stbl *self, moq_vec_mp4_atom_Sbgp value, moq_status *status);
-moq_vec_mp4_atom_Sgpd moq_mp4_atom_Stbl_sgpd_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_sgpd_set(moq_mp4_atom_Stbl *self, moq_vec_mp4_atom_Sgpd value, moq_status *status);
-moq_vec_mp4_atom_Subs moq_mp4_atom_Stbl_subs_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_subs_set(moq_mp4_atom_Stbl *self, moq_vec_mp4_atom_Subs value, moq_status *status);
-moq_vec_mp4_atom_Saiz moq_mp4_atom_Stbl_saiz_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_saiz_set(moq_mp4_atom_Stbl *self, moq_vec_mp4_atom_Saiz value, moq_status *status);
-moq_vec_mp4_atom_Saio moq_mp4_atom_Stbl_saio_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_saio_set(moq_mp4_atom_Stbl *self, moq_vec_mp4_atom_Saio value, moq_status *status);
-moq_option_mp4_atom_Cslg moq_mp4_atom_Stbl_cslg_get(const moq_mp4_atom_Stbl *self, moq_status *status);
-void moq_mp4_atom_Stbl_cslg_set(moq_mp4_atom_Stbl *self, moq_option_mp4_atom_Cslg value, moq_status *status);
-void moq_mp4_atom_Stsd_free(moq_mp4_atom_Stsd *self);
-void moq_mp4_atom_Stsd_drop(moq_mp4_atom_Stsd *self, moq_status *status);
-moq_mp4_atom_Stsd *moq_mp4_atom_Stsd_clone(const moq_mp4_atom_Stsd *self, moq_status *status);
-bool moq_mp4_atom_Stsd_eq(const moq_mp4_atom_Stsd *a, const moq_mp4_atom_Stsd *b, moq_status *status);
-moq_buf moq_mp4_atom_Stsd_debug(const moq_mp4_atom_Stsd *self, moq_status *status);
-moq_mp4_atom_Stsd *moq_mp4_atom_Stsd_default(void);
-moq_vec_mp4_atom_Codec moq_mp4_atom_Stsd_codecs_get(const moq_mp4_atom_Stsd *self, moq_status *status);
-void moq_mp4_atom_Stsd_codecs_set(moq_mp4_atom_Stsd *self, moq_vec_mp4_atom_Codec value, moq_status *status);
-void moq_mp4_atom_Nmhd_free(moq_mp4_atom_Nmhd *self);
-void moq_mp4_atom_Nmhd_drop(moq_mp4_atom_Nmhd *self, moq_status *status);
-bool moq_mp4_atom_Nmhd_borrowed(const moq_mp4_atom_Nmhd *self);
-moq_mp4_atom_Nmhd *moq_mp4_atom_Nmhd_clone(const moq_mp4_atom_Nmhd *self, moq_status *status);
-bool moq_mp4_atom_Nmhd_eq(const moq_mp4_atom_Nmhd *a, const moq_mp4_atom_Nmhd *b, moq_status *status);
-moq_buf moq_mp4_atom_Nmhd_debug(const moq_mp4_atom_Nmhd *self, moq_status *status);
-moq_mp4_atom_Nmhd *moq_mp4_atom_Nmhd_default(void);
-void moq_mp4_atom_Sthd_free(moq_mp4_atom_Sthd *self);
-void moq_mp4_atom_Sthd_drop(moq_mp4_atom_Sthd *self, moq_status *status);
-bool moq_mp4_atom_Sthd_borrowed(const moq_mp4_atom_Sthd *self);
-moq_mp4_atom_Sthd *moq_mp4_atom_Sthd_clone(const moq_mp4_atom_Sthd *self, moq_status *status);
-bool moq_mp4_atom_Sthd_eq(const moq_mp4_atom_Sthd *a, const moq_mp4_atom_Sthd *b, moq_status *status);
-moq_buf moq_mp4_atom_Sthd_debug(const moq_mp4_atom_Sthd *self, moq_status *status);
-moq_mp4_atom_Sthd *moq_mp4_atom_Sthd_default(void);
-void moq_mp4_atom_Moof_free(moq_mp4_atom_Moof *self);
-void moq_mp4_atom_Moof_drop(moq_mp4_atom_Moof *self, moq_status *status);
-moq_mp4_atom_Moof *moq_mp4_atom_Moof_clone(const moq_mp4_atom_Moof *self, moq_status *status);
-bool moq_mp4_atom_Moof_eq(const moq_mp4_atom_Moof *a, const moq_mp4_atom_Moof *b, moq_status *status);
-moq_buf moq_mp4_atom_Moof_debug(const moq_mp4_atom_Moof *self, moq_status *status);
-moq_mp4_atom_Moof *moq_mp4_atom_Moof_default(void);
-moq_mp4_atom_Mfhd moq_mp4_atom_Moof_mfhd_get(const moq_mp4_atom_Moof *self, moq_status *status);
-void moq_mp4_atom_Moof_mfhd_set(moq_mp4_atom_Moof *self, moq_mp4_atom_Mfhd value, moq_status *status);
-moq_vec_mp4_atom_Traf moq_mp4_atom_Moof_traf_get(const moq_mp4_atom_Moof *self, moq_status *status);
-void moq_mp4_atom_Moof_traf_set(moq_mp4_atom_Moof *self, moq_vec_mp4_atom_Traf value, moq_status *status);
-void moq_mp4_atom_Traf_free(moq_mp4_atom_Traf *self);
-void moq_mp4_atom_Traf_drop(moq_mp4_atom_Traf *self, moq_status *status);
-moq_mp4_atom_Traf *moq_mp4_atom_Traf_clone(const moq_mp4_atom_Traf *self, moq_status *status);
-bool moq_mp4_atom_Traf_eq(const moq_mp4_atom_Traf *a, const moq_mp4_atom_Traf *b, moq_status *status);
-moq_buf moq_mp4_atom_Traf_debug(const moq_mp4_atom_Traf *self, moq_status *status);
-moq_mp4_atom_Traf *moq_mp4_atom_Traf_default(void);
-moq_mp4_atom_Tfhd moq_mp4_atom_Traf_tfhd_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_tfhd_set(moq_mp4_atom_Traf *self, moq_mp4_atom_Tfhd value, moq_status *status);
-moq_option_mp4_atom_Tfdt moq_mp4_atom_Traf_tfdt_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_tfdt_set(moq_mp4_atom_Traf *self, moq_option_mp4_atom_Tfdt value, moq_status *status);
-moq_vec_mp4_atom_Trun moq_mp4_atom_Traf_trun_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_trun_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Trun value, moq_status *status);
-moq_vec_mp4_atom_Sbgp moq_mp4_atom_Traf_sbgp_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_sbgp_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Sbgp value, moq_status *status);
-moq_vec_mp4_atom_Sgpd moq_mp4_atom_Traf_sgpd_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_sgpd_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Sgpd value, moq_status *status);
-moq_vec_mp4_atom_Subs moq_mp4_atom_Traf_subs_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_subs_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Subs value, moq_status *status);
-moq_vec_mp4_atom_Saiz moq_mp4_atom_Traf_saiz_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_saiz_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Saiz value, moq_status *status);
-moq_vec_mp4_atom_Saio moq_mp4_atom_Traf_saio_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_saio_set(moq_mp4_atom_Traf *self, moq_vec_mp4_atom_Saio value, moq_status *status);
-moq_mp4_atom_Meta *moq_mp4_atom_Traf_meta_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_meta_set(moq_mp4_atom_Traf *self, moq_mp4_atom_Meta *value, moq_status *status);
-moq_option_mp4_atom_Senc moq_mp4_atom_Traf_senc_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_senc_set(moq_mp4_atom_Traf *self, moq_option_mp4_atom_Senc value, moq_status *status);
-moq_mp4_atom_Udta *moq_mp4_atom_Traf_udta_get(const moq_mp4_atom_Traf *self, moq_status *status);
-void moq_mp4_atom_Traf_udta_set(moq_mp4_atom_Traf *self, moq_mp4_atom_Udta *value, moq_status *status);
-void moq_mp4_atom_Proj_free(moq_mp4_atom_Proj *self);
-void moq_mp4_atom_Proj_drop(moq_mp4_atom_Proj *self, moq_status *status);
-moq_mp4_atom_Proj *moq_mp4_atom_Proj_clone(const moq_mp4_atom_Proj *self, moq_status *status);
-bool moq_mp4_atom_Proj_eq(const moq_mp4_atom_Proj *a, const moq_mp4_atom_Proj *b, moq_status *status);
-moq_buf moq_mp4_atom_Proj_debug(const moq_mp4_atom_Proj *self, moq_status *status);
-moq_mp4_atom_Proj *moq_mp4_atom_Proj_default(void);
-moq_option_mp4_atom_Prhd moq_mp4_atom_Proj_prhd_get(const moq_mp4_atom_Proj *self, moq_status *status);
-void moq_mp4_atom_Proj_prhd_set(moq_mp4_atom_Proj *self, moq_option_mp4_atom_Prhd value, moq_status *status);
-moq_option_mp4_atom_ProjKind moq_mp4_atom_Proj_kind_get(const moq_mp4_atom_Proj *self, moq_status *status);
-void moq_mp4_atom_Proj_kind_set(moq_mp4_atom_Proj *self, moq_option_mp4_atom_ProjKind value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Proj_unknown_get(const moq_mp4_atom_Proj *self, moq_status *status);
-void moq_mp4_atom_Proj_unknown_set(moq_mp4_atom_Proj *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_VexuProj_free(moq_mp4_atom_VexuProj *self);
-void moq_mp4_atom_VexuProj_drop(moq_mp4_atom_VexuProj *self, moq_status *status);
-moq_mp4_atom_VexuProj *moq_mp4_atom_VexuProj_clone(const moq_mp4_atom_VexuProj *self, moq_status *status);
-bool moq_mp4_atom_VexuProj_eq(const moq_mp4_atom_VexuProj *a, const moq_mp4_atom_VexuProj *b, moq_status *status);
-moq_buf moq_mp4_atom_VexuProj_debug(const moq_mp4_atom_VexuProj *self, moq_status *status);
-moq_mp4_atom_VexuProj *moq_mp4_atom_VexuProj_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_VexuProj_must_get(const moq_mp4_atom_VexuProj *self, moq_status *status);
-void moq_mp4_atom_VexuProj_must_set(moq_mp4_atom_VexuProj *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_option_mp4_atom_Prji moq_mp4_atom_VexuProj_prji_get(const moq_mp4_atom_VexuProj *self, moq_status *status);
-void moq_mp4_atom_VexuProj_prji_set(moq_mp4_atom_VexuProj *self, moq_option_mp4_atom_Prji value, moq_status *status);
-moq_option_mp4_atom_VexuProjKind moq_mp4_atom_VexuProj_kind_get(const moq_mp4_atom_VexuProj *self, moq_status *status);
-void moq_mp4_atom_VexuProj_kind_set(moq_mp4_atom_VexuProj *self, moq_option_mp4_atom_VexuProjKind value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_VexuProj_unknown_get(const moq_mp4_atom_VexuProj *self, moq_status *status);
-void moq_mp4_atom_VexuProj_unknown_set(moq_mp4_atom_VexuProj *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Eyes_free(moq_mp4_atom_Eyes *self);
-void moq_mp4_atom_Eyes_drop(moq_mp4_atom_Eyes *self, moq_status *status);
-moq_mp4_atom_Eyes *moq_mp4_atom_Eyes_clone(const moq_mp4_atom_Eyes *self, moq_status *status);
-bool moq_mp4_atom_Eyes_eq(const moq_mp4_atom_Eyes *a, const moq_mp4_atom_Eyes *b, moq_status *status);
-moq_buf moq_mp4_atom_Eyes_debug(const moq_mp4_atom_Eyes *self, moq_status *status);
-moq_mp4_atom_Eyes *moq_mp4_atom_Eyes_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_Eyes_must_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_must_set(moq_mp4_atom_Eyes *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_option_mp4_atom_Stri moq_mp4_atom_Eyes_stri_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_stri_set(moq_mp4_atom_Eyes *self, moq_option_mp4_atom_Stri value, moq_status *status);
-moq_option_mp4_atom_Hero moq_mp4_atom_Eyes_hero_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_hero_set(moq_mp4_atom_Eyes *self, moq_option_mp4_atom_Hero value, moq_status *status);
-moq_mp4_atom_Cams *moq_mp4_atom_Eyes_cams_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_cams_set(moq_mp4_atom_Eyes *self, moq_mp4_atom_Cams *value, moq_status *status);
-moq_mp4_atom_Cmfy *moq_mp4_atom_Eyes_cmfy_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_cmfy_set(moq_mp4_atom_Eyes *self, moq_mp4_atom_Cmfy *value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Eyes_unknown_get(const moq_mp4_atom_Eyes *self, moq_status *status);
-void moq_mp4_atom_Eyes_unknown_set(moq_mp4_atom_Eyes *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Pack_free(moq_mp4_atom_Pack *self);
-void moq_mp4_atom_Pack_drop(moq_mp4_atom_Pack *self, moq_status *status);
-moq_mp4_atom_Pack *moq_mp4_atom_Pack_clone(const moq_mp4_atom_Pack *self, moq_status *status);
-bool moq_mp4_atom_Pack_eq(const moq_mp4_atom_Pack *a, const moq_mp4_atom_Pack *b, moq_status *status);
-moq_buf moq_mp4_atom_Pack_debug(const moq_mp4_atom_Pack *self, moq_status *status);
-moq_mp4_atom_Pack *moq_mp4_atom_Pack_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_Pack_must_get(const moq_mp4_atom_Pack *self, moq_status *status);
-void moq_mp4_atom_Pack_must_set(moq_mp4_atom_Pack *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_option_mp4_atom_Pkin moq_mp4_atom_Pack_pkin_get(const moq_mp4_atom_Pack *self, moq_status *status);
-void moq_mp4_atom_Pack_pkin_set(moq_mp4_atom_Pack *self, moq_option_mp4_atom_Pkin value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Pack_unknown_get(const moq_mp4_atom_Pack *self, moq_status *status);
-void moq_mp4_atom_Pack_unknown_set(moq_mp4_atom_Pack *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Cams_free(moq_mp4_atom_Cams *self);
-void moq_mp4_atom_Cams_drop(moq_mp4_atom_Cams *self, moq_status *status);
-moq_mp4_atom_Cams *moq_mp4_atom_Cams_clone(const moq_mp4_atom_Cams *self, moq_status *status);
-bool moq_mp4_atom_Cams_eq(const moq_mp4_atom_Cams *a, const moq_mp4_atom_Cams *b, moq_status *status);
-moq_buf moq_mp4_atom_Cams_debug(const moq_mp4_atom_Cams *self, moq_status *status);
-moq_mp4_atom_Cams *moq_mp4_atom_Cams_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_Cams_must_get(const moq_mp4_atom_Cams *self, moq_status *status);
-void moq_mp4_atom_Cams_must_set(moq_mp4_atom_Cams *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_option_mp4_atom_Blin moq_mp4_atom_Cams_blin_get(const moq_mp4_atom_Cams *self, moq_status *status);
-void moq_mp4_atom_Cams_blin_set(moq_mp4_atom_Cams *self, moq_option_mp4_atom_Blin value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Cams_unknown_get(const moq_mp4_atom_Cams *self, moq_status *status);
-void moq_mp4_atom_Cams_unknown_set(moq_mp4_atom_Cams *self, moq_vec_mp4_atom_Any value, moq_status *status);
-void moq_mp4_atom_Cmfy_free(moq_mp4_atom_Cmfy *self);
-void moq_mp4_atom_Cmfy_drop(moq_mp4_atom_Cmfy *self, moq_status *status);
-moq_mp4_atom_Cmfy *moq_mp4_atom_Cmfy_clone(const moq_mp4_atom_Cmfy *self, moq_status *status);
-bool moq_mp4_atom_Cmfy_eq(const moq_mp4_atom_Cmfy *a, const moq_mp4_atom_Cmfy *b, moq_status *status);
-moq_buf moq_mp4_atom_Cmfy_debug(const moq_mp4_atom_Cmfy *self, moq_status *status);
-moq_mp4_atom_Cmfy *moq_mp4_atom_Cmfy_default(void);
-moq_option_mp4_atom_Must moq_mp4_atom_Cmfy_must_get(const moq_mp4_atom_Cmfy *self, moq_status *status);
-void moq_mp4_atom_Cmfy_must_set(moq_mp4_atom_Cmfy *self, moq_option_mp4_atom_Must value, moq_status *status);
-moq_option_mp4_atom_Dadj moq_mp4_atom_Cmfy_dadj_get(const moq_mp4_atom_Cmfy *self, moq_status *status);
-void moq_mp4_atom_Cmfy_dadj_set(moq_mp4_atom_Cmfy *self, moq_option_mp4_atom_Dadj value, moq_status *status);
-moq_vec_mp4_atom_Any moq_mp4_atom_Cmfy_unknown_get(const moq_mp4_atom_Cmfy *self, moq_status *status);
-void moq_mp4_atom_Cmfy_unknown_set(moq_mp4_atom_Cmfy *self, moq_vec_mp4_atom_Any value, moq_status *status);
 void moq_Url_free(moq_Url *self);
 void moq_Url_drop(moq_Url *self, moq_status *status);
 bool moq_Url_borrowed(const moq_Url *self);
@@ -12335,11 +9288,6 @@ moq_rustls_CompressionCache *moq_rustls_CompressionCache_clone(const moq_rustls_
 void moq_rustls_CryptoProvider_free(moq_rustls_CryptoProvider *self);
 bool moq_rustls_CryptoProvider_borrowed(const moq_rustls_CryptoProvider *self);
 moq_rustls_CryptoProvider *moq_rustls_CryptoProvider_clone(const moq_rustls_CryptoProvider *self);
-void moq_moq_congestion_Factory_free(moq_moq_congestion_Factory *self);
-void moq_moq_congestion_Factory_drop(moq_moq_congestion_Factory *self, moq_status *status);
-bool moq_moq_congestion_Factory_borrowed(const moq_moq_congestion_Factory *self);
-moq_moq_congestion_Factory *moq_moq_congestion_Factory_clone(const moq_moq_congestion_Factory *self, moq_status *status);
-void moq_moq_quic_Error_free(moq_moq_quic_Error *self);
 moq_buf moq_IMPLEMENTATION(void);
 moq_vec_string moq_ALPNS(void);
 moq_clock_Instant moq_clock_now(void);
@@ -12348,6 +9296,7 @@ void moq_clock_origin(moq_clock_Instant *out0, moq_clock_Wall *out1);
 moq_clock_Rng *moq_clock_rng(void);
 moq_clock_Rng *moq_clock_rng_homed(void);
 uint64_t moq_clock_seed(void);
+void moq_clock_host_time(void);
 typedef struct moq_clock_drive_future moq_clock_drive_future;
 moq_clock_drive_future *moq_clock_drive(bool (*poll)(void *data, moq_clock_Instant, const moq_Waiter *, moq_option_clock_Instant *, moq_buf *), void *poll_data, void (*poll_free)(void *data));
 moq_poll moq_clock_drive_start(bool (*poll)(void *data, moq_clock_Instant, const moq_Waiter *, moq_option_clock_Instant *, moq_buf *), void *poll_data, void (*poll_free)(void *data), moq_buf *out, moq_clock_drive_future **future);
@@ -12375,6 +9324,7 @@ moq_clock_timeout_at_future *moq_clock_timeout_at(moq_clock_Instant deadline, mo
 moq_poll moq_clock_timeout_at_start(moq_clock_Instant deadline, moq_foreign_future future_, moq_clock_Elapsed *err, moq_clock_timeout_at_future **future);
 moq_poll moq_clock_timeout_at_poll(moq_clock_timeout_at_future *future, moq_waker waker, moq_clock_Elapsed *err);
 void moq_clock_timeout_at_future_free(moq_clock_timeout_at_future *future);
+moq_duration moq_server_DEFAULT_TIMEOUT(void);
 typedef struct moq_time_run_Driver_future moq_time_run_Driver_future;
 moq_time_run_Driver_future *moq_time_run_Driver(moq_Driver *driver, moq_status *status);
 moq_poll moq_time_run_Driver_start(moq_Driver *driver, moq_Error **out, moq_time_run_Driver_future **future, moq_status *status);
@@ -12395,6 +9345,8 @@ moq_hang_catalog_Priorities moq_hang_catalog_PRIORITY(void);
 moq_duration moq_hang_container_MAX_AGE(void);
 moq_Timescale moq_hang_container_TIMESCALE(void);
 moq_track_Info *moq_hang_container_track_info(int8_t priority);
+moq_duration moq_mux_container_DELAY_MAX(void);
+moq_duration moq_mux_rate_RETRY(void);
 bool moq_tokio_tls_parse_fingerprint(moq_buf value, moq_array_u8_32 *out, moq_tokio_tls_Error **err);
 moq_origin_Producer *moq_tokio_origin_spawn(void);
 void moq_transport_memory_pair(moq_transport_memory_Config *config, moq_transport_memory_Session **out0, moq_transport_memory_Session **out1, moq_status *status);
@@ -12402,7 +9354,7 @@ bool moq_mux_codec_aac_config(moq_buf init, moq_hang_catalog_AudioConfig **out, 
 moq_buf moq_mux_codec_annexb_START_CODE(void);
 bool moq_mux_codec_annexb_from_length_prefixed(moq_buf payload, size_t length_size, moq_buf prefix, moq_buf *out, moq_mux_codec_annexb_Error **err);
 moq_buf moq_mux_codec_annexb_build_prefix(moq_vec_bytes nals);
-bool moq_mux_codec_annexb_length_prefixed_to_annexb(moq_buf data_, size_t length_size, moq_buf out_, moq_buf *out__out, moq_buf *err);
+bool moq_mux_codec_annexb_length_prefixed_to_annexb(moq_buf data_, size_t length_size, moq_buf out_, moq_buf *out__out, moq_mux_codec_annexb_Error **err);
 bool moq_mux_codec_annexb_after_start_code(moq_buf b, moq_option_usize *out, moq_mux_codec_annexb_Error **err);
 moq_option_tuple_usize_usize moq_mux_codec_annexb_find_start_code(moq_buf b);
 bool moq_mux_codec_flac_config(moq_buf init, moq_hang_catalog_AudioConfig **out, moq_mux_Error **err);
@@ -12412,7 +9364,7 @@ bool moq_mux_codec_mp3_config(moq_buf init, moq_hang_catalog_AudioConfig **out, 
 moq_duration moq_mux_codec_opus_WARMUP(void);
 moq_option_u32 moq_mux_codec_opus_packet_samples(moq_buf packet);
 bool moq_mux_codec_opus_config(moq_buf init, moq_hang_catalog_AudioConfig **out, moq_mux_Error **err);
-bool moq_mux_container_mp4_repair(moq_foreign_reader file, moq_option_mux_container_mp4_Finish *out, moq_mux_Error **err);
+bool moq_mux_container_mp4_repair(moq_foreign_reader file, moq_mux_container_mp4_Finish **out, moq_mux_Error **err);
 #ifdef __cplusplus
 }
 #endif

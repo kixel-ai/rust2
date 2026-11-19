@@ -86,13 +86,6 @@ enum class Bound {
 data class BoundU64(val kind: Bound, val value: ULong)
 data class BoundsU64(val start: BoundU64, val end: BoundU64)
 data class RangeU64(val start: ULong, val end: ULong)
-class ArrayU8x12(bytes: ByteArray) {
-	operator fun get(index: Int): Byte
-	fun toByteArray(): ByteArray
-	override fun equals(other: Any?): Boolean
-	override fun hashCode(): Int
-	override fun toString(): String
-}
 class ArrayU8x16(bytes: ByteArray) {
 	operator fun get(index: Int): Byte
 	fun toByteArray(): ByteArray
@@ -101,13 +94,6 @@ class ArrayU8x16(bytes: ByteArray) {
 	override fun toString(): String
 }
 class ArrayU8x2(bytes: ByteArray) {
-	operator fun get(index: Int): Byte
-	fun toByteArray(): ByteArray
-	override fun equals(other: Any?): Boolean
-	override fun hashCode(): Int
-	override fun toString(): String
-}
-class ArrayU8x3(bytes: ByteArray) {
 	operator fun get(index: Int): Byte
 	fun toByteArray(): ByteArray
 	override fun equals(other: Any?): Boolean
@@ -151,45 +137,6 @@ class ArrayU8x6(bytes: ByteArray) {
 		fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
-class Timestamp internal constructor() {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun value(): kotlin.ULong
-	fun scale(): moq.Timescale
-	fun isZero(): kotlin.Boolean
-	fun convert(newScale: moq.Timescale): moq.Timestamp
-	fun asScale(target: moq.Timescale): java.math.BigInteger
-	fun asSecs(): kotlin.ULong
-	fun asMillis(): java.math.BigInteger
-	fun asMicros(): java.math.BigInteger
-	fun asNanos(): java.math.BigInteger
-	fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
-	fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
-	companion object {
-		val ZERO: moq.Timestamp
-		fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
-		fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
-		fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
-		fun fromMillis(millis: kotlin.ULong): moq.Timestamp
-		fun fromMicros(micros: kotlin.ULong): moq.Timestamp
-		fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
-		fun now(): moq.Timestamp
-	}
-}
-data class Datagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp?, val payload: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-@kotlin.jvm.JvmInline value class Hop internal constructor(internal val bits: Long) {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	fun id(): kotlin.ULong
-	companion object {
-		val UNKNOWN: moq.Hop
-		fun new(id: kotlin.ULong): moq.Hop
-		fun random(): moq.Hop
-	}
-}
 @kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun elapsed(): moq.Duration
@@ -198,6 +145,8 @@ data class Datagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp?, v
 	fun saturatingDurationSince(earlier: moq.ClockInstant): moq.Duration
 	fun checkedAdd(duration: moq.Duration): moq.ClockInstant?
 	fun checkedSub(duration: moq.Duration): moq.ClockInstant?
+	fun saturatingAdd(duration: moq.Duration): moq.ClockInstant
+	fun saturatingSub(duration: moq.Duration): moq.ClockInstant
 	fun intoStd(): moq.Instant
 	companion object {
 		val ZERO: moq.ClockInstant
@@ -218,19 +167,8 @@ data class Datagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp?, v
 	fun checkedSub(duration: moq.Duration): moq.ClockWall?
 	companion object {
 		val UNIXEPOCH: moq.ClockWall
+		val MOQEPOCH: moq.ClockWall
 		fun now(): moq.ClockWall
-	}
-}
-@kotlin.jvm.JvmInline value class SetupExtensions internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	val authGet: kotlin.Boolean
-	fun authSet(value: kotlin.Boolean): moq.SetupExtensions
-	val solicitGet: kotlin.Boolean
-	fun solicitSet(value: kotlin.Boolean): moq.SetupExtensions
-	val ietfGet: kotlin.Boolean
-	fun ietfSet(value: kotlin.Boolean): moq.SetupExtensions
-	companion object {
-		fun default(): moq.SetupExtensions
 	}
 }
 data class SetupToken(val kind: kotlin.ULong, val value: moq.Bytes) {
@@ -324,10 +262,26 @@ class StatsPresence internal constructor() {
 	fun wireTxSet(value: kotlin.ULong): moq.StatsPresence
 	val wireRxGet: kotlin.ULong
 	fun wireRxSet(value: kotlin.ULong): moq.StatsPresence
+	val routesRefusedGet: kotlin.ULong
+	fun routesRefusedSet(value: kotlin.ULong): moq.StatsPresence
+	val routesGet: moq.StatsRoutes
+	fun routesSet(value: moq.StatsRoutes): moq.StatsPresence
 	fun add(other: moq.StatsPresence): moq.StatsPresence
 	fun active(): kotlin.ULong
 	companion object {
 		fun default(): moq.StatsPresence
+	}
+}
+class StatsActivity internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val idleGet: kotlin.ULong
+	fun idleSet(value: kotlin.ULong): moq.StatsActivity
+	val activeGet: kotlin.ULong
+	fun activeSet(value: kotlin.ULong): moq.StatsActivity
+	companion object {
+		fun default(): moq.StatsActivity
 	}
 }
 class StatsTotals internal constructor() {
@@ -338,6 +292,10 @@ class StatsTotals internal constructor() {
 	fun txSet(value: kotlin.ULong): moq.StatsTotals
 	val rxGet: kotlin.ULong
 	fun rxSet(value: kotlin.ULong): moq.StatsTotals
+	val txMessagesGet: kotlin.ULong
+	fun txMessagesSet(value: kotlin.ULong): moq.StatsTotals
+	val rxMessagesGet: kotlin.ULong
+	fun rxMessagesSet(value: kotlin.ULong): moq.StatsTotals
 	companion object {
 		fun default(): moq.StatsTotals
 	}
@@ -373,8 +331,8 @@ class StatsRefusals internal constructor() {
 	fun requestSet(value: kotlin.ULong): moq.StatsRefusals
 	val forbiddenGet: kotlin.ULong
 	fun forbiddenSet(value: kotlin.ULong): moq.StatsRefusals
-	val lanGet: kotlin.ULong
-	fun lanSet(value: kotlin.ULong): moq.StatsRefusals
+	val membershipGet: kotlin.ULong
+	fun membershipSet(value: kotlin.ULong): moq.StatsRefusals
 	val expiredGet: kotlin.ULong
 	fun expiredSet(value: kotlin.ULong): moq.StatsRefusals
 	fun count(kind: moq.StatsRefusalKind): kotlin.ULong
@@ -384,16 +342,86 @@ class StatsRefusals internal constructor() {
 		fun default(): moq.StatsRefusals
 	}
 }
-class TransportReceiveWindow internal constructor() {
+class StatsRouteCloses internal constructor() {
 	fun debug(): kotlin.String
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	val connectionGet: kotlin.ULong
-	fun connectionSet(value: kotlin.ULong): moq.TransportReceiveWindow
-	val streamGet: kotlin.ULong
-	fun streamSet(value: kotlin.ULong): moq.TransportReceiveWindow
+	val stalledGet: kotlin.ULong
+	fun stalledSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val overrunGet: kotlin.ULong
+	fun overrunSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val malformedGet: kotlin.ULong
+	fun malformedSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val roleGet: kotlin.ULong
+	fun roleSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val unaskedGet: kotlin.ULong
+	fun unaskedSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val regressedGet: kotlin.ULong
+	fun regressedSet(value: kotlin.ULong): moq.StatsRouteCloses
+	val otherGet: kotlin.ULong
+	fun otherSet(value: kotlin.ULong): moq.StatsRouteCloses
+	fun count(kind: moq.StatsRouteClose): kotlin.ULong
+	fun total(): kotlin.ULong
+	fun add(other: moq.StatsRouteCloses): moq.StatsRouteCloses
+	fun regressed(previous: moq.StatsRouteCloses): kotlin.Boolean
 	companion object {
-		fun new(connection: kotlin.ULong, stream: kotlin.ULong): moq.TransportReceiveWindow
+		fun default(): moq.StatsRouteCloses
+	}
+}
+class StatsRouteRefusals internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val pathGet: kotlin.ULong
+	fun pathSet(value: kotlin.ULong): moq.StatsRouteRefusals
+	val scopeGet: kotlin.ULong
+	fun scopeSet(value: kotlin.ULong): moq.StatsRouteRefusals
+	val loopedGet: kotlin.ULong
+	fun loopedSet(value: kotlin.ULong): moq.StatsRouteRefusals
+	fun count(kind: moq.StatsRouteRefusal): kotlin.ULong
+	fun total(): kotlin.ULong
+	fun add(other: moq.StatsRouteRefusals): moq.StatsRouteRefusals
+	fun regressed(previous: moq.StatsRouteRefusals): kotlin.Boolean
+	companion object {
+		fun default(): moq.StatsRouteRefusals
+	}
+}
+class StatsRoutes internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val changedGet: kotlin.ULong
+	fun changedSet(value: kotlin.ULong): moq.StatsRoutes
+	val rewrittenGet: kotlin.ULong
+	fun rewrittenSet(value: kotlin.ULong): moq.StatsRoutes
+	val sentGet: moq.StatsWithdrawals
+	fun sentSet(value: moq.StatsWithdrawals): moq.StatsRoutes
+	val receivedGet: moq.StatsWithdrawals
+	fun receivedSet(value: moq.StatsWithdrawals): moq.StatsRoutes
+	val refusedGet: moq.StatsRouteRefusals
+	fun refusedSet(value: moq.StatsRouteRefusals): moq.StatsRoutes
+	val closedGet: moq.StatsRouteCloses
+	fun closedSet(value: moq.StatsRouteCloses): moq.StatsRoutes
+	fun add(other: moq.StatsRoutes): moq.StatsRoutes
+	fun regressed(previous: moq.StatsRoutes): kotlin.Boolean
+	companion object {
+		fun default(): moq.StatsRoutes
+	}
+}
+class StatsWithdrawals internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val deadGet: kotlin.ULong
+	fun deadSet(value: kotlin.ULong): moq.StatsWithdrawals
+	val drainGet: kotlin.ULong
+	fun drainSet(value: kotlin.ULong): moq.StatsWithdrawals
+	fun count(kind: moq.StatsWithdrawal): kotlin.ULong
+	fun total(): kotlin.ULong
+	fun add(other: moq.StatsWithdrawals): moq.StatsWithdrawals
+	fun regressed(previous: moq.StatsWithdrawals): kotlin.Boolean
+	companion object {
+		fun default(): moq.StatsWithdrawals
 	}
 }
 @kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) {
@@ -409,10 +437,13 @@ class TransportReceiveWindow internal constructor() {
 		fun fromMbps(mbps: kotlin.ULong): moq.BandwidthRate
 	}
 }
-data class FrameInfo(val size: kotlin.ULong, val timestamp: moq.Timestamp?) {
+data class DatagramDatagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp, val payload: moq.Bytes) {
 	fun debug(): kotlin.String
 }
-data class GroupInfo(val sequence: kotlin.ULong) {
+data class FrameInfo(val size: kotlin.ULong, val timestamp: moq.Timestamp) {
+	fun debug(): kotlin.String
+}
+data class GroupInfo(val start: kotlin.ULong) {
 	fun debug(): kotlin.String
 }
 data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
@@ -423,14 +454,18 @@ data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
 		fun default(): moq.TrackDelay
 	}
 }
-data class TrackPosition(val group: kotlin.ULong, val frame: kotlin.ULong) {
+class TrackPosition internal constructor() {
 	fun debug(): kotlin.String
-	fun groupEnd(): moq.BoundU64
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val groupGet: kotlin.ULong
+	fun groupSet(value: kotlin.ULong): moq.TrackPosition
+	val frameGet: kotlin.ULong
+	fun frameSet(value: kotlin.ULong): moq.TrackPosition
 	companion object {
 		fun default(): moq.TrackPosition
+		fun new(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition
 		fun group(group: kotlin.ULong): moq.TrackPosition
-		fun after(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition?
-		fun afterGroup(group: kotlin.ULong): moq.TrackPosition?
 	}
 }
 data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
@@ -438,7 +473,6 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
 	companion object {
 		fun live(): moq.TrackRange
 		fun oldest(): moq.TrackRange
-		fun groups(groups: moq.BoundsU64): moq.TrackRange
 	}
 }
 @kotlin.jvm.JvmInline value class OriginCost internal constructor(internal val bits: Long) {
@@ -447,48 +481,19 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
 	companion object {
 		fun default(): moq.OriginCost
 		fun new(cost: kotlin.ULong): moq.OriginCost
-		val MAX: moq.OriginCost
-		val DRAIN: moq.OriginCost
 	}
 }
-@kotlin.jvm.JvmInline value class OriginHopLimit internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	fun get(): kotlin.ULong
-	companion object {
-		fun default(): moq.OriginHopLimit
-		fun new(max: kotlin.ULong): moq.OriginHopLimit?
-	}
-}
-@kotlin.jvm.JvmInline value class OriginPreference internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class OriginPriority internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun value(): kotlin.Byte
 	companion object {
-		fun default(): moq.OriginPreference
-		fun new(preference: kotlin.Byte): moq.OriginPreference
+		fun default(): moq.OriginPriority
+		fun new(priority: kotlin.Byte): moq.OriginPriority
 	}
-}
-data class HangHealthLimitsF64(val degraded: kotlin.Double, val unhealthy: kotlin.Double) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-data class HangHealthLimitsDuration(val degraded: moq.Duration, val unhealthy: moq.Duration) {
-	fun debug(): kotlin.String
 }
 data class HangCatalogAac(val profile: kotlin.UByte) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
-}
-class HangCatalogClock internal constructor() {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val wallGet: moq.Timestamp
-	fun wallSet(value: moq.Timestamp): moq.HangCatalogClock
-	fun wallClock(pts: moq.Timestamp): moq.ClockWall
-	companion object {
-		fun new(wall: moq.Timestamp): moq.HangCatalogClock
-	}
 }
 @kotlin.jvm.JvmInline value class HangCatalogPriorities internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
@@ -555,25 +560,16 @@ data class MuxContainerTimestampRewind(val timestamp: moq.Timestamp, val floor: 
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
-data class MuxSelectSelected(val video: kotlin.collections.List<kotlin.String>, val audio: kotlin.collections.List<kotlin.String>) {
+data class MuxContainerPlayout(val delay: moq.TrackDelay, val warmup: moq.Duration) {
 	fun debug(): kotlin.String
+	fun subscription(subscription: moq.TrackSubscription): moq.TrackSubscription
+	fun consumerContainer(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
+	fun consumerFmp4Wire(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
+	fun consumerLegacyWire(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
+	fun consumerLocWire(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	companion object {
-		fun default(): moq.MuxSelectSelected
-		fun ofExtra(catalog: moq.HangCatalogExtra): moq.MuxSelectSelected
-		fun ofExt(catalog: moq.HangCatalogExt): moq.MuxSelectSelected
-		fun ofUnit(catalog: moq.HangCatalog): moq.MuxSelectSelected
-	}
-}
-@kotlin.jvm.JvmInline value class MuxTimelineTransition internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-}
-data class MuxTimelineAudio(val end: moq.Duration, val buffered: moq.Duration, val target: moq.Duration) {
-	fun debug(): kotlin.String
-}
-data class MuxCodecAacConfig(val profile: kotlin.UByte, val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt) {
-	fun encode(): moq.Bytes
-	companion object {
-		fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecAacConfig
+		fun default(): moq.MuxContainerPlayout
+		fun new(delay: moq.TrackDelay, warmup: moq.Duration): moq.MuxContainerPlayout
 	}
 }
 data class MuxCodecFlacConfig(val minBlockSize: kotlin.UShort, val maxBlockSize: kotlin.UShort, val minFrameSize: kotlin.UInt, val maxFrameSize: kotlin.UInt, val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt, val bitsPerSample: kotlin.UInt, val totalSamples: kotlin.ULong, val md5: ArrayU8x16) {
@@ -590,6 +586,9 @@ data class MuxCodecH264Sps(val profile: kotlin.UByte, val constraints: kotlin.UB
 	companion object {
 		fun parse(nal: moq.Bytes): moq.MuxCodecH264Sps
 	}
+}
+data class MuxCodecH265VideoSignal(val primaries: kotlin.UByte, val transfer: kotlin.UByte, val matrix: kotlin.UByte, val fullRange: kotlin.Boolean) {
+	fun debug(): kotlin.String
 }
 data class MuxCodecMp3Config(val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt) {
 	companion object {
@@ -610,1056 +609,14 @@ data class MuxContainerFmp4Fragment(val data: moq.Bytes, val independent: kotlin
 }
 data class MuxContainerLegacyWire(val _0: moq.MuxContainerKind)
 data class MuxContainerLocWire(val _0: moq.MuxContainerKind)
-data class MuxContainerMp4Finish(val moovOffset: kotlin.ULong, val moov: moq.Bytes, val mdatOffset: kotlin.ULong, val mdat: moq.Bytes) {
-	fun debug(): kotlin.String
-}
 data class MuxContainerTsDescriptor(val tag: kotlin.UByte, val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-class MuxContainerFmp4FragmentConfig internal constructor() {
-	fun debug(): kotlin.String
-	val missingDurationGet: moq.MuxContainerFmp4FragmentMissingDuration
-	fun missingDurationSet(value: moq.MuxContainerFmp4FragmentMissingDuration): moq.MuxContainerFmp4FragmentConfig
-	companion object {
-		fun default(): moq.MuxContainerFmp4FragmentConfig
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomFourCc internal constructor(internal val bits: Long) {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	companion object {
-		fun new(value: ArrayU8x4): moq.Mp4AtomFourCc
-	}
-}
-data class Mp4AtomMp4a(val audio: moq.Mp4AtomAudio, val esds: moq.Mp4AtomEsds, val btrt: moq.Mp4AtomBtrt?, val taic: moq.Mp4AtomTaic?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMp3(val audio: moq.Mp4AtomAudio) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomOpus(val audio: moq.Mp4AtomAudio, val dops: moq.Mp4AtomDops, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomFlac(val audio: moq.Mp4AtomAudio, val dfla: moq.Mp4AtomDfla) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomAc3(val audio: moq.Mp4AtomAudio, val dac3: moq.Mp4AtomAc3SpecificBox) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomEac3(val audio: moq.Mp4AtomAudio, val dec3: moq.Mp4AtomEc3SpecificBox) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomIpcm(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomFpcm(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomSowt(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomTwos(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomLpcm(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomIn24(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomIn32(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomFl32(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomFl64(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomS16l(val audio: moq.Mp4AtomAudio, val pcmc: moq.Mp4AtomPcmC?, val chnl: moq.Mp4AtomChnl?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-	fun format(): moq.Mp4AtomPcmFormat?
-}
-data class Mp4AtomWvtt(val plaintext: moq.Mp4AtomPlainText, val config: moq.Mp4AtomVttC, val label: moq.Mp4AtomVlab?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSamr(val amrsampleentry: moq.Mp4AtomAmrSampleEntry, val damr: moq.Mp4AtomDamr) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMett(val metadata: moq.Mp4AtomMetaData, val contentEncoding: kotlin.String, val mimeFormat: kotlin.String, val btrt: moq.Mp4AtomBtrt?, val txtc: moq.Mp4AtomTxtC?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMetx(val metadata: moq.Mp4AtomMetaData, val contentEncoding: kotlin.String, val namespace: kotlin.String, val schemaLocation: kotlin.String, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomUrim(val metadata: moq.Mp4AtomMetaData, val theLabel: moq.Mp4AtomUri, val init: moq.Mp4AtomUriI?, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomCamm(val metadata: moq.Mp4AtomMetaData) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomEvte(val metadata: moq.Mp4AtomMetaData, val btrt: moq.Mp4AtomBtrt?, val silb: moq.Mp4AtomSilb?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMebx(val metadata: moq.Mp4AtomMetaData, val keys: kotlin.collections.List<moq.Mp4AtomMebxKey>, val btrt: moq.Mp4AtomBtrt?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomTkhd(val creationTime: kotlin.ULong, val modificationTime: kotlin.ULong, val trackId: kotlin.UInt, val duration: kotlin.ULong, val layer: kotlin.UShort, val alternateGroup: kotlin.UShort, val enabled: kotlin.Boolean, val inMovie: kotlin.Boolean, val sizeIsAspectRatio: kotlin.Boolean, val volume: moq.Mp4AtomFixedPointU8, val matrix: moq.Mp4AtomMatrix, val width: moq.Mp4AtomFixedPointU16, val height: moq.Mp4AtomFixedPointU16) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTkhd
-	}
-}
-data class Mp4AtomEdts(val elst: moq.Mp4AtomElst?) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEdts
-	}
-}
-data class Mp4AtomSenc(val version: moq.Mp4AtomSencBoxVersion, val useSubsamples: kotlin.Boolean, val data: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSenc
-	}
-}
-data class Mp4AtomTref(val trackReferenceTypeBoxes: kotlin.collections.List<moq.Mp4AtomTrackReferenceTypeBox>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTref
-	}
-}
-data class Mp4AtomAudio(val dataReferenceIndex: kotlin.UShort, val channelCount: kotlin.UShort, val sampleSize: kotlin.UShort, val sampleRate: moq.Mp4AtomFixedPointU16) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMetaData(val dataReferenceIndex: kotlin.UShort) {
 	fun debug(): kotlin.String
 }
 data class RustlsClientTicketRequest(val newSessionCount: kotlin.UByte, val resumptionCount: kotlin.UByte) {
 	fun debug(): kotlin.String
 }
-@kotlin.jvm.JvmInline value class MoqQuicVarInt internal constructor(internal val bits: Long) {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	fun intoInner(): kotlin.ULong
-	fun encode(output: moq.Mut<moq.Bytes>)
-	companion object {
-		fun default(): moq.MoqQuicVarInt
-		val MAX: moq.MoqQuicVarInt
-		fun fromU32(x: kotlin.UInt): moq.MoqQuicVarInt
-		fun fromU64(x: kotlin.ULong): moq.MoqQuicVarInt
-	}
-}
-data class Mp4AtomAvcc(val configurationVersion: kotlin.UByte, val avcProfileIndication: kotlin.UByte, val profileCompatibility: kotlin.UByte, val avcLevelIndication: kotlin.UByte, val lengthSize: kotlin.UByte, val sequenceParameterSets: kotlin.collections.List<moq.Bytes>, val pictureParameterSets: kotlin.collections.List<moq.Bytes>, val ext: moq.Mp4AtomAvccExt?) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomAvcc
-		fun new(sps: moq.Bytes, pps: moq.Bytes): moq.Mp4AtomAvcc
-	}
-}
-data class Mp4AtomBtrt(val bufferSizeDb: kotlin.UInt, val maxBitrate: kotlin.UInt, val avgBitrate: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomBtrt
-		fun new(bufferSizeDb: kotlin.UInt, maxBitrate: kotlin.UInt, avgBitrate: kotlin.UInt): moq.Mp4AtomBtrt
-	}
-}
-data class Mp4AtomPasp(val hSpacing: kotlin.UInt, val vSpacing: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPasp
-		fun new(hSpacing: kotlin.UInt, vSpacing: kotlin.UInt): moq.Mp4AtomPasp
-	}
-}
-data class Mp4AtomTaic(val timeUncertainty: kotlin.ULong, val clockResolution: kotlin.UInt, val clockDriftRate: kotlin.Int, val clockType: moq.Mp4AtomClockType) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTaic
-		fun new(timeUncertainty: kotlin.ULong, clockResolution: kotlin.UInt, clockDriftRate: kotlin.Int, clockType: moq.Mp4AtomClockType): moq.Mp4AtomTaic
-	}
-}
-data class Mp4AtomFiel(val fieldCount: kotlin.UByte, val fieldOrder: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomFiel
-		fun new(fieldCount: kotlin.UByte, fieldOrder: kotlin.UByte): moq.Mp4AtomFiel
-	}
-}
-data class Mp4AtomHvcc(val configurationVersion: kotlin.UByte, val generalProfileSpace: kotlin.UByte, val generalTierFlag: kotlin.Boolean, val generalProfileIdc: kotlin.UByte, val generalProfileCompatibilityFlags: ArrayU8x4, val generalConstraintIndicatorFlags: ArrayU8x6, val generalLevelIdc: kotlin.UByte, val minSpatialSegmentationIdc: kotlin.UShort, val parallelismType: kotlin.UByte, val chromaFormatIdc: kotlin.UByte, val bitDepthLumaMinus8: kotlin.UByte, val bitDepthChromaMinus8: kotlin.UByte, val avgFrameRate: kotlin.UShort, val constantFrameRate: kotlin.UByte, val numTemporalLayers: kotlin.UByte, val temporalIdNested: kotlin.Boolean, val lengthSizeMinusOne: kotlin.UByte, val arrays: kotlin.collections.List<moq.Mp4AtomHvcCArray>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHvcc
-		fun new(): moq.Mp4AtomHvcc
-	}
-}
-data class Mp4AtomLhvc(val configurationVersion: kotlin.UByte, val minSpatialSegmentationIdc: kotlin.UShort, val parallelismType: kotlin.UByte, val numTemporalLayers: kotlin.UByte, val temporalIdNested: kotlin.Boolean, val lengthSizeMinusOne: kotlin.UByte, val arrays: kotlin.collections.List<moq.Mp4AtomHvcCArray>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomLhvc
-	}
-}
-data class Mp4AtomCcst(val allRefPicsIntra: kotlin.Boolean, val intraPredUsed: kotlin.Boolean, val maxRefPerPic: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCcst
-	}
-}
-data class Mp4AtomVpcC(val profile: kotlin.UByte, val level: kotlin.UByte, val bitDepth: kotlin.UByte, val chromaSubsampling: kotlin.UByte, val videoFullRangeFlag: kotlin.Boolean, val colorPrimaries: kotlin.UByte, val transferCharacteristics: kotlin.UByte, val matrixCoefficients: kotlin.UByte, val codecInitializationData: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomVpcC
-	}
-}
-data class Mp4AtomAv1c(val seqProfile: kotlin.UByte, val seqLevelIdx0: kotlin.UByte, val seqTier0: kotlin.Boolean, val highBitdepth: kotlin.Boolean, val twelveBit: kotlin.Boolean, val monochrome: kotlin.Boolean, val chromaSubsamplingX: kotlin.Boolean, val chromaSubsamplingY: kotlin.Boolean, val chromaSamplePosition: kotlin.UByte, val initialPresentationDelay: kotlin.UByte?, val configObus: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomAv1c
-	}
-}
-data class Mp4AtomEsds(val esDesc: moq.Mp4AtomEsdsEsDescriptor) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEsds
-	}
-}
-data class Mp4AtomRgbaColor(val red: kotlin.UByte, val green: kotlin.UByte, val blue: kotlin.UByte, val alpha: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomRgbaColor
-	}
-}
-data class Mp4AtomFtab(val fontEntries: kotlin.collections.List<moq.Mp4AtomFontEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomFtab
-	}
-}
-data class Mp4AtomDisp(val disparityShiftIn16thPel: kotlin.Short) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomDisp
-	}
-}
-data class Mp4AtomDops(val outputChannelCount: kotlin.UByte, val preSkip: kotlin.UShort, val inputSampleRate: kotlin.UInt, val outputGain: kotlin.Short, val channelMapping: moq.Mp4AtomOpusChannelMapping?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomCmpd(val components: kotlin.collections.List<moq.Mp4AtomComponent>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCmpd
-	}
-}
-data class Mp4AtomDfla(val blocks: kotlin.collections.List<moq.Mp4AtomFlacMetadataBlock>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomAc3SpecificBox(val fscod: kotlin.UByte, val bsid: kotlin.UByte, val bsmod: kotlin.UByte, val acmod: kotlin.UByte, val lfeon: kotlin.Boolean, val bitRateCode: kotlin.UByte) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomEc3SpecificBox(val dataRate: kotlin.UShort, val substreams: kotlin.collections.List<moq.Mp4AtomEc3IndependentSubstream>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomPcmC(val bigEndian: kotlin.Boolean, val sampleSize: kotlin.UByte) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomChnl(val channelStructure: moq.Mp4AtomChannelStructure?, val objectCount: kotlin.UByte?, val formatOrdering: kotlin.UByte?, val baseChannelCount: kotlin.UByte?) {
-	fun debug(): kotlin.String
-	companion object {
-		fun decodeBodyWithChannelCount(buf: moq.Mut<moq.Bytes>, channelCount: kotlin.UShort): moq.Mp4AtomChnl
-	}
-}
-data class Mp4AtomPlainText(val dataReferenceIndex: kotlin.UShort) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomVttC(val config: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomVlab(val sourceLabel: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomAmrSampleEntry(val dataReferenceIndex: kotlin.UShort, val timescale: kotlin.UShort) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomDamr(val vendor: moq.Mp4AtomFourCc, val decoderVersion: kotlin.UByte, val modeSet: kotlin.UShort, val modeChangePeriod: kotlin.UByte, val framesPerSample: kotlin.UByte) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomTxtC(val textConfig: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomUri(val theUri: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomUriI(val uriInitializationData: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSilb(val schemes: kotlin.collections.List<moq.Mp4AtomSchemeIdEntry>, val otherSchemes: kotlin.Boolean) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMebxKey(val localKeyId: moq.Mp4AtomFourCc, val keyd: moq.Mp4AtomKeyd, val dtyp: moq.Mp4AtomDtyp?, val loca: moq.Mp4AtomLoca?, val setu: moq.Mp4AtomSetu?) {
-	fun debug(): kotlin.String
-}
-@kotlin.jvm.JvmInline value class Mp4AtomFixedPointI16 internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	fun integer(): kotlin.Short
-	fun decimal(): kotlin.Short
-	companion object {
-		fun default(): moq.Mp4AtomFixedPointI16
-		fun new(int: kotlin.Short, dec: kotlin.Short): moq.Mp4AtomFixedPointI16
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomFixedPointI8 internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	fun integer(): kotlin.Byte
-	fun decimal(): kotlin.Byte
-	companion object {
-		fun default(): moq.Mp4AtomFixedPointI8
-		fun new(int: kotlin.Byte, dec: kotlin.Byte): moq.Mp4AtomFixedPointI8
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomFixedPointU16 internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	fun integer(): kotlin.UShort
-	fun decimal(): kotlin.UShort
-	companion object {
-		fun default(): moq.Mp4AtomFixedPointU16
-		fun new(int: kotlin.UShort, dec: kotlin.UShort): moq.Mp4AtomFixedPointU16
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomFixedPointU8 internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	fun integer(): kotlin.UByte
-	fun decimal(): kotlin.UByte
-	companion object {
-		fun default(): moq.Mp4AtomFixedPointU8
-		fun new(int: kotlin.UByte, dec: kotlin.UByte): moq.Mp4AtomFixedPointU8
-	}
-}
-data class Mp4AtomMatrix(val a: kotlin.Int, val b: kotlin.Int, val u: kotlin.Int, val c: kotlin.Int, val d: kotlin.Int, val v: kotlin.Int, val x: kotlin.Int, val y: kotlin.Int, val w: kotlin.Int) {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMatrix
-	}
-}
-data class Mp4AtomElst(val entries: kotlin.collections.List<moq.Mp4AtomElstEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomElst
-	}
-}
-data class Mp4AtomHdlr(val handler: moq.Mp4AtomFourCc, val name: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHdlr
-	}
-}
-data class Mp4AtomMdhd(val creationTime: kotlin.ULong, val modificationTime: kotlin.ULong, val timescale: kotlin.UInt, val duration: kotlin.ULong, val language: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMdhd
-	}
-}
-data class Mp4AtomTrackReferenceTypeBox(val referenceType: moq.Mp4AtomFourCc, val trackIds: kotlin.UIntArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-data class Mp4AtomChpl(val entries: kotlin.collections.List<moq.Mp4AtomChplEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomChpl
-	}
-}
-data class Mp4AtomCprt(val language: kotlin.String, val notice: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCprt
-	}
-}
-data class Mp4AtomKind(val schemeUri: kotlin.String, val value: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomKind
-	}
-}
-data class Mp4AtomRtng(val entity: moq.Mp4AtomFourCc, val criteria: moq.Mp4AtomFourCc, val language: kotlin.String, val ratingInfo: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomPcmFormat(val bigEndian: kotlin.Boolean, val sampleSize: kotlin.UShort, val float: kotlin.Boolean) {
-	fun debug(): kotlin.String
-}
-@kotlin.jvm.JvmInline value class MoqQuicStreamId internal constructor(internal val bits: Long) {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	fun initiator(): moq.MoqQuicSide
-	fun dir(): moq.MoqQuicStreamDir
-	fun index(): kotlin.ULong
-	companion object {
-		fun new(initiator: moq.MoqQuicSide, dir: moq.MoqQuicStreamDir, index: kotlin.ULong): moq.MoqQuicStreamId
-	}
-}
-class MoqQuicUdpStats internal constructor() {
-	fun debug(): kotlin.String
-	val datagramsGet: kotlin.ULong
-	fun datagramsSet(value: kotlin.ULong): moq.MoqQuicUdpStats
-	val bytesGet: kotlin.ULong
-	fun bytesSet(value: kotlin.ULong): moq.MoqQuicUdpStats
-	val iosGet: kotlin.ULong
-	fun iosSet(value: kotlin.ULong): moq.MoqQuicUdpStats
-	companion object {
-		fun default(): moq.MoqQuicUdpStats
-	}
-}
-class MoqQuicCreditStats internal constructor() {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val leasedGet: kotlin.ULong
-	fun leasedSet(value: kotlin.ULong): moq.MoqQuicCreditStats
-	val availableGet: kotlin.ULong
-	fun availableSet(value: kotlin.ULong): moq.MoqQuicCreditStats
-	val evictedGet: kotlin.ULong
-	fun evictedSet(value: kotlin.ULong): moq.MoqQuicCreditStats
-	val peakSpentGet: kotlin.ULong
-	fun peakSpentSet(value: kotlin.ULong): moq.MoqQuicCreditStats
-	companion object {
-		fun default(): moq.MoqQuicCreditStats
-	}
-}
-data class Mp4AtomAvccExt(val chromaFormat: kotlin.UByte, val bitDepthLuma: kotlin.UByte, val bitDepthChroma: kotlin.UByte, val sequenceParameterSetsExt: kotlin.collections.List<moq.Bytes>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomAvccExt
-	}
-}
-data class Mp4AtomSt3d(val stereoMode: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSt3d
-	}
-}
-data class Mp4AtomHfov(val fieldOfView: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHfov
-	}
-}
-data class Mp4AtomHvcCArray(val completeness: kotlin.Boolean, val nalUnitType: kotlin.UByte, val nalus: kotlin.collections.List<moq.Bytes>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHvcCArray
-	}
-}
-data class Mp4AtomEsdsEsDescriptor(val esId: kotlin.UShort, val dependsOnEsId: kotlin.UShort?, val url: moq.Bytes?, val ocrEsId: kotlin.UShort?, val streamPriority: kotlin.UByte, val decConfig: moq.Mp4AtomEsdsDecoderConfig, val slConfig: moq.Mp4AtomEsdsSlConfig) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEsdsEsDescriptor
-	}
-}
-data class Mp4AtomFontEntry(val fontId: kotlin.UShort, val font: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomFontEntry
-	}
-}
-data class Mp4AtomOpusChannelMapping(val family: kotlin.UByte, val streamCount: kotlin.UByte, val coupledCount: kotlin.UByte, val channelMapping: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomComponent(val componentType: kotlin.UShort, val componentTypeUri: kotlin.String?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomUncompressedComponent(val componentIndex: kotlin.UShort, val componentBitDepthMinusOne: kotlin.UByte, val componentFormat: kotlin.UByte, val componentAlignSize: kotlin.UByte) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomEc3IndependentSubstream(val fscod: kotlin.UByte, val bsid: kotlin.UByte, val asvc: kotlin.Boolean, val bsmod: kotlin.UByte, val acmod: kotlin.UByte, val lfeon: kotlin.Boolean, val numDepSub: kotlin.UByte, val chanLoc: kotlin.UShort?) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSchemeIdEntry(val schemeIdUri: kotlin.String, val value: kotlin.String, val atleastOnce: kotlin.Boolean) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomKeyd(val keyNamespace: moq.Mp4AtomFourCc, val keyValue: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomDtyp(val dataType: moq.Mp4AtomDataType) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomLoca(val locale: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSetu(val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomElstEntry(val segmentDuration: kotlin.ULong, val mediaTime: kotlin.ULong?, val mediaRate: moq.Mp4AtomFixedPointI16) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomElstEntry
-	}
-}
-data class Mp4AtomFtyp(val majorBrand: moq.Mp4AtomFourCc, val minorVersion: kotlin.UInt, val compatibleBrands: kotlin.collections.List<moq.Mp4AtomFourCc>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomStyp(val majorBrand: moq.Mp4AtomFourCc, val minorVersion: kotlin.UInt, val compatibleBrands: kotlin.collections.List<moq.Mp4AtomFourCc>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomPitm(val itemId: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPitm
-	}
-}
-data class Mp4AtomIloc(val itemLocations: kotlin.collections.List<moq.Mp4AtomItemLocation>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomIinf(val itemInfos: kotlin.collections.List<moq.Mp4AtomItemInfoEntry>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomAuxc(val auxType: kotlin.String, val auxSubtype: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomAuxc
-	}
-}
-data class Mp4AtomClap(val cleanApertureWidthN: kotlin.UInt, val cleanApertureWidthD: kotlin.UInt, val cleanApertureHeightN: kotlin.UInt, val cleanApertureHeightD: kotlin.UInt, val horizOffN: kotlin.Int, val horizOffD: kotlin.UInt, val vertOffN: kotlin.Int, val vertOffD: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomClap
-	}
-}
-data class Mp4AtomImir(val axis: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomImir
-	}
-}
-data class Mp4AtomIrot(val angle: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomIrot
-	}
-}
-data class Mp4AtomIscl(val targetWidthNumerator: kotlin.UShort, val targetWidthDenominator: kotlin.UShort, val targetHeightNumerator: kotlin.UShort, val targetHeightDenominator: kotlin.UShort) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomIscl
-	}
-}
-data class Mp4AtomIspe(val width: kotlin.UInt, val height: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomIspe
-	}
-}
-data class Mp4AtomPixi(val bitsPerChannel: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPixi
-	}
-}
-data class Mp4AtomRref(val referenceTypes: kotlin.collections.List<moq.Mp4AtomFourCc>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomRref
-	}
-}
-data class Mp4AtomIpma(val itemProperties: kotlin.collections.List<moq.Mp4AtomPropertyAssociations>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomIpma
-	}
-}
-data class Mp4AtomIref(val references: kotlin.collections.List<moq.Mp4AtomReference>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomIdat(val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Tuple2<T1, T2>(val first: T1, val second: T2) {
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-data class Mp4AtomIlst(val name: moq.Mp4AtomName?, val year: moq.Mp4AtomYear?, val covr: moq.Mp4AtomCovr?, val desc: moq.Mp4AtomDesc?, val ctoo: moq.Mp4AtomTool?, val cprt: moq.Mp4AtomCopyright?, val mdta: kotlin.collections.List<moq.Tuple2<kotlin.UInt, moq.Mp4AtomIlstData>>) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomIlst
-	}
-}
-data class Mp4AtomCovr(val _0: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomDesc(val countryIndicator: kotlin.UShort, val languageIndicator: kotlin.UShort, val text: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomTool(val countryIndicator: kotlin.UShort, val languageIndicator: kotlin.UShort, val text: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun new(countryIndicator: kotlin.UShort, languageIndicator: kotlin.UShort, text: kotlin.String): moq.Mp4AtomTool
-	}
-}
-data class Mp4AtomName(val _0: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomYear(val _0: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomKeys(val entries: kotlin.collections.List<moq.Mp4AtomKeyEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomKeys
-	}
-}
-data class Mp4AtomMvhd(val creationTime: kotlin.ULong, val modificationTime: kotlin.ULong, val timescale: kotlin.UInt, val duration: kotlin.ULong, val rate: moq.Mp4AtomFixedPointU16, val volume: moq.Mp4AtomFixedPointU8, val matrix: moq.Mp4AtomMatrix, val nextTrackId: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMvhd
-	}
-}
-data class Mp4AtomAinf(val hidden: kotlin.Boolean, val profileVersion: kotlin.UInt, val apid: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomAinf
-	}
-}
-data class Mp4AtomSkip(val zeroed: moq.Mp4AtomZeroed) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSkip
-	}
-}
-data class Mp4AtomStts(val entries: kotlin.collections.List<moq.Mp4AtomSttsEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStts
-	}
-}
-data class Mp4AtomStsc(val entries: kotlin.collections.List<moq.Mp4AtomStscEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStsc
-	}
-}
-data class Mp4AtomStsz(val samples: moq.Mp4AtomStszSamples) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStsz
-	}
-}
-data class Mp4AtomStss(val entries: kotlin.UIntArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomStss
-	}
-}
-data class Mp4AtomStco(val entries: kotlin.UIntArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomStco
-	}
-}
-data class Mp4AtomCo64(val entries: kotlin.ULongArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomCo64
-	}
-}
-data class Mp4AtomCslg(val compositionToDtsShift: kotlin.Long, val leastDecodeToDisplayShift: kotlin.Long, val greatestDecodeToDisplayDelta: kotlin.Long, val compositionStartTime: kotlin.Long, val compositionEndTime: kotlin.Long) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCslg
-	}
-}
-data class Mp4AtomCtts(val entries: kotlin.collections.List<moq.Mp4AtomCttsEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCtts
-	}
-}
-data class Mp4AtomSbgp(val groupingType: moq.Mp4AtomFourCc, val groupingTypeParameter: kotlin.UInt?, val entries: kotlin.collections.List<moq.Mp4AtomSbgpEntry>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSgpd(val groupingType: moq.Mp4AtomFourCc, val defaultLength: kotlin.UInt?, val defaultGroupDescriptionIndex: kotlin.UInt?, val staticGroupDescription: kotlin.Boolean, val staticMapping: kotlin.Boolean, val essential: kotlin.Boolean, val entries: kotlin.collections.List<moq.Mp4AtomSgpdEntry>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSubs(val flags: ArrayU8x3, val entries: kotlin.collections.List<moq.Mp4AtomSubsEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSubs
-	}
-}
-data class Mp4AtomSaio(val auxInfo: moq.Mp4AtomAuxInfo?, val offsets: kotlin.ULongArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomSaio
-	}
-}
-data class Mp4AtomSaiz(val auxInfo: moq.Mp4AtomAuxInfo?, val defaultSampleInfoSize: kotlin.UByte, val sampleCount: kotlin.UInt, val sampleInfoSize: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSaiz
-	}
-}
-data class Mp4AtomDinf(val dref: moq.Mp4AtomDref) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomDinf
-	}
-}
-data class Mp4AtomDref(val entries: kotlin.collections.List<moq.Mp4AtomDrefEntry>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomDref
-	}
-}
-data class Mp4AtomHmhd(val maxPduSize: kotlin.UShort, val avgPduSize: kotlin.UShort, val maxBitrate: kotlin.UInt, val avgBitrate: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHmhd
-	}
-}
-data class Mp4AtomSmhd(val balance: moq.Mp4AtomFixedPointI8) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSmhd
-	}
-}
-data class Mp4AtomVmhd(val graphicsMode: kotlin.UShort, val opColor: moq.Mp4AtomRgbColor) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomVmhd
-	}
-}
-data class Mp4AtomMvex(val mehd: moq.Mp4AtomMehd?, val trex: kotlin.collections.List<moq.Mp4AtomTrex>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMvex
-	}
-}
-data class Mp4AtomMehd(val fragmentDuration: kotlin.ULong) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMehd
-	}
-}
-data class Mp4AtomTrex(val trackId: kotlin.UInt, val defaultSampleDescriptionIndex: kotlin.UInt, val defaultSampleDuration: kotlin.UInt, val defaultSampleSize: kotlin.UInt, val defaultSampleFlags: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTrex
-	}
-}
-data class Mp4AtomEmsg(val timescale: kotlin.UInt, val presentationTime: moq.Mp4AtomEmsgTimestamp, val eventDuration: kotlin.UInt, val id: kotlin.UInt, val schemeIdUri: kotlin.String, val value: kotlin.String, val messageData: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomMfhd(val sequenceNumber: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMfhd
-	}
-}
-data class Mp4AtomTfhd(val trackId: kotlin.UInt, val baseDataOffset: kotlin.ULong?, val sampleDescriptionIndex: kotlin.UInt?, val defaultSampleDuration: kotlin.UInt?, val defaultSampleSize: kotlin.UInt?, val defaultSampleFlags: kotlin.UInt?, val durationIsEmpty: kotlin.Boolean, val defaultBaseIsMoof: kotlin.Boolean) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTfhd
-	}
-}
-data class Mp4AtomTfdt(val baseMediaDecodeTime: kotlin.ULong) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTfdt
-	}
-}
-data class Mp4AtomTrun(val dataOffset: kotlin.Int?, val samples: moq.Mp4AtomTrunSamples) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTrun
-	}
-}
-data class Mp4AtomMdat(val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomFree(val zeroed: moq.Mp4AtomZeroed) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSidx(val referenceId: kotlin.UInt, val timescale: kotlin.UInt, val earliestPresentationTime: kotlin.ULong, val firstOffset: kotlin.ULong, val references: kotlin.collections.List<moq.Mp4AtomSegmentReference>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSidx
-	}
-}
-data class Mp4AtomPrft(val referenceTrackId: kotlin.UInt, val ntpTimestamp: kotlin.ULong, val mediaTime: kotlin.ULong, val utcTimeSemantics: moq.Mp4AtomReferenceTime) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPrft
-	}
-}
-data class Mp4AtomMfra(val tfra: kotlin.collections.List<moq.Mp4AtomTfra>, val mfro: moq.Mp4AtomMfro) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMfra
-	}
-}
-data class Mp4AtomTfra(val trackId: kotlin.UInt, val entries: kotlin.collections.List<moq.Mp4AtomFragmentInfo>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTfra
-	}
-}
-data class Mp4AtomMfro(val parentSize: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMfro
-	}
-}
-data class Mp4AtomChplEntry(val start: kotlin.ULong, val title: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSvhd(val metadataSource: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSvhd
-	}
-}
-data class Mp4AtomMust(val requiredBoxTypes: kotlin.collections.List<moq.Mp4AtomFourCc>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomMust
-	}
-}
-data class Mp4AtomEsdsDecoderConfig(val objectTypeIndication: kotlin.UByte, val streamType: kotlin.UByte, val upStream: kotlin.UByte, val bufferSizeDb: moq.Mp4AtomU24, val maxBitrate: kotlin.UInt, val avgBitrate: kotlin.UInt, val decSpecific: moq.Mp4AtomEsdsDecoderSpecific?) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEsdsDecoderConfig
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomEsdsSlConfig internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEsdsSlConfig
-	}
-}
-@kotlin.jvm.JvmInline value class Mp4AtomU24 internal constructor(internal val bits: Long) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomU24
-	}
-}
-data class Mp4AtomItemLocation(val itemId: kotlin.UInt, val constructionMethod: kotlin.UByte, val dataReferenceIndex: kotlin.UShort, val baseOffset: kotlin.ULong, val extents: kotlin.collections.List<moq.Mp4AtomItemLocationExtent>) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomItemInfoEntry(val itemId: kotlin.UInt, val itemProtectionIndex: kotlin.UShort, val itemType: moq.Mp4AtomFourCc?, val itemName: kotlin.String, val contentType: kotlin.String?, val contentEncoding: kotlin.String?, val itemUriType: kotlin.String?, val itemNotInPresentation: kotlin.Boolean) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomPropertyAssociations(val itemId: kotlin.UInt, val associations: kotlin.collections.List<moq.Mp4AtomPropertyAssociation>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPropertyAssociations
-	}
-}
-data class Mp4AtomReference(val referenceType: moq.Mp4AtomFourCc, val fromItemId: kotlin.UInt, val toItemIds: kotlin.UIntArray) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-data class Mp4AtomCopyright(val countryIndicator: kotlin.UShort, val languageIndicator: kotlin.UShort, val text: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomIlstData(val countryIndicator: kotlin.UShort, val languageIndicator: kotlin.UShort, val value: moq.Mp4AtomIlstDataValue) {
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-data class Mp4AtomKeyEntry(val keyNamespace: moq.Mp4AtomFourCc, val keyValue: kotlin.String) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomZeroed(val size: kotlin.ULong) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomZeroed
-		fun new(size: kotlin.ULong): moq.Mp4AtomZeroed
-	}
-}
-data class Mp4AtomSttsEntry(val sampleCount: kotlin.UInt, val sampleDelta: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSttsEntry
-	}
-}
-data class Mp4AtomStscEntry(val firstChunk: kotlin.UInt, val samplesPerChunk: kotlin.UInt, val sampleDescriptionIndex: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStscEntry
-	}
-}
-data class Mp4AtomCttsEntry(val sampleCount: kotlin.UInt, val sampleOffset: kotlin.Long) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCttsEntry
-	}
-}
-data class Mp4AtomSbgpEntry(val sampleCount: kotlin.UInt, val groupDescriptionIndex: kotlin.UInt) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSgpdEntry(val descriptionLength: kotlin.UInt?, val entry: moq.Mp4AtomAnySampleGroupEntry) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomSubsEntry(val sampleDelta: kotlin.UInt, val subsamples: kotlin.collections.List<moq.Mp4AtomSubsSubsample>) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSubsEntry
-	}
-}
-data class Mp4AtomAuxInfo(val auxInfoType: moq.Mp4AtomFourCc, val auxInfoTypeParameter: kotlin.UInt) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomRgbColor(val red: kotlin.UShort, val green: kotlin.UShort, val blue: kotlin.UShort) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomRgbColor
-	}
-}
-data class Mp4AtomSegmentReference(val referenceType: kotlin.Boolean, val referencedSize: kotlin.UInt, val subsegmentDuration: kotlin.UInt, val startsWithSap: kotlin.Boolean, val sapType: kotlin.UByte, val sapDeltaTime: kotlin.UInt) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomFragmentInfo(val time: kotlin.ULong, val moofOffset: kotlin.ULong, val trafNumber: kotlin.UInt, val trunNumber: kotlin.UInt, val sampleDelta: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomFragmentInfo
-	}
-}
-data class Mp4AtomC2pa(val boxPurpose: kotlin.String, val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-class Mp4AtomExtendedType internal constructor() {
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomExtendedType
-		fun new(value: ArrayU8x16): moq.Mp4AtomExtendedType
-	}
-}
-data class Mp4AtomPrhd(val poseYawDegrees: kotlin.Int, val posePitchDegrees: kotlin.Int, val poseRollDegrees: kotlin.Int) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPrhd
-	}
-}
-data class Mp4AtomPrji(val projectionKind: moq.Mp4AtomFourCc) {
-	fun debug(): kotlin.String
-	companion object {
-		val RECTILINEAR: moq.Mp4AtomFourCc
-		val EQUIRECTANGULAR: moq.Mp4AtomFourCc
-		val HALFEQUIRECTANGULAR: moq.Mp4AtomFourCc
-		val FISHEYE: moq.Mp4AtomFourCc
-		val PARAMETRICIMMERSIVE: moq.Mp4AtomFourCc
-	}
-}
-data class Mp4AtomStri(val eyeViewsReversed: kotlin.Boolean, val hasAdditionalViews: kotlin.Boolean, val hasRightEyeView: kotlin.Boolean, val hasLeftEyeView: kotlin.Boolean) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStri
-	}
-}
-data class Mp4AtomHero(val heroEyeIndicator: kotlin.UByte) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomHero
-	}
-}
-data class Mp4AtomPkin(val viewPackingKind: moq.Mp4AtomFourCc) {
-	fun debug(): kotlin.String
-	companion object {
-		val SIDEBYSIDE: moq.Mp4AtomFourCc
-		val OVERUNDER: moq.Mp4AtomFourCc
-	}
-}
-data class Mp4AtomEsdsDecoderSpecific(val profile: kotlin.UByte, val freqIndex: kotlin.UByte, val chanConf: kotlin.UByte, val raw: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEsdsDecoderSpecific
-	}
-}
-data class Mp4AtomExplicitSpeakerPosition(val azimuth: kotlin.Short, val elevation: kotlin.Byte) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomItemLocationExtent(val itemReferenceIndex: kotlin.ULong, val offset: kotlin.ULong, val length: kotlin.ULong) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomPropertyAssociation(val essential: kotlin.Boolean, val propertyIndex: kotlin.UShort) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomPropertyAssociation
-	}
-}
-data class Mp4AtomSubsSubsample(val size: moq.Mp4AtomSubsSubsampleSize, val priority: kotlin.UByte, val discardable: kotlin.Boolean, val codecSpecificParameters: moq.Bytes) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSubsSubsample
-	}
-}
-data class Mp4AtomUrl(val location: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomUrl
-	}
-}
-data class Mp4AtomUrn(val name: kotlin.String, val location: kotlin.String) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomUrn
-	}
-}
-data class Mp4AtomTrunEntry(val duration: kotlin.UInt?, val size: kotlin.UInt?, val flags: kotlin.UInt?, val cts: kotlin.Long?) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomTrunEntry
-	}
-}
 data class RustlsCryptoHpkeHpkePublicKey(val _0: moq.Bytes) {
 	fun debug(): kotlin.String
-}
-data class Mp4AtomEqui(val projectionBoundsTop: kotlin.UInt, val projectionBoundsBottom: kotlin.UInt, val projectionBoundsLeft: kotlin.UInt, val projectionBoundsRight: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomEqui
-	}
-}
-data class Mp4AtomCbmp(val layout: kotlin.UInt, val padding: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomCbmp
-	}
-}
-data class Mp4AtomMshp(val crc: kotlin.UInt, val encodingFourCc: moq.Mp4AtomFourCc, val data: moq.Bytes) {
-	fun debug(): kotlin.String
-}
-data class Mp4AtomBlin(val baselineValue: kotlin.UInt) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomBlin
-	}
-}
-data class Mp4AtomDadj(val disparityAdjustment: kotlin.Int) {
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomDadj
-	}
 }
 enum class EncodeError(internal val value: Int) {
 	BOUNDS_EXCEEDED(0),
@@ -1687,21 +644,14 @@ sealed class SessionError {
 	data object Unauthorized : SessionError()
 	data object Expired : SessionError()
 	data object ProtocolViolation : SessionError()
-	data object KeyValueFormatting : SessionError()
 	data object TooManyRequests : SessionError()
 	data object GoawayTimeout : SessionError()
 	data object Timeout : SessionError()
-	data object AuthTokenCacheOverflow : SessionError()
 	data object Version : SessionError()
 	data object MalformedAuthToken : SessionError()
-	data object UnknownAuthTokenAlias : SessionError()
-	data object TooManyRequestUpdates : SessionError()
 	data class App(val _0: kotlin.UShort) : SessionError()
 	data class Unknown(val _0: kotlin.UInt) : SessionError()
 	data object Unsupported : SessionError()
-	data object InvalidRequestId : SessionError()
-	data object InvalidPath : SessionError()
-	data object InvalidAuthority : SessionError()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun toCode(): kotlin.UInt
@@ -1736,11 +686,10 @@ sealed class StreamError {
 		fun fromCode(code: kotlin.UInt): moq.StreamError
 	}
 }
-enum class InvalidHop(internal val value: Int) {
-	RANGE(0),
-	TOO_MANY(1),
-	DUPLICATE(2);
-	final override fun toString(): kotlin.String
+enum class Retry(internal val value: Int) {
+	SAME(0),
+	REROUTE(1),
+	NEVER(2);
 	fun debug(): kotlin.String
 	companion object {}
 }
@@ -1777,7 +726,7 @@ enum class TokioConnectError(internal val value: Int) {
 }
 enum class TokioRestart(internal val value: Int) {
 	REDIAL(0),
-	WAIT(1);
+	HANDOFF(1);
 	fun debug(): kotlin.String
 	companion object {
 		fun default(): moq.TokioRestart
@@ -1796,24 +745,10 @@ enum class TokioTransport(internal val value: Int) {
 	TCP(2),
 	UNIX(3),
 	WEB_TRANSPORT(4),
-	WEB_RTC(5);
+	TLS(5);
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
-	companion object {}
-}
-enum class AuthAnswer(internal val value: Int) {
-	GRANTED(0),
-	REQUESTS(1);
-	fun debug(): kotlin.String
-	companion object {}
-}
-enum class AuthRequestKind(internal val value: Int) {
-	SUBSCRIBE(0),
-	PUBLISH_NAMESPACE(1),
-	DISCOVER(2),
-	PUBLISH(3);
-	fun debug(): kotlin.String
 	companion object {}
 }
 enum class PathError(internal val value: Int) {
@@ -1831,6 +766,29 @@ enum class SetupRole(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {}
+}
+enum class ReconnectVerdict(internal val value: Int) {
+	RETRY(0),
+	UNUSABLE(1),
+	SETTLED(2);
+	fun debug(): kotlin.String
+	companion object {}
+}
+enum class ReconnectConfigError(internal val value: Int) {
+	EMPTY(0),
+	HEALTHY(1);
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+	companion object {}
+}
+enum class ReconnectRedirect(internal val value: Int) {
+	FOLLOW(0),
+	SAME_HOST(1),
+	IGNORE(2);
+	fun debug(): kotlin.String
+	companion object {
+		fun default(): moq.ReconnectRedirect
+	}
 }
 enum class StatsRole(internal val value: Int) {
 	PUBLISHER(0),
@@ -1869,7 +827,7 @@ enum class StatsRefusalKind(internal val value: Int) {
 	UNAVAILABLE(1),
 	REQUEST(2),
 	FORBIDDEN(3),
-	LAN(4),
+	MEMBERSHIP(4),
 	EXPIRED(5);
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
@@ -1877,11 +835,50 @@ enum class StatsRefusalKind(internal val value: Int) {
 		val ALL: kotlin.collections.List<moq.StatsRefusalKind>
 	}
 }
+enum class StatsRouteClose(internal val value: Int) {
+	STALLED(0),
+	OVERRUN(1),
+	MALFORMED(2),
+	ROLE(3),
+	UNASKED(4),
+	REGRESSED(5),
+	OTHER(6);
+	fun debug(): kotlin.String
+	fun asStr(): kotlin.String
+	companion object {
+		val ALL: kotlin.collections.List<moq.StatsRouteClose>
+	}
+}
+enum class StatsRouteRefusal(internal val value: Int) {
+	PATH(0),
+	SCOPE(1),
+	LOOPED(2);
+	fun debug(): kotlin.String
+	fun asStr(): kotlin.String
+	companion object {
+		val ALL: kotlin.collections.List<moq.StatsRouteRefusal>
+	}
+}
+enum class StatsWithdrawal(internal val value: Int) {
+	DEAD(0),
+	DRAIN(1);
+	fun debug(): kotlin.String
+	fun asStr(): kotlin.String
+	companion object {
+		val ALL: kotlin.collections.List<moq.StatsWithdrawal>
+	}
+}
 enum class TransportAddress(internal val value: Int) {
 	URI(0),
 	SETUP(1);
 	fun debug(): kotlin.String
 	companion object {}
+}
+sealed class TransportLimitsError {
+	data object Unsupported : TransportLimitsError()
+	data class Refused(val _0: kotlin.String) : TransportLimitsError()
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
 }
 enum class TransportCloseKind(internal val value: Int) {
 	TRANSPORT(0),
@@ -1893,10 +890,24 @@ enum class TransportCloseKind(internal val value: Int) {
 		fun default(): moq.TransportCloseKind
 	}
 }
+enum class BroadcastKind(internal val value: Int) {
+	TRACK(0),
+	DATAGRAMS(1);
+	fun debug(): kotlin.String
+	companion object {}
+}
+enum class TrackCompression(internal val value: Int) {
+	NONE(0),
+	DEFLATE(1);
+	fun debug(): kotlin.String
+	companion object {
+		fun default(): moq.TrackCompression
+	}
+}
 sealed class TrackAnchor {
-	data class Absolute(val _0: kotlin.ULong) : TrackAnchor()
 	data class Relative(val _0: kotlin.ULong) : TrackAnchor()
-	data class Time(val _0: moq.Timestamp) : TrackAnchor()
+	data object Oldest : TrackAnchor()
+	data class Time(val _0: kotlin.ULong) : TrackAnchor()
 	fun debug(): kotlin.String
 }
 enum class TrackOrder(internal val value: Int) {
@@ -1916,44 +927,12 @@ enum class OriginLink(internal val value: Int) {
 		fun default(): moq.OriginLink
 	}
 }
-sealed class OriginSource {
-	data object Local : OriginSource()
-	data class Peer(val _0: moq.Hop) : OriginSource()
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.OriginSource
-	}
-}
-enum class HangHealthVerdict(internal val value: Int) {
-	UNKNOWN(0),
-	HEALTHY(1),
-	DEGRADED(2),
-	UNHEALTHY(3);
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.HangHealthVerdict
-	}
-}
-enum class HangHealthRole(internal val value: Int) {
-	PUBLISHER(0),
-	VIEWER(1);
-	fun debug(): kotlin.String
-	companion object {}
-}
-enum class HangHealthReset(internal val value: Int) {
-	DECREASE(0),
-	REPLACED(1);
-	fun debug(): kotlin.String
-	companion object {}
-}
-enum class HangHealthInput(internal val value: Int) {
-	RTT(0),
-	LOSS(1),
-	HEADROOM(2),
-	SKIPPED(3),
-	LATE(4),
-	ERRORS(5),
-	STALLED(6);
+enum class OriginRouteKind(internal val value: Int) {
+	START(0),
+	UPDATE(1),
+	END(2),
+	OFFLINE(3),
+	RESTART(4);
 	fun debug(): kotlin.String
 	companion object {}
 }
@@ -2038,7 +1017,7 @@ enum class HangCatalogVideoCodecKind(internal val value: Int) {
 	fun debug(): kotlin.String
 	companion object {}
 }
-enum class HangCatalogRange(internal val value: Int) {
+enum class HangCatalogColorRange(internal val value: Int) {
 	LIMITED(0),
 	FULL(1);
 	fun debug(): kotlin.String
@@ -2074,6 +1053,16 @@ sealed class MuxContainerRead {
 	data class Frame(val group: kotlin.ULong, val frame: moq.MuxContainerFrame) : MuxContainerRead()
 	data class Gap(val timestamp: moq.Timestamp, val duration: moq.Timestamp) : MuxContainerRead()
 	data class End(val group: kotlin.ULong, val end: moq.Timestamp) : MuxContainerRead()
+	fun debug(): kotlin.String
+}
+sealed class MuxContainerReorderError {
+	data class Depth(val reorder: kotlin.UByte, val max: kotlin.UInt, val codec: kotlin.String) : MuxContainerReorderError()
+	data class Deepened(val declared: kotlin.UByte, val reorder: kotlin.UByte) : MuxContainerReorderError()
+	data class Reordered(val _0: kotlin.ULong) : MuxContainerReorderError()
+	data object Presentation : MuxContainerReorderError()
+	data object Tie : MuxContainerReorderError()
+	data object Undrained : MuxContainerReorderError()
+	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
 enum class MuxImportAudioFormat(internal val value: Int) {
@@ -2127,25 +1116,12 @@ sealed class MuxRateTarget {
 	data object Disabled : MuxRateTarget()
 	fun debug(): kotlin.String
 }
-enum class MuxTimelineKind(internal val value: Int) {
-	VIDEO(0),
-	AUDIO(1);
-	fun debug(): kotlin.String
-	companion object {}
-}
-enum class MuxTimelineError(internal val value: Int) {
-	OVERFLOW(0),
-	BEFORE_ORIGIN(1),
-	DELAY_OVERFLOW(2);
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	companion object {}
-}
 sealed class TokioListenBind {
 	data class Addr(val _0: moq.SocketAddr) : TokioListenBind()
 	data class Host(val _0: kotlin.String, val _1: kotlin.UShort) : TokioListenBind()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	fun resolve(): moq.SocketAddr
 }
 sealed class TransportMemoryError {
 	data class Session(val code: kotlin.UInt, val reason: kotlin.String) : TransportMemoryError()
@@ -2154,6 +1130,13 @@ sealed class TransportMemoryError {
 	data object Closed : TransportMemoryError()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+}
+enum class TransportPollAcked(internal val value: Int) {
+	DELIVERED(0),
+	UNSUPPORTED(1),
+	SENT(2);
+	fun debug(): kotlin.String
+	companion object {}
 }
 sealed class MuxCatalogMsfError {
 	data class UnresolvableNamespace(val name: kotlin.String, val namespace: kotlin.String) : MuxCatalogMsfError()
@@ -2246,26 +1229,22 @@ enum class MuxContainerTsFraming(internal val value: Int) {
 sealed class MuxContainerTsStep {
 	data class Rewind(val by: moq.Duration, val flagged: kotlin.Boolean) : MuxContainerTsStep()
 	data class Leap(val by: moq.Duration) : MuxContainerTsStep()
+	data class Identity(val transportStreamId: kotlin.UShort, val programNumber: kotlin.UShort) : MuxContainerTsStep()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
-enum class MuxCodecAacAdtsError(internal val value: Int) {
-	TRUNCATED(0),
-	SYNCWORD(1),
-	SAMPLE_RATE(2),
-	FRAME_LENGTH(3),
-	PACKET_LENGTH(4);
+sealed class MuxCodecAacAdtsError {
+	data object Truncated : MuxCodecAacAdtsError()
+	data object Syncword : MuxCodecAacAdtsError()
+	data object SampleRate : MuxCodecAacAdtsError()
+	data object FrameLength : MuxCodecAacAdtsError()
+	data object PacketLength : MuxCodecAacAdtsError()
+	data class ObjectType(val _0: kotlin.UByte) : MuxCodecAacAdtsError()
+	data class Rate(val _0: kotlin.UInt) : MuxCodecAacAdtsError()
+	data class ChannelConfig(val _0: kotlin.UByte) : MuxCodecAacAdtsError()
+	data class TooLarge(val _0: kotlin.ULong) : MuxCodecAacAdtsError()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
-	companion object {}
-}
-enum class MuxContainerFmp4FragmentMissingDuration(internal val value: Int) {
-	REJECT(0),
-	INFER_FROM_PRESENTATION_TIME(1);
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.MuxContainerFmp4FragmentMissingDuration
-	}
 }
 enum class MuxContainerTsStatsClass(internal val value: Int) {
 	AUDIO(1),
@@ -2277,20 +1256,13 @@ enum class MuxContainerTsStatsClass(internal val value: Int) {
 	}
 }
 enum class MoqTokioQuicCongestionControl(internal val value: Int) {
-	LOSS(0),
-	DELAY(1),
-	NONE(2);
+	BBR(0),
+	CUBIC(1),
+	UNLIMITED(2);
 	fun debug(): kotlin.String
-	companion object {}
-}
-enum class MoqTokioConnectionPhase(internal val value: Int) {
-	CONNECTING(0),
-	CONNECTED(1),
-	DISCONNECTED(2),
-	MIGRATING(3),
-	CLOSED(4);
-	fun debug(): kotlin.String
-	companion object {}
+	companion object {
+		fun default(): moq.MoqTokioQuicCongestionControl
+	}
 }
 enum class MoqTokioAcceptFailure(internal val value: Int) {
 	CONNECTION(0),
@@ -2316,31 +1288,6 @@ sealed class MoqQuicRate {
 	data object Unlimited : MoqQuicRate()
 	data class BytesPerSecond(val _0: kotlin.ULong) : MoqQuicRate()
 	fun debug(): kotlin.String
-}
-sealed class Mp4AtomColr {
-	data class Nclx(val colourPrimaries: kotlin.UShort, val transferCharacteristics: kotlin.UShort, val matrixCoefficients: kotlin.UShort, val fullRangeFlag: kotlin.Boolean) : Mp4AtomColr()
-	data class Nclc(val colourPrimaries: kotlin.UShort, val transferCharacteristics: kotlin.UShort, val matrixCoefficients: kotlin.UShort) : Mp4AtomColr()
-	data class Ricc(val profile: moq.Bytes) : Mp4AtomColr()
-	data class Prof(val profile: moq.Bytes) : Mp4AtomColr()
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomColr
-		fun new(colourPrimaries: kotlin.UShort, transferCharacteristics: kotlin.UShort, matrixCoefficients: kotlin.UShort, fullRangeFlag: kotlin.Boolean): moq.Mp4AtomColr
-	}
-}
-sealed class Mp4AtomUncC {
-	data class V1(val profile: moq.Mp4AtomFourCc) : Mp4AtomUncC()
-	data class V0(val profile: moq.Mp4AtomFourCc, val components: kotlin.collections.List<moq.Mp4AtomUncompressedComponent>, val samplingType: kotlin.UByte, val interleaveType: kotlin.UByte, val blockSize: kotlin.UByte, val componentsLittleEndian: kotlin.Boolean, val blockPadLsb: kotlin.Boolean, val blockLittleEndian: kotlin.Boolean, val blockReversed: kotlin.Boolean, val padUnknown: kotlin.Boolean, val pixelSize: kotlin.UInt, val rowAlignSize: kotlin.UInt, val tileAlignSize: kotlin.UInt, val numTileColsMinusOne: kotlin.UInt, val numTileRowsMinusOne: kotlin.UInt) : Mp4AtomUncC()
-	fun debug(): kotlin.String
-}
-enum class Mp4AtomSencBoxVersion(internal val value: Int) {
-	V0(0),
-	V1(1),
-	V2(2);
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomSencBoxVersion
-	}
 }
 sealed class MoqTokioConnectError {
 	data object EmptyAddresses : MoqTokioConnectError()
@@ -2371,6 +1318,18 @@ enum class RustlsClientTls12Resumption(internal val value: Int) {
 	fun debug(): kotlin.String
 	companion object {}
 }
+enum class MoqQuicConnectionMuxVersion(internal val value: Int) {
+	Q_MUX00(0),
+	Q_MUX01(1),
+	Q_MUX02(2);
+	fun debug(): kotlin.String
+	fun usesRecords(): kotlin.Boolean
+	fun alpn(): kotlin.String
+	fun prefix(): kotlin.String
+	companion object {
+		val ALL: kotlin.collections.List<moq.MoqQuicConnectionMuxVersion>
+	}
+}
 enum class MoqSockDemuxDiscard(internal val value: Int) {
 	STUN(0),
 	UNKNOWN(1),
@@ -2382,38 +1341,6 @@ enum class MoqSockDemuxDiscard(internal val value: Int) {
 		val ALL: kotlin.collections.List<moq.MoqSockDemuxDiscard>
 	}
 }
-enum class Mp4AtomClockType(internal val value: Int) {
-	UNKNOWN(0),
-	DOES_NOT_SYNC(1),
-	CAN_SYNC(2),
-	RESERVED(3);
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomClockType
-	}
-}
-sealed class Mp4AtomFlacMetadataBlock {
-	data class StreamInfo(val minimumBlockSize: kotlin.UShort, val maximumBlockSize: kotlin.UShort, val minimumFrameSize: moq.Mp4AtomU24, val maximumFrameSize: moq.Mp4AtomU24, val sampleRate: kotlin.UInt, val numChannelsMinusOne: kotlin.UByte, val bitsPerSampleMinusOne: kotlin.UByte, val numberOfInterchannelSamples: kotlin.ULong, val md5Checksum: moq.Bytes) : Mp4AtomFlacMetadataBlock()
-	data object Padding : Mp4AtomFlacMetadataBlock()
-	data object Application : Mp4AtomFlacMetadataBlock()
-	data object SeekTable : Mp4AtomFlacMetadataBlock()
-	data class VorbisComment(val vendorString: kotlin.String, val comments: kotlin.collections.List<kotlin.String>) : Mp4AtomFlacMetadataBlock()
-	data object CueSheet : Mp4AtomFlacMetadataBlock()
-	data object Picture : Mp4AtomFlacMetadataBlock()
-	data object Reserved : Mp4AtomFlacMetadataBlock()
-	data object Forbidden : Mp4AtomFlacMetadataBlock()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomChannelStructure {
-	data class ExplicitPositions(val positions: kotlin.collections.List<moq.Mp4AtomSpeakerPosition>) : Mp4AtomChannelStructure()
-	data class DefinedLayout(val layout: kotlin.UByte, val omittedChannelsMap: kotlin.ULong?, val channelOrderDefinition: kotlin.UByte?) : Mp4AtomChannelStructure()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomUuid {
-	data class C2pa(val _0: moq.Mp4AtomC2pa) : Mp4AtomUuid()
-	data class Unknown(val _0: moq.Mp4AtomExtendedType, val _1: moq.Bytes) : Mp4AtomUuid()
-	fun debug(): kotlin.String
-}
 enum class MoqSockUdpEcnCodepoint(internal val value: Int) {
 	ECT0(2),
 	ECT1(1),
@@ -2421,179 +1348,6 @@ enum class MoqSockUdpEcnCodepoint(internal val value: Int) {
 	fun debug(): kotlin.String
 	companion object {
 		fun fromBits(x: kotlin.UByte): moq.MoqSockUdpEcnCodepoint?
-	}
-}
-enum class MoqQuicSide(internal val value: Int) {
-	CLIENT(0),
-	SERVER(1);
-	fun debug(): kotlin.String
-	fun isClient(): kotlin.Boolean
-	fun isServer(): kotlin.Boolean
-	companion object {}
-}
-enum class MoqQuicStreamDir(internal val value: Int) {
-	BI(0),
-	UNI(1);
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	companion object {}
-}
-sealed class Mp4AtomSpeakerPosition {
-	data class Standard(val _0: moq.Mp4AtomAudioChannelPosition) : Mp4AtomSpeakerPosition()
-	data class Explicit(val _0: moq.Mp4AtomExplicitSpeakerPosition) : Mp4AtomSpeakerPosition()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomDataType {
-	data class WellKnown(val _0: kotlin.UInt) : Mp4AtomDataType()
-	data class Custom(val _0: kotlin.String) : Mp4AtomDataType()
-	data class Unknown(val _0: kotlin.UInt, val _1: moq.Bytes) : Mp4AtomDataType()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomStszSamples {
-	data class Identical(val count: kotlin.UInt, val size: kotlin.UInt) : Mp4AtomStszSamples()
-	data class Different(val sizes: kotlin.UIntArray) : Mp4AtomStszSamples() {
-		override fun equals(other: kotlin.Any?): kotlin.Boolean
-		override fun hashCode(): kotlin.Int
-	}
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomStszSamples
-	}
-}
-sealed class Mp4AtomDrefEntry {
-	data class Url(val _0: moq.Mp4AtomUrl) : Mp4AtomDrefEntry()
-	data class Urn(val _0: moq.Mp4AtomUrn) : Mp4AtomDrefEntry()
-	data class Unknown(val _0: moq.Mp4AtomFourCc, val _1: moq.Bytes) : Mp4AtomDrefEntry()
-	fun debug(): kotlin.String
-	fun kind(): moq.Mp4AtomFourCc
-}
-sealed class Mp4AtomEmsgTimestamp {
-	data class Relative(val _0: kotlin.UInt) : Mp4AtomEmsgTimestamp()
-	data class Absolute(val _0: kotlin.ULong) : Mp4AtomEmsgTimestamp()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomTrunSamples {
-	data class Inherited(val count: kotlin.UInt, val firstFlags: kotlin.UInt?) : Mp4AtomTrunSamples()
-	data class Explicit(val _0: kotlin.collections.List<moq.Mp4AtomTrunEntry>) : Mp4AtomTrunSamples()
-	fun debug(): kotlin.String
-	fun len(): kotlin.ULong
-	fun isEmpty(): kotlin.Boolean
-	fun get(index: kotlin.ULong): moq.Mp4AtomTrunEntry?
-	companion object {
-		fun default(): moq.Mp4AtomTrunSamples
-	}
-}
-enum class Mp4AtomReferenceTime(internal val value: Int) {
-	INPUT(0),
-	OUTPUT(1),
-	FINALISED(2),
-	WRITTEN(3),
-	CONSISTENT(4),
-	REAL_TIME(5);
-	fun debug(): kotlin.String
-	companion object {
-		fun default(): moq.Mp4AtomReferenceTime
-	}
-}
-sealed class Mp4AtomProjKind {
-	data class Equi(val _0: moq.Mp4AtomEqui) : Mp4AtomProjKind()
-	data class Cbmp(val _0: moq.Mp4AtomCbmp) : Mp4AtomProjKind()
-	data class Mshp(val _0: moq.Mp4AtomMshp) : Mp4AtomProjKind()
-	fun debug(): kotlin.String
-}
-enum class Mp4AtomVexuProjKind(internal val value: Int) {
-	RECTILINEAR(0),
-	EQUIRECTANGULAR(1),
-	HALF_EQUIRECTANGULAR(2),
-	FISHEYE(3),
-	PARAMETRIC_IMMERSIVE(4);
-	fun debug(): kotlin.String
-	fun kind(): moq.Mp4AtomFourCc
-	companion object {}
-}
-enum class Mp4AtomAudioChannelPosition(internal val value: Int) {
-	FRONT_LEFT(0),
-	FRONT_RIGHT(1),
-	FRONT_CENTER(2),
-	LFE1(3),
-	LEFT_SURROUND(4),
-	RIGHT_SURROUND(5),
-	FRONT_LEFT_OF_CENTER(6),
-	FRONT_RIGHT_OF_CENTER(7),
-	REAR_LEFT(8),
-	REAR_RIGHT(9),
-	REAR_CENTER(10),
-	SURROUND_LEFT(11),
-	SURROUND_RIGHT(12),
-	SIDE_LEFT(13),
-	SIDE_RIGHT(14),
-	FRONT_LEFT_WIDE(15),
-	FRONT_RIGHT_WIDE(16),
-	TOP_FRONT_LEFT(17),
-	TOP_FRONT_RIGHT(18),
-	TOP_FRONT_CENTER(19),
-	TOP_REAR_LEFT(20),
-	TOP_REAR_RIGHT(21),
-	TOP_REAR_CENTER(22),
-	TOP_SIDE_LEFT(23),
-	TOP_SIDE_RIGHT(24),
-	TOP_CENTER(25),
-	LFE2(26),
-	BOTTOM_FRONT_LEFT(27),
-	BOTTOM_FRONT_RIGHT(28),
-	BOTTOM_FRONT_CENTER(29),
-	TOP_SURROUND_LEFT(30),
-	TOP_SURROUND_RIGHT(31),
-	LFE3(36),
-	LEOS(37),
-	REOS(38),
-	HWBCAL(39),
-	HWBCAR(40),
-	LBS(41),
-	RBS(42),
-	LEFT_EAR(43),
-	RIGHT_EAR(44),
-	UNKNOWN(127);
-	fun debug(): kotlin.String
-	companion object {
-		fun fromU8(value: kotlin.UByte): moq.Mp4AtomAudioChannelPosition?
-	}
-}
-sealed class Mp4AtomIlstDataValue {
-	data class Reserved(val _0: moq.Bytes) : Mp4AtomIlstDataValue()
-	data class Utf8(val _0: kotlin.String) : Mp4AtomIlstDataValue()
-	data class Utf16(val _0: kotlin.String) : Mp4AtomIlstDataValue()
-	data class Jpeg(val _0: moq.Bytes) : Mp4AtomIlstDataValue()
-	data class Png(val _0: moq.Bytes) : Mp4AtomIlstDataValue()
-	data class Bmp(val _0: moq.Bytes) : Mp4AtomIlstDataValue()
-	data class BeSignedInt(val _0: kotlin.Long) : Mp4AtomIlstDataValue()
-	data class BeUnsignedInt(val _0: kotlin.ULong) : Mp4AtomIlstDataValue()
-	data class BeFloat32(val _0: kotlin.Float) : Mp4AtomIlstDataValue() {
-		override fun equals(other: kotlin.Any?): kotlin.Boolean
-		override fun hashCode(): kotlin.Int
-	}
-	data class BeFloat64(val _0: kotlin.Double) : Mp4AtomIlstDataValue() {
-		override fun equals(other: kotlin.Any?): kotlin.Boolean
-		override fun hashCode(): kotlin.Int
-	}
-	data class Unknown(val _0: kotlin.UInt, val _1: moq.Bytes) : Mp4AtomIlstDataValue()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomAnySampleGroupEntry {
-	data class DirectReferenceSampleList(val _0: kotlin.UInt, val _1: kotlin.UIntArray) : Mp4AtomAnySampleGroupEntry() {
-		override fun equals(other: kotlin.Any?): kotlin.Boolean
-		override fun hashCode(): kotlin.Int
-	}
-	data class UnknownGroupingType(val _0: moq.Mp4AtomFourCc, val _1: moq.Bytes) : Mp4AtomAnySampleGroupEntry()
-	fun debug(): kotlin.String
-}
-sealed class Mp4AtomSubsSubsampleSize {
-	data class U16(val _0: kotlin.UShort) : Mp4AtomSubsSubsampleSize()
-	data class U32(val _0: kotlin.UInt) : Mp4AtomSubsSubsampleSize()
-	fun debug(): kotlin.String
-	fun value(): kotlin.UInt
-	companion object {
-		fun default(): moq.Mp4AtomSubsSubsampleSize
 	}
 }
 enum class Level(internal val value: Int) {
@@ -2674,7 +1428,6 @@ class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun hasPrefix(prefix: moq.Path): kotlin.Boolean
 	fun stripPrefix(prefix: moq.Path): moq.Path?
 	fun head(n: kotlin.ULong): moq.Path?
-	fun parts(): kotlin.collections.List<kotlin.String>
 	fun asStr(): kotlin.String
 	fun isEmpty(): kotlin.Boolean
 	fun len(): kotlin.ULong
@@ -2746,13 +1499,18 @@ class Server internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.Server
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.Server
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Server
+	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Server
 	fun withStats(stats: moq.StatsSession): moq.Server
 	fun withLimits(limits: moq.SessionLimits): moq.Server
 	fun withVersions(versions: moq.Versions): moq.Server
-	fun withExtensions(extensions: moq.SetupExtensions): moq.Server
 	fun withImplementation(implementation: kotlin.String): moq.Server
-	suspend fun acceptSession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	suspend fun acceptRequestSession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
+	fun withTimeout(timeout: moq.Duration?): moq.Server
+	fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
+	fun withReceiveWindow(window: kotlin.ULong): moq.Server
+	suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
+	suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
 	companion object {
 		fun default(): moq.Server
 		fun new(): moq.Server
@@ -2760,7 +1518,10 @@ class Server internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 }
 class Session internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	fun debug(): kotlin.String
 	fun clone(): moq.Session
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
 	fun version(): moq.Version
 	suspend fun peerImplementation(): kotlin.String?
 	fun sendBandwidth(): moq.BandwidthConsumer?
@@ -2771,9 +1532,8 @@ class Session internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun abort(err: moq.Error)
 	suspend fun close_()
 	suspend fun closed(): moq.Error
-	fun drain(): moq.GoawayProducer
+	fun goaway(goaway: moq.GoawayGoaway)
 	fun draining(): moq.GoawayConsumer
-	suspend fun idle()
 	fun auth(): moq.AuthHandle
 }
 class Client internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2783,19 +1543,19 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.Client
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.Client
 	fun withStats(stats: moq.StatsSession): moq.Client
-	fun withOrigin(origin: moq.OriginProducer): moq.Client
 	fun withLimits(limits: moq.SessionLimits): moq.Client
 	fun withAllocator(allocator: moq.BandwidthAllocator): moq.Client
 	fun withViewers(viewers: moq.BandwidthViewers): moq.Client
 	fun withVersions(versions: moq.Versions): moq.Client
 	fun withUrl(url: moq.Url): moq.Client
+	fun url(): moq.Url?
 	fun withToken(token: moq.SetupToken): moq.Client
 	fun withAuth(auth: moq.AuthHandle): moq.Client
-	fun withExtensions(extensions: moq.SetupExtensions): moq.Client
 	fun withImplementation(implementation: kotlin.String): moq.Client
 	fun withCost(cost: moq.OriginCost): moq.Client
-	fun withPeerHop(hop: moq.Hop): moq.Client
-	suspend fun connectSession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	fun withPeerNode(node: kotlin.ULong): moq.Client
+	suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
 	companion object {
 		fun default(): moq.Client
 		fun new(): moq.Client
@@ -2808,9 +1568,38 @@ class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun clone(): moq.Error
 	fun session(): moq.SessionError?
 	fun stream(): moq.StreamError?
+	fun retry(): moq.Retry
 	companion object {
 		fun fromTransportError(err: moq.Error): moq.Error
 		fun fromTransportMemoryError(err: moq.TransportMemoryError): moq.Error
+	}
+}
+class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.Timestamp
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun value(): kotlin.ULong
+	fun scale(): moq.Timescale?
+	fun isZero(): kotlin.Boolean
+	fun convert(newScale: moq.Timescale): moq.Timestamp
+	fun asScale(target: moq.Timescale): java.math.BigInteger
+	fun asSecs(): kotlin.ULong
+	fun asMillis(): java.math.BigInteger
+	fun asMicros(): java.math.BigInteger
+	fun asNanos(): java.math.BigInteger
+	fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
+	fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
+	companion object {
+		val ZERO: moq.Timestamp
+		fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		fun unscaled(key: kotlin.ULong): moq.Timestamp
+		fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
+		fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
+		fun fromMillis(millis: kotlin.ULong): moq.Timestamp
+		fun fromMicros(micros: kotlin.ULong): moq.Timestamp
+		fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
 	}
 }
 class Version internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2820,13 +1609,12 @@ class Version internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun clone(): moq.Version
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun hasSetupToken(): kotlin.Boolean
+	fun hasRequestPath(): kotlin.Boolean
 	fun asStr(): kotlin.String
-	fun code(): kotlin.ULong
 	fun alpn(): kotlin.String
 	fun isLite(): kotlin.Boolean
 	companion object {
-		fun fromCode(code: kotlin.ULong): moq.Version?
+		val ALL: kotlin.collections.List<moq.Version>
 	}
 }
 class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2841,33 +1629,6 @@ class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	companion object {
 		fun default(): moq.Versions
 		fun all(): moq.Versions
-	}
-}
-class TimedJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TimedJson
-	val valueGet: moq.Json
-	fun valueSet(value: moq.Json)
-	val atGet: moq.Timestamp?
-	fun atSet(value: moq.Timestamp?)
-	fun at(at: moq.Timestamp): moq.TimedJson
-}
-class Hops internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Hops
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun push(hop: moq.Hop)
-	fun contains(hop: moq.Hop): kotlin.Boolean
-	fun len(): kotlin.ULong
-	fun isEmpty(): kotlin.Boolean
-	fun iter(): kotlin.collections.List<moq.Hop>
-	fun asSlice(): kotlin.collections.List<moq.Hop>
-	companion object {
-		fun default(): moq.Hops
-		fun new(): moq.Hops
 	}
 }
 class Specificity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2969,26 +1730,25 @@ class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 	companion object {
@@ -2996,7 +1756,6 @@ class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoC
 		val DEFAULTNAME: kotlin.String
 		fun defaultTrackInfo(): moq.TrackInfo
 		fun defaultSubscription(): moq.TrackSubscription
-		suspend fun subscribe(broadcast: moq.BroadcastConsumer): moq.HangCatalogConsumer
 		fun fromSlice(v: moq.Bytes): moq.HangCatalog
 		fun fromReader(reader: moq.Bytes): moq.HangCatalog
 	}
@@ -3011,33 +1770,31 @@ class HangCatalogExtra internal constructor(raw: Long, lent: Boolean = false) : 
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val extGet: moq.MuxCatalogHangExtra
 	fun extSet(value: moq.MuxCatalogHangExtra)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 	companion object {
 		fun default(): moq.HangCatalogExtra
-		suspend fun subscribe(broadcast: moq.BroadcastConsumer): moq.HangCatalogConsumerExtra
 		fun fromSlice(v: moq.Bytes): moq.HangCatalogExtra
 		fun fromReader(reader: moq.Bytes): moq.HangCatalogExtra
 	}
@@ -3052,33 +1809,31 @@ class HangCatalogExt internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val extGet: moq.MuxContainerTsExt
 	fun extSet(value: moq.MuxContainerTsExt)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 	companion object {
 		fun default(): moq.HangCatalogExt
-		suspend fun subscribe(broadcast: moq.BroadcastConsumer): moq.HangCatalogConsumerExt
 		fun fromSlice(v: moq.Bytes): moq.HangCatalogExt
 		fun fromReader(reader: moq.Bytes): moq.HangCatalogExt
 	}
@@ -3105,6 +1860,23 @@ class MuxClock internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 		val TIMESCALE: moq.Timescale
 		fun new(): moq.MuxClock
 		fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
+	}
+}
+class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxIngest
+	val maxAgeGet: moq.Duration?
+	fun maxAgeSet(value: moq.Duration?)
+	val bandwidthGet: moq.BandwidthAllocator
+	fun bandwidthSet(value: moq.BandwidthAllocator)
+	val lingerGet: moq.Duration
+	fun lingerSet(value: moq.Duration)
+	val rateGet: moq.BandwidthLimit?
+	fun rateSet(value: moq.BandwidthLimit?)
+	fun catalog(): moq.MuxCatalogConfig
+	companion object {
+		fun default(): moq.MuxIngest
 	}
 }
 class MuxLingerUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3176,15 +1948,15 @@ class TokioBackoff internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun initialSet(value: moq.TokioDuration?)
 	val multiplierGet: kotlin.UInt
 	fun multiplierSet(value: kotlin.UInt)
-	val maxGet: moq.TokioDuration?
-	fun maxSet(value: moq.TokioDuration?)
+	val maxGet: moq.MoqTokioCliBound?
+	fun maxSet(value: moq.MoqTokioCliBound?)
 	val healthyGet: moq.TokioDuration?
 	fun healthySet(value: moq.TokioDuration?)
-	val timeoutGet: moq.TokioDuration?
-	fun timeoutSet(value: moq.TokioDuration?)
+	val timeoutGet: moq.MoqTokioCliBound?
+	fun timeoutSet(value: moq.MoqTokioCliBound?)
 	fun initial(): moq.Duration
-	fun max(): moq.Duration
-	fun timeout(): moq.Duration
+	fun max(): moq.Duration?
+	fun timeout(): moq.Duration?
 	companion object {
 		fun default(): moq.TokioBackoff
 	}
@@ -3194,12 +1966,12 @@ class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun clone(): moq.TokioClient
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.TokioClient
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.TokioClient
-	fun withOrigin(origin: moq.OriginProducer): moq.TokioClient
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioClient
 	fun withLimits(limits: moq.SessionLimits): moq.TokioClient
 	fun withStats(stats: moq.StatsSession): moq.TokioClient
 	fun withCost(cost: kotlin.ULong): moq.TokioClient
-	fun withPeerHop(hop: moq.Hop): moq.TokioClient
+	fun withPeerNode(node: kotlin.ULong): moq.TokioClient
+	fun withToken(token: moq.SetupToken): moq.TokioClient
 	fun withReconnect(reconnect: kotlin.Boolean): moq.TokioClient
 	fun withRestart(restart: moq.TokioRestart): moq.TokioClient
 	fun connect(addrs: moq.MoqTokioAddrs): moq.TokioConnection
@@ -3256,8 +2028,6 @@ class TokioLog internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 class TokioServer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun servePublish(origin: moq.OriginConsumer)
-	suspend fun serveConsume(origin: moq.OriginProducer)
-	suspend fun serveBoth(publish: moq.OriginConsumer, subscribe: moq.OriginProducer)
 	fun tlsAcceptor(): moq.MoqTokioTcpTlsAcceptor?
 	fun certificates(): moq.TokioTlsCertificates
 	fun acceptHealth(): kotlin.collections.List<moq.MoqTokioAcceptHealth>
@@ -3281,8 +2051,6 @@ class AuthRequests internal constructor(raw: Long, lent: Boolean = false) : Auto
 class AuthRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun token(): moq.Bytes
-	fun kind(): moq.AuthRequestKind?
-	fun path(): moq.Path?
 	suspend fun closed(): moq.Error
 	fun accept(grant: moq.AuthGrant): moq.AuthIssued
 	fun reject(code: moq.SessionError, reason: kotlin.String)
@@ -3314,7 +2082,7 @@ class AuthHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	override fun close()
 	fun clone(): moq.AuthHandle
 	fun grant(): moq.AuthWatch
-	suspend fun add(token: moq.Bytes): kotlin.Pair<moq.AuthCredential, moq.AuthAnswer>
+	fun add(token: moq.Bytes): moq.AuthCredential
 	fun authorize(grant: moq.AuthGrant)
 	fun abort(err: moq.Error)
 	companion object {
@@ -3330,13 +2098,7 @@ class AuthCredential internal constructor(raw: Long, lent: Boolean = false) : Au
 	override fun hashCode(): kotlin.Int
 	fun grant(): moq.AuthWatch
 	suspend fun closed(): moq.Error
-}
-class AuthDial internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	val urlGet: moq.Url
-	fun urlSet(value: moq.Url)
-	val tokenGet: moq.SetupToken?
-	fun tokenSet(value: moq.SetupToken?)
+	suspend fun answered()
 }
 class AuthToken internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3352,16 +2114,9 @@ class AuthTokens internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun handle_(): moq.AuthHandle
 	fun set(tokens: kotlin.collections.List<moq.AuthToken>)
 	suspend fun answered()
-	fun dial(url: moq.Url, versions: moq.Versions): moq.AuthDial
-	fun connected(session: moq.Session)
-	fun changed(dial: moq.AuthDial): kotlin.Boolean
 	companion object {
 		fun new(tokens: kotlin.collections.List<moq.AuthToken>): moq.AuthTokens
 	}
-}
-class GoawayProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun send(goaway: moq.GoawayGoaway)
 }
 class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3369,7 +2124,7 @@ class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun clone(): moq.GoawayGoaway
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun withTimeout(timeout: moq.Duration): moq.GoawayGoaway
+	fun withTimeout(timeout: moq.Duration?): moq.GoawayGoaway
 	fun uri(): kotlin.String
 	fun timeout(): moq.Duration?
 	companion object {
@@ -3399,11 +2154,67 @@ class PathRelative internal constructor(raw: Long, lent: Boolean = false) : Auto
 		fun empty(): moq.PathRelative
 	}
 }
+class ReconnectBackoff internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.ReconnectBackoff
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val initialGet: moq.Duration
+	fun initialSet(value: moq.Duration)
+	val multiplierGet: kotlin.UInt
+	fun multiplierSet(value: kotlin.UInt)
+	val maxGet: moq.Duration?
+	fun maxSet(value: moq.Duration?)
+	val healthyGet: moq.Duration
+	fun healthySet(value: moq.Duration)
+	val timeoutGet: moq.Duration?
+	fun timeoutSet(value: moq.Duration?)
+	companion object {
+		fun default(): moq.ReconnectBackoff
+	}
+}
+class ReconnectHandover internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.ReconnectHandover
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val redirectGet: moq.ReconnectRedirect
+	fun redirectSet(value: moq.ReconnectRedirect)
+	val handoverGet: moq.Duration
+	fun handoverSet(value: moq.Duration)
+	companion object {
+		fun default(): moq.ReconnectHandover
+	}
+}
+class ReconnectConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.ReconnectConfig
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val backoffGet: moq.ReconnectBackoff
+	fun backoffSet(value: moq.ReconnectBackoff)
+	val goawayGet: moq.ReconnectHandover
+	fun goawaySet(value: moq.ReconnectHandover)
+	val restartGet: moq.TokioRestart
+	fun restartSet(value: moq.TokioRestart)
+	val timeoutGet: moq.Duration?
+	fun timeoutSet(value: moq.Duration?)
+	val onceGet: kotlin.Boolean
+	fun onceSet(value: kotlin.Boolean)
+	val pinnedGet: kotlin.Boolean
+	fun pinnedSet(value: kotlin.Boolean)
+	companion object {
+		fun default(): moq.ReconnectConfig
+	}
+}
 class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun path(): kotlin.String
 	fun role(): moq.SetupRole?
-	fun peerHop(): moq.Hop?
+	fun peerNode(): kotlin.ULong?
 	fun peerImplementation(): kotlin.String?
 	fun auth(): moq.AuthHandle
 	fun requests(): moq.AuthRequests
@@ -3411,24 +2222,26 @@ class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : A
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.ServerHandshake
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.ServerHandshake
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.ServerHandshake
-	fun withPeerHop(hop: moq.Hop): moq.ServerHandshake
+	fun withPeerNode(node: kotlin.ULong): moq.ServerHandshake
 	fun withStats(stats: moq.StatsSession): moq.ServerHandshake
 	fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
-	fun withDeadline(at: moq.ClockInstant): moq.ServerHandshake
+	fun withReceiveWindow(window: kotlin.ULong): moq.ServerHandshake
+	suspend fun expired()
 	suspend fun ok(): kotlin.Pair<moq.Session, moq.Driver>
 	fun close_(err: moq.Error)
 }
-class ServerActivity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class ServerAdmission internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	fun clone(): moq.ServerActivity
-	fun enter(): moq.ServerActive?
-	suspend fun close_()
+	fun clone(): moq.ServerAdmission
+	fun enter(): moq.ServerAdmitted?
+	fun drain()
+	suspend fun close_(): moq.ClockInstant
 	companion object {
-		fun default(): moq.ServerActivity
+		fun default(): moq.ServerAdmission
 	}
 }
-class ServerActive internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class ServerAdmitted internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 }
@@ -3456,6 +2269,8 @@ class SessionStats internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun packetsLostSet(value: kotlin.ULong?)
 	val streamsEvictedGet: kotlin.ULong?
 	fun streamsEvictedSet(value: kotlin.ULong?)
+	val datagramsUnroutedGet: kotlin.ULong?
+	fun datagramsUnroutedSet(value: kotlin.ULong?)
 	companion object {
 		fun default(): moq.SessionStats
 	}
@@ -3483,6 +2298,7 @@ class StatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun control(): kotlin.collections.List<kotlin.Triple<moq.StatsTier, moq.StatsMessage, moq.StatsTotals>>
 	fun traffic(): kotlin.collections.List<kotlin.Triple<moq.StatsTier, moq.StatsRole, moq.StatsTraffic>>
 	fun sessions(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsPresence>>
+	fun activity(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsActivity>>
 	companion object {
 		fun default(): moq.StatsSnapshot
 	}
@@ -3545,7 +2361,7 @@ class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun isEnabled(): kotlin.Boolean
 	fun tier(tier: moq.StatsTier): moq.StatsHandle
 	fun snapshot(): moq.StatsSnapshot
-	fun report(report: moq.StatsReport)
+	fun report(report: moq.StatsReport, now: moq.ClockInstant)
 	companion object {
 		fun default(): moq.StatsRegistry
 		fun new(config: moq.StatsConfig): moq.StatsRegistry
@@ -3555,11 +2371,33 @@ class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : Aut
 class StatsHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.StatsHandle
-	fun refuse(label: moq.Path, reason: moq.StatsRefusalKind)
-	fun session(label: moq.Path): moq.StatsSession
+	fun refuse(refusal: moq.StatsRefusal)
+	fun session(session: moq.StatsSessionInfo): moq.StatsSession
 	fun request(label: moq.Path): moq.StatsSession
 	companion object {
 		fun default(): moq.StatsHandle
+	}
+}
+class StatsRefusal internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.StatsRefusal
+	val labelGet: moq.Path
+	fun labelSet(value: moq.Path)
+	val reasonGet: moq.StatsRefusalKind
+	fun reasonSet(value: moq.StatsRefusalKind)
+	companion object {
+		fun new(label: moq.Path, reason: moq.StatsRefusalKind): moq.StatsRefusal
+	}
+}
+class StatsSessionInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.StatsSessionInfo
+	val labelGet: moq.Path
+	fun labelSet(value: moq.Path)
+	companion object {
+		fun new(label: moq.Path): moq.StatsSessionInfo
 	}
 }
 class StatsWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3575,6 +2413,15 @@ class StatsSession internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun retag(tier: moq.StatsTier, label: moq.Path)
 	companion object {
 		fun default(): moq.StatsSession
+	}
+}
+class StatsBill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.StatsBill
+	fun deliver(bytes: kotlin.ULong)
+	companion object {
+		fun default(): moq.StatsBill
 	}
 }
 class TransportWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3601,6 +2448,44 @@ class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : Au
 		fun new(): moq.TransportProbe
 	}
 }
+class TransportReceiveWindow internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.TransportReceiveWindow
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val connectionGet: kotlin.ULong?
+	fun connectionSet(value: kotlin.ULong?)
+	val streamGet: kotlin.ULong
+	fun streamSet(value: kotlin.ULong)
+	companion object {
+		fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
+	}
+}
+class TransportLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.TransportLimits
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val receiveWindowGet: kotlin.ULong?
+	fun receiveWindowSet(value: kotlin.ULong?)
+	companion object {
+		fun default(): moq.TransportLimits
+	}
+}
+class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.BandwidthLimit
+	fun set(cap: moq.BandwidthCap?)
+	fun get(): moq.BandwidthCap?
+	suspend fun changed(): moq.BandwidthCap?
+	companion object {
+		fun default(): moq.BandwidthLimit
+		fun new(cap: moq.BandwidthCap?): moq.BandwidthLimit
+	}
+}
 class BandwidthDemand internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BandwidthDemand
@@ -3618,6 +2503,22 @@ class BandwidthViewer internal constructor(raw: Long, lent: Boolean = false) : A
 	fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
 	fun update(max: moq.BandwidthRate)
+}
+class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.BandwidthCap
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val rateGet: moq.BandwidthRate
+	fun rateSet(value: moq.BandwidthRate)
+	val burstGet: moq.Duration
+	fun burstSet(value: moq.Duration)
+	fun withBurst(burst: moq.Duration): moq.BandwidthCap
+	companion object {
+		val DEFAULTBURST: moq.Duration
+		fun new(rate: moq.BandwidthRate): moq.BandwidthCap
+	}
 }
 class BandwidthProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3695,8 +2596,8 @@ class BroadcastInfo internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun clone(): moq.BroadcastInfo
 	val poolGet: moq.CachePool
 	fun poolSet(value: moq.CachePool)
-	val cacheDurationGet: moq.Duration
-	fun cacheDurationSet(value: moq.Duration)
+	val cacheDurationGet: moq.Duration?
+	fun cacheDurationSet(value: moq.Duration?)
 	val pathGet: moq.Path
 	fun pathSet(value: moq.Path)
 	val instanceGet: moq.Instance?
@@ -3715,6 +2616,7 @@ class BroadcastProducer internal constructor(raw: Long, lent: Boolean = false) :
 	fun createTrack(name: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
 	fun createDatagrams(name: kotlin.String, info: moq.DatagramInfo): moq.DatagramProducer
 	fun reserveTrack(name: kotlin.String): moq.TrackRequest
+	fun reserveUnlistedTrack(name: kotlin.String): moq.TrackRequest
 	fun uniqueTrack(suffix: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
 	fun uniqueName(suffix: kotlin.String): kotlin.String
 	fun requests(): moq.BroadcastRequests
@@ -3741,8 +2643,8 @@ class BroadcastLister internal constructor(raw: Long, lent: Boolean = false) : A
 	suspend fun pollWanted()
 	suspend fun pollUnwanted()
 	fun add(name: kotlin.String, info: moq.TrackInfo)
-	fun remove(name: kotlin.String)
-	fun finish(name: kotlin.String)
+	fun remove(kind: moq.BroadcastKind, name: kotlin.String)
+	fun finish(kind: moq.BroadcastKind, name: kotlin.String)
 	fun synced()
 	fun clear()
 	fun end()
@@ -3795,14 +2697,13 @@ class DatagramProducer internal constructor(raw: Long, lent: Boolean = false) : 
 	fun clone(): moq.DatagramProducer
 	fun name(): kotlin.String
 	fun info(): moq.DatagramInfo
-	fun append(timestamp: moq.Timestamp?, payload: moq.Bytes): kotlin.ULong
-	fun insert(datagram: moq.Datagram)
+	fun append(timestamp: moq.Timestamp, payload: moq.Bytes): kotlin.ULong
+	fun insert(datagram: moq.DatagramDatagram)
 	fun consume(): moq.DatagramConsumer
 	fun finish()
 	fun abort(err: moq.Error)
 	fun priority(): kotlin.Byte?
-	suspend fun pollPriority(last: kotlin.Byte?): kotlin.Byte?
-	fun isClone(other: moq.DatagramProducer): kotlin.Boolean
+	suspend fun priorityChanged(): kotlin.Byte?
 }
 class DatagramRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3816,10 +2717,9 @@ class DatagramConsumer internal constructor(raw: Long, lent: Boolean = false) : 
 	fun clone(): moq.DatagramConsumer
 	fun name(): kotlin.String
 	suspend fun info(): moq.DatagramInfo
-	suspend fun recv(): moq.Datagram?
+	suspend fun recv(): moq.DatagramDatagram?
 	fun priority(): kotlin.Byte
 	fun setPriority(priority: kotlin.Byte)
-	fun isClone(other: moq.DatagramConsumer): kotlin.Boolean
 }
 class DatagramInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3833,8 +2733,7 @@ class DatagramInfo internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun prioritySet(value: kotlin.Byte)
 	fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
 	fun withPriority(priority: kotlin.Byte): moq.DatagramInfo
-	fun rescale(timestamp: moq.Timestamp?): moq.Timestamp?
-	fun produce(name: kotlin.String): moq.DatagramProducer
+	fun rescale(timestamp: moq.Timestamp): moq.Timestamp
 	companion object {
 		fun default(): moq.DatagramInfo
 	}
@@ -3847,33 +2746,19 @@ class FrameProducer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun finish(): moq.GroupProducer
 	fun abort(err: moq.Error)
 	val sizeGet: kotlin.ULong
-	val timestampGet: moq.Timestamp?
+	val timestampGet: moq.Timestamp
 }
 class FrameFrame internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.FrameFrame
-	val timestampGet: moq.Timestamp?
-	fun timestampSet(value: moq.Timestamp?)
+	val timestampGet: moq.Timestamp
+	fun timestampSet(value: moq.Timestamp)
 	val payloadGet: moq.Bytes
 	fun payloadSet(value: moq.Bytes)
 	fun arrived(): moq.ClockInstant
 	companion object {
-		fun new(timestamp: moq.Timestamp?, payload: moq.Bytes): moq.FrameFrame
-	}
-}
-class FrameBuffer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun capacity(): kotlin.ULong
-	fun len(): kotlin.ULong
-	fun isEmpty(): kotlin.Boolean
-	fun filled(): kotlin.collections.List<moq.FrameFrame>
-	fun push(frame: moq.FrameFrame)
-	fun clear()
-	companion object {
-		fun default(): moq.FrameBuffer
-		fun new(): moq.FrameBuffer
+		fun new(timestamp: moq.Timestamp, payload: moq.Bytes): moq.FrameFrame
 	}
 }
 class FrameConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3882,28 +2767,35 @@ class FrameConsumer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	suspend fun readChunk(): moq.Bytes?
 	suspend fun readAll(): moq.Bytes
 	val sizeGet: kotlin.ULong
-	val timestampGet: moq.Timestamp?
+	val timestampGet: moq.Timestamp
 }
 class GroupProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun timescale(): moq.Timescale?
 	fun startAt(index: kotlin.ULong)
-	fun writeFrame(timestamp: moq.Timestamp?, data: moq.Bytes)
-	fun writeFrames8(frames: moq.FrameBuffer)
+	fun writeFrame(timestamp: moq.Timestamp, data: moq.Bytes)
 	fun createFrame(frame: moq.FrameInfo): moq.FrameProducer
-	fun finish()
+	fun finishAt(end: kotlin.ULong): moq.GroupFinished
+	fun finish(): moq.GroupFinished
 	fun abort(err: moq.Error)
-	suspend fun closed()
 	suspend fun ready(frame: moq.FrameInfo)
 	fun frameCount(): kotlin.ULong
 	fun consume(): moq.GroupConsumer
+	suspend fun closed()
 	fun demand(): moq.GroupDemand
-	val sequenceGet: kotlin.ULong
+	val startGet: kotlin.ULong
+}
+class GroupFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+	fun frameCount(): kotlin.ULong
+	fun consume(): moq.GroupConsumer
+	val startGet: kotlin.ULong
 }
 class GroupDemand internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.GroupDemand
-	fun sequence(): kotlin.ULong
+	fun start(): kotlin.ULong
 	fun wanted(): kotlin.Boolean
 	suspend fun wantedChanged(): kotlin.Boolean
 	suspend fun closed()
@@ -3911,19 +2803,17 @@ class GroupDemand internal constructor(raw: Long, lent: Boolean = false) : AutoC
 class GroupConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.GroupConsumer
-	fun keepAlive()
 	fun timescale(): moq.Timescale?
 	fun arrived(): moq.ClockInstant
 	fun index(): kotlin.ULong
 	fun withRange(frames: moq.BoundsU64): moq.GroupConsumer
 	fun skipTo(index: kotlin.ULong)
 	fun frameCount(): kotlin.ULong
+	fun end(): kotlin.ULong?
 	suspend fun nextFrame(): moq.FrameConsumer?
 	suspend fun readFrame(): moq.FrameFrame?
-	suspend fun pollReadFrames8(out: moq.FrameBuffer): kotlin.ULong
-	suspend fun readFrames8(out: moq.FrameBuffer): kotlin.collections.List<moq.FrameFrame>
 	suspend fun finished(): kotlin.ULong
-	val sequenceGet: kotlin.ULong
+	val startGet: kotlin.ULong
 }
 class GroupFetch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3939,6 +2829,18 @@ class GroupFetch internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 		fun default(): moq.GroupFetch
 	}
 }
+class TrackFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun broadcast(): moq.BroadcastInfo
+	fun info(): moq.TrackInfo
+	fun requests(): moq.TrackRequests
+	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	fun abort(err: moq.Error)
+	suspend fun closed()
+	fun consume(): moq.TrackConsumer
+	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
+}
 class TrackRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TrackRequests
@@ -3950,12 +2852,14 @@ class TrackDemand internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	override fun close()
 	fun clone(): moq.TrackDemand
 	fun name(): kotlin.String
-	fun wanted(): kotlin.ULong?
-	suspend fun wantedChanged(): kotlin.ULong?
+	fun wanted(): kotlin.Boolean
+	suspend fun wantedChanged(): kotlin.Boolean
+	suspend fun refresh()
 	suspend fun closed()
 }
 class TrackSubscriber internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	fun bill(): moq.StatsBill
 	fun info(): moq.TrackInfo
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
@@ -3963,27 +2867,35 @@ class TrackSubscriber internal constructor(raw: Long, lent: Boolean = false) : A
 	suspend fun recvGroup(): moq.GroupConsumer?
 	fun ordered(): moq.TrackOrdered
 	fun isClone(other: moq.TrackSubscriber): kotlin.Boolean
+	suspend fun start(): kotlin.ULong?
 	fun floor(): kotlin.ULong?
 	fun nextInRange(from: kotlin.ULong): kotlin.ULong?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	suspend fun finished(): moq.TrackPosition
 	fun withRange(groups: moq.BoundsU64): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription
 	fun update(subscription: moq.TrackSubscription)
 	suspend fun largest(): moq.TrackPosition?
+	suspend fun refresh()
 }
 class TrackOrdered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun info(): moq.TrackInfo
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
-	suspend fun nextGroup(): moq.GroupConsumer?
-	fun withRange(groups: moq.BoundsU64): moq.TrackOrdered
+	suspend fun nextGroup(): moq.TrackItem?
 	fun control(): moq.TrackControl
+	suspend fun refresh()
 	fun subscription(): moq.TrackSubscription
 	fun update(subscription: moq.TrackSubscription)
 	suspend fun finished(): moq.TrackPosition
 	suspend fun largest(): moq.TrackPosition?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun isClone(other: moq.TrackOrdered): kotlin.Boolean
+}
+class TrackItem internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun group(): moq.GroupConsumer?
 }
 class TrackRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4008,18 +2920,35 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun maxAgeSet(value: moq.Duration?)
 	val priorityGet: kotlin.Byte
 	fun prioritySet(value: kotlin.Byte)
-	val compressGet: kotlin.Boolean
-	fun compressSet(value: kotlin.Boolean)
-	val refreshGet: kotlin.UInt?
-	fun refreshSet(value: kotlin.UInt?)
+	val compressionGet: moq.TrackCompression
+	fun compressionSet(value: moq.TrackCompression)
+	val refreshGet: moq.TrackRefresh
+	fun refreshSet(value: moq.TrackRefresh)
 	fun withTimescale(timescale: moq.Timescale?): moq.TrackInfo
 	fun withMaxAge(maxAge: moq.Duration?): moq.TrackInfo
 	fun withPriority(priority: kotlin.Byte): moq.TrackInfo
-	fun withCompress(compress: kotlin.Boolean): moq.TrackInfo
-	fun withRefresh(refresh: kotlin.UInt?): moq.TrackInfo
-	fun rescale(timestamp: moq.Timestamp?): moq.Timestamp?
+	fun withCompression(compression: moq.TrackCompression): moq.TrackInfo
+	fun withRefresh(refresh: moq.TrackRefresh): moq.TrackInfo
+	fun rescale(timestamp: moq.Timestamp): moq.Timestamp
+	fun rescaleIn(timestamp: moq.Timestamp, key: kotlin.ULong): moq.Timestamp
 	companion object {
 		fun default(): moq.TrackInfo
+	}
+}
+class TrackRefresh internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.TrackRefresh
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val ratioGet: kotlin.UInt?
+	fun ratioSet(value: kotlin.UInt?)
+	val intervalGet: moq.Duration?
+	fun intervalSet(value: moq.Duration?)
+	fun withRatio(ratio: kotlin.UInt?): moq.TrackRefresh
+	fun withInterval(interval: moq.Duration?): moq.TrackRefresh
+	companion object {
+		fun default(): moq.TrackRefresh
 	}
 }
 class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4029,12 +2958,13 @@ class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun writeFrame(timestamp: moq.Timestamp?, frame: moq.Bytes)
-	fun finish()
-	fun finishAt(end: moq.TrackPosition, error: moq.Error?)
-	fun startAt(sequence: kotlin.ULong?)
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun writeFrame(timestamp: moq.Timestamp, frame: moq.Bytes)
+	fun finish(): moq.TrackFinished
+	fun fail(err: moq.Error): moq.TrackFinished
+	fun finishAt(end: moq.TrackPosition)
+	fun startAt(key: kotlin.ULong?)
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	fun abort(err: moq.Error)
 	fun abortUnwanted(err: moq.Error)
@@ -4042,20 +2972,28 @@ class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun demand(): moq.TrackDemand
 	fun consume(): moq.TrackConsumer
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
-	suspend fun subscriptionChanged(): moq.TrackSubscription?
 	fun subscription(): moq.TrackSubscription?
+	suspend fun subscriptionChanged(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
+}
+class TrackAbortHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun clone(): moq.TrackAbortHandle
+	fun isClosed(): kotlin.Boolean
+	fun abort(err: moq.Error)
 }
 class TrackConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TrackConsumer
+	fun unmetered(): moq.TrackConsumer
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
 	suspend fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
-	suspend fun fetchGroup(sequence: kotlin.ULong, options: moq.GroupFetch?): moq.GroupConsumer
+	suspend fun fetchGroup(key: kotlin.ULong, options: moq.GroupFetch?): moq.GroupConsumer
 	suspend fun info(): moq.TrackInfo
 	suspend fun largest(): moq.TrackPosition?
 }
@@ -4064,6 +3002,7 @@ class TrackControl internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun clone(): moq.TrackControl
 	fun subscription(): moq.TrackSubscription
 	fun update(subscription: moq.TrackSubscription)
+	suspend fun refresh()
 }
 class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4082,7 +3021,6 @@ class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) :
 	fun withPriority(priority: kotlin.Byte): moq.TrackSubscription
 	fun withDelay(delay: moq.TrackDelay): moq.TrackSubscription
 	fun withRanges(ranges: kotlin.collections.List<moq.TrackRange>): moq.TrackSubscription
-	fun withRange(groups: moq.BoundsU64): moq.TrackSubscription
 	fun withOrder(order: moq.TrackOrder): moq.TrackSubscription
 	companion object {
 		fun default(): moq.TrackSubscription
@@ -4090,55 +3028,49 @@ class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) :
 }
 class TrackFill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun clone(): moq.TrackFill
-	fun start(): moq.TrackPosition
-	fun frameStart(sequence: kotlin.ULong): kotlin.ULong
-	fun end(): kotlin.ULong
-	fun time(): moq.Timestamp?
-	fun priority(): kotlin.Byte
-	fun maxDelay(): moq.Duration?
-	fun order(): moq.TrackOrder
-	fun accept(sequence: kotlin.ULong, info: moq.TrackInfo?): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64)
-	fun refuseGroups(groups: moq.RangeU64, err: moq.Error)
-	fun isWanted(sequence: kotlin.ULong): kotlin.Boolean
-	suspend fun unwanted(sequence: kotlin.ULong)
-	fun wanted(): kotlin.ULong?
-	suspend fun wantedChanged(): kotlin.ULong?
 }
 class OriginFollowing internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun available(): moq.BroadcastConsumer
+	suspend fun available(): moq.BroadcastConsumer?
+}
+class OriginClaim internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun clone(): moq.OriginClaim
+	fun instance(): moq.Instance
+	fun announce()
+	fun withdraw()
+	fun isAnnounced(): kotlin.Boolean
+	fun setCost(cost: moq.OriginCost)
+	fun setAuth(auth: moq.AuthCredential?)
+	suspend fun requested(): moq.OriginRequest?
 }
 class OriginConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.OriginConfig
-	val hopGet: moq.Hop
-	fun hopSet(value: moq.Hop)
-	val maxHopsGet: moq.OriginHopLimit
-	fun maxHopsSet(value: moq.OriginHopLimit)
+	val nodeGet: kotlin.ULong
+	fun nodeSet(value: kotlin.ULong)
+	val maxHopsGet: kotlin.ULong
+	fun maxHopsSet(value: kotlin.ULong)
 	val poolGet: moq.CachePool
 	fun poolSet(value: moq.CachePool)
-	val cacheDurationGet: moq.Duration
-	fun cacheDurationSet(value: moq.Duration)
-	val updateHoldGet: moq.Duration
-	fun updateHoldSet(value: moq.Duration)
+	val cacheDurationGet: moq.Duration?
+	fun cacheDurationSet(value: moq.Duration?)
 	companion object {
 		fun default(): moq.OriginConfig
-		fun new(hop: moq.Hop): moq.OriginConfig
+		fun new(node: kotlin.ULong): moq.OriginConfig
 	}
 }
 class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.OriginConsumer
-	fun hop(): moq.Hop
-	fun local(): moq.OriginConsumer
+	fun node(): kotlin.ULong
 	fun withHidden(hidden: kotlin.Boolean): moq.OriginConsumer
 	fun covering(): moq.OriginConsumer
 	fun exclude(prefix: kotlin.String): moq.OriginConsumer
 	fun withStats(session: moq.StatsSession): moq.OriginConsumer
 	fun announced(): moq.AnnounceConsumer
+	fun routes(): moq.OriginRoutes
 	fun consume(): moq.OriginConsumer
 	fun follow(path: kotlin.String, instance: moq.Instance?): moq.OriginFollowing
 	fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginConsumer
@@ -4151,23 +3083,20 @@ class OriginDriver internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun close()
 	fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
-class OriginPrepared internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun broadcast(): moq.BroadcastProducer
-	fun publish(): moq.OriginPublication
-}
 class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.OriginProducer
 	fun withStats(session: moq.StatsSession): moq.OriginProducer
 	fun withLink(link: moq.OriginLink): moq.OriginProducer
-	fun withPreference(preference: moq.OriginPreference): moq.OriginProducer
+	fun withPriority(priority: moq.OriginPriority): moq.OriginProducer
+	fun withProxy(proxy: kotlin.Boolean): moq.OriginProducer
 	fun config(): moq.OriginConfig
-	fun hop(): moq.Hop
-	fun createBroadcast(path: kotlin.String): moq.OriginPublication
-	fun publish(path: kotlin.String, route: moq.OriginRoute): moq.OriginPublication
-	fun requests(prefix: kotlin.String): moq.OriginRequests
+	fun node(): kotlin.ULong
+	fun isOwn(id: kotlin.ULong): kotlin.Boolean
+	fun route(path: kotlin.String, options: moq.OriginRouteOptions): moq.OriginRoute
+	fun claim(prefix: kotlin.String, options: moq.OriginRouteOptions): moq.OriginClaim
 	fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginProducer
+	fun exclude(prefix: kotlin.String): moq.OriginProducer
 	fun mount(at: kotlin.String, target: kotlin.String): moq.OriginProducer
 	fun consume(): moq.OriginConsumer
 	fun root(): moq.Path
@@ -4177,61 +3106,64 @@ class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : Au
 		fun new(config: moq.OriginConfig): kotlin.Pair<moq.OriginProducer, moq.OriginDriver>
 	}
 }
-class OriginPublication internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun clone(): moq.OriginPublication
-	fun broadcast(): moq.BroadcastProducer
-	fun announce(route: moq.OriginRoute)
-	fun unannounce()
-	fun route(): moq.OriginRoute?
-	fun info(): moq.BroadcastInfo
-	fun demand(): moq.BroadcastDemand
-	fun createTrack(name: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
-	fun createDatagrams(name: kotlin.String, info: moq.DatagramInfo): moq.DatagramProducer
-	fun reserveTrack(name: kotlin.String): moq.TrackRequest
-	fun uniqueTrack(suffix: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
-	fun uniqueName(suffix: kotlin.String): kotlin.String
-	fun requests(): moq.BroadcastRequests
-	fun consume(): moq.BroadcastConsumer
-	fun close_()
-	fun isClone(other: moq.BroadcastProducer): kotlin.Boolean
-}
 class OriginRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun path(): moq.Path
-	fun prepare(): moq.OriginPrepared
+	fun route(options: moq.OriginRouteOptions): moq.OriginRoute
 	fun serveProducer(broadcast: moq.BroadcastProducer)
 	fun serveConsumer(broadcast: moq.BroadcastConsumer)
 	fun reject(err: moq.Error)
 }
-class OriginRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun route(): moq.OriginRoute
-	suspend fun requestedBroadcast(): moq.OriginRequest
-}
 class OriginRoute internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun debug(): kotlin.String
 	fun clone(): moq.OriginRoute
+	fun broadcast(): moq.BroadcastProducer
+	fun instance(): moq.Instance
+	fun announce()
+	fun withdraw()
+	fun isAnnounced(): kotlin.Boolean
+	fun setCost(cost: moq.OriginCost)
+	fun setAuth(auth: moq.AuthCredential?)
+}
+class OriginRouteInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.OriginRouteInfo
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	val instanceGet: moq.Instance?
-	fun instanceSet(value: moq.Instance?)
-	val hopsGet: moq.Hops
-	fun hopsSet(value: moq.Hops)
-	val costGet: moq.OriginCost
-	fun costSet(value: moq.OriginCost)
-	val authGet: moq.AuthCredential?
-	fun authSet(value: moq.AuthCredential?)
-	fun withInstance(instance: moq.Instance, epoch: kotlin.ULong): moq.OriginRoute
-	fun withHops(hops: moq.Hops): moq.OriginRoute
-	fun withCost(cost: moq.OriginCost): moq.OriginRoute
-	fun withAuth(auth: moq.AuthCredential): moq.OriginRoute
-	fun isAnonymous(): kotlin.Boolean
-	fun source(): moq.OriginSource
+	fun instance(): moq.Instance
+	fun cost(): moq.OriginCost
+	fun available(): kotlin.Boolean
+}
+class OriginRouteOptions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.OriginRouteOptions
+	fun withCost(cost: moq.OriginCost): moq.OriginRouteOptions
+	fun withAuth(auth: moq.AuthCredential): moq.OriginRouteOptions
+	fun withInstance(instance: moq.Instance, epoch: kotlin.ULong): moq.OriginRouteOptions
 	companion object {
-		fun default(): moq.OriginRoute
+		fun default(): moq.OriginRouteOptions
+		fun hidden(): moq.OriginRouteOptions
 	}
+}
+class OriginRouteEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.OriginRouteEvent
+	val kindGet: moq.OriginRouteKind
+	fun kindSet(value: moq.OriginRouteKind)
+	val announceGet: moq.AnnounceAnnounce
+	fun announceSet(value: moq.AnnounceAnnounce)
+}
+class OriginRoutes internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	suspend fun next(): moq.OriginRouteEvent?
+	fun tryNext(): moq.OriginRouteEvent?
+	fun isClosed(): kotlin.Boolean
+	suspend fun pollSynced()
+	fun root(): moq.Path
+	fun absolute(prefix: kotlin.String): moq.Path
 }
 class AnnounceConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4247,6 +3179,17 @@ class AnnounceEvent internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun debug(): kotlin.String
 	fun clone(): moq.AnnounceEvent
 }
+class AnnounceAnnounce internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.AnnounceAnnounce
+	val prefixGet: moq.Path
+	fun prefixSet(value: moq.Path)
+	val capturesGet: kotlin.collections.List<moq.Pattern>?
+	fun capturesSet(value: kotlin.collections.List<moq.Pattern>?)
+	val routeGet: moq.OriginRouteInfo
+	fun routeSet(value: moq.OriginRouteInfo)
+}
 class HangStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -4259,22 +3202,6 @@ class HangStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) :
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>)
 	companion object {
 		fun default(): moq.HangStatsSnapshot
-	}
-}
-class HangStatsSnapshotString internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangStatsSnapshotString
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val transportGet: moq.HangStatsTransport
-	fun transportSet(value: moq.HangStatsTransport)
-	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
-	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>)
-	val extGet: kotlin.String
-	fun extSet(value: kotlin.String)
-	companion object {
-		fun default(): moq.HangStatsSnapshotString
 	}
 }
 class HangStatsRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4331,22 +3258,6 @@ class HangEchoSnapshot internal constructor(raw: Long, lent: Boolean = false) : 
 		fun default(): moq.HangEchoSnapshot
 	}
 }
-class HangEchoSnapshotString internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangEchoSnapshotString
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val transportGet: moq.HangStatsTransport
-	fun transportSet(value: moq.HangStatsTransport)
-	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>
-	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>)
-	val extGet: kotlin.String
-	fun extSet(value: kotlin.String)
-	companion object {
-		fun default(): moq.HangEchoSnapshotString
-	}
-}
 class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -4371,8 +3282,6 @@ class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) :
 	fun stalledSet(value: moq.Duration)
 	val arrivalGet: moq.HangEchoArrival?
 	fun arrivalSet(value: moq.HangEchoArrival?)
-	val latencyGet: moq.Duration?
-	fun latencySet(value: moq.Duration?)
 	companion object {
 		fun default(): moq.HangEchoRendition
 	}
@@ -4391,173 +3300,35 @@ class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : A
 		fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
 	}
 }
-class HangHealthObserver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthObserver
+	fun clone(): moq.HangCatalogSkipped
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	val pathGet: moq.Path
-	fun pathSet(value: moq.Path)
-	val instanceGet: moq.Instance?
-	fun instanceSet(value: moq.Instance?)
+	val videoGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun videoSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	val audioGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun audioSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	val textGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun textSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	val jsonGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun jsonSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	val binaryGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun binarySet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, kotlin.ULong>>)
+	fun isEmpty(): kotlin.Boolean
+	fun version(): kotlin.ULong?
 	companion object {
-		fun new(path: moq.Path, instance: moq.Instance?): moq.HangHealthObserver
-	}
-}
-class HangHealthReportEchoSnapshotString internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthReportEchoSnapshotString
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val observerGet: moq.HangHealthObserver
-	fun observerSet(value: moq.HangHealthObserver)
-	val snapshotGet: moq.HangEchoSnapshotString
-	fun snapshotSet(value: moq.HangEchoSnapshotString)
-	companion object {
-		fun new(observer: moq.HangHealthObserver, snapshot: moq.HangEchoSnapshotString): moq.HangHealthReportEchoSnapshotString
-	}
-}
-class HangHealthReportStatsSnapshotString internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthReportStatsSnapshotString
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val observerGet: moq.HangHealthObserver
-	fun observerSet(value: moq.HangHealthObserver)
-	val snapshotGet: moq.HangStatsSnapshotString
-	fun snapshotSet(value: moq.HangStatsSnapshotString)
-	companion object {
-		fun new(observer: moq.HangHealthObserver, snapshot: moq.HangStatsSnapshotString): moq.HangHealthReportStatsSnapshotString
-	}
-}
-class HangHealthThresholds internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthThresholds
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val staleGet: moq.Duration
-	fun staleSet(value: moq.Duration)
-	val transportGet: moq.HangHealthTransportThresholds
-	fun transportSet(value: moq.HangHealthTransportThresholds)
-	val publisherGet: moq.HangHealthPublisherThresholds
-	fun publisherSet(value: moq.HangHealthPublisherThresholds)
-	val viewerGet: moq.HangHealthViewerThresholds
-	fun viewerSet(value: moq.HangHealthViewerThresholds)
-	companion object {
-		fun default(): moq.HangHealthThresholds
-	}
-}
-class HangHealthTransportThresholds internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthTransportThresholds
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val rttGet: moq.HangHealthLimitsDuration
-	fun rttSet(value: moq.HangHealthLimitsDuration)
-	val lossGet: moq.HangHealthLimitsF64
-	fun lossSet(value: moq.HangHealthLimitsF64)
-	val headroomGet: moq.HangHealthLimitsF64
-	fun headroomSet(value: moq.HangHealthLimitsF64)
-}
-class HangHealthPublisherThresholds internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthPublisherThresholds
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val skippedGet: moq.HangHealthLimitsF64
-	fun skippedSet(value: moq.HangHealthLimitsF64)
-}
-class HangHealthViewerThresholds internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthViewerThresholds
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val lateGet: moq.HangHealthLimitsF64
-	fun lateSet(value: moq.HangHealthLimitsF64)
-	val errorsGet: moq.HangHealthLimitsF64
-	fun errorsSet(value: moq.HangHealthLimitsF64)
-	val stalledGet: moq.HangHealthLimitsF64
-	fun stalledSet(value: moq.HangHealthLimitsF64)
-}
-class HangHealthEvidence internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthEvidence
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val inputGet: moq.HangHealthInput
-	fun inputSet(value: moq.HangHealthInput)
-	val valueGet: kotlin.Double?
-	fun valueSet(value: kotlin.Double?)
-	val verdictGet: moq.HangHealthVerdict
-	fun verdictSet(value: moq.HangHealthVerdict)
-}
-class HangHealthConnection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthConnection
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val verdictGet: moq.HangHealthVerdict
-	fun verdictSet(value: moq.HangHealthVerdict)
-	val evidenceGet: kotlin.collections.List<moq.HangHealthEvidence>
-	fun evidenceSet(value: kotlin.collections.List<moq.HangHealthEvidence>)
-	val staleGet: kotlin.Boolean
-	fun staleSet(value: kotlin.Boolean)
-	val lostBytesGet: kotlin.ULong?
-	fun lostBytesSet(value: kotlin.ULong?)
-	val lostPacketsGet: kotlin.ULong?
-	fun lostPacketsSet(value: kotlin.ULong?)
-	companion object {
-		fun default(): moq.HangHealthConnection
-	}
-}
-class HangHealthRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangHealthRendition
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val verdictGet: moq.HangHealthVerdict
-	fun verdictSet(value: moq.HangHealthVerdict)
-	val evidenceGet: kotlin.collections.List<moq.HangHealthEvidence>
-	fun evidenceSet(value: kotlin.collections.List<moq.HangHealthEvidence>)
-	val framesGet: kotlin.ULong?
-	fun framesSet(value: kotlin.ULong?)
-	val bytesGet: kotlin.ULong?
-	fun bytesSet(value: kotlin.ULong?)
-	val bitrateGet: kotlin.ULong?
-	fun bitrateSet(value: kotlin.ULong?)
-	companion object {
-		fun default(): moq.HangHealthRendition
+		fun default(): moq.HangCatalogSkipped
 	}
 }
 class HangCatalogConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalog?
+	suspend fun pollNext(): moq.MoqJsonTimedCatalog?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.HangCatalogConsumer
-	}
-}
-class HangCatalogConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	suspend fun next(): moq.HangCatalogExtra?
-	companion object {
-		fun new(track: moq.TrackSubscriber): moq.HangCatalogConsumerExtra
-	}
-}
-class HangCatalogConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	suspend fun next(): moq.HangCatalogExt?
-	companion object {
-		fun new(track: moq.TrackSubscriber): moq.HangCatalogConsumerExt
+		fun new(track: moq.TrackConsumer, delay: moq.Duration): moq.HangCatalogConsumer
 	}
 }
 class HangCatalogAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4661,6 +3432,19 @@ class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = fa
 		fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
 	}
 }
+class HangCatalogClock internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.HangCatalogClock
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val wallGet: moq.Timestamp
+	fun wallSet(value: moq.Timestamp)
+	fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	companion object {
+		fun new(wall: moq.Timestamp): moq.HangCatalogClock
+	}
+}
 class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -4669,20 +3453,6 @@ class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false
 	override fun hashCode(): kotlin.Int
 	companion object {
 		fun default(): moq.HangCatalogContainer
-	}
-}
-class HangCatalogContribution internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogContribution
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val broadcastGet: moq.PathRelative
-	fun broadcastSet(value: moq.PathRelative)
-	val instanceGet: moq.Instance?
-	fun instanceSet(value: moq.Instance?)
-	companion object {
-		fun new(broadcast: moq.PathRelative): moq.HangCatalogContribution
 	}
 }
 class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4695,6 +3465,20 @@ class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : A
 	fun pathSet(value: moq.PathRelative)
 	companion object {
 		fun new(path: moq.PathRelative): moq.HangCatalogEcho
+	}
+}
+class HangCatalogInclude internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.HangCatalogInclude
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val broadcastGet: moq.PathRelative
+	fun broadcastSet(value: moq.PathRelative)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	companion object {
+		fun new(broadcast: moq.PathRelative): moq.HangCatalogInclude
 	}
 }
 class HangCatalogJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4738,50 +3522,6 @@ class HangCatalogJsonConfig internal constructor(raw: Long, lent: Boolean = fals
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
 		fun new(mode: moq.HangCatalogMode): moq.HangCatalogJsonConfig
-	}
-}
-class HangCatalogM2ts internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogM2ts
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val trackGet: kotlin.String
-	fun trackSet(value: kotlin.String)
-	val randomAccessGet: kotlin.Boolean
-	fun randomAccessSet(value: kotlin.Boolean)
-	val muxRateGet: kotlin.ULong?
-	fun muxRateSet(value: kotlin.ULong?)
-	companion object {
-		fun new(track: kotlin.String): moq.HangCatalogM2ts
-	}
-}
-class HangCatalogMedia internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogMedia
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val clockGet: moq.HangCatalogClock?
-	fun clockSet(value: moq.HangCatalogClock?)
-	val joinGet: moq.HangCatalogJoin?
-	fun joinSet(value: moq.HangCatalogJoin?)
-	fun isEmpty(): kotlin.Boolean
-	fun interval(): moq.Duration?
-	companion object {
-		fun default(): moq.HangCatalogMedia
-	}
-}
-class HangCatalogJoin internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogJoin
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val intervalGet: moq.Duration
-	fun intervalSet(value: moq.Duration)
-	companion object {
-		fun new(interval: moq.Duration): moq.HangCatalogJoin?
 	}
 }
 class HangCatalogStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4841,6 +3581,21 @@ class HangCatalogTextConfig internal constructor(raw: Long, lent: Boolean = fals
 		fun new(format: moq.HangCatalogTextFormat): moq.HangCatalogTextConfig
 	}
 }
+class HangCatalogTimeline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.HangCatalogTimeline
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val clockGet: moq.HangCatalogClock?
+	fun clockSet(value: moq.HangCatalogClock?)
+	val intervalGet: moq.Duration?
+	fun intervalSet(value: moq.Duration?)
+	fun isEmpty(): kotlin.Boolean
+	companion object {
+		fun default(): moq.HangCatalogTimeline
+	}
+}
 class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -4853,8 +3608,8 @@ class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : 
 	fun transferSet(value: kotlin.UByte?)
 	val matrixGet: kotlin.UByte?
 	fun matrixSet(value: kotlin.UByte?)
-	val rangeGet: moq.HangCatalogRange?
-	fun rangeSet(value: moq.HangCatalogRange?)
+	val rangeGet: moq.HangCatalogColorRange?
+	fun rangeSet(value: moq.HangCatalogColorRange?)
 	val masteringGet: moq.HangCatalogMastering?
 	fun masteringSet(value: moq.HangCatalogMastering?)
 	val contentLightGet: moq.HangCatalogContentLight?
@@ -4963,8 +3718,6 @@ class HangCatalogVideoConfig internal constructor(raw: Long, lent: Boolean = fal
 	fun containerSet(value: moq.HangCatalogContainer)
 	val jitterGet: moq.Duration?
 	fun jitterSet(value: moq.Duration?)
-	val warmupGet: moq.Duration?
-	fun warmupSet(value: moq.Duration?)
 	val delayGet: moq.Duration?
 	fun delaySet(value: moq.Duration?)
 	fun sameIdentity(other: moq.HangCatalogVideoConfig): kotlin.Boolean
@@ -5012,18 +3765,6 @@ class MuxCatalogEstimate internal constructor(raw: Long, lent: Boolean = false) 
 		fun default(): moq.MuxCatalogEstimate
 	}
 }
-class MuxCatalogEstimator internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun write(timestamp: moq.Timestamp, bytes: kotlin.ULong)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun reorder(delay: moq.Timestamp)
-	fun estimate(): moq.MuxCatalogEstimate
-	companion object {
-		fun default(): moq.MuxCatalogEstimator
-		fun new(): moq.MuxCatalogEstimator
-	}
-}
 class MuxCatalogConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogConfig
@@ -5064,26 +3805,25 @@ class MuxCatalogGuard internal constructor(raw: Long, lent: Boolean = false) : A
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 }
@@ -5096,28 +3836,27 @@ class MuxCatalogGuardExtra internal constructor(raw: Long, lent: Boolean = false
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val extGet: moq.MuxCatalogHangExtra
 	fun extSet(value: moq.MuxCatalogHangExtra)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 }
@@ -5128,28 +3867,27 @@ class MuxCatalogGuardExt internal constructor(raw: Long, lent: Boolean = false) 
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
 	fun audioSet(value: moq.HangCatalogAudio)
-	val mediaGet: moq.HangCatalogMedia
-	fun mediaSet(value: moq.HangCatalogMedia)
+	val syncGet: moq.HangCatalogTimeline
+	fun syncSet(value: moq.HangCatalogTimeline)
 	val textGet: moq.HangCatalogText
 	fun textSet(value: moq.HangCatalogText)
 	val jsonGet: moq.HangCatalogJson
 	fun jsonSet(value: moq.HangCatalogJson)
 	val binaryGet: moq.HangCatalogBinary
 	fun binarySet(value: moq.HangCatalogBinary)
-	val m2tsGet: moq.HangCatalogM2ts?
-	fun m2tsSet(value: moq.HangCatalogM2ts?)
 	val statsGet: moq.HangCatalogStats?
 	fun statsSet(value: moq.HangCatalogStats?)
 	val echoGet: moq.HangCatalogEcho?
 	fun echoSet(value: moq.HangCatalogEcho?)
-	val contributionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>
-	fun contributionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogContribution>>)
+	val includeGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>
+	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val extGet: moq.MuxContainerTsExt
 	fun extSet(value: moq.MuxContainerTsExt)
+	val skippedGet: moq.HangCatalogSkipped
+	fun skippedSet(value: moq.HangCatalogSkipped)
 	fun checkRenditions()
-	fun media(): moq.HangCatalog
+	fun withoutExt(): moq.HangCatalog
 	fun toJson(): kotlin.String
-	fun toJsonPretty(): kotlin.String
 	fun toVec(): moq.Bytes
 	fun toWriter(writer: moq.Bytes)
 }
@@ -5503,58 +4241,61 @@ class MuxCatalogVideoHint internal constructor(raw: Long, lent: Boolean = false)
 	val preferenceGet: kotlin.Int
 	fun preferenceSet(value: kotlin.Int)
 	fun apply(config: moq.HangCatalogVideoConfig)
-	fun toConfig(): moq.HangCatalogVideoConfig?
 	companion object {
 		fun default(): moq.MuxCatalogVideoHint
 	}
 }
 class MuxContainerConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withWarmup(warmup: moq.Duration): moq.MuxContainerConsumerContainer
-	fun withDelay(delay: moq.TrackDelay): moq.MuxContainerConsumerContainer
+	fun arrival(): moq.ClockInstant?
+	fun backlog(): moq.ClockInstant?
 	suspend fun read(): moq.MuxContainerRead?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
-	fun setMaxBuffer(bytes: kotlin.ULong)
+	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
 		fun new(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
 	}
 }
 class MuxContainerConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withWarmup(warmup: moq.Duration): moq.MuxContainerConsumerFmp4Wire
-	fun withDelay(delay: moq.TrackDelay): moq.MuxContainerConsumerFmp4Wire
+	fun arrival(): moq.ClockInstant?
+	fun backlog(): moq.ClockInstant?
 	suspend fun read(): moq.MuxContainerRead?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
-	fun setMaxBuffer(bytes: kotlin.ULong)
+	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
 		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
 	}
 }
 class MuxContainerConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withWarmup(warmup: moq.Duration): moq.MuxContainerConsumerLegacyWire
-	fun withDelay(delay: moq.TrackDelay): moq.MuxContainerConsumerLegacyWire
+	fun arrival(): moq.ClockInstant?
+	fun backlog(): moq.ClockInstant?
 	suspend fun read(): moq.MuxContainerRead?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
-	fun setMaxBuffer(bytes: kotlin.ULong)
+	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
 		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
 	}
 }
 class MuxContainerConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withWarmup(warmup: moq.Duration): moq.MuxContainerConsumerLocWire
-	fun withDelay(delay: moq.TrackDelay): moq.MuxContainerConsumerLocWire
+	fun arrival(): moq.ClockInstant?
+	fun backlog(): moq.ClockInstant?
 	suspend fun read(): moq.MuxContainerRead?
+	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
-	fun setMaxBuffer(bytes: kotlin.ULong)
+	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
 		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	}
 }
 class MuxContainerGroupConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun sequence(): kotlin.ULong
+	fun start(): kotlin.ULong
 	suspend fun read(): moq.MuxContainerFrame?
 	companion object {
 		fun new(group: moq.GroupConsumer, format: moq.MuxCatalogHangContainer): moq.MuxContainerGroupConsumerContainer
@@ -5562,7 +4303,7 @@ class MuxContainerGroupConsumerContainer internal constructor(raw: Long, lent: B
 }
 class MuxContainerGroupConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun sequence(): kotlin.ULong
+	fun start(): kotlin.ULong
 	suspend fun read(): moq.MuxContainerFrame?
 	companion object {
 		fun new(group: moq.GroupConsumer, format: moq.MuxContainerFmp4Wire): moq.MuxContainerGroupConsumerFmp4Wire
@@ -5570,7 +4311,7 @@ class MuxContainerGroupConsumerFmp4Wire internal constructor(raw: Long, lent: Bo
 }
 class MuxContainerGroupConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun sequence(): kotlin.ULong
+	fun start(): kotlin.ULong
 	suspend fun read(): moq.MuxContainerFrame?
 	companion object {
 		fun new(group: moq.GroupConsumer, format: moq.MuxContainerLegacyWire): moq.MuxContainerGroupConsumerLegacyWire
@@ -5578,16 +4319,391 @@ class MuxContainerGroupConsumerLegacyWire internal constructor(raw: Long, lent: 
 }
 class MuxContainerGroupConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun sequence(): kotlin.ULong
+	fun start(): kotlin.ULong
 	suspend fun read(): moq.MuxContainerFrame?
 	companion object {
 		fun new(group: moq.GroupConsumer, format: moq.MuxContainerLocWire): moq.MuxContainerGroupConsumerLocWire
 	}
 }
+class MuxContainerFinishedContainerAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedContainerBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedContainerJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedContainerTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedContainerVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4WireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4WireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4WireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4WireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4WireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerFinishedLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun demand(): moq.TrackDemand
+	fun info(): moq.TrackInfo
+	fun consume(): moq.TrackSubscriber
+	fun estimate(): moq.MuxCatalogEstimate
+	fun abort(err: moq.Error)
+}
+class MuxContainerGuardUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+}
+class MuxContainerGuardAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+	val broadcastGet: moq.PathRelative?
+	fun broadcastSet(value: moq.PathRelative?)
+	val trackGet: kotlin.String?
+	fun trackSet(value: kotlin.String?)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	val labelGet: kotlin.String?
+	fun labelSet(value: kotlin.String?)
+	val codecGet: moq.HangCatalogAudioCodec
+	fun codecSet(value: moq.HangCatalogAudioCodec)
+	val sampleRateGet: kotlin.UInt
+	fun sampleRateSet(value: kotlin.UInt)
+	val channelCountGet: kotlin.UInt
+	fun channelCountSet(value: kotlin.UInt)
+	val layoutGet: moq.HangCatalogAudioLayout?
+	fun layoutSet(value: moq.HangCatalogAudioLayout?)
+	val bitrateGet: kotlin.ULong?
+	fun bitrateSet(value: kotlin.ULong?)
+	val enabledGet: kotlin.Boolean
+	fun enabledSet(value: kotlin.Boolean)
+	val descriptionGet: moq.Bytes?
+	fun descriptionSet(value: moq.Bytes?)
+	val containerGet: moq.HangCatalogContainer
+	fun containerSet(value: moq.HangCatalogContainer)
+	val jitterGet: moq.Duration?
+	fun jitterSet(value: moq.Duration?)
+	val warmupGet: moq.Duration?
+	fun warmupSet(value: moq.Duration?)
+	val delayGet: moq.Duration?
+	fun delaySet(value: moq.Duration?)
+	fun sameIdentity(other: moq.HangCatalogAudioConfig): kotlin.Boolean
+}
+class MuxContainerGuardBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+	val broadcastGet: moq.PathRelative?
+	fun broadcastSet(value: moq.PathRelative?)
+	val trackGet: kotlin.String?
+	fun trackSet(value: kotlin.String?)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	val modeGet: moq.HangCatalogMode
+	fun modeSet(value: moq.HangCatalogMode)
+	val mimeGet: kotlin.String?
+	fun mimeSet(value: kotlin.String?)
+	val bitrateGet: kotlin.ULong?
+	fun bitrateSet(value: kotlin.ULong?)
+	val jitterGet: moq.Duration?
+	fun jitterSet(value: moq.Duration?)
+	val delayGet: moq.Duration?
+	fun delaySet(value: moq.Duration?)
+	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
+	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
+}
+class MuxContainerGuardJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+	val broadcastGet: moq.PathRelative?
+	fun broadcastSet(value: moq.PathRelative?)
+	val trackGet: kotlin.String?
+	fun trackSet(value: kotlin.String?)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	val modeGet: moq.HangCatalogMode
+	fun modeSet(value: moq.HangCatalogMode)
+	val schemaGet: kotlin.String?
+	fun schemaSet(value: kotlin.String?)
+	val bitrateGet: kotlin.ULong?
+	fun bitrateSet(value: kotlin.ULong?)
+	val jitterGet: moq.Duration?
+	fun jitterSet(value: moq.Duration?)
+	val delayGet: moq.Duration?
+	fun delaySet(value: moq.Duration?)
+	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
+	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
+}
+class MuxContainerGuardTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+	val broadcastGet: moq.PathRelative?
+	fun broadcastSet(value: moq.PathRelative?)
+	val trackGet: kotlin.String?
+	fun trackSet(value: kotlin.String?)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	val formatGet: moq.HangCatalogTextFormat
+	fun formatSet(value: moq.HangCatalogTextFormat)
+	val roleGet: moq.HangCatalogTextRole
+	fun roleSet(value: moq.HangCatalogTextRole)
+	val langGet: kotlin.String?
+	fun langSet(value: kotlin.String?)
+	val labelGet: kotlin.String?
+	fun labelSet(value: kotlin.String?)
+	val containerGet: moq.HangCatalogContainer
+	fun containerSet(value: moq.HangCatalogContainer)
+	val jitterGet: moq.Duration?
+	fun jitterSet(value: moq.Duration?)
+	val delayGet: moq.Duration?
+	fun delaySet(value: moq.Duration?)
+}
+class MuxContainerGuardVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun commit()
+	val broadcastGet: moq.PathRelative?
+	fun broadcastSet(value: moq.PathRelative?)
+	val trackGet: kotlin.String?
+	fun trackSet(value: kotlin.String?)
+	val instanceGet: moq.Instance?
+	fun instanceSet(value: moq.Instance?)
+	val labelGet: kotlin.String?
+	fun labelSet(value: kotlin.String?)
+	val codecGet: moq.HangCatalogVideoCodec
+	fun codecSet(value: moq.HangCatalogVideoCodec)
+	val descriptionGet: moq.Bytes?
+	fun descriptionSet(value: moq.Bytes?)
+	val codedWidthGet: kotlin.UInt?
+	fun codedWidthSet(value: kotlin.UInt?)
+	val codedHeightGet: kotlin.UInt?
+	fun codedHeightSet(value: kotlin.UInt?)
+	val displayAspectWidthGet: kotlin.UInt?
+	fun displayAspectWidthSet(value: kotlin.UInt?)
+	val displayAspectHeightGet: kotlin.UInt?
+	fun displayAspectHeightSet(value: kotlin.UInt?)
+	val colorGet: moq.HangCatalogColor?
+	fun colorSet(value: moq.HangCatalogColor?)
+	val projectionGet: moq.HangCatalogProjection?
+	fun projectionSet(value: moq.HangCatalogProjection?)
+	val stereoGet: moq.HangCatalogStereo?
+	fun stereoSet(value: moq.HangCatalogStereo?)
+	val interlacedGet: kotlin.Boolean
+	fun interlacedSet(value: kotlin.Boolean)
+	val bitrateGet: kotlin.ULong?
+	fun bitrateSet(value: kotlin.ULong?)
+	val enabledGet: kotlin.Boolean
+	fun enabledSet(value: kotlin.Boolean)
+	val preferenceGet: kotlin.Int
+	fun preferenceSet(value: kotlin.Int)
+	val framerateGet: kotlin.Double?
+	fun framerateSet(value: kotlin.Double?)
+	val reorderGet: kotlin.UByte?
+	fun reorderSet(value: kotlin.UByte?)
+	val optimizeForLatencyGet: kotlin.Boolean?
+	fun optimizeForLatencySet(value: kotlin.Boolean?)
+	val containerGet: moq.HangCatalogContainer
+	fun containerSet(value: moq.HangCatalogContainer)
+	val jitterGet: moq.Duration?
+	fun jitterSet(value: moq.Duration?)
+	val delayGet: moq.Duration?
+	fun delaySet(value: moq.Duration?)
+	fun sameIdentity(other: moq.HangCatalogVideoConfig): kotlin.Boolean
+}
 class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun set(config: moq.HangCatalogAudioConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardAudioConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5603,22 +4719,24 @@ class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, l
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5627,6 +4745,7 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 	override fun close()
 	fun set(config: moq.HangCatalogBinaryConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardBinaryConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5642,22 +4761,24 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainerBinaryConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerBinaryConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5666,6 +4787,7 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 	override fun close()
 	fun set(config: moq.HangCatalogJsonConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardJsonConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5681,22 +4803,24 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainerJsonConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerJsonConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5705,6 +4829,7 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 	override fun close()
 	fun set(config: moq.HangCatalogTextConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardTextConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5720,22 +4845,24 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainerTextConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerTextConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5744,6 +4871,7 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 	override fun close()
 	fun set(config: moq.HangCatalogVideoConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardVideoConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5759,22 +4887,24 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5783,6 +4913,7 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	override fun close()
 	fun set()
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardUnit
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5798,22 +4929,24 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedContainer
+	fun fail(err: moq.Error): moq.MuxContainerFinishedContainer
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5825,6 +4958,7 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 	override fun close()
 	fun set(config: moq.HangCatalogAudioConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardAudioConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5840,22 +4974,24 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4WireAudioConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5864,6 +5000,7 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 	override fun close()
 	fun set(config: moq.HangCatalogBinaryConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardBinaryConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5879,22 +5016,24 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4WireBinaryConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireBinaryConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5903,6 +5042,7 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 	override fun close()
 	fun set(config: moq.HangCatalogJsonConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardJsonConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5918,22 +5058,24 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4WireJsonConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireJsonConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5942,6 +5084,7 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 	override fun close()
 	fun set(config: moq.HangCatalogTextConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardTextConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5957,22 +5100,24 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4WireTextConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireTextConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -5981,6 +5126,7 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 	override fun close()
 	fun set(config: moq.HangCatalogVideoConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardVideoConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -5996,22 +5142,24 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4WireVideoConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6020,6 +5168,7 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	override fun close()
 	fun set()
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardUnit
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6035,22 +5184,24 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedFmp4Wire
+	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4Wire
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6062,6 +5213,7 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 	override fun close()
 	fun set(config: moq.HangCatalogAudioConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardAudioConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6077,22 +5229,24 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWireAudioConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6101,6 +5255,7 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 	override fun close()
 	fun set(config: moq.HangCatalogBinaryConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardBinaryConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6116,22 +5271,24 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWireBinaryConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireBinaryConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6140,6 +5297,7 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 	override fun close()
 	fun set(config: moq.HangCatalogJsonConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardJsonConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6155,22 +5313,24 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWireJsonConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireJsonConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6179,6 +5339,7 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 	override fun close()
 	fun set(config: moq.HangCatalogTextConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardTextConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6194,22 +5355,24 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWireTextConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireTextConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6218,6 +5381,7 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 	override fun close()
 	fun set(config: moq.HangCatalogVideoConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardVideoConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6233,22 +5397,24 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWireVideoConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6257,6 +5423,7 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	override fun close()
 	fun set()
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardUnit
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6272,22 +5439,24 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLegacyWire
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWire
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6299,6 +5468,7 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 	override fun close()
 	fun set(config: moq.HangCatalogAudioConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardAudioConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6314,22 +5484,24 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWireAudioConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6338,6 +5510,7 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 	override fun close()
 	fun set(config: moq.HangCatalogBinaryConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardBinaryConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6353,22 +5526,24 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWireBinaryConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireBinaryConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6377,6 +5552,7 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 	override fun close()
 	fun set(config: moq.HangCatalogJsonConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardJsonConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6392,22 +5568,24 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWireJsonConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireJsonConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6416,6 +5594,7 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 	override fun close()
 	fun set(config: moq.HangCatalogTextConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardTextConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6431,22 +5610,24 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWireTextConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireTextConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6455,6 +5636,7 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 	override fun close()
 	fun set(config: moq.HangCatalogVideoConfig)
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardVideoConfig
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6470,22 +5652,24 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWireVideoConfig
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6494,6 +5678,7 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	override fun close()
 	fun set()
 	fun setBitrate(bitrate: kotlin.ULong)
+	fun modify(): moq.MuxContainerGuardUnit
 	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
@@ -6509,22 +5694,24 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun liveEdge(): moq.Timestamp?
 	fun write(frame: moq.MuxContainerFrame)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun discontinuity()
-	fun finish()
-	fun fail(err: moq.Error)
+	fun finish(): moq.MuxContainerFinishedLocWire
+	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWire
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(): moq.GroupProducer
-	fun dropGroups(groups: moq.RangeU64, err: moq.StreamError)
+	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
 	suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
+	fun abortHandle(): moq.TrackAbortHandle
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
@@ -6534,13 +5721,40 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 }
 class MuxFollowInstances internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.MuxFollowEvent
+	suspend fun next(): moq.BroadcastConsumer?
+}
+class MuxImportContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun decode(data: moq.Bytes)
+	fun finish(): moq.MuxImportContainerFinished
+	fun abort(err: moq.Error)
+	fun cut()
+	fun seek(start: kotlin.ULong)
 	companion object {
-		fun new(origin: moq.OriginConsumer, path: kotlin.String, instance: moq.Instance?): moq.MuxFollowInstances
+		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
 	}
 }
-class MuxFollowEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MuxImportContainerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	fun decode(data: moq.Bytes)
+	fun finish(): moq.MuxImportContainerFinishedExtra
+	fun abort(err: moq.Error)
+	fun cut()
+	fun seek(start: kotlin.ULong)
+	companion object {
+		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
+	}
+}
+class MuxImportContainerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun decode(data: moq.Bytes)
+	fun finish(): moq.MuxImportContainerFinishedExt
+	fun abort(err: moq.Error)
+	fun cut()
+	fun seek(start: kotlin.ULong)
+	companion object {
+		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
+	}
 }
 class MuxImportAudioInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6596,48 +5810,16 @@ class MuxImportVideoInit internal constructor(raw: Long, lent: Boolean = false) 
 		fun new(format: moq.MuxImportVideoFormat, data: moq.Bytes): moq.MuxImportVideoInit
 	}
 }
-class MuxImportContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish()
-	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(sequence: kotlin.ULong)
-	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
-	}
-}
-class MuxImportContainerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish()
-	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(sequence: kotlin.ULong)
-	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
-	}
-}
-class MuxImportContainerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish()
-	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(sequence: kotlin.ULong)
-	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
-	}
-}
 class MuxImportTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
-	fun finish()
+	fun finish(): moq.MuxImportTrackFinished
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun demand(): moq.TrackDemand
 	fun name(): kotlin.String
 	companion object {
@@ -6653,11 +5835,12 @@ class MuxImportTrackStream internal constructor(raw: Long, lent: Boolean = false
 	override fun close()
 	fun initialize(data: moq.Bytes)
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxImportTrackFinished
 	fun setEnabled(enabled: kotlin.Boolean)
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun demand(): moq.TrackDemand
 	fun name(): kotlin.String
 	companion object {
@@ -6675,6 +5858,7 @@ class MuxJsonSnapshotJson internal constructor(raw: Long, lent: Boolean = false)
 	fun update(value: moq.Json, timestamp: moq.Timestamp)
 	fun finish()
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 }
 class MuxJsonStreamJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6684,14 +5868,15 @@ class MuxJsonStreamJson internal constructor(raw: Long, lent: Boolean = false) :
 	fun append(value: moq.Json, timestamp: moq.Timestamp)
 	fun finish()
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 }
 class MuxJsonConsumerJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun mode(): moq.HangCatalogMode
-	suspend fun next(): moq.TimedJson?
-	suspend fun latest(): moq.TimedJson?
+	suspend fun next(): moq.MoqJsonTimedJson?
+	suspend fun latest(): moq.MoqJsonTimedJson?
 	companion object {
-		fun fromTrack(track: moq.TrackSubscriber, config: moq.HangCatalogJsonConfig): moq.MuxJsonConsumerJson
+		suspend fun fromTrack(track: moq.TrackConsumer, config: moq.HangCatalogJsonConfig): moq.MuxJsonConsumerJson
 	}
 }
 class MuxJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6716,14 +5901,15 @@ class MuxJsonOptions internal constructor(raw: Long, lent: Boolean = false) : Au
 		fun default(): moq.MuxJsonOptions
 	}
 }
-class MuxRateFollower internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MuxRateGrant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	fun assume(target: moq.MuxRateTarget)
 	fun policy(): moq.MuxRatePolicy
 	fun setPolicy(policy: moq.MuxRatePolicy)
 	suspend fun next(): moq.MuxRateTarget
 	fun failed()
 	companion object {
-		fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateFollower
+		fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateGrant
 	}
 }
 class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6761,9 +5947,9 @@ class MuxSelectBroadcast internal constructor(raw: Long, lent: Boolean = false) 
 	fun audio(audio: moq.MuxSelectAudio): moq.MuxSelectBroadcast
 	fun hasVideo(): kotlin.Boolean
 	fun hasAudio(): kotlin.Boolean
-	fun retainExtra(catalog: moq.HangCatalogExtra, selected: moq.MuxSelectSelected)
-	fun retainExt(catalog: moq.HangCatalogExt, selected: moq.MuxSelectSelected)
-	fun retainUnit(catalog: moq.HangCatalog, selected: moq.MuxSelectSelected)
+	fun retainExtra(catalog: moq.HangCatalogExtra)
+	fun retainExt(catalog: moq.HangCatalogExt)
+	fun retainUnit(catalog: moq.HangCatalog)
 	companion object {
 		fun default(): moq.MuxSelectBroadcast
 	}
@@ -6788,38 +5974,41 @@ class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : Au
 		fun default(): moq.MuxSelectAudio
 	}
 }
-class MuxTimelineTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MuxSyncTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun retire(drained: moq.ClockInstant?)
-	fun map(source: moq.Timestamp): moq.Timestamp
-	fun declare(): moq.MuxTimelineTransition
-	fun end(source: moq.Timestamp)
-	fun plan(transition: moq.MuxTimelineTransition, source: moq.Timestamp, delay: moq.Duration?)
-	fun gap()
-	fun abandon(transition: moq.MuxTimelineTransition)
+	fun received(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
+	fun reset()
+	fun setTarget(target: moq.Duration): kotlin.Boolean
+	suspend fun delayChanged(seen: moq.Duration): moq.Duration
 }
-class MuxTimelineProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MuxSyncSchedule internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun clone(): moq.MuxTimelineProducer
-	fun reset(delay: moq.Duration): moq.MuxTimelineProducer
-	fun consume(): moq.MuxTimelineConsumer
-	fun track(kind: moq.MuxTimelineKind): moq.MuxTimelineTrack
-	fun video(timestamp: moq.Timestamp, now: moq.ClockInstant): kotlin.Boolean
-	fun videoRestarted()
-	fun audio(audio: moq.MuxTimelineAudio, now: moq.ClockInstant): kotlin.Boolean
-	fun audioRestarted()
-	fun audioStopped()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxSyncSchedule
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun delay(): moq.Duration
+	fun due(timestamp: moq.Timestamp): moq.ClockInstant?
+}
+class MuxSyncProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun clone(): moq.MuxSyncProducer
+	fun reset(delay: moq.Duration): moq.MuxSyncProducer
+	fun consume(): moq.MuxSyncConsumer
+	fun track(kind: moq.MuxContainerKind): moq.MuxSyncTrack
 	fun due(timestamp: moq.Timestamp): moq.ClockInstant?
 	companion object {
-		fun new(delay: moq.Duration): moq.MuxTimelineProducer
+		fun new(delay: moq.Duration): moq.MuxSyncProducer
 	}
 }
-class MuxTimelineConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MuxSyncConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun clone(): moq.MuxTimelineConsumer
-	fun playhead(now: moq.ClockInstant): moq.Duration?
-	fun target(): moq.Duration?
+	fun clone(): moq.MuxSyncConsumer
+	fun delay(): moq.Duration
 	fun due(timestamp: moq.Timestamp): moq.ClockInstant?
+	fun position(at: moq.ClockInstant): moq.Duration?
+	fun schedule(): moq.MuxSyncSchedule
+	suspend fun changed(seen: moq.MuxSyncSchedule): moq.MuxSyncSchedule
 	fun present(timestamps: kotlin.collections.List<moq.Timestamp>, now: moq.ClockInstant): kotlin.ULong?
 }
 class TokioTlsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6834,18 +6023,6 @@ class TokioTlsIdentity internal constructor(raw: Long, lent: Boolean = false) : 
 	fun fingerprint(): kotlin.String
 	companion object {
 		fun generate(hostnames: kotlin.collections.List<kotlin.String>): moq.TokioTlsIdentity
-	}
-}
-class TokioTlsPeers internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TokioTlsPeers
-	fun insert(fingerprint: kotlin.String)
-	fun remove(fingerprint: kotlin.String)
-	fun contains(fingerprint: kotlin.String): kotlin.Boolean
-	companion object {
-		fun default(): moq.TokioTlsPeers
-		fun new(): moq.TokioTlsPeers
 	}
 }
 class TokioTlsConnect internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6886,8 +6063,6 @@ class TokioTlsListen internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun generateSet(value: kotlin.collections.List<kotlin.String>)
 	val identityGet: moq.TokioTlsIdentity?
 	fun identitySet(value: moq.TokioTlsIdentity?)
-	val peersGet: moq.TokioTlsPeers?
-	fun peersSet(value: moq.TokioTlsPeers?)
 	val rootGet: kotlin.collections.List<moq.PathBuf>
 	fun rootSet(value: kotlin.collections.List<moq.PathBuf>)
 	fun load(): moq.TokioTlsServe
@@ -6904,6 +6079,7 @@ class TokioTlsServe internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun clone(): moq.TokioTlsServe
 	fun certificates(): moq.TokioTlsCertificates
 	fun config(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
+	fun peer(chain: kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>): moq.TokioTlsPeerIdentity
 }
 class TokioTlsPeerIdentity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6912,11 +6088,9 @@ class TokioTlsPeerIdentity internal constructor(raw: Long, lent: Boolean = false
 	fun chain(): kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>
 	fun fingerprint(): kotlin.String?
 	fun name(): kotlin.String?
+	fun lineage(): kotlin.collections.List<kotlin.String>
 	fun issuer(): kotlin.String?
 	fun expiry(): moq.ClockWall?
-	companion object {
-		fun fromChain(chain: kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>): moq.TokioTlsPeerIdentity
-	}
 }
 class TokioTlsCertificates internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -6965,16 +6139,14 @@ class TokioConnectConfig internal constructor(raw: Long, lent: Boolean = false) 
 	fun timeoutSet(value: moq.TokioDuration?)
 	val versionGet: kotlin.collections.List<moq.Version>
 	fun versionSet(value: kotlin.collections.List<moq.Version>)
-	val extensionsGet: moq.SetupExtensions
-	fun extensionsSet(value: moq.SetupExtensions)
 	val implementationGet: kotlin.String?
 	fun implementationSet(value: kotlin.String?)
 	val tlsGet: moq.TokioTlsConnect
 	fun tlsSet(value: moq.TokioTlsConnect)
 	val backoffGet: moq.TokioBackoff
 	fun backoffSet(value: moq.TokioBackoff)
-	val goawayGet: moq.MoqTokioConnectionGoaway
-	fun goawaySet(value: moq.MoqTokioConnectionGoaway)
+	val goawayGet: moq.MoqTokioConnectionHandover
+	fun goawaySet(value: moq.MoqTokioConnectionHandover)
 	val websocketGet: moq.MoqTokioWebsocketConfig
 	fun websocketSet(value: moq.MoqTokioWebsocketConfig)
 	fun deprecated(): moq.MoqTokioCliDeprecated
@@ -7009,8 +6181,6 @@ class TokioListenConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun unixSet(value: moq.MoqTokioUnixConfig)
 	val versionGet: kotlin.collections.List<moq.Version>
 	fun versionSet(value: kotlin.collections.List<moq.Version>)
-	val extensionsGet: moq.SetupExtensions
-	fun extensionsSet(value: moq.SetupExtensions)
 	val implementationGet: kotlin.String?
 	fun implementationSet(value: kotlin.String?)
 	val timeoutGet: moq.TokioDuration?
@@ -7031,7 +6201,9 @@ class TokioListenConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun init(quic: moq.TokioQuicConfig): moq.TokioServer
 	fun initStreams(): moq.TokioServer
 	fun versions(): moq.Versions
+	fun server(): moq.Server
 	fun hasExplicitBind(): kotlin.Boolean
+	fun servesQuic(): kotlin.Boolean
 	companion object {
 		fun default(): moq.TokioListenConfig
 	}
@@ -7052,8 +6224,6 @@ class TokioQuicConfig internal constructor(raw: Long, lent: Boolean = false) : A
 	fun mtuDiscoverySet(value: kotlin.Boolean?)
 	val congestionControlGet: moq.MoqTokioQuicCongestionControl?
 	fun congestionControlSet(value: moq.MoqTokioQuicCongestionControl?)
-	val controllerGet: moq.MoqTokioQuicController?
-	fun controllerSet(value: moq.MoqTokioQuicController?)
 	val receiveWindowGet: kotlin.ULong?
 	fun receiveWindowSet(value: kotlin.ULong?)
 	val streamReceiveWindowGet: kotlin.ULong?
@@ -7075,8 +6245,8 @@ class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) :
 	override fun close()
 	val tlsGet: moq.TokioTlsServe?
 	fun tlsSet(value: moq.TokioTlsServe?)
-	val activityGet: moq.ServerActivity
-	fun activitySet(value: moq.ServerActivity)
+	val admissionGet: moq.ServerAdmission
+	fun admissionSet(value: moq.ServerAdmission)
 	val listenGet: moq.TokioListenConfig
 	fun listenSet(value: moq.TokioListenConfig)
 	val quicGet: moq.TokioQuicConfig
@@ -7091,6 +6261,8 @@ class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun statsSet(value: moq.StatsSession)
 	val demuxGet: moq.MoqTokioQuicDemuxDemux
 	fun demuxSet(value: moq.MoqTokioQuicDemuxDemux)
+	val streamsGet: moq.MoqTokioServerStreams
+	fun streamsSet(value: moq.MoqTokioServerStreams)
 	fun init(): moq.TokioServer
 	fun initStreams(): moq.TokioServer
 	companion object {
@@ -7101,6 +6273,7 @@ class TokioServerListener internal constructor(raw: Long, lent: Boolean = false)
 	override fun close()
 	suspend fun accept(): moq.TokioServerRequest
 	suspend fun close_()
+	suspend fun closeStreams()
 	fun localAddr(): moq.SocketAddr
 	fun websocketLocalAddr(): moq.SocketAddr?
 	fun tcpLocalAddr(): moq.SocketAddr?
@@ -7113,11 +6286,12 @@ class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) 
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.TokioServerRequest
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.TokioServerRequest
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioServerRequest
-	fun withPeerHop(hop: moq.Hop): moq.TokioServerRequest
+	fun withPeerNode(node: kotlin.ULong): moq.TokioServerRequest
 	fun withStats(stats: moq.StatsSession): moq.TokioServerRequest
 	fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
-	fun quic(): moq.MoqTokioQuicDriverConnectionConnection?
+	fun quicLimits(): moq.MoqTokioServerQuicLimits?
 	fun withQuicLimits(limits: moq.MoqQuicLimits): moq.TokioServerRequest
+	suspend fun expired()
 	suspend fun ok(): moq.Session
 	fun transport(): moq.TokioTransport
 	fun url(): moq.Url?
@@ -7131,7 +6305,7 @@ class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) 
 	fun role(): moq.SetupRole?
 	fun auth(): moq.AuthHandle
 	fun requests(): moq.AuthRequests
-	fun peerHop(): moq.Hop?
+	fun peerNode(): kotlin.ULong?
 	fun peerImplementation(): kotlin.String?
 	fun token(): moq.SetupToken?
 	fun peerIdentity(): moq.TokioTlsPeerIdentity?
@@ -7148,6 +6322,8 @@ class TransportMemoryConfig internal constructor(raw: Long, lent: Boolean = fals
 	fun maxConcurrentUniStreamsSet(value: kotlin.ULong?)
 	val maxConcurrentBiStreamsGet: kotlin.ULong?
 	fun maxConcurrentBiStreamsSet(value: kotlin.ULong?)
+	val latencyGet: moq.Duration
+	fun latencySet(value: moq.Duration)
 	companion object {
 		fun default(): moq.TransportMemoryConfig
 	}
@@ -7155,26 +6331,33 @@ class TransportMemoryConfig internal constructor(raw: Long, lent: Boolean = fals
 class TransportMemorySession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TransportMemorySession
+	fun closer(): moq.TransportMemoryCloser
+}
+class TransportMemoryCloser internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun clone(): moq.TransportMemoryCloser
+	fun close_(code: kotlin.UInt, reason: kotlin.String)
+	fun isClosed(): kotlin.Boolean
 }
 class MuxCatalogHangConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun next(): moq.HangCatalog?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogHangConsumer
+		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
 	}
 }
 class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun next(): moq.HangCatalogExtra?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogHangConsumerExtra
+		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
 	}
 }
 class MuxCatalogHangConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun next(): moq.HangCatalogExt?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogHangConsumerExt
+		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
 	}
 }
 class MuxCatalogHangContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7220,6 +6403,20 @@ class MuxCatalogMsfConsumerExt internal constructor(raw: Long, lent: Boolean = f
 		fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
 	}
 }
+class MuxCodecAacConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val profileGet: kotlin.UByte
+	fun profileSet(value: kotlin.UByte)
+	val sampleRateGet: kotlin.UInt
+	fun sampleRateSet(value: kotlin.UInt)
+	val channelCountGet: kotlin.UInt
+	fun channelCountSet(value: kotlin.UInt)
+	fun encode(): moq.Bytes
+	companion object {
+		fun new(profile: kotlin.UByte, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecAacConfig
+		fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecAacConfig
+	}
+}
 class MuxCodecAacError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	final override fun toString(): kotlin.String
@@ -7230,11 +6427,12 @@ class MuxCodecAacImport internal constructor(raw: Long, lent: Boolean = false) :
 	override fun close()
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
@@ -7252,12 +6450,13 @@ class MuxCodecAv1Import internal constructor(raw: Long, lent: Boolean = false) :
 	override fun close()
 	fun initialize(buf: moq.Bytes)
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
@@ -7278,11 +6477,12 @@ class MuxCodecAv1Split internal constructor(raw: Long, lent: Boolean = false) : 
 class MuxCodecFlacImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
@@ -7335,14 +6535,15 @@ class MuxCodecH264Import internal constructor(raw: Long, lent: Boolean = false) 
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun track(): moq.TrackProducer
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
 	fun reportSkipped(frames: kotlin.ULong)
 	fun reportBitrate(bitrate: moq.BandwidthRate)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun observeReorder(reorder: moq.Timestamp)
 	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
@@ -7392,20 +6593,31 @@ class MuxCodecH265Hvcc internal constructor(raw: Long, lent: Boolean = false) : 
 		fun parse(hvcc: moq.Bytes): moq.MuxCodecH265Hvcc
 	}
 }
+class MuxCodecH265Sps internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxCodecH265Sps
+	fun size(): kotlin.Pair<kotlin.UInt, kotlin.UInt>
+	fun videoSignal(): moq.MuxCodecH265VideoSignal?
+	companion object {
+		fun parse(nal: moq.Bytes): moq.MuxCodecH265Sps
+	}
+}
 class MuxCodecH265Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun initialize(buf: moq.Bytes)
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun track(): moq.TrackProducer
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
 	fun reportSkipped(frames: kotlin.ULong)
 	fun reportBitrate(bitrate: moq.BandwidthRate)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun observeReorder(reorder: moq.Timestamp)
 	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
@@ -7427,11 +6639,12 @@ class MuxCodecH265Split internal constructor(raw: Long, lent: Boolean = false) :
 class MuxCodecMp3Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
@@ -7466,11 +6679,12 @@ class MuxCodecOpusImport internal constructor(raw: Long, lent: Boolean = false) 
 	override fun close()
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
@@ -7483,12 +6697,13 @@ class MuxCodecVp8Import internal constructor(raw: Long, lent: Boolean = false) :
 	fun initialize(buf: moq.Bytes)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
 		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
@@ -7500,12 +6715,13 @@ class MuxCodecVp9Import internal constructor(raw: Long, lent: Boolean = false) :
 	fun initialize(buf: moq.Bytes)
 	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	fun demand(): moq.TrackDemand
-	fun finish()
+	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
+	fun abortUnwanted(err: moq.Error)
 	fun cut(end: moq.Timestamp?)
 	fun discontinuity()
 	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
 	companion object {
 		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
 		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
@@ -7516,8 +6732,8 @@ class MuxContainerFlvImport internal constructor(raw: Long, lent: Boolean = fals
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImport
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerFlvFinished
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFlvImport
@@ -7527,8 +6743,8 @@ class MuxContainerFlvImportExtra internal constructor(raw: Long, lent: Boolean =
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImportExtra
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerFlvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFlvImportExtra
@@ -7538,18 +6754,28 @@ class MuxContainerFlvImportExt internal constructor(raw: Long, lent: Boolean = f
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImportExt
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerFlvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFlvImportExt
 	}
 }
+class MuxContainerFlvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerFlvFinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerFlvFinishedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
 class MuxContainerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun trak(): moq.Mp4AtomTrak
 	companion object {
-		fun new(trak: moq.Mp4AtomTrak): moq.MuxContainerFmp4Wire
 		fun fromInit(initData: moq.Bytes): moq.MuxContainerFmp4Wire
 	}
 }
@@ -7559,21 +6785,16 @@ class MuxContainerFmp4Error internal constructor(raw: Long, lent: Boolean = fals
 	fun debug(): kotlin.String
 	fun clone(): moq.MuxContainerFmp4Error
 }
-class MuxContainerFmp4Fragmenter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun push(frame: moq.MuxContainerFrame): kotlin.collections.List<moq.MuxContainerFmp4Fragment>
-	fun pushGroup(frame: moq.MuxContainerFrame): kotlin.collections.List<moq.MuxContainerFmp4Fragment>
-	fun flush(): moq.MuxContainerFmp4Fragment?
-}
 class MuxContainerFmp4Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4Import
-	fun withPassthrough(passthrough: kotlin.Boolean): moq.MuxContainerFmp4Import
+	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4Import
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxContainerFmp4Finished
 	fun abort(err: moq.Error)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
+	fun rejoin()
 	fun discontinuity()
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFmp4Import
@@ -7583,11 +6804,12 @@ class MuxContainerFmp4ImportExtra internal constructor(raw: Long, lent: Boolean 
 	override fun close()
 	fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4ImportExtra
-	fun withPassthrough(passthrough: kotlin.Boolean): moq.MuxContainerFmp4ImportExtra
+	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4ImportExtra
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxContainerFmp4FinishedExtra
 	fun abort(err: moq.Error)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
+	fun rejoin()
 	fun discontinuity()
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFmp4ImportExtra
@@ -7597,36 +6819,59 @@ class MuxContainerFmp4ImportExt internal constructor(raw: Long, lent: Boolean = 
 	override fun close()
 	fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4ImportExt
-	fun withPassthrough(passthrough: kotlin.Boolean): moq.MuxContainerFmp4ImportExt
+	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4ImportExt
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxContainerFmp4FinishedExt
 	fun abort(err: moq.Error)
-	fun seek(sequence: kotlin.ULong)
+	fun seek(start: kotlin.ULong)
+	fun rejoin()
 	fun discontinuity()
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFmp4ImportExt
 	}
 }
+class MuxContainerFmp4Finished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerFmp4FinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerFmp4FinishedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
 class MuxContainerFmp4Muxer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun timescale(): moq.Timescale
 	fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
-	fun withFramerate(framerate: kotlin.Double?): moq.MuxContainerFmp4Muxer
 	suspend fun read(group: moq.GroupConsumer): kotlin.collections.List<moq.MuxContainerFrame>
+	fun pictureSize(keyframe: moq.MuxContainerFrame): kotlin.Pair<kotlin.UInt, kotlin.UInt>?
 	fun init(): moq.Bytes?
 	fun fragment(sequence: kotlin.UInt, frames: kotlin.collections.List<moq.MuxContainerFrame>, end: moq.Timestamp?): moq.Bytes
-	fun fragmenter(config: moq.MuxContainerFmp4FragmentConfig): moq.MuxContainerFmp4Fragmenter
 	companion object {
 		fun video(config: moq.HangCatalogVideoConfig): moq.MuxContainerFmp4Muxer
 		fun audio(config: moq.HangCatalogAudioConfig): moq.MuxContainerFmp4Muxer
+	}
+}
+class MuxContainerLegacyAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxContainerLegacyAudio
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun duration(payload: moq.Bytes): moq.Timestamp?
+	companion object {
+		fun new(config: moq.HangCatalogAudioConfig): moq.MuxContainerLegacyAudio?
 	}
 }
 class MuxContainerMkvImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImport
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerMkvFinished
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerMkvImport
@@ -7636,8 +6881,8 @@ class MuxContainerMkvImportExtra internal constructor(raw: Long, lent: Boolean =
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImportExtra
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerMkvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerMkvImportExtra
@@ -7647,12 +6892,29 @@ class MuxContainerMkvImportExt internal constructor(raw: Long, lent: Boolean = f
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImportExt
 	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun seek(start: kotlin.ULong)
+	fun finish(): moq.MuxContainerMkvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerMkvImportExt
 	}
+}
+class MuxContainerMkvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerMkvFinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerMkvFinishedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxContainerMp4Finish internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxContainerMp4Finish
 }
 class MuxContainerTsExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -7682,9 +6944,25 @@ class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false
 	fun siSet(value: kotlin.collections.List<kotlin.Pair<kotlin.UShort, kotlin.collections.List<kotlin.Pair<kotlin.UByte, moq.MuxContainerTsSiEntry>>>>)
 	val muxRateGet: kotlin.ULong?
 	fun muxRateSet(value: kotlin.ULong?)
+	val passthroughGet: moq.MuxContainerTsPassthroughTrack?
+	fun passthroughSet(value: moq.MuxContainerTsPassthroughTrack?)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
 		fun default(): moq.MuxContainerTsMpegts
+	}
+}
+class MuxContainerTsPassthroughTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxContainerTsPassthroughTrack
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val trackGet: kotlin.String
+	fun trackSet(value: kotlin.String)
+	val randomAccessGet: kotlin.Boolean
+	fun randomAccessSet(value: kotlin.Boolean)
+	companion object {
+		fun new(track: kotlin.String): moq.MuxContainerTsPassthroughTrack
 	}
 }
 class MuxContainerTsPesPacket internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7764,40 +7042,43 @@ class MuxContainerTsVerbatim internal constructor(raw: Long, lent: Boolean = fal
 		fun new(streamType: kotlin.UByte, framing: moq.MuxContainerTsFraming): moq.MuxContainerTsVerbatim
 	}
 }
+class MuxContainerTsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxContainerTsError
+}
 class MuxContainerTsExportConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumerExtra
-	fun withDelay(delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
 	suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
+		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
 	}
 }
 class MuxContainerTsExportConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumerExt
-	fun withDelay(delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
 	suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
+		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
 	}
 }
 class MuxContainerTsExportConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumer
-	fun withDelay(delay: moq.Duration): moq.MuxContainerTsExportConsumer
 	suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
+		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
 	}
 }
 class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7835,10 +7116,21 @@ class MuxContainerTsPassthrough internal constructor(raw: Long, lent: Boolean = 
 	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthrough
 	fun track(): kotlin.String
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxContainerTsPassthroughFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthrough
+		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthrough
+	}
+}
+class MuxContainerTsPassthroughUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthroughUnit
+	fun track(): kotlin.String
+	fun decode(data: moq.Bytes)
+	fun finish(): moq.MuxContainerTsPassthroughFinishedUnit
+	fun abort(err: moq.Error)
+	companion object {
+		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthroughUnit
 	}
 }
 class MuxContainerTsPassthroughExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7846,28 +7138,17 @@ class MuxContainerTsPassthroughExtra internal constructor(raw: Long, lent: Boole
 	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthroughExtra
 	fun track(): kotlin.String
 	fun decode(data: moq.Bytes)
-	fun finish()
+	fun finish(): moq.MuxContainerTsPassthroughFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsPassthroughExtra
-	}
-}
-class MuxContainerTsPassthroughExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthroughExt
-	fun track(): kotlin.String
-	fun decode(data: moq.Bytes)
-	fun finish()
-	fun abort(err: moq.Error)
-	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthroughExt
 	}
 }
 class MuxContainerTsPrograms internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun decode(data: moq.Bytes)
 	fun stats(): moq.MuxContainerTsStatsSnapshot
-	fun finish(): kotlin.collections.List<moq.BroadcastProducer>
+	fun finish(): moq.MuxContainerTsProgramsFinished
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(origin: moq.OriginProducer, name: moq.Path, config: moq.MuxCatalogConfig): moq.MuxContainerTsPrograms
@@ -7875,15 +7156,37 @@ class MuxContainerTsPrograms internal constructor(raw: Long, lent: Boolean = fal
 }
 class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withDelay(delay: moq.Duration): moq.MuxContainerTsRelease
 	fun dropped(): kotlin.ULong
 	fun drift(): kotlin.Double?
 	fun outOfTolerance(): kotlin.ULong
 	fun stats(): moq.MuxContainerTsStatsRelease
 	suspend fun next(): moq.MuxContainerFrame?
 	companion object {
-		suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat): moq.MuxContainerTsRelease
+		suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
 	}
+}
+class MuxContainerTsRepublish internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun withProgram(program: kotlin.UShort): moq.MuxContainerTsRepublish
+	fun broadcast(): moq.BroadcastProducer
+	fun catalog(): moq.MuxCatalogProducerExt
+	fun instance(): moq.Instance
+	fun decode(data: moq.Bytes): moq.MuxContainerTsRepublished?
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun finish(): moq.MuxContainerTsRepublishFinished
+	fun abort(err: moq.Error)
+	companion object {
+		fun new(origin: moq.OriginProducer, name: moq.Path, instance: moq.Instance, config: moq.MuxCatalogConfig): moq.MuxContainerTsRepublish
+	}
+}
+class MuxContainerTsRepublished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MuxContainerTsRepublished
+	val stepGet: moq.MuxContainerTsStep
+	fun stepSet(value: moq.MuxContainerTsStep)
+	val statsGet: moq.MuxContainerTsStatsSnapshot
+	fun statsSet(value: moq.MuxContainerTsStatsSnapshot)
 }
 class MuxContainerTsImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -7891,7 +7194,7 @@ class MuxContainerTsImport internal constructor(raw: Long, lent: Boolean = false
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImport
 	fun decode(data: moq.Bytes)
 	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun finish(): moq.MuxContainerTsFinished
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
@@ -7904,7 +7207,7 @@ class MuxContainerTsImportExtra internal constructor(raw: Long, lent: Boolean = 
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImportExtra
 	fun decode(data: moq.Bytes)
 	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun finish(): moq.MuxContainerTsFinishedExtra
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
@@ -7917,12 +7220,44 @@ class MuxContainerTsImportExt internal constructor(raw: Long, lent: Boolean = fa
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImportExt
 	fun decode(data: moq.Bytes)
 	fun seek(sequence: kotlin.ULong)
-	fun finish()
+	fun finish(): moq.MuxContainerTsFinishedExt
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
 		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsImportExt
 	}
+}
+class MuxContainerTsFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsFinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsFinishedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun abort(err: moq.Error)
+}
+class MuxImportContainerFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxImportContainerFinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxImportContainerFinishedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun abort(err: moq.Error)
+}
+class MuxImportTrackFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun name(): kotlin.String
+	fun abort(err: moq.Error)
 }
 class MuxCodecAacAdtsHeader internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -7940,6 +7275,33 @@ class MuxCodecAacAdtsHeader internal constructor(raw: Long, lent: Boolean = fals
 	companion object {
 		fun parse(data: moq.Bytes): moq.MuxCodecAacAdtsHeader
 	}
+}
+class MuxContainerTsPassthroughFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun track(): kotlin.String
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsPassthroughFinishedUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun track(): kotlin.String
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsPassthroughFinishedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun track(): kotlin.String
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsProgramsFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun broadcasts(): kotlin.collections.List<moq.BroadcastProducer>
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun abort(err: moq.Error)
+}
+class MuxContainerTsRepublishFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun broadcast(): moq.BroadcastProducer
+	fun stats(): moq.MuxContainerTsStatsSnapshot
+	fun abort(err: moq.Error)
 }
 class MuxContainerTsStatsReport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8099,15 +7461,16 @@ class MoqTokioCliDeprecated internal constructor(raw: Long, lent: Boolean = fals
 		fun default(): moq.MoqTokioCliDeprecated
 	}
 }
-class Mp4AtomCodec internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MoqTokioCliBound internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomCodec
+	fun clone(): moq.MoqTokioCliBound
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun visual(): moq.Mp4AtomVisual?
-	fun audio(): moq.Mp4AtomAudio?
-	fun metadata(): moq.Mp4AtomMetaData?
+	companion object {
+		val NONE: moq.MoqTokioCliBound
+	}
 }
 class MoqTokioTcpTlsAcceptor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8125,6 +7488,34 @@ class MoqTokioAcceptHealth internal constructor(raw: Long, lent: Boolean = false
 	fun stalled(): moq.Duration?
 	companion object {
 		fun new(listener: kotlin.String): moq.MoqTokioAcceptHealth
+	}
+}
+class MoqJsonTimedCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MoqJsonTimedCatalog
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val valueGet: moq.HangCatalog
+	fun valueSet(value: moq.HangCatalog)
+	val atGet: moq.Timestamp
+	fun atSet(value: moq.Timestamp)
+	companion object {
+		fun new(value: moq.HangCatalog, at: moq.Timestamp): moq.MoqJsonTimedCatalog
+	}
+}
+class MoqJsonTimedJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MoqJsonTimedJson
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val valueGet: moq.Json
+	fun valueSet(value: moq.Json)
+	val atGet: moq.Timestamp
+	fun atSet(value: moq.Timestamp)
+	companion object {
+		fun new(value: moq.Json, at: moq.Timestamp): moq.MoqJsonTimedJson
 	}
 }
 class RustlsClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8201,19 +7592,19 @@ class MoqTokioConnectResolved internal constructor(raw: Long, lent: Boolean = fa
 	fun raceSet(value: moq.Duration)
 	val resolutionDelayGet: moq.Duration
 	fun resolutionDelaySet(value: moq.Duration)
-	val timeoutGet: moq.Duration
-	fun timeoutSet(value: moq.Duration)
+	val timeoutGet: moq.Duration?
+	fun timeoutSet(value: moq.Duration?)
 }
-class MoqTokioConnectionGoaway internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MoqTokioConnectionHandover internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioConnectionGoaway
+	fun clone(): moq.MoqTokioConnectionHandover
 	val redirectGet: moq.MoqTokioRedirect
 	fun redirectSet(value: moq.MoqTokioRedirect)
 	val handoverGet: moq.TokioDuration?
 	fun handoverSet(value: moq.TokioDuration?)
 	companion object {
-		fun default(): moq.MoqTokioConnectionGoaway
+		fun default(): moq.MoqTokioConnectionHandover
 	}
 }
 class MoqTokioWebsocketConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8235,18 +7626,12 @@ class MoqTokioConnectionObservation internal constructor(raw: Long, lent: Boolea
 	fun clone(): moq.MoqTokioConnectionObservation
 	val revisionGet: kotlin.ULong
 	fun revisionSet(value: kotlin.ULong)
-	val phaseGet: moq.MoqTokioConnectionPhase
-	fun phaseSet(value: moq.MoqTokioConnectionPhase)
 	val connectsGet: kotlin.ULong
 	fun connectsSet(value: kotlin.ULong)
 	val lastConnectedGet: moq.ClockInstant?
 	fun lastConnectedSet(value: moq.ClockInstant?)
-	val transportGet: moq.TokioTransport?
-	fun transportSet(value: moq.TokioTransport?)
-	val failureGet: moq.TokioError?
-	fun failureSet(value: moq.TokioError?)
-	val versionGet: moq.Version?
-	fun versionSet(value: moq.Version?)
+	val phaseGet: moq.MoqTokioConnectionPhase
+	fun phaseSet(value: moq.MoqTokioConnectionPhase)
 }
 class MoqTokioConnectionSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8263,8 +7648,6 @@ class MoqTokioListenResolved internal constructor(raw: Long, lent: Boolean = fal
 	fun bindSet(value: moq.TokioListenBind?)
 	val versionsGet: moq.Versions
 	fun versionsSet(value: moq.Versions)
-	val extensionsGet: moq.SetupExtensions
-	fun extensionsSet(value: moq.SetupExtensions)
 	val implementationGet: kotlin.String?
 	fun implementationSet(value: kotlin.String?)
 	val timeoutGet: moq.Duration?
@@ -8336,16 +7719,14 @@ class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false
 	fun maxStreamsSet(value: kotlin.ULong)
 	val gsoGet: kotlin.Boolean?
 	fun gsoSet(value: kotlin.Boolean?)
-	val idleTimeoutGet: moq.Duration
-	fun idleTimeoutSet(value: moq.Duration)
+	val idleTimeoutGet: moq.Duration?
+	fun idleTimeoutSet(value: moq.Duration?)
 	val keepAliveGet: moq.Duration?
 	fun keepAliveSet(value: moq.Duration?)
 	val mtuDiscoveryGet: kotlin.Boolean
 	fun mtuDiscoverySet(value: kotlin.Boolean)
-	val congestionControlGet: moq.MoqTokioQuicCongestionControl?
-	fun congestionControlSet(value: moq.MoqTokioQuicCongestionControl?)
-	val controllerGet: moq.MoqTokioQuicController?
-	fun controllerSet(value: moq.MoqTokioQuicController?)
+	val congestionControlGet: moq.MoqTokioQuicCongestionControl
+	fun congestionControlSet(value: moq.MoqTokioQuicCongestionControl)
 	val receiveWindowGet: kotlin.ULong
 	fun receiveWindowSet(value: kotlin.ULong)
 	val streamReceiveWindowGet: kotlin.ULong
@@ -8356,18 +7737,11 @@ class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false
 	fun qlogSet(value: moq.PathBuf?)
 	val keylogGet: moq.PathBuf?
 	fun keylogSet(value: moq.PathBuf?)
-	fun hasController(): kotlin.Boolean
 	fun keepAliveInterval(): moq.Duration
+	fun limits(): moq.MoqQuicLimits
 	companion object {
 		fun default(): moq.MoqTokioQuicResolved
 	}
-}
-class MoqTokioQuicController internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicController
-	val _0_get: moq.MoqCongestionFactory
-	fun _0_set(value: moq.MoqCongestionFactory)
 }
 class MoqTokioWebsocketListener internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8375,6 +7749,7 @@ class MoqTokioWebsocketListener internal constructor(raw: Long, lent: Boolean = 
 	fun withQuic(quic: moq.MoqTokioQuicResolved): moq.MoqTokioWebsocketListener
 	fun localAddr(): moq.SocketAddr
 	fun acceptHealth(): moq.MoqTokioAcceptHealth
+	suspend fun accept(): moq.QmuxSession
 	companion object {
 		suspend fun bind(addr: moq.SocketAddr): moq.MoqTokioWebsocketListener
 	}
@@ -8389,30 +7764,18 @@ class MoqTokioQuicDemuxDemux internal constructor(raw: Long, lent: Boolean = fal
 		fun default(): moq.MoqTokioQuicDemuxDemux
 	}
 }
-class MoqTokioQuicDriverConnectionConnection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class MoqTokioServerStreams internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverConnectionConnection
-	suspend fun openUni(options: moq.MoqTokioQuicDriverSendOptions): moq.MoqTokioQuicDriverSendStream
-	fun sendGroup(priority: kotlin.Long): moq.MoqTokioQuicDriverSendGroup
-	suspend fun openBi(options: moq.MoqTokioQuicDriverSendOptions): kotlin.Pair<moq.MoqTokioQuicDriverSendStream, moq.MoqTokioQuicDriverRecvStream>
-	suspend fun acceptUni(): moq.MoqTokioQuicDriverRecvStream
-	suspend fun acceptBi(): kotlin.Pair<moq.MoqTokioQuicDriverSendStream, moq.MoqTokioQuicDriverRecvStream>
-	suspend fun readDatagram(): moq.Bytes
-	suspend fun pollRecvDatagram(): moq.Bytes
-	suspend fun closed(): moq.MoqQuicError
-	fun closeReason(): moq.MoqQuicError?
-	fun close_(errorCode: moq.MoqQuicVarInt, reason: kotlin.String)
-	fun sendDatagram(data: moq.Bytes, options: moq.MoqTokioQuicDriverSendOptions)
-	fun maxDatagramSize(): kotlin.ULong?
-	fun datagramSendBufferSpace(): kotlin.ULong
-	fun remoteAddress(): moq.SocketAddr
-	fun rtt(): moq.Duration
-	fun stats(): moq.MoqQuicConnectionStats
-	fun handshakeData(): moq.MoqQuicCryptoHandshakeData?
-	fun peerIdentity(): kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>?
-	fun stableId(): kotlin.ULong
-	fun setLimits(limits: moq.MoqQuicLimits)
+	companion object {
+		fun default(): moq.MoqTokioServerStreams
+	}
+}
+class MoqTokioServerQuicLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MoqTokioServerQuicLimits
+	fun set(limits: moq.MoqQuicLimits)
 }
 class MoqQuicLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8437,30 +7800,6 @@ class MoqQuicLimits internal constructor(raw: Long, lent: Boolean = false) : Aut
 		fun default(): moq.MoqQuicLimits
 	}
 }
-class Mp4AtomTrak internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomTrak
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val tkhdGet: moq.Mp4AtomTkhd
-	fun tkhdSet(value: moq.Mp4AtomTkhd)
-	val edtsGet: moq.Mp4AtomEdts?
-	fun edtsSet(value: moq.Mp4AtomEdts?)
-	val metaGet: moq.Mp4AtomMeta?
-	fun metaSet(value: moq.Mp4AtomMeta?)
-	val mdiaGet: moq.Mp4AtomMdia
-	fun mdiaSet(value: moq.Mp4AtomMdia)
-	val sencGet: moq.Mp4AtomSenc?
-	fun sencSet(value: moq.Mp4AtomSenc?)
-	val trefGet: moq.Mp4AtomTref?
-	fun trefSet(value: moq.Mp4AtomTref?)
-	val udtaGet: moq.Mp4AtomUdta?
-	fun udtaSet(value: moq.Mp4AtomUdta?)
-	companion object {
-		fun default(): moq.Mp4AtomTrak
-	}
-}
 class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -8472,234 +7811,6 @@ class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false)
 	companion object {
 		fun new(url: moq.Url): moq.MoqTokioConnectAddr
 		fun pinned(url: moq.Url, addrs: kotlin.collections.List<moq.SocketAddr>): moq.MoqTokioConnectAddr
-	}
-}
-class Mp4AtomAvc1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomAvc1
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val avccGet: moq.Mp4AtomAvcc
-	fun avccSet(value: moq.Mp4AtomAvcc)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val taicGet: moq.Mp4AtomTaic?
-	fun taicSet(value: moq.Mp4AtomTaic?)
-	val fielGet: moq.Mp4AtomFiel?
-	fun fielSet(value: moq.Mp4AtomFiel?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomAvc1
-	}
-}
-class Mp4AtomAvc3 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomAvc3
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val avccGet: moq.Mp4AtomAvcc
-	fun avccSet(value: moq.Mp4AtomAvcc)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val taicGet: moq.Mp4AtomTaic?
-	fun taicSet(value: moq.Mp4AtomTaic?)
-	val fielGet: moq.Mp4AtomFiel?
-	fun fielSet(value: moq.Mp4AtomFiel?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomAvc3
-	}
-}
-class Mp4AtomJpeg internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomJpeg
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val fielGet: moq.Mp4AtomFiel?
-	fun fielSet(value: moq.Mp4AtomFiel?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomJpeg
-	}
-}
-class Mp4AtomHev1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomHev1
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val hvccGet: moq.Mp4AtomHvcc
-	fun hvccSet(value: moq.Mp4AtomHvcc)
-	val lhvcGet: moq.Mp4AtomLhvc?
-	fun lhvcSet(value: moq.Mp4AtomLhvc?)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val taicGet: moq.Mp4AtomTaic?
-	fun taicSet(value: moq.Mp4AtomTaic?)
-	val fielGet: moq.Mp4AtomFiel?
-	fun fielSet(value: moq.Mp4AtomFiel?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomHev1
-	}
-}
-class Mp4AtomHvc1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomHvc1
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val hvccGet: moq.Mp4AtomHvcc
-	fun hvccSet(value: moq.Mp4AtomHvcc)
-	val lhvcGet: moq.Mp4AtomLhvc?
-	fun lhvcSet(value: moq.Mp4AtomLhvc?)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val taicGet: moq.Mp4AtomTaic?
-	fun taicSet(value: moq.Mp4AtomTaic?)
-	val fielGet: moq.Mp4AtomFiel?
-	fun fielSet(value: moq.Mp4AtomFiel?)
-	val ccstGet: moq.Mp4AtomCcst?
-	fun ccstSet(value: moq.Mp4AtomCcst?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomHvc1
-	}
-}
-class Mp4AtomVp08 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomVp08
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val vpccGet: moq.Mp4AtomVpcC
-	fun vpccSet(value: moq.Mp4AtomVpcC)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomVp08
-	}
-}
-class Mp4AtomVp09 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomVp09
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val vpccGet: moq.Mp4AtomVpcC
-	fun vpccSet(value: moq.Mp4AtomVpcC)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomVp09
-	}
-}
-class Mp4AtomAv01 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomAv01
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val visualGet: moq.Mp4AtomVisual
-	fun visualSet(value: moq.Mp4AtomVisual)
-	val av1cGet: moq.Mp4AtomAv1c
-	fun av1cSet(value: moq.Mp4AtomAv1c)
-	val btrtGet: moq.Mp4AtomBtrt?
-	fun btrtSet(value: moq.Mp4AtomBtrt?)
-	val ccstGet: moq.Mp4AtomCcst?
-	fun ccstSet(value: moq.Mp4AtomCcst?)
-	val colrGet: moq.Mp4AtomColr?
-	fun colrSet(value: moq.Mp4AtomColr?)
-	val paspGet: moq.Mp4AtomPasp?
-	fun paspSet(value: moq.Mp4AtomPasp?)
-	val taicGet: moq.Mp4AtomTaic?
-	fun taicSet(value: moq.Mp4AtomTaic?)
-	val spatialGet: moq.Mp4AtomSpatial?
-	fun spatialSet(value: moq.Mp4AtomSpatial?)
-	companion object {
-		fun default(): moq.Mp4AtomAv01
-	}
-}
-class Mp4AtomTx3g internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomTx3g
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val dataReferenceIndexGet: kotlin.UShort
-	fun dataReferenceIndexSet(value: kotlin.UShort)
-	val displayFlagsGet: kotlin.UInt
-	fun displayFlagsSet(value: kotlin.UInt)
-	val horizontalJustificationGet: kotlin.Byte
-	fun horizontalJustificationSet(value: kotlin.Byte)
-	val verticalJustificationGet: kotlin.Byte
-	fun verticalJustificationSet(value: kotlin.Byte)
-	val bgColorRgbaGet: moq.Mp4AtomRgbaColor
-	fun bgColorRgbaSet(value: moq.Mp4AtomRgbaColor)
-	val styleRecordGet: ArrayU8x12
-	fun styleRecordSet(value: ArrayU8x12)
-	val ftabGet: moq.Mp4AtomFtab?
-	fun ftabSet(value: moq.Mp4AtomFtab?)
-	val dispGet: moq.Mp4AtomDisp?
-	fun dispSet(value: moq.Mp4AtomDisp?)
-	companion object {
-		fun default(): moq.Mp4AtomTx3g
 	}
 }
 class RustlsPkiTypesTrustAnchor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8715,6 +7826,11 @@ class RustlsPkiTypesTrustAnchor internal constructor(raw: Long, lent: Boolean = 
 	val nameConstraintsGet: moq.RustlsPkiTypesDer?
 	fun nameConstraintsSet(value: moq.RustlsPkiTypesDer?)
 	fun toOwned(): moq.RustlsPkiTypesTrustAnchor
+}
+class MoqTokioConnectionPhase internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.MoqTokioConnectionPhase
 }
 class MoqTokioQuicServerId internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8733,118 +7849,8 @@ class MoqTokioListenForward internal constructor(raw: Long, lent: Boolean = fals
 	fun keySet(value: moq.PathBuf?)
 	val peersGet: moq.PathBuf?
 	fun peersSet(value: moq.PathBuf?)
-	fun configured(): kotlin.Boolean
 	companion object {
 		fun default(): moq.MoqTokioListenForward
-	}
-}
-class Mp4AtomMeta internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomMeta
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val hdlrGet: moq.Mp4AtomHdlr
-	fun hdlrSet(value: moq.Mp4AtomHdlr)
-	val itemsGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun itemsSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	fun getPitm(): moq.Mp4AtomPitm?
-	fun getDinf(): moq.Mp4AtomDinf?
-	fun getIloc(): moq.Mp4AtomIloc?
-	fun getIinf(): moq.Mp4AtomIinf?
-	fun getIprp(): moq.Mp4AtomIprp?
-	fun getIref(): moq.Mp4AtomIref?
-	fun getIdat(): moq.Mp4AtomIdat?
-	fun getIlst(): moq.Mp4AtomIlst?
-	fun getKeys(): moq.Mp4AtomKeys?
-	fun getMutPitm(): moq.Mp4AtomPitm?
-	fun getMutDinf(): moq.Mp4AtomDinf?
-	fun getMutIloc(): moq.Mp4AtomIloc?
-	fun getMutIinf(): moq.Mp4AtomIinf?
-	fun getMutIprp(): moq.Mp4AtomIprp?
-	fun getMutIref(): moq.Mp4AtomIref?
-	fun getMutIdat(): moq.Mp4AtomIdat?
-	fun getMutIlst(): moq.Mp4AtomIlst?
-	fun getMutKeys(): moq.Mp4AtomKeys?
-	fun pushPitm(atom: moq.Mp4AtomPitm)
-	fun pushDinf(atom: moq.Mp4AtomDinf)
-	fun pushIloc(atom: moq.Mp4AtomIloc)
-	fun pushIinf(atom: moq.Mp4AtomIinf)
-	fun pushIprp(atom: moq.Mp4AtomIprp)
-	fun pushIref(atom: moq.Mp4AtomIref)
-	fun pushIdat(atom: moq.Mp4AtomIdat)
-	fun pushIlst(atom: moq.Mp4AtomIlst)
-	fun pushKeys(atom: moq.Mp4AtomKeys)
-	fun removePitm(): moq.Mp4AtomPitm?
-	fun removeDinf(): moq.Mp4AtomDinf?
-	fun removeIloc(): moq.Mp4AtomIloc?
-	fun removeIinf(): moq.Mp4AtomIinf?
-	fun removeIprp(): moq.Mp4AtomIprp?
-	fun removeIref(): moq.Mp4AtomIref?
-	fun removeIdat(): moq.Mp4AtomIdat?
-	fun removeIlst(): moq.Mp4AtomIlst?
-	fun removeKeys(): moq.Mp4AtomKeys?
-}
-class Mp4AtomMdia internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomMdia
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mdhdGet: moq.Mp4AtomMdhd
-	fun mdhdSet(value: moq.Mp4AtomMdhd)
-	val hdlrGet: moq.Mp4AtomHdlr
-	fun hdlrSet(value: moq.Mp4AtomHdlr)
-	val minfGet: moq.Mp4AtomMinf
-	fun minfSet(value: moq.Mp4AtomMinf)
-	companion object {
-		fun default(): moq.Mp4AtomMdia
-	}
-}
-class Mp4AtomUdta internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomUdta
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val chplGet: moq.Mp4AtomChpl?
-	fun chplSet(value: moq.Mp4AtomChpl?)
-	val cprtGet: kotlin.collections.List<moq.Mp4AtomCprt>
-	fun cprtSet(value: kotlin.collections.List<moq.Mp4AtomCprt>)
-	val kindGet: kotlin.collections.List<moq.Mp4AtomKind>
-	fun kindSet(value: kotlin.collections.List<moq.Mp4AtomKind>)
-	val metaGet: moq.Mp4AtomMeta?
-	fun metaSet(value: moq.Mp4AtomMeta?)
-	val rtngGet: kotlin.collections.List<moq.Mp4AtomRtng>
-	fun rtngSet(value: kotlin.collections.List<moq.Mp4AtomRtng>)
-	companion object {
-		fun default(): moq.Mp4AtomUdta
-	}
-}
-class Mp4AtomVisual internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomVisual
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val dataReferenceIndexGet: kotlin.UShort
-	fun dataReferenceIndexSet(value: kotlin.UShort)
-	val widthGet: kotlin.UShort
-	fun widthSet(value: kotlin.UShort)
-	val heightGet: kotlin.UShort
-	fun heightSet(value: kotlin.UShort)
-	val horizresolutionGet: moq.Mp4AtomFixedPointU16
-	fun horizresolutionSet(value: moq.Mp4AtomFixedPointU16)
-	val vertresolutionGet: moq.Mp4AtomFixedPointU16
-	fun vertresolutionSet(value: moq.Mp4AtomFixedPointU16)
-	val frameCountGet: kotlin.UShort
-	fun frameCountSet(value: kotlin.UShort)
-	val compressorGet: moq.Mp4AtomCompressor
-	fun compressorSet(value: moq.Mp4AtomCompressor)
-	val depthGet: kotlin.UShort
-	fun depthSet(value: kotlin.UShort)
-	companion object {
-		fun default(): moq.Mp4AtomVisual
 	}
 }
 class RustlsClientDangerDangerousClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8898,6 +7904,16 @@ class MoqTokioWebsocketError internal constructor(raw: Long, lent: Boolean = fal
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
+class QmuxSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	fun clone(): moq.QmuxSession
+	fun protocol(): kotlin.String?
+	fun version(): moq.MoqQuicConnectionMuxVersion
+	fun setLimits(limits: moq.MoqQuicLimits)
+	fun peerCertificates(): kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>?
+	fun serverName(): kotlin.String?
+}
 class MoqSockDemuxCounters internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -8913,149 +7929,6 @@ class MoqTokioQuicDemuxWebRtc internal constructor(raw: Long, lent: Boolean = fa
 	fun debug(): kotlin.String
 	suspend fun recv(): moq.MoqTokioQuicDemuxDatagram?
 	fun pin(remote: moq.SocketAddr): moq.MoqSockDemuxPin
-}
-class MoqTokioQuicDriverSendOptions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverSendOptions
-	val priorityGet: kotlin.Long
-	fun prioritySet(value: kotlin.Long)
-	companion object {
-		fun default(): moq.MoqTokioQuicDriverSendOptions
-	}
-}
-class MoqTokioQuicDriverSendStream internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	suspend fun writeAll(buf: moq.Bytes)
-	suspend fun finish(): moq.MoqQuicVarInt?
-	fun reset(errorCode: moq.MoqQuicVarInt)
-	fun resetAt(offset: moq.MoqTokioQuicDriverSendOffset, errorCode: moq.MoqQuicVarInt)
-	fun offset(): moq.MoqTokioQuicDriverSendOffset
-	fun setPriority(priority: kotlin.Long)
-	fun priority(): kotlin.Long
-	fun setGroup(group: moq.MoqTokioQuicDriverSendGroup?)
-	suspend fun stopped(): moq.MoqQuicVarInt?
-	suspend fun pollClosed(): moq.MoqQuicVarInt?
-	fun id(): moq.MoqQuicStreamId
-}
-class MoqTokioQuicDriverSendGroup internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverSendGroup
-	fun setPriority(priority: kotlin.Long)
-	fun priority(): kotlin.Long
-}
-class MoqTokioQuicDriverRecvStream internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	suspend fun readChunk(max: kotlin.ULong): moq.Bytes?
-	suspend fun readToEnd(limit: kotlin.ULong): moq.Bytes
-	fun setPriority(priority: kotlin.Long)
-	fun stop(errorCode: moq.MoqQuicVarInt)
-	fun id(): moq.MoqQuicStreamId
-	suspend fun receivedReset(): moq.MoqQuicVarInt?
-}
-class MoqTokioQuicDriverSendError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverSendError
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-class MoqQuicConnectionStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqQuicConnectionStats
-	val udpTxGet: moq.MoqQuicUdpStats
-	fun udpTxSet(value: moq.MoqQuicUdpStats)
-	val udpRxGet: moq.MoqQuicUdpStats
-	fun udpRxSet(value: moq.MoqQuicUdpStats)
-	val frameTxGet: moq.MoqQuicFrameStats
-	fun frameTxSet(value: moq.MoqQuicFrameStats)
-	val frameRxGet: moq.MoqQuicFrameStats
-	fun frameRxSet(value: moq.MoqQuicFrameStats)
-	val pathGet: moq.MoqQuicPathStats
-	fun pathSet(value: moq.MoqQuicPathStats)
-	val creditGet: moq.MoqQuicCreditStats
-	fun creditSet(value: moq.MoqQuicCreditStats)
-	companion object {
-		fun default(): moq.MoqQuicConnectionStats
-	}
-}
-class MoqQuicCryptoHandshakeData internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqQuicCryptoHandshakeData
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val alpnGet: moq.Bytes?
-	fun alpnSet(value: moq.Bytes?)
-	val serverNameGet: kotlin.String?
-	fun serverNameSet(value: kotlin.String?)
-}
-class Mp4AtomSpatial internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomSpatial
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val st3dGet: moq.Mp4AtomSt3d?
-	fun st3dSet(value: moq.Mp4AtomSt3d?)
-	val sv3dGet: moq.Mp4AtomSv3d?
-	fun sv3dSet(value: moq.Mp4AtomSv3d?)
-	val vexuGet: moq.Mp4AtomVexu?
-	fun vexuSet(value: moq.Mp4AtomVexu?)
-	val hfovGet: moq.Mp4AtomHfov?
-	fun hfovSet(value: moq.Mp4AtomHfov?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomSpatial
-	}
-}
-class Mp4AtomAny internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomAny
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun kind(): moq.Mp4AtomFourCc
-}
-class Mp4AtomMinf internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomMinf
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val vmhdGet: moq.Mp4AtomVmhd?
-	fun vmhdSet(value: moq.Mp4AtomVmhd?)
-	val smhdGet: moq.Mp4AtomSmhd?
-	fun smhdSet(value: moq.Mp4AtomSmhd?)
-	val nmhdGet: moq.Mp4AtomNmhd?
-	fun nmhdSet(value: moq.Mp4AtomNmhd?)
-	val sthdGet: moq.Mp4AtomSthd?
-	fun sthdSet(value: moq.Mp4AtomSthd?)
-	val hmhdGet: moq.Mp4AtomHmhd?
-	fun hmhdSet(value: moq.Mp4AtomHmhd?)
-	val dinfGet: moq.Mp4AtomDinf
-	fun dinfSet(value: moq.Mp4AtomDinf)
-	val stblGet: moq.Mp4AtomStbl
-	fun stblSet(value: moq.Mp4AtomStbl)
-	companion object {
-		fun default(): moq.Mp4AtomMinf
-	}
-}
-class Mp4AtomCompressor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomCompressor
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomCompressor
-	}
 }
 class RustlsPkiTypesDer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -9081,419 +7954,6 @@ class MoqTokioQuicDemuxDatagram internal constructor(raw: Long, lent: Boolean = 
 class MoqSockDemuxPin internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-}
-class MoqTokioQuicDriverSendOffset internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverSendOffset
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-class MoqTokioQuicDriverRecvError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	final override fun toString(): kotlin.String
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqTokioQuicDriverRecvError
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-}
-class MoqQuicFrameStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqQuicFrameStats
-	val acksGet: kotlin.ULong
-	fun acksSet(value: kotlin.ULong)
-	val ackFrequencyGet: kotlin.ULong
-	fun ackFrequencySet(value: kotlin.ULong)
-	val cryptoGet: kotlin.ULong
-	fun cryptoSet(value: kotlin.ULong)
-	val connectionCloseGet: kotlin.ULong
-	fun connectionCloseSet(value: kotlin.ULong)
-	val dataBlockedGet: kotlin.ULong
-	fun dataBlockedSet(value: kotlin.ULong)
-	val datagramGet: kotlin.ULong
-	fun datagramSet(value: kotlin.ULong)
-	val handshakeDoneGet: kotlin.UByte
-	fun handshakeDoneSet(value: kotlin.UByte)
-	val immediateAckGet: kotlin.ULong
-	fun immediateAckSet(value: kotlin.ULong)
-	val maxDataGet: kotlin.ULong
-	fun maxDataSet(value: kotlin.ULong)
-	val maxStreamDataGet: kotlin.ULong
-	fun maxStreamDataSet(value: kotlin.ULong)
-	val maxStreamsBidiGet: kotlin.ULong
-	fun maxStreamsBidiSet(value: kotlin.ULong)
-	val maxStreamsUniGet: kotlin.ULong
-	fun maxStreamsUniSet(value: kotlin.ULong)
-	val newConnectionIdGet: kotlin.ULong
-	fun newConnectionIdSet(value: kotlin.ULong)
-	val newTokenGet: kotlin.ULong
-	fun newTokenSet(value: kotlin.ULong)
-	val pathChallengeGet: kotlin.ULong
-	fun pathChallengeSet(value: kotlin.ULong)
-	val pathResponseGet: kotlin.ULong
-	fun pathResponseSet(value: kotlin.ULong)
-	val pingGet: kotlin.ULong
-	fun pingSet(value: kotlin.ULong)
-	val resetStreamGet: kotlin.ULong
-	fun resetStreamSet(value: kotlin.ULong)
-	val retireConnectionIdGet: kotlin.ULong
-	fun retireConnectionIdSet(value: kotlin.ULong)
-	val streamDataBlockedGet: kotlin.ULong
-	fun streamDataBlockedSet(value: kotlin.ULong)
-	val streamsBlockedBidiGet: kotlin.ULong
-	fun streamsBlockedBidiSet(value: kotlin.ULong)
-	val streamsBlockedUniGet: kotlin.ULong
-	fun streamsBlockedUniSet(value: kotlin.ULong)
-	val stopSendingGet: kotlin.ULong
-	fun stopSendingSet(value: kotlin.ULong)
-	val streamGet: kotlin.ULong
-	fun streamSet(value: kotlin.ULong)
-	companion object {
-		fun default(): moq.MoqQuicFrameStats
-	}
-}
-class MoqQuicPathStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.MoqQuicPathStats
-	val rttGet: moq.Duration
-	fun rttSet(value: moq.Duration)
-	val minRttGet: moq.Duration
-	fun minRttSet(value: moq.Duration)
-	val cwndGet: kotlin.ULong
-	fun cwndSet(value: kotlin.ULong)
-	val bandwidthEstimateGet: kotlin.ULong?
-	fun bandwidthEstimateSet(value: kotlin.ULong?)
-	val congestionEventsGet: kotlin.ULong
-	fun congestionEventsSet(value: kotlin.ULong)
-	val spuriousCongestionEventsGet: kotlin.ULong
-	fun spuriousCongestionEventsSet(value: kotlin.ULong)
-	val lostPacketsGet: kotlin.ULong
-	fun lostPacketsSet(value: kotlin.ULong)
-	val lostBytesGet: kotlin.ULong
-	fun lostBytesSet(value: kotlin.ULong)
-	val sentPacketsGet: kotlin.ULong
-	fun sentPacketsSet(value: kotlin.ULong)
-	val sentPlpmtudProbesGet: kotlin.ULong
-	fun sentPlpmtudProbesSet(value: kotlin.ULong)
-	val lostPlpmtudProbesGet: kotlin.ULong
-	fun lostPlpmtudProbesSet(value: kotlin.ULong)
-	val sentBandwidthProbesGet: kotlin.ULong
-	fun sentBandwidthProbesSet(value: kotlin.ULong)
-	val sentBandwidthProbeBytesGet: kotlin.ULong
-	fun sentBandwidthProbeBytesSet(value: kotlin.ULong)
-	val blackHolesDetectedGet: kotlin.ULong
-	fun blackHolesDetectedSet(value: kotlin.ULong)
-	val currentMtuGet: kotlin.UShort
-	fun currentMtuSet(value: kotlin.UShort)
-	companion object {
-		fun default(): moq.MoqQuicPathStats
-	}
-}
-class Mp4AtomSv3d internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomSv3d
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val svhdGet: moq.Mp4AtomSvhd?
-	fun svhdSet(value: moq.Mp4AtomSvhd?)
-	val projGet: moq.Mp4AtomProj?
-	fun projSet(value: moq.Mp4AtomProj?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomSv3d
-	}
-}
-class Mp4AtomVexu internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomVexu
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val projGet: moq.Mp4AtomVexuProj?
-	fun projSet(value: moq.Mp4AtomVexuProj?)
-	val eyesGet: moq.Mp4AtomEyes?
-	fun eyesSet(value: moq.Mp4AtomEyes?)
-	val packGet: moq.Mp4AtomPack?
-	fun packSet(value: moq.Mp4AtomPack?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomVexu
-	}
-}
-class Mp4AtomIprp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomIprp
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val ipcoGet: moq.Mp4AtomIpco
-	fun ipcoSet(value: moq.Mp4AtomIpco)
-	val ipmaGet: kotlin.collections.List<moq.Mp4AtomIpma>
-	fun ipmaSet(value: kotlin.collections.List<moq.Mp4AtomIpma>)
-	companion object {
-		fun default(): moq.Mp4AtomIprp
-	}
-}
-class Mp4AtomIpco internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomIpco
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val propertiesGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun propertiesSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomIpco
-	}
-}
-class Mp4AtomMoov internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomMoov
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mvhdGet: moq.Mp4AtomMvhd
-	fun mvhdSet(value: moq.Mp4AtomMvhd)
-	val metaGet: moq.Mp4AtomMeta?
-	fun metaSet(value: moq.Mp4AtomMeta?)
-	val mvexGet: moq.Mp4AtomMvex?
-	fun mvexSet(value: moq.Mp4AtomMvex?)
-	val trakGet: kotlin.collections.List<moq.Mp4AtomTrak>
-	fun trakSet(value: kotlin.collections.List<moq.Mp4AtomTrak>)
-	val udtaGet: moq.Mp4AtomUdta?
-	fun udtaSet(value: moq.Mp4AtomUdta?)
-	val ainfGet: moq.Mp4AtomAinf?
-	fun ainfSet(value: moq.Mp4AtomAinf?)
-	companion object {
-		fun default(): moq.Mp4AtomMoov
-	}
-}
-class Mp4AtomStbl internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomStbl
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val stsdGet: moq.Mp4AtomStsd
-	fun stsdSet(value: moq.Mp4AtomStsd)
-	val sttsGet: moq.Mp4AtomStts
-	fun sttsSet(value: moq.Mp4AtomStts)
-	val cttsGet: moq.Mp4AtomCtts?
-	fun cttsSet(value: moq.Mp4AtomCtts?)
-	val stssGet: moq.Mp4AtomStss?
-	fun stssSet(value: moq.Mp4AtomStss?)
-	val stscGet: moq.Mp4AtomStsc
-	fun stscSet(value: moq.Mp4AtomStsc)
-	val stszGet: moq.Mp4AtomStsz
-	fun stszSet(value: moq.Mp4AtomStsz)
-	val stcoGet: moq.Mp4AtomStco?
-	fun stcoSet(value: moq.Mp4AtomStco?)
-	val co64Get: moq.Mp4AtomCo64?
-	fun co64Set(value: moq.Mp4AtomCo64?)
-	val sbgpGet: kotlin.collections.List<moq.Mp4AtomSbgp>
-	fun sbgpSet(value: kotlin.collections.List<moq.Mp4AtomSbgp>)
-	val sgpdGet: kotlin.collections.List<moq.Mp4AtomSgpd>
-	fun sgpdSet(value: kotlin.collections.List<moq.Mp4AtomSgpd>)
-	val subsGet: kotlin.collections.List<moq.Mp4AtomSubs>
-	fun subsSet(value: kotlin.collections.List<moq.Mp4AtomSubs>)
-	val saizGet: kotlin.collections.List<moq.Mp4AtomSaiz>
-	fun saizSet(value: kotlin.collections.List<moq.Mp4AtomSaiz>)
-	val saioGet: kotlin.collections.List<moq.Mp4AtomSaio>
-	fun saioSet(value: kotlin.collections.List<moq.Mp4AtomSaio>)
-	val cslgGet: moq.Mp4AtomCslg?
-	fun cslgSet(value: moq.Mp4AtomCslg?)
-	companion object {
-		fun default(): moq.Mp4AtomStbl
-	}
-}
-class Mp4AtomStsd internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomStsd
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val codecsGet: kotlin.collections.List<moq.Mp4AtomCodec>
-	fun codecsSet(value: kotlin.collections.List<moq.Mp4AtomCodec>)
-	companion object {
-		fun default(): moq.Mp4AtomStsd
-	}
-}
-class Mp4AtomNmhd internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomNmhd
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomNmhd
-	}
-}
-class Mp4AtomSthd internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomSthd
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	companion object {
-		fun default(): moq.Mp4AtomSthd
-	}
-}
-class Mp4AtomMoof internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomMoof
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mfhdGet: moq.Mp4AtomMfhd
-	fun mfhdSet(value: moq.Mp4AtomMfhd)
-	val trafGet: kotlin.collections.List<moq.Mp4AtomTraf>
-	fun trafSet(value: kotlin.collections.List<moq.Mp4AtomTraf>)
-	companion object {
-		fun default(): moq.Mp4AtomMoof
-	}
-}
-class Mp4AtomTraf internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomTraf
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val tfhdGet: moq.Mp4AtomTfhd
-	fun tfhdSet(value: moq.Mp4AtomTfhd)
-	val tfdtGet: moq.Mp4AtomTfdt?
-	fun tfdtSet(value: moq.Mp4AtomTfdt?)
-	val trunGet: kotlin.collections.List<moq.Mp4AtomTrun>
-	fun trunSet(value: kotlin.collections.List<moq.Mp4AtomTrun>)
-	val sbgpGet: kotlin.collections.List<moq.Mp4AtomSbgp>
-	fun sbgpSet(value: kotlin.collections.List<moq.Mp4AtomSbgp>)
-	val sgpdGet: kotlin.collections.List<moq.Mp4AtomSgpd>
-	fun sgpdSet(value: kotlin.collections.List<moq.Mp4AtomSgpd>)
-	val subsGet: kotlin.collections.List<moq.Mp4AtomSubs>
-	fun subsSet(value: kotlin.collections.List<moq.Mp4AtomSubs>)
-	val saizGet: kotlin.collections.List<moq.Mp4AtomSaiz>
-	fun saizSet(value: kotlin.collections.List<moq.Mp4AtomSaiz>)
-	val saioGet: kotlin.collections.List<moq.Mp4AtomSaio>
-	fun saioSet(value: kotlin.collections.List<moq.Mp4AtomSaio>)
-	val metaGet: moq.Mp4AtomMeta?
-	fun metaSet(value: moq.Mp4AtomMeta?)
-	val sencGet: moq.Mp4AtomSenc?
-	fun sencSet(value: moq.Mp4AtomSenc?)
-	val udtaGet: moq.Mp4AtomUdta?
-	fun udtaSet(value: moq.Mp4AtomUdta?)
-	companion object {
-		fun default(): moq.Mp4AtomTraf
-	}
-}
-class Mp4AtomProj internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomProj
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val prhdGet: moq.Mp4AtomPrhd?
-	fun prhdSet(value: moq.Mp4AtomPrhd?)
-	val kindGet: moq.Mp4AtomProjKind?
-	fun kindSet(value: moq.Mp4AtomProjKind?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomProj
-	}
-}
-class Mp4AtomVexuProj internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomVexuProj
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val prjiGet: moq.Mp4AtomPrji?
-	fun prjiSet(value: moq.Mp4AtomPrji?)
-	val kindGet: moq.Mp4AtomVexuProjKind?
-	fun kindSet(value: moq.Mp4AtomVexuProjKind?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomVexuProj
-	}
-}
-class Mp4AtomEyes internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomEyes
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val striGet: moq.Mp4AtomStri?
-	fun striSet(value: moq.Mp4AtomStri?)
-	val heroGet: moq.Mp4AtomHero?
-	fun heroSet(value: moq.Mp4AtomHero?)
-	val camsGet: moq.Mp4AtomCams?
-	fun camsSet(value: moq.Mp4AtomCams?)
-	val cmfyGet: moq.Mp4AtomCmfy?
-	fun cmfySet(value: moq.Mp4AtomCmfy?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomEyes
-	}
-}
-class Mp4AtomPack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomPack
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val pkinGet: moq.Mp4AtomPkin?
-	fun pkinSet(value: moq.Mp4AtomPkin?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomPack
-	}
-}
-class Mp4AtomCams internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomCams
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val blinGet: moq.Mp4AtomBlin?
-	fun blinSet(value: moq.Mp4AtomBlin?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomCams
-	}
-}
-class Mp4AtomCmfy internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Mp4AtomCmfy
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val mustGet: moq.Mp4AtomMust?
-	fun mustSet(value: moq.Mp4AtomMust?)
-	val dadjGet: moq.Mp4AtomDadj?
-	fun dadjSet(value: moq.Mp4AtomDadj?)
-	val unknownGet: kotlin.collections.List<moq.Mp4AtomAny>
-	fun unknownSet(value: kotlin.collections.List<moq.Mp4AtomAny>)
-	companion object {
-		fun default(): moq.Mp4AtomCmfy
-	}
 }
 class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -9550,13 +8010,6 @@ class RustlsCryptoProvider internal constructor(raw: Long, lent: Boolean = false
 	override fun close()
 	fun clone(): moq.RustlsCryptoProvider
 }
-class MoqCongestionFactory internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun clone(): moq.MoqCongestionFactory
-}
-class MoqQuicError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-}
 interface TransportMetrics {}
 class ClockElapsedException(val error: moq.ClockElapsed) : Exception() {
 	override val message: String
@@ -9570,28 +8023,16 @@ class EncodeErrorException(val error: moq.EncodeError) : Exception() {
 class ErrorException(val error: moq.Error) : Exception() {
 	override val message: String
 }
-class FrameFrameException(val error: moq.FrameFrame) : Exception() {
-	override val message: String
-}
 class HangErrorException(val error: moq.HangError) : Exception() {
 	override val message: String
 }
 class IntersectionErrorException(val error: moq.IntersectionError) : Exception() {
 	override val message: String
 }
-class InvalidHopException(val error: moq.InvalidHop) : Exception() {
-	override val message: String
-}
 class InvalidPatternException(val error: moq.InvalidPattern) : Exception() {
 	override val message: String
 }
 class MoqTokioConnectErrorException(val error: moq.MoqTokioConnectError) : Exception() {
-	override val message: String
-}
-class MoqTokioQuicDriverRecvErrorException(val error: moq.MoqTokioQuicDriverRecvError) : Exception() {
-	override val message: String
-}
-class MoqTokioQuicDriverSendErrorException(val error: moq.MoqTokioQuicDriverSendError) : Exception() {
 	override val message: String
 }
 class MoqTokioWebsocketErrorException(val error: moq.MoqTokioWebsocketError) : Exception() {
@@ -9603,31 +8044,142 @@ class MuxCodecAacAdtsErrorException(val error: moq.MuxCodecAacAdtsError) : Excep
 class MuxCodecAacErrorException(val error: moq.MuxCodecAacError) : Exception() {
 	override val message: String
 }
+class MuxCodecAacImportException(val error: moq.MuxCodecAacImport) : Exception() {
+	override val message: String
+}
 class MuxCodecAnnexbErrorException(val error: moq.MuxCodecAnnexbError) : Exception() {
+	override val message: String
+}
+class MuxCodecAv1ImportException(val error: moq.MuxCodecAv1Import) : Exception() {
 	override val message: String
 }
 class MuxCodecFlacErrorException(val error: moq.MuxCodecFlacError) : Exception() {
 	override val message: String
 }
+class MuxCodecFlacImportException(val error: moq.MuxCodecFlacImport) : Exception() {
+	override val message: String
+}
 class MuxCodecH264ErrorException(val error: moq.MuxCodecH264Error) : Exception() {
+	override val message: String
+}
+class MuxCodecH264ImportException(val error: moq.MuxCodecH264Import) : Exception() {
 	override val message: String
 }
 class MuxCodecH265ErrorException(val error: moq.MuxCodecH265Error) : Exception() {
 	override val message: String
 }
+class MuxCodecH265ImportException(val error: moq.MuxCodecH265Import) : Exception() {
+	override val message: String
+}
 class MuxCodecMp3ErrorException(val error: moq.MuxCodecMp3Error) : Exception() {
+	override val message: String
+}
+class MuxCodecMp3ImportException(val error: moq.MuxCodecMp3Import) : Exception() {
 	override val message: String
 }
 class MuxCodecOpusErrorException(val error: moq.MuxCodecOpusError) : Exception() {
 	override val message: String
 }
+class MuxCodecOpusImportException(val error: moq.MuxCodecOpusImport) : Exception() {
+	override val message: String
+}
+class MuxCodecVp8ImportException(val error: moq.MuxCodecVp8Import) : Exception() {
+	override val message: String
+}
+class MuxCodecVp9ImportException(val error: moq.MuxCodecVp9Import) : Exception() {
+	override val message: String
+}
 class MuxContainerFmp4ErrorException(val error: moq.MuxContainerFmp4Error) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerAudioConfigException(val error: moq.MuxContainerProducerContainerAudioConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerBinaryConfigException(val error: moq.MuxContainerProducerContainerBinaryConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerException(val error: moq.MuxContainerProducerContainer) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerJsonConfigException(val error: moq.MuxContainerProducerContainerJsonConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerTextConfigException(val error: moq.MuxContainerProducerContainerTextConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerContainerVideoConfigException(val error: moq.MuxContainerProducerContainerVideoConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireAudioConfigException(val error: moq.MuxContainerProducerFmp4WireAudioConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireBinaryConfigException(val error: moq.MuxContainerProducerFmp4WireBinaryConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireException(val error: moq.MuxContainerProducerFmp4Wire) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireJsonConfigException(val error: moq.MuxContainerProducerFmp4WireJsonConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireTextConfigException(val error: moq.MuxContainerProducerFmp4WireTextConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerFmp4WireVideoConfigException(val error: moq.MuxContainerProducerFmp4WireVideoConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireAudioConfigException(val error: moq.MuxContainerProducerLegacyWireAudioConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireBinaryConfigException(val error: moq.MuxContainerProducerLegacyWireBinaryConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireException(val error: moq.MuxContainerProducerLegacyWire) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireJsonConfigException(val error: moq.MuxContainerProducerLegacyWireJsonConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireTextConfigException(val error: moq.MuxContainerProducerLegacyWireTextConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLegacyWireVideoConfigException(val error: moq.MuxContainerProducerLegacyWireVideoConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireAudioConfigException(val error: moq.MuxContainerProducerLocWireAudioConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireBinaryConfigException(val error: moq.MuxContainerProducerLocWireBinaryConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireException(val error: moq.MuxContainerProducerLocWire) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireJsonConfigException(val error: moq.MuxContainerProducerLocWireJsonConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireTextConfigException(val error: moq.MuxContainerProducerLocWireTextConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerProducerLocWireVideoConfigException(val error: moq.MuxContainerProducerLocWireVideoConfig) : Exception() {
+	override val message: String
+}
+class MuxContainerTsErrorException(val error: moq.MuxContainerTsError) : Exception() {
 	override val message: String
 }
 class MuxErrorException(val error: moq.MuxError) : Exception() {
 	override val message: String
 }
-class MuxTimelineErrorException(val error: moq.MuxTimelineError) : Exception() {
+class MuxImportTrackException(val error: moq.MuxImportTrack) : Exception() {
+	override val message: String
+}
+class MuxImportTrackStreamException(val error: moq.MuxImportTrackStream) : Exception() {
+	override val message: String
+}
+class MuxJsonSnapshotJsonException(val error: moq.MuxJsonSnapshotJson) : Exception() {
+	override val message: String
+}
+class MuxJsonStreamJsonException(val error: moq.MuxJsonStreamJson) : Exception() {
 	override val message: String
 }
 class PathErrorException(val error: moq.PathError) : Exception() {
@@ -9655,30 +8207,7 @@ const val PATTERN_MAX_INTERSECTIONS: ULong
 const val SETUP_TOKEN_OUT_OF_BAND: ULong
 const val TRANSPORT_MIN_RECEIVE_WINDOW: ULong
 const val TRANSPORT_SETUP_RECEIVE_WINDOW: ULong
-const val GROUP_MAX_CACHE_BYTES: ULong
-const val HANG_CATALOG_MOQ_EPOCH_UNIX_MILLIS: ULong
 const val HANG_CATALOG_MAX_SAFE_INTEGER: ULong
-const val MUX_CONTAINER_DEFAULT_MAX_BUFFER: ULong
-const val MUX_CONTAINER_FMP4_MAX_HELD_BYTES: ULong
-const val MUX_CONTAINER_FMP4_MAX_METADATA_BYTES: ULong
-const val MUX_CONTAINER_FMP4_MAX_FRAGMENT_SAMPLES: ULong
-const val MUX_CONTAINER_FMP4_MAX_TRACKS: ULong
-const val MOQ_QUIC_VARINT_MAX_SIZE: ULong
-const val MP4_ATOM_ST3D_MONO: UByte
-const val MP4_ATOM_ST3D_TOP_BOTTOM: UByte
-const val MP4_ATOM_ST3D_LEFT_RIGHT: UByte
-const val MP4_ATOM_ST3D_STEREO_CUSTOM: UByte
-const val MP4_ATOM_ST3D_RIGHT_LEFT: UByte
-const val MP4_ATOM_HFOV_DENOMINATOR: UInt
-const val MP4_ATOM_ESDS_ESDESCRIPTOR_TAG: UByte
-const val MP4_ATOM_ESDS_DECODERCONFIG_TAG: UByte
-const val MP4_ATOM_ESDS_SLCONFIG_TAG: UByte
-const val MP4_ATOM_U24_MAX: UInt
-const val MP4_ATOM_HERO_NONE: UByte
-const val MP4_ATOM_HERO_LEFT: UByte
-const val MP4_ATOM_HERO_RIGHT: UByte
-const val MP4_ATOM_ESDS_DECODERSPECIFIC_TAG: UByte
-const val MP4_ATOM_DADJ_DENOMINATOR: Int
 val IMPLEMENTATION: kotlin.String
 val ALPNS: kotlin.collections.List<kotlin.String>
 fun clockNow(): moq.ClockInstant
@@ -9686,6 +8215,7 @@ fun clockWall(): moq.ClockWall
 fun clockOrigin(): kotlin.Pair<moq.ClockInstant, moq.ClockWall>
 fun clockRng(): moq.ClockRng
 fun clockSeed(): kotlin.ULong
+fun clockHostTime()
 suspend fun clockDrive(poll: (moq.ClockInstant, moq.Waiter) -> moq.ClockInstant?): kotlin.String
 fun clockInterval(period: moq.Duration): moq.ClockInterval
 fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
@@ -9693,6 +8223,7 @@ suspend fun clockSleep(duration: moq.Duration)
 suspend fun clockSleepUntil(at: moq.ClockInstant)
 suspend fun clockTimeout(duration: moq.Duration, future: suspend () -> kotlin.Unit)
 suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
+val SERVERDEFAULTTIMEOUT: moq.Duration
 suspend fun timeRunDriver(driver: moq.Driver): moq.Error
 suspend fun timeRunOriginDriver(driver: moq.OriginDriver): moq.Error
 fun varintDecodeQuic(r: moq.Mut<moq.Bytes>): kotlin.ULong
@@ -9705,6 +8236,8 @@ val HANGCATALOGPRIORITY: moq.HangCatalogPriorities
 val HANGCONTAINERMAXAGE: moq.Duration
 val HANGCONTAINERTIMESCALE: moq.Timescale
 fun hangContainerTrackInfo(priority: kotlin.Byte): moq.TrackInfo
+val MUXCONTAINERDELAYMAX: moq.Duration
+val MUXRATERETRY: moq.Duration
 fun tokioTlsParseFingerprint(value: kotlin.String): ArrayU8x32
 fun tokioOriginSpawn(): moq.OriginProducer
 fun transportMemoryPair(config: moq.TransportMemoryConfig): kotlin.Pair<moq.TransportMemorySession, moq.TransportMemorySession>
