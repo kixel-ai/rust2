@@ -701,14 +701,23 @@ fn parse_item(tcx: TyCtxt<'_>, source: &str) -> Option<Box<ast::Item>> {
 	}
 }
 
-/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build,
-/// or a field or variant of one: the config names it for the builds that have it. Its first
-/// segment no module has is stripped from that module or from one the module
-/// glob-re-exports.
+/// Whether `path` names an item a `cfg` leaves out of this build, or a field or variant of
+/// one: the config names it for the builds that have it. The path runs from the facade's
+/// root, or from a crate's by its name, as the walk names a type no facade module
+/// re-exports.
 fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 	let path = path.strip_prefix("field@").unwrap_or(path);
 	let segments: Vec<&str> = path.split("::").collect();
-	let mut module = LOCAL_CRATE.as_def_id();
+	// Any crate of the name, since a build may link several of its versions.
+	let mut krates = tcx.crates(()).iter().filter(|&&k| tcx.crate_name(k).as_str() == segments[0]);
+	stripped_under(tcx, LOCAL_CRATE.as_def_id(), &segments)
+		|| krates.any(|&k| stripped_under(tcx, k.as_def_id(), &segments[1..]))
+}
+
+/// Whether `segments`, from `module`, name an item a `cfg` strips, or a field or variant of
+/// one. Its first segment no module has is stripped from that module or from one the module
+/// glob-re-exports.
+fn stripped_under(tcx: TyCtxt<'_>, mut module: DefId, segments: &[&str]) -> bool {
 	for (i, segment) in segments.iter().enumerate() {
 		let name = segment.split('<').next().unwrap_or(segment);
 		let children = match module.as_local() {
