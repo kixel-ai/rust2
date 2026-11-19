@@ -1281,6 +1281,13 @@ fn api_swift() {
 	);
 }
 
+/// Node's script running the WASI program its first argument names.
+const WASI_MAIN: &str = "import { WASI } from 'node:wasi';\n\
+	import { readFileSync } from 'node:fs';\n\
+	const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: false });\n\
+	const module = await WebAssembly.compile(readFileSync(process.argv[1]));\n\
+	wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));\n";
+
 /// The fixture's script compiled for wasm32-wasip1 and run under Node's WASI: native Rust on
 /// the target the web binding serves, whose `usize` is 32 bits.
 fn wasm_transcript() -> String {
@@ -1309,13 +1316,8 @@ fn wasm_transcript() -> String {
 		.join("debug")
 		.join("examples")
 		.join("transcript.wasm");
-	let script = "import { WASI } from 'node:wasi';\n\
-		import { readFileSync } from 'node:fs';\n\
-		const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: false });\n\
-		const module = await WebAssembly.compile(readFileSync(process.argv[1]));\n\
-		wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));\n";
 	let transcript = run(Command::new("node")
-		.args(["--no-warnings", "--input-type=module", "-e", script])
+		.args(["--no-warnings", "--input-type=module", "-e", WASI_MAIN])
 		.arg(wasm));
 	String::from_utf8_lossy(&transcript.stdout).into_owned()
 }

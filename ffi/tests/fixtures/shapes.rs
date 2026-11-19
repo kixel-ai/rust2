@@ -206,12 +206,11 @@ fn is_ord(shape: &Shape) -> bool {
 	)
 }
 
-/// The shapes a run covers: each leaf alone, each leaf in each wrapper, then `extra`
+/// The fixed set [`KNOWN`] checks: each leaf alone, each leaf in each wrapper, then `extra`
 /// sampled to depth 3 from a fixed seed.
 fn shapes(extra: usize) -> Vec<Shape> {
 	let leaves = leaves();
 	let mut shapes = leaves.clone();
-	let mut rng = Rng(0x5eed);
 	for leaf in &leaves {
 		let inner = || Box::new(leaf.clone());
 		shapes.extend([
@@ -228,8 +227,54 @@ fn shapes(extra: usize) -> Vec<Shape> {
 			shapes.push(Shape::Map(inner(), Box::new(Shape::String)));
 		}
 	}
-	shapes.extend((0..extra).map(|_| sample(&mut rng, &leaves, 3)));
+	shapes.extend(drawn(0x5eed, extra));
 	shapes
+}
+
+/// `n` shapes sampled to depth 3 from `seed`.
+fn drawn(seed: u64, n: usize) -> Vec<Shape> {
+	let leaves = leaves();
+	let mut rng = Rng(seed);
+	(0..n).map(|_| sample(&mut rng, &leaves, 3)).collect()
+}
+
+/// The seed the nightly draws its new shapes from: `RUST2_SHAPES_SEED`, to reproduce a run,
+/// else the day's UTC date as the digits `YYYYMMDD`, so each night explores new shapes.
+fn day_seed() -> u64 {
+	if let Some(seed) = std::env::var_os("RUST2_SHAPES_SEED") {
+		let seed = seed.to_str().and_then(|s| s.parse().ok());
+		return seed.expect("RUST2_SHAPES_SEED is a u64");
+	}
+	let secs = std::time::SystemTime::now()
+		.duration_since(std::time::UNIX_EPOCH)
+		.expect("the clock is past 1970")
+		.as_secs();
+	let (year, month, day) = civil((secs / 86_400) as i64);
+	(year * 10_000 + month * 100 + day) as u64
+}
+
+/// The proleptic Gregorian date of `days` since 1970-01-01, after Howard Hinnant's
+/// `civil_from_days`.
+fn civil(days: i64) -> (i64, i64, i64) {
+	let z = days + 719_468;
+	let era = z.div_euclid(146_097);
+	let doe = z.rem_euclid(146_097);
+	let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+	let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+	let mp = (5 * doy + 2) / 153;
+	let day = doy - (153 * mp + 2) / 5 + 1;
+	let month = if mp < 10 { mp + 3 } else { mp - 9 };
+	(yoe + era * 400 + i64::from(month <= 2), month, day)
+}
+
+#[test]
+fn civil_dates() {
+	assert_eq!(civil(0), (1970, 1, 1));
+	assert_eq!(civil(-1), (1969, 12, 31));
+	// A leap day, and the day after one a century skips.
+	assert_eq!(civil(11_016), (2000, 2, 29));
+	assert_eq!(civil(47_540), (2100, 3, 1));
+	assert_eq!(civil(20_776), (2026, 11, 19));
 }
 
 /// The gate's subset: each leaf alone, and each wrapper around a buffer, a
@@ -344,6 +389,11 @@ impl Emit {
 					let _ = writeln!(self.items, "\tpub f{i}: {ty},");
 				}
 				let _ = writeln!(self.items, "}}\n");
+				let fed: String = (0..types.len()).map(|i| format!(" self.f{i}.feed(h);")).collect();
+				let _ = writeln!(
+					self.items,
+					"impl Feed for {name} {{\n\tfn feed(&self, h: &mut Fnv) {{\n\t\th.put(\"{name}{{\");{fed}\n\t\th.put(\"}}\");\n\t}}\n}}\n"
+				);
 				let fields: Vec<String> = makes.iter().enumerate().map(|(i, m)| format!("f{i}: {m}")).collect();
 				(name.clone(), format!("{name} {{ {} }}", fields.join(", ")))
 			}
@@ -352,7 +402,11 @@ impl Emit {
 				let name = self.name("Enum");
 				let _ = writeln!(
 					self.items,
-					"#[derive(Debug)]\npub enum {name} {{\n\tUnit,\n\tTuple({ty}),\n\tStruct {{ value: {ty} }},\n}}\n"
+					"#[derive(Debug)]\npub enum {name} {{\n\tUnit,\n\tTuple({ty}),\n\tStruct {{ value: {ty} }},\n}}\n\n\
+					impl Feed for {name} {{\n\tfn feed(&self, h: &mut Fnv) {{\n\t\tmatch self {{\n\t\t\tSelf::Unit => h.put(\"Unit;\"),\n\
+					\t\t\tSelf::Tuple(v) => {{\n\t\t\t\th.put(\"Tuple(\");\n\t\t\t\tv.feed(h);\n\t\t\t\th.put(\")\");\n\t\t\t}}\n\
+					\t\t\tSelf::Struct {{ value }} => {{\n\t\t\t\th.put(\"Struct{{\");\n\t\t\t\tvalue.feed(h);\n\t\t\t\th.put(\"}}\");\n\t\t\t}}\n\
+					\t\t}}\n\t}}\n}}\n"
 				);
 				(
 					name.clone(),
@@ -364,7 +418,11 @@ impl Emit {
 			Shape::Object(inner) => {
 				let (ty, make) = self.shape(inner);
 				let name = self.name("Object");
-				let _ = writeln!(self.items, "#[derive(Debug)]\npub struct {name}({ty});\n");
+				let _ = writeln!(
+					self.items,
+					"#[derive(Debug)]\npub struct {name}({ty});\n\n\
+					impl Feed for {name} {{\n\tfn feed(&self, h: &mut Fnv) {{\n\t\th.put(\"{name}(\");\n\t\tself.0.feed(h);\n\t\th.put(\")\");\n\t}}\n}}\n"
+				);
 				(name.clone(), format!("{name}({make})"))
 			}
 		}
@@ -421,14 +479,19 @@ impl Rng {
 		}
 	}
 
+	/// Any bits, a signaling NaN's among them, whose payload a quieting load would change.
 	fn f32(&mut self) -> f32 {
-		let f = f32::from_bits(self.int() as u32);
-		if f.is_nan() { -0.0 } else { f }
+		match self.below(4) {
+			0 => f32::from_bits(0x7f80_0000 | (1 + self.next() as u32 % 0x3f_ffff) | (self.next() as u32 & 1 << 31)),
+			_ => f32::from_bits(self.int() as u32),
+		}
 	}
 
 	fn f64(&mut self) -> f64 {
-		let f = f64::from_bits(self.int());
-		if f.is_nan() { f64::INFINITY } else { f }
+		match self.below(4) {
+			0 => f64::from_bits(0x7ff0_0000_0000_0000 | (1 + self.next() % 0x7_ffff_ffff_ffff) | (self.next() & 1 << 63)),
+			_ => f64::from_bits(self.int()),
+		}
 	}
 
 	fn char(&mut self) -> char {
@@ -514,13 +577,158 @@ impl Rng {
 	}
 }
 
-/// FNV-1a of the value's `Debug`, which prints every bit of each shape's value.
-fn digest(value: &dyn std::fmt::Debug) -> u64 {
-	format!("{value:?}").bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3))
+/// FNV-1a of what a value feeds it.
+struct Fnv(u64);
+
+impl Fnv {
+	fn put(&mut self, text: &str) {
+		for b in text.bytes() {
+			self.0 = (self.0 ^ b as u64).wrapping_mul(0x100_0000_01b3);
+		}
+	}
+}
+
+impl std::fmt::Write for Fnv {
+	fn write_str(&mut self, text: &str) -> std::fmt::Result {
+		self.put(text);
+		Ok(())
+	}
+}
+
+/// Every bit of a value: `Debug`'s, but a float's bits, since `Debug` prints any NaN alike.
+trait Feed {
+	fn feed(&self, h: &mut Fnv);
+}
+
+macro_rules! debug {
+	($($ty:ty),*) => {$(
+		impl Feed for $ty {
+			fn feed(&self, h: &mut Fnv) {
+				use std::fmt::Write;
+				let _ = write!(h, "{self:?};");
+			}
+		}
+	)*};
+}
+
+debug!(
+	bool, u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, u128, char, str, String,
+	std::num::NonZero<u8>, std::num::NonZero<u16>, std::num::NonZero<u32>, std::num::NonZero<u64>,
+	std::num::NonZero<usize>, std::num::NonZero<i8>, std::num::NonZero<i16>, std::num::NonZero<i32>,
+	std::num::NonZero<i64>, std::num::NonZero<isize>, bytes::Bytes, std::time::Duration, std::path::Path,
+	std::path::PathBuf, std::net::SocketAddr, std::net::SocketAddrV4, std::net::SocketAddrV6, std::net::IpAddr,
+	std::net::Ipv4Addr, std::net::Ipv6Addr, std::ops::Range<u32>, std::ops::Range<i64>, std::ops::Bound<u8>,
+	std::ops::Bound<isize>, serde_json::Value, serde_json::Map<String, serde_json::Value>, url::Url
+);
+
+impl Feed for f32 {
+	fn feed(&self, h: &mut Fnv) {
+		use std::fmt::Write;
+		let _ = write!(h, "f32 {:#x};", self.to_bits());
+	}
+}
+
+impl Feed for f64 {
+	fn feed(&self, h: &mut Fnv) {
+		use std::fmt::Write;
+		let _ = write!(h, "f64 {:#x};", self.to_bits());
+	}
+}
+
+impl<T: Feed + ?Sized> Feed for &T {
+	fn feed(&self, h: &mut Fnv) {
+		(**self).feed(h);
+	}
+}
+
+impl<T: Feed + ?Sized> Feed for Box<T> {
+	fn feed(&self, h: &mut Fnv) {
+		(**self).feed(h);
+	}
+}
+
+impl<T: Feed> Feed for Option<T> {
+	fn feed(&self, h: &mut Fnv) {
+		match self {
+			None => h.put("None;"),
+			Some(v) => {
+				h.put("Some(");
+				v.feed(h);
+				h.put(")");
+			}
+		}
+	}
+}
+
+/// The items of a list, between `open` and `]`.
+fn feed_all<'a, T: Feed + 'a>(h: &mut Fnv, open: &str, items: impl IntoIterator<Item = &'a T>) {
+	h.put(open);
+	for item in items {
+		item.feed(h);
+	}
+	h.put("]");
+}
+
+impl<T: Feed> Feed for [T] {
+	fn feed(&self, h: &mut Fnv) {
+		feed_all(h, "[", self);
+	}
+}
+
+impl<T: Feed> Feed for Vec<T> {
+	fn feed(&self, h: &mut Fnv) {
+		feed_all(h, "[", self);
+	}
+}
+
+impl<T: Feed, const N: usize> Feed for [T; N] {
+	fn feed(&self, h: &mut Fnv) {
+		feed_all(h, "[", self);
+	}
+}
+
+impl<T: Feed> Feed for std::collections::BTreeSet<T> {
+	fn feed(&self, h: &mut Fnv) {
+		feed_all(h, "{", self);
+	}
+}
+
+impl<K: Feed, V: Feed> Feed for std::collections::BTreeMap<K, V> {
+	fn feed(&self, h: &mut Fnv) {
+		h.put("{");
+		for (k, v) in self {
+			k.feed(h);
+			v.feed(h);
+		}
+		h.put("}");
+	}
+}
+
+macro_rules! tuple {
+	($($t:ident $i:tt),*) => {
+		impl<$($t: Feed),*> Feed for ($($t,)*) {
+			fn feed(&self, h: &mut Fnv) {
+				h.put("(");
+				$(self.$i.feed(h);)*
+				h.put(")");
+			}
+		}
+	};
+}
+
+tuple!(A 0);
+tuple!(A 0, B 1);
+tuple!(A 0, B 1, C 2);
+
+/// FNV-1a of every bit of `value`.
+fn digest<T: Feed + ?Sized>(value: &T) -> u64 {
+	let mut h = Fnv(0xcbf2_9ce4_8422_2325);
+	value.feed(&mut h);
+	h.0
 }
 "#;
 
-/// The functions each shape `N` exports, which the census may refuse one by one.
+/// What each shape `N` exports, which the census may refuse one by one.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Item {
 	Make,
@@ -534,63 +742,206 @@ enum Item {
 	Made,
 	/// `later_N(v)`: a future of `v`.
 	Later,
+	/// `try_N(seed)`: the made value, `Ok` for an even seed and `Err` for an odd one.
+	Try,
+	/// `swap_N(&mut v, seed)`: the digest of `v`, which it replaces with the seed's value.
+	Swap,
+	/// `pair_N(a, seed, &b)`: a digest of all three.
+	Pair,
+	/// `maybe_N(v)`: the digest of an `Option` of a borrow.
+	Maybe,
+	/// `HolderN`: an object of the value, and its methods by each receiver.
+	Holder,
+	/// `sink_N(seed, s)`: the digest of what the foreign `SinkN::echo` returns of the
+	/// made value.
+	Sink,
 }
 
 impl Item {
-	fn name(self, n: usize) -> String {
-		let item = match self {
-			Item::Make => "make",
-			Item::Echo => "echo",
-			Item::Digest => "digest",
-			Item::Lent => "lent",
-			Item::Peek => "peek",
-			Item::Made => "made",
-			Item::Later => "later",
-		};
-		format!("{item}_{n}")
-	}
-}
-
-/// A line of the script each driver runs, printing `label value`.
-#[derive(Clone, Copy, Debug)]
-enum Call {
-	/// `digest_N(echo_N(make_N(seed)))`
-	Echo(usize, u64),
-	/// `lent_N(seed, digest_N)`
-	Lent(usize, u64),
-	/// `peek_N(seed, digest_N)`
-	Peek(usize, u64),
-	/// `made_N(seed, make_N)`
-	Made(usize, u64),
-	/// `digest_N(await later_N(make_N(seed)))`
-	Later(usize, u64),
-}
-
-impl Call {
-	/// The `N` of its shape.
-	fn shape(self) -> usize {
-		let (Call::Echo(n, _) | Call::Lent(n, _) | Call::Peek(n, _) | Call::Made(n, _) | Call::Later(n, _)) = self;
-		n
-	}
-
-	fn label(self) -> String {
+	/// The paths the census names it by, any of which it may refuse.
+	fn paths(self, n: usize) -> Vec<String> {
+		let function = |name: &str| vec![format!("{name}_{n}")];
 		match self {
-			Call::Echo(n, seed) => format!("echo {n} {seed}"),
-			Call::Lent(n, seed) => format!("lent {n} {seed}"),
-			Call::Peek(n, seed) => format!("peek {n} {seed}"),
-			Call::Made(n, seed) => format!("made {n} {seed}"),
-			Call::Later(n, seed) => format!("later {n} {seed}"),
+			Item::Make => function("make"),
+			Item::Echo => function("echo"),
+			Item::Digest => function("digest"),
+			Item::Lent => function("lent"),
+			Item::Peek => function("peek"),
+			Item::Made => function("made"),
+			Item::Later => function("later"),
+			Item::Try => function("try"),
+			Item::Swap => function("swap"),
+			Item::Pair => function("pair"),
+			Item::Maybe => function("maybe"),
+			Item::Holder => ["", "::new", "::digest", "::swap", "::into_inner"]
+				.map(|method| format!("Holder{n}{method}"))
+				.into(),
+			Item::Sink => vec![format!("Sink{n}"), format!("sink_{n}")],
+		}
+	}
+
+	/// The function's name, or the type's.
+	fn name(self, n: usize) -> String {
+		self.paths(n).swap_remove(0)
+	}
+
+	/// The Rust source of its items for shape `n` of type `ty`, which `digest_N` borrows
+	/// as `lent`.
+	fn source(self, n: usize, ty: &str, lent: &str, make: &str) -> String {
+		match self {
+			Item::Make => {
+				format!("pub fn make_{n}(seed: u64) -> {ty} {{\n\tlet r = &mut Rng::new(seed);\n\t{make}\n}}\n")
+			}
+			Item::Echo => format!("pub fn echo_{n}(v: {ty}) -> {ty} {{\n\tv\n}}\n"),
+			Item::Digest => format!("pub fn digest_{n}(v: {lent}) -> u64 {{\n\tdigest(&v)\n}}\n"),
+			Item::Lent => {
+				format!("pub fn lent_{n}(seed: u64, f: impl FnOnce({ty}) -> u64) -> u64 {{\n\tf(make_{n}(seed))\n}}\n")
+			}
+			Item::Peek => format!(
+				"pub fn peek_{n}(seed: u64, f: impl FnOnce({lent}) -> u64) -> u64 {{\n\tf(&make_{n}(seed))\n}}\n"
+			),
+			Item::Made => {
+				format!("pub fn made_{n}(seed: u64, f: impl FnOnce(u64) -> {ty}) -> u64 {{\n\tdigest(&f(seed))\n}}\n")
+			}
+			Item::Later => format!("pub async fn later_{n}(v: {ty}) -> {ty} {{\n\tv\n}}\n"),
+			Item::Try => format!(
+				"pub fn try_{n}(seed: u64) -> Result<{ty}, {ty}> {{\n\tlet v = make_{n}(seed);\n\tif seed % 2 == 0 {{ Ok(v) }} else {{ Err(v) }}\n}}\n"
+			),
+			Item::Swap => format!(
+				"pub fn swap_{n}(v: &mut {ty}, seed: u64) -> u64 {{\n\tlet d = digest(&*v);\n\t*v = make_{n}(seed);\n\td\n}}\n"
+			),
+			Item::Pair => format!(
+				"pub fn pair_{n}(a: {ty}, seed: u64, b: {lent}) -> u64 {{\n\tdigest(&(digest(&a), seed, digest(&b)))\n}}\n"
+			),
+			Item::Maybe => format!("pub fn maybe_{n}(v: Option<{lent}>) -> u64 {{\n\tdigest(&v)\n}}\n"),
+			Item::Holder => format!(
+				"pub struct Holder{n}({ty});\n\n\
+				impl Holder{n} {{\n\
+				\tpub fn new(v: {ty}) -> Self {{\n\t\tSelf(v)\n\t}}\n\n\
+				\tpub fn digest(&self) -> u64 {{\n\t\tdigest(&self.0)\n\t}}\n\n\
+				\tpub fn swap(&mut self, v: {ty}) -> {ty} {{\n\t\tstd::mem::replace(&mut self.0, v)\n\t}}\n\n\
+				\tpub fn into_inner(self) -> {ty} {{\n\t\tself.0\n\t}}\n\
+				}}\n"
+			),
+			Item::Sink => format!(
+				"pub trait Sink{n}: Send + Sync {{\n\tfn echo(&self, v: {ty}) -> {ty};\n}}\n\n\
+				pub fn sink_{n}(seed: u64, s: impl Sink{n}) -> u64 {{\n\tdigest(&s.echo(make_{n}(seed)))\n}}\n"
+			),
 		}
 	}
 }
 
-/// The seeds each shape is made from.
+/// What a line of the script calls, each the item it is named after, of its shape and seed.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Kind {
+	/// `digest_N(echo_N(make_N(seed)))`
+	Echo,
+	/// `lent_N(seed, digest_N)`
+	Lent,
+	/// `peek_N(seed, digest_N)`
+	Peek,
+	/// `made_N(seed, make_N)`
+	Made,
+	/// `digest_N(await later_N(make_N(seed)))`
+	Later,
+	/// `try_N(seed)`, printing `ok` or `err` and the digest of its value.
+	Try,
+	/// `swap_N(&mut v, seed ^ 1)` of `v = make_N(seed)`, printing what it returns and
+	/// `digest_N(v)` after.
+	Swap,
+	/// `pair_N(make_N(seed), seed, make_N(seed ^ 1))`
+	Pair,
+	/// `maybe_N(make_N(seed))` for an odd seed, else `maybe_N(None)`.
+	Maybe,
+	/// `HolderN::new(make_N(seed))`, `swap(make_N(seed ^ 1))`, printing the digests of
+	/// what that returns, of `digest()`, and of `into_inner()`.
+	Held,
+	/// `sink_N(seed, s)` of an `s` whose `echo` returns what it takes.
+	Sink,
+}
+
+impl Kind {
+	/// What the shape must export for the line, besides `make_N` and `digest_N`.
+	fn item(self) -> Item {
+		match self {
+			Kind::Echo => Item::Echo,
+			Kind::Lent => Item::Lent,
+			Kind::Peek => Item::Peek,
+			Kind::Made => Item::Made,
+			Kind::Later => Item::Later,
+			Kind::Try => Item::Try,
+			Kind::Swap => Item::Swap,
+			Kind::Pair => Item::Pair,
+			Kind::Maybe => Item::Maybe,
+			Kind::Held => Item::Holder,
+			Kind::Sink => Item::Sink,
+		}
+	}
+}
+
+/// Every [`Kind`], in the order a shape's lines run.
+const KINDS: [Kind; 11] = [
+	Kind::Echo,
+	Kind::Lent,
+	Kind::Peek,
+	Kind::Made,
+	Kind::Later,
+	Kind::Try,
+	Kind::Swap,
+	Kind::Pair,
+	Kind::Maybe,
+	Kind::Held,
+	Kind::Sink,
+];
+
+/// Every [`Item`], in the order the crate declares them.
+const ITEMS: [Item; 13] = [
+	Item::Make,
+	Item::Echo,
+	Item::Digest,
+	Item::Lent,
+	Item::Peek,
+	Item::Made,
+	Item::Later,
+	Item::Try,
+	Item::Swap,
+	Item::Pair,
+	Item::Maybe,
+	Item::Holder,
+	Item::Sink,
+];
+
+/// A line of the script each driver runs, printing `kind n seed value`.
+#[derive(Clone, Copy, Debug)]
+struct Call {
+	kind: Kind,
+	/// Its shape's `N`.
+	n: usize,
+	seed: u64,
+}
+
+impl Call {
+	fn label(self) -> String {
+		let kind = format!("{:?}", self.kind).to_lowercase();
+		format!("{kind} {} {}", self.n, self.seed)
+	}
+
+	/// The other seed, which `swap`, `pair`, and `held` make a second value from.
+	fn other(self) -> u64 {
+		self.seed ^ 1
+	}
+}
+
+/// The seeds each shape is made from: even, which `try_N` returns `Ok` for, and odd.
 const SEEDS: [u64; 3] = [0, 1, 0xdead_beef];
 
 /// The shapes' crate, as the census left it: which shapes export, and the script.
 struct Crate {
 	dir: PathBuf,
 	shapes: Vec<Shape>,
+	/// How many of `shapes` are the fixed set, which [`KNOWN`] checks, and the seed the
+	/// rest are drawn from, if any.
+	drawn: Option<(usize, u64)>,
 	/// Each shape's Rust type, by `N`.
 	types: Vec<String>,
 	calls: Vec<Call>,
@@ -600,7 +951,7 @@ struct Crate {
 
 /// Write the crate of `shapes` named `name` in the scratch directory, ask the exporter what
 /// exports, and run its script natively.
-fn emit(name: &str, shapes: &[Shape]) -> Crate {
+fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 	let dir = scratch().join(name);
 	let mut emit = Emit {
 		items: String::new(),
@@ -608,23 +959,18 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	};
 	let mut functions = String::new();
 	let mut types = Vec::new();
+	let mut lents = Vec::new();
 	for (n, shape) in shapes.iter().enumerate() {
 		let (ty, make) = emit.shape(shape);
 		let lent = borrowed(shape, &ty);
-		let _ = write!(
-			functions,
-			"pub fn make_{n}(seed: u64) -> {ty} {{\n\tlet r = &mut Rng::new(seed);\n\t{make}\n}}\n\n\
-			pub fn echo_{n}(v: {ty}) -> {ty} {{\n\tv\n}}\n\n\
-			pub fn digest_{n}(v: {lent}) -> u64 {{\n\tdigest(&v)\n}}\n\n\
-			pub fn lent_{n}(seed: u64, f: impl FnOnce({ty}) -> u64) -> u64 {{\n\tf(make_{n}(seed))\n}}\n\n\
-			pub fn peek_{n}(seed: u64, f: impl FnOnce({lent}) -> u64) -> u64 {{\n\tf(&make_{n}(seed))\n}}\n\n\
-			pub fn made_{n}(seed: u64, f: impl FnOnce(u64) -> {ty}) -> u64 {{\n\tdigest(&f(seed))\n}}\n\n\
-			pub async fn later_{n}(v: {ty}) -> {ty} {{\n\tv\n}}\n\n"
-		);
+		for item in ITEMS {
+			let _ = writeln!(functions, "{}", item.source(n, &ty, &lent, &make));
+		}
 		types.push(ty);
+		lents.push(lent);
 	}
 	let lib = format!(
-		"//! Generated by `tests/fixtures/shapes.rs`: each shape's `make`, `echo`, and `digest`.\n\
+		"//! Generated by `tests/fixtures/shapes.rs`: each shape's items.\n\
 		#![allow(clippy::all, dead_code, reason = \"generated\")]\n{RUNTIME}\n{}{functions}",
 		emit.items
 	);
@@ -640,8 +986,8 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 
 	let refused = refused(&dir);
-	let exported = |item: Item, n: usize| !refused.iter().any(|path| *path == item.name(n));
-	let mut excludes: Vec<&String> = refused.iter().collect();
+	let exported = |item: Item, n: usize| item.paths(n).iter().all(|path| !refused.absent.contains(path));
+	let mut excludes: Vec<&String> = refused.exclude.iter().collect();
 	excludes.sort();
 	let config = excludes
 		.iter()
@@ -655,36 +1001,55 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 			continue;
 		}
 		for seed in SEEDS {
-			if exported(Item::Echo, n) {
-				calls.push(Call::Echo(n, seed));
-			}
-			if exported(Item::Lent, n) {
-				calls.push(Call::Lent(n, seed));
-			}
-			if exported(Item::Peek, n) {
-				calls.push(Call::Peek(n, seed));
-			}
-			if exported(Item::Made, n) {
-				calls.push(Call::Made(n, seed));
-			}
-			if exported(Item::Later, n) {
-				calls.push(Call::Later(n, seed));
+			for kind in KINDS {
+				if exported(kind.item(), n) {
+					calls.push(Call { kind, n, seed });
+				}
 			}
 		}
 	}
 
 	let mut script = format!("//! The shapes' script, run natively.\n\nuse {name}::*;\n{NATIVE}");
+	let mut sinks = String::new();
 	for call in &calls {
-		let value = match *call {
-			Call::Echo(n, seed) => format!("digest_{n}(&echo_{n}(make_{n}({seed})))"),
-			Call::Lent(n, seed) => format!("lent_{n}({seed}, |v| digest_{n}(&v))"),
-			Call::Peek(n, seed) => format!("peek_{n}({seed}, digest_{n})"),
-			Call::Made(n, seed) => format!("made_{n}({seed}, make_{n})"),
-			Call::Later(n, seed) => format!("digest_{n}(&later(later_{n}(make_{n}({seed}))))"),
+		let Call { n, seed, .. } = *call;
+		let other = call.other();
+		let value = match call.kind {
+			Kind::Echo => format!("digest_{n}(&echo_{n}(make_{n}({seed})))"),
+			Kind::Lent => format!("lent_{n}({seed}, |v| digest_{n}(&v))"),
+			Kind::Peek => format!("peek_{n}({seed}, digest_{n})"),
+			Kind::Made => format!("made_{n}({seed}, make_{n})"),
+			Kind::Later => format!("digest_{n}(&later(later_{n}(make_{n}({seed}))))"),
+			Kind::Try => format!(
+				"match try_{n}({seed}) {{ Ok(v) => format!(\"ok {{}}\", digest_{n}(&v)), Err(e) => format!(\"err {{}}\", digest_{n}(&e)) }}"
+			),
+			Kind::Swap => format!(
+				"{{ let mut v = make_{n}({seed}); let d = swap_{n}(&mut v, {other}); format!(\"{{d}} {{}}\", digest_{n}(&v)) }}"
+			),
+			Kind::Pair => format!("pair_{n}(make_{n}({seed}), {seed}, &make_{n}({other}))"),
+			Kind::Maybe => match seed % 2 {
+				1 => format!("maybe_{n}(Some::<{}>(&make_{n}({seed})))", lents[n]),
+				_ => format!("maybe_{n}(None)"),
+			},
+			Kind::Held => format!(
+				"{{ let mut h = Holder{n}::new(make_{n}({seed})); let old = h.swap(make_{n}({other})); \
+				format!(\"{{}} {{}} {{}}\", digest_{n}(&old), h.digest(), digest_{n}(&h.into_inner())) }}"
+			),
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let _ = writeln!(
+						sinks,
+						"struct Echo{n};\n\nimpl Sink{n} for Echo{n} {{\n\tfn echo(&self, v: {ty}) -> {ty} {{\n\t\tv\n\t}}\n}}\n",
+						ty = types[n]
+					);
+				}
+				format!("sink_{n}({seed}, Echo{n})")
+			}
 		};
 		let _ = writeln!(script, "\tprintln!(\"{} {{}}\", {value});", call.label());
 	}
 	script.push_str("}\n");
+	script.push_str(&sinks);
 	super::write_all(&dir, &[("examples/transcript.rs", &script)]);
 	// Apart from the exporter's build, which cleans the crate each time.
 	let transcript = run(cargo()
@@ -694,6 +1059,7 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	Crate {
 		dir,
 		shapes: shapes.to_vec(),
+		drawn,
 		types,
 		calls,
 		transcript: String::from_utf8_lossy(&transcript.stdout).into_owned(),
@@ -712,8 +1078,9 @@ fn later<T>(f: impl Future<Output = T>) -> T {
 fn main() {
 ";
 
-/// The paths the census of the crate in `dir` refuses: its config that exports what maps.
-fn refused(dir: &Path) -> Vec<String> {
+/// What the census of the crate in `dir` says does not export: the config that exports
+/// what maps, and what leaves itself out.
+fn refused(dir: &Path) -> Refused {
 	let census = dir.join("census");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
@@ -723,16 +1090,40 @@ fn refused(dir: &Path) -> Vec<String> {
 		.env("CARGO_TARGET_DIR", dir.join("build")));
 	let name = dir.file_name().unwrap().to_string_lossy();
 	let report = std::fs::read_to_string(census.join(format!("{name}.md"))).unwrap();
-	let Some((_, config)) = report.split_once("## The config that exports what maps") else {
-		return Vec::new();
+	let exclude = match report.split_once("## The config that exports what maps") {
+		Some((_, config)) => config
+			.lines()
+			.skip_while(|line| *line != "exclude = [")
+			.skip(1)
+			.take_while(|line| *line != "]")
+			.map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_string())
+			.collect(),
+		None => Vec::new(),
 	};
-	config
-		.lines()
-		.skip_while(|line| *line != "exclude = [")
-		.skip(1)
-		.take_while(|line| *line != "]")
-		.map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_string())
-		.collect()
+	// The traits C cannot implement, and what C can never hold, leave themselves out.
+	let mut absent = exclude.clone();
+	for section in [
+		"## Traits left out, since C cannot implement them",
+		"## What C can never hold, left out",
+	] {
+		let Some((_, list)) = report.split_once(section) else {
+			continue;
+		};
+		absent.extend(
+			(list.lines().skip(1))
+				.take_while(|line| !line.starts_with("## "))
+				.filter_map(|line| Some(line.strip_prefix("- `")?.split_once('`')?.0.to_string())),
+		);
+	}
+	Refused { exclude, absent }
+}
+
+/// What the census of the shapes' crate says does not export.
+struct Refused {
+	/// The paths its config leaves out.
+	exclude: Vec<String>,
+	/// Those, and what leaves itself out.
+	absent: Vec<String>,
 }
 
 /// Each variant of the IR's `Type`, from its source.
@@ -768,6 +1159,8 @@ struct Built {
 	lib: PathBuf,
 	/// What a program linking the static library links besides, as rustc prints it.
 	native: Vec<String>,
+	/// The web binding's module and native transcript, built for the web test alone.
+	web: std::sync::OnceLock<(PathBuf, String)>,
 }
 
 /// The shared library of the crate `name`, which Python, Kotlin, and Dart load.
@@ -779,15 +1172,19 @@ fn shared(name: &str) -> String {
 	}
 }
 
-/// Emit, census, export, and build the crate of `shapes` named `name`.
-fn build(name: &str, shapes: &[Shape]) -> Built {
-	let krate = emit(name, shapes);
+/// Emit, census, export, and build the crate of `shapes` named `name`, of which `drawn`
+/// says how many are the fixed set and the seed of the rest, if any.
+fn build(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Built {
+	let krate = emit(name, shapes, drawn);
 	let out = krate.dir.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(krate.dir.join("ffi.toml"))
 		.arg("--out")
 		.arg(&out)
+		// One binding for the host and the target the web binding serves, as the api
+		// fixture's.
+		.args(["--target", super::host(), "--target", super::WEB])
 		.env("CARGO_TARGET_DIR", krate.dir.join("build")));
 	let target = krate.dir.join("glue");
 	let build = |target: &Path, feature: &str| {
@@ -818,12 +1215,45 @@ fn build(name: &str, shapes: &[Shape]) -> Built {
 		out,
 		lib: target.join("debug"),
 		native,
+		web: std::sync::OnceLock::new(),
 	}
 }
 
 impl Built {
 	fn name(&self) -> String {
 		self.krate.dir.file_name().unwrap().to_string_lossy().into_owned()
+	}
+
+	/// The module the export's `web` feature builds for wasm32-wasip1, and what the native
+	/// script prints there, run under Node's WASI: its `usize` is 32 bits, and a path there
+	/// is text.
+	fn web(&self) -> &(PathBuf, String) {
+		self.web.get_or_init(|| {
+			let name = self.name();
+			let glue = self.krate.dir.join("glue-web");
+			run(cargo()
+				.args(["build", "--quiet", "--locked", "--manifest-path"])
+				.arg(self.out.join("Cargo.toml"))
+				.arg("--target-dir")
+				.arg(&glue)
+				.args(["--target", super::WEB, "--features", "web"])
+				.env("RUSTFLAGS", "-D warnings"));
+			let native = self.krate.dir.join("native-web");
+			run(cargo()
+				.args(["build", "--quiet", "--example", "transcript", "--target", super::WEB])
+				.env("CARGO_TARGET_DIR", &native)
+				.current_dir(&self.krate.dir));
+			let wasm = native.join(super::WEB).join("debug").join("examples").join("transcript.wasm");
+			let transcript = run(Command::new("node")
+				.args(["--no-warnings", "--input-type=module", "-e", super::WASI_MAIN])
+				.arg(wasm));
+			let module = glue.join(super::WEB).join("debug").join(format!("{name}.wasm"));
+			(module, String::from_utf8_lossy(&transcript.stdout).into_owned())
+		})
+	}
+
+	fn wasm_transcript(&self) -> &str {
+		&self.web().1
 	}
 
 	fn staticlib(&self) -> PathBuf {
@@ -839,44 +1269,50 @@ impl Built {
 		self.krate.dir.join("drivers").join(language)
 	}
 
-	/// The exported shapes `language` gets wrong today, by [`KNOWN`], each entry of which must
-	/// match one.
-	fn known(&self, language: &str) -> Vec<usize> {
-		let mut known = Vec::new();
-		for Known { what, skips, quest, .. } in KNOWN.iter().filter(|k| k.language == language) {
-			let matched: Vec<usize> = (0..self.krate.shapes.len())
-				.filter(|&n| skips(&self.krate.shapes[n]) && self.krate.calls.iter().any(|call| call.shape() == n))
-				.collect();
-			// The gate's subset may hold none of an entry's shapes; the nightly's holds each.
-			assert!(
-				!matched.is_empty() || self.name() != "sampled",
-				"KNOWN's {language} entry for {what} ({quest}) matches no shape: remove it"
-			);
-			known.extend(matched);
-		}
-		known
-	}
-
-	/// Asserts `language`'s driver printed the native transcript but for the shapes it gets
-	/// wrong today, naming each line that differs by its shape's Rust type.
-	fn check(&self, language: &str, known: &[usize], output: &std::process::Output) {
-		let got = String::from_utf8_lossy(&output.stdout);
-		let mut wrong = String::new();
-		let expected: Vec<&str> = (self.krate.transcript.lines().zip(&self.krate.calls))
-			.filter(|(_, call)| !known.contains(&call.shape()))
-			.map(|(line, _)| line)
-			.collect();
-		let lines: Vec<&str> = got.lines().collect();
-		for (i, want) in expected.iter().enumerate() {
-			let line = lines.get(i).copied().unwrap_or("<missing>");
-			if line != *want {
-				let n: usize = want.split(' ').nth(1).unwrap().parse().unwrap();
-				let _ = writeln!(wrong, "  {want} ({}), got {line}", self.krate.types[n]);
+	/// The calls `language`'s driver runs, each with the line native Rust printed for it in
+	/// `transcript`: every call but those [`KNOWN`] says it gets wrong today, each entry of
+	/// which must match one of the fixed set's.
+	fn expected<'a>(&self, language: &str, transcript: &'a str) -> Vec<(Call, &'a str)> {
+		let lines: Vec<&str> = transcript.lines().collect();
+		assert_eq!(lines.len(), self.krate.calls.len(), "the native script printed a line per call");
+		let entries: Vec<&Known> = KNOWN.iter().filter(|k| k.language == language).collect();
+		let skipped = |call: &Call, k: &Known| (k.skips)(&self.krate.shapes[call.n], call.kind);
+		if let Some((fixed, _)) = self.krate.drawn {
+			for k in &entries {
+				// The gate's subset may hold none of an entry's shapes; the nightly's fixed set
+				// holds each.
+				assert!(
+					self.krate.calls.iter().any(|call| call.n < fixed && skipped(call, k)),
+					"KNOWN's {language} entry for {} ({}) matches no call: remove it",
+					k.what,
+					k.quest
+				);
 			}
 		}
+		(self.krate.calls.iter().copied().zip(lines))
+			.filter(|(call, _)| !entries.iter().any(|k| skipped(call, k)))
+			.collect()
+	}
+
+	/// Asserts `language`'s driver printed what native Rust did for each of `expected`,
+	/// naming each line that differs by its shape's Rust type.
+	fn check(&self, language: &str, expected: &[(Call, &str)], output: &std::process::Output) {
+		let got = String::from_utf8_lossy(&output.stdout);
+		let mut wrong = String::new();
+		let lines: Vec<&str> = got.lines().collect();
+		for (i, (call, want)) in expected.iter().enumerate() {
+			let line = lines.get(i).copied().unwrap_or("<missing>");
+			if line != *want {
+				let _ = writeln!(wrong, "  {want} ({}), got {line}", self.krate.types[call.n]);
+			}
+		}
+		let drawn = match self.krate.drawn {
+			Some((_, seed)) => format!("; shapes past the fixed set drawn from RUST2_SHAPES_SEED={seed}"),
+			None => String::new(),
+		};
 		assert!(
 			wrong.is_empty() && lines.len() == expected.len(),
-			"{language}'s round trips differ from native Rust's in {} of {} lines, {} printed:\n{wrong}{}",
+			"{language}'s round trips differ from native Rust's in {} of {} lines, {} printed{drawn}:\n{wrong}{}",
 			wrong.lines().count(),
 			expected.len(),
 			lines.len(),
@@ -889,16 +1325,16 @@ impl Built {
 struct Known {
 	language: &'static str,
 	what: &'static str,
-	/// Whether a shape holds what it gets wrong, which the language's driver skips.
-	skips: fn(&Shape) -> bool,
+	/// Whether a call of a shape does what it gets wrong, which the language's driver skips.
+	skips: fn(&Shape, Kind) -> bool,
 	/// The quest that fixes it.
 	quest: &'static str,
 }
 
 /// The round trips a binding gets wrong today, each the quest's to fix: the language, what
-/// it gets wrong, the shapes it skips for it, and the quest. The nightly fails on an entry
-/// matching no exported shape, but its shapes stay skipped after a fix, so the quest that
-/// fixes one deletes its entry.
+/// it gets wrong, the calls it skips for it, and the quest. The nightly fails on an entry
+/// matching no call of its fixed set, but its calls stay skipped after a fix, so the quest
+/// that fixes one deletes its entry.
 const KNOWN: &[Known] = &[];
 
 /// A function the C header declares: each parameter's type and name.
@@ -961,30 +1397,44 @@ impl Proto {
 	/// `ty`. A poll's call must return `ready`.
 	fn call(&self, function: &str, args: &[String], ty: &str, var: &str, ready: Option<&str>) -> String {
 		let args = args.join(", ");
-		let end = self.params.len() - usize::from(self.status());
-		let outs = &self.params[end - self.outs()..end];
-		if outs.is_empty() {
+		let Some(Outs { decls, pointers, value }) = self.gather(ty, var) else {
 			return format!("\t\t{ty} {var} = {function}({args}{});\n", self.tail());
-		}
-		let mut out = String::new();
-		let mut pointers = Vec::new();
-		let mut values = Vec::new();
-		for (k, (pointer, _)) in outs.iter().enumerate() {
-			let _ = writeln!(out, "\t\t{} {var}_{k};", pointer.strip_suffix('*').unwrap().trim());
-			pointers.push(format!("&{var}_{k}"));
-			values.push(format!("{var}_{k}"));
-		}
-		let call = format!("{function}({args}, {}{})", pointers.join(", "), self.tail());
+		};
+		let mut out = decls;
+		let call = format!("{function}({args}, {pointers}{})", self.tail());
 		let _ = match ready {
 			Some(ready) => writeln!(out, "\t\tif ({call} != {ready}) abort();"),
 			None => writeln!(out, "\t\t{call};"),
 		};
-		// `out` is the value; `out0` on are a returned tuple's elements, of one or more.
-		let _ = match outs[0].1 == "out" {
-			true => writeln!(out, "\t\t{ty} {var} = {var}_0;"),
-			false => writeln!(out, "\t\t{ty} {var} = ({ty}){{{}}};", values.join(", ")),
-		};
+		let _ = writeln!(out, "\t\t{ty} {var} = {value};");
 		out
+	}
+
+	/// The out pointers it writes its output through, `out`, or `out0` on for a returned
+	/// tuple's elements, declared as `var_K`, and their value as `ty`.
+	fn gather(&self, ty: &str, var: &str) -> Option<Outs> {
+		let is_out = |name: &str| name == "out" || name.strip_prefix("out").is_some_and(|k| k.parse::<usize>().is_ok());
+		let outs: Vec<&(String, String)> = self.params.iter().filter(|(_, name)| is_out(name)).collect();
+		if outs.is_empty() {
+			return None;
+		}
+		let mut decls = String::new();
+		let mut pointers = Vec::new();
+		let mut values = Vec::new();
+		for (k, (pointer, _)) in outs.iter().enumerate() {
+			let _ = writeln!(decls, "\t\t{} {var}_{k};", pointer.strip_suffix('*').unwrap().trim());
+			pointers.push(format!("&{var}_{k}"));
+			values.push(format!("{var}_{k}"));
+		}
+		let value = match outs[0].1 == "out" {
+			true => format!("{var}_0"),
+			false => format!("({ty}){{{}}}", values.join(", ")),
+		};
+		Some(Outs {
+			decls,
+			pointers: pointers.join(", "),
+			value,
+		})
 	}
 
 	/// Whether it takes a trailing status, for a check one of its handles can fail.
@@ -1000,12 +1450,6 @@ impl Proto {
 		}
 	}
 
-	/// How many out pointers it writes its output through: `out`, or `out0` on for a tuple.
-	fn outs(&self) -> usize {
-		let out = |name: &str| name == "out" || name.strip_prefix("out").is_some_and(|k| k.parse::<usize>().is_ok());
-		self.params.iter().filter(|(_, name)| out(name)).count()
-	}
-
 	/// What a function pointer parameter `(*name)` returns and takes after its data.
 	fn pointer(&self, name: &str) -> (String, String) {
 		let ty = self.param(name);
@@ -1013,6 +1457,21 @@ impl Proto {
 		let param = rest.strip_prefix("void *data, ").unwrap().strip_suffix(')').unwrap();
 		(ret.to_string(), param.to_string())
 	}
+}
+
+/// The type of the value an option struct `ty` holds, if `ty` is one.
+fn option_value(header: &str, ty: &str) -> Option<String> {
+	let body = header.split(&format!("typedef struct {ty} {{\n\tbool some;\n\t")).nth(1)?;
+	let field = body.lines().next()?;
+	Some(field.strip_suffix(" value;")?.to_string())
+}
+
+/// What a C function writes its output through: the declarations of its out pointers, the
+/// pointers to pass, and the value they gather.
+struct Outs {
+	decls: String,
+	pointers: String,
+	value: String,
 }
 
 /// The C driver: each call's value in a block of its own, typed by the header's prototypes.
@@ -1025,18 +1484,140 @@ fn c(built: &Built, calls: &[Call]) -> String {
 	let mut defined = std::collections::BTreeSet::new();
 	for call in calls {
 		let label = call.label();
-		let (Call::Echo(n, seed)
-		| Call::Lent(n, seed)
-		| Call::Peek(n, seed)
-		| Call::Made(n, seed)
-		| Call::Later(n, seed)) = *call;
+		let Call { n, seed, .. } = *call;
 		let make = proto(Item::Make, n);
 		let digest = proto(Item::Digest, n);
 		let digested = digest.param("v").to_string();
 		let fname = |item: Item| format!("{name}_{}", item.name(n));
+		// The digest of the value `v` holds.
+		let digested_of = |v: &str| format!("{}({v}{})", fname(Item::Digest), digest.tail());
 		let mut block = String::new();
-		match *call {
-			Call::Echo(..) => {
+		match call.kind {
+			Kind::Try => {
+				let tried = proto(Item::Try, n);
+				let err = tried.param("err").strip_suffix('*').unwrap().trim().to_string();
+				let Outs { decls, pointers, value } = tried.gather(&digested, "a").expect("try_N writes its value out");
+				block += &decls;
+				let _ = writeln!(
+					block,
+					"\t\t{err} e;\n\t\tif ({}({seed}u, {pointers}, &e)) {{\n\t\t\t{digested} v = {value};\n\
+					\t\t\tprintf(\"{label} ok %\" PRIu64 \"\\n\", {});\n\t\t}} else {{\n\
+					\t\t\tprintf(\"{label} err %\" PRIu64 \"\\n\", {});\n\t\t}}",
+					fname(Item::Try),
+					digested_of("v"),
+					digested_of("e"),
+				);
+			}
+			Kind::Swap => {
+				let swap = proto(Item::Swap, n);
+				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], swap.param("v"), "a", None);
+				let other = call.other();
+				// A value is written back through `v_out`; an object's handle is borrowed.
+				let after = match swap.params.iter().any(|(_, name)| name == "v_out") {
+					true => {
+						let ty = swap.param("v_out").strip_suffix('*').unwrap().trim().to_string();
+						let _ = writeln!(
+							block,
+							"\t\t{ty} b;\n\t\tuint64_t d = {}(a, {other}u, &b{});",
+							fname(Item::Swap),
+							swap.tail()
+						);
+						"b"
+					}
+					false => {
+						let _ = writeln!(block, "\t\tuint64_t d = {}(a, {other}u{});", fname(Item::Swap), swap.tail());
+						"a"
+					}
+				};
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \" %\" PRIu64 \"\\n\", d, {});",
+					digested_of(after)
+				);
+			}
+			Kind::Pair => {
+				let pair = proto(Item::Pair, n);
+				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], pair.param("a"), "a", None);
+				block += &make.call(&fname(Item::Make), &[format!("{}u", call.other())], pair.param("b"), "b", None);
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(a, {seed}u, b{}));",
+					fname(Item::Pair),
+					pair.tail()
+				);
+			}
+			Kind::Maybe => {
+				let maybe = proto(Item::Maybe, n);
+				let ty = maybe.param("v").to_string();
+				// An option of a value is a struct of it; of a buffer or handle, null is None.
+				let option = option_value(&header, &ty);
+				let v = match (seed % 2, &option) {
+					(0, Some(_)) => format!("({ty}){{0}}"),
+					(0, None) if ty.ends_with('*') => "NULL".into(),
+					(0, None) => format!("({ty}){{0}}"),
+					(_, Some(value)) => {
+						block += &make.call(&fname(Item::Make), &[format!("{seed}u")], value, "a", None);
+						format!("({ty}){{true, a}}")
+					}
+					(_, None) => {
+						block += &make.call(&fname(Item::Make), &[format!("{seed}u")], &ty, "a", None);
+						"a".into()
+					}
+				};
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}({v}{}));",
+					fname(Item::Maybe),
+					maybe.tail()
+				);
+			}
+			Kind::Held => {
+				let holder = format!("{name}_Holder{n}");
+				let new = prototype(&header, &format!("{holder}_new"));
+				let swap = prototype(&header, &format!("{holder}_swap"));
+				let held = prototype(&header, &format!("{holder}_digest"));
+				let inner = prototype(&header, &format!("{holder}_into_inner"));
+				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], new.param("v"), "a", None);
+				block += &new.call(&format!("{holder}_new"), &["a".into()], &format!("{holder} *"), "h", None);
+				block += &make.call(&fname(Item::Make), &[format!("{}u", call.other())], swap.param("v"), "b", None);
+				block += &swap.call(&format!("{holder}_swap"), &["h".into(), "b".into()], &digested, "old", None);
+				let _ = writeln!(block, "\t\tuint64_t d = {holder}_digest(h{});", held.tail());
+				block += &inner.call(&format!("{holder}_into_inner"), &["h".into()], &digested, "c", None);
+				let _ = writeln!(
+					block,
+					"\t\t{holder}_free(h);\n\t\tprintf(\"{label} %\" PRIu64 \" %\" PRIu64 \" %\" PRIu64 \"\\n\", {}, d, {});",
+					digested_of("old"),
+					digested_of("c")
+				);
+			}
+			Kind::Sink => {
+				let sink = format!("{name}_Sink{n}");
+				if defined.insert(format!("Sink{n}")) {
+					let vtable = header
+						.split(&format!("typedef struct {sink}_vtable {{"))
+						.nth(1)
+						.expect("the header declares the sink's vtable");
+					let echo = vtable.lines().find(|line| line.contains("(*echo)")).unwrap();
+					let echo = Proto {
+						params: vec![(echo.trim().trim_end_matches(';').to_string(), "echo".into())],
+					};
+					let (ret, param) = echo.pointer("echo");
+					// Its parameter, named in the vtable.
+					let param = &param[..param.rfind([' ', '*']).unwrap() + 1];
+					let _ = writeln!(
+						closures,
+						"static {ret} sink{n}_echo(void *data, {param}v) {{\n\t(void)data;\n\treturn v;\n}}\n\n\
+						static void sink{n}_free(void *data) {{\n\t(void)data;\n}}\n\n\
+						static const {sink}_vtable sink{n} = {{.free = sink{n}_free, .echo = sink{n}_echo}};\n"
+					);
+				}
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}({seed}u, ({sink}){{&sink{n}, NULL}}));",
+					format!("{name}_sink_{n}"),
+				);
+			}
+			Kind::Echo => {
 				let echo = proto(Item::Echo, n);
 				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], echo.param("v"), "a", None);
 				block += &echo.call(&fname(Item::Echo), &["a".into()], &digested, "b", None);
@@ -1047,8 +1628,8 @@ fn c(built: &Built, calls: &[Call]) -> String {
 					digest.tail()
 				);
 			}
-			Call::Lent(..) | Call::Peek(..) => {
-				let item = if matches!(call, Call::Lent(..)) {
+			Kind::Lent | Kind::Peek => {
+				let item = if call.kind == Kind::Lent {
 					Item::Lent
 				} else {
 					Item::Peek
@@ -1070,7 +1651,7 @@ fn c(built: &Built, calls: &[Call]) -> String {
 					item.name(n)
 				);
 			}
-			Call::Made(..) => {
+			Kind::Made => {
 				if defined.insert(Item::Made.name(n)) {
 					let (ret, _) = proto(Item::Made, n).pointer("f");
 					let made = make.call(&fname(Item::Make), &["seed".into()], &ret, "v", None);
@@ -1092,7 +1673,7 @@ fn c(built: &Built, calls: &[Call]) -> String {
 					Item::Made.name(n)
 				);
 			}
-			Call::Later(..) => {
+			Kind::Later => {
 				let later = proto(Item::Later, n);
 				let future = format!("{}_future", fname(Item::Later));
 				let poll = prototype(&header, &format!("{}_poll", fname(Item::Later)));
@@ -1129,18 +1710,20 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let mut body = String::new();
 	for call in calls {
-		let value = match *call {
-			Call::Echo(n, seed) => format!("{name}::digest_{n}({name}::echo_{n}({name}::make_{n}({seed}u)))"),
-			Call::Lent(n, seed) => {
+		let Call { n, seed, .. } = *call;
+		let value = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => format!("{name}::digest_{n}({name}::echo_{n}({name}::make_{n}({seed}u)))"),
+			Kind::Lent => {
 				format!("{name}::lent_{n}({seed}u, [](auto v) {{ return {name}::digest_{n}(std::move(v)); }})")
 			}
-			Call::Peek(n, seed) => {
+			Kind::Peek => {
 				format!("{name}::peek_{n}({seed}u, [](auto &&v) {{ return {name}::digest_{n}(v); }})")
 			}
-			Call::Made(n, seed) => {
+			Kind::Made => {
 				format!("{name}::made_{n}({seed}u, [](std::uint64_t s) {{ return {name}::make_{n}(s); }})")
 			}
-			Call::Later(n, seed) => format!("{name}::digest_{n}({name}::later_{n}({name}::make_{n}({seed}u)).get())"),
+			Kind::Later => format!("{name}::digest_{n}({name}::later_{n}({name}::make_{n}({seed}u)).get())"),
 		};
 		let _ = writeln!(body, "\tstd::cout << \"{} \" << {value} << '\\n';", call.label());
 	}
@@ -1154,7 +1737,7 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 fn by_shape(calls: &[Call], line: impl Fn(Call) -> String) -> Vec<(usize, String)> {
 	let mut shapes: Vec<(usize, String)> = Vec::new();
 	for call in calls {
-		let (Call::Echo(n, _) | Call::Lent(n, _) | Call::Peek(n, _) | Call::Made(n, _) | Call::Later(n, _)) = *call;
+		let n = call.n;
 		if shapes.last().is_none_or(|(last, _)| *last != n) {
 			shapes.push((n, String::new()));
 		}
@@ -1166,12 +1749,14 @@ fn by_shape(calls: &[Call], line: impl Fn(Call) -> String) -> Vec<(usize, String
 /// The Kotlin driver, on the JVM with kotlinx-coroutines.
 fn kotlin(built: &Built, calls: &[Call]) -> String {
 	let shapes = by_shape(calls, |call| {
-		let value = match call {
-			Call::Echo(n, seed) => format!("digest{n}(echo{n}(make{n}({seed}uL)))"),
-			Call::Lent(n, seed) => format!("lent{n}({seed}uL) {{ digest{n}(it) }}"),
-			Call::Peek(n, seed) => format!("peek{n}({seed}uL) {{ digest{n}(it) }}"),
-			Call::Made(n, seed) => format!("made{n}({seed}uL) {{ make{n}(it) }}"),
-			Call::Later(n, seed) => format!("digest{n}(later{n}(make{n}({seed}uL)))"),
+		let Call { n, seed, .. } = call;
+		let value = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => format!("digest{n}(echo{n}(make{n}({seed}uL)))"),
+			Kind::Lent => format!("lent{n}({seed}uL) {{ digest{n}(it) }}"),
+			Kind::Peek => format!("peek{n}({seed}uL) {{ digest{n}(it) }}"),
+			Kind::Made => format!("made{n}({seed}uL) {{ make{n}(it) }}"),
+			Kind::Later => format!("digest{n}(later{n}(make{n}({seed}uL)))"),
 		};
 		format!("\tprintln(\"{} ${{{value}}}\")", call.label())
 	});
@@ -1196,12 +1781,14 @@ fn python(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let mut body = String::new();
 	for call in calls {
-		let value = match *call {
-			Call::Echo(n, seed) => format!("s.digest_{n}(s.echo_{n}(s.make_{n}({seed})))"),
-			Call::Lent(n, seed) => format!("s.lent_{n}({seed}, s.digest_{n})"),
-			Call::Peek(n, seed) => format!("s.peek_{n}({seed}, s.digest_{n})"),
-			Call::Made(n, seed) => format!("s.made_{n}({seed}, s.make_{n})"),
-			Call::Later(n, seed) => format!("s.digest_{n}(await s.later_{n}(s.make_{n}({seed})))"),
+		let Call { n, seed, .. } = *call;
+		let value = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => format!("s.digest_{n}(s.echo_{n}(s.make_{n}({seed})))"),
+			Kind::Lent => format!("s.lent_{n}({seed}, s.digest_{n})"),
+			Kind::Peek => format!("s.peek_{n}({seed}, s.digest_{n})"),
+			Kind::Made => format!("s.made_{n}({seed}, s.make_{n})"),
+			Kind::Later => format!("s.digest_{n}(await s.later_{n}(s.make_{n}({seed})))"),
 		};
 		let _ = writeln!(body, "\tprint(f\"{} {{{value}}}\")", call.label());
 	}
@@ -1229,26 +1816,28 @@ fn swift(calls: &[Call], source: &str) -> String {
 		false => "",
 	};
 	let shapes = by_shape(calls, |call| {
-		let value = match call {
-			Call::Echo(n, seed) => format!(
+		let Call { n, seed, .. } = call;
+		let value = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => format!(
 				"{}digest{n}(echo{n}(make{n}({seed})))",
 				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")])
 			),
-			Call::Lent(n, seed) => {
+			Kind::Lent => {
 				format!(
 					"{}lent{n}({seed}) {{ {}digest{n}($0) }}",
 					tr(&[format!("lent{n}")]),
 					closed(format!("digest{n}"))
 				)
 			}
-			Call::Peek(n, seed) => {
+			Kind::Peek => {
 				format!(
 					"{}peek{n}({seed}) {{ {}digest{n}($0) }}",
 					tr(&[format!("peek{n}")]),
 					closed(format!("digest{n}"))
 				)
 			}
-			Call::Made(n, seed) => {
+			Kind::Made => {
 				format!(
 					"{}made{n}({seed}) {{ {}make{n}($0) }}",
 					tr(&[format!("made{n}")]),
@@ -1256,7 +1845,7 @@ fn swift(calls: &[Call], source: &str) -> String {
 				)
 			}
 			// The future throws, so `try` always marks the call.
-			Call::Later(n, seed) => format!("try await digest{n}(later{n}(make{n}({seed})))"),
+			Kind::Later => format!("try await digest{n}(later{n}(make{n}({seed})))"),
 		};
 		format!("\tprint(\"{} \\({value})\")", call.label())
 	});
@@ -1342,15 +1931,16 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		);
 	}
 	for call in calls {
-		let n = call.shape();
-		let printed = match *call {
-			Call::Echo(n, seed) => {
+		let Call { n, seed, .. } = *call;
+		let printed = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => {
 				let made = value(&format!("Make{n}"), format!("s.Make{n}({seed})"));
 				let echoed = value(&format!("Echo{n}"), format!("s.Echo{n}({made})"));
 				format!("one(s.Digest{n}({echoed}))")
 			}
-			Call::Lent(_, seed) | Call::Peek(_, seed) => {
-				let item = if matches!(call, Call::Lent(..)) { "Lent" } else { "Peek" };
+			Kind::Lent | Kind::Peek => {
+				let item = if call.kind == Kind::Lent { "Lent" } else { "Peek" };
 				let lift = if results(&format!("Digest{n}")).1 {
 					"liftErr"
 				} else {
@@ -1367,7 +1957,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 				};
 				format!("s.{item}{n}({seed}, {adapt}({lift}(s.Digest{n})))")
 			}
-			Call::Made(_, seed) => {
+			Kind::Made => {
 				let lift = if results(&format!("Make{n}")).1 {
 					"liftErr"
 				} else {
@@ -1375,7 +1965,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 				};
 				format!("s.Made{n}({seed}, {lift}(s.Make{n}))")
 			}
-			Call::Later(_, seed) => {
+			Kind::Later => {
 				let made = value(&format!("Make{n}"), format!("s.Make{n}({seed})"));
 				let later = value(&format!("Later{n}"), format!("s.Later{n}(ctx, {made})"));
 				format!("one(s.Digest{n}({later}))")
@@ -1402,12 +1992,14 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 	for call in calls {
 		// A seed as the `int` of its bits.
 		let u = |seed: u64| format!("s.U64.fromBits({})", seed as i64);
-		let value = match *call {
-			Call::Echo(n, seed) => format!("s.digest{n}(s.echo{n}(s.make{n}({})))", u(seed)),
-			Call::Lent(n, seed) => format!("s.lent{n}({}, s.digest{n})", u(seed)),
-			Call::Peek(n, seed) => format!("s.peek{n}({}, s.digest{n})", u(seed)),
-			Call::Made(n, seed) => format!("s.made{n}({}, s.make{n})", u(seed)),
-			Call::Later(n, seed) => format!("s.digest{n}(await s.later{n}(s.make{n}({})))", u(seed)),
+		let Call { n, seed, .. } = *call;
+		let value = match call.kind {
+			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Echo => format!("s.digest{n}(s.echo{n}(s.make{n}({})))", u(seed)),
+			Kind::Lent => format!("s.lent{n}({}, s.digest{n})", u(seed)),
+			Kind::Peek => format!("s.peek{n}({}, s.digest{n})", u(seed)),
+			Kind::Made => format!("s.made{n}({}, s.make{n})", u(seed)),
+			Kind::Later => format!("s.digest{n}(await s.later{n}(s.make{n}({})))", u(seed)),
 		};
 		let _ = writeln!(body, "  print('{} ${{({value}).toRadixString(10)}}');", call.label());
 	}
@@ -1419,10 +2011,12 @@ fn round_trip(built: &Built, language: &str) {
 	let name = built.name();
 	let dir = built.dir(language);
 	let exe = dir.join(format!("shapes{}", std::env::consts::EXE_SUFFIX));
-	let known = built.known(language);
-	let calls: Vec<Call> = (built.krate.calls.iter().copied())
-		.filter(|call| !known.contains(&call.shape()))
-		.collect();
+	let transcript = match language {
+		"web" => built.wasm_transcript(),
+		_ => &built.krate.transcript,
+	};
+	let expected = built.expected(language, transcript);
+	let calls: Vec<Call> = expected.iter().map(|(call, _)| *call).collect();
 	let calls = &calls[..];
 	let output = match language {
 		"c" => {
@@ -1579,22 +2173,30 @@ fn round_trip(built: &Built, language: &str) {
 		}
 		_ => unreachable!("no driver for {language}"),
 	};
-	built.check(language, &known, &output);
+	built.check(language, &expected, &output);
 }
 
 /// The gate's subset of shapes, built once.
 fn gated() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
-	BUILT.get_or_init(|| build("shapes", &gate()))
+	BUILT.get_or_init(|| build("shapes", &gate(), None))
 }
 
-/// Every sampled shape, built once: the nightly's.
+/// The nightly's shapes, built once: the fixed set, then as many again drawn from the
+/// day's seed.
 fn sampled() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
-	BUILT.get_or_init(|| build("sampled", &shapes(SAMPLES)))
+	BUILT.get_or_init(|| {
+		let mut all = shapes(SAMPLES);
+		let fixed = all.len();
+		let seed = day_seed();
+		eprintln!("the nightly's new shapes are drawn from seed {seed}: RUST2_SHAPES_SEED={seed} reproduces them");
+		all.extend(drawn(seed, SAMPLES));
+		build("sampled", &all, Some((fixed, seed)))
+	})
 }
 
-/// How many shapes the nightly samples beyond each leaf in each wrapper.
+/// How many shapes the nightly samples from each seed.
 const SAMPLES: usize = 64;
 
 macro_rules! languages {
@@ -1621,3 +2223,10 @@ macro_rules! languages {
 }
 
 languages!(c, cpp, kotlin, python, swift, go, dart);
+
+#[test]
+fn inspect() {
+	let built = gated();
+	eprintln!("{}", built.out.display());
+	built.web();
+}

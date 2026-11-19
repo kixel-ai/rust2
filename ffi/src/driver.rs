@@ -169,19 +169,17 @@ impl Callbacks for Export {
 				Output::Dir(_) | Output::Api(_) => &[],
 			},
 		};
-		let collected = collect::collect(tcx, &facade);
-		let report = &collected.report;
+		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
-			// Swift exports the API without what takes a JNI value, as the export does.
-			let rest = collected.api.without_jni();
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
-				.into_iter()
-				.map(|(f, _)| f.shown.clone())
-				.collect();
-			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
+			// What Swift refuses needs its exclude, as the export says, so it is a refusal and
+			// not exporting.
+			let (api, swift) = swift_refused(&collected.api, &self.facade.lib);
+			let refused: FxHashSet<_> = swift.iter().map(|r| r.path.clone()).collect();
+			let report = &mut collected.report;
+			report.refusals.extend(swift.into_iter().map(|r| r.refusal));
+			let exporting = exporting(&collected.api, &report.audited, &refused);
+			let text = census::render(&api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -200,6 +198,7 @@ impl Callbacks for Export {
 			}
 			return stop_on_errors(tcx);
 		}
+		let report = &collected.report;
 		for refusal in &report.refusals {
 			refuse(tcx, refusal, "exclude it in the config to leave it out");
 		}
@@ -233,6 +232,57 @@ impl Callbacks for Export {
 			tcx.dcx().err(format!("rust2-ffi: {err}"));
 		}
 		stop_on_errors(tcx)
+	}
+}
+
+/// A function or method Swift refuses, by its shown path, as a census refusal.
+struct SwiftRefused {
+	path: ir::Path,
+	refusal: collect::Refusal,
+}
+
+/// `api` without what Swift refuses, and each it refuses, which the census adds to its
+/// config: to a fixed point, since leaving out a function that throws an object bare can
+/// make that object noncopyable, refusing another that throws it inside a value. Swift
+/// exports the API without what takes a JNI value, as the export does.
+fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<SwiftRefused>) {
+	let mut api = api.clone();
+	let mut refused = Vec::new();
+	loop {
+		let abi = Abi::new(&api, lib);
+		let rest = api.without_jni();
+		// A function refused for each of several reasons is one refusal of them all, its
+		// reasons in a row.
+		let mut found: Vec<SwiftRefused> = Vec::new();
+		for r in crate::swift::refusals(&abi.without_jni(&rest)) {
+			let why = collect::Why {
+				construct: r.construct,
+				detail: String::new(),
+				note: None,
+			};
+			match found.last_mut() {
+				Some(last) if last.path == r.function.shown => last.refusal.why.push(why),
+				_ => found.push(SwiftRefused {
+					path: r.function.shown.clone(),
+					refusal: collect::Refusal {
+						path: r.function.shown[1..].join("::"),
+						kind: r.kind,
+						span: r.function.span,
+						why: vec![why],
+					},
+				}),
+			}
+		}
+		if found.is_empty() {
+			return (api, refused);
+		}
+		let gone: FxHashSet<&ir::Path> = found.iter().map(|r| &r.path).collect();
+		let keep = |methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(&f.shown));
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		refused.extend(found);
 	}
 }
 
@@ -462,10 +512,15 @@ impl Export {
 		}
 		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
 		let rest = api.without_jni();
-		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
+		for refusal in crate::swift::refusals(&abi.without_jni(&rest)) {
 			tcx.dcx().span_err(
-				function.span,
-				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
+				refusal.function.span,
+				format!(
+					"rust2-ffi: cannot export {} `{}`: {}; exclude it in the config to leave it out",
+					refusal.kind,
+					refusal.function.shown[1..].join("::"),
+					refusal.why
+				),
 			);
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
