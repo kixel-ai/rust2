@@ -4303,6 +4303,16 @@ fn array_of(s: Expr, read: &str) -> Expr {
 		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "sliceFrom") && args.len() == 1 => {
 			args.pop().unwrap()
 		}
+		// All of an array, made of its parts, as a local held as them makes it.
+		Expr::New(f, mut args)
+			if matches!(&*f, Expr::Rs(n) if n == "Slice")
+				&& let [items, start, length] = args.as_slice()
+				&& *start == Expr::lit("0")
+				&& items.is_path()
+				&& *length == items.clone().member("length") =>
+		{
+			args.swap_remove(0)
+		}
 		// All of the arrays of a slice of arrays, which only a read takes as they are.
 		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "arraySliceFrom") && read == "arraySliceItems" => {
 			args.swap_remove(0)
