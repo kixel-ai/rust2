@@ -1292,9 +1292,10 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const wrapped: rs.Vec<Wrap.Wrap<rs.u8>> = rs.vecFromElem(new Wrap.Wrap(a, b), n, copy$collections_Wrap_u8);
 	if (n > 0) {
 		const items: Wrap.Wrap<rs.u8>[] = wrapped.items;
+		const length: number = items.length;
 		const _197: rs.usize = rs.usizeSub(n, 1);
-		if (_197 >= items.length) {
-			rs.panic("index out of bounds: the len is " + items.length + " but the index is " + _197);
+		if (_197 >= length) {
+			rs.panic("index out of bounds: the len is " + length + " but the index is " + _197);
 		}
 		items[_197].count = items[_197].count ^ 255;
 	}

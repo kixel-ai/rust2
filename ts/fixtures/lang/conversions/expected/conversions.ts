@@ -777,26 +777,27 @@ export function lentParam$Option_u16(to: rs.Place<rs.u16 | undefined>, data: rs.
 	s.data[s.start] = swapped2;
 	put$conversions_Value_Option_u16(other, out);
 	const items: Array<rs.u16 | undefined> = rs.vecFrom([make$conversions_Value_Option_u16(data, 20), make$conversions_Value_Option_u16(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	const swapped3 = s.data[s.start];
 	s.data[s.start] = items[1];
 	items[1] = swapped3;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	const swapped4 = items[0];
 	items[0] = s.data[s.start];
 	s.data[s.start] = swapped4;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_Option_u16(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_Option_u16(items[1], out);
 	rs.idx(s, 0);
@@ -864,22 +865,23 @@ export function lentParam$String(to: rs.String, data: rs.ByteSlice, out: rs.Byte
 	other = rs.sliceReplace(s.data, s.start, other);
 	put$conversions_Value_String(other, out);
 	const items: rs.String[] = rs.vecFrom([make$conversions_Value_String(data, 20), make$conversions_Value_String(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	rs.sliceSwapAcross(s.data, s.start, items, 1);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	rs.sliceSwapAcross(items, 0, s.data, s.start);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_String(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_String(items[1], out);
 	rs.idx(s, 0);
@@ -944,22 +946,23 @@ export function lentParam$Vec_u32(to: rs.Vec<rs.u32>, data: rs.ByteSlice, out: r
 	other = rs.sliceReplace(s.data, s.start, other);
 	put$conversions_Value_Vec_u32(other, out);
 	const items: rs.Vec<rs.u32>[] = rs.vecFrom([make$conversions_Value_Vec_u32(data, 20), make$conversions_Value_Vec_u32(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	rs.sliceSwapAcross(s.data, s.start, items, 1);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	rs.sliceSwapAcross(items, 0, s.data, s.start);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_Vec_u32(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_Vec_u32(items[1], out);
 	rs.idx(s, 0);
@@ -1024,22 +1027,23 @@ export function lentParam$Vec_u8(to: rs.ByteVec, data: rs.ByteSlice, out: rs.Byt
 	other = rs.sliceReplace(s.data, s.start, other);
 	put$conversions_Value_Vec_u8(other, out);
 	const items: rs.ByteVec[] = rs.vecFrom([make$conversions_Value_Vec_u8(data, 20), make$conversions_Value_Vec_u8(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	rs.sliceSwapAcross(s.data, s.start, items, 1);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	rs.sliceSwapAcross(items, 0, s.data, s.start);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_Vec_u8(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_Vec_u8(items[1], out);
 	rs.idx(s, 0);
@@ -1509,22 +1513,23 @@ export function lentParam$conversions_Logged(to: Logged.Logged, data: rs.ByteSli
 	Logged.put$conversions_Value(other, out);
 	const v: rs.Vec<Logged.Logged> = rs.vecFrom([Logged.make$conversions_Value(data, 20), Logged.make$conversions_Value(data, 21)]);
 	const items: Logged.Logged[] = v.items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	rs.sliceSwapAcross(s.data, s.start, items, 1);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	rs.sliceSwapAcross(items, 0, s.data, s.start);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	Logged.put$conversions_Value(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	Logged.put$conversions_Value(items[1], out);
 	rs.idx(s, 0);
@@ -1610,22 +1615,23 @@ export function lentParam$conversions_Named(to: Named.Named, data: rs.ByteSlice,
 	other = rs.sliceReplace(s.data, s.start, other);
 	Named.put$conversions_Value(other, out);
 	const items: Named.Named[] = rs.vecFrom([Named.make$conversions_Value(data, 20), Named.make$conversions_Value(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	rs.sliceSwapAcross(s.data, s.start, items, 1);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	rs.sliceSwapAcross(items, 0, s.data, s.start);
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	Named.put$conversions_Value(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	Named.put$conversions_Value(items[1], out);
 	rs.idx(s, 0);
@@ -1699,26 +1705,27 @@ export function lentParam$u32(to: rs.Place<rs.u32>, data: rs.ByteSlice, out: rs.
 	s.data[s.start] = swapped2;
 	put$conversions_Value_u32(other, out);
 	const items: rs.u32[] = rs.vecFrom([make$conversions_Value_u32(data, 20), make$conversions_Value_u32(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	const swapped3 = s.data[s.start];
 	s.data[s.start] = items[1];
 	items[1] = swapped3;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	const swapped4 = items[0];
 	items[0] = s.data[s.start];
 	s.data[s.start] = swapped4;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_u32(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_u32(items[1], out);
 	rs.idx(s, 0);
@@ -1790,26 +1797,27 @@ export function lentParam$u64(to: rs.Place<rs.u64>, data: rs.ByteSlice, out: rs.
 	s.data[s.start] = swapped2;
 	put$conversions_Value_u64(other, out);
 	const items: rs.u64[] = rs.vecFrom([make$conversions_Value_u64(data, 20), make$conversions_Value_u64(data, 21)]).items;
+	const length: number = items.length;
 	rs.idx(s, 0);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	const swapped3 = s.data[s.start];
 	s.data[s.start] = items[1];
 	items[1] = swapped3;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	rs.idx(s, 0);
 	const swapped4 = items[0];
 	items[0] = s.data[s.start];
 	s.data[s.start] = swapped4;
-	if (0 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 0);
+	if (0 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 0);
 	}
 	put$conversions_Value_u64(items[0], out);
-	if (1 >= items.length) {
-		rs.panic("index out of bounds: the len is " + items.length + " but the index is " + 1);
+	if (1 >= length) {
+		rs.panic("index out of bounds: the len is " + length + " but the index is " + 1);
 	}
 	put$conversions_Value_u64(items[1], out);
 	rs.idx(s, 0);

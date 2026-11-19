@@ -563,9 +563,10 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const w: rs.Vec<rs.u32> = v4;
 			const from2: number = rs.usizeAdd(rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 361, col: 31 }), 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 361, col: 31 });
 			const items4: rs.u32[] = w.items;
-			rs.rangeCheck(items4.length, from2, items4.length, { file: "fixtures/lang/panics/src/hooked.rs", line: 361, col: 30 });
-			rs.sliceReverse(new rs.Slice(items4, from2, items4.length - from2));
-			rs.byteVecPush(out, (items4.length - from2) & 0xff);
+			const length4: number = items4.length;
+			rs.rangeCheck(length4, from2, length4, { file: "fixtures/lang/panics/src/hooked.rs", line: 361, col: 30 });
+			rs.sliceReverse(new rs.Slice(items4, from2, length4 - from2));
+			rs.byteVecPush(out, (length4 - from2) & 0xff);
 		} else if (k === 88) {
 			const w2: rs.Vec<rs.u64> = rs.vecFromElem(n as rs.u64, 2, undefined);
 			const to: number = rs.usizeAdd(rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 367, col: 33 }), 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 367, col: 33 });
@@ -583,14 +584,15 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, (1 - from) & 0xff);
 		} else if (k === 90) {
 			const items: rs.u32[] = rs.vecFromElem(n as rs.u32, 2, undefined).items;
+			const length: number = items.length;
 			const mid: number = rs.usizeAdd(rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 378, col: 41 }), 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 378, col: 41 });
-			if (mid > items.length) {
+			if (mid > length) {
 				rs.panic("mid > len", { file: "fixtures/lang/panics/src/hooked.rs", line: 378, col: 28 });
 			}
 			if (0 >= mid) {
 				rs.panicSizes(["index out of bounds: the len is ", mid, " but the index is ", 0], { file: "fixtures/lang/panics/src/hooked.rs", line: 379, col: 13 });
 			}
-			items[0] = items.length - mid as rs.u32;
+			items[0] = length - mid as rs.u32;
 			if (0 >= mid) {
 				rs.panicSizes(["index out of bounds: the len is ", mid, " but the index is ", 0], { file: "fixtures/lang/panics/src/hooked.rs", line: 380, col: 22 });
 			}

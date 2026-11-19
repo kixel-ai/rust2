@@ -2062,10 +2062,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let vec_ty = self.b.t.ty(ty, span);
 				let (vec, _) = self.steady_value(vec, "vec", vec_ty, out);
 				let items_ty = self.b.t.part_ty(Part::Data(elem), span);
-				// What it holds stays put while the slice borrows it.
+				// Its array stays put while the slice borrows it, but its length is read now:
+				// a length read from the slice may be held past a push that changes it.
 				let (items, _) = self.steady_value(vec.member("items"), "items", items_ty, out);
-				let length = items.clone().member("length");
-				[(items, true), (Expr::lit("0"), true), (length, true)]
+				let length = self.steady_value(items.clone().member("length"), "length", Type::Builtin("number"), out);
+				[(items, true), (Expr::lit("0"), true), length]
 			}
 			_ => self.slice_parts(container, span, out),
 		};

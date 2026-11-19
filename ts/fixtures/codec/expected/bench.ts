@@ -790,8 +790,9 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 							c = l;
 						}
 						const items2: rs.u64[] = v.items;
+						const length2: number = items2.length;
 						const mid: number = c;
-						if (mid > items2.length) {
+						if (mid > length2) {
 							rs.panic("mid > len");
 						}
 						const _67: rs.usize = i;
@@ -799,16 +800,16 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 							rs.panic("index out of bounds: the len is " + mid + " but the index is " + _67);
 						}
 						const _66: rs.u64 = items2[_67];
-						if (0 >= items2.length - mid) {
-							rs.panic("index out of bounds: the len is " + (items2.length - mid) + " but the index is " + 0);
+						if (0 >= length2 - mid) {
+							rs.panic("index out of bounds: the len is " + (length2 - mid) + " but the index is " + 0);
 						}
 						if (!rs.u64Le(_66, items2[mid])) {
 							const _78: rs.usize = i;
 							if (_78 >= mid) {
 								rs.panic("index out of bounds: the len is " + mid + " but the index is " + _78);
 							}
-							if (0 >= items2.length - mid) {
-								rs.panic("index out of bounds: the len is " + (items2.length - mid) + " but the index is " + 0);
+							if (0 >= length2 - mid) {
+								rs.panic("index out of bounds: the len is " + (length2 - mid) + " but the index is " + 0);
 							}
 							const swapped = items2[_78];
 							items2[_78] = items2[mid];

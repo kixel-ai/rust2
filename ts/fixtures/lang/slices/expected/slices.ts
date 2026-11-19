@@ -1052,13 +1052,13 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			if (_95 !== undefined) {
 				_95.v = 48879;
 			}
-			const items5: Pair.Pair[] = pairs.items;
-			rs.rangeCheck(items5.length, 0, b);
+			const items7: Pair.Pair[] = pairs.items;
+			rs.rangeCheck(items7.length, 0, b);
 			const from: number = rs.usizeDiv(a, 2);
 			rs.rangeCheck(b, from, b);
 			const part4 = rs.min(1, b - from);
-			pokePairs(3, rs.sliceRange(new rs.Slice(items5, from, b - from), part4));
-			rs.sliceReverse(new rs.Slice(items5, 0, b));
+			pokePairs(3, rs.sliceRange(new rs.Slice(items7, from, b - from), part4));
+			rs.sliceReverse(new rs.Slice(items7, 0, b));
 		} else if (_45 === 3) {
 			const _114: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(rs.sliceFrom(words.items), a);
 			pokeWords(5, _114[0]);
@@ -1093,25 +1093,28 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				pokeWords(7, _151[1]);
 			}
 			const n2: rs.usize = pairs.items.length;
-			const items2: Pair.Pair[] = pairs.items;
-			if (0 > items2.length) {
+			const items4: Pair.Pair[] = pairs.items;
+			const length4: number = items4.length;
+			if (0 > length4) {
 				rs.panic("mid > len");
 			}
-			pokePairs(6, new rs.Slice(items2, 0, items2.length));
+			pokePairs(6, new rs.Slice(items4, 0, length4));
 			rs.byteVecPush(out, 0 & 0xff);
-			const items3: Pair.Pair[] = pairs.items;
-			if (n2 > items3.length) {
+			const items5: Pair.Pair[] = pairs.items;
+			const length5: number = items5.length;
+			if (n2 > length5) {
 				rs.panic("mid > len");
 			}
-			pokePairs(7, new rs.Slice(items3, 0, n2));
-			rs.byteVecPush(out, (items3.length - n2) & 0xff);
+			pokePairs(7, new rs.Slice(items5, 0, n2));
+			rs.byteVecPush(out, (length5 - n2) & 0xff);
 			const n3: rs.usize = words.items.length;
-			const items4: rs.u16[] = words.items;
-			if (n3 > items4.length) {
+			const items6: rs.u16[] = words.items;
+			const length6: number = items6.length;
+			if (n3 > length6) {
 				rs.panic("mid > len");
 			}
-			pokeWords(8, new rs.Slice(items4, 0, n3));
-			rs.byteVecPush(out, (items4.length - n3) & 0xff);
+			pokeWords(8, new rs.Slice(items6, 0, n3));
+			rs.byteVecPush(out, (length6 - n3) & 0xff);
 			const _195: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(rs.sliceFrom(words.items), rs.min(a, n3));
 			const _201: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(_195[1], rs.min(b, rs.usizeSub(n3, rs.min(a, n3))));
 			pokeWords(9, _201[1]);
@@ -1151,12 +1154,13 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				pokeArray(_252[1]);
 			}
 		} else if (_45 === 6) {
-			const items: rs.u16[] = words.items;
-			if (items.length >= 2) {
-				const mid: rs.Slice<rs.u16> = new rs.Slice(items, 1, items.length - 2);
-				const swapped = items[0];
-				items[0] = items[items.length - 1];
-				items[items.length - 1] = swapped;
+			const items3: rs.u16[] = words.items;
+			const length3: number = items3.length;
+			if (length3 >= 2) {
+				const mid: rs.Slice<rs.u16> = new rs.Slice(items3, 1, length3 - 2);
+				const swapped = items3[0];
+				items3[0] = items3[length3 - 1];
+				items3[length3 - 1] = swapped;
 				pokeWords(13, mid);
 			}
 			const _271: rs.Slice<Pair.Pair> = rs.sliceFrom(pairs.items);
@@ -1188,36 +1192,42 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _323: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(rs.sliceFrom(words.items), l4);
 			pokeWords(14, _323[1]);
 			rs.byteVecPush(out, rs.ptrOffsetFrom(rs.sliceAsPtr(_323[1]), rs.sliceAsPtr(_323[0])) & 0xff);
+			const n5: rs.usize = words.items.length;
+			words.items.push(a & 0xffff);
+			const length2: number = words.items.length;
+			rs.rangeCheck(length2, 1, length2);
+			rs.vecTruncate(words, n5);
+			rs.byteVecPush(out, rs.usizeAdd(rs.usizeMul(n5, 16), length2 - 1) & 0xff);
 		} else {
-			const _336: [rs.ByteSlice, rs.ByteSlice] = rs.byteSliceSplitAt(rs.byteVecSlice(bytes), a);
-			rs.byteSliceView(_336[0]).reverse();
-			const _340: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(_336[1]);
-			if (_340 !== undefined) {
-				_340.v = _340.v ^ 255;
+			const _354: [rs.ByteSlice, rs.ByteSlice] = rs.byteSliceSplitAt(rs.byteVecSlice(bytes), a);
+			rs.byteSliceView(_354[0]).reverse();
+			const _358: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(_354[1]);
+			if (_358 !== undefined) {
+				_358.v = _358.v ^ 255;
 			}
-			const _343: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(_336[0]);
-			if (_343 !== undefined) {
-				_343.v = rs.u8WrappingAdd(_343.v, 1);
+			const _361: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(_354[0]);
+			if (_361 !== undefined) {
+				_361.v = rs.u8WrappingAdd(_361.v, 1);
 			}
-			const _348: [rs.Place<rs.u8>, rs.ByteSlice] | undefined = rs.byteSliceSplitFirstMut(rs.byteVecSlice(bytes));
-			if (_348 !== undefined) {
-				_348[0].v = _348[1].length & 0xff;
-				rs.byteSliceView(_348[1]).reverse();
+			const _366: [rs.Place<rs.u8>, rs.ByteSlice] | undefined = rs.byteSliceSplitFirstMut(rs.byteVecSlice(bytes));
+			if (_366 !== undefined) {
+				_366[0].v = _366[1].length & 0xff;
+				rs.byteSliceView(_366[1]).reverse();
 			}
-			const _357: [rs.Place<rs.u8>, rs.ByteSlice] | undefined = rs.byteSliceSplitLastMut(rs.byteVecSlice(bytes));
-			if (_357 !== undefined) {
-				_357[0].v = rs.u8WrappingMul(_357[0].v, 3);
-				const _365: rs.Place<rs.u8> | undefined = rs.sliceLastMut(_357[1]);
-				if (_365 !== undefined) {
-					_365.v = 17;
+			const _375: [rs.Place<rs.u8>, rs.ByteSlice] | undefined = rs.byteSliceSplitLastMut(rs.byteVecSlice(bytes));
+			if (_375 !== undefined) {
+				_375[0].v = rs.u8WrappingMul(_375[0].v, 3);
+				const _383: rs.Place<rs.u8> | undefined = rs.sliceLastMut(_375[1]);
+				if (_383 !== undefined) {
+					_383.v = 17;
 				}
 			}
-			const _368: [rs.ByteSlice, rs.ByteSlice] | undefined = rs.byteSliceSplitAtChecked(rs.byteVecSlice(bytes), b);
-			if (_368 === undefined) {
+			const _386: [rs.ByteSlice, rs.ByteSlice] | undefined = rs.byteSliceSplitAtChecked(rs.byteVecSlice(bytes), b);
+			if (_386 === undefined) {
 				rs.byteVecPush(out, 238);
 			} else {
-				rs.byteSliceView(_368[1]).reverse();
-				rs.byteVecPush(out, _368[0].length & 0xff);
+				rs.byteSliceView(_386[1]).reverse();
+				rs.byteVecPush(out, _386[0].length & 0xff);
 			}
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
@@ -1841,9 +1851,10 @@ export function ranges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				pokePairs(15, _530[1]);
 			}
 			const items: Pair.Pair[] = pairs.items;
-			if (items.length >= 2) {
-				if (0 >= items.length - 2) {
-					rs.panic("index out of bounds: the len is " + (items.length - 2) + " but the index is " + 0);
+			const length: number = items.length;
+			if (length >= 2) {
+				if (0 >= length - 2) {
+					rs.panic("index out of bounds: the len is " + (length - 2) + " but the index is " + 0);
 				}
 				rs.sliceSwapAcross(items, 0, items, 2);
 				items[1].a = 3;
@@ -2090,18 +2101,20 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteSliceCopyWithin(_313, bounds2[0], bounds2[1], c);
 		} else if (_60 === 5) {
 			const items5: rs.u16[] = words.items;
-			if (a > items5.length) {
+			const length4: number = items5.length;
+			if (a > length4) {
 				rs.panic("mid > len");
 			}
-			const n3: rs.usize = rs.min(a, items5.length - a);
-			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items5, 0, a), 0, n3), rs.sliceRange(new rs.Slice(items5, a, items5.length - a), 0, n3));
+			const n3: rs.usize = rs.min(a, length4 - a);
+			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items5, 0, a), 0, n3), rs.sliceRange(new rs.Slice(items5, a, length4 - a), 0, n3));
 			const items6: Pair.Pair[] = pairs.items;
-			if (b > items6.length) {
+			const length5: number = items6.length;
+			if (b > length5) {
 				rs.panic("mid > len");
 			}
 			const l2: rs.Slice<Pair.Pair> = new rs.Slice(items6, 0, b);
-			const n4: rs.usize = rs.min(l2.length, items6.length - b);
-			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items6, b, items6.length - b), 0, n4), rs.sliceRange(l2, 0, n4), copy$slices_Pair);
+			const n4: rs.usize = rs.min(l2.length, length5 - b);
+			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items6, b, length5 - b), 0, n4), rs.sliceRange(l2, 0, n4), copy$slices_Pair);
 			const _350: Pair.Pair | undefined = rs.sliceFirst(l2);
 			if (_350 !== undefined) {
 				_350.b = 48879;
@@ -2140,19 +2153,21 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.sliceCloneFromSlice(rs.sliceRange(rs.sliceFrom(items.items), 0, n5), rs.sliceRange(rs.sliceFrom(source2.items), 0, n5), Noisy.clone$Clone, rs.drop);
 			flush(out);
 			const items3: Counted.Counted[] = counted.items;
-			if (a > items3.length) {
+			const length2: number = items3.length;
+			if (a > length2) {
 				rs.panic("mid > len");
 			}
-			const n6: rs.usize = rs.min(a, items3.length - a);
-			rs.sliceCloneFromSlice(rs.sliceRange(new rs.Slice(items3, 0, a), 0, n6), rs.sliceRange(new rs.Slice(items3, a, items3.length - a), 0, n6), Counted.clone$Clone);
+			const n6: rs.usize = rs.min(a, length2 - a);
+			rs.sliceCloneFromSlice(rs.sliceRange(new rs.Slice(items3, 0, a), 0, n6), rs.sliceRange(new rs.Slice(items3, a, length2 - a), 0, n6), Counted.clone$Clone);
 			flush(out);
 			const items4: Pair.Pair[] = pairs.items;
-			if (a > items4.length) {
+			const length3: number = items4.length;
+			if (a > length3) {
 				rs.panic("mid > len");
 			}
 			const l4: rs.Slice<Pair.Pair> = new rs.Slice(items4, 0, a);
-			const n7: rs.usize = rs.min(l4.length, items4.length - a);
-			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items4, a, items4.length - a), 0, n7), rs.sliceRange(l4, 0, n7), copy$slices_Pair);
+			const n7: rs.usize = rs.min(l4.length, length3 - a);
+			rs.sliceCopyFromSlice(rs.sliceRange(new rs.Slice(items4, a, length3 - a), 0, n7), rs.sliceRange(l4, 0, n7), copy$slices_Pair);
 			const _434: Pair.Pair | undefined = rs.sliceFirst(l4);
 			if (_434 !== undefined) {
 				_434.b = 48879;
@@ -2205,8 +2220,9 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 			}
 			const items2: Counted.Counted[] = counted.items;
-			if (items2.length >= 1) {
-				rs.sliceCopyFromSlice(new rs.Slice(items2, 0, 1), rs.sliceRange(new rs.Slice(items2, 1, items2.length - 1), 0, rs.min(1, items2.length - 1)));
+			const length: number = items2.length;
+			if (length >= 1) {
+				rs.sliceCopyFromSlice(new rs.Slice(items2, 0, 1), rs.sliceRange(new rs.Slice(items2, 1, length - 1), 0, rs.min(1, length - 1)));
 			}
 			flush(out);
 		}
@@ -3763,10 +3779,11 @@ export function arrayParts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _27: rs.u8 = rs.u8Rem(kind, 4);
 	if (_27 === 0) {
 		const items: rs.u32[] = words.items;
-		if (1 > items.length) {
+		const length: number = items.length;
+		if (1 > length) {
 			rs.panic("mid > len");
 		}
-		const rest: rs.Slice<rs.u32> = new rs.Slice(items, 1, items.length - 1);
+		const rest: rs.Slice<rs.u32> = new rs.Slice(items, 1, length - 1);
 		putWords(rs.sliceFrom(rs.sliceReplaceAll(rs.optionUnwrap(rs.sliceGetRange(rest, 0, 2)), [n, rs.u32Add(n, 1)])), out);
 		const _45: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceRange(rest, 2), 2));
 		const y: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_45[1], 0, 2));
