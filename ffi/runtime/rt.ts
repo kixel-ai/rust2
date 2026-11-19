@@ -187,8 +187,10 @@ let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
 /** A view of the module's memory, made again once memory grows, which detaches the last. */
 export function dv(): DataView {
 	if (view.buffer !== memory.buffer) {
-		view = new DataView(memory.buffer);
-		bytes = new Uint8Array(memory.buffer);
+		// Never shared: the module is built without threads. Deno's types say it may be.
+		const buffer = memory.buffer as ArrayBuffer;
+		view = new DataView(buffer);
+		bytes = new Uint8Array(buffer);
 	}
 	return view;
 }
@@ -1505,7 +1507,8 @@ async function instantiate(source: Source, glue: Glue): Promise<void> {
 	if (source instanceof URL) source = await fetchUrl(source);
 	if (source instanceof WebAssembly.Module) module = source;
 	else if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) module = await WebAssembly.compile(source);
-	else module = await WebAssembly.compileStreaming(source as Response | PromiseLike<Response>);
+	// A promise of its own, as Deno's types take no other thenable.
+	else module = await WebAssembly.compileStreaming(Promise.resolve(source as Response | PromiseLike<Response>));
 	const rust = rust2(glue.imports as Record<string, (...args: number[]) => unknown>);
 	for (const i of WebAssembly.Module.imports(module)) {
 		// Its own, not what every object inherits, such as `toString`.

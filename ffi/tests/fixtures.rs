@@ -1321,7 +1321,7 @@ fn wasm_transcript() -> String {
 }
 
 /// The api fixture's web binding, beside a copy of `tests/api.ts` as a caller's project
-/// holds it, type-checked with no issue, and the module the crate's `web` feature builds
+/// holds it, type-checked with no issue by `tsc` and by Deno, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
 struct Web {
 	dir: PathBuf,
@@ -1347,6 +1347,13 @@ fn web() -> &'static Web {
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
+		// Deno's own types too, which JSR checks a package with as it publishes.
+		run(Command::new("deno")
+			.args(["check", "api.ts"])
+			.current_dir(&dir)
+			.env("DENO_DIR", scratch().join("deno"))
+			.env("DENO_NO_UPDATE_CHECK", "1")
+			.env("NO_COLOR", "1"));
 		Web {
 			dir,
 			wasm: target.join(WEB).join("debug").join("api.wasm"),

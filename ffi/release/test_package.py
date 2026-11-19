@@ -182,6 +182,80 @@ class Template(unittest.TestCase):
         with self.assertRaises(SystemExit):
             package.template(info("/src"), "Cargo.toml", "a" * 40, "moq-swift-ffi")
 
+    def test_web_lines_follow_the_scope(self):
+        shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq")
+        self.assertIn("\n      web-manifest-path: rs/moq-ffi/Cargo.toml\n      scope: moq\n", shipped)
+        self.assertIn("@moq/moq-ffi on npm and JSR", shipped)
+        none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi")
+        self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
+        self.assertNotIn("\n      web-manifest-path:", none)
+        self.assertNotRegex(none, r"@[A-Z_]+@")
+
+
+def web_export(root, version="0.4.12"):
+    """The parts of an export's web/ directory a web package reads."""
+    web = root / "web"
+    web.mkdir(parents=True)
+    for stem in ("index", "rt", "glue", "Session"):
+        (web / f"{stem}.ts").write_text(f"// {stem}\n")
+        (web / f"{stem}.js").write_text(f"// {stem}\n")
+        (web / f"{stem}.d.ts").write_text(f"// {stem}\n")
+    manifest = {"name": "moq-ffi", "version": version, "description": "generated", "type": "module",
+                "sideEffects": False, "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}}}
+    (web / "package.json").write_text(package.json.dumps(manifest))
+    (root / "moq.wasm").write_bytes(b"\0asm\1\0\0\0")
+    return web
+
+
+class Web(unittest.TestCase):
+    def test_npm_and_jsr_layouts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "LICENSE-MIT").write_text("MIT\n")
+            web = web_export(root / "export")
+            npm, jsr = package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertEqual(sorted(p.name for p in npm.iterdir()), [
+                "LICENSE-MIT", "Session.d.ts", "Session.js", "glue.d.ts", "glue.js", "index.d.ts", "index.js",
+                "moq.wasm", "package.json", "rt.d.ts", "rt.js"])
+            self.assertEqual(sorted(p.name for p in jsr.iterdir()), [
+                "LICENSE-MIT", "Session.ts", "glue.ts", "index.ts", "jsr.json", "moq.wasm", "rt.ts"])
+            manifest = package.json.loads((npm / "package.json").read_text())
+            self.assertEqual(list(manifest)[:6], ["name", "version", "description", "license", "repository", "type"])
+            self.assertEqual(manifest["name"], "@moq/moq-ffi")
+            self.assertEqual(manifest["description"], "Media over QUIC, bindings")
+            self.assertEqual(manifest["repository"], {"type": "git", "url": "git+https://github.com/moq-dev/moq"})
+            self.assertEqual(manifest["exports"]["."]["types"], "./index.d.ts")
+            config = package.json.loads((jsr / "jsr.json").read_text())
+            self.assertEqual(config["name"], "@moq/moq-ffi")
+            self.assertEqual(config["exports"], {".": "./index.ts", "./Session": "./Session.ts", "./glue": "./glue.ts", "./rt": "./rt.ts"})
+
+    def test_refuses_another_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = web_export(root / "export", version="0.0.1")
+            with self.assertRaises(SystemExit):
+                package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+
+    def test_names_jsr_can_spell(self):
+        self.assertEqual(package.package_name(info("/src"), "moq"), "@moq/moq-ffi")
+        for scope in ("Moq", "-moq", "moq_dev", "m"):
+            with self.assertRaises(SystemExit):
+                package.package_name(info("/src"), scope)
+        with self.assertRaises(SystemExit):
+            package.package_name(info("/src", name="moq_ffi"), "moq")
+
+    def test_check_imports_the_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            check = Path(tmp) / "check.ts"
+            check.write_text('import * as api from "./web/index.ts";\nimport type * as rt from "./web/rt.ts";\n'
+                             'import * as Error_ from "./web/Error_.ts";\n')
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             'import * as api from "@moq/moq-ffi";\nimport type * as rt from "@moq/moq-ffi/rt";\n'
+                             'import * as Error_ from "@moq/moq-ffi/Error_";\n')
+            check.write_text('import * as api from "./web/nested/index.ts";\n')
+            with self.assertRaises(SystemExit):
+                package.check_program(check, "@moq/moq-ffi")
+
 
 if __name__ == "__main__":
     unittest.main()

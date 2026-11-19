@@ -1,4 +1,4 @@
-"""Build and check the Python wheels and Swift package of a crate's rust2-ffi export.
+"""Build and check the Python wheels, Swift package, and web package of a crate's rust2-ffi export.
 
 bindings.yml runs each step on the host it needs; release.yml is the caller `init` writes.
 Every fact about the package comes from Cargo metadata or the export, so nothing here
@@ -46,6 +46,19 @@ WHEEL_TARGETS = [
 # Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
 LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
 COLLECTIONS = "https://github.com/apple/swift-collections"
+# The target the web binding serves, whose module the npm and JSR packages hold.
+WEB_TARGET = "wasm32-wasip1"
+# JSR's cap on a version's files, unpacked.
+JSR_LIMIT = 20 * 1024 * 1024
+# The bundlers the web package's consumers build with, as an app would take them from npm.
+BUNDLERS = {"vite": "8.3.8", "webpack": "5.112.2", "webpack-cli": "7.3.1"}
+# Runs a WASI command module on Node: native Rust's output on the web binding's target.
+WASI_RUN = """import { WASI } from "node:wasi";
+import { readFileSync } from "node:fs";
+const wasi = new WASI({ version: "preview1", args: [], env: {}, returnOnExit: false });
+const module = await WebAssembly.compile(readFileSync(process.argv[1]));
+wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));
+"""
 SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(alpha|beta|rc)\.(0|[1-9][0-9]*))?")
 
 
@@ -538,12 +551,180 @@ def build(args):
         (out / "native.txt").write_bytes(native.stdout)
 
 
-def template(info, manifest, rust2, mirror):
-    """The caller workflow, with every identity Cargo cannot establish spelled out in it."""
+def package_name(info, scope):
+    """The web package's name on npm and JSR, `@<scope>/<crate>`, refusing what JSR cannot spell."""
+    name = f"@{scope}/{info['name']}"
+    if not re.fullmatch(r"@[a-z0-9][a-z0-9-]{1,19}/[a-z0-9][a-z0-9-]{1,57}", name):
+        raise SystemExit(f"{name} is no JSR package name: a scope and crate name of lowercase letters, digits, and hyphens")
+    return name
+
+
+def web_package(info, web_dir, wasm, scope, out):
+    """The npm package, the JavaScript and declarations, and the JSR package, the TypeScript,
+    each with the module beside them where `load` finds it and the license files."""
+    web_dir, out = Path(web_dir), Path(out)
+    lib, name = info["lib"], package_name(info, scope)
+    manifest = json.loads((web_dir / "package.json").read_text(encoding="utf-8"))
+    if manifest["version"] != info["version"]:
+        raise SystemExit(f"the export's package.json is {manifest['version']}, not the crate's {info['version']}")
+    npm, jsr = out / "npm", out / "jsr"
+    for part in (npm, jsr):
+        if part.exists():
+            shutil.rmtree(part)
+        part.mkdir(parents=True)
+        shutil.copy(wasm, part / f"{lib}.wasm")
+        for path in licenses(info):
+            shutil.copy(path, part)
+    modules = []
+    for path in sorted(web_dir.iterdir()):
+        if path.name.endswith(".d.ts") or path.suffix == ".js":
+            shutil.copy(path, npm)
+        elif path.suffix == ".ts":
+            shutil.copy(path, jsr)
+            modules.append(path.stem)
+    if "index" not in modules:
+        raise SystemExit(f"{web_dir} holds no web binding")
+    # What Cargo says of the package, beside what the export wrote.
+    said = {"name": name, "version": info["version"]}
+    if info["description"]:
+        said["description"] = " ".join(info["description"].split())
+    if info["license"]:
+        said["license"] = info["license"]
+    if info["repository"]:
+        said["repository"] = {"type": "git", "url": f"git+{info['repository']}"}
+    if info["homepage"]:
+        said["homepage"] = info["homepage"]
+    manifest = {**said, **{k: v for k, v in manifest.items() if k not in said}}
+    (npm / "package.json").write_text(json.dumps(manifest, indent="\t") + "\n", newline="\n", encoding="utf-8")
+    # JSR takes no export pattern: each module by its name. The module ships unexported,
+    # as Deno would link an exported one as a module of its own, whose imports none serves.
+    exports = {".": "./index.ts", **{f"./{m}": f"./{m}.ts" for m in modules if m != "index"}}
+    config = {"name": name, "version": info["version"]}
+    if info["license"]:
+        config["license"] = info["license"]
+    config["exports"] = exports
+    (jsr / "jsr.json").write_text(json.dumps(config, indent="\t") + "\n", newline="\n", encoding="utf-8")
+    size = sum(p.stat().st_size for p in jsr.iterdir())
+    if size > JSR_LIMIT:
+        raise SystemExit(f"the JSR package is {size} bytes, past JSR's {JSR_LIMIT}")
+    return npm, jsr
+
+
+def web(args):
+    """The web binding's npm tarball and JSR package, and native Rust's output on its target."""
+    info = facts(args.manifest_path)
+    if args.version and info["version"] != args.version:
+        raise SystemExit(f"{info['name']} is {info['version']}, not the release's {args.version}")
+    out = Path(args.out).resolve()
+    export_dir = out / "export"
+    exporter(args.manifest_path, args.features, "--target", WEB_TARGET, "--out", export_dir)
+    manifest = Path(args.manifest_path).resolve()
+    run("rustup", "target", "add", WEB_TARGET, cwd=manifest.parent)
+    built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
+                  "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web")
+    sys.stderr.write(built.stderr)
+    wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
+    npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)
+    packed = output("npm", "pack", "--silent", "--pack-destination", out, cwd=npm).strip()
+    if not (out / packed).is_file():
+        raise SystemExit(f"npm pack wrote no {packed}")
+    shutil.rmtree(export_dir)
+    if args.example:
+        if args.example not in info["examples"]:
+            raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
+        features = ["--features", args.features] if args.features.strip() else []
+        target_dir = out / "native-target"
+        cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", manifest, "--example",
+              args.example, "--target", WEB_TARGET, "--target-dir", target_dir, *features)
+        program = target_dir / WEB_TARGET / "release" / "examples" / f"{args.example}.wasm"
+        native = run("node", "--no-warnings", "--input-type=module", "-e", WASI_RUN, program, capture_output=True)
+        (out / "native.txt").write_bytes(native.stdout)
+        shutil.rmtree(target_dir)
+
+
+def check_program(check, name):
+    """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
+    text = Path(check).read_text(encoding="utf-8")
+    text = text.replace('"./web/index.ts"', json.dumps(name))
+    text = re.sub(r'"\./web/([A-Za-z0-9_$]+)\.ts"', lambda m: json.dumps(f"{name}/{m.group(1)}"), text)
+    if "./web/" in text:
+        raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
+    return text
+
+
+def consume_web(dist, check, native):
+    """Install the npm tarball into a new project, as an app would, and run the check, or else
+    a load, on Node, Deno, and Bun, and bundled by Vite and by webpack; and check the JSR
+    package as publishing it would."""
+    dist = Path(dist).resolve()
+    tarballs = list(dist.glob("*.tgz"))
+    if len(tarballs) != 1:
+        raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
+    name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
+    program = check_program(check, name) if check else (
+        f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n")
+    expected = Path(native).read_bytes() if native and check else None
+    with tempfile.TemporaryDirectory() as clean:
+        clean = Path(clean)
+        manifest = {"type": "module", "private": True, "dependencies": {name: f"file:{tarballs[0]}"},
+                    "devDependencies": BUNDLERS}
+        (clean / "package.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        run("npm", "install", "--no-audit", "--no-fund", "--ignore-scripts", cwd=clean, capture_output=True)
+        (clean / "check.ts").write_text(program, encoding="utf-8")
+        # The bundles target the browser, whose `document` Vite's preload polyfill reads;
+        # each runs on Node from where the bundler wrote it, a relative base reaching its module.
+        (clean / "index.html").write_text('<!doctype html><script type="module" src="./check.ts"></script>\n', encoding="utf-8")
+        (clean / "vite.config.js").write_text(
+            'export default { base: "./", build: { target: "es2024", modulePreload: { polyfill: false } } };\n', encoding="utf-8")
+        run("node", "--no-warnings", "--input-type=module", "-e",
+            'import { stripTypeScriptTypes } from "node:module"; import { readFileSync, writeFileSync } from "node:fs";'
+            ' writeFileSync("check.js", stripTypeScriptTypes(readFileSync("check.ts", "utf8")));', cwd=clean)
+        (clean / "webpack.config.js").write_text(
+            'export default { mode: "production", entry: "./check.js", target: ["web", "es2024"],'
+            ' experiments: { outputModule: true },'
+            ' output: { module: true, path: new URL("./webpack", import.meta.url).pathname, filename: "check.js" } };\n',
+            encoding="utf-8")
+        run("npx", "--no-install", "vite", "build", "--logLevel", "warn", cwd=clean, capture_output=True)
+        run("npx", "--no-install", "webpack", "--no-stats", cwd=clean, capture_output=True)
+        bundled = list((clean / "dist" / "assets").glob("*.js"))
+        if len(bundled) != 1:
+            raise SystemExit(f"Vite wrote {len(bundled)} scripts")
+        consumers = {
+            "Node": ["node", "check.ts"],
+            "Deno": ["deno", "run", "--allow-read", "--allow-env", "check.ts"],
+            "Bun": ["bun", "check.ts"],
+            "Vite": ["node", bundled[0]],
+            "webpack": ["node", "webpack/check.js"],
+        }
+        # JSR's own checks of the TypeScript package, its types against Deno's included.
+        run("deno", "publish", "--dry-run", "--allow-dirty", cwd=dist / "jsr", capture_output=True,
+            env={**os.environ, "NO_COLOR": "1", "DENO_NO_UPDATE_CHECK": "1"})
+        for consumer, command in consumers.items():
+            result = subprocess.run([str(a) for a in command], capture_output=True, cwd=clean,
+                                    env={**os.environ, "NO_COLOR": "1", "DENO_NO_UPDATE_CHECK": "1"})
+            sys.stderr.buffer.write(result.stderr)
+            if result.returncode:
+                raise SystemExit(f"{consumer} failed on the installed package with status {result.returncode}")
+            if expected is not None:
+                compare(expected, result.stdout, f"{consumer}'s installed package")
+
+
+def template(info, manifest, rust2, mirror, scope=None):
+    """The caller workflow, with every identity Cargo cannot establish spelled out in it.
+    With a scope, it ships the crate's own web package; without, the lines that would are
+    left commented out."""
     if not re.fullmatch(r"[0-9a-f]{40}", rust2):
         raise SystemExit("pin rust2 by a full commit SHA")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", mirror):
         raise SystemExit(f"the Swift mirror must be OWNER/REPO, not {mirror!r}")
+    indent = "      "
+    if scope:
+        name = package_name(info, scope)
+        web = (f"{indent}# The web package, {name} on npm and JSR: delete these two lines to ship none.\n"
+               f"{indent}web-manifest-path: {manifest}\n{indent}scope: {scope}")
+    else:
+        web = (f"{indent}# The web package on npm and JSR, @<scope>/{info['name']}, for a crate that builds for wasm32-wasip1:\n"
+               f"{indent}# web-manifest-path: {manifest}\n{indent}# scope: <scope>")
     values = {
         "NAME": info["name"],
         "MANIFEST": manifest,
@@ -552,6 +733,7 @@ def template(info, manifest, rust2, mirror):
         "MIRROR": mirror,
         "MIRROR_OWNER": mirror.split("/")[0],
         "MIRROR_REPO": mirror.split("/")[1],
+        "WEB": web,
     }
     text = (HERE / "release.yml").read_text(encoding="utf-8")
     for key, value in values.items():
@@ -570,7 +752,7 @@ def init(args):
     rust2 = args.rust2 or output("git", "-C", HERE, "rev-parse", "HEAD").strip()
     relative = manifest.resolve().relative_to(root).as_posix()
     path = root / ".github" / "workflows" / f"release-{info['name']}.yml"
-    text = template(info, relative, rust2, args.swift_mirror)
+    text = template(info, relative, rust2, args.swift_mirror, args.scope)
     if path.exists() and path.read_text(encoding="utf-8") != text:
         raise SystemExit(f"{path} exists; delete it to write the release workflow")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -596,6 +778,17 @@ def main():
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+    p = sub.add_parser("web", help="export, build, and pack the web binding for npm and JSR")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--features", default="")
+    p.add_argument("--scope", required=True, help="the npm and JSR scope, without its @")
+    p.add_argument("--version", default="", help="the release's version, which the crate's must equal")
+    p.add_argument("--example", default="")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("consume-web", help="run a check program, or a load, on the installed npm package")
+    p.add_argument("--dist", required=True, help="what `web` wrote")
+    p.add_argument("--check")
+    p.add_argument("--native")
     p = sub.add_parser("digest", help="print the hash of the generated bindings")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -623,6 +816,7 @@ def main():
     p.add_argument("--swift-mirror", required=True, metavar="OWNER/REPO",
                    help="the repository SwiftPM resolves the package from, whose root holds its Package.swift")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
+    p.add_argument("--scope", help="the npm and JSR scope of the crate's web package, without its @; without it, none ships")
     args = parser.parse_args()
 
     if args.command == "facts":
@@ -637,6 +831,10 @@ def main():
         export(args)
     elif args.command == "build":
         build(args)
+    elif args.command == "web":
+        web(args)
+    elif args.command == "consume-web":
+        consume_web(args.dist, args.check, args.native)
     elif args.command == "digest":
         print(digest(args.export, facts(args.manifest_path)["lib"]))
     elif args.command == "swift":
