@@ -437,7 +437,8 @@ def swift(info, export, libs, natives, out):
         run(*args, "-output", tree)
         zip_tree(tree, zipped, info["epoch"])
     if archive.read_bytes() != (again / archive.name).read_bytes():
-        raise SystemExit("xcodebuild made different XCFrameworks from the same libraries")
+        raise SystemExit("xcodebuild made different XCFrameworks from the same libraries:\n"
+                         + "\n".join(zip_diff(archive, again / archive.name)))
     shutil.rmtree(headers)
     shutil.rmtree(again)
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
@@ -641,6 +642,15 @@ def sbom(info, crate):
     return (json.dumps(document, indent=2) + "\n").encode()
 
 
+def zip_diff(one, two):
+    """The entries two ZIPs hold differently, each with its content hash, time, and attributes."""
+    with zipfile.ZipFile(one) as a, zipfile.ZipFile(two) as b:
+        entries = lambda z: {i.filename: (hashlib.sha256(z.read(i)).hexdigest(), i.date_time, i.external_attr) for i in z.infolist()}  # noqa: E731
+        left, right = entries(a), entries(b)
+    return [f"  {name}: {left.get(name)} against {right.get(name)}"
+            for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
+
+
 def same(first, second):
     """Fail unless two builds' wheels and static libraries are the same bytes, naming what differs."""
     found = {}
@@ -656,12 +666,7 @@ def same(first, second):
             continue
         problems.append(name)
         if name.endswith(".whl"):
-            with zipfile.ZipFile(one) as a, zipfile.ZipFile(two) as b:
-                entries = lambda z: {i.filename: (hashlib.sha256(z.read(i)).hexdigest(), i.date_time, i.external_attr) for i in z.infolist()}  # noqa: E731
-                left, right = entries(a), entries(b)
-                for entry in sorted(left.keys() | right.keys()):
-                    if left.get(entry) != right.get(entry):
-                        problems.append(f"  {entry}: {left.get(entry)} against {right.get(entry)}")
+            problems += zip_diff(one, two)
     if problems:
         raise SystemExit("a rebuild made other bytes:\n" + "\n".join(problems))
     print(f"{len(names)} files rebuilt byte for byte")
