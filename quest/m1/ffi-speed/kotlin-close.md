@@ -9,6 +9,8 @@ object-return row before and after on HotSpot.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#880](https://github.com/kixel-ai/rust2/pull/880): ✅ kept (rejected: dropping it).
+
 Found while profiling [#880](https://github.com/kixel-ai/rust2/pull/880)'s nursery under
 async-profiler: once the nursery removed the phantom reference, a checked close's two JNI
 crossings, `<type>_drop` and then `<type>_free` (`ffi/runtime/rt.kt`, `__Handle.close`),
