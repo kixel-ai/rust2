@@ -68,7 +68,8 @@ fn output(cmd: &mut Command) -> Output {
 fn check(cmd: &Command, output: &Output) {
 	assert!(
 		output.status.success(),
-		"{cmd:?} failed:\n{}{}",
+		"{cmd:?} failed with {}:\n{}{}",
+		output.status,
 		String::from_utf8_lossy(&output.stdout),
 		String::from_utf8_lossy(&output.stderr)
 	);
