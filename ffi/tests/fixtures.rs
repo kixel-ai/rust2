@@ -1583,9 +1583,15 @@ fn api_dart() {
 	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
 	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
 	assert!(
-		["api_Plain_eq", "api_Plain_hash", "api_Plain_n_get", "api_Plain_n_set", "api_contract"]
-			.into_iter()
-			.all(leaf),
+		[
+			"api_Plain_eq",
+			"api_Plain_hash",
+			"api_Plain_n_get",
+			"api_Plain_n_set",
+			"api_contract"
+		]
+		.into_iter()
+		.all(leaf),
 		"a leaf is a leaf call"
 	);
 	assert!(

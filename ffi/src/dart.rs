@@ -1548,7 +1548,9 @@ impl<'a> Gen<'a> {
 		// A call in the arena `a_`, which a leaf call of an object's needs none of.
 		let arena = |leaf: bool, code: String| match leaf && object {
 			true => code.replace("\n\t\t\t", "\n\t\t"),
-			false => format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}"),
+			false => {
+				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
+			}
 		};
 		if t.display {
 			members.push("toString".to_string());
@@ -1586,18 +1588,31 @@ impl<'a> Gen<'a> {
 			let what = format!("{c}_eq");
 			let sig = Sig {
 				name: what.clone(),
-				params: params(vec![recv.clone(), recv.clone()]).into_iter().map(|ty| (String::new(), ty)).collect(),
+				params: params(vec![recv.clone(), recv.clone()])
+					.into_iter()
+					.map(|ty| (String::new(), ty))
+					.collect(),
 				ret: Ty::Bool,
 			};
 			// A leaf call, as `Abi::leaf_trait` proves, takes no home and holds no handle.
 			let leaf = self.abi.leaf_trait(ty, false);
 			let (f, (pa, a), (pb, b)) = match (leaf, object) {
-				(true, true) => (self.leaf(&sig), (String::new(), "_live".to_string()), (String::new(), "other._live".to_string())),
+				(true, true) => (
+					self.leaf(&sig),
+					(String::new(), "_live".to_string()),
+					(String::new(), "other._live".to_string()),
+				),
 				(true, false) => (self.leaf(&sig), this(self, "this"), this(self, "other")),
 				(false, _) => (self.served(&sig), this(self, "this"), this(self, "other")),
 			};
 			let home = if leaf { "" } else { "_n.home, " };
-			let eq = arena(leaf, format!("{pa}{pb}{}", call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())));
+			let eq = arena(
+				leaf,
+				format!(
+					"{pa}{pb}{}",
+					call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
+				),
+			);
 			body.push(format!(
 				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\t{eq}\n\t}}\n"
 			));
@@ -1606,7 +1621,10 @@ impl<'a> Gen<'a> {
 				let what = format!("{c}_hash");
 				let sig = Sig {
 					name: what.clone(),
-					params: params(vec![recv.clone()]).into_iter().map(|ty| (String::new(), ty)).collect(),
+					params: params(vec![recv.clone()])
+						.into_iter()
+						.map(|ty| (String::new(), ty))
+						.collect(),
 					ret: Ty::Int(Int::U64),
 				};
 				let leaf = self.abi.leaf_trait(ty, true);
@@ -1616,8 +1634,13 @@ impl<'a> Gen<'a> {
 					(false, _) => (self.served(&sig), this(self, "this")),
 				};
 				let home = if leaf { "" } else { "_n.home, " };
-				let hash = arena(leaf, format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())));
-				body.push(format!("\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\t{hash}\n\t}}\n"));
+				let hash = arena(
+					leaf,
+					format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
+				);
+				body.push(format!(
+					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\t{hash}\n\t}}\n"
+				));
 			} else {
 				body.push(format!(
 					"\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"

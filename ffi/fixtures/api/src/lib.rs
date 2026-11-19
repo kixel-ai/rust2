@@ -2579,7 +2579,11 @@ pub struct Plain {
 
 impl Plain {
 	pub fn new(n: u64, on: bool) -> Self {
-		Self { n, on, pinned: (-1, 'p') }
+		Self {
+			n,
+			on,
+			pinned: (-1, 'p'),
+		}
 	}
 }
 

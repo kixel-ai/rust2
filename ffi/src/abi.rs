@@ -1278,8 +1278,12 @@ impl<'a> Abi<'a> {
 		let Some(Type::Object(i)) = owner else {
 			return false;
 		};
-		let primitive =
-			|ty: &Type| matches!(ty, Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char);
+		let primitive = |ty: &Type| {
+			matches!(
+				ty,
+				Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
+			)
+		};
 		let field = match function.access {
 			Access::Field { set: false, .. } => {
 				matches!(&function.ok, Type::Ref(_, ty) if primitive(ty)) && function.params.is_empty()

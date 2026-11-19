@@ -3015,7 +3015,9 @@ impl<'tcx> Collector<'tcx> {
 					return false;
 				};
 				if tcx.is_automatically_derived(imp.impl_def_id) {
-					return adt.all_fields().all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen));
+					return adt
+						.all_fields()
+						.all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen));
 				}
 				// std's own impls of these, written by hand, run their elements' alone, never
 				// their allocator's: unlike a map's, which hashes through its hasher parameter.

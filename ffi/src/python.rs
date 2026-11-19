@@ -960,7 +960,10 @@ impl<'a> Gen<'a> {
 			false => format!("rt::call(|| {call})"),
 		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
-			let call = called(suffix == "hash" && g.abi.leaf_trait(ty, true), format!("crate::{c}_{suffix}({pass}{arg})"));
+			let call = called(
+				suffix == "hash" && g.abi.leaf_trait(ty, true),
+				format!("crate::{c}_{suffix}({pass}{arg})"),
+			);
 			let d = Direct {
 				member,
 				place: Place::Member,
