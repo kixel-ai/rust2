@@ -352,7 +352,9 @@ class Braced:
             if kind == "namespace" and qualified(hmask):
                 return
             cut = assignment(hmask)
-            constant = "constexpr" in head and first(hmask, re.compile(r"\(")) is None
+            # A constant's value, which C's header spells too, and what an alias names.
+            constant = "constexpr" in head and first(hmask, re.compile(r"\(")) is None or \
+                re.match(r"(?:template\s*<.*?>\s*)?using\b", head) is not None
             if cut is not None and squash(hmask[cut + 1:]) not in ("default", "delete", "0") and not constant:
                 header = header[:cut]
             elif cut is None:
@@ -369,7 +371,9 @@ class Braced:
                 end = init
             if private_dart(squash(header[:end]), hmask[:end]):
                 return
-            if cut is not None and end == cut and re.fullmatch(
+            if cut is not None and end == cut and head.startswith("typedef "):
+                end = len(header)
+            elif cut is not None and end == cut and re.fullmatch(
                     r"(?:static )?(?:late )?(?:final|const|var) [\w$]+ ?", squash(unannotated(hmask[:cut]))):
                 # A value whose type is inferred: the value is all it declares of its type.
                 end = len(header)
@@ -566,7 +570,8 @@ class Indented:
                 self.emit(level, "}")
             return
         end = len(masked)
-        if cut is not None and not re.fullmatch(r"(?:\w+ )*(?:val|var|let) [\w`]+ ?", squash(unannotated(masked[:cut]))):
+        alias = re.match(r"(?:\w+ )*typealias\b", squash(unannotated(masked)))
+        if cut is not None and not alias and not re.fullmatch(r"(?:\w+ )*(?:val|var|let) [\w`]+ ?", squash(unannotated(masked[:cut]))):
             # A value or expression body, unless it is all a property declares of its type.
             end = cut
         if brace is not None and brace < end:
@@ -617,13 +622,16 @@ class Indented:
             # The modifiers before its keyword, not a primary constructor's own.
             modifiers = re.split(r"\b(?:class|interface|object|fun|val|var|constructor|typealias|init)\b", head)[0]
             return KOTLIN_HIDDEN.search(modifiers) is None
+        # Its modifiers, such as `nonisolated(nonsending) public`, before its keyword.
+        modifiers = re.split(r"\b(?:func|var|let|init|subscript|case|struct|enum|protocol|extension|actor|"
+                             r"typealias|associatedtype|deinit)\b|\bclass\b(?!\s+(?:func|var)\b)", head)[0]
         if kind == "protocol" or public_ext:
-            return not re.search(r"\b(private|fileprivate|internal)\b", re.sub(r"\(.*", "", head))
+            return not re.search(r"\b(private|fileprivate|internal)\b(?!\(set\))", modifiers)
         if kind == "enum" and head.startswith("case "):
             return True
         if nested == "extension":
             return True
-        return SWIFT_PUBLIC.search(re.sub(r"\(.*", "", head)) is not None
+        return SWIFT_PUBLIC.search(modifiers) is not None
 
     def emit(self, level, line):
         self.out.append("\t" * level + line)

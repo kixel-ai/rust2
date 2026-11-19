@@ -454,6 +454,130 @@ def exporter(manifest, features, *args):
         *args, *cargo, cwd=ROOT / "ffi")
 
 
+def version_key(version):
+    """A Cargo version's precedence: a prerelease sorts before its release."""
+    match = SEMVER.fullmatch(version)
+    if match is None:
+        raise SystemExit(f"version {version} is not X.Y.Z or X.Y.Z-(alpha|beta|rc).N")
+    major, minor, patch, pre, number = match.groups()
+    rank = {"alpha": 0, "beta": 1, "rc": 2, None: 3}[pre]
+    return int(major), int(minor), int(patch), rank, int(number or 0)
+
+
+def compatible(old, new):
+    """Whether Cargo resolves a requirement on `old` to `new`, so `new` may not break it.
+
+    The leftmost nonzero part is the breaking one; a prerelease promises nothing.
+    """
+    a, b = version_key(old), version_key(new)
+    if a[3] != 3 or b[3] != 3:
+        return False
+    for k in range(3):
+        if a[k] or b[k]:
+            return a[k] == b[k]
+    return True
+
+
+def previous_release(name, version, tags):
+    """The release a version follows: the newest of `tags`, `<name>-v<version>`, below it."""
+    prefix = f"{name}-v"
+    versions = [t[len(prefix):] for t in tags if t.startswith(prefix) and SEMVER.fullmatch(t[len(prefix):])]
+    below = [v for v in versions if version_key(v) < version_key(version)]
+    return max(below, key=version_key, default=None)
+
+
+def previous(args):
+    """The API of the release this version follows, if any, and whether this one may break it.
+
+    Prints GitHub outputs: `previous`, its version or nothing, and `baseline`, true when the
+    export must not break the previous release's API, written to <out>/api.json.
+    """
+    info = facts(args.manifest_path)
+    releases = json.loads(output("gh", "api", "--paginate", "--slurp", f"repos/{args.repo}/releases"))
+    tags = [r["tag_name"] for page in releases for r in page if not r["draft"]]
+    found = previous_release(info["name"], info["version"], tags)
+    if found is None:
+        print("previous=\nbaseline=false")
+        return
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    tag = f"{info['name']}-v{found}"
+    fetched = subprocess.run(["gh", "release", "download", tag, "--repo", args.repo, "--pattern", "api.json",
+                              "--dir", str(out), "--clobber"], capture_output=True, encoding="utf-8")
+    if fetched.returncode != 0 or not (out / "api.json").exists():
+        raise SystemExit(f"release {tag} has no api.json asset, which this release's API is checked against: "
+                         f"attach the api.json an export of {tag} writes\n{fetched.stderr}")
+    print(f"previous={found}\nbaseline={'true' if compatible(found, info['version']) else 'false'}")
+
+
+# Each kind of item an API lists, and how a changelog names it.
+KINDS = {"records": "struct", "enums": "enum", "objects": "type", "callbacks": "trait", "functions": "fn",
+         "constants": "const"}
+
+
+def api_items(api):
+    """Each item of an export's api.json by how a changelog names it, with what it declares.
+
+    Types are named, not indexed, so an item added elsewhere changes no other; docs and
+    source spans are no part of the API.
+    """
+    api = api["api"]
+    targets = api["targets"]
+
+    def name(kind, i):
+        item = api[kind][i]
+        return "::".join(item.get("shown") or item["path"])
+
+    def resolve(value):
+        if isinstance(value, dict):
+            if len(value) == 1:
+                (key, inner), = value.items()
+                kind = {"Record": "records", "Enum": "enums", "Object": "objects"}.get(key)
+                if kind and isinstance(inner, int):
+                    return {key: name(kind, inner)}
+                if key == "Callback" and isinstance(inner, list) and inner and isinstance(inner[0], int):
+                    return {key: [name("callbacks", inner[0]), *resolve(inner[1:])]}
+            return {k: resolve(v) for k, v in value.items() if k not in ("docs", "span", "methods")}
+        if isinstance(value, list):
+            return [resolve(v) for v in value]
+        return value
+
+    def on(value):
+        return [t for k, t in enumerate(targets) if value >> k & 1]
+
+    items = {}
+    for kind, label in KINDS.items():
+        for i, item in enumerate(api[kind]):
+            key = f"{label} `{name(kind, i)}`"
+            items[key] = {**resolve(item), "on": on(item["on"])}
+            for method in item.get("methods", []) if kind != "functions" else []:
+                path = "::".join(method.get("shown") or method["path"])
+                items[f"fn `{path}`"] = {**resolve(method), "on": on(method["on"])}
+    return items
+
+
+def changes(old, new, since):
+    """A Markdown changelog of `new`'s API against `old`'s, both an export's api.json."""
+    before, after = api_items(old), api_items(new)
+    sections = [
+        ("Removed", [k for k in before if k not in after]),
+        ("Changed", [k for k in before if k in after and before[k] != after[k]]),
+        ("Added", [k for k in after if k not in before]),
+    ]
+    lost = [t for t in old["api"]["targets"] if t not in new["api"]["targets"]]
+    gained = [t for t in new["api"]["targets"] if t not in old["api"]["targets"]]
+    text = f"## API changes since {since}\n"
+    if lost or gained:
+        text += "\n### Targets\n\n" + "".join(f"- Removed `{t}`\n" for t in lost) + \
+            "".join(f"- Added `{t}`\n" for t in gained)
+    for title, keys in sections:
+        if keys:
+            text += f"\n### {title}\n\n" + "".join(f"- {k}\n" for k in sorted(keys))
+    if not any(keys for _, keys in sections) and not (lost or gained):
+        text += "\nNone.\n"
+    return text
+
+
 def stage_api(args):
     """Each target's API, checked on this host, for the build hosts' exports to merge."""
     out = Path(args.out).resolve()
@@ -470,7 +594,8 @@ def export(args):
         raise SystemExit(f"{args.api} lacks a staged API for one of {args.targets}")
     targets = [arg for target in args.targets for arg in ("--target", target)]
     withs = [arg for path in others for arg in ("--with", path)]
-    exporter(args.manifest_path, args.features, *targets, *withs, "--out", Path(args.out).resolve())
+    baseline = ["--baseline", Path(args.baseline).resolve()] if args.baseline else []
+    exporter(args.manifest_path, args.features, *targets, *withs, *baseline, "--out", Path(args.out).resolve())
 
 
 def cargo(manifest, *args, env=None):
@@ -524,6 +649,7 @@ def build(args):
     for part in ("include", "swift", "python"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(crate, out / "export")
+    shutil.copy(export_dir / "api.json", out / "export")
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
     # Native output for a host whose wheel a consumer runs; an iOS slice runs nowhere here.
@@ -593,9 +719,18 @@ def main():
         p.add_argument("targets", nargs="+")
         if name == "export":
             p.add_argument("--api", required=True)
+            p.add_argument("--baseline", help="the api.json of the release this one must not break")
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+    p = sub.add_parser("previous", help="fetch the API of the release this version follows")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--repo", required=True, metavar="OWNER/REPO", help="the repository whose releases to read")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("changes", help="print the API changelog of one api.json against another")
+    p.add_argument("--old", help="the previous release's api.json; none for a first release")
+    p.add_argument("--new", required=True)
+    p.add_argument("--since", default="", help="the previous release's version")
     p = sub.add_parser("digest", help="print the hash of the generated bindings")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -637,6 +772,14 @@ def main():
         export(args)
     elif args.command == "build":
         build(args)
+    elif args.command == "previous":
+        previous(args)
+    elif args.command == "changes":
+        new = json.loads(Path(args.new).read_text(encoding="utf-8"))
+        if args.old:
+            print(changes(json.loads(Path(args.old).read_text(encoding="utf-8")), new, args.since), end="")
+        else:
+            print("## API\n\nThe first release.\n", end="")
     elif args.command == "digest":
         print(digest(args.export, facts(args.manifest_path)["lib"]))
     elif args.command == "swift":

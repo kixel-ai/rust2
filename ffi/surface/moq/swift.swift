@@ -3563,6 +3563,7 @@ public struct Waiter: ~Copyable, @unchecked Sendable {
 	@inlinable public func waker() throws -> @Sendable () -> Void
 	@inlinable public func context() throws -> @Sendable () -> Void
 	@inlinable public func batch(_ poll: @Sendable () -> Swift.String) throws -> Swift.String
+	@inlinable nonisolated(nonsending) public static func pollFuture(_ future: @escaping @Sendable () async -> Void) async throws
 }
 public struct WaiterList: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -3671,18 +3672,24 @@ public struct Server: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withVersions(_ versions: consuming Versions) throws -> Server
 	@inlinable public consuming func withExtensions(_ extensions: SetupExtensions) throws -> Server
 	@inlinable public consuming func withImplementation(_ implementation: Swift.String) throws -> Server
+	@inlinable nonisolated(nonsending) public func acceptSession(_ now: ClockInstant, _ session: consuming TransportMemorySession) async throws -> TupleSessionDriver
+	@inlinable nonisolated(nonsending) public func acceptRequestSession(_ now: ClockInstant, _ session: consuming TransportMemorySession) async throws -> ServerHandshake
 }
 public struct Session: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Session
 	@inlinable public func version() throws -> Version
+	@inlinable nonisolated(nonsending) public func peerImplementation() async throws -> Swift.String?
 	@inlinable public func sendBandwidth() throws -> BandwidthConsumer?
 	@inlinable public func allocator() throws -> BandwidthAllocator
 	@inlinable public func recvBandwidth() throws -> BandwidthConsumer?
 	@inlinable public func viewers() throws -> BandwidthViewers
 	@inlinable public func stats() throws -> SessionStats
 	@inlinable public func abort(_ err: Error) throws
+	@inlinable nonisolated(nonsending) public consuming func close() async throws
+	@inlinable nonisolated(nonsending) public func closed() async throws -> Error
 	@inlinable public func drain() throws -> GoawayProducer
 	@inlinable public func draining() throws -> GoawayConsumer
+	@inlinable nonisolated(nonsending) public func idle() async throws
 	@inlinable public func auth() throws -> AuthHandle
 }
 public struct Client: ~Copyable, @unchecked Sendable {
@@ -3705,6 +3712,7 @@ public struct Client: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withImplementation(_ implementation: Swift.String) throws -> Client
 	@inlinable public consuming func withCost(_ cost: OriginCost) throws -> Client
 	@inlinable public consuming func withPeerHop(_ hop: Hop) throws -> Client
+	@inlinable nonisolated(nonsending) public func connectSession(_ now: ClockInstant, _ session: consuming TransportMemorySession) async throws -> TupleSessionDriver
 }
 public final class Error: @unchecked Sendable {
 	@inlinable public var description: Swift.String { get }
@@ -3784,6 +3792,7 @@ public struct ClockDeadline: ~Copyable, @unchecked Sendable {
 	@inlinable public static func after(_ deadlines: borrowing ClockDeadlines, _ duration: RustDuration) -> ClockDeadline
 	@inlinable public mutating func set(_ at: ClockInstant?) throws
 	@inlinable public func deadline() throws -> ClockInstant?
+	@inlinable nonisolated(nonsending) public mutating func poll() async throws
 }
 public struct ClockDeadlines: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() -> ClockDeadlines
@@ -3810,6 +3819,7 @@ public struct ClockManual: ~Copyable, @unchecked Sendable {
 }
 public struct ClockRng: ~Copyable {}
 public struct ClockInterval: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func tick() async throws -> ClockInstant
 	@inlinable public mutating func setMissedTickBehavior(_ missed: ClockMissedTickBehavior) throws
 	@inlinable public func period() throws -> RustDuration
 }
@@ -3825,6 +3835,7 @@ public struct CoopBudget: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> CoopBudget
 	@inlinable public static func new(_ passes: Swift.UInt32) -> CoopBudget
+	@inlinable nonisolated(nonsending) public mutating func pollYield() async throws
 }
 public struct HangCatalog: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -3856,6 +3867,7 @@ public struct HangCatalog: ~Copyable, @unchecked Sendable {
 	@inlinable public static func defaultSubscription() -> TrackSubscription
 	@inlinable public func checkRenditions() throws
 	@inlinable public func media() throws -> HangCatalog
+	@inlinable nonisolated(nonsending) public static func subscribe(_ broadcast: borrowing BroadcastConsumer) async throws -> HangCatalogConsumer
 	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalog
 	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalog
 	@inlinable public func toJson() throws -> Swift.String
@@ -3892,6 +3904,7 @@ public struct HangCatalogExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func extSet(_ value: consuming MuxCatalogHangExtra) throws
 	@inlinable public func checkRenditions() throws
 	@inlinable public func media() throws -> HangCatalog
+	@inlinable nonisolated(nonsending) public static func subscribe(_ broadcast: borrowing BroadcastConsumer) async throws -> HangCatalogConsumerExtra
 	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalogExtra
 	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalogExtra
 	@inlinable public func toJson() throws -> Swift.String
@@ -3928,6 +3941,7 @@ public struct HangCatalogExt: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func extSet(_ value: consuming MuxContainerTsExt) throws
 	@inlinable public func checkRenditions() throws
 	@inlinable public func media() throws -> HangCatalog
+	@inlinable nonisolated(nonsending) public static func subscribe(_ broadcast: borrowing BroadcastConsumer) async throws -> HangCatalogConsumerExt
 	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalogExt
 	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalogExt
 	@inlinable public func toJson() throws -> Swift.String
@@ -3957,6 +3971,7 @@ public struct MuxClock: ~Copyable, @unchecked Sendable {
 public struct MuxLingerUnit: ~Copyable, @unchecked Sendable {
 	@inlinable public static var DEFAULT: RustDuration { get }
 	@inlinable public static func new(_ broadcasts: consuming UniqueArray<BroadcastProducer>, _ duration: RustDuration) throws -> MuxLingerUnit
+	@inlinable nonisolated(nonsending) public consuming func wait() async throws
 }
 public struct MuxPacer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> MuxPacer
@@ -3969,18 +3984,30 @@ public struct MuxPacer: ~Copyable, @unchecked Sendable {
 }
 public struct MuxBinding: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastConsumer) throws -> MuxBinding
+	@inlinable nonisolated(nonsending) public func broadcast() async throws -> BroadcastConsumer
 }
 public struct MuxSource: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> MuxSource
 	@inlinable public static func new(_ origin: consuming OriginConsumer, _ broadcast: consuming BroadcastConsumer) throws -> MuxSource
 	@inlinable public func stats() throws -> UniqueArray<TupleStringHangEchoRendition>
 	@inlinable public func broadcast() throws -> BroadcastConsumer
+	@inlinable nonisolated(nonsending) public func catalogExtra(_ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumerExtra
+	@inlinable nonisolated(nonsending) public func catalogExt(_ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumerExt
+	@inlinable nonisolated(nonsending) public func catalogUnit(_ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumer
 	@inlinable public func resolveReference() throws -> Path?
 	@inlinable public func resolveReference(rel: borrowing PathRelative) throws -> Path?
+	@inlinable nonisolated(nonsending) public func resolve() async throws -> BroadcastConsumer
+	@inlinable nonisolated(nonsending) public func resolve(rel: borrowing PathRelative) async throws -> BroadcastConsumer
+	@inlinable nonisolated(nonsending) public func resolve(instance: borrowing Instance) async throws -> BroadcastConsumer
+	@inlinable nonisolated(nonsending) public func resolve(rel: borrowing PathRelative, instance: borrowing Instance) async throws -> BroadcastConsumer
 	@inlinable public func bind() throws -> MuxBinding
 	@inlinable public func bind(rel: borrowing PathRelative) throws -> MuxBinding
 	@inlinable public func bind(instance: borrowing Instance) throws -> MuxBinding
 	@inlinable public func bind(rel: borrowing PathRelative, instance: borrowing Instance) throws -> MuxBinding
+	@inlinable nonisolated(nonsending) public func subscribeTrack(_ name: Swift.String) async throws -> TrackSubscriber
+	@inlinable nonisolated(nonsending) public func subscribeTrack(rel: borrowing PathRelative, _ name: Swift.String) async throws -> TrackSubscriber
+	@inlinable nonisolated(nonsending) public func subscribeTrack(instance: borrowing Instance, _ name: Swift.String) async throws -> TrackSubscriber
+	@inlinable nonisolated(nonsending) public func subscribeTrack(rel: borrowing PathRelative, instance: borrowing Instance, _ name: Swift.String) async throws -> TrackSubscriber
 	@inlinable public func follow() throws -> MuxFollowInstances
 	@inlinable public func follow(rel: borrowing PathRelative) throws -> MuxFollowInstances
 	@inlinable public func follow(instance: borrowing Instance) throws -> MuxFollowInstances
@@ -4031,12 +4058,16 @@ public struct TokioClient: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withReconnect(_ reconnect: Swift.Bool) throws -> TokioClient
 	@inlinable public consuming func withRestart(_ restart: TokioRestart) throws -> TokioClient
 	@inlinable public func connect(_ addrs: consuming MoqTokioAddrs) throws -> TokioConnection
+	@inlinable nonisolated(nonsending) public consuming func close() async throws
 	@inlinable public consuming func publish(_ origin: consuming OriginConsumer) throws -> TokioConnection?
 	@inlinable public consuming func consume(_ origin: consuming OriginProducer) throws -> TokioConnection?
 }
 public struct TokioConnection: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> TokioConnection
 	@inlinable public func abort(_ err: Error) throws
+	@inlinable nonisolated(nonsending) public consuming func close() async throws
+	@inlinable nonisolated(nonsending) public consuming func established() async throws -> TokioConnection
+	@inlinable nonisolated(nonsending) public mutating func status() async throws -> TokioStatus
 	@inlinable public func connected() throws -> Swift.Bool
 	@inlinable public func connects() throws -> Swift.UInt64
 	@inlinable public func version() throws -> Version?
@@ -4046,6 +4077,7 @@ public struct TokioConnection: ~Copyable, @unchecked Sendable {
 	@inlinable public func allocator() throws -> BandwidthAllocator
 	@inlinable public func recvBandwidth() throws -> BandwidthConsumer
 	@inlinable public func viewers() throws -> BandwidthViewers
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func auth() throws -> AuthHandle
 	@inlinable public func tokens() throws -> AuthTokens
 	@inlinable public func monitor() throws -> TokioConnectionMonitor
@@ -4070,26 +4102,36 @@ public struct TokioLog: ~Copyable, @unchecked Sendable {
 }
 public struct TokioServer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ config: consuming TokioServerConfig) throws -> TokioServer
+	@inlinable nonisolated(nonsending) public consuming func servePublish(_ origin: consuming OriginConsumer) async throws
+	@inlinable nonisolated(nonsending) public consuming func serveConsume(_ origin: consuming OriginProducer) async throws
+	@inlinable nonisolated(nonsending) public consuming func serveBoth(_ publish: consuming OriginConsumer, _ subscribe: consuming OriginProducer) async throws
 	@inlinable public func tlsAcceptor() throws -> MoqTokioTcpTlsAcceptor?
 	@inlinable public func certificates() throws -> TokioTlsCertificates
 	@inlinable public func acceptHealth() throws -> UniqueArray<MoqTokioAcceptHealth>
+	@inlinable nonisolated(nonsending) public consuming func bind() async throws -> TokioServerListener
+	@inlinable nonisolated(nonsending) public consuming func listen() async throws -> TokioServerListener
 	@inlinable public func localAddr() throws -> SocketAddr
 	@inlinable public func websocketLocalAddr() throws -> SocketAddr?
 }
 public struct AuthWatch: ~Copyable, @unchecked Sendable {
 	@inlinable public func peek() throws -> AuthGrant?
+	@inlinable nonisolated(nonsending) public mutating func changed() async throws -> AuthGrant?
 }
-public struct AuthRequests: ~Copyable, @unchecked Sendable {}
+public struct AuthRequests: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> AuthRequest?
+}
 public struct AuthRequest: ~Copyable, @unchecked Sendable {
 	@inlinable public func token() throws -> Bytes
 	@inlinable public func kind() throws -> AuthRequestKind?
 	@inlinable public func path() throws -> Path?
+	@inlinable nonisolated(nonsending) public func closed() async throws -> Error
 	@inlinable public consuming func accept(_ grant: consuming AuthGrant) throws -> AuthIssued
 	@inlinable public consuming func reject(_ code: SessionError, _ reason: Swift.String) throws
 }
 public struct AuthIssued: ~Copyable, @unchecked Sendable {
 	@inlinable public func update(_ grant: consuming AuthGrant) throws
 	@inlinable public consuming func revoke(_ code: SessionError, _ reason: Swift.String) throws
+	@inlinable nonisolated(nonsending) public func closed() async throws -> Error
 }
 public struct AuthGrant: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -4109,6 +4151,7 @@ public struct AuthHandle: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> AuthHandle
 	@inlinable public static func new() -> AuthHandle
 	@inlinable public func grant() throws -> AuthWatch
+	@inlinable nonisolated(nonsending) public func add(_ token: Bytes) async throws -> TupleAuthCredentialAuthAnswer
 	@inlinable public func authorize(_ grant: borrowing AuthGrant) throws
 	@inlinable public func abort(_ err: Error) throws
 }
@@ -4117,6 +4160,7 @@ public struct AuthCredential: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> AuthCredential
 	@inlinable public static func == (a: borrowing AuthCredential, b: borrowing AuthCredential) throws -> Swift.Bool
 	@inlinable public func grant() throws -> AuthWatch
+	@inlinable nonisolated(nonsending) public func closed() async throws -> Error
 }
 public struct AuthDial: ~Copyable, @unchecked Sendable {
 	@inlinable public func urlGet() throws -> Url
@@ -4135,6 +4179,7 @@ public struct AuthTokens: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ tokens: consuming UniqueArray<AuthToken>) throws -> AuthTokens
 	@inlinable public func handle_() -> AuthHandle
 	@inlinable public func set(_ tokens: consuming UniqueArray<AuthToken>) throws
+	@inlinable nonisolated(nonsending) public func answered() async throws
 	@inlinable public func dial(_ url: borrowing Url, _ versions: borrowing Versions) throws -> AuthDial
 	@inlinable public func connected(_ session: borrowing Session) throws
 	@inlinable public func changed(_ dial: borrowing AuthDial) throws -> Swift.Bool
@@ -4155,6 +4200,7 @@ public struct GoawayGoaway: ~Copyable, @unchecked Sendable {
 }
 public struct GoawayConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() -> GoawayConsumer
+	@inlinable nonisolated(nonsending) public func poll() async throws -> GoawayGoaway
 }
 public struct PathRelative: ~Copyable, @unchecked Sendable {
 	@inlinable public var description: Swift.String { get }
@@ -4184,6 +4230,7 @@ public struct ServerHandshake: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withStats(_ stats: consuming StatsSession) throws -> ServerHandshake
 	@inlinable public consuming func withLimits(_ limits: SessionLimits) throws -> ServerHandshake
 	@inlinable public consuming func withDeadline(_ at: ClockInstant) throws -> ServerHandshake
+	@inlinable nonisolated(nonsending) public consuming func ok() async throws -> TupleSessionDriver
 	@inlinable public consuming func close(_ err: Error) throws
 }
 public struct ServerActivity: ~Copyable, @unchecked Sendable {
@@ -4191,6 +4238,7 @@ public struct ServerActivity: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> ServerActivity
 	@inlinable public static func `default`() -> ServerActivity
 	@inlinable public func enter() throws -> ServerActive?
+	@inlinable nonisolated(nonsending) public func close() async throws
 }
 public struct ServerActive: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -4333,6 +4381,7 @@ public struct TransportProbe: ~Copyable, @unchecked Sendable {
 public struct BandwidthDemand: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BandwidthDemand
 	@inlinable public func wanted() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public mutating func wantedChanged() async throws -> Swift.Bool
 }
 public struct BandwidthReservation: ~Copyable, @unchecked Sendable {
 	@inlinable public func rate() -> BandwidthRate?
@@ -4379,9 +4428,11 @@ public struct BandwidthConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BandwidthConsumer
 	@inlinable public func peek() throws -> BandwidthRate?
 	@inlinable public func probed() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public mutating func changed() async throws -> BandwidthRate?
 }
 public struct BroadcastDatagramRequests: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BroadcastDatagramRequests
+	@inlinable nonisolated(nonsending) public mutating func requested() async throws -> DatagramRequest
 }
 public struct BroadcastConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BroadcastConsumer
@@ -4390,11 +4441,13 @@ public struct BroadcastConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func track(_ name: Swift.String) throws -> TrackConsumer
 	@inlinable public func datagrams(_ name: Swift.String) throws -> DatagramConsumer
 	@inlinable public func isClosed() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClone(_ other: borrowing BroadcastConsumer) throws -> Swift.Bool
 }
 public struct BroadcastDemand: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BroadcastDemand
 	@inlinable public func wanted() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public mutating func wantedChanged() async throws -> Swift.Bool
 }
 public struct BroadcastInfo: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -4429,12 +4482,16 @@ public struct BroadcastProducer: ~Copyable, @unchecked Sendable {
 public struct BroadcastRequests: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> BroadcastRequests
 	@inlinable public func info() throws -> BroadcastInfo
+	@inlinable nonisolated(nonsending) public mutating func requestedTrack() async throws -> TrackRequest
 	@inlinable public func consume() throws -> BroadcastConsumer
 	@inlinable public func datagrams() throws -> BroadcastDatagramRequests
 	@inlinable public func lister() throws -> BroadcastLister
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClone(_ other: borrowing BroadcastRequests) throws -> Swift.Bool
 }
 public struct BroadcastLister: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public func pollWanted() async throws
+	@inlinable nonisolated(nonsending) public func pollUnwanted() async throws
 	@inlinable public func add(_ name: Swift.String, _ info: consuming TrackInfo) throws
 	@inlinable public func remove(_ name: Swift.String) throws
 	@inlinable public func finish(_ name: Swift.String) throws
@@ -4444,6 +4501,7 @@ public struct BroadcastLister: ~Copyable, @unchecked Sendable {
 	@inlinable public func abort(_ err: Error) throws
 }
 public struct BroadcastTracks: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> BroadcastTracksEvent?
 	@inlinable public func broadcast() throws -> BroadcastConsumer
 }
 public struct BroadcastTracksEvent: ~Copyable, @unchecked Sendable {
@@ -4485,6 +4543,7 @@ public struct DatagramProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func finish() throws
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public func priority() throws -> Swift.Int8?
+	@inlinable nonisolated(nonsending) public func pollPriority(_ last: Swift.Int8?) async throws -> Swift.Int8?
 	@inlinable public func isClone(_ other: borrowing DatagramProducer) throws -> Swift.Bool
 }
 public struct DatagramRequest: ~Copyable, @unchecked Sendable {
@@ -4496,6 +4555,8 @@ public struct DatagramRequest: ~Copyable, @unchecked Sendable {
 public struct DatagramConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> DatagramConsumer
 	@inlinable public func name() throws -> Swift.String
+	@inlinable nonisolated(nonsending) public func info() async throws -> DatagramInfo
+	@inlinable nonisolated(nonsending) public mutating func recv() async throws -> Datagram?
 	@inlinable public func priority() throws -> Swift.Int8
 	@inlinable public mutating func setPriority(_ priority: Swift.Int8) throws
 	@inlinable public func isClone(_ other: borrowing DatagramConsumer) throws -> Swift.Bool
@@ -4546,6 +4607,8 @@ public struct FrameBuffer: ~Copyable, @unchecked Sendable {
 }
 public struct FrameConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> FrameConsumer
+	@inlinable nonisolated(nonsending) public mutating func readChunk() async throws -> Bytes?
+	@inlinable nonisolated(nonsending) public mutating func readAll() async throws -> Bytes
 	@inlinable public var sizeGet: Swift.UInt64 { get }
 	@inlinable public var timestampGet: Timestamp? { get }
 }
@@ -4557,6 +4620,8 @@ public struct GroupProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func createFrame(_ frame: FrameInfo) throws -> FrameProducer
 	@inlinable public mutating func finish() throws
 	@inlinable public consuming func abort(_ err: Error) throws
+	@inlinable nonisolated(nonsending) public func closed() async throws
+	@inlinable nonisolated(nonsending) public func ready(_ frame: FrameInfo) async throws
 	@inlinable public func frameCount() throws -> Swift.UInt
 	@inlinable public func consume() throws -> GroupConsumer
 	@inlinable public func demand() throws -> GroupDemand
@@ -4566,6 +4631,8 @@ public struct GroupDemand: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> GroupDemand
 	@inlinable public func sequence() throws -> Swift.UInt64
 	@inlinable public func wanted() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public mutating func wantedChanged() async throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public func closed() async throws
 }
 public struct GroupConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> GroupConsumer
@@ -4576,6 +4643,11 @@ public struct GroupConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withRange(_ frames: BoundsU64) throws -> GroupConsumer
 	@inlinable public mutating func skipTo(_ index: Swift.UInt64) throws
 	@inlinable public func frameCount() throws -> Swift.UInt
+	@inlinable nonisolated(nonsending) public mutating func nextFrame() async throws -> FrameConsumer?
+	@inlinable nonisolated(nonsending) public mutating func readFrame() async throws -> FrameFrame?
+	@inlinable nonisolated(nonsending) public mutating func pollReadFrames8(_ out: inout FrameBuffer) async throws -> Swift.UInt
+	@inlinable nonisolated(nonsending) public mutating func readFrames8(_ out: inout FrameBuffer) async throws -> [FrameFrame]
+	@inlinable nonisolated(nonsending) public mutating func finished() async throws -> Swift.UInt64
 	@inlinable public var sequenceGet: Swift.UInt64 { get }
 }
 public struct GroupFetch: ~Copyable, @unchecked Sendable {
@@ -4592,34 +4664,43 @@ public struct GroupFetch: ~Copyable, @unchecked Sendable {
 public struct TrackRequests: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() -> TrackRequests
 	@inlinable public func name() -> Swift.String
+	@inlinable nonisolated(nonsending) public func requestedFill() async throws -> TrackFill
 	@inlinable public func demand() -> TrackDemand
 }
 public struct TrackDemand: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> TrackDemand
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func wanted() throws -> Swift.UInt64?
+	@inlinable nonisolated(nonsending) public mutating func wantedChanged() async throws -> Swift.UInt64?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 }
 public struct TrackSubscriber: ~Copyable, @unchecked Sendable {
 	@inlinable public func info() throws -> TrackInfo
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func broadcast() throws -> BroadcastInfo
 	@inlinable public func control() throws -> TrackControl
+	@inlinable nonisolated(nonsending) public mutating func recvGroup() async throws -> GroupConsumer?
 	@inlinable public consuming func ordered() throws -> TrackOrdered
 	@inlinable public func isClone(_ other: borrowing TrackSubscriber) throws -> Swift.Bool
 	@inlinable public func floor() throws -> Swift.UInt64?
 	@inlinable public func nextInRange(_ from: Swift.UInt64) throws -> Swift.UInt64?
+	@inlinable nonisolated(nonsending) public mutating func finished() async throws -> TrackPosition
 	@inlinable public consuming func withRange(_ groups: BoundsU64) throws -> TrackSubscriber
 	@inlinable public func subscription() throws -> TrackSubscription
 	@inlinable public mutating func update(_ subscription: consuming TrackSubscription) throws
+	@inlinable nonisolated(nonsending) public mutating func largest() async throws -> TrackPosition?
 }
 public struct TrackOrdered: ~Copyable, @unchecked Sendable {
 	@inlinable public func info() throws -> TrackInfo
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func broadcast() throws -> BroadcastInfo
+	@inlinable nonisolated(nonsending) public mutating func nextGroup() async throws -> GroupConsumer?
 	@inlinable public consuming func withRange(_ groups: BoundsU64) throws -> TrackOrdered
 	@inlinable public func control() throws -> TrackControl
 	@inlinable public func subscription() throws -> TrackSubscription
 	@inlinable public mutating func update(_ subscription: consuming TrackSubscription) throws
+	@inlinable nonisolated(nonsending) public mutating func finished() async throws -> TrackPosition
+	@inlinable nonisolated(nonsending) public mutating func largest() async throws -> TrackPosition?
 	@inlinable public func isClone(_ other: borrowing TrackOrdered) throws -> Swift.Bool
 }
 public struct TrackRequest: ~Copyable, @unchecked Sendable {
@@ -4630,6 +4711,7 @@ public struct TrackRequest: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func accept(_ info: consuming TrackInfo?) throws -> TrackProducer
 	@inlinable public consuming func reject(_ err: Error) throws
 	@inlinable public func subscription() throws -> TrackSubscription?
+	@inlinable nonisolated(nonsending) public mutating func subscriptionChanged() async throws -> TrackSubscription?
 }
 public struct TrackInfo: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -4668,12 +4750,14 @@ public final class TrackProducer: @unchecked Sendable {
 	@inlinable public func finished() throws -> TrackPosition?
 	@inlinable public func abort(_ err: Error) throws
 	@inlinable public func abortUnwanted(_ err: Error) throws
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func consume() throws -> TrackConsumer
 	@inlinable public func subscribe(_ subscription: consuming TrackSubscription?) throws -> TrackSubscriber
+	@inlinable nonisolated(nonsending) public func subscriptionChanged() async throws -> TrackSubscription?
 	@inlinable public func subscription() throws -> TrackSubscription?
 	@inlinable public func requests() throws -> TrackRequests
 }
@@ -4681,6 +4765,10 @@ public struct TrackConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> TrackConsumer
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func broadcast() throws -> BroadcastInfo
+	@inlinable nonisolated(nonsending) public func subscribe(_ subscription: consuming TrackSubscription?) async throws -> TrackSubscriber
+	@inlinable nonisolated(nonsending) public func fetchGroup(_ sequence: Swift.UInt64, _ options: consuming GroupFetch?) async throws -> GroupConsumer
+	@inlinable nonisolated(nonsending) public func info() async throws -> TrackInfo
+	@inlinable nonisolated(nonsending) public mutating func largest() async throws -> TrackPosition?
 }
 public struct TrackControl: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() -> TrackControl
@@ -4719,9 +4807,13 @@ public struct TrackFill: ~Copyable, @unchecked Sendable {
 	@inlinable public func dropGroups(_ groups: RangeU64) throws
 	@inlinable public func refuseGroups(_ groups: RangeU64, _ err: Error) throws
 	@inlinable public func isWanted(_ sequence: Swift.UInt64) throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public func unwanted(_ sequence: Swift.UInt64) async throws
 	@inlinable public func wanted() throws -> Swift.UInt64?
+	@inlinable nonisolated(nonsending) public mutating func wantedChanged() async throws -> Swift.UInt64?
 }
-public struct OriginFollowing: ~Copyable, @unchecked Sendable {}
+public struct OriginFollowing: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func available() async throws -> BroadcastConsumer
+}
 public struct OriginConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> OriginConfig
@@ -4750,6 +4842,7 @@ public struct OriginConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func consume() throws -> OriginConsumer
 	@inlinable public func follow(_ path: Swift.String, _ instance: consuming Instance?) throws -> OriginFollowing
 	@inlinable public func scope(_ root: Swift.String, _ patterns: borrowing Patterns) throws -> OriginConsumer
+	@inlinable nonisolated(nonsending) public func request(_ path: Swift.String, _ instance: consuming Instance?) async throws -> BroadcastConsumer
 	@inlinable public func root() throws -> Path
 	@inlinable public func allowed() throws -> Patterns
 	@inlinable public func absolute(_ path: Swift.String) throws -> Path
@@ -4806,6 +4899,7 @@ public struct OriginRequest: ~Copyable, @unchecked Sendable {
 }
 public struct OriginRequests: ~Copyable, @unchecked Sendable {
 	@inlinable public func route() -> OriginRoute
+	@inlinable nonisolated(nonsending) public func requestedBroadcast() async throws -> OriginRequest
 }
 public struct OriginRoute: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -4828,8 +4922,10 @@ public struct OriginRoute: ~Copyable, @unchecked Sendable {
 	@inlinable public func source() throws -> OriginSource
 }
 public struct AnnounceConsumer: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> AnnounceEvent?
 	@inlinable public mutating func tryNext() throws -> AnnounceEvent?
 	@inlinable public func isClosed() throws -> Swift.Bool
+	@inlinable nonisolated(nonsending) public func pollSynced() async throws
 	@inlinable public func root() throws -> Path
 	@inlinable public func absolute(_ prefix: Swift.String) throws -> Path
 }
@@ -5067,12 +5163,15 @@ public struct HangHealthRendition: ~Copyable, @unchecked Sendable {
 }
 public struct HangCatalogConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> HangCatalogConsumer
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalog?
 }
 public struct HangCatalogConsumerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> HangCatalogConsumerExtra
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExtra?
 }
 public struct HangCatalogConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> HangCatalogConsumerExt
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExt?
 }
 public struct HangCatalogAudio: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -5406,9 +5505,15 @@ public struct HangCatalogVideoConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ codec: HangCatalogVideoCodec) -> HangCatalogVideoConfig
 	@inlinable public func sameIdentity(_ other: borrowing HangCatalogVideoConfig) throws -> Swift.Bool
 }
-public struct MuxCatalogConsumer: ~Copyable, @unchecked Sendable {}
-public struct MuxCatalogConsumerExtra: ~Copyable, @unchecked Sendable {}
-public struct MuxCatalogConsumerExt: ~Copyable, @unchecked Sendable {}
+public struct MuxCatalogConsumer: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public static func new(_ broadcast: borrowing BroadcastConsumer, _ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumer
+}
+public struct MuxCatalogConsumerExtra: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public static func new(_ broadcast: borrowing BroadcastConsumer, _ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumerExtra
+}
+public struct MuxCatalogConsumerExt: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public static func new(_ broadcast: borrowing BroadcastConsumer, _ format: MuxCatalogCatalogFormat) async throws -> MuxCatalogConsumerExt
+}
 public struct MuxCatalogEstimate: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> MuxCatalogEstimate
@@ -5897,6 +6002,7 @@ public struct MuxContainerConsumerContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber, _ format: consuming MuxCatalogHangContainer) throws -> MuxContainerConsumerContainer
 	@inlinable public consuming func withWarmup(_ warmup: RustDuration) throws -> MuxContainerConsumerContainer
 	@inlinable public consuming func withDelay(_ delay: TrackDelay) throws -> MuxContainerConsumerContainer
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerRead?
 	@inlinable public mutating func setDelay(_ delay: TrackDelay) throws
 	@inlinable public mutating func setMaxBuffer(_ bytes: Swift.UInt) throws
 }
@@ -5904,6 +6010,7 @@ public struct MuxContainerConsumerFmp4Wire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber, _ format: consuming MuxContainerFmp4Wire) throws -> MuxContainerConsumerFmp4Wire
 	@inlinable public consuming func withWarmup(_ warmup: RustDuration) throws -> MuxContainerConsumerFmp4Wire
 	@inlinable public consuming func withDelay(_ delay: TrackDelay) throws -> MuxContainerConsumerFmp4Wire
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerRead?
 	@inlinable public mutating func setDelay(_ delay: TrackDelay) throws
 	@inlinable public mutating func setMaxBuffer(_ bytes: Swift.UInt) throws
 }
@@ -5911,6 +6018,7 @@ public struct MuxContainerConsumerLegacyWire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber, _ format: MuxContainerLegacyWire) throws -> MuxContainerConsumerLegacyWire
 	@inlinable public consuming func withWarmup(_ warmup: RustDuration) throws -> MuxContainerConsumerLegacyWire
 	@inlinable public consuming func withDelay(_ delay: TrackDelay) throws -> MuxContainerConsumerLegacyWire
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerRead?
 	@inlinable public mutating func setDelay(_ delay: TrackDelay) throws
 	@inlinable public mutating func setMaxBuffer(_ bytes: Swift.UInt) throws
 }
@@ -5918,24 +6026,29 @@ public struct MuxContainerConsumerLocWire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber, _ format: MuxContainerLocWire) throws -> MuxContainerConsumerLocWire
 	@inlinable public consuming func withWarmup(_ warmup: RustDuration) throws -> MuxContainerConsumerLocWire
 	@inlinable public consuming func withDelay(_ delay: TrackDelay) throws -> MuxContainerConsumerLocWire
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerRead?
 	@inlinable public mutating func setDelay(_ delay: TrackDelay) throws
 	@inlinable public mutating func setMaxBuffer(_ bytes: Swift.UInt) throws
 }
 public struct MuxContainerGroupConsumerContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ group: consuming GroupConsumer, _ format: consuming MuxCatalogHangContainer) throws -> MuxContainerGroupConsumerContainer
 	@inlinable public func sequence() throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerGroupConsumerFmp4Wire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ group: consuming GroupConsumer, _ format: consuming MuxContainerFmp4Wire) throws -> MuxContainerGroupConsumerFmp4Wire
 	@inlinable public func sequence() throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerGroupConsumerLegacyWire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ group: consuming GroupConsumer, _ format: MuxContainerLegacyWire) throws -> MuxContainerGroupConsumerLegacyWire
 	@inlinable public func sequence() throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerGroupConsumerLocWire: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ group: consuming GroupConsumer, _ format: MuxContainerLocWire) throws -> MuxContainerGroupConsumerLocWire
 	@inlinable public func sequence() throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public mutating func read() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerProducerContainerAudioConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func set(_ config: consuming HangCatalogAudioConfig) throws
@@ -5967,6 +6080,7 @@ public struct MuxContainerProducerContainerAudioConfig: ~Copyable, @unchecked Se
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6004,6 +6118,7 @@ public struct MuxContainerProducerContainerBinaryConfig: ~Copyable, @unchecked S
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6041,6 +6156,7 @@ public struct MuxContainerProducerContainerJsonConfig: ~Copyable, @unchecked Sen
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6078,6 +6194,7 @@ public struct MuxContainerProducerContainerTextConfig: ~Copyable, @unchecked Sen
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6115,6 +6232,7 @@ public struct MuxContainerProducerContainerVideoConfig: ~Copyable, @unchecked Se
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6153,6 +6271,7 @@ public struct MuxContainerProducerContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6190,6 +6309,7 @@ public struct MuxContainerProducerFmp4WireAudioConfig: ~Copyable, @unchecked Sen
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6227,6 +6347,7 @@ public struct MuxContainerProducerFmp4WireBinaryConfig: ~Copyable, @unchecked Se
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6264,6 +6385,7 @@ public struct MuxContainerProducerFmp4WireJsonConfig: ~Copyable, @unchecked Send
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6301,6 +6423,7 @@ public struct MuxContainerProducerFmp4WireTextConfig: ~Copyable, @unchecked Send
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6338,6 +6461,7 @@ public struct MuxContainerProducerFmp4WireVideoConfig: ~Copyable, @unchecked Sen
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6376,6 +6500,7 @@ public struct MuxContainerProducerFmp4Wire: ~Copyable, @unchecked Sendable {
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6413,6 +6538,7 @@ public struct MuxContainerProducerLegacyWireAudioConfig: ~Copyable, @unchecked S
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6450,6 +6576,7 @@ public struct MuxContainerProducerLegacyWireBinaryConfig: ~Copyable, @unchecked 
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6487,6 +6614,7 @@ public struct MuxContainerProducerLegacyWireJsonConfig: ~Copyable, @unchecked Se
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6524,6 +6652,7 @@ public struct MuxContainerProducerLegacyWireTextConfig: ~Copyable, @unchecked Se
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6561,6 +6690,7 @@ public struct MuxContainerProducerLegacyWireVideoConfig: ~Copyable, @unchecked S
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6599,6 +6729,7 @@ public struct MuxContainerProducerLegacyWire: ~Copyable, @unchecked Sendable {
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6636,6 +6767,7 @@ public struct MuxContainerProducerLocWireAudioConfig: ~Copyable, @unchecked Send
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6673,6 +6805,7 @@ public struct MuxContainerProducerLocWireBinaryConfig: ~Copyable, @unchecked Sen
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6710,6 +6843,7 @@ public struct MuxContainerProducerLocWireJsonConfig: ~Copyable, @unchecked Senda
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6747,6 +6881,7 @@ public struct MuxContainerProducerLocWireTextConfig: ~Copyable, @unchecked Senda
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6784,6 +6919,7 @@ public struct MuxContainerProducerLocWireVideoConfig: ~Copyable, @unchecked Send
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6822,6 +6958,7 @@ public struct MuxContainerProducerLocWire: ~Copyable, @unchecked Sendable {
 	@inlinable public func appendGroup() throws -> GroupProducer
 	@inlinable public func dropGroups(_ groups: RangeU64, _ err: StreamError) throws
 	@inlinable public func finished() throws -> TrackPosition?
+	@inlinable nonisolated(nonsending) public func closed() async throws
 	@inlinable public func isClosed() throws -> Swift.Bool
 	@inlinable public func largest() throws -> TrackPosition?
 	@inlinable public func isClone(_ other: TrackProducer) throws -> Swift.Bool
@@ -6832,6 +6969,7 @@ public struct MuxContainerProducerLocWire: ~Copyable, @unchecked Sendable {
 public struct MuxFollowInstances: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ origin: borrowing OriginConsumer, _ path: Swift.String) throws -> MuxFollowInstances
 	@inlinable public static func new(_ origin: borrowing OriginConsumer, _ path: Swift.String, instance: borrowing Instance) throws -> MuxFollowInstances
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxFollowEvent
 }
 public struct MuxFollowEvent: ~Copyable, @unchecked Sendable {}
 public struct MuxImportAudioInit: ~Copyable, @unchecked Sendable {
@@ -6935,6 +7073,7 @@ public struct MuxJsonSnapshotJson: ~Copyable, @unchecked Sendable {
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func consume() throws -> TrackSubscriber
 	@inlinable public func demand() throws -> TrackDemand
+	@inlinable nonisolated(nonsending) public func refresh() async throws
 	@inlinable public mutating func update(_ value: borrowing Json, _ timestamp: Timestamp) throws
 	@inlinable public consuming func finish() throws
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6950,6 +7089,8 @@ public struct MuxJsonStreamJson: ~Copyable, @unchecked Sendable {
 public struct MuxJsonConsumerJson: ~Copyable, @unchecked Sendable {
 	@inlinable public static func fromTrack(_ track: consuming TrackSubscriber, _ config: borrowing HangCatalogJsonConfig) throws -> MuxJsonConsumerJson
 	@inlinable public func mode() throws -> HangCatalogMode
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> TimedJson?
+	@inlinable nonisolated(nonsending) public mutating func latest() async throws -> TimedJson?
 }
 public struct MuxJsonConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -6971,6 +7112,7 @@ public struct MuxRateFollower: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ grant: consuming BandwidthConsumer, _ policy: consuming MuxRatePolicy) throws -> MuxRateFollower
 	@inlinable public func policy() throws -> MuxRatePolicy
 	@inlinable public mutating func setPolicy(_ policy: consuming MuxRatePolicy) throws
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxRateTarget
 	@inlinable public mutating func failed() throws
 }
 public struct MuxRatePolicy: ~Copyable, @unchecked Sendable {
@@ -7185,7 +7327,10 @@ public struct TokioConnectConfig: ~Copyable, @unchecked Sendable {
 public struct TokioConnectionMonitor: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> TokioConnectionMonitor
 	@inlinable public func state() throws -> MoqTokioConnectionObservation
+	@inlinable nonisolated(nonsending) public func stateChanged(_ after: Swift.UInt64) async throws -> MoqTokioConnectionObservation
 	@inlinable public func presence() throws -> StatsPresence
+	@inlinable nonisolated(nonsending) public mutating func pollPresence() async throws -> StatsPresence
+	@inlinable nonisolated(nonsending) public mutating func presenceChanged() async throws -> StatsPresence
 	@inlinable public func stats() throws -> SessionStats?
 	@inlinable public func failure() throws -> TokioError?
 	@inlinable public func snapshot() throws -> MoqTokioConnectionSnapshot?
@@ -7282,6 +7427,8 @@ public struct TokioServerConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func initStreams() throws -> TokioServer
 }
 public struct TokioServerListener: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func accept() async throws -> TokioServerRequest
+	@inlinable nonisolated(nonsending) public consuming func close() async throws
 	@inlinable public func localAddr() throws -> SocketAddr
 	@inlinable public func websocketLocalAddr() throws -> SocketAddr?
 	@inlinable public func tcpLocalAddr() throws -> SocketAddr?
@@ -7289,6 +7436,7 @@ public struct TokioServerListener: ~Copyable, @unchecked Sendable {
 	@inlinable public func acceptHealth() throws -> UniqueArray<MoqTokioAcceptHealth>
 }
 public struct TokioServerRequest: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public consuming func reject(_ code: SessionError) async throws
 	@inlinable public consuming func withPublisherProducer(_ publish: borrowing OriginProducer) throws -> TokioServerRequest
 	@inlinable public consuming func withPublisherConsumer(_ publish: borrowing OriginConsumer) throws -> TokioServerRequest
 	@inlinable public consuming func withSubscriber(_ subscribe: consuming OriginProducer) throws -> TokioServerRequest
@@ -7297,6 +7445,7 @@ public struct TokioServerRequest: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withLimits(_ limits: SessionLimits) throws -> TokioServerRequest
 	@inlinable public func quic() throws -> MoqTokioQuicDriverConnectionConnection?
 	@inlinable public consuming func withQuicLimits(_ limits: MoqQuicLimits) throws -> TokioServerRequest
+	@inlinable nonisolated(nonsending) public consuming func ok() async throws -> Session
 	@inlinable public func transport() throws -> TokioTransport
 	@inlinable public func url() throws -> Url?
 	@inlinable public func authority() throws -> Swift.String?
@@ -7332,12 +7481,15 @@ public struct TransportMemorySession: ~Copyable, @unchecked Sendable {
 }
 public struct MuxCatalogHangConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogHangConsumer
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalog?
 }
 public struct MuxCatalogHangConsumerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogHangConsumerExtra
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExtra?
 }
 public struct MuxCatalogHangConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogHangConsumerExt
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExt?
 }
 public struct MuxCatalogHangContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ container: borrowing HangCatalogContainer, _ kind: MuxContainerKind) throws -> MuxCatalogHangContainer
@@ -7356,12 +7508,15 @@ public struct MuxCatalogHangExtra: ~Copyable, @unchecked Sendable {
 }
 public struct MuxCatalogMsfConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogMsfConsumer
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalog?
 }
 public struct MuxCatalogMsfConsumerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogMsfConsumerExtra
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExtra?
 }
 public struct MuxCatalogMsfConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ track: consuming TrackSubscriber) throws -> MuxCatalogMsfConsumerExt
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> HangCatalogExt?
 }
 public final class MuxCodecAacError: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible {
 	@inlinable public var description: Swift.String { get }
@@ -7677,6 +7832,7 @@ public struct MuxContainerFmp4Muxer: ~Copyable, @unchecked Sendable {
 	@inlinable public func timescale() throws -> Timescale
 	@inlinable public consuming func withTimescale(_ timescale: Timescale) throws -> MuxContainerFmp4Muxer
 	@inlinable public consuming func withFramerate(_ framerate: Swift.Double?) throws -> MuxContainerFmp4Muxer
+	@inlinable nonisolated(nonsending) public mutating func read(_ group: inout GroupConsumer) async throws -> [MuxContainerFrame]
 	@inlinable public func init_() throws -> Bytes?
 	@inlinable public func fragment(_ sequence: Swift.UInt32, _ frames: [MuxContainerFrame], _ end: Timestamp?) throws -> Bytes
 	@inlinable public func fragmenter(_ config: MuxContainerFmp4FragmentConfig) throws -> MuxContainerFmp4Fragmenter
@@ -7791,6 +7947,7 @@ public struct MuxContainerTsExportConsumerExtra: ~Copyable, @unchecked Sendable 
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumerExtra) throws -> MuxContainerTsExportConsumerExtra
 	@inlinable public consuming func withMuxRate(_ muxRate: Swift.UInt64) throws -> MuxContainerTsExportConsumerExtra
 	@inlinable public consuming func withDelay(_ delay: RustDuration) throws -> MuxContainerTsExportConsumerExtra
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumerExtra) throws -> MuxContainerTsExportConsumerExtra
@@ -7799,6 +7956,7 @@ public struct MuxContainerTsExportConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumerExt) throws -> MuxContainerTsExportConsumerExt
 	@inlinable public consuming func withMuxRate(_ muxRate: Swift.UInt64) throws -> MuxContainerTsExportConsumerExt
 	@inlinable public consuming func withDelay(_ delay: RustDuration) throws -> MuxContainerTsExportConsumerExt
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumerExt) throws -> MuxContainerTsExportConsumerExt
@@ -7807,6 +7965,7 @@ public struct MuxContainerTsExportConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumer) throws -> MuxContainerTsExportConsumer
 	@inlinable public consuming func withMuxRate(_ muxRate: Swift.UInt64) throws -> MuxContainerTsExportConsumer
 	@inlinable public consuming func withDelay(_ delay: RustDuration) throws -> MuxContainerTsExportConsumer
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumer) throws -> MuxContainerTsExportConsumer
@@ -7816,18 +7975,21 @@ public struct MuxContainerTsFollower: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withFollow(_ follow: RustDuration) throws -> MuxContainerTsFollower
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollower
 	@inlinable public func export() throws -> MuxContainerTsExportConsumer
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerTsFollowerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ export: consuming MuxContainerTsExportConsumerExtra) throws -> MuxContainerTsFollowerExtra
 	@inlinable public consuming func withFollow(_ follow: RustDuration) throws -> MuxContainerTsFollowerExtra
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollowerExtra
 	@inlinable public func export() throws -> MuxContainerTsExportConsumerExtra
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerTsFollowerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ export: consuming MuxContainerTsExportConsumerExt) throws -> MuxContainerTsFollowerExt
 	@inlinable public consuming func withFollow(_ follow: RustDuration) throws -> MuxContainerTsFollowerExt
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollowerExt
 	@inlinable public func export() throws -> MuxContainerTsExportConsumerExt
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerTsPassthrough: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerTsPassthrough
@@ -7861,11 +8023,13 @@ public struct MuxContainerTsPrograms: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func abort(_ err: Error) throws
 }
 public struct MuxContainerTsRelease: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public static func new(_ source: consuming MuxSource, _ catalogFormat: MuxCatalogCatalogFormat) async throws -> MuxContainerTsRelease
 	@inlinable public consuming func withDelay(_ delay: RustDuration) throws -> MuxContainerTsRelease
 	@inlinable public func dropped() throws -> Swift.UInt64
 	@inlinable public func drift() throws -> Swift.Double?
 	@inlinable public func outOfTolerance() throws -> Swift.UInt64
 	@inlinable public func stats() throws -> MuxContainerTsStatsRelease
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
 }
 public struct MuxContainerTsImport: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerTsImport
@@ -8271,6 +8435,7 @@ public struct MoqTokioQuicController: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func _0_set(_ value: consuming MoqCongestionFactory) throws
 }
 public struct MoqTokioWebsocketListener: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public static func bind(_ addr: SocketAddr) async throws -> MoqTokioWebsocketListener
 	@inlinable public consuming func withProtocols(_ protocols: [Swift.String]) throws -> MoqTokioWebsocketListener
 	@inlinable public consuming func withQuic(_ quic: borrowing MoqTokioQuicResolved) throws -> MoqTokioWebsocketListener
 	@inlinable public func localAddr() throws -> SocketAddr
@@ -8286,7 +8451,14 @@ public struct MoqTokioQuicDemuxDemux: ~Copyable, @unchecked Sendable {
 public struct MoqTokioQuicDriverConnectionConnection: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> MoqTokioQuicDriverConnectionConnection
+	@inlinable nonisolated(nonsending) public func openUni(_ options: MoqTokioQuicDriverSendOptions) async throws -> MoqTokioQuicDriverSendStream
 	@inlinable public func sendGroup(_ priority: Swift.Int64) -> MoqTokioQuicDriverSendGroup
+	@inlinable nonisolated(nonsending) public func openBi(_ options: MoqTokioQuicDriverSendOptions) async throws -> TupleMoqTokioQuicDriverSendStreamMoqTokioQuicDriverRecvStream
+	@inlinable nonisolated(nonsending) public func acceptUni() async throws -> MoqTokioQuicDriverRecvStream
+	@inlinable nonisolated(nonsending) public func acceptBi() async throws -> TupleMoqTokioQuicDriverSendStreamMoqTokioQuicDriverRecvStream
+	@inlinable nonisolated(nonsending) public func readDatagram() async throws -> Bytes
+	@inlinable nonisolated(nonsending) public func pollRecvDatagram() async throws -> Bytes
+	@inlinable nonisolated(nonsending) public func closed() async throws -> MoqQuicError
 	@inlinable public func closeReason() -> MoqQuicError?
 	@inlinable public func close(_ errorCode: MoqQuicVarInt, _ reason: Swift.String)
 	@inlinable public func sendDatagram(_ data: Bytes, _ options: MoqTokioQuicDriverSendOptions) throws
@@ -8714,6 +8886,7 @@ public struct MoqSockDemuxCounters: ~Copyable, @unchecked Sendable {
 }
 public struct MoqTokioQuicDemuxWebRtc: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable nonisolated(nonsending) public func recv() async throws -> MoqTokioQuicDemuxDatagram?
 	@inlinable public func pin(_ remote: SocketAddr) -> MoqSockDemuxPin
 }
 public final class MoqTokioQuicDriverSendOptions: @unchecked Sendable {
@@ -8725,6 +8898,8 @@ public final class MoqTokioQuicDriverSendOptions: @unchecked Sendable {
 }
 public struct MoqTokioQuicDriverSendStream: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable nonisolated(nonsending) public mutating func writeAll(_ buf: Bytes) async throws
+	@inlinable nonisolated(nonsending) public consuming func finish() async throws -> MoqQuicVarInt?
 	@inlinable public consuming func reset(_ errorCode: MoqQuicVarInt) throws
 	@inlinable public consuming func resetAt(_ offset: MoqTokioQuicDriverSendOffset, _ errorCode: MoqQuicVarInt) throws
 	@inlinable public func offset() throws -> MoqTokioQuicDriverSendOffset
@@ -8732,6 +8907,8 @@ public struct MoqTokioQuicDriverSendStream: ~Copyable, @unchecked Sendable {
 	@inlinable public func priority() throws -> Swift.Int64
 	@inlinable public mutating func setGroup() throws
 	@inlinable public mutating func setGroup(group: borrowing MoqTokioQuicDriverSendGroup) throws
+	@inlinable nonisolated(nonsending) public func stopped() async throws -> MoqQuicVarInt?
+	@inlinable nonisolated(nonsending) public func pollClosed() async throws -> MoqQuicVarInt?
 	@inlinable public func id() throws -> MoqQuicStreamId
 }
 public struct MoqTokioQuicDriverSendGroup: ~Copyable, @unchecked Sendable {
@@ -8742,9 +8919,12 @@ public struct MoqTokioQuicDriverSendGroup: ~Copyable, @unchecked Sendable {
 }
 public struct MoqTokioQuicDriverRecvStream: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable nonisolated(nonsending) public mutating func readChunk(_ max: Swift.UInt) async throws -> Bytes?
+	@inlinable nonisolated(nonsending) public mutating func readToEnd(_ limit: Swift.UInt) async throws -> Bytes
 	@inlinable public mutating func setPriority(_ priority: Swift.Int64) throws
 	@inlinable public consuming func stop(_ errorCode: MoqQuicVarInt) throws
 	@inlinable public func id() throws -> MoqQuicStreamId
+	@inlinable nonisolated(nonsending) public mutating func receivedReset() async throws -> MoqQuicVarInt?
 }
 public final class MoqTokioQuicDriverSendError: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
 	@inlinable public var description: Swift.String { get }
@@ -9296,8 +9476,15 @@ public let MP4_ATOM_DADJ_DENOMINATOR: Swift.Int32
 @inlinable public func clockOrigin() -> (ClockInstant, ClockWall)
 @inlinable public func clockRng() -> ClockRng
 @inlinable public func clockSeed() -> Swift.UInt64
+@inlinable nonisolated(nonsending) public func clockDrive(_ poll: @escaping @Sendable (ClockInstant, borrowing Waiter) throws -> ClockInstant?) async throws -> Swift.String
 @inlinable public func clockInterval(_ period: RustDuration) -> ClockInterval
 @inlinable public func clockIntervalAt(_ start: ClockInstant, _ period: RustDuration) -> ClockInterval
+@inlinable nonisolated(nonsending) public func clockSleep(_ duration: RustDuration) async throws
+@inlinable nonisolated(nonsending) public func clockSleepUntil(_ at: ClockInstant) async throws
+@inlinable nonisolated(nonsending) public func clockTimeout(_ duration: RustDuration, _ future: @escaping @Sendable () async -> Void) async throws
+@inlinable nonisolated(nonsending) public func clockTimeoutAt(_ deadline: ClockInstant, _ future: @escaping @Sendable () async -> Void) async throws
+@inlinable nonisolated(nonsending) public func timeRunDriver(_ driver: consuming Driver) async throws -> Error
+@inlinable nonisolated(nonsending) public func timeRunOriginDriver(_ driver: consuming OriginDriver) async throws -> Error
 @inlinable public func varintDecodeQuic(_ r: inout Bytes) throws -> Swift.UInt64
 @inlinable public func varintEncodeQuic(_ value: Swift.UInt64, _ w: inout Bytes) throws
 @inlinable public var CACHEDEFAULTEXPIRY: RustDuration { get }

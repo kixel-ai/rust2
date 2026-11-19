@@ -44,21 +44,27 @@ packages. Without a check, a consumer only imports the module.
 
 ## What the builder does
 
-1. Stages each target's API on the host whose C toolchain its build scripts need.
-2. On each build host, exports the binding of every target, merging the others' staged
+1. Finds the previous release: the newest `<crate>-v<version>` GitHub release below the
+   crate's version, and its `api.json` asset. When Cargo treats the two versions as
+   compatible (the same leftmost nonzero part, neither a prerelease), each export passes it
+   as `--baseline`, so a release that breaks its API without a breaking version fails
+   ([The API lock](/ffi/README.md#the-api-lock)). A previous release without the asset fails
+   the build.
+2. Stages each target's API on the host whose C toolchain its build scripts need.
+3. On each build host, exports the binding of every target, merging the others' staged
    APIs, so an item only some targets have fails there at run time instead of being
    missing ([Targets](/ffi/README.md#targets)). A job checks that every host generated the
    same binding.
-3. Builds each target with the crate's own toolchain, as rustup resolves it from the
+4. Builds each target with the crate's own toolchain, as rustup resolves it from the
    crate's directory; only the export runs on rust2's nightly.
-4. Python: a `cp311-abi3` wheel per target, the oldest CPython the generated extension's
+5. Python: a `cp311-abi3` wheel per target, the oldest CPython the generated extension's
    stable ABI loads in, holding the module as `<lib>/__init__.py` beside its library, with
    PEP 639 license metadata and a complete hashed RECORD. Each is repaired by its platform's
    standard tool, which claims the portable tag or fails: auditwheel for
    `manylinux_2_28` on x86_64 and aarch64 (built by cargo-zigbuild against glibc 2.28, as
    [crabx](/crabx/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
    `win_amd64`.
-5. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
+6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
    at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
    every object's declared minimum OS; one XCFramework of the three, zipped with `ditto`,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
@@ -67,7 +73,10 @@ packages. Without a check, a consumer only imports the module.
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
-6. Consumers, with no checkout, Rust, or source path: each wheel installed with
+7. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
+   the previous release's, by kind and Rust path; the caller's release publishes the first
+   as an asset and the second as its notes.
+8. Consumers, with no checkout, Rust, or source path: each wheel installed with
    `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
    from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
    and the iOS Simulator, then consumed by a new executable package that runs the check.

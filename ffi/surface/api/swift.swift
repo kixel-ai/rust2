@@ -670,7 +670,9 @@ public enum Clash: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public func bytes() -> Bytes
 	@inlinable public func reading(_ kotlin: Swift.UInt32) -> Reading
 	@inlinable public static func listed(_ java: [Swift.UInt32], _ kotlin: inout Swift.UInt32) -> [[Swift.UInt32]]
+	@inlinable nonisolated(nonsending) public static func after(_ first: @escaping @Sendable () async -> Void, _ kotlin: Swift.Double) async throws -> Clash
 	@inlinable public func joined(_ lent: Bytes, _ owned: Bytes, _ maybe: Bytes?) -> Bytes
+	@inlinable nonisolated(nonsending) public func tagged(_ tag: Swift.String) async throws -> Swift.String
 	@inlinable public func stamp(_ kotlin: Swift.UInt64) -> Stamp
 	@inlinable public func moment(_ kotlin: Swift.UInt64) -> Moment
 	@inlinable public static func at(_ api: Point) -> Clash
@@ -798,6 +800,7 @@ public struct Waiter: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ waker: @escaping @Sendable () -> Void) -> Waiter
 	@inlinable public func waker() throws -> @Sendable () -> Void
 	@inlinable public func context() throws -> @Sendable () -> Void
+	@inlinable nonisolated(nonsending) public static func pollFuture(_ future: @escaping @Sendable () async -> Void) async throws
 }
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
@@ -816,12 +819,15 @@ public struct Local: ~Copyable {
 	@inlinable public static func new() -> Local
 	@inlinable public func bump() throws -> Swift.UInt32
 	@inlinable public func share() throws -> Local
+	@inlinable nonisolated(nonsending) public func later() async throws -> Swift.UInt32
 	@inlinable public func visit(_ f: @Sendable () -> Swift.UInt32) throws -> Swift.UInt32
+	@inlinable nonisolated(nonsending) public func pollCount() async throws -> Swift.UInt32
 	@inlinable public func threadNumber() throws -> Swift.UInt64
 	@inlinable public func onOwnThread() throws -> Swift.Bool
 }
 public struct LocalWaiter: ~Copyable {
 	@inlinable public static func new(_ waker: @escaping @Sendable () -> Void) -> LocalWaiter
+	@inlinable nonisolated(nonsending) public static func pollReady(_ n: Swift.UInt32) async throws -> Swift.UInt32
 }
 public struct Retry: ~Copyable, @unchecked Sendable {
 	@inlinable public var limitGet: Swift.UInt32? { get }
@@ -895,6 +901,7 @@ public struct Worker: ~Copyable, @unchecked Sendable {
 public struct Handle: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ count: Swift.UInt32) -> Handle
 	@inlinable public func count() -> Swift.UInt32
+	@inlinable nonisolated(nonsending) public static func later(_ count: Swift.UInt32) async throws -> Handle
 }
 public struct Area: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -922,6 +929,8 @@ public struct Counter: ~Copyable, @unchecked Sendable {
 	@inlinable public func clamped(low: borrowing Counter) throws -> Swift.UInt64
 	@inlinable public func clamped(high: borrowing Counter) throws -> Swift.UInt64
 	@inlinable public func clamped(low: borrowing Counter, high: borrowing Counter) throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public func plusLater() async throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public func plusLater(other: borrowing Counter) async throws -> Swift.UInt64
 	@inlinable public func addTo(_ other: inout Counter?) throws -> Swift.Bool
 	@inlinable public consuming func intoLabel(_ at: Point?) throws -> Label
 	@inlinable public mutating func rename(_ name: Swift.String) throws
@@ -1006,8 +1015,16 @@ public struct Channel: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new() -> Channel
 	@inlinable public mutating func clear() throws
 	@inlinable public func send(_ payload: Bytes) throws
+	@inlinable nonisolated(nonsending) public func recv() async throws -> Bytes
 	@inlinable public func notify(_ waker: @escaping @Sendable () -> Void) throws
+	@inlinable nonisolated(nonsending) public func sendLater(_ payload: Bytes) async throws
+	@inlinable nonisolated(nonsending) public func tagged(_ tag: Swift.String) async throws -> Swift.String
+	@inlinable nonisolated(nonsending) public func itemized(_ items: [Swift.UInt32]?) async throws -> Swift.UInt
+	@inlinable nonisolated(nonsending) public func pollTake() async throws -> Bytes
+	@inlinable nonisolated(nonsending) public mutating func pollMeasure(_ extra: Swift.UInt) async throws -> Swift.UInt
 	@inlinable public func listen(_ cx: @escaping @Sendable () -> Void) throws
+	@inlinable nonisolated(nonsending) public func recvSized() async throws -> (Bytes, Swift.UInt)
+	@inlinable nonisolated(nonsending) public func recvNonempty() async throws -> Bytes
 	@inlinable public func sendFromThread(_ payload: Bytes) throws
 }
 public final class Gap: @unchecked Sendable, CustomDebugStringConvertible, Equatable {
@@ -1055,6 +1072,7 @@ public struct Tally: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> Tally
 	@inlinable public static func new() -> Tally
 	@inlinable public func bump() throws -> Swift.UInt32
+	@inlinable nonisolated(nonsending) public func bumpLater() async throws -> Swift.UInt32
 }
 public struct Tallies: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> Tallies
@@ -1067,6 +1085,8 @@ public struct Gauge: ~Copyable, @unchecked Sendable {
 	@inlinable public func set(_ level: Swift.UInt64) throws
 	@inlinable public func level() throws -> Swift.UInt64
 	@inlinable public consuming func intoLevel() throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public func later() async throws -> Swift.UInt64
+	@inlinable nonisolated(nonsending) public func reaches(_ this: Swift.UInt64) async throws -> Swift.Bool
 }
 public struct Latch: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() -> Latch
@@ -1196,6 +1216,7 @@ public let FAR: Swift.Int64
 @inlinable public func widths(_ n: Swift.UInt64) -> (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)
 @inlinable public func divide(_ a: Swift.UInt64, _ b: Swift.UInt64) throws -> (Swift.UInt64, Swift.UInt64)
 @inlinable public func corner(_ unit: Swift.Bool) throws -> (Swift.UInt32, Swift.UInt32)
+@inlinable nonisolated(nonsending) public func cornerLater() async throws -> (Swift.UInt32, Swift.UInt32)
 @inlinable public func spread(_ n: Swift.UInt64) -> (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)?
 @inlinable public func find(_ haystack: Bytes, _ needle: Bytes) -> (Swift.UInt, Swift.UInt)?
 @inlinable public func rows(_ points: [Point]) -> [(Swift.String, Shape, Point)]
@@ -1225,11 +1246,14 @@ public let FAR: Swift.Int64
 @inlinable public func capacities42(_ a: borrowing Batch, _ b: borrowing Batch2) throws -> Swift.UInt
 @inlinable public func capacities24(_ a: borrowing Batch2, _ b: borrowing Batch) throws -> Swift.UInt
 @inlinable public func capacities22(_ a: borrowing Batch2, _ b: borrowing Batch2) throws -> Swift.UInt
+@inlinable nonisolated(nonsending) public func fill4(_ batch: inout Batch, _ v: Swift.UInt32) async throws -> [Swift.UInt32]
+@inlinable nonisolated(nonsending) public func fill2(_ batch: inout Batch2, _ v: Swift.UInt32) async throws -> [Swift.UInt32]
 @inlinable public func widen(_ range: RangeU64, _ by: Swift.UInt64) -> RangeU64
 @inlinable public func count(_ range: BoundsU64) -> Swift.UInt
 @inlinable public func end(_ limit: Swift.UInt64) -> BoundU64
 @inlinable public func ends(_ limit: Swift.UInt64) -> (BoundU64, BoundU64)
 @inlinable public func below(_ n: Swift.UInt64, _ limit: Swift.UInt64) throws -> Swift.UInt64
+@inlinable nonisolated(nonsending) public func drive(_ start: Moment, _ poll: @escaping @Sendable (Moment, borrowing Waiter) throws -> Moment?) async throws -> Swift.String
 @inlinable public func made(_ n: Swift.UInt32, _ make: @Sendable (Swift.UInt32) -> Swift.String) -> Swift.String
 @inlinable public func tickets(_ entries: [(Swift.String, Ticket)]) -> [(Swift.String, Ticket)]
 @inlinable public func reissue(_ ticket: Ticket, _ swap: @Sendable (Ticket) -> Ticket) -> Ticket
@@ -1243,20 +1267,31 @@ public let FAR: Swift.Int64
 @inlinable public func attempt(_ check: @Sendable () throws -> Void) throws
 @inlinable public func tail(_ file: inout some SeekableReader, _ len: Swift.UInt64) throws -> (Bytes, Swift.UInt64)
 @inlinable public func seekTo(_ file: inout some SeekableReader, _ at: Swift.UInt64) throws -> Swift.UInt64
+@inlinable nonisolated(nonsending) public func halved(_ n: Swift.UInt32) async throws -> Swift.UInt32?
+@inlinable nonisolated(nonsending) public func yielded(_ value: Swift.UInt32) async throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func after(_ first: @escaping @Sendable () async -> Void, _ value: Swift.UInt32) async throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func within(_ polls: Swift.UInt32, _ future: @escaping @Sendable () async -> Void) async throws
 @inlinable public func momentAt(_ ticks: Swift.UInt64, _ rate: Swift.UInt64) throws -> Moment
 @inlinable public func stampAt(_ millis: Swift.UInt64) throws -> Stamp
 @inlinable public func shifted(_ moment: Moment, _ shift: @Sendable (Moment) -> Moment) -> Moment
 @inlinable public func jvmSum(_ field: JvmField, _ method: JvmStatic, _ opt: OptIn) -> Swift.UInt32
 @inlinable public func clockedAfter(_ clocked: Clocked, _ ticks: Swift.UInt64) -> Clocked
 @inlinable public func emit(_ log: any Log, _ lines: Bytes) -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func counted(_ n: Swift.UInt32, _ count: @Sendable (Swift.UInt32) -> Void) async throws -> Swift.UInt32
 @inlinable public func filter(_ lines: Bytes, _ keep: @Sendable (Swift.UInt8, Swift.String) -> Swift.Bool) -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func logLater(_ log: any Log) async throws -> Swift.Bool
 @inlinable public func logCounts(_ log: any Log, _ level: Swift.UInt8, _ counter: borrowing Counter, _ more: consuming UniqueArray<Counter>) throws -> Swift.UInt32
 @inlinable public func onFirstThread() -> Swift.Bool
 @inlinable public func localsDropped() -> Swift.UInt32
 @inlinable public func localOrNew() throws -> Local
 @inlinable public func localOrNew(local: borrowing Local) throws -> Local
+@inlinable nonisolated(nonsending) public func localOrNewLater() async throws -> Local
+@inlinable nonisolated(nonsending) public func localOrNewLater(local: borrowing Local) async throws -> Local
 @inlinable public func bumpEither(_ second: borrowing Local) throws -> Swift.UInt32
 @inlinable public func bumpEither(first: borrowing Local, _ second: borrowing Local) throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func localAfter() async throws -> Local
+@inlinable nonisolated(nonsending) public func localLater(_ n: Swift.UInt32) async throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func pollTripled(_ n: Swift.UInt32) async throws -> Swift.UInt32
 @inlinable public func watch(_ gauge: borrowing Gauge, _ watch: @Sendable (borrowing Gauge) -> Swift.UInt64) throws -> Swift.UInt64
 @inlinable public func tokenBytes(_ id: Swift.UInt32, _ len: Swift.UInt32) -> Bytes
 @inlinable public func tokenSlice(_ id: Swift.UInt32, _ len: Swift.UInt32, _ of: Swift.UInt32) -> Bytes
@@ -1335,11 +1370,13 @@ public let FAR: Swift.Int64
 @inlinable public func alpn(_ config: consuming TlsConfig) throws -> Swift.String
 @inlinable public func alpnLent(_ config: borrowing TlsConfig) throws -> Swift.String
 @inlinable public func certify(_ der: Bytes) -> TlsCert
+@inlinable nonisolated(nonsending) public func byteLen(_ bytes: Bytes) async throws -> Swift.UInt
 @inlinable public func certLen(_ cert: borrowing TlsCert) throws -> Swift.UInt
 @inlinable public func certDer(_ cert: consuming TlsCert) throws -> Bytes
 @inlinable public func chainLen(_ chain: consuming UniqueArray<TlsCert>) throws -> Swift.UInt
 @inlinable public func verify(_ cert: borrowing TlsCert) throws -> Swift.UInt32
 @inlinable public func parseCert(_ text: Swift.String) throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func parseLater(_ text: Swift.String) async throws -> Swift.UInt32
 @inlinable public func resolver(_ name: Swift.String) -> TlsResolver
 @inlinable public func resolved(_ resolver: consuming TlsResolver) throws -> Swift.String
 @inlinable public func failure(_ message: Swift.String) -> StdIoError
@@ -1351,6 +1388,7 @@ public let FAR: Swift.Int64
 @inlinable public func joinWords(_ words: [Swift.String]) -> Swift.String
 @inlinable public func resume(_ alpn: Swift.String, _ seconds: Swift.UInt32) throws -> TlsSession
 @inlinable public func either(_ text: Swift.String?) -> Swift.UInt
+@inlinable nonisolated(nonsending) public func eitherLater(_ text: Swift.String?) async throws -> Swift.UInt
 @inlinable public func prefixed(_ payload: Bytes, _ prefix: Bytes?) -> Bytes
 @inlinable public func sumLists(_ a: [Swift.Int32], _ b: [Swift.Int32]?, _ c: [Swift.Int32]?) -> Swift.Int32
 @inlinable public func coordinates(_ point: Point?) -> Swift.Int32
@@ -1433,4 +1471,6 @@ public let FAR: Swift.Int64
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8
 @inlinable public func clashAudioEncoderFinish_() -> Swift.UInt8
 @inlinable public func emitFromThread(_ log: any Log, _ lines: Bytes) throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func emitLater(_ log: any Log, _ lines: Bytes) async throws -> Swift.UInt32
+@inlinable nonisolated(nonsending) public func logOnDrop(_ log: any Log) async throws
 @inlinable public func logWaker(_ log: any Log) throws -> @Sendable () -> Void

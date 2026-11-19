@@ -43,6 +43,7 @@ class Counter internal constructor(internal val raw: Long, val size: Int) : Base
 	}
 }
 fun interface Waker { fun wake() }
+typealias Handler = (Int) -> Unit
 """
         self.assertEqual(self.outline(source), [
             "class Counter internal constructor(internal val raw: Long, val size: Int) : Base() {",
@@ -57,6 +58,7 @@ fun interface Waker { fun wake() }
             "fun interface Waker {",
             "\tfun wake()",
             "}",
+            "typealias Handler = (Int) -> Unit",
         ])
 
     def test_multiline_header_and_enum(self):
@@ -123,6 +125,10 @@ public enum Bound {
 	case unbounded
 	case included(Int)
 }
+public typealias Count = Swift.UInt64
+@inlinable nonisolated(nonsending) public func later() async throws -> Int {
+	0
+}
 extension Bound {
 	func hidden() {}
 }
@@ -144,6 +150,8 @@ extension Bound {
             "\tcase unbounded",
             "\tcase included(Int)",
             "}",
+            "public typealias Count = Swift.UInt64",
+            "@inlinable nonisolated(nonsending) public func later() async throws -> Int",
         ])
 
 
@@ -161,6 +169,7 @@ enum class Shape : int {
 	square = 4,
 };
 inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
+using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
 class Marker {
 	::api::detail::unique raw_;
 	explicit Marker(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {}
@@ -190,6 +199,7 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "\t\tsquare = 4,",
             "\t};",
             "\tinline constexpr ::std::uint64_t LIMIT = API_LIMIT;",
+            "\tusing Choice = ::std::variant<Choice_Empty, Choice_Picked>;",
             "\tclass Marker {",
             "\t\tMarker(Marker &&other) noexcept = default;",
             "\t\tMarker &operator=(Marker &&other) noexcept = default;",
@@ -211,6 +221,7 @@ import 'dart:ffi' as ffi;
 const _file = 'api.dart';
 final _ownerFree = ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function()>>(_free);
 final limit = U64(5);
+typedef Callback = void Function(int);
 @ffi.Native<ffi.Uint64 Function()>(symbol: 'api_contract')
 external int _contract();
 (int, int)? _pair(int c) => null;
@@ -237,6 +248,7 @@ final class Duration implements Comparable<Duration> {
 """
         self.assertEqual(self.outline(source), [
             "final limit = U64(5);",
+            "typedef Callback = void Function(int);",
             "enum SeekFrom {",
             "\tstart(0),",
             "\tend(2),",
