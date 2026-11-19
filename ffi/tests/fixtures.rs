@@ -906,7 +906,16 @@ fn api_android() {
 		let log = String::from_utf8_lossy(&log.stdout);
 		assert!(log.contains(logged), "{case} logged {log}");
 		let dump = run(Command::new(&adb).args([
-			"shell", "timeout", "120", "logcat", "-s", "DEBUG:F", "-e", "Abort message", "-m", "1",
+			"shell",
+			"timeout",
+			"120",
+			"logcat",
+			"-s",
+			"DEBUG:F",
+			"-e",
+			"Abort message",
+			"-m",
+			"1",
 		]));
 		let dump = String::from_utf8_lossy(&dump.stdout);
 		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump}");
@@ -971,10 +980,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		(
-			"outlived",
-			"api_Meter_count: a handle lent from another outlived it",
-		),
+		("outlived", "api_Meter_count: a handle lent from another outlived it"),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the
 		// status reports a core though none is written.
