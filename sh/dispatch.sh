@@ -117,7 +117,8 @@ test_ffi() {
     python3 -I ffi/release/test_package.py
     python3 -I ffi/surface/test_surface.py
     if [[ "$(uname -sm)" == "Linux x86_64" ]]; then
-        just ffi moq-c surface --check
+        # One invocation, so the export both read runs once: moq-c's checkout comes first.
+        just ffi::moq-c '' ffi::surface --check
     else
         echo "test: the surface files are x86_64 Linux's exports, which the queue checks" >&2
         just ffi moq-c

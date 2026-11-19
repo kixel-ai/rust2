@@ -65,7 +65,7 @@ run *args:
     cargo run --locked --quiet -- {{ args }}
 
 # Write surface/, each binding's API as its language renders it, from the api fixture's export and moq's stand-in's at the pinned moq revision: --check fails where a committed file differs instead. The files are x86_64 Linux's exports, whose targets they name.
-surface *flags: moq-write (standin "" "web")
+surface *flags: (moq-write "") (standin "" "web")
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{ arch() }}-{{ os() }}" != x86_64-linux ]; then
