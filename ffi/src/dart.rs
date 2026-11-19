@@ -385,6 +385,8 @@ const RESERVED: &[&str] = &[
 	"assert", "await", "break", "case", "catch", "class", "const", "continue", "default", "do", "else", "enum",
 	"extends", "false", "final", "finally", "for", "if", "in", "is", "new", "null", "rethrow", "return", "super",
 	"switch", "this", "throw", "true", "try", "var", "void", "while", "with", "yield",
+	// The core types the binding names unqualified, which a member of the class would hide.
+	"bool", "double", "dynamic", "int", "num",
 ];
 
 const BUILT_IN: &[&str] = &[

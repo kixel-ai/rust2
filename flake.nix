@@ -314,7 +314,7 @@
             '';
           };
           # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the
-          # web binding's test in them, and in WebKit, which stands in for Safari. Apart for
+          # web binding's test in them, and in WebKit on Linux, which stands in for Safari. Apart for
           # their size. Binaryen's wasm2js lowers the bench's wasm32 build to JavaScript for its
           # wasm2js route.
           devShells.bench = self.devShells.${system}.default.overrideAttrs (old: {

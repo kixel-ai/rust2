@@ -1009,10 +1009,20 @@ they need.
   2-6x faster. Limbs for every value allocate an object each, which costs what a
   `bigint` does in V8, so they lost decode; unboxed halves would lower every value to
   two. Past 2^53 an operation allocates limbs, computed on their 32-bit words: sums,
-  differences, comparisons, casts, products of 64-bit values or of two numbers, and
-  division by a divisor below 2^32, with the rest of 128-bit arithmetic through `bigint`
-  inside the runtime. A literal past 2^53 is written out as limbs, which cost what a
-  hoisted constant does. Converting timestamps between timescales as moq-net does,
+  differences, comparisons, casts, products of 64-bit values or of two numbers, wrapping
+  products, and division by a divisor below 2^32. The rest of 128-bit arithmetic and the
+  division of 64-bit values by a larger divisor go through `bigint` inside the runtime,
+  which limbs and `bigint`s trade through one `DataView`: a store of each limb and a load,
+  not a shift and an add per limb. A `u64` kept as a number or a `bigint` wrapped by
+  `BigInt.asUintN(64, ...)`, which V8 lowers to 64-bit machine operations, measured
+  against limbs in Node, Bun, Chrome, and Firefox: it ties or loses on a product past 2^53
+  divided back down (0.3-0.7x in Node and Chrome, 1.1-1.3x in Firefox) and on comparing
+  two such products (0.4-0.5x, 0.9x in Firefox), and wins only where every value stays past 2^53, 3-5x on a
+  wrapping product and on division by a divisor past 2^32. Limbs took that win without
+  the representation: a wrapping product from the halves, and the `DataView` for the
+  division, made the hash workload `int/` 2.5-5x faster in all four engines, at the
+  hand-written `bigint` route's time. A literal past 2^53 is written out as limbs, which
+  cost what a hoisted constant does. Converting timestamps between timescales as moq-net does,
   products past 2^53 divided back down, takes 0.8-1.0x the hand-written `bigint` route's
   time in Chrome in `u64`, and 1.2-1.5x in `u128`. `u128` and `i128` as
   native `bigint`s measured 1.4-1.8x slower than limbs on that in Chrome and 1.2-1.5x in
@@ -1452,7 +1462,7 @@ frame headers decoded as they arrive a few bytes at a time, which prices a decod
 comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 256, and
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
-whose cross products do too, integers sorted, searched for their greatest and least,
+whose cross products do too, 64-bit hash arithmetic that stays past 2^53, integers sorted, searched for their greatest and least,
 and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
 numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
 group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs seven ways: natively; as wasm32 at the
@@ -1464,7 +1474,7 @@ API is `bench::run` alone (`fixtures/codec/web`), built at `wasm-checked` for
 `wasm32-wasip1` and called through its generated TypeScript; hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
+timescales, `bigint` wrapped to 64 bits in `bench/mixed.ts`, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
 `Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`); and translated. Every route's output must match
 native Rust's first. The four routes the translation is compared with run the same checks,
 so rust2-wasm against `wasm checked` is the generated binding's cost, `wasm2js` against it

@@ -4498,6 +4498,95 @@ pub mod clash {
 		}
 	}
 
+	/// A message of any type, named as prost-types' is, which Swift reads as a keyword.
+	#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+	pub struct Any {
+		pub type_url: String,
+	}
+
+	/// An `Any` of `type_url`.
+	pub fn any(type_url: String) -> Any {
+		Any { type_url }
+	}
+
+	/// A candidate, whose variant `None` Python reads as a keyword, as aho-corasick's has.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Candidate {
+		None,
+		Match(u8),
+	}
+
+	/// The candidate of `at`, none for zero.
+	pub fn candidate(at: u8) -> Candidate {
+		match at {
+			0 => Candidate::None,
+			at => Candidate::Match(at),
+		}
+	}
+
+	/// `arg1`, beside a parameter named `_`, which no language can pass a value to, as
+	/// utf8parse's has; the `_` is named apart from `arg1`.
+	pub fn ignore(_: u8, arg1: u8, _: u8) -> u8 {
+		arg1
+	}
+
+	/// A seed, whose own `default` C names apart from `Default`'s, as rustc-hash's `FxHasher`
+	/// has, while C++ escapes both to `default_`.
+	pub struct Seed {
+		value: u32,
+	}
+
+	impl Seed {
+		/// One.
+		#[allow(clippy::should_implement_trait, reason = "the clash under test")]
+		pub const fn default() -> Seed {
+			Seed { value: 1 }
+		}
+
+		pub fn value(&self) -> u32 {
+			self.value
+		}
+
+		/// Whether it is not zero, by a name Dart's type of the result takes, as fastrand's
+		/// `bool` is.
+		pub fn bool(&self) -> bool {
+			self.value != 0
+		}
+	}
+
+	impl Default for Seed {
+		/// Two.
+		fn default() -> Self {
+			Seed { value: 2 }
+		}
+	}
+
+	/// A break, with an alias named as a constant but for case, as icu_properties'
+	/// `SentenceBreak::SP` is `Sp`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Break(pub u8);
+
+	#[allow(non_upper_case_globals, reason = "the clash under test")]
+	impl Break {
+		pub const Sp: Break = Break(8);
+		pub const SP: Break = Break::Sp;
+	}
+
+	/// Nothing of `T`, as futures-util's `stream::Empty` is.
+	pub struct Empty<T>(std::marker::PhantomData<T>);
+
+	impl<T> Empty<T> {
+		pub fn is_empty(&self) -> bool {
+			true
+		}
+	}
+
+	/// An `Empty` of a `T` no argument infers, which the call names, as futures-util's
+	/// `stream::empty` takes.
+	pub fn empty<T>() -> Empty<T> {
+		Empty(std::marker::PhantomData)
+	}
+
 	/// A count, whose methods are named as what C and some languages give every handle.
 	pub struct Store {
 		count: u32,
