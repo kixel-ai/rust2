@@ -709,7 +709,7 @@ fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 	let path = path.strip_prefix("field@").unwrap_or(path);
 	let segments: Vec<&str> = path.split("::").collect();
 	// Any crate of the name, since a build may link several of its versions.
-	let mut krates = tcx.crates(()).iter().filter(|&&k| tcx.crate_name(k).as_str() == segments[0]);
+	let mut krates = (tcx.crates(()).iter()).filter(|&&k| tcx.crate_name(k).as_str() == segments[0]);
 	stripped_under(tcx, LOCAL_CRATE.as_def_id(), &segments)
 		|| krates.any(|&k| stripped_under(tcx, k.as_def_id(), &segments[1..]))
 }
