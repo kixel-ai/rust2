@@ -2926,6 +2926,40 @@ fn package(name: &str, files: &[(&str, &str)]) -> PathBuf {
 	package
 }
 
+/// A `no_std` facade's API still names the system libraries std links, as the glue's
+/// static library links std whatever the facade does: those rustc prints for the api
+/// fixture's, whose crates link nothing of their own.
+#[test]
+fn no_std_links() {
+	let package = package(
+		"no_std_links",
+		&[(
+			"src/lib.rs",
+			"#![cfg_attr(not(test), no_std)]\n\npub fn one() -> u32 {\n\t1\n}\n",
+		)],
+	);
+	let out = package.join("out");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let exported: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+	let links: Vec<String> = serde_json::from_value(exported["api"]["links"][host()].clone()).unwrap();
+	assert_eq!(links, api().native);
+}
+
 /// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
 /// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
 /// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
