@@ -1072,9 +1072,31 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 /// contract it fails loud on.
 #[test]
 fn api_python() {
+	python_checks(&std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+}
+
+/// `api_python`'s checks on a debug build of the newest CPython, which asserts what a
+/// release build trusts of the runtime's reference counting, then each of them looped,
+/// leaving the interpreter's references and memory blocks as they were.
+#[test]
+#[ignore = "needs a debug CPython, which builds from source: just ffi sanitize"]
+fn api_python_debug() {
+	let interpreter = std::env::var_os("RUST2_PYTHON_DEBUG")
+		.expect("RUST2_PYTHON_DEBUG names a debug CPython: run this in the sanitize shell");
+	python_checks(&interpreter);
+	let output = run(Command::new(&interpreter)
+		.args(["-P", "-X", "dev", "-W", "error"])
+		.arg(manifest_dir().join("tests").join("api.py"))
+		.arg("leaks")
+		.env("PYTHONPATH", api().out.join("python")));
+	assert!(output.stdout.is_empty(), "leaks printed {}", String::from_utf8_lossy(&output.stdout));
+}
+
+/// `api_python`'s checks, run by `interpreter`.
+fn python_checks(interpreter: &std::ffi::OsStr) {
 	let api = api();
 	let python = |dir: &Path, args: &[&str]| {
-		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		let mut cmd = Command::new(interpreter);
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
 		// warnings as errors fail on what the runtime only warns of.
 		cmd.args(["-P", "-X", "dev", "-W", "error"])

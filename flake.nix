@@ -316,13 +316,15 @@
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.clang ];
           });
-          # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang, and
-          # runs it under the nightly's Miri. llvm-symbolizer names the frames of a report.
+          # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang,
+          # runs it under the nightly's Miri and Valgrind, and runs the Python on a debug build of
+          # the newest CPython, which nothing caches. llvm-symbolizer names a report's frames.
           devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
               pkgs.llvm
               pkgs.valgrind
             ];
+            RUST2_PYTHON_DEBUG = "${pkgs.python315.override { enableDebug = true; }}/bin/python3";
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               extensions =
                 (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components
