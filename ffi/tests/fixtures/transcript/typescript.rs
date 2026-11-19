@@ -823,7 +823,9 @@ impl Emitter<'_> {
 					.collect();
 				let parts: Vec<String> = parts.iter().map(|p| format!("${{{p}}}")).collect();
 				let tail = if parts.len() == 1 { ",)" } else { ")" };
-				format!("_with({v}, ({x}) => `({}{tail}`)", parts.join(", "))
+				// Typed, as TypeScript infers an array literal's elements as one union.
+				let tuple = self.ts(&ty);
+				format!("_with<{tuple}>({v}, ({x}) => `({}{tail}`)", parts.join(", "))
 			}
 			Type::Bound(int) => {
 				let x = self.fresh("x");

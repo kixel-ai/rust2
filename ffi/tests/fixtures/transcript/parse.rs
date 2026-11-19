@@ -23,6 +23,7 @@ pub(super) fn main(t: &Transcript, source: &str) -> (Vec<Step>, BTreeMap<String,
 		uses: BTreeMap::new(),
 		taken: BTreeSet::new(),
 		whole: None,
+		closure: 0,
 	};
 	let mut main = None;
 	for item in &file.items {
@@ -100,6 +101,8 @@ struct Scope<'t> {
 	/// be called: a binding hands back the receiver it changed beside what Rust returns,
 	/// which only a statement can store back.
 	whole: Option<*const ()>,
+	/// How many of `vars` are from outside the closure being read, 0 outside any.
+	closure: usize,
 }
 
 /// A pointer-sized value wasm32's 32-bit pointer does not hold, which it folds otherwise.
@@ -225,6 +228,24 @@ impl Scope<'_> {
 					}
 					let mut read = Vec::new();
 					self.locals_read(item, &mut read);
+					// Moved into the array, it would drop as its pass ends, where the unrolled
+					// steps keep no scope.
+					for name in &read {
+						let ty = self.vars.iter().find_map(|v| match v {
+							Var::Typed(_, unique, ty) if unique == name => Some(ty),
+							_ => None,
+						});
+						let mut handles = Vec::new();
+						if let Some(ty) = ty {
+							self.t.api.handles(ty, &mut handles, &mut Vec::new());
+						}
+						if !handles.is_empty() {
+							fail(
+								item,
+								format!("a for loop over an element holding {name}, which holds a handle"),
+							);
+						}
+					}
 					self.vars
 						.push(Var::Alias(name.ident.to_string(), item.clone(), self.vars.len()));
 					let body = self.block(&f.body.stmts);
@@ -247,7 +268,16 @@ impl Scope<'_> {
 				let Some(Var::Typed(_, unique, _)) = self.lookup(&name) else {
 					fail(p, format!("drop of {name}, which is no local"))
 				};
-				steps.push(Step::Drop(unique.clone()));
+				let unique = unique.clone();
+				// What a closure moves in, a writer captures only by its expressions.
+				let at = self
+					.vars
+					.iter()
+					.rposition(|v| matches!(v, Var::Typed(n, ..) if *n == name));
+				if at.is_some_and(|at| at < self.closure) {
+					fail(call, format!("a drop in a closure of {name}, a local from outside it"));
+				}
+				steps.push(Step::Drop(unique));
 			}
 			expr => {
 				self.whole = whole(expr);
@@ -470,7 +500,14 @@ impl Scope<'_> {
 					"IpAddr" => Type::IpAddr(Family::Any),
 					"Ipv4Addr" => Type::IpAddr(Family::V4),
 					"Ipv6Addr" => Type::IpAddr(Family::V6),
-					"Option" => Type::Option(Box::new(arg())),
+					"Option" => match arg() {
+						// Each `None` but the innermost is the same value in a binding that
+						// marks one level apart, as the web's `rt.None` does.
+						Type::Option(inner) if matches!(*inner, Type::Option(_)) => {
+							fail(ty, "an option of an option of an option")
+						}
+						inner => Type::Option(Box::new(inner)),
+					},
 					"Box" => Type::Box(Box::new(arg())),
 					"Vec" => match arg() {
 						Type::Int(Int::U8) => Type::Vec,
@@ -1133,6 +1170,7 @@ impl Scope<'_> {
 			fail(c, "a closure of another arity");
 		}
 		let depth = self.vars.len();
+		let outside = std::mem::replace(&mut self.closure, depth);
 		let params = c
 			.inputs
 			.iter()
@@ -1140,6 +1178,7 @@ impl Scope<'_> {
 			.map(|(p, ty)| self.bind(p, ty))
 			.collect();
 		let (steps, value) = self.body(&c.body, &closure.ok);
+		self.closure = outside;
 		self.vars.truncate(depth);
 		Expr::new(Kind::Closure(params, steps, Box::new(value)), ty.clone())
 	}
@@ -1593,11 +1632,16 @@ impl Scope<'_> {
 	/// A call of `id` at `at`, `whole` when it is its statement's value.
 	fn apply(&mut self, at: &dyn Spanned, id: FnId, receiver: Option<Expr>, args: &[syn::Expr], whole: bool) -> Expr {
 		let f = self.t.function(id);
-		if f.receiver == Some(Receiver::Mut) && matches!(id.owner, Owner::Record(_)) && !whole {
-			fail(
-				at,
-				"a value's &mut self method called other than as a statement or a let's value",
-			);
+		if f.receiver == Some(Receiver::Mut) && matches!(id.owner, Owner::Record(_)) {
+			if !whole {
+				fail(
+					at,
+					"a value's &mut self method called other than as a statement or a let's value",
+				);
+			}
+			if !matches!(receiver.as_ref().map(|r| &r.kind), Some(Kind::Var(_))) {
+				fail(at, "a value's &mut self method on anything but a local");
+			}
 		}
 		let params: Vec<Type> = f.params.iter().map(|p| p.ty.clone()).collect();
 		let args: Vec<&syn::Expr> = args.iter().filter(|a| !is_unit(a)).collect();
@@ -1822,7 +1866,6 @@ impl Scope<'_> {
 	}
 }
 
-/// Whether `expr` is `()`, an argument the IR drops.
 /// The call `expr` is, if it is one.
 fn whole(expr: &syn::Expr) -> Option<*const ()> {
 	match expr {
@@ -1862,6 +1905,17 @@ fn local_name(name: &str) -> bool {
 	})
 }
 
+/// Whether `expr` is an integer literal, parenthesized or not.
+fn literal_int(expr: &syn::Expr) -> bool {
+	match expr {
+		syn::Expr::Paren(p) => literal_int(&p.expr),
+		syn::Expr::Lit(syn::ExprLit {
+			lit: syn::Lit::Int(_), ..
+		}) => true,
+		_ => false,
+	}
+}
+
 /// Whether a pointer-sized `n` folds alike on wasm32, whose pointer is 32 bits.
 fn wasm32_holds(n: Num, int: Int) -> bool {
 	match int.signed() {
@@ -1873,6 +1927,7 @@ fn wasm32_holds(n: Num, int: Int) -> bool {
 	}
 }
 
+/// Whether `expr` is `()`, an argument the IR drops.
 fn is_unit(expr: &syn::Expr) -> bool {
 	matches!(expr, syn::Expr::Tuple(t) if t.elems.is_empty())
 }
@@ -2095,6 +2150,8 @@ fn past_wasm32(expr: &syn::Expr, pointer: Option<Int>, whole: bool) -> Option<&s
 	}
 	match expr {
 		syn::Expr::Paren(p) => past_wasm32(&p.expr, pointer, whole),
+		// A negated literal is one value, which the check above took whole.
+		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) && literal_int(&u.expr) => None,
 		syn::Expr::Unary(u) => past_wasm32(&u.expr, pointer, false),
 		// What is cast has its own type, `i32` where nothing spells one.
 		syn::Expr::Cast(c) => past_wasm32(&c.expr, None, false),

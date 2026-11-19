@@ -4028,6 +4028,22 @@ fn transcript_refusals() {
 			"let t = api::Tally::new(); let x: u32 = gap(t.bump(), t.bump()); println!(\"{x}\");",
 			"two have an effect",
 		),
+		(
+			"let n = 7u32; api::each(1, |_| { drop(n); });",
+			"a drop in a closure of n",
+		),
+		(
+			"let t = api::Token::new(7); for item in [t] { println!(\"inside\"); }",
+			"which holds a handle",
+		),
+		(
+			"let mut pair = (api::Score::of(2), 1u8); let n = pair.0.take(); println!(\"{n}\");",
+			"a value's &mut self method on anything but a local",
+		),
+		(
+			"let x: Option<Option<Option<u32>>> = None; println!(\"{}\", x.is_none());",
+			"an option of an option of an option",
+		),
 		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
 		(
 			"for n in [1u8] { let x = n; println!(\"{x}\"); }",
