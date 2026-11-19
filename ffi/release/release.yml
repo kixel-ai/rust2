@@ -15,6 +15,12 @@ name: Release @NAME@ bindings
 #   npm registers for this workflow and the `npm` environment, and JSR's link to this
 #   repository, each with provenance.
 #
+# The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, .zip, and list laid
+# out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy: on a
+# host you control, a go-import tag of type `mod` names it, but Go resolves a github.com path
+# by git alone, so its consumers set GOPROXY to the proxy. A git mirror holds no library
+# over GitHub's 100 MiB.
+#
 # To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
 # from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
 # "Re-run failed jobs": it reuses this run's build, and the publishing jobs upload only what
@@ -38,9 +44,11 @@ jobs:
     uses: kixel-ai/rust2/.github/workflows/bindings.yml@@RUST2@
     with:
       manifest-path: @MANIFEST@
+      go-module: @GO_MODULE@
 @WEB@
       # Optional: cargo features to ship, an example of the crate whose output every check
-      # program must print, and those programs: `python-check`, `swift-check`, and `web-check`.
+      # program must print, and those programs: `python-check`, `swift-check`, `go-check`, and
+      # `web-check`.
 
   tag:
     needs: build

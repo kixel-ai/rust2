@@ -1,6 +1,7 @@
 """The builder's decisions that need no toolchain: names, versions, metadata, and manifests."""
 
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -31,7 +32,20 @@ def export(root, floor="311"):
     (root / "include/moq.h").write_text("int moq_contract(void);\n")
     (root / "swift/moq.swift").write_text("import MoqFFI\n")
     (root / "Cargo.toml").write_text(f'pyo3-ffi = {{ features = ["abi3-py{floor}", "extension-module"] }}\n')
+    (root / "go/rt").mkdir(parents=True)
+    (root / "go/go.mod").write_text("module moq.dev/moq-ffi\n\ngo 1.24\n")
+    lines = "".join(f"#cgo {p.replace('_', ',')} LDFLAGS: ${{SRCDIR}}/libmoq_{p}.a -lgcc_s -lc\n"
+                    for p in package.GO_TARGETS.values())
+    (root / "go/rt/rt.go").write_text(f"package rt\n\n/*\n{lines}*/\nimport \"C\"\n")
     return root
+
+
+def go_libs(root):
+    """A directory of every Go target's library, as `build` names them."""
+    (root / "libs").mkdir()
+    for platform in package.GO_TARGETS.values():
+        (root / "libs" / f"libmoq_{platform}.a").write_bytes(b"!<arch>\n")
+    return root / "libs"
 
 
 class Versions(unittest.TestCase):
@@ -142,6 +156,84 @@ class Digest(unittest.TestCase):
             # A Windows checkout once turned the embedded runtime CRLF.
             (second / "python/moq.py").write_bytes(b"PENDING = 0\r\n")
             self.assertNotEqual(package.digest(first, "moq"), package.digest(second, "moq"))
+            (second / "python/moq.py").write_bytes(b"PENDING = 0\n")
+            (second / "go/rt/rt.go").write_text("package rt\n")
+            self.assertNotEqual(package.digest(first, "moq"), package.digest(second, "moq"))
+
+
+class Go(unittest.TestCase):
+    def test_versions_and_major_suffixes(self):
+        self.assertEqual(package.go_version("1.0.0-rc.1"), "v1.0.0-rc.1")
+        with self.assertRaises(SystemExit):
+            package.go_version("1.0.0+build")
+        package.check_major("moq.dev/moq-ffi", "v1.2.3")
+        package.check_major("moq.dev/moq-ffi/v2", "v2.0.0")
+        for module, version in [("moq.dev/moq-ffi", "v2.0.0"), ("moq.dev/moq-ffi/v3", "v2.0.0"), ("moq.dev/x/v2", "v1.0.0")]:
+            with self.assertRaises(SystemExit):
+                package.check_major(module, version)
+
+    def test_zip_root_of_a_nested_module(self):
+        self.assertEqual(package.zip_root("example.com/api/v2@v2.0.0-rc.1/rt/rt.go"), ("example.com/api/v2", "v2.0.0-rc.1"))
+        with self.assertRaises(SystemExit):
+            package.zip_root("rt/rt.go")
+
+    def test_module_path_as_go_reads_it(self):
+        with tempfile.TemporaryDirectory() as root:
+            go = Path(root) / "go"
+            go.mkdir()
+            for text, want in [("module example.com/own/v2 // a release\n", "example.com/own/v2"),
+                               ('module "example.com/q"\n', "example.com/q"),
+                               ("// module wrong\nmodule example.com/s\n\ngo 1.24\n", "example.com/s"),
+                               ('module ( // the app\n\t"example.com/app"\n)\n', "example.com/app")]:
+                (go / "go.mod").write_text(text)
+                self.assertEqual(package.go_module_path(root), want)
+
+    def test_escapes_capitals(self):
+        self.assertEqual(package.escape("github.com/Azure/x"), "github.com/!azure/x")
+
+    def test_links_from_the_cgo_line(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = export(Path(root))
+            self.assertEqual(package.go_links(root, "moq", "x86_64-unknown-linux-gnu"), "-lgcc_s -lc")
+            (root / "go/rt/rt.go").write_text("package rt\n")
+            with self.assertRaises(SystemExit):
+                package.go_links(root, "moq", "x86_64-unknown-linux-gnu")
+
+    def test_module_as_a_proxy_serves_it(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            built = export(root / "export")
+            (root / "LICENSE-MIT").write_text("MIT\n")
+            summary = package.go_module(info(root), built, go_libs(root), root / "proxy")
+            self.assertIn("`rt/libmoq_windows_amd64.a`", summary)
+            versions = root / "proxy/moq.dev/moq-ffi/@v"
+            self.assertEqual((versions / "v0.4.12.mod").read_text(), "module moq.dev/moq-ffi\n\ngo 1.24\n")
+            self.assertEqual(json.loads((versions / "v0.4.12.info").read_text()), {"Version": "v0.4.12"})
+            self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
+            with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
+                self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
+                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
+                    "rt/libmoq_linux_amd64.a", "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
+            # The module ships exactly the libraries the runtime links.
+            (root / "libs/libmoq_linux_arm64.a").unlink()
+            with self.assertRaises(SystemExit):
+                package.go_module(info(root), built, root / "libs", root / "other")
+            (root / "libs/libmoq_linux_arm64.a").write_bytes(b"!<arch>\n")
+            rt = built / "go/rt/rt.go"
+            rt.write_text(rt.read_text().replace("#cgo ios,arm64", "// none"))
+            with self.assertRaises(SystemExit):
+                package.go_module(info(root), built, root / "libs", root / "third")
+
+    def test_refuses_names_a_case_folds_together(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            built = export(root / "export")
+            (built / "go/RT.go").write_text("package rt\n")
+            (built / "go/rt.go").write_text("package rt\n")
+            if len(list((built / "go").glob("[Rr][Tt].go"))) != 2:
+                self.skipTest("a case-insensitive file system holds one of the two names")
+            with self.assertRaises(SystemExit):
+                package.go_files(info(root), built, go_libs(root))
 
 
 class Swift(unittest.TestCase):
@@ -168,25 +260,29 @@ class Swift(unittest.TestCase):
 
 class Template(unittest.TestCase):
     def test_fills_every_identity(self):
-        text = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi")
+        text = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
         self.assertIn("uses: kixel-ai/rust2/.github/workflows/bindings.yml@" + "a" * 40, text)
         self.assertIn('- "moq-ffi-v*"', text)
         self.assertIn("url: https://pypi.org/p/moq-ffi", text)
         self.assertIn("owner: moq-dev\n", text)
         self.assertIn("repositories: moq-swift-ffi\n", text)
+        self.assertIn("go-module: moq.dev/moq-ffi\n", text)
         self.assertNotRegex(text, r"@[A-Z_]+@")
 
     def test_refuses_a_movable_pin_or_bad_mirror(self):
         with self.assertRaises(SystemExit):
-            package.template(info("/src"), "Cargo.toml", "main", "moq-dev/moq-swift-ffi")
+            package.template(info("/src"), "Cargo.toml", "main", "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
         with self.assertRaises(SystemExit):
-            package.template(info("/src"), "Cargo.toml", "a" * 40, "moq-swift-ffi")
+            package.template(info("/src"), "Cargo.toml", "a" * 40, "moq-swift-ffi", "moq.dev/moq-ffi")
+        for module in ["moq", "moq.dev/moq-ffi/", "moq.dev/moq-ffi/v2"]:
+            with self.assertRaises(SystemExit):
+                package.template(info("/src"), "Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", module)
 
     def test_web_lines_follow_the_scope(self):
-        shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq")
+        shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi", "moq")
         self.assertIn("\n      web-manifest-path: rs/moq-ffi/Cargo.toml\n      scope: moq\n", shipped)
         self.assertIn("@moq/moq-ffi on npm and JSR", shipped)
-        none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi")
+        none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
         self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
         self.assertNotIn("\n      web-manifest-path:", none)
         self.assertNotRegex(none, r"@[A-Z_]+@")

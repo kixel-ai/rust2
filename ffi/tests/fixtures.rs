@@ -333,7 +333,7 @@ fn api_go_race() {
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	run(go(&module, api, &["build", "-race", "-o"]).arg(&exe));
+	run(go(&module, &["build", "-race", "-o"]).arg(&exe));
 	// Every report fails the run.
 	let env = [("GORACE", "halt_on_error=1")];
 	let output = run(Command::new(&exe).envs(env));
@@ -1903,7 +1903,7 @@ fn api_go() {
 			reads: &[&module],
 			writes: &[],
 		};
-		step.run(&mut go(root, api, &["vet", "./..."]));
+		step.run(&mut go(root, &["vet", "./..."]));
 	}
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
 	go_build(api, &module, &exe);
@@ -1967,13 +1967,10 @@ fn api_go() {
 }
 
 /// Lay out `module` as a Go module whose main package is `main`, requiring the export's
-/// module of a package per crate, beside the header as the export lays them out.
+/// module of a package per crate, with the static library its runtime links.
 fn go_layout(api: &Api, module: &Path, main: &str) {
 	step::mirror(&api.out.join("go"), &module.join("export"));
-	step::copy(
-		&api.out.join("include").join("api.h"),
-		&module.join("include").join("api.h"),
-	);
+	go_library(&api.staticlib(), &module.join("export"));
 	step::write(&module.join("main.go"), main);
 	step::write(
 		&module.join("go.mod"),
@@ -1988,7 +1985,7 @@ fn go_build(api: &Api, module: &Path, exe: &Path) {
 		reads: &[module, &api.staticlib()],
 		writes: &[exe],
 	};
-	step.run(go(module, api, &["build", "-o"]).arg(exe));
+	step.run(go(module, &["build", "-o"]).arg(exe));
 }
 
 /// Under a `go.mod`, the generated packages import each other by its module, as the go
@@ -2016,6 +2013,23 @@ fn go_module() {
 	);
 	let api = std::fs::read_to_string(out.join("go").join("api").join("api.go")).unwrap();
 	assert!(api.contains("\"example.com/app/sub/out/go/rt\""), "{api}");
+
+	// A go.mod in go/ itself makes it a module, as a release's is, which the export keeps
+	// as it is, above any other.
+	let own = module.join("own");
+	let go_mod = "module example.com/own/v2 // a release\n\ngo 1.24\n";
+	std::fs::create_dir_all(own.join("go")).unwrap();
+	std::fs::write(own.join("go").join("go.mod"), go_mod).unwrap();
+	let output = export("api", &own, &[], &[]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert_eq!(std::fs::read_to_string(own.join("go").join("go.mod")).unwrap(), go_mod);
+	let api = std::fs::read_to_string(own.join("go").join("api").join("api.go")).unwrap();
+	assert!(api.contains("\"example.com/own/v2/rt\""), "{api}");
+	vet(&own.join("go"));
 }
 
 /// A crate named as the runtime, a Go keyword, or `main` is the Go package of that name and
@@ -2323,18 +2337,54 @@ fn vet(go: &Path) {
 		.env("GOTOOLCHAIN", "local"));
 }
 
-/// The go command in `module`, linking cgo against the api fixture's static library.
-fn go(module: &Path, api: &Api, args: &[&str]) -> Command {
-	let mut ldflags = api.staticlib().into_os_string();
-	for lib in &api.native {
-		ldflags.push(" ");
-		ldflags.push(lib);
+/// Put the static library `lib` in the Go module `export`'s runtime, as the file the
+/// export's one `#cgo LDFLAGS` line links with what else it needs, without the LLVM bitcode
+/// the go command refuses there.
+fn go_library(lib: &Path, export: &Path) {
+	let rt = std::fs::read_to_string(export.join("rt").join("rt.go")).unwrap();
+	let mut names = rt.lines().filter_map(|line| {
+		let flags = line.strip_prefix("#cgo ")?.split_once(" LDFLAGS: ${SRCDIR}/")?.1;
+		Some(flags.split(' ').next().unwrap().to_string())
+	});
+	let (Some(name), None) = (names.next(), names.next()) else {
+		panic!("the Go links no one library for the host: {rt}");
+	};
+	// Beside the module, so layouts that tests build at once strip apart.
+	let stripped = export.parent().unwrap().with_extension("a");
+	let objcopy = llvm_objcopy();
+	Step {
+		stamp: &step::stamp(&stripped),
+		reads: &[lib, objcopy],
+		writes: &[&stripped],
 	}
+	.run(
+		Command::new(objcopy)
+			.args(["--remove-section=.llvmbc", "--remove-section=.llvmcmd"])
+			.args(["--remove-section=__LLVM,__bitcode", "--remove-section=__LLVM,__cmdline"])
+			.arg(lib)
+			.arg(&stripped),
+	);
+	step::copy(&stripped, &export.join("rt").join(name));
+}
+
+/// The nightly's llvm-objcopy, which reads every target's objects.
+fn llvm_objcopy() -> &'static Path {
+	static OBJCOPY: OnceLock<PathBuf> = OnceLock::new();
+	OBJCOPY.get_or_init(|| {
+		let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+		let sysroot = run(Command::new(rustc).args(["--print", "sysroot"]));
+		let sysroot = PathBuf::from(String::from_utf8_lossy(&sysroot.stdout).trim());
+		let bin = sysroot.join("lib").join("rustlib").join(host()).join("bin");
+		bin.join(format!("llvm-objcopy{EXE_SUFFIX}"))
+	})
+}
+
+/// The go command in `module`, whose runtime links the api fixture's static library.
+fn go(module: &Path, args: &[&str]) -> Command {
 	let mut cmd = Command::new("go");
 	cmd.args(args)
 		.current_dir(module)
 		.env("CGO_ENABLED", "1")
-		.env("CGO_LDFLAGS", ldflags)
 		// The module is no checkout of its own, and must build with the Go on PATH.
 		.env("GOFLAGS", "-buildvcs=false")
 		.env("GOTOOLCHAIN", "local");
@@ -2984,6 +3034,40 @@ fn package(name: &str, files: &[(&str, &str)]) -> PathBuf {
 	write_all(&package, &defaults.collect::<Vec<_>>());
 	write_all(&package, files);
 	package
+}
+
+/// A `no_std` facade's API still names the system libraries std links, as the glue's
+/// static library links std whatever the facade does: those rustc prints for the api
+/// fixture's, whose crates link nothing of their own.
+#[test]
+fn no_std_links() {
+	let package = package(
+		"no_std_links",
+		&[(
+			"src/lib.rs",
+			"#![cfg_attr(not(test), no_std)]\n\npub fn one() -> u32 {\n\t1\n}\n",
+		)],
+	);
+	let out = package.join("out");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let exported: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+	let links: Vec<String> = serde_json::from_value(exported["api"]["links"][host()].clone()).unwrap();
+	assert_eq!(links, api().native);
 }
 
 /// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:

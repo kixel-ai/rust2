@@ -1,7 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
-and a web package on npm and JSR. Two halves, split where Cargo's knowledge ends:
+a Go module, and a web package on npm and JSR. Two halves, split where Cargo's knowledge
+ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -11,14 +12,14 @@ and a web package on npm and JSR. Two halves, split where Cargo's knowledge ends
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
   It holds what Cargo cannot establish: who may publish to PyPI, npm, and JSR, the scope
   the web package is named under, where the XCFramework is hosted, which repository
-  SwiftPM resolves the package from, and which tag releases.
+  SwiftPM resolves the package from, the Go module's path, and which tag releases.
 
 ## Adopting it
 
 From a rust2 checkout at the commit to pin, in the repository holding the crate:
 
 ```sh
-python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --scope moq
+python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --go-module moq.dev/moq-ffi --scope moq
 ```
 
 It writes `.github/workflows/release-<crate>.yml`, calling the builder at that commit, and
@@ -30,6 +31,11 @@ outside the repository:
 - create the mirror repository, install a GitHub App on it with contents write, and put its
   `APP_CLIENT_ID` and `APP_PRIVATE_KEY` in a `swift-mirror` environment that only release
   tags may deploy to;
+- serve the build's `<crate>-go` artifact, the module laid out as a GOPROXY serves it, from a
+  module proxy: on a host you control, a `go-import` tag of type `mod` names it, but Go
+  resolves a `github.com` path by git alone, so its consumers set `GOPROXY` to the proxy. No
+  job publishes it: a git mirror holds no library over GitHub's 100 MiB, and a proxy is the
+  caller's to run.
 - for the web package, publish its first version by hand, as npm configures a trusted
   publisher only for a package it holds, then register the workflow and the `npm`
   environment as its trusted publisher; and create the package in the JSR scope and link
@@ -47,12 +53,13 @@ and the XCFramework archive carry build times, so **Re-run all jobs** fails wher
 registry already holds the first attempt's files.
 A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 
-The builder takes the crate's `Cargo.toml` and four optional inputs the caller's tests own:
+The builder takes the crate's `Cargo.toml`, the `go-module` path, which without it is the
+export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check` and `swift-check` programs that must print it through the installed
-packages. Without a check, a consumer only imports the module. The web package takes
-`web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own, which
-no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
+`python-check`, `swift-check`, and `go-check` programs that must print it through the
+installed packages. Without a check, a consumer only imports the module. The web package
+takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
+which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
 whose imports the consumer rewrites to the package's name. Its crate's version must be
 the release's. `features` and `example` apply to it when it is the crate's own; a web
@@ -83,12 +90,29 @@ crate apart from it takes `web-features` and `web-example` instead.
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
-6. Consumers, with no checkout, Rust, or source path: each wheel installed with
+6. Go: one module for every target, at the module path and `v<version>`, the major
+   version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
+   `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
+   glibc 2.28), `darwin/arm64` and `ios/arm64` (the Swift package's macOS and iOS device
+   libraries; no consumer here runs iOS), and `windows/amd64` (an
+   `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
+   library must need exactly the system libraries the export's line names, as rustc prints
+   them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's
+   `.info`, `.mod`, and `.zip`, and a version `list` naming this release alone, which a proxy
+   serving earlier releases appends to its own, are laid out as a GOPROXY serves them, under Go's 500 MiB
+   limit on the zip and on its files, whose sizes the run's summary reports. One module
+   holds every platform, so a release is one version of one module. Should it near the
+   limit, each platform's library moves to a module of its own, whose one package's `#cgo`
+   line links it and which the runtime imports under that platform's build constraint, so
+   `go get` downloads only the platform it builds for.
+7. Consumers, with no checkout, Rust, or source path: each wheel installed with
    `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
    from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
-   and the iOS Simulator, then consumed by a new executable package that runs the check.
-   With an `example`, each must print native Rust's stdout byte for byte.
-7. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
+   and the iOS Simulator, then consumed by a new executable package that runs the check;
+   and the Go module, unpacked from its zip into a new module that requires it, vetted,
+   built with the newest Go and no `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and
+   Windows. With an `example`, each must print native Rust's stdout byte for byte.
+8. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
    TypeScript, its JavaScript and declarations, and a `package.json`
    ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
    `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
@@ -105,8 +129,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
 wheels and web package must print its native transcript, and on moq's stand-in facade at
-the exporter's moq pin, through `moq/moq.py` and `moq/moq.swift`, with its wasm32 stand-in
-as the web package.
+the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`, and `moq/moq.go`, with its
+wasm32 stand-in as the web package.
 
 ## Other registries
 
@@ -119,7 +143,6 @@ binding.
 | --- | --- | --- |
 | Maven Central | An AAR with classes.jar, JNI libraries per Android ABI and the generated R8 rules; POM, sources and javadoc jars | The verified groupId namespace, publisher authorization, and signing key |
 | pub.dev | The generated Dart library with a native-assets build hook and per-platform archives, pubspec, and license | Publisher authorization and the archives' download host |
-| Go | The generated cgo packages with module-relative imports, and native libraries per target | The module path, repository subdirectory, and release tags, major-version suffixes included |
 | NuGet | Needs a C# generator first: the managed assembly and RID-specific native assets | Package ID ownership, credentials, and target frameworks |
 
 Cargo's `repository` can suggest a Go module path or a Maven namespace but cannot prove
