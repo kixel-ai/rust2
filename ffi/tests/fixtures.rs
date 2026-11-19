@@ -391,9 +391,9 @@ fn api_valgrind() {
 	}
 }
 
-/// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
-/// C++ scripts against it, built by clang under the same one.
-fn sanitized(sanitizer: &str) {
+/// The api fixture's glue built, std included, under the `sanitizer`: its static library,
+/// and what a program linking it links besides.
+fn sanitized_glue(sanitizer: &str) -> (PathBuf, Vec<String>) {
 	let api = api();
 	let dir = scratch().join("api").join(sanitizer);
 	let built = run(cargo()
@@ -413,7 +413,22 @@ fn sanitized(sanitizer: &str) {
 		.split_whitespace()
 		.map(str::to_string)
 		.collect();
-	let lib = dir.join("glue").join(host()).join("debug").join("libapi.a");
+	(dir.join("glue").join(host()).join("debug").join("libapi.a"), native)
+}
+
+/// Every report fails the run, rather than only those the sanitizer deems fatal.
+const SANITIZER_ENV: [(&str, &str); 3] = [
+	("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
+	("TSAN_OPTIONS", "halt_on_error=1"),
+	("UBSAN_OPTIONS", "halt_on_error=1:print_stacktrace=1"),
+];
+
+/// Build the api fixture's glue under the `sanitizer`, and run the C and C++ scripts
+/// against it, built by clang under the same one.
+fn sanitized(sanitizer: &str) {
+	let api = api();
+	let dir = scratch().join("api").join(sanitizer);
+	let (lib, native) = sanitized_glue(sanitizer);
 	let tests = manifest_dir().join("tests");
 	// UndefinedBehaviorSanitizer rides with AddressSanitizer on the C and C++ side, whose
 	// undefined behavior Rust's checks cannot see. `-fno-wrapv` overrides a hardened
@@ -423,12 +438,6 @@ fn sanitized(sanitizer: &str) {
 		"thread" => &["-fsanitize=thread"],
 		other => panic!("no C flags for the {other} sanitizer"),
 	};
-	// Every report fails the run, rather than only those the sanitizer deems fatal.
-	let env = [
-		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
-		("TSAN_OPTIONS", "halt_on_error=1"),
-		("UBSAN_OPTIONS", "halt_on_error=1:print_stacktrace=1"),
-	];
 	for (compiler, std, src, args) in [
 		("clang", "-std=c11", "api.c", &["threads"][..]),
 		("clang++", "-std=c++17", "api.cpp", &["futures", "lifetimes"][..]),
@@ -444,14 +453,14 @@ fn sanitized(sanitizer: &str) {
 			.args(&native)
 			.arg("-o")
 			.arg(&exe));
-		let output = run(Command::new(&exe).envs(env));
+		let output = run(Command::new(&exe).envs(SANITIZER_ENV));
 		assert_eq!(
 			String::from_utf8_lossy(&output.stdout),
 			api.transcript,
 			"{src} under {sanitizer} differs from the native transcript"
 		);
 		for arg in args {
-			run(Command::new(&exe).arg(arg).envs(env));
+			run(Command::new(&exe).arg(arg).envs(SANITIZER_ENV));
 		}
 	}
 }
@@ -1349,6 +1358,52 @@ fn api_swift() {
 		stderr.contains("api.swift and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// `tests/api.swift`'s script, its futures, and what releasing frees, under
+/// ThreadSanitizer, against the glue built under it: it catches a race between a wake on
+/// Rust's thread and the task it resumes, or an executor's job and a release.
+#[test]
+#[ignore = "needs the nightly's rust-src and Swift's ThreadSanitizer: just ffi sanitize"]
+fn api_swift_tsan() {
+	let api = api();
+	let (glue, native) = sanitized_glue("thread");
+	let dir = scratch().join("api").join("swift-thread");
+	let module = api.out.join("swift");
+	let collections = swift_collections();
+	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
+	std::fs::create_dir_all(&dir).unwrap();
+	run(swiftc(&module, 13)
+		.args(["-sanitize=thread", "-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+		.args(["-emit-module", "-emit-module-path"])
+		.arg(&swiftmodule)
+		.args(["-emit-library", "-static", "-o"])
+		.arg(&lib)
+		.arg(module.join("api.swift")));
+	let exe = dir.join("api-test");
+	run(swiftc(&module, 15)
+		.args(["-sanitize=thread", "-parse-as-library", "-I"])
+		.arg(&dir)
+		.arg(manifest_dir().join("tests").join("api.swift"))
+		.arg(&lib)
+		.args(&collections)
+		.arg(&glue)
+		.args(&native)
+		.arg("-o")
+		.arg(&exe));
+	// What Swift's own runtime and Dispatch do goes unchecked, as Darwin's default has it:
+	// they are uninstrumented, so TSan would miss the atomics that order a task's frame
+	// before its runtime frees it, and report that free as a race.
+	let env = [("TSAN_OPTIONS", "halt_on_error=1:ignore_noninstrumented_modules=1")];
+	let output = run(Command::new(&exe).envs(env));
+	assert_eq!(
+		String::from_utf8_lossy(&output.stdout),
+		api.transcript,
+		"the Swift transcript under ThreadSanitizer differs from the native one"
+	);
+	for case in ["futures", "owned", "shared"] {
+		run(Command::new(&exe).arg(case).envs(env));
+	}
 }
 
 /// The fixture's script compiled for wasm32-wasip1 and run under Node's WASI: native Rust on
