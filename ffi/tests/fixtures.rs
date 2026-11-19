@@ -1252,8 +1252,9 @@ fn api_free_threaded() {
 	let probe = |code: &str| {
 		let mut cmd = Command::new(&python);
 		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
-		// which names the GIL build's packages.
-		cmd.args(["-P", "-c", code]).env("PYTHONPATH", &dir);
+		// which names the GIL build's packages. `-X gil=0` beats an inherited `PYTHON_GIL=1`,
+		// which would turn the GIL on in a free-threaded build.
+		cmd.args(["-X", "gil=0", "-P", "-c", code]).env("PYTHONPATH", &dir);
 		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
 	};
 	// A GIL build would pass for the refusal's test, so check the interpreter first.
