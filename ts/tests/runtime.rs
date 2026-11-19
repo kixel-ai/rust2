@@ -522,3 +522,95 @@ fn pointers_apart() {
 		.expect("running node, which the dev shell provides");
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
+
+/// The runtime's UTF-8 codec, which codes a short string or byte run with a loop of its own
+/// and a long one with the engine's, reads and writes every byte run `utf8.ts` gets as std does:
+/// `from_utf8`'s text or error, `from_utf8_lossy`'s text, and the bytes back from
+/// `as_bytes`, `to_vec`, and `into_bytes`; and `char::encode_utf8` writes each char's bytes
+/// and no others.
+#[test]
+fn utf8() {
+	use std::io::Write;
+	use std::process::Stdio;
+
+	// Each edge of a continuation byte's range, and of the narrower ones after E0, ED, F0,
+	// and F4.
+	const EDGES: [u8; 10] = [0x00, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xff];
+	let mut runs: Vec<Vec<u8>> = Vec::new();
+	for lead in 0x80..=0xffu8 {
+		runs.push(vec![lead]);
+		for a in EDGES {
+			runs.push(vec![lead, a]);
+			for b in EDGES {
+				runs.push(vec![lead, a, b]);
+				for c in EDGES {
+					runs.push(vec![lead, a, b, c]);
+				}
+			}
+		}
+	}
+	// Text of each width of char, each run then corrupted at one byte.
+	let chars = ['\0', 'a', '\u{7f}', '\u{80}', 'é', '\u{7ff}', '\u{800}', 'ア', '\u{d7ff}', '\u{e000}', '\u{feff}', '\u{ffff}', '\u{10000}', '📷', '\u{10ffff}'];
+	let mut state: u32 = 0x2545f491;
+	let mut rand = move || {
+		state ^= state << 13;
+		state ^= state >> 17;
+		state ^= state << 5;
+		state
+	};
+	for _ in 0..4000 {
+		let len = rand() % 48;
+		let text: String = (0..len).map(|_| chars[rand() as usize % chars.len()]).collect();
+		let mut run = text.into_bytes();
+		runs.push(run.clone());
+		if !run.is_empty() {
+			let at = rand() as usize % run.len();
+			run[at] = rand() as u8;
+			runs.push(run);
+		}
+	}
+	// Each again past the longest run the loop takes, which the engine's codec reads.
+	for i in 0..runs.len() {
+		let mut long = b"demo/room-42/alice/camera/broadcast/".to_vec();
+		long.extend_from_slice(&runs[i]);
+		runs.push(long);
+	}
+
+	let hex = |v: &[u8]| v.iter().map(|b| format!("{b:02x}")).collect::<String>();
+	let mut input = String::new();
+	let mut want = Vec::new();
+	for run in &runs {
+		input += &hex(run);
+		input.push('\n');
+		let lossy = hex(String::from_utf8_lossy(run).as_bytes());
+		want.push(match std::str::from_utf8(run) {
+			Ok(s) => format!("ok {0} {0} {0} {1} {2}", hex(s.as_bytes()), s.len(), lossy),
+			Err(e) => format!("err {} {} {lossy}", e.valid_up_to(), e.error_len().map_or("-".to_string(), |n| n.to_string())),
+		});
+	}
+	for c in ['\0', '\u{7f}', '\u{80}', '\u{7ff}', '\u{800}', '\u{d7ff}', '\u{e000}', '\u{ffff}', '\u{10000}', '\u{10ffff}'] {
+		input += &format!("char {:x}\n", c as u32);
+		let mut dst = [0xaa; 6];
+		let s = hex(c.encode_utf8(&mut dst).as_bytes());
+		want.push(format!("{} {s}", hex(&dst)));
+	}
+
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("utf8.ts");
+	let mut child = Command::new("node")
+		.arg(script)
+		.stdin(Stdio::piped())
+		.stdout(Stdio::piped())
+		.stderr(Stdio::piped())
+		.spawn()
+		.expect("running node, which the dev shell provides");
+	let mut stdin = child.stdin.take().unwrap();
+	let writer = std::thread::spawn(move || stdin.write_all(input.as_bytes()));
+	let output = child.wait_with_output().unwrap();
+	writer.join().unwrap().unwrap();
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let got = String::from_utf8(output.stdout).unwrap();
+	for ((got, want), run) in got.lines().zip(&want).zip(runs.iter().map(|r| hex(r)).chain(std::iter::repeat_with(String::new))) {
+		assert_eq!(got, want, "{run}");
+	}
+	assert_eq!(got.lines().count(), want.len());
+}

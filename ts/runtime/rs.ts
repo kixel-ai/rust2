@@ -16,6 +16,7 @@ import { drop as dispose, dropAll, partPlace, type Pending } from "./rs/task.ts"
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
 import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
+import { utf8Decode, utf8Encode, utf8Into } from "./rs/utf8.ts";
 import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, strGet, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
 export * from "./rs/any.ts";
@@ -333,7 +334,7 @@ function textWrite(): never {
 
 /** `str::as_ptr`: the read-only pointer to the first byte of its UTF-8. */
 export function strAsPtr(s: string): Place<number> {
-	return new TextAt(encoder.encode(s), 0);
+	return new TextAt(utf8Encode(s), 0);
 }
 
 /** The pointer to the first byte of `v`'s storage. */
@@ -3205,10 +3206,6 @@ export function strCowAdd(a: StrCow, b: StrCow): StrCow {
 
 // Strings
 
-const encoder = /* @__PURE__ */ new TextEncoder();
-// `ignoreBOM` keeps a leading U+FEFF, as Rust does.
-const decoder = /* @__PURE__ */ new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-
 /** `core::str::Utf8Error`: where bytes stop being UTF-8. */
 export type Utf8Error = {
 	/** `Utf8Error::valid_up_to`. */
@@ -3262,11 +3259,8 @@ export function utf8Check(v: Uint8Array): Utf8Error | undefined {
 /** `str::from_utf8`. */
 export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 	const v = byteSliceView(bytes);
-	try {
-		return Ok(decoder.decode(v));
-	} catch {
-		return Err(utf8Check(v) as Utf8Error);
-	}
+	const s = utf8Decode(v);
+	return s === undefined ? Err(utf8Check(v) as Utf8Error) : Ok(s);
 }
 
 /**
@@ -3274,26 +3268,20 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
  * sequence replaced by U+FFFD, owned, with room for a byte of each and grown by each push.
  */
 export function stringFromUtf8Lossy(bytes: ByteSlice): StrCow {
-	const v = byteSliceView(bytes);
-	try {
-		return new Borrowed(decoder.decode(v));
-	} catch {
-		const s = stringWithCapacity(bytes.length as usize);
-		for (const chunk of byteSliceUtf8Chunks(bytes)) {
-			stringPushStr(s, chunk.valid);
-			if (chunk.invalid.length > 0) stringPushStr(s, "\ufffd", 3 as usize);
-		}
-		return s;
+	const text = utf8Decode(byteSliceView(bytes));
+	if (text !== undefined) return new Borrowed(text);
+	const s = stringWithCapacity(bytes.length as usize);
+	for (const chunk of byteSliceUtf8Chunks(bytes)) {
+		stringPushStr(s, chunk.valid);
+		if (chunk.invalid.length > 0) stringPushStr(s, "\ufffd", 3 as usize);
 	}
+	return s;
 }
 
 /** `String::from_utf8`: its text, with the room `bytes` had. */
 export function stringFromUtf8(bytes: ByteVec): Result<RsString, FromUtf8Error> {
-	try {
-		return Ok(stringOf(decoder.decode(byteVecView(bytes)), bytes.length as usize, bytes.data.length as usize));
-	} catch {
-		return Err(new FromUtf8Error(bytes));
-	}
+	const s = utf8Decode(byteVecView(bytes));
+	return s === undefined ? Err(new FromUtf8Error(bytes)) : Ok(stringOf(s, bytes.length as usize, bytes.data.length as usize));
 }
 
 /** `String::from_utf8_unchecked` of UTF-8, which keeps the room `bytes` had. */
@@ -3303,19 +3291,19 @@ export function stringFromUtf8Unchecked(bytes: ByteVec): RsString {
 
 /** `str::as_bytes`: its UTF-8 bytes. */
 export function stringAsBytes(s: string): ByteSlice {
-	return byteSliceFrom(encoder.encode(s));
+	return byteSliceFrom(utf8Encode(s));
 }
 
 /** `String::into_bytes`: its UTF-8 bytes, with its room. */
 export function stringIntoBytes(s: RsString): ByteVec {
 	const v = new ByteVec(s.cap);
-	v.length = encoder.encodeInto(s.v, v.data).written;
+	v.length = utf8Into(s.v, v.data);
 	return v;
 }
 
 /** `<[u8]>::to_vec` of a `str`'s bytes, with room for exactly them. */
 export function strToBytes(s: string): ByteVec {
-	return byteVecFrom(encoder.encode(s));
+	return byteVecFrom(utf8Encode(s));
 }
 
 /** `char::from_u32`: `n`, unless it is a surrogate or past the last char. */
