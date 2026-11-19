@@ -653,6 +653,38 @@ def undefined(path, kind):
     return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
 
 
+def commons_source(nm):
+    """C defining each common symbol `nm -m` lists that no member defines, at its largest size and alignment."""
+    commons, defined = {}, set()
+    for line in nm.splitlines():
+        common = re.fullmatch(r"([0-9a-f]+) \(common\) (?:\(alignment 2\^([0-9]+)\) )?external (\S+)", line.strip())
+        if common:
+            size, align = int(common.group(1), 16), int(common.group(2) or 0)
+            old_size, old_align = commons.get(common.group(3), (0, 0))
+            commons[common.group(3)] = (max(size, old_size), max(align, old_align))
+        elif re.search(r"\) (?:weak )?external ", line) and "(undefined)" not in line:
+            defined.add(line.split()[-1])
+    return "".join(
+        f'__attribute__((aligned({1 << align}))) char common{i}[{size}] __asm__("{name}");\n'
+        for i, (name, (size, align)) in enumerate(sorted((n, c) for n, c in commons.items() if n not in defined))
+    ) or "typedef int empty;\n"
+
+
+def define_commons(static, arch, work):
+    """An object defining each C tentative definition in a Mach-O archive that no member defines.
+
+    Apple's clang emits `int x;` as a common symbol, such as aws-lc's `tty_in`, which a
+    relocatable link leaves common, and global, past the exported-symbols list; Apple's
+    current linker has no `-d` to define it. Defined here at its size and alignment, it is
+    an ordinary symbol the list hides.
+    """
+    source = work / "commons.c"
+    source.write_text(commons_source(output("nm", "--no-llvm-bc", "-m", static)), encoding="utf-8")
+    obj = work / "commons.o"
+    run("cc", "-c", "-fno-common", *arch, source, "-o", obj)
+    return obj
+
+
 def hide(static, shared, lib, target, work):
     """The static library as one prelinked object exporting only the C ABI, so its Rust runtime cannot clash.
 
@@ -666,10 +698,9 @@ def hide(static, shared, lib, target, work):
     roots = [arg for name in keep for arg in ("-u", name)]
     merged, hidden, archive = work / "merged.o", work / "hidden.o", work / static.name
     if "apple" in target:
-        # -d defines C's tentative definitions, such as aws-lc's `tty_in`, which would
-        # otherwise stay common, and global, past the exported-symbols list.
-        run("cc", "-r", "-nostdlib", "-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}", "-Wl,-d",
-            *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}", static, "-o", hidden)
+        arch = ["-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}"]
+        run("cc", "-r", "-nostdlib", *arch, *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
+            define_commons(static, arch, work), static, "-o", hidden)
         run("libtool", "-static", "-o", archive, hidden)
         # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
         found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
@@ -697,6 +728,9 @@ def hide(static, shared, lib, target, work):
         found = [line.split()[-1] for line in output("nm", "-g", "--defined-only", hidden).splitlines() if line.strip()]
     if sorted(set(found)) != keep:
         extra = sorted(set(found) - set(keep))[:10]
+        lines = [line for line in output("nm", *(["--no-llvm-bc"] if "apple" in target else []), "-m" if "apple" in target else "-S",
+                                         hidden).splitlines() if line.split() and line.split()[-1] in extra]
+        sys.stderr.write("\n".join(lines) + "\n")
         raise SystemExit(f"the prelinked {static.name} exports other symbols than the C ABI, such as {extra}")
     return archive
 
