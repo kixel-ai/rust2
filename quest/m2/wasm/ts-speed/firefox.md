@@ -11,7 +11,9 @@ lands, or the PR reports why it cannot and what it costs the gate.
 Found by the 2026-11-18 audit: Firefox runs `time/*` 17 to 29 times rust2-wasm, `parts/*`
 up to 50, and varint encode 4 to 5, against far smaller gaps in Chrome, which points to
 one SpiderMonkey-specific cause. Land after [the 64-bit](/quest/m2/wasm/ts-speed/int64.md)
-and [slice](/quest/m2/wasm/ts-speed/slices.md) changes if their PRs are open, so the
-profile reads current code.
+change if its PR is open, so the profile reads current code. Holding slices of any element
+as parts ([kixel-ai/rust2#882](https://github.com/kixel-ai/rust2/pull/882)) left Firefox's
+`parts/heap-sift` at 1.4 to 3.8 times rust2-wasm, but `parts/prefix-writes` at 14 to 15:
+its loop makes no object, so what remains there is the `u64` add, not the slice.
 
 Public API: none.

@@ -353,15 +353,18 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _409: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, 4294967295);
 		const result2: rs.Result<undefined, rs.FmtError> = _409[0];
 		const w2: Capped.Capped = _409[1];
-		const part = rs.usizeSub(w2.log.items.length, 1);
-		const _413: rs.Slice<rs.String> = rs.sliceRange(rs.sliceFrom(w2.log.items), 2, part);
-		const n2: rs.usize = w2.log.items.length;
+		const to: number = rs.usizeSub(w2.log.items.length, 1);
+		const items: rs.String[] = w2.log.items;
+		rs.rangeCheck(items.length, 2, to);
+		const _412_1: rs.usize = w2.log.items.length;
+		const digits: rs.Slice<rs.String> = new rs.Slice(items, 2, to - 2);
+		const n2: rs.usize = _412_1;
 		const _431: rs.Slice<rs.String> = rs.sliceRange(rs.sliceFrom(w2.log.items), 0, 2);
 		const _435: rs.String | undefined = rs.sliceLast(rs.sliceFrom(w2.log.items));
 		if (!(n2 === rs.usizeAdd(4, zeros))) {
 			_439 = false;
 		} else {
-			const s8 = rs.sliceItems(rs.sliceRange(_413, 0, zeros));
+			const s8 = rs.sliceItems(rs.sliceRange(digits, 0, zeros));
 			let front8 = 0;
 			let back8 = s8.length;
 			let found3 = true;
@@ -374,7 +377,7 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			_439 = found3;
 		}
 		const _438: boolean = _439;
-		const _448: boolean = rs.eqStr(rs.strsJoin(rs.sliceItems(_413), ""), rs.strSlice(debug.v, 9, 41));
+		const _448: boolean = rs.eqStr(rs.strsJoin(rs.sliceItems(digits), ""), rs.strSlice(debug.v, 9, 41));
 		const args50 = [(f: rs.Formatter) => rs.fmtResult(result2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_431), f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtOption(_435, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtBool(_438, f), (f: rs.Formatter) => rs.fmtBool(_448, f)];
 		put(out, rs.fmtFormat([args50[0], " ", args50[1], " ", args50[2], " ", args50[3], " ", args50[4], " "]).v);
 		const _465: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, rs.usizeSub(debug.len, 1));
