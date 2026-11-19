@@ -4055,7 +4055,16 @@ fn transcript_refusals() {
 		),
 		(
 			"let t = api::Tally::new(); println!(\"{}\", api::reach(t.bump(), (), t.bump()));",
-			"more than one argument with an effect",
+			"two have an effect",
+		),
+		(
+			"let mut n = 0u32; println!(\"{}\", api::reach(n, (), api::each(1, |_| { api::Clash::listed(vec![7], &mut n); })));",
+			"one changes n, which another reads",
+		),
+		(
+			"let mut p = api::Packaged { api: 2 }; \
+			 for n in [p, p] { api::Clash::listed(vec![7], &mut p.api); println!(\"{}\", n.api); }",
+			"an element reading a local its body changes",
 		),
 	] {
 		std::fs::write(&source, format!("fn main() {{ {body} }}")).unwrap();

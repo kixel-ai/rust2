@@ -106,7 +106,7 @@ struct Scope<'t> {
 const PAST_WASM32: &str = "a pointer-sized value past 32 bits, which wasm32 folds otherwise";
 
 /// A call whose arguments C and C++ may evaluate in another order than Rust's.
-const UNORDERED: &str = "a call of more than one argument with an effect, which C and C++ evaluate in no set order";
+const UNORDERED: &str = "a call whose arguments' order matters, which C and C++ do not keep";
 
 /// Conversions that leave a value as the binding has it.
 const CONVERSIONS: &[&str] = &[
@@ -286,30 +286,33 @@ impl Scope<'_> {
 	}
 
 	/// The locals `steps` change in place: each a value's `&mut self` receiver, a setter's,
-	/// or an argument passed `&mut`.
+	/// or an argument passed `&mut`, or a field or element of one.
 	fn changed(&self, steps: &[Step]) -> Vec<String> {
 		let mut out = Vec::new();
 		for step in steps {
-			each_expr(step, &mut |e| {
-				walk(e, &mut |e| {
-					let Kind::Call(id, receiver, args) = &e.kind else {
-						return;
-					};
-					let f = self.t.function(*id);
-					if let Some(Kind::Var(name)) = receiver.as_ref().map(|r| &r.kind)
-						&& (f.receiver == Some(Receiver::Mut) || matches!(f.access, Access::Field { set: true, .. }))
-					{
-						out.push(name.clone());
-					}
-					for (arg, param) in args.iter().zip(&f.params) {
-						if let (Kind::Var(name), Type::Ref(Mutability::Mut, _)) = (&arg.kind, &param.ty) {
-							out.push(name.clone());
-						}
-					}
-				})
-			});
+			each_expr(step, &mut |e| self.changed_in(e, &mut out));
 		}
 		out
+	}
+
+	/// The locals `expr` changes in place, as [`Scope::changed`] reads them.
+	fn changed_in(&self, expr: &Expr, out: &mut Vec<String>) {
+		walk(expr, &mut |e| {
+			let Kind::Call(id, receiver, args) = &e.kind else {
+				return;
+			};
+			let f = self.t.function(*id);
+			if let Some(name) = receiver.as_deref().and_then(root)
+				&& (f.receiver == Some(Receiver::Mut) || matches!(f.access, Access::Field { set: true, .. }))
+			{
+				out.push(name.to_string());
+			}
+			for (arg, param) in args.iter().zip(&f.params) {
+				if let (Some(name), Type::Ref(Mutability::Mut, _)) = (root(arg), &param.ty) {
+					out.push(name.to_string());
+				}
+			}
+		})
 	}
 
 	/// `place.field = value`: the field's setter, called on the place's receiver.
@@ -1515,9 +1518,7 @@ impl Scope<'_> {
 				syn::ReturnType::Type(_, ty) => self.ty(&ty),
 			};
 			let args: Vec<Expr> = args.iter().map(|a| self.infer(a)).collect();
-			if args.iter().filter(|a| effect(a)).count() > 1 {
-				fail(call, UNORDERED);
-			}
+			self.ordered(call, args.iter().collect());
 			return Expr::new(Kind::Local(name, args), ty);
 		}
 		if path_is(&call.func, "String::from_utf8_lossy") {
@@ -1557,6 +1558,27 @@ impl Scope<'_> {
 	}
 
 	/// The call of `id` on `receiver`, with `args` checked against its parameters.
+	/// Refuse a call at `at` whose `args` C or C++ could evaluate to other values than Rust,
+	/// which evaluates them in order: two with an effect, or one changing a local another reads.
+	fn ordered(&self, at: &dyn Spanned, args: Vec<&Expr>) {
+		let effects: Vec<usize> = (0..args.len()).filter(|i| effect(args[*i])).collect();
+		if effects.len() > 1 {
+			fail(at, format!("{UNORDERED}: two have an effect"));
+		}
+		let Some(&i) = effects.first() else { return };
+		let mut changed = Vec::new();
+		self.changed_in(args[i], &mut changed);
+		for arg in args.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, a)| a) {
+			walk(arg, &mut |e| {
+				if let Kind::Var(name) = &e.kind
+					&& changed.contains(name)
+				{
+					fail(at, format!("{UNORDERED}: one changes {name}, which another reads"));
+				}
+			});
+		}
+	}
+
 	/// A call of `id` at `at`, `whole` when it is its statement's value.
 	fn apply(&mut self, at: &dyn Spanned, id: FnId, receiver: Option<Expr>, args: &[syn::Expr], whole: bool) -> Expr {
 		let f = self.t.function(id);
@@ -1572,9 +1594,7 @@ impl Scope<'_> {
 			fail(at, format!("{} takes {} arguments", self.t.key(id), params.len()));
 		}
 		let args: Vec<Expr> = args.iter().zip(&params).map(|(a, ty)| self.check(a, ty)).collect();
-		if receiver.iter().chain(&args).filter(|e| effect(e)).count() > 1 {
-			fail(at, UNORDERED);
-		}
+		self.ordered(at, receiver.iter().chain(&args).collect());
 		self.apply_checked(id, receiver, args)
 	}
 
@@ -1797,6 +1817,15 @@ fn whole(expr: &syn::Expr) -> Option<*const ()> {
 	match expr {
 		syn::Expr::MethodCall(m) => Some(node(m)),
 		syn::Expr::Call(c) => Some(node(c)),
+		_ => None,
+	}
+}
+
+/// The local a place is, or is a field or element of.
+fn root(e: &Expr) -> Option<&str> {
+	match &e.kind {
+		Kind::Var(name) => Some(name),
+		Kind::Field(base, _) | Kind::Element(base, _) => root(base),
 		_ => None,
 	}
 }
