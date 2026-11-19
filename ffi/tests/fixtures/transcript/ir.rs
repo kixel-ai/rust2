@@ -20,11 +20,28 @@ pub(crate) struct Api {
 	pub(crate) callbacks: Vec<Callback>,
 	pub(crate) functions: Vec<Function>,
 	pub(crate) constants: Vec<Constant>,
+	/// The targets the API serves, each a bit of an item's `on`.
+	pub(crate) targets: Vec<String>,
+}
+
+impl Api {
+	/// Whether an item `on` these targets is on every target the API serves.
+	pub(crate) fn everywhere(&self, on: u64) -> bool {
+		let all = u64::MAX >> (64 - self.targets.len());
+		on & all == all
+	}
+}
+
+/// The crate an item belongs to, whose package or module a binding puts it in.
+#[derive(serde::Deserialize)]
+pub(crate) struct Home {
+	pub(crate) krate: String,
 }
 
 #[derive(serde::Deserialize)]
 pub(crate) struct Record {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
 	/// The path, with any arguments, the API shows the type at, which its keys name it by.
 	#[serde(default)]
 	pub(crate) shown: Option<Vec<String>>,
@@ -45,6 +62,7 @@ pub(crate) struct Field {
 #[derive(serde::Deserialize)]
 pub(crate) struct Enum {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
 	/// The path, with any arguments, the API shows the type at, which its keys name it by.
 	#[serde(default)]
 	pub(crate) shown: Option<Vec<String>>,
@@ -65,6 +83,7 @@ pub(crate) struct Variant {
 #[derive(serde::Deserialize)]
 pub(crate) struct Object {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
 	/// The path, with any arguments, the API shows the type at, which its keys name it by.
 	#[serde(default)]
 	pub(crate) shown: Option<Vec<String>>,
@@ -85,6 +104,7 @@ fn yes() -> bool {
 #[derive(serde::Deserialize)]
 pub(crate) struct Callback {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
 	pub(crate) methods: Vec<Function>,
 }
 
@@ -100,6 +120,9 @@ pub(crate) struct Traits {
 #[derive(serde::Deserialize)]
 pub(crate) struct Function {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
+	/// The targets it is on, a bit each of the API's `targets`.
+	pub(crate) on: u64,
 	pub(crate) receiver: Option<Receiver>,
 	pub(crate) params: Vec<Param>,
 	pub(crate) ok: Type,
@@ -143,6 +166,7 @@ pub(crate) struct Param {
 #[derive(serde::Deserialize)]
 pub(crate) struct Constant {
 	pub(crate) path: Vec<String>,
+	pub(crate) home: Home,
 	pub(crate) value: Literal,
 }
 

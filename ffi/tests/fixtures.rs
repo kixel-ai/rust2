@@ -355,6 +355,8 @@ fn api_go_race() {
 		&module,
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
+	// The transcript's script, generated beside it in its package.
+	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
 	run(go(&module, api, &["build", "-race", "-o"]).arg(&exe));
 	// Every report fails the run.
@@ -365,7 +367,7 @@ fn api_go_race() {
 		api.transcript,
 		"the Go transcript under the race detector differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "closures"] {
+	for case in ["futures", "owned", "closed", "bytes", "closures", "checks"] {
 		run(Command::new(&exe).arg(case).envs(env));
 	}
 }
@@ -1811,6 +1813,8 @@ fn api_go() {
 		&module,
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
+	// The transcript's script, generated beside it in its package.
+	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let export = module.join("export");
 	for (name, root) in [("vet-export", &export), ("vet", &module)] {
 		let step = Step {
@@ -1833,6 +1837,7 @@ fn api_go() {
 	run(Command::new(&exe).arg("closed"));
 	run(Command::new(&exe).arg("bytes"));
 	run(Command::new(&exe).arg("closures"));
+	run(Command::new(&exe).arg("checks"));
 	for (case, message) in [
 		(
 			"lent moved",
