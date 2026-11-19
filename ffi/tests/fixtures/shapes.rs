@@ -631,6 +631,13 @@ impl Feed for f32 {
 	fn feed(&self, h: &mut Fnv) {
 		use std::fmt::Write;
 		let _ = write!(h, "f32 {:#x};", self.to_bits());
+		// The transcript marks a call that digests a NaN other than the one a float's
+		// arithmetic makes: signaling, its quiet bit clear, or quiet with a payload or sign.
+		#[cfg(feature = "transcript")]
+		if self.is_nan() && self.to_bits() != f32::NAN.to_bits() {
+			let class = if self.to_bits() & 1 << 22 == 0 { "signaling" } else { "quiet" };
+			println!("nan {class} f32");
+		}
 	}
 }
 
@@ -638,6 +645,11 @@ impl Feed for f64 {
 	fn feed(&self, h: &mut Fnv) {
 		use std::fmt::Write;
 		let _ = write!(h, "f64 {:#x};", self.to_bits());
+		#[cfg(feature = "transcript")]
+		if self.is_nan() && self.to_bits() != f64::NAN.to_bits() {
+			let class = if self.to_bits() & 1 << 51 == 0 { "signaling" } else { "quiet" };
+			println!("nan {class} f64");
+		}
 	}
 }
 
@@ -982,7 +994,8 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 	);
 	let manifest = format!(
 		"[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\n\n\
-		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n[workspace]\n"
+		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n\
+		# Marks each call of the native script that digests a NaN of its own bits.\n[features]\ntranscript = []\n\n[workspace]\n"
 	);
 	super::write_all(
 		&dir,
@@ -1067,7 +1080,7 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 	super::write_all(&dir, &[("examples/transcript.rs", &script)]);
 	// Apart from the exporter's build, which cleans the crate each time.
 	let transcript = run(cargo()
-		.args(["run", "--quiet", "--example", "transcript"])
+		.args(["run", "--quiet", "--example", "transcript", "--features", "transcript"])
 		.env("CARGO_TARGET_DIR", dir.join("native"))
 		.current_dir(&dir));
 	Crate {
@@ -1254,7 +1267,15 @@ impl Built {
 				.env("RUSTFLAGS", "-D warnings"));
 			let native = self.krate.dir.join("native-web");
 			run(cargo()
-				.args(["build", "--quiet", "--example", "transcript", "--target", super::WEB])
+				.args([
+					"build",
+					"--quiet",
+					"--example",
+					"transcript",
+					"--features",
+					"transcript",
+				])
+				.args(["--target", super::WEB])
 				.env("CARGO_TARGET_DIR", &native)
 				.current_dir(&self.krate.dir));
 			let wasm = native
@@ -1291,28 +1312,41 @@ impl Built {
 	/// `transcript`: every call but those [`KNOWN`] says it gets wrong today, each entry of
 	/// which must match one of the fixed set's.
 	fn expected<'a>(&self, language: &str, transcript: &'a str) -> Vec<(Call, &'a str)> {
-		let lines: Vec<&str> = transcript.lines().collect();
+		// Each call's line, after the NaNs it digested, as `signaling f32` or `quiet f64`.
+		let mut lines: Vec<(&str, Vec<&str>)> = Vec::new();
+		let mut nans = Vec::new();
+		for line in transcript.lines() {
+			match line.strip_prefix("nan ") {
+				Some(nan) => nans.push(nan),
+				None => lines.push((line, std::mem::take(&mut nans))),
+			}
+		}
 		assert_eq!(
 			lines.len(),
 			self.krate.calls.len(),
 			"the native script printed a line per call"
 		);
 		let entries: Vec<&Known> = KNOWN.iter().filter(|k| k.language == language).collect();
-		let skipped = |call: &Call, k: &Known| (k.skips)(&self.krate.shapes[call.n], call.kind);
+		let calls: Vec<(Call, &str, &[&str])> = (self.krate.calls.iter().zip(&lines))
+			.map(|(call, (line, nans))| (*call, *line, nans.as_slice()))
+			.collect();
+		let skipped =
+			|(call, _, nans): &(Call, &str, &[&str]), k: &Known| (k.skips)(&self.krate.shapes[call.n], call.kind, nans);
 		if let Some((fixed, _)) = self.krate.drawn {
 			for k in &entries {
-				// The gate's subset may hold none of an entry's shapes; the nightly's fixed set
+				// The gate's subset may hold none of an entry's calls; the nightly's fixed set
 				// holds each.
 				assert!(
-					self.krate.calls.iter().any(|call| call.n < fixed && skipped(call, k)),
+					calls.iter().any(|c| c.0.n < fixed && skipped(c, k)),
 					"KNOWN's {language} entry for {} ({}) matches no call: remove it",
 					k.what,
 					k.quest
 				);
 			}
 		}
-		(self.krate.calls.iter().copied().zip(lines))
-			.filter(|(call, _)| !entries.iter().any(|k| skipped(call, k)))
+		(calls.iter())
+			.filter(|c| !entries.iter().any(|k| skipped(c, k)))
+			.map(|&(call, line, _)| (call, line))
 			.collect()
 	}
 
@@ -1347,8 +1381,9 @@ impl Built {
 struct Known {
 	language: &'static str,
 	what: &'static str,
-	/// Whether a call of a shape does what it gets wrong, which the language's driver skips.
-	skips: fn(&Shape, Kind) -> bool,
+	/// Whether a call of a shape, which digested these NaNs natively, as `signaling f32` or
+	/// `quiet f64`, does what it gets wrong, which the language's driver skips.
+	skips: fn(&Shape, Kind, &[&str]) -> bool,
 	/// The quest that fixes it.
 	quest: &'static str,
 }
@@ -1361,38 +1396,22 @@ const KNOWN: &[Known] = &[
 	Known {
 		language: "python",
 		what: "a signaling NaN of an f32, which a float holds quieted",
-		skips: |shape, _| holds(shape, &|s| matches!(s, Shape::F32)),
+		skips: |_, _, nans| nans.contains(&"signaling f32"),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 	Known {
 		language: "dart",
 		what: "a signaling NaN of an f32, which a double holds quieted",
-		skips: |shape, _| holds(shape, &|s| matches!(s, Shape::F32)),
+		skips: |_, _, nans| nans.contains(&"signaling f32"),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 	Known {
 		language: "web",
-		what: "a signaling NaN of a float, which a number holds quieted",
-		skips: |shape, _| holds(shape, &|s| matches!(s, Shape::F32 | Shape::F64)),
+		what: "a NaN's bits, which a number loses: quieted, and canonicalized once V8 optimizes",
+		skips: |_, _, nans| !nans.is_empty(),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 ];
-
-/// Whether `shape` or a shape inside it is one `of` matches.
-fn holds(shape: &Shape, of: &dyn Fn(&Shape) -> bool) -> bool {
-	of(shape)
-		|| match shape {
-			Shape::Option(inner)
-			| Shape::Vec(inner)
-			| Shape::Set(inner)
-			| Shape::Box(inner)
-			| Shape::Enum(inner)
-			| Shape::Object(inner) => holds(inner, of),
-			Shape::Map(key, value) => holds(key, of) || holds(value, of),
-			Shape::Tuple(elements) | Shape::Record(elements) => elements.iter().any(|e| holds(e, of)),
-			_ => false,
-		}
-}
 
 /// A function the C header declares: each parameter's type and name.
 struct Proto {
