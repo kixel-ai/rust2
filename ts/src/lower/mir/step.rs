@@ -437,6 +437,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						let s = if bytes { v.clone().member("data") } else { v.clone() };
 						(s, Expr::lit("0"), v.member("length"))
 					}
+					// A slice made here of its parts, as a local held as them makes one, is
+					// read from them.
+					None if let Some([data, start, length]) = super::place::made_slice(peel(&slice)) => {
+						let (data, length) = (data.clone(), length.clone());
+						let start = self.path(start.clone(), "start", out);
+						let end = super::scalar::add(start.clone(), length);
+						(data, start, end)
+					}
 					None => {
 						let slice = self.path(slice, "slice", out);
 						let start = slice.clone().member("start");
