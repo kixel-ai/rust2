@@ -1544,13 +1544,19 @@ fn api_web_package() {
 	let installed = consumer.join("node_modules").join(name);
 	assert!(installed.join("index.js").exists() && installed.join("index.d.ts").exists());
 	assert!(installed.join("api.wasm").exists());
-	assert!(!installed.join("index.ts").exists(), "the npm package ships its TypeScript");
+	assert!(
+		!installed.join("index.ts").exists(),
+		"the npm package ships its TypeScript"
+	);
 	let script = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
 	let script = script
 		.replace("\"./web/index.ts\"", &format!("\"{name}\""))
 		.replace("\"./web/", &format!("\"{name}/"))
 		.replace(".ts\";\n", "\";\n");
-	assert!(!script.contains("./web/"), "api.ts imports the binding by a path the rewrite missed");
+	assert!(
+		!script.contains("./web/"),
+		"api.ts imports the binding by a path the rewrite missed"
+	);
 	step::write(&consumer.join("api.ts"), script);
 	step::write(&consumer.join("tsconfig.json"), TSCONFIG_PACKAGE);
 	run(Command::new("tsc").arg("-p").arg(&consumer));
@@ -1569,7 +1575,10 @@ fn api_web_package() {
 	for other in ["deno", "bun"] {
 		let ran = runtime(other, None);
 		assert!(ran.ok, "{other}'s transcript of the package failed:\n{}", ran.stderr);
-		assert_eq!(ran.stdout, web.transcript, "{other}'s transcript of the package differs from native Rust's");
+		assert_eq!(
+			ran.stdout, web.transcript,
+			"{other}'s transcript of the package differs from native Rust's"
+		);
 	}
 }
 

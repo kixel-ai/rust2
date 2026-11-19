@@ -19,7 +19,10 @@ use oxc::transformer::{TransformOptions, Transformer, TypeScriptOptions};
 pub(crate) fn emit(name: &str, ts: &str) -> Result<(String, String), String> {
 	let fail = |what: &str, errors: &[OxcDiagnostic]| {
 		let errors: Vec<String> = errors.iter().map(|e| format!("{name}: {e}")).collect();
-		format!("the web binding's {what} failed, a bug in rust2-ffi:\n{}", errors.join("\n"))
+		format!(
+			"the web binding's {what} failed, a bug in rust2-ffi:\n{}",
+			errors.join("\n")
+		)
 	};
 	let allocator = Allocator::default();
 	let path = Path::new(name);
