@@ -334,8 +334,7 @@ function textWrite(): never {
 
 /** `str::as_ptr`: the read-only pointer to the first byte of its UTF-8. */
 export function strAsPtr(s: string): Place<number> {
-	// A buffer of its own, so `offset_from` tells this encoding from any other.
-	return new TextAt(utf8Encode(s).slice(), 0);
+	return new TextAt(utf8Encode(s), 0);
 }
 
 /** The pointer to the first byte of `v`'s storage. */
@@ -504,8 +503,8 @@ export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 	if (p === origin || (p instanceof Address && origin instanceof Address && p.addr === origin.addr)) return 0;
 	const [a, b] = [elemOf(p), elemOf(origin)];
 	if (a.array === b.array) return a.index - b.index;
-	// Views of one buffer's bytes, such as a slice's and its iterator's, are one array.
-	if (a.array instanceof Uint8Array && b.array instanceof Uint8Array && a.array.buffer === b.array.buffer) {
+	// Views of one allocation's bytes, such as a slice's and its iterator's, are one array.
+	if (a.array instanceof Uint8Array && b.array instanceof Uint8Array && a.array.buffer === b.array.buffer && oneAllocation(a.array, b.array)) {
 		return a.array.byteOffset + a.index - (b.array.byteOffset + b.index);
 	}
 	throw new Error("rust2-ts: `offset_from` of pointers JS keeps in different arrays");
@@ -2395,6 +2394,9 @@ export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | u
 const SLAB = 8192;
 let slab = /* @__PURE__ */ new ArrayBuffer(SLAB);
 let slabUsed = 0;
+let slabStarts: number[] = [];
+/** Where each allocation in a slab starts, in order, so `offset_from` tells them apart. */
+const SLAB_STARTS = /* @__PURE__ */ new WeakMap<ArrayBuffer, number[]>([[slab, slabStarts]]);
 
 /**
  * `n` zeroed bytes. Up to 1 KiB, they share an `ArrayBuffer`, as Node's `Buffer` pool
@@ -2406,11 +2408,33 @@ export function bytes(n: number): Uint8Array {
 	if (slabUsed + n > SLAB) {
 		slab = new ArrayBuffer(SLAB);
 		slabUsed = 0;
+		slabStarts = [];
+		SLAB_STARTS.set(slab, slabStarts);
 	}
 	const out = new Uint8Array(slab, slabUsed, n);
-	// Aligned, as Node aligns its pool.
-	slabUsed += (n + 7) & ~7;
+	slabStarts.push(slabUsed);
+	// Aligned, as Node aligns its pool, and a byte past the end, so a view of where an
+	// allocation ends starts before the next one does.
+	slabUsed += (n + 8) & ~7;
 	return out;
+}
+
+/** Whether views `a` and `b` of one buffer start in one allocation of it: always, but in a slab. */
+function oneAllocation(a: Uint8Array, b: Uint8Array): boolean {
+	const starts = SLAB_STARTS.get(a.buffer as ArrayBuffer);
+	return starts === undefined || allocationAt(starts, a.byteOffset) === allocationAt(starts, b.byteOffset);
+}
+
+/** The index of the last of `starts`, in order, at or before `offset`. */
+function allocationAt(starts: number[], offset: number): number {
+	let lo = 0;
+	let hi = starts.length;
+	while (hi - lo > 1) {
+		const mid = (lo + hi) >> 1;
+		if (starts[mid] <= offset) lo = mid;
+		else hi = mid;
+	}
+	return lo;
 }
 
 /** `array::from_fn`: `f` of each index, called in order. */
