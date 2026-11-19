@@ -954,7 +954,13 @@ impl<'a> Gen<'a> {
 			true => format!("\n\t\ts.status(status, \"{c}_{suffix}\")?;"),
 			false => String::new(),
 		};
+		// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
+		let called = |leaf: bool, call: String| match leaf {
+			true => call,
+			false => format!("rt::call(|| {call})"),
+		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
+			let call = called(suffix == "hash" && g.abi.leaf_trait(ty, true), format!("crate::{c}_{suffix}({pass}{arg})"));
 			let d = Direct {
 				member,
 				place: Place::Member,
@@ -967,7 +973,7 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_{suffix}"),
 				d,
 				&format!(
-					"let this = {this}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_{suffix}({pass}{arg}));{}\n\t\ts.done();\n\t\t{lower}",
+					"let this = {this}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\t{lower}",
 					check(suffix)
 				),
 			);
@@ -1003,11 +1009,12 @@ impl<'a> Gen<'a> {
 				true => ("this", "other"),
 				false => ("&this", "&other"),
 			};
+			let call = called(self.abi.leaf_trait(ty, false), format!("crate::{c}_eq({a}, {b}{arg})"));
 			self.native(
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_eq({a}, {b}{arg}));{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
 					check("eq")
 				),
 			);
@@ -1823,8 +1830,13 @@ impl<'a> Gen<'a> {
 				Some(h) => h.call(&args),
 				None => format!("crate::{c_name}({})", args.join(", ")),
 			};
+			// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
+			let call = match abi.leaf(function, owner_ty.map(|(ty, _)| ty)) {
+				true => call,
+				false => format!("rt::call(|| {call})"),
+			};
 			stmts.push(format!(
-				"{decl}\n\t\t{status}let ret = rt::call(|| {call});{check}\n\t\ts.done();\n\t\t{value}"
+				"{decl}\n\t\t{status}let ret = {call};{check}\n\t\ts.done();\n\t\t{value}"
 			));
 		}
 		// The Python.

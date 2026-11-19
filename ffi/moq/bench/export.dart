@@ -148,6 +148,32 @@ Future<Map<String, Span>> round() async {
   }
   out['object'] = end(start, 'object');
 
+  // A primitive pub field read, which reaches no user code: a leaf call.
+  final info = track.info();
+  start = begin();
+  for (var i = 0; i < n; i++) {
+    sink += info.priorityGet;
+  }
+  out['field'] = end(start, 'field');
+
+  // While Rust holds a closure of the isolate, which another thread may call, each call
+  // but a leaf hands off to a worker thread, as the isolate's own serves what it calls back.
+  final held = moq.clockDrive((_, _) => null);
+  final hops = n ~/ 10;
+  start = begin();
+  for (var i = 0; i < hops; i++) {
+    if (track.isClosed()) sink++;
+  }
+  out['hop:call'] = end(start, 'hop:call', hops);
+  start = begin();
+  for (var i = 0; i < hops; i++) {
+    sink += info.priorityGet;
+  }
+  out['hop:field'] = end(start, 'hop:field', hops);
+  held.cancel();
+  await held.then<void>((_) {}, onError: (Object _) {});
+  info.close();
+
   // Each frame stamped through a fresh timestamp, as a caller holding an int must.
   var micros = 0;
   start = begin();

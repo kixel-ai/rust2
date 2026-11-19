@@ -1258,6 +1258,62 @@ impl<'a> Abi<'a> {
 		}
 	}
 
+	/// Whether a call of `function`, a method of `owner` if it has one, is a leaf: proven to
+	/// run no code but the glue's, its runtime's, and std's, to wait on no lock, and to call
+	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
+	/// which runs on the isolate's own thread with no thread hop. It is the read or write of a
+	/// primitive `pub` field of a `Send` object reached without a `Deref`.
+	///
+	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
+	/// another thread that waits on the GIL. A leaf's only shared state is the handle's
+	/// borrow, which fails rather than waits on a conflicting borrow, and spins only through
+	/// another thread's few instructions inside the borrow check itself, which take no GIL.
+	/// Its value is `Send`, so its borrow runs no `Thread::own`, whose drain would drop what
+	/// other threads queued of the thread's values that are not `Send`, by any `Drop`; a
+	/// handle lent from another's borrows that one too, which is always `Send`. A field
+	/// reached through `Deref`, of an enum, or of anything but a primitive would run user
+	/// code to read, clone, or drop. So it ends in a bounded number of steps whoever holds
+	/// the GIL, and since it runs no Python, nothing in it needs the GIL either.
+	pub(crate) fn leaf(&self, function: &Function, owner: Option<&Type>) -> bool {
+		let Some(Type::Object(i)) = owner else {
+			return false;
+		};
+		let primitive =
+			|ty: &Type| matches!(ty, Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char);
+		let field = match function.access {
+			Access::Field { set: false, .. } => {
+				matches!(&function.ok, Type::Ref(_, ty) if primitive(ty)) && function.params.is_empty()
+			}
+			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if primitive(&param.ty)),
+			_ => false,
+		};
+		field && self.api.objects[*i].send && function.derefs == 0 && function.err.is_none() && !function.future
+	}
+
+	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
+	/// says: its impl is derived or std's down to primitives, and it borrows only a `Send`
+	/// object's handle, or as a value, none.
+	pub(crate) fn leaf_trait(&self, ty: &Type, hash: bool) -> bool {
+		let (traits, handles) = match ty {
+			Type::Object(i) => (self.api.objects[*i].traits, !self.api.objects[*i].send),
+			Type::Record(i) => (self.api.records[*i].traits, self.holds_handles(ty)),
+			Type::Enum(i) => (self.api.enums[*i].traits, self.holds_handles(ty)),
+			_ => return false,
+		};
+		!handles
+			&& match hash {
+				true => traits.leaf_hash,
+				false => traits.leaf_eq,
+			}
+	}
+
+	/// Whether lifting a value of `ty` borrows any handle.
+	fn holds_handles(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.api.handles(ty, &mut handles, &mut Vec::new());
+		!handles.is_empty()
+	}
+
 	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
 	/// through, named apart from every parameter of `function`.
 	pub(crate) fn written(function: &Function, name: &str) -> String {

@@ -149,6 +149,14 @@ def round(loop, measured):
 		track.info()
 	out["object"] = end(start, b"object")
 
+	# A primitive pub field read, which reaches no user code, so it keeps the GIL.
+	info = track.info()
+	start = begin()
+	for _ in range(N):
+		info.priority_get
+	out["field"] = end(start, b"field")
+	del info
+
 	# Each frame stamped through a fresh timestamp, as a caller holding an int must.
 	micros = 0
 	start = begin()
