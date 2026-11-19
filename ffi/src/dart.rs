@@ -2600,12 +2600,18 @@ impl<'a> Gen<'a> {
 				Thrown::Itself
 			}
 			_ => {
+				// One exception for each C type and Dart type: a `Vec<NonZero<u16>>` shares
+				// `Vec<u16>`'s C type, but Dart holds it as a `List<int>`, not a `Uint16List`.
 				let key = self.abi.key(err);
-				let seen = self.thrown.iter().find(|(_, seen)| self.abi.key(seen) == key);
+				let dt = self.dt(err);
+				let thrown: Vec<(String, Type)> = (self.thrown.iter())
+					.filter(|(_, seen)| self.abi.key(seen) == key)
+					.map(|(name, seen)| (name.clone(), seen.clone()))
+					.collect();
+				let seen = thrown.into_iter().find(|(_, seen)| self.dt(seen) == dt);
 				let name = match seen {
-					Some((name, _)) => name.clone(),
+					Some((name, _)) => name,
 					None => {
-						let dt = self.dt(err);
 						let name = self.claim(&format!("{}Exception", pascal(&key)), format!("the error type `{dt}`"));
 						self.thrown.insert(name.clone(), err.clone());
 						name

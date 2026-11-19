@@ -189,10 +189,6 @@ jobs:
       - name: Export
         run: nix develop --command just ffi moq
 
-      # Every sampled type shape round-tripped in every language; the gate runs a subset.
-      - name: Shapes
-        run: nix develop --command just ffi shapes
-
       # What exports, and every refusal, ranked.
       - name: Census
         run: nix develop --command just ffi census
@@ -210,6 +206,25 @@ jobs:
       # and off. C stays GCC's, so the export the steps above built stays fresh.
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
+
+  # Every sampled type shape round-tripped in every language: the fixed set, then shapes
+  # drawn from the day's seed, which a failure names to reproduce it. The gate runs a
+  # subset. A job of its own, since it takes as long as the export's.
+  ffi-shapes:
+    name: Shapes in every language
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Shapes
+        run: nix develop --command just ffi shapes
 
   # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
   # carries: a job of its own, so a browser's failure hides no other result.
