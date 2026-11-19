@@ -1641,7 +1641,7 @@ fn wasm_transcript() -> String {
 }
 
 /// The api fixture's web binding, beside copies of `tests/api.ts` and `tests/protocol.ts`
-/// as a caller's project holds them, type-checked with no issue, and the module the crate's `web` feature builds
+/// as a caller's project holds them, type-checked with no issue by `tsc` and by Deno, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
 struct Web {
 	dir: PathBuf,
@@ -1671,6 +1671,13 @@ fn web() -> &'static Web {
 		);
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
+		// Deno's own types too, which JSR checks a package with as it publishes.
+		run(Command::new("deno")
+			.args(["check", "api.ts", "protocol.ts"])
+			.current_dir(&dir)
+			.env("DENO_DIR", scratch().join("deno"))
+			.env("DENO_NO_UPDATE_CHECK", "1")
+			.env("NO_COLOR", "1"));
 		Web {
 			dir,
 			wasm: target.join(WEB).join("debug").join("api.wasm"),
@@ -1860,6 +1867,86 @@ fn api_web() {
 	);
 }
 
+/// The web binding as a registry serves it: packed by npm with the module beside it,
+/// installed from that tarball into a project of its own, and `tests/api.ts` importing it by
+/// the package's name type-checks against its declarations alone, with no `skipLibCheck`.
+/// The script runs the package's JavaScript, which `load` finds the module beside by
+/// default: every check on Node, which strips no type under `node_modules`, and the
+/// transcript on Deno and Bun.
+#[test]
+fn api_web_package() {
+	let api = api();
+	let web = web();
+	let dir = scratch().join("api").join("web-package");
+	let package = dir.join("package");
+	step::mirror(&api.out.join("web"), &package);
+	step::copy(&web.wasm, &package.join("api.wasm"));
+	let manifest: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(package.join("package.json")).unwrap()).unwrap();
+	let name = manifest["name"].as_str().expect("package.json names the package");
+	let npm = |dir: &Path| {
+		let mut cmd = Command::new("npm");
+		cmd.current_dir(dir)
+			.env("npm_config_cache", scratch().join("npm"))
+			.env("npm_config_update_notifier", "false")
+			.env("npm_config_fund", "false")
+			.env("npm_config_audit", "false");
+		cmd
+	};
+	let packed = run(npm(&package).args(["pack", "--silent", "--pack-destination"]).arg(&dir));
+	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
+	let consumer = dir.join("consumer");
+	if consumer.exists() {
+		std::fs::remove_dir_all(&consumer).unwrap();
+	}
+	let dependency = serde_json::json!({ name: format!("file:{}", tarball.display()) });
+	step::write(
+		&consumer.join("package.json"),
+		serde_json::json!({ "type": "module", "private": true, "dependencies": dependency }).to_string(),
+	);
+	run(npm(&consumer).args(["install", "--offline", "--ignore-scripts"]));
+	// What npm installed is the package's JavaScript and declarations, not its TypeScript.
+	let installed = consumer.join("node_modules").join(name);
+	assert!(installed.join("index.js").exists() && installed.join("index.d.ts").exists());
+	assert!(installed.join("api.wasm").exists());
+	assert!(
+		!installed.join("index.ts").exists(),
+		"the npm package ships its TypeScript"
+	);
+	let script = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
+	let script = script
+		.replace("\"./web/index.ts\"", &format!("\"{name}\""))
+		.replace("\"./web/", &format!("\"{name}/"))
+		.replace(".ts\";\n", "\";\n");
+	assert!(
+		!script.contains("./web/"),
+		"api.ts imports the binding by a path the rewrite missed"
+	);
+	step::write(&consumer.join("api.ts"), script);
+	step::write(&consumer.join("tsconfig.json"), TSCONFIG_PACKAGE);
+	run(Command::new("tsc").arg("-p").arg(&consumer));
+	let runtime = |runtime: &str, case: Option<&str>| {
+		let mut cmd = Command::new(runtime);
+		if runtime == "deno" {
+			cmd.args(["run", "--allow-read", "--allow-env"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1");
+		}
+		cmd.arg("api.ts").args(case).current_dir(&consumer);
+		Ran::from(output(&mut cmd))
+	};
+	web_checks("node's package", &WEB_CASES, &mut |case| runtime("node", case));
+	for other in ["deno", "bun"] {
+		let ran = runtime(other, None);
+		assert!(ran.ok, "{other}'s transcript of the package failed:\n{}", ran.stderr);
+		assert_eq!(
+			ran.stdout, web.transcript,
+			"{other}'s transcript of the package differs from native Rust's"
+		);
+	}
+}
+
 /// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
 /// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
 /// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
@@ -1924,7 +2011,29 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "protocol.ts", "web/*.ts"]
+	"include": ["api.ts", "protocol.ts", "web/*.ts"],
+	"exclude": ["web/*.d.ts"]
+}
+"#;
+
+/// What `tsc` checks a caller of the web binding's npm package with: as `TSCONFIG`, but
+/// resolving the package as Node does, through its `exports` and declarations alone.
+const TSCONFIG_PACKAGE: &str = r#"{
+	"compilerOptions": {
+		"strict": true,
+		"noEmit": true,
+		"pretty": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"target": "es2024",
+		"lib": ["es2024", "esnext.disposable", "dom"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true,
+		"types": []
+	},
+	"include": ["api.ts"]
 }
 "#;
 

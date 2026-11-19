@@ -22,5 +22,4 @@ Each child follows the builder's split: the shared, read-only builder derives ev
 from Cargo metadata and the export, and the caller's workflow holds only what Cargo cannot
 know, such as who may publish. Each builds, checks in a clean consumer against native
 Rust's transcript, and publishes through trusted publishing where the registry has it.
-`ffi/release/README.md`'s "Other registries" table loses each row as its child lands; its
-npm row ("needs a Node generator first") is stale since the web target landed.
+`ffi/release/README.md`'s "Other registries" table loses each row as its child lands.

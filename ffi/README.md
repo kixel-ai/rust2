@@ -1346,8 +1346,24 @@ its neighbors by their `.ts` names; the `.wasm` needs no tool run on it after `c
 and no wasm-bindgen. The binding serves
 `wasm32-wasip1` alone: an item another target has and it lacks is left out, not declared to
 fail. `load(source)` of `index.ts` compiles and instantiates the module, from its bytes, a
-`Response`, or a `WebAssembly.Module`, before any other call, and checks its contract and
-target there.
+`Response`, a `WebAssembly.Module`, or its URL, before any other call, and checks its
+contract and target there. Without a source it loads `<prefix>.wasm` beside `index.ts`,
+through `new URL("./<prefix>.wasm", import.meta.url)`, which Vite and webpack follow into
+the bundle; a `file:` URL is read through Node's file system, where `process.getBuiltinModule`
+finds one, since Node's `fetch` refuses the scheme. A runtime with source phase imports,
+Node 24 and Deno, may pass `import source module from "<package>/<prefix>.wasm"` instead.
+
+`web/` is an npm package too, since Node strips no type under `node_modules`
+([nodejs#57215](https://github.com/nodejs/node/issues/57215)): beside each `.ts` the
+export writes its `.js`, the types stripped by [oxc](https://oxc.rs) and each import named
+by its `.js` file, and its `.d.ts`, declared from that file alone, as JSR requires too, so
+every export states its type. Its `package.json` names it as the facade's package and
+version, exports `index` as the package and each other module by its name, such as
+`<package>/Counter` and `<package>/rt`, and the module as `<package>/<prefix>.wasm`, and
+ships the JavaScript and declarations with the module `cargo build` puts beside them.
+[The release builder](release/README.md) packs it for npm and JSR. `tests/fixtures.rs`
+packs the api fixture's with npm, installs it into a project of its own, type-checks
+`tests/api.ts` against the declarations alone, and runs it on Node, Deno, and Bun.
 
 - **The platform** is the web's: the module's std is `wasm32-wasip1`'s, whose imports are a
   detail between the generated module and its binding, which implements each with the web
