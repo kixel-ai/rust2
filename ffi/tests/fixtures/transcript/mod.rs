@@ -11,6 +11,7 @@
 //! as its futures, or prints a value no binding shapes alike, such as `hex`. Anything else
 //! fails, naming its line.
 
+pub(crate) mod dart;
 pub(crate) mod ir;
 mod parse;
 pub(crate) mod go;
