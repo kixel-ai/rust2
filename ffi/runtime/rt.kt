@@ -794,9 +794,9 @@ private object __Keep {
 	}
 
 	/**
-	 * `Reference.reachabilityFence` where the platform has it, free on HotSpot: Android
-	 * has none before API 28, and makes it public only at 33. Elsewhere a monitor held on
-	 * [o], which keeps [o] a root while held, and which no earlier write is ordered after.
+	 * `Reference.reachabilityFence` where the platform has it, free on HotSpot, which
+	 * Android adds at API 28. Elsewhere a monitor held on [o], which keeps [o] a root while
+	 * held, and which no earlier write is ordered after.
 	 */
 	fun fence(o: Any) {
 		if (REFERENCE) java.lang.ref.Reference.reachabilityFence(o) else synchronized(o) {}
