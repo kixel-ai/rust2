@@ -15,6 +15,7 @@ pub(crate) mod dart;
 pub(crate) mod ir;
 mod parse;
 pub(crate) mod go;
+pub(crate) mod kotlin;
 pub(crate) mod python;
 
 use std::collections::BTreeMap;
