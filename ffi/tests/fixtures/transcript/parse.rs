@@ -171,6 +171,12 @@ impl Scope<'_> {
 					fail(&f.pat, "a for loop binding anything but a name")
 				};
 				for item in &items.elems {
+					// Each element is spelled again at each use in the unrolled body, so one
+					// whose evaluation could be seen, such as a call, would run once per use,
+					// not once before the loop as Rust runs it.
+					if !spelled(item) {
+						fail(item, "a for loop over an element other than a literal, a local, or a value built of them")
+					}
 					self.vars.push(Var::Alias(name.ident.to_string(), item.clone()));
 					let body = self.block(&f.body.stmts);
 					self.vars.pop();
@@ -1504,7 +1510,13 @@ impl Scope<'_> {
 		let [none, syn::Expr::Closure(c)] = m.args.iter().collect::<Vec<_>>()[..] else {
 			fail(m, "a map_or other than of a default and a closure")
 		};
+		let none_syn = none;
 		let none = self.infer(none);
+		// Rust evaluates the default before it looks at the option, which a binding that
+		// evaluates only the arm taken would skip.
+		if !pure(&none) {
+			fail(none_syn, "a map_or default other than a literal, a local, or a value built of them")
+		}
 		let [p] = c.inputs.iter().collect::<Vec<_>>()[..] else {
 			fail(c, "a map_or closure of one parameter")
 		};
@@ -1613,6 +1625,100 @@ fn literalish(expr: &syn::Expr) -> bool {
 	}
 }
 
+/// Whether evaluating `e` has no effect a script could see, so a writer may evaluate it
+/// once per use, or not at all: no call of the API's or a hook's, and no closure.
+fn pure(e: &Expr) -> bool {
+	match &e.kind {
+		Kind::Unit
+		| Kind::Bool(_)
+		| Kind::Int(_)
+		| Kind::Float(_)
+		| Kind::Char(_)
+		| Kind::Str(_)
+		| Kind::Bytes(_)
+		| Kind::Duration(..)
+		| Kind::Socket(_)
+		| Kind::Ip(_)
+		| Kind::None
+		| Kind::Var(_)
+		| Kind::Const(_)
+		| Kind::Bound(_, None) => true,
+		Kind::Some(inner) | Kind::Bound(_, Some(inner)) | Kind::Field(inner, _) | Kind::Element(inner, _) => pure(inner),
+		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => items.iter().all(pure),
+		Kind::Binary(_, a, b) => pure(a) && pure(b),
+		Kind::Format(pieces) => pieces.iter().all(|p| match p {
+			Piece::Text(_) => true,
+			Piece::Value(e, _) => pure(e),
+		}),
+		_ => false,
+	}
+}
+
+/// Whether `expr` is spelled of literals, locals, constants, and constructors alone, as
+/// [`pure`] asks of a typed value, without typing it.
+fn spelled(expr: &syn::Expr) -> bool {
+	fn all<'e>(mut items: impl Iterator<Item = &'e syn::Expr>) -> bool {
+		items.all(spelled)
+	}
+	match expr {
+		syn::Expr::Lit(_) | syn::Expr::Path(_) => true,
+		syn::Expr::Paren(p) => spelled(&p.expr),
+		syn::Expr::Group(g) => spelled(&g.expr),
+		syn::Expr::Reference(r) => spelled(&r.expr),
+		syn::Expr::Unary(u) => spelled(&u.expr),
+		syn::Expr::Index(i) => spelled(&i.expr) && matches!(&*i.index, syn::Expr::Range(r) if r.start.is_none() && r.end.is_none()),
+		syn::Expr::Array(a) => all(a.elems.iter()),
+		syn::Expr::Tuple(t) => all(t.elems.iter()),
+		syn::Expr::Struct(s) => s.rest.is_none() && all(s.fields.iter().map(|f| &f.expr)),
+		// A variant's or a tuple struct's constructor, which names a type.
+		syn::Expr::Call(c) => {
+			let constructor = matches!(&*c.func, syn::Expr::Path(p)
+				if p.path.segments.last().is_some_and(|s| s.ident.to_string().starts_with(char::is_uppercase)));
+			constructor && all(c.args.iter())
+		}
+		syn::Expr::MethodCall(m) => CONVERSIONS.contains(&m.method.to_string().as_str()) && m.args.is_empty() && spelled(&m.receiver),
+		_ => false,
+	}
+}
+
+/// `n`, negated.
+fn negated(n: Num) -> Num {
+	Num {
+		negative: !n.negative && n.magnitude != 0,
+		..n
+	}
+}
+
+/// `l + r`, or none past 128 bits of magnitude.
+fn sum(l: Num, r: Num) -> Option<Num> {
+	let (negative, magnitude) = match (l.negative == r.negative, l.magnitude >= r.magnitude) {
+		(true, _) => (l.negative, l.magnitude.checked_add(r.magnitude)?),
+		(false, true) => (l.negative, l.magnitude - r.magnitude),
+		(false, false) => (r.negative, r.magnitude - l.magnitude),
+	};
+	Some(Num {
+		negative: negative && magnitude != 0,
+		magnitude,
+	})
+}
+
+/// `n as` an integer of `bits` bits: its two's complement truncated to them, then read as
+/// signed or unsigned.
+fn truncated(n: Num, bits: u32, signed: bool) -> Num {
+	let raw = if n.negative { n.magnitude.wrapping_neg() } else { n.magnitude };
+	let raw = if bits == 128 { raw } else { raw & ((1u128 << bits) - 1) };
+	match signed && raw >> (bits - 1) & 1 == 1 {
+		true => Num {
+			negative: true,
+			magnitude: if bits == 128 { raw.wrapping_neg() } else { (1u128 << bits) - raw },
+		},
+		false => Num {
+			negative: false,
+			magnitude: raw,
+		},
+	}
+}
+
 fn int_named(name: &str) -> Option<Int> {
 	Some(match name {
 		"u8" => Int::U8,
@@ -1629,8 +1735,9 @@ fn int_named(name: &str) -> Option<Int> {
 	})
 }
 
-/// An integer spelled by literals, constants such as `u64::MAX`, shifts, sums, and casts,
-/// or `NonZero::new(..).unwrap()` of one.
+/// An integer spelled by literals, constants such as `u64::MAX`, shifts, sums,
+/// differences, and casts, or `NonZero::new(..).unwrap()` of one, folded as Rust folds it:
+/// signs kept, and each cast truncating to its type's width.
 fn const_int(expr: &syn::Expr) -> Option<Num> {
 	let num = |v: i128| Some(Num::new(v));
 	match expr {
@@ -1641,26 +1748,28 @@ fn const_int(expr: &syn::Expr) -> Option<Num> {
 			magnitude: i.base10_parse().ok()?,
 		}),
 		syn::Expr::Paren(p) => const_int(&p.expr),
-		syn::Expr::Cast(c) => const_int(&c.expr),
-		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) => {
-			let n = const_int(&u.expr)?;
-			Some(Num {
-				negative: !n.negative,
-				..n
-			})
+		syn::Expr::Cast(c) => {
+			let n = const_int(&c.expr)?;
+			let syn::Type::Path(ty) = &*c.ty else { return None };
+			match ty.path.get_ident()?.to_string().as_str() {
+				"u128" => Some(truncated(n, 128, false)),
+				name => {
+					let int = int_named(name)?;
+					Some(truncated(n, int.bits(), int.signed()))
+				}
+			}
 		}
+		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) => Some(negated(const_int(&u.expr)?)),
 		syn::Expr::Binary(b) => {
 			let (l, r) = (const_int(&b.left)?, const_int(&b.right)?);
-			let (l, r) = (l.magnitude, r.magnitude);
 			match b.op {
-				syn::BinOp::Shl(_) => Some(Num {
-					negative: false,
-					magnitude: l << r,
-				}),
-				syn::BinOp::Add(_) => Some(Num {
-					negative: false,
-					magnitude: l + r,
-				}),
+				syn::BinOp::Shl(_) => {
+					let by = u32::try_from(r.magnitude).ok().filter(|by| !r.negative && *by < 128)?;
+					let magnitude = l.magnitude << by;
+					(magnitude >> by == l.magnitude).then_some(Num { magnitude, ..l })
+				}
+				syn::BinOp::Add(_) => sum(l, r),
+				syn::BinOp::Sub(_) => sum(l, negated(r)),
 				_ => None,
 			}
 		}
@@ -1814,5 +1923,35 @@ pub(super) fn fits(have: &Type, want: &Type) -> bool {
 		(Type::Tuple(a), Type::Tuple(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| fits(a, b)),
 		(Type::SocketAddr(_), Type::SocketAddr(Family::Any)) | (Type::IpAddr(_), Type::IpAddr(Family::Any)) => true,
 		(a, b) => a == b || (text(a) && text(b)) || (bytes(a) && bytes(b)) || (path(a) && path(b)),
+	}
+}
+
+/// Each integer the folder accepts folds to the value rustc gives the same expression.
+#[test]
+fn folds_like_rust() {
+	macro_rules! cases {
+		($($e:expr),* $(,)?) => {
+			[$((stringify!($e), $e as i128)),*]
+		};
+	}
+	#[allow(clippy::identity_op, clippy::cast_lossless, overflowing_literals)]
+	let cases = cases![
+		-1isize + 2,
+		256u16 as u8 as u64,
+		300 as u8,
+		-1i64 as u64,
+		u64::MAX as i64,
+		u128::MAX as i64,
+		i8::MIN as u8,
+		-5 - 3,
+		2 - 7,
+		(1u128 << 127) as i8,
+		(1i128 << 64) + 1,
+		-(1i64 << 62) as u32,
+		u32::MAX as i16 as u64,
+	];
+	for (text, want) in cases {
+		let expr: syn::Expr = syn::parse_str(text).unwrap();
+		assert_eq!(const_int(&expr), Some(Num::new(want)), "{text}");
 	}
 }
