@@ -1916,7 +1916,9 @@ impl<'a> Gen<'a> {
 				return None;
 			}
 			(Access::Const, Place::Static) if constant => {
-				let name = member.to_uppercase();
+				// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
+				// and its alias `SP`, so the later is kept apart again.
+				let name = self::member(&member.to_uppercase(), reserved);
 				self.natives
 					.push(format!("@_staticmethod\ndef {bare}() -> {ret}: ...\n"));
 				// An `Enum` makes a member of any other value, to a type checker as at run time.

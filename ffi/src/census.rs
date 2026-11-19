@@ -10,11 +10,13 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown, listing `exporting`, each exclude whose item
-/// would export and its paths; `at` locates a span.
+/// The census of the facade as Markdown, with `config`, the `exclude` that exports what
+/// maps, and listing `exporting`, each exclude whose item would export and its paths; `at`
+/// locates a span.
 pub(crate) fn render(
 	api: &Api,
 	collected: &Report,
+	config: &[String],
 	exporting: &[(String, Vec<String>)],
 	clashes: &[Clash],
 	at: &dyn Fn(Span) -> String,
@@ -144,13 +146,10 @@ pub(crate) fn render(
 		);
 	}
 
-	if !collected.refusals.is_empty() {
+	if !config.is_empty() {
 		let _ = writeln!(out, "\n## The config that exports what maps\n");
 		let _ = writeln!(out, "```toml\nexclude = [");
-		let mut paths: Vec<&str> = collected.refusals.iter().map(|r| r.path.as_str()).collect();
-		paths.sort();
-		paths.dedup();
-		for path in paths {
+		for path in config {
 			let _ = writeln!(out, "    \"{path}\",");
 		}
 		let _ = writeln!(out, "]\n```");

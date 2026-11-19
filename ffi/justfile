@@ -41,6 +41,14 @@ test *args:
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
 
+# Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
+corpus:
+    cargo test --locked --test fixtures corpus::nightly -- --ignored --exact
+
+# Take corpus/crates.txt afresh from crates.io's top crates by downloads, and resolve corpus/Cargo.lock. It builds them, as `corpus` does.
+corpus-update:
+    cargo test --locked --test fixtures corpus::update -- --ignored --exact
+
 # Run the api fixture's web test in headless Chromium and Firefox, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers

@@ -1472,3 +1472,73 @@ impl SlotPeer<'static> {
 		SlotPeer(SlotView(&0), Box::leak(Box::new(0)))
 	}
 }
+
+/// Refused: a `()` error has no value for a language to raise.
+pub fn unit_error(ok: bool) -> Result<(), ()> {
+	if ok { Ok(()) } else { Err(()) }
+}
+
+/// Refused as `unit_error` is, in a future's output.
+pub async fn unit_error_later(ok: bool) -> Result<u8, ()> {
+	if ok { Ok(1) } else { Err(()) }
+}
+
+/// Either of two values, which `race` resolves to.
+pub enum Either<A, B> {
+	Left(A),
+	Right(B),
+}
+
+/// The first of two futures to finish, as futures-util's `Select` is.
+pub struct Race<A, B>(Option<(A, B)>);
+
+impl<A: Future + Unpin, B: Future + Unpin> Future for Race<A, B> {
+	type Output = Either<(A::Output, B), (B::Output, A)>;
+
+	fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+		let (mut a, mut b) = self.0.take().expect("polled after it finished");
+		if let std::task::Poll::Ready(out) = std::pin::Pin::new(&mut a).poll(cx) {
+			return std::task::Poll::Ready(Either::Left((out, b)));
+		}
+		if let std::task::Poll::Ready(out) = std::pin::Pin::new(&mut b).poll(cx) {
+			return std::task::Poll::Ready(Either::Right((out, a)));
+		}
+		self.0 = Some((a, b));
+		std::task::Poll::Pending
+	}
+}
+
+/// Refused: what it resolves to holds the future C implements, which crosses only as a
+/// parameter.
+pub fn race<A: Future + Unpin, B: Future + Unpin>(a: A, b: B) -> Race<A, B> {
+	Race(Some((a, b)))
+}
+
+/// A future held unpolled, as futures-util's `Abortable` holds one.
+pub struct Parked<F>(pub F);
+
+/// Refused as `race` is, returning the future C implements inside a type of its own.
+pub fn park<F: Future>(future: F) -> Parked<F> {
+	Parked(future)
+}
+
+/// Refused at the instance `bits` names, as any union is, as zerovec's `NichedOptionULE`.
+#[derive(Clone, Copy)]
+pub union Bits<T: Copy> {
+	pub raw: u32,
+	pub value: T,
+}
+
+/// Refused: it returns a union.
+pub fn bits() -> Bits<u32> {
+	Bits { raw: 0 }
+}
+
+/// Refused: a struct ending in a slice is only ever behind a pointer, as zerovec's
+/// `ZeroSlice<T>` is, here at the instance `tail` names.
+pub struct Tail<T>(T, [u8]);
+
+/// Refused: it borrows an unsized type.
+pub fn tail(bytes: &'static Tail<u8>) -> u8 {
+	bytes.0
+}

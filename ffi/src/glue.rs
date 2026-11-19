@@ -1293,7 +1293,8 @@ impl Gen<'_> {
 		self.line("#![allow(unused_unsafe, reason = \"every conversion is in its own block\")]");
 		self.line("#![allow(unused_parens, reason = \"each element is lifted from `(*c)`\")]");
 		self.line("#![allow(clippy::all, reason = \"generated\")]");
-		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]\n");
+		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]");
+		self.line("#![allow(deprecated, reason = \"a deprecated item is still the API's\")]\n");
 		self.line("mod rt;\n");
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");

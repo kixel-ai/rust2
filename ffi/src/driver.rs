@@ -181,7 +181,15 @@ impl Callbacks for Export {
 				.map(|(f, _)| f.shown.clone())
 				.collect();
 			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
+			let config = census_config(tcx, &facade, &self.facade.lib, report, &swift);
+			let text = census::render(
+				&collected.api,
+				report,
+				&config,
+				&exporting,
+				&abi.clashes,
+				&|span| at(tcx, span),
+			);
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -233,6 +241,58 @@ impl Callbacks for Export {
 			tcx.dcx().err(format!("rust2-ffi: {err}"));
 		}
 		stop_on_errors(tcx)
+	}
+}
+
+/// The `exclude` that exports what maps: each item collection or Swift refuses, checked by
+/// collecting again with it. One naming only an instance a refused item alone named names
+/// nothing once that item is left out, and the export would fail on it, so it is dropped;
+/// what that collection refuses besides is added, until the config holds.
+fn census_config(
+	tcx: TyCtxt<'_>,
+	facade: &collect::Facade,
+	lib: &str,
+	report: &collect::Report,
+	swift: &FxHashSet<ir::Path>,
+) -> Vec<String> {
+	let refused = |report: &collect::Report, swift: &FxHashSet<ir::Path>| -> Vec<String> {
+		(report.refusals.iter().map(|r| r.path.clone()))
+			.chain(swift.iter().map(|path| path[1..].join("::")))
+			.collect()
+	};
+	let mut config = refused(report, swift);
+	let mut seen = Vec::new();
+	loop {
+		config.sort();
+		config.dedup();
+		// Each round leaves out at least as much as the last, so a config seen before is the last.
+		if config.is_empty() || seen.contains(&config) {
+			return config;
+		}
+		seen.push(config.clone());
+		let checked = collect::collect(
+			tcx,
+			&collect::Facade {
+				root: facade.root.clone(),
+				package: facade.package,
+				exclude: &config,
+				crates: facade.crates,
+				audit: &[],
+			},
+		);
+		let abi = Abi::new(&checked.api, lib);
+		let rest = checked.api.without_jni();
+		let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
+			.into_iter()
+			.map(|(f, _)| f.shown.clone())
+			.collect();
+		let more = refused(&checked.report, &swift);
+		let dead: Vec<&String> = (checked.report.excluded.iter())
+			.filter(|(path, count)| *count == 0 && !configured_out(tcx, path))
+			.map(|(path, _)| path)
+			.collect();
+		config.retain(|path| !dead.contains(&path));
+		config.extend(more);
 	}
 }
 
