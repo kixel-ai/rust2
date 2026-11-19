@@ -42,6 +42,10 @@ pub struct Profile {
 	pub lazy: bool,
 	/// `_drop` amid the steps, which a binding with no `close()` cannot make.
 	pub drops: bool,
+	/// A move or drop closes the binding's object, so a later call naming it fails as
+	/// moved before any check Rust makes, of it or of any other argument: the binding
+	/// has no handle left to pass.
+	pub closes: bool,
 }
 
 impl Profile {
@@ -55,6 +59,7 @@ impl Profile {
 		failures: true,
 		lazy: false,
 		drops: true,
+		closes: false,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
@@ -64,7 +69,8 @@ impl Profile {
 	};
 
 	/// Python's: an object frees once its last reference goes, as `del` lets go of it
-	/// under CPython's counting, and there is no `close()`. A future is an `async def`,
+	/// under CPython's counting, and there is no `close()`; a moved one keeps its handle,
+	/// so Rust's checks name what failed. A future is an `async def`,
 	/// made as it is awaited, and an awaited one runs to its end in that step.
 	pub const PYTHON: Self = Self {
 		threads: true,
@@ -75,6 +81,7 @@ impl Profile {
 		failures: true,
 		lazy: true,
 		drops: false,
+		closes: false,
 	};
 
 	/// Go's: a goroutine moves between threads, so every value that is not `Send` is made
@@ -89,6 +96,7 @@ impl Profile {
 		failures: true,
 		lazy: true,
 		drops: true,
+		closes: true,
 	};
 }
 
@@ -245,6 +253,52 @@ pub enum Op {
 	Await(usize),
 	/// `<prefix>_thread_drain`: run what other threads queued for this one.
 	Drain,
+}
+
+impl Op {
+	/// The handles it passes, not those it makes. A drop names its own, which closing
+	/// again does nothing to.
+	fn reads(self) -> Vec<usize> {
+		match self {
+			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) => std::iter::once(h).chain(o).collect(),
+			Op::PlusLater(_, h, o) => std::iter::once(h).chain(o).collect(),
+			Op::CounterGet(h)
+			| Op::CounterAdd(h, _)
+			| Op::CounterIntoSum(h, _)
+			| Op::CounterClone(_, h)
+			| Op::LedgerEdit(_, h)
+			| Op::LedgerPublished(h)
+			| Op::LedgerSeal(h)
+			| Op::LedgerReceipt(_, h)
+			| Op::DraftWrite(h)
+			| Op::DraftLines(h)
+			| Op::DraftCommit(h)
+			| Op::ReceiptCount(h)
+			| Op::ReceiptClone(_, h)
+			| Op::Tallied(h)
+			| Op::Stored(h)
+			| Op::TallyBump(h)
+			| Op::BumpLater(_, h)
+			| Op::LocalBump(h)
+			| Op::LocalShare(_, h)
+			| Op::LocalLater(_, h)
+			| Op::MetersFirst(_, h)
+			| Op::MetersClear(h)
+			| Op::MeterAdd(h, _)
+			| Op::MeterReset(h) => vec![h],
+			Op::CounterNew(..)
+			| Op::LedgerNew(_)
+			| Op::TallyNew(_)
+			| Op::LocalNew(..)
+			| Op::MetersNew(_)
+			| Op::MeterNew(_)
+			| Op::Drop(_)
+			| Op::Free(_)
+			| Op::Poll(_)
+			| Op::Await(_)
+			| Op::Drain => Vec::new(),
+		}
+	}
 }
 
 /// One step: a call on a thread, and what it must return.
@@ -470,6 +524,8 @@ struct Model {
 	homed: bool,
 	/// Whether a future is made only as it is awaited, and whether this step is that await.
 	lazy: bool,
+	/// Whether a call naming a handle whose value is gone fails before Rust checks it.
+	closes: bool,
 	making: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
@@ -485,6 +541,7 @@ impl Model {
 		Self {
 			homed: profile.homed,
 			lazy: profile.lazy,
+			closes: profile.closes,
 			making: false,
 			slots: Vec::new(),
 			queued: Default::default(),
@@ -672,6 +729,9 @@ impl Model {
 				self.add(slot);
 				return Ok(Outcome::Ok);
 			}
+		}
+		if self.closes && op.reads().into_iter().any(|h| self.slots[h].gone) {
+			return Err(Status::Moved);
 		}
 		Ok(match op {
 			Op::CounterNew(h, n) => {

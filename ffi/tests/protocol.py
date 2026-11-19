@@ -4,6 +4,7 @@ transcript must match line for line. A free lets go of the slot's last reference
 CPython's counting frees at once; a future is an `async def`, made as it is awaited."""
 
 import asyncio
+import gc
 import queue
 import sys
 import threading
@@ -146,9 +147,13 @@ def step(op: str, args: list[str]) -> str:
 	try:
 		return run(op, args)
 	except api.ErrorException:
-		return "error"
+		out = "error"
 	except (ValueError, RuntimeError) as e:
-		return status(e)
+		out = status(e)
+	# What raised keeps its task and coroutine in a cycle, which holds the future's
+	# arguments: freed now, once the exception is gone, as the model frees them.
+	gc.collect()
+	return out
 
 
 def worker(steps: "queue.Queue[tuple[str, list[str]] | None]", done: "queue.Queue[str]") -> None:

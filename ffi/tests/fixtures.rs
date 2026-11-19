@@ -1182,14 +1182,18 @@ fn api_python_protocol_nightly() {
 fn python_protocol(scripts: &[protocol::Script], dir: &str) {
 	let api = api();
 	let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
-	protocol::check(&scratch().join("api").join("python-protocol").join(dir), scripts, |_| {
-		let mut cmd = Command::new(&python);
-		// As `api_python` runs its script: off the path, in dev mode, warnings as errors.
-		cmd.args(["-P", "-X", "dev", "-W", "error"])
-			.arg(manifest_dir().join("tests").join("protocol.py"))
-			.env("PYTHONPATH", api.out.join("python"));
-		cmd
-	});
+	protocol::check(
+		&scratch().join("api").join("python-protocol").join(dir),
+		scripts,
+		|_| {
+			let mut cmd = Command::new(&python);
+			// As `api_python` runs its script: off the path, in dev mode, warnings as errors.
+			cmd.args(["-P", "-X", "dev", "-W", "error"])
+				.arg(manifest_dir().join("tests").join("protocol.py"))
+				.env("PYTHONPATH", api.out.join("python"));
+			cmd
+		},
+	);
 }
 
 /// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
@@ -1990,6 +1994,34 @@ fn go_layout(api: &Api, module: &Path, main: &str) {
 		&module.join("go.mod"),
 		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
 	);
+}
+
+/// Random sequences of the ownership protocol's steps through the Go, by
+/// `tests/protocol.go`, each matching what the model says each step returns.
+#[test]
+fn api_go_protocol() {
+	go_protocol(&protocol::scripts(0, 100, 100, protocol::Profile::GO), "scripts");
+}
+
+/// Longer Go protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_go_protocol_nightly() {
+	go_protocol(&protocol::scripts(100, 5000, 400, protocol::Profile::GO), "nightly");
+}
+
+fn go_protocol(scripts: &[protocol::Script], dir: &str) {
+	let api = api();
+	let built = scratch().join("api").join("go-protocol");
+	let module = built.join("module");
+	go_layout(
+		api,
+		&module,
+		&std::fs::read_to_string(manifest_dir().join("tests").join("protocol.go")).unwrap(),
+	);
+	let exe = built.join(format!("protocol{EXE_SUFFIX}"));
+	go_build(api, &module, &exe);
+	protocol::check(&built.join(dir), scripts, |_| Command::new(&exe));
 }
 
 /// Build the Go `module` into `exe` against the api fixture's static library.
