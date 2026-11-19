@@ -240,6 +240,8 @@ libmoq.a(other.o):
 0000000000000008 (common) (alignment 2^3) external _tty_out
 0000000000000020 (common) external _shared
 0000000000000000 (__DATA,__bss) external _is_a_tty
+0000000000000008 (common) (alignment 2^3) external _state
+0000000000000010 (__DATA,__data) private external _state
 """
         self.assertEqual(package.commons_source(nm),
                          '__attribute__((aligned(16))) char common0[32] __asm__("_shared");\n'

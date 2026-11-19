@@ -662,7 +662,7 @@ def commons_source(nm):
             size, align = int(common.group(1), 16), int(common.group(2) or 0)
             old_size, old_align = commons.get(common.group(3), (0, 0))
             commons[common.group(3)] = (max(size, old_size), max(align, old_align))
-        elif re.search(r"\) (?:weak )?external ", line) and "(undefined)" not in line:
+        elif re.search(r"\) (?:weak )?(?:private )?external ", line) and "(undefined)" not in line:
             defined.add(line.split()[-1])
     return "".join(
         f'__attribute__((aligned({1 << align}))) char common{i}[{size}] __asm__("{name}");\n'
