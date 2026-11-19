@@ -2110,7 +2110,8 @@ fn swift(calls: &[Call], source: &str) -> String {
 /// `rt.Bytes` to the `[]byte` a callback is lent.
 fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 	let mut body = String::new();
-	// How the generated `func` returns: its values, and whether an error follows them.
+	// How the generated `func` returns: its values, and whether an error follows them. A
+	// method is named after its receiver, as `(self *T) M`.
 	let results = |function: &str| -> (usize, bool) {
 		let at = source
 			.find(&format!("\nfunc {function}("))
@@ -2118,7 +2119,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		let line = source[at + 1..].lines().next().unwrap();
 		let mut depth = 0;
 		let mut close = 0;
-		for (i, c) in line.char_indices().skip(line.find('(').unwrap()) {
+		for (i, c) in line.char_indices().skip(5 + function.len()) {
 			match c {
 				'(' | '[' => depth += 1,
 				')' | ']' => depth -= 1,
@@ -2175,10 +2176,89 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 			values = values.join(", "),
 		);
 	}
+	// The parameter types of a `func`, after its name.
+	let params = |function: &str| -> String {
+		let at = source
+			.find(&format!("\nfunc {function}("))
+			.unwrap_or_else(|| panic!("the Go declares {function}"));
+		let line = &source[at + 7 + function.len()..];
+		line[..line.find(") ").unwrap()].to_string()
+	};
+	let mut sinks = String::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
+		let other = call.other();
+		let label = call.label();
+		let made = |seed: u64| value(&format!("Make{n}"), format!("s.Make{n}({seed})"));
+		let digest = |v: &str| format!("one(s.Digest{n}({v}))");
+		// The parameter `v` of `function` takes a value where `Digest` takes it as is: an
+		// object's handle, which it borrows.
+		let handle = |function: &str| {
+			let digested = params(&format!("Digest{n}"));
+			params(function).split(", ").any(|p| p.starts_with("v ") && p == digested)
+		};
 		let printed = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Try => {
+				let (k, _) = results(&format!("Try{n}"));
+				let (values, v) = match k {
+					1 => ("v".to_string(), "v".to_string()),
+					k => {
+						let names: Vec<String> = (0..k).map(|i| format!("v{i}")).collect();
+						(names.join(", "), format!("tuple{k}({})", names.join(", ")))
+					}
+				};
+				let lift = if results(&format!("Digest{n}")).1 { "liftErr" } else { "lift" };
+				let _ = writeln!(
+					body,
+					"\t{{\n\t\t{values}, err := s.Try{n}({seed})\n\t\tif err == nil {{\n\
+					\t\t\tfmt.Println(\"{label} ok\", {})\n\t\t}} else {{\n\
+					\t\t\tfmt.Println(\"{label} err\", failed({lift}(s.Digest{n}), err))\n\t\t}}\n\t}}",
+					digest(&v)
+				);
+				continue;
+			}
+			Kind::Swap => {
+				let arg = if handle(&format!("Swap{n}")) { "v" } else { "&v" };
+				let _ = writeln!(
+					body,
+					"\t{{\n\t\tv := {}\n\t\td := one(s.Swap{n}({arg}, {other}))\n\t\tfmt.Println(\"{label}\", d, {})\n\t}}",
+					made(seed),
+					digest("v")
+				);
+				continue;
+			}
+			Kind::Pair => format!("one(s.Pair{n}({}, {seed}, {}))", made(seed), made(other)),
+			Kind::Maybe => match (seed % 2, handle(&format!("Maybe{n}"))) {
+				(0, _) => format!("one(s.Maybe{n}(nil))"),
+				(_, true) => format!("one(s.Maybe{n}({}))", made(seed)),
+				(_, false) => format!("one(s.Maybe{n}(ptr({})))", made(seed)),
+			},
+			Kind::Held => {
+				let holder = format!("(self *Holder{n})");
+				let swapped = value(&format!("{holder} Swap"), format!("h.Swap({})", made(other)));
+				let inner = value(&format!("{holder} IntoInner"), "h.IntoInner()".into());
+				let _ = writeln!(
+					body,
+					"\t{{\n\t\th := one(s.NewHolder{n}({}))\n\t\told := {swapped}\n\t\td := one(h.Digest())\n\
+					\t\tc := {inner}\n\t\tif err := h.Close(); err != nil {{\n\t\t\tpanic(err)\n\t\t}}\n\
+					\t\tfmt.Println(\"{label}\", {}, d, {})\n\t}}",
+					made(seed),
+					digest("old"),
+					digest("c")
+				);
+				continue;
+			}
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let interface = source
+						.split(&format!("\ntype Sink{n} interface {{\n"))
+						.nth(1)
+						.expect("the Go declares the sink");
+					let echo = interface.lines().next().unwrap().trim().replace("p_rt.", "rt.");
+					let _ = writeln!(sinks, "type echo{n} struct{{}}\n\nfunc (echo{n}) {echo} {{\n\treturn v\n}}\n");
+				}
+				format!("one(s.Sink{n}_({seed}, echo{n}{{}}))")
+			}
 			Kind::Echo => {
 				let made = value(&format!("Make{n}"), format!("s.Make{n}({seed})"));
 				let echoed = value(&format!("Echo{n}"), format!("s.Echo{n}({made})"));
@@ -2216,10 +2296,11 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 				format!("one(s.Digest{n}({later}))")
 			}
 		};
-		let _ = writeln!(body, "\tfmt.Println(\"{}\", {printed})", call.label());
+		let _ = writeln!(body, "\tfmt.Println(\"{label}\", {printed})");
 	}
 	format!(
-		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\n\ts \"{name}/{name}\"\n\t\"{name}/rt\"\n)\n\n\
+		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"reflect\"\n\t\"strings\"\n\n\ts \"{name}/{name}\"\n\t\"{name}/rt\"\n)\n\n\
+		{sinks}{GO_HELPERS}\
 		func one[T any](v T, err ...error) T {{\n\tif len(err) > 0 && err[0] != nil {{\n\t\tpanic(err[0])\n\t}}\n\treturn v\n}}\n\n\
 		{tuples}func lift[A, B any](f func(A) B) func(A) B {{\n\treturn f\n}}\n\n\
 		func liftErr[A, B any](f func(A) (B, error)) func(A) B {{\n\treturn func(a A) B {{ return one(f(a)) }}\n}}\n\n\
@@ -2229,6 +2310,26 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		name = built.name(),
 	)
 }
+
+/// What the Go driver's lines call besides: `ptr` points at a value, as an `Option<&T>`
+/// takes it; `failed` is what `f` returns of the value a `Result`'s error holds, an object
+/// that is the error or the `Value` of the runtime's error of it.
+const GO_HELPERS: &str = "func ptr[T any](v T) *T {
+	return &v
+}
+
+func failed[A, B any](f func(A) B, err error) B {
+	if v, ok := err.(A); ok {
+		return f(v)
+	}
+	e := reflect.ValueOf(err)
+	if e.Kind() != reflect.Struct || !strings.HasSuffix(e.Type().Name(), \"Error\") {
+		panic(err)
+	}
+	return f(e.FieldByName(\"Value\").Interface().(A))
+}
+
+";
 
 /// The Dart driver, which prints each digest, a `U64`, unsigned.
 fn dart(built: &Built, calls: &[Call]) -> String {
