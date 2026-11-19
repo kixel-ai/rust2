@@ -58,7 +58,8 @@ manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. Each
+# Paths from the facade's root left out: a module, an item, or one method or field. A type
+# no facade module re-exports goes by its crate's name and its public path there. Each
 # must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
 # `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
