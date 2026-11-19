@@ -53,7 +53,8 @@ packages. Without a check, a consumer only imports the module. The web package t
 no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
 whose imports the consumer rewrites to the package's name. Its crate's version must be
-the release's.
+the release's. `features` and `example` apply to it when it is the crate's own; a web
+crate apart from it takes `web-features` and `web-example` instead.
 
 ## What the builder does
 

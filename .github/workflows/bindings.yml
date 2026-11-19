@@ -40,6 +40,14 @@ on:
         description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export
         default: ''
         type: string
+      web-features:
+        description: Cargo features of a web crate apart from manifest-path's, which takes features
+        default: ''
+        type: string
+      web-example:
+        description: The example of a web crate apart from manifest-path's whose stdout web-check must print, which takes example
+        default: ''
+        type: string
     outputs:
       version:
         description: The package's Cargo version
@@ -477,15 +485,27 @@ jobs:
       - name: Exporter
         working-directory: rust2/ffi
         run: cargo build --locked --release
+      # The crate's own features and example, or a web crate's apart from it.
       - name: Package
         env:
           WEB_MANIFEST: ${{ inputs.web-manifest-path }}
           SCOPE: ${{ inputs.scope }}
           VERSION: ${{ needs.facts.outputs.version }}
           EXAMPLE: ${{ inputs.example }}
+          WEB_FEATURES: ${{ inputs.web-features }}
+          WEB_EXAMPLE: ${{ inputs.web-example }}
           WEB_CHECK: ${{ inputs.web-check }}
         run: |
-          python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$FEATURES" --scope "$SCOPE" --version "$VERSION" --example "$EXAMPLE" --out web
+          if [[ "$WEB_MANIFEST" == "$MANIFEST" ]]; then
+            if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
+              echo "::error::web-features and web-example are for a web crate apart from manifest-path's: set features and example"
+              exit 1
+            fi
+            features=$FEATURES example=$EXAMPLE
+          else
+            features=$WEB_FEATURES example=$WEB_EXAMPLE
+          fi
+          python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
           if [[ -n "$WEB_CHECK" ]]; then cp "source/$WEB_CHECK" web/check.ts; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
