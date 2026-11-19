@@ -35,7 +35,8 @@ Public API: none. The translator's output changes only where moq's API does.
   refresh, and moq's move are ready (reconfirmed by the maintainer on 2026-11-12); then
   [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to rind 0.4. Check:
   `cargo search rind` shows 0.4.0. On 2026-11-12 moq `c681b7a` still locks rind 0.3.1, and
-  rind 0.3.2, tagged 2026-11-08, predates the fix.
+  rind 0.3.2, tagged 2026-11-08, predates the fix. Still so on 2026-11-18: crates.io's newest is 0.3.2, and the release
+  waits on rind's benchmark refresh ([kixel-ai/rind#619](https://github.com/kixel-ai/rind/pull/619)).
 
 ## Related
 

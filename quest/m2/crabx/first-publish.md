@@ -25,52 +25,28 @@ whenever main changes them. kixel.ai's DNS is on Cloudflare, so the record point
 subdomain at GitHub; a Cloudflare redirect to the raw files was rejected because it lives
 outside the repository and serves whatever path layout main happens to have.
 
+Done on 2026-11-18 (/quest-complete, with the maintainer's go-ahead): `kixel.ai` is verified
+for Pages in the kixel-ai organization; Pages builds from Actions at `crabx.kixel.ai`;
+Cloudflare has the challenge TXT record and the `crabx` CNAME to `kixel-ai.github.io`, DNS
+only; and only `main` may deploy to the `github-pages`, `crates-io`, and `npm` environments.
+
 ## Waiting
 
-- Maintainer: verify `kixel.ai` for GitHub Pages in the kixel-ai organization, so no other
-  account can claim `crabx.kixel.ai` if Pages is ever unset. An agent can't: it needs an
-  organization owner and the Cloudflare login. In organization Settings → Pages → Add a
-  domain, enter `kixel.ai`, add the TXT record it shows
-  (`_github-pages-challenge-kixel-ai.kixel.ai`) in Cloudflare, then click Verify.
-- Maintainer: turn on Pages for this repository, built by GitHub Actions, at
-  `crabx.kixel.ai`. An agent can run this once asked; it waits for the maintainer because
-  it changes repository settings. Check `gh api repos/kixel-ai/rust2/pages` shows
-  `"build_type": "workflow"` and `"cname": "crabx.kixel.ai"`, and that the `github-pages`
-  environment lets only `main` deploy.
+- kixel-ai/rust2's Actions: the installers deploy, run once DNS was in place
+  ([run 44431861706](https://github.com/kixel-ai/rust2/actions/runs/44431861706)), publishes
+  the site and GitHub issues the certificate; then an agent enforces HTTPS. On 2026-11-18 the
+  run sat queued behind the org's hosted-runner backlog. Check
+  `curl -fsSL https://crabx.kixel.ai/install.sh | head -3` prints the installer, after:
 
   ```sh
-  gh api -X POST repos/kixel-ai/rust2/pages -f build_type=workflow
-  gh api -X PUT repos/kixel-ai/rust2/pages -f cname=crabx.kixel.ai
-  ```
-
-- Maintainer: in Cloudflare's DNS for `kixel.ai`, add a `CNAME` record named `crabx` with
-  target `kixel-ai.github.io` and proxy status **DNS only**, so GitHub can issue the
-  certificate. An agent can't: it needs the Cloudflare login. Then deploy and enforce
-  HTTPS once GitHub shows the certificate, and check
-  `curl -fsSL https://crabx.kixel.ai/install.sh | head -3` prints the installer.
-
-  ```sh
-  gh workflow run installers.yml -R kixel-ai/rust2
   gh api -X PUT repos/kixel-ai/rust2/pages -F https_enforced=true
   ```
 
-
-- Maintainer: create the `crabx` organization on npmjs.com (free, public packages). An
-  agent can't: it needs the maintainer's npm account. Check `npm org ls crabx`.
-- Maintainer: let only `main` deploy to the `crates-io` and `npm` environments, before
-  release.yml's first run creates them unprotected. An agent can run this once asked; it
-  waits for the maintainer because it changes repository settings. Check each
-  environment's deployment branches in the repository settings.
-
-  ```sh
-  for env in crates-io npm; do
-    gh api -X PUT repos/kixel-ai/rust2/environments/$env \
-      -F 'deployment_branch_policy[protected_branches]=false' \
-      -F 'deployment_branch_policy[custom_branch_policies]=true'
-    gh api -X POST repos/kixel-ai/rust2/environments/$env/deployment-branch-policies -f name=main -f type=branch
-  done
-  ```
-
+- Maintainer: confirm the npm user `crabx` is yours. The `crabx` npm organization already
+  exists, and npm lists that user as its only member and owner
+  (`https://registry.npmjs.org/-/org/crabx/user`); if it is someone else's, the `@crabx/*`
+  platform packages need another scope. An agent can't tell: neither agent Chrome is signed
+  in to npm.
 - Maintainer: publish crabx 0.1.0 to crates.io from a clean checkout of `main` that
   includes release.yml, since the pipeline builds only versions published after it was
   added. An agent can't: publishing is public and permanent and needs the maintainer's
