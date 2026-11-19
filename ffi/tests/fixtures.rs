@@ -1184,12 +1184,14 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
+	let script = generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
 	// The Clang module the test and the contract program import on Linux.
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
 		stamp: &step::stamp(&exe),
 		reads: &[
 			&test,
+			&script,
 			&nodump,
 			&module,
 			&include,
@@ -1205,6 +1207,7 @@ fn api_swift() {
 			.args(["-parse-as-library", "-I"])
 			.arg(&dir)
 			.arg(&test)
+			.arg(&script)
 			.arg(&lib)
 			.args(&collections)
 			.arg(api.staticlib())
@@ -1218,6 +1221,7 @@ fn api_swift() {
 		api.transcript,
 		"the Swift transcript differs from the native one"
 	);
+	run(Command::new(&exe).arg("checks"));
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
 	run(Command::new(&exe).arg("shared"));
@@ -1234,17 +1238,18 @@ fn api_swift() {
 	] {
 		let step = Step {
 			stamp: &dir.join(format!("{case}.stamp")),
-			reads: &[&test, &nodump, &module, &include, &built, &swiftmodule],
+			reads: &[&test, &script, &nodump, &module, &include, &built, &swiftmodule],
 			writes: &[],
 		};
 		let output = step.output(
 			swiftc(&module, 15)
-				.args(["-parse-as-library", "-emit-sil", "-o"])
+				.args(["-parse-as-library", "-wmo", "-emit-sil", "-o"])
 				.arg(dir.join("broken.sil"))
 				.args(["-I"])
 				.arg(&dir)
 				.arg(format!("-D{case}"))
-				.arg(&test),
+				.arg(&test)
+				.arg(&script),
 		);
 		assert!(!output.status.success(), "Swift {case} compiled");
 		let stderr = String::from_utf8_lossy(&output.stderr);

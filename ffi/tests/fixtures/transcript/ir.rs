@@ -20,6 +20,34 @@ pub(crate) struct Api {
 	pub(crate) callbacks: Vec<Callback>,
 	pub(crate) functions: Vec<Function>,
 	pub(crate) constants: Vec<Constant>,
+	/// The targets the API serves, which each item's `on` holds a bit of.
+	pub(crate) targets: Vec<String>,
+}
+
+impl Api {
+	/// Whether an item on `on` is on every target the API serves.
+	pub(crate) fn everywhere(&self, on: u64) -> bool {
+		let all = u64::MAX >> (64 - self.targets.len());
+		on & all == all
+	}
+
+	/// The objects a value of `ty` holds, its records' and enums' fields included.
+	pub(crate) fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
+		match ty {
+			Type::Object(i) => out.push(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.handles(inner, out, seen),
+			Type::Tuple(elements) => elements.iter().for_each(|ty| self.handles(ty, out, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(self.records[*i].fields.iter()).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(self.enums[*i].variants.iter().flat_map(|v| &v.fields)).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			_ => {}
+		}
+	}
 }
 
 #[derive(serde::Deserialize)]
@@ -34,6 +62,8 @@ pub(crate) struct Record {
 	pub(crate) methods: Vec<Function>,
 	pub(crate) traits: Traits,
 	pub(crate) opaque: Option<serde_json::Value>,
+	/// The targets it is on.
+	pub(crate) on: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -53,6 +83,8 @@ pub(crate) struct Enum {
 	pub(crate) methods: Vec<Function>,
 	pub(crate) traits: Traits,
 	pub(crate) foreign: bool,
+	/// The targets it is on.
+	pub(crate) on: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -71,11 +103,14 @@ pub(crate) struct Object {
 	pub(crate) args: Vec<Type>,
 	#[serde(default = "yes")]
 	pub(crate) send: bool,
+	pub(crate) sync: bool,
 	pub(crate) copy: bool,
 	pub(crate) shared: bool,
 	pub(crate) methods: Vec<Function>,
 	pub(crate) traits: Traits,
 	pub(crate) foreign: bool,
+	/// The targets it is on.
+	pub(crate) on: u64,
 }
 
 fn yes() -> bool {
@@ -111,6 +146,8 @@ pub(crate) struct Function {
 	pub(crate) lends_mut: bool,
 	pub(crate) access: Access,
 	pub(crate) instance: Option<Instance>,
+	/// The targets it is on.
+	pub(crate) on: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -238,7 +275,7 @@ pub(crate) enum Dyn {
 	Arc,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Deserialize)]
 pub(crate) enum Int {
 	U8,
 	U16,

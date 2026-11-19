@@ -14,6 +14,7 @@
 pub(crate) mod ir;
 mod parse;
 pub(crate) mod python;
+pub(crate) mod swift;
 
 use std::collections::BTreeMap;
 use std::path::Path;
