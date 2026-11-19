@@ -319,7 +319,10 @@
           # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang, and
           # runs it under the nightly's Miri. llvm-symbolizer names the frames of a report.
           devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
-            nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.llvm ];
+            nativeBuildInputs = old.nativeBuildInputs ++ [
+              pkgs.llvm
+              pkgs.valgrind
+            ];
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               extensions =
                 (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components

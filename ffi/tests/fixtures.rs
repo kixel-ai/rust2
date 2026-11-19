@@ -219,9 +219,8 @@ fn api() -> &'static Api {
 /// exclusively.
 const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
 
-#[test]
-fn api_c() {
-	let api = api();
+/// `tests/api.c` built by `CC` against the api fixture's static library.
+fn api_c_exe(api: &Api) -> PathBuf {
 	let exe = scratch().join("api").join("api-test");
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
 	let src = manifest_dir().join("tests").join("api.c");
@@ -233,7 +232,7 @@ fn api_c() {
 	}
 	.run(
 		Command::new(cc)
-			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
+			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-g", "-I"])
 			.arg(&include)
 			.arg(&src)
 			.arg(api.staticlib())
@@ -241,6 +240,13 @@ fn api_c() {
 			.arg("-o")
 			.arg(&exe),
 	);
+	exe
+}
+
+#[test]
+fn api_c() {
+	let api = api();
+	let exe = api_c_exe(api);
 	let c = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&c.stdout),
@@ -320,12 +326,13 @@ fn api_tsan() {
 }
 
 /// The Go script under Go's race detector, which catches a race between an object's
-/// `Close` and the nursery that pushes it out on another goroutine.
+/// `Close` and the nursery that pushes it out on another goroutine, and with cgocheck2,
+/// which catches a Go pointer stored in memory Rust owns.
 #[test]
 #[ignore = "slow: just ffi sanitize"]
-fn api_go_race() {
+fn api_go_checked() {
 	let api = api();
-	let dir = scratch().join("api").join("go-race");
+	let dir = scratch().join("api").join("go-checked");
 	let module = dir.join("module");
 	go_layout(
 		api,
@@ -333,17 +340,54 @@ fn api_go_race() {
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	run(go(&module, api, &["build", "-race", "-o"]).arg(&exe));
+	run(go(&module, api, &["build", "-race", "-o"])
+		.arg(&exe)
+		.env("GOEXPERIMENT", "cgocheck2"));
 	// Every report fails the run.
 	let env = [("GORACE", "halt_on_error=1")];
 	let output = run(Command::new(&exe).envs(env));
 	assert_eq!(
 		String::from_utf8_lossy(&output.stdout),
 		api.transcript,
-		"the Go transcript under the race detector differs from the native one"
+		"the Go transcript under the race detector and cgocheck2 differs from the native one"
 	);
 	for case in ["futures", "owned", "closed", "bytes", "closures"] {
 		run(Command::new(&exe).arg(case).envs(env));
+	}
+}
+
+/// The C and C++ scripts under Valgrind's memcheck, against the library as the gate builds
+/// it: uninstrumented, so it also sees what a sanitizer's own build of std would hide, such
+/// as a read of memory nothing wrote. A definite or indirect leak fails the run too.
+#[test]
+#[ignore = "needs Valgrind: just ffi sanitize"]
+fn api_valgrind() {
+	let api = api();
+	let c = api_c_exe(api);
+	let cpp = scratch().join("api").join(format!("api-c++17{EXE_SUFFIX}"));
+	cxx(&api.link(), 17, true, &manifest_dir().join("tests").join("api.cpp"), &cpp);
+	for (exe, cases) in [(&c, &["statuses", "threads"][..]), (&cpp, &["futures", "lifetimes"])] {
+		for case in std::iter::once(None).chain(cases.iter().copied().map(Some)) {
+			let output = run(Command::new("valgrind")
+				.args([
+					"--quiet",
+					"--error-exitcode=99",
+					"--exit-on-first-error=yes",
+					"--track-origins=yes",
+					"--leak-check=full",
+					"--errors-for-leak-kinds=definite,indirect",
+				])
+				.arg(exe)
+				.args(case));
+			if case.is_none() {
+				assert_eq!(
+					String::from_utf8_lossy(&output.stdout),
+					api.transcript,
+					"{} under Valgrind differs from the native transcript",
+					exe.display()
+				);
+			}
+		}
 	}
 }
 
@@ -371,11 +415,19 @@ fn sanitized(sanitizer: &str) {
 		.collect();
 	let lib = dir.join("glue").join(host()).join("debug").join("libapi.a");
 	let tests = manifest_dir().join("tests");
-	let sanitize = format!("-fsanitize={sanitizer}");
+	// UndefinedBehaviorSanitizer rides with AddressSanitizer on the C and C++ side, whose
+	// undefined behavior Rust's checks cannot see. `-fno-wrapv` overrides a hardened
+	// compiler's, such as Nix's, which would define signed overflow and so hide it.
+	let sanitize: &[&str] = match sanitizer {
+		"address" => &["-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-wrapv"],
+		"thread" => &["-fsanitize=thread"],
+		other => panic!("no C flags for the {other} sanitizer"),
+	};
 	// Every report fails the run, rather than only those the sanitizer deems fatal.
 	let env = [
 		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
 		("TSAN_OPTIONS", "halt_on_error=1"),
+		("UBSAN_OPTIONS", "halt_on_error=1:print_stacktrace=1"),
 	];
 	for (compiler, std, src, args) in [
 		("clang", "-std=c11", "api.c", &["threads"][..]),
@@ -383,7 +435,9 @@ fn sanitized(sanitizer: &str) {
 	] {
 		let exe = dir.join(src.replace('.', "-"));
 		run(Command::new(compiler)
-			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
+			.args([std, "-g", "-Wall", "-Wextra", "-Werror"])
+			.args(sanitize)
+			.arg("-I")
 			.arg(api.out.join("include"))
 			.arg(tests.join(src))
 			.arg(&lib)

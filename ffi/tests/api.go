@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"sync"
@@ -2096,5 +2097,19 @@ func main() {
 		closures()
 	default:
 		broken(os.Args[1])
+	}
+	unleaked()
+}
+
+// unleaked fails if a goroutine is blocked forever on what nothing else can reach, such
+// as a future's wake channel a cancelled call dropped.
+func unleaked() {
+	leaks := pprof.Lookup("goroutineleak")
+	var stacks strings.Builder
+	// Writing it runs the collection that finds them.
+	ok(leaks.WriteTo(&stacks, 1))
+	if leaks.Count() != 0 {
+		fmt.Fprint(os.Stderr, stacks.String())
+		os.Exit(1)
 	}
 }
