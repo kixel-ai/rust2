@@ -327,6 +327,20 @@ class Web(unittest.TestCase):
             self.assertEqual(config["name"], "@moq/moq-ffi")
             self.assertEqual(config["exports"], {".": "./index.ts", "./Session": "./Session.ts", "./glue": "./glue.ts", "./rt": "./rt.ts"})
 
+    def test_names_a_lone_license_file_for_jsr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "terms.txt").write_text("Terms\n")
+            web = web_export(root / "export")
+            unlicensed = info(root, license=None, license_file="terms.txt")
+            npm, jsr = package.web_package(unlicensed, web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertTrue((npm / "terms.txt").is_file())
+            self.assertEqual((jsr / "LICENSE").read_text(), "Terms\n")
+            self.assertFalse((jsr / "terms.txt").exists())
+            (root / "terms.txt").unlink()
+            with self.assertRaises(SystemExit):
+                package.web_package(info(root, license=None), web, root / "export/moq.wasm", "moq", root / "out")
+
     def test_size_unless_the_crate_chooses(self):
         with tempfile.TemporaryDirectory() as tmp:
             manifest = Path(tmp) / "Cargo.toml"
@@ -367,6 +381,9 @@ class Web(unittest.TestCase):
             self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
                              'import * as api from "@moq/moq-ffi";\nimport type * as rt from "@moq/moq-ffi/rt";\n'
                              "import * as Error_ from '@moq/moq-ffi/Error_';\n")
+            check.write_text('import * as api from "./web/index.ts";\nconsole.log("./web/index.ts", await import("./web/rt.ts"));\n')
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             'import * as api from "@moq/moq-ffi";\nconsole.log("./web/index.ts", await import("@moq/moq-ffi/rt"));\n')
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")

@@ -67,6 +67,8 @@ COLLECTIONS = "https://github.com/apple/swift-collections"
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
 JSR_LIMIT = 20 * 1024 * 1024
+# The license file names JSR reads, in any case.
+JSR_LICENSES = {"license", "license.md", "license.txt", "licence", "licence.md", "licence.txt"}
 # The bundlers the web package's consumers build with, as an app would take them from npm.
 BUNDLERS = {"vite": "8.3.8", "webpack": "5.112.2", "webpack-cli": "7.3.1"}
 # Runs a WASI command module on Node: native Rust's output on the web binding's target.
@@ -771,13 +773,21 @@ def web_package(info, web_dir, wasm, scope, out):
     # A tarball of an earlier build, which `consume-web` would find beside this one.
     for tarball in out.glob("*.tgz") if out.exists() else []:
         tarball.unlink()
+    files = licenses(info)
+    # JSR takes a license from jsr.json's field, which Cargo's `license` fills, or else from
+    # a file by one of its own names.
+    jsr_names = {path: path.name for path in files}
+    if not info["license"] and not any(path.name.lower() in JSR_LICENSES for path in files):
+        if len(files) != 1:
+            raise SystemExit(f"JSR needs Cargo's `license`, or one license file, not {[p.name for p in files]}")
+        jsr_names = {files[0]: "LICENSE"}
     for part in (npm, jsr):
         if part.exists():
             shutil.rmtree(part)
         part.mkdir(parents=True)
         shutil.copy(wasm, part / f"{lib}.wasm")
-        for path in licenses(info):
-            shutil.copy(path, part)
+        for path in files:
+            shutil.copy(path, part / (jsr_names[path] if part == jsr else path.name))
     modules = []
     for path in sorted(web_dir.iterdir()):
         if path.name.endswith(".d.ts") or path.suffix == ".js":
@@ -859,10 +869,12 @@ def web(args):
 def check_program(check, name):
     """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
-    # Either quote, kept as written.
-    text = re.sub(r"""(["'])\./web/([A-Za-z0-9_$]+)\.ts\1""",
-                  lambda m: m.group(1) + (name if m.group(2) == "index" else f"{name}/{m.group(2)}") + m.group(1), text)
-    if "./web/" in text:
+    # Only a specifier, after `from` or `import`, in either quote, kept as written: a string
+    # the check prints stays as the transcript has it.
+    text = re.sub(r"""(\b(?:from|import)\s*\(?\s*)(["'])\./web/([A-Za-z0-9_$]+)\.ts\2""",
+                  lambda m: m.group(1) + m.group(2) + (name if m.group(3) == "index" else f"{name}/{m.group(3)}") + m.group(2),
+                  text)
+    if re.search(r"""\b(?:from|import)\s*\(?\s*["']\./web/""", text):
         raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
     return text
 
