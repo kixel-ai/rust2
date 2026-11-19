@@ -748,8 +748,9 @@ private class __Nursery {
 		 */
 		const val LEN = 64
 
-		// Each thread's ring, which any collection drops unless the thread is pushing:
-		// so an idle thread's nursery keeps what it holds for two collections, not forever.
+		// Each thread's ring, held weakly, which a collection that reaches it while the
+		// thread is not pushing drops: so an idle thread's nursery keeps what it holds only
+		// until such a collection and one more, not forever.
 		private val RINGS = java.lang.ThreadLocal<java.lang.ref.WeakReference<__Ring>>()
 
 		/** Put [handle], which [owner] owns, in this thread's nursery, oldest out. */
@@ -776,9 +777,29 @@ private class __Ring(@kotlin.jvm.JvmField val nursery: __Nursery) {
 		n.handles[i]?.evict(n.owners[i]!!)
 		n.owners[i] = owner
 		n.handles[i] = handle
-		// Stored last, which keeps this reachable until the push is done, so its flush
-		// cannot run meanwhile: `Reference.reachabilityFence` needs Android API 28.
 		next = (i + 1) and (__Nursery.LEN - 1)
+		// Its flush must not run while this pushes, and no plain store keeps it reachable.
+		__Keep.fence(this)
+	}
+}
+
+/** Keeps an object reachable up to here, by the strongest means the platform has. */
+private object __Keep {
+	// Decided once, so the compiler folds the branch away.
+	@kotlin.jvm.JvmField val REFERENCE = try {
+		java.lang.ref.Reference::class.java.getMethod("reachabilityFence", Any::class.java)
+		true
+	} catch (e: NoSuchMethodException) {
+		false
+	}
+
+	/**
+	 * `Reference.reachabilityFence` where the platform has it, free on HotSpot: Android
+	 * has none before API 28, and makes it public only at 33. Elsewhere a monitor held on
+	 * [o], which keeps [o] a root while held, and which no earlier write is ordered after.
+	 */
+	fun fence(o: Any) {
+		if (REFERENCE) java.lang.ref.Reference.reachabilityFence(o) else synchronized(o) {}
 	}
 }
 

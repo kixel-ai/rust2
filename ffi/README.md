@@ -602,7 +602,8 @@ the rest cross encoded.
   a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
   registration, a phantom reference linked into a list under a lock. One never closed is
   registered once pushed out, by 64 later returns on its thread or with its nursery, which
-  the thread holds only weakly, so any collection while it is not returning drops it; then
+  the thread holds only weakly, so a collection reaching it while it is not returning, as a
+  full one does, drops it; then
   the GC frees it once it collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
