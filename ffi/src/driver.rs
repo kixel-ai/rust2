@@ -182,14 +182,9 @@ impl Callbacks for Export {
 				.collect();
 			let exporting = exporting(&collected.api, &report.audited, &swift);
 			let config = census_config(tcx, &facade, &self.facade.lib, report, &swift);
-			let text = census::render(
-				&collected.api,
-				report,
-				&config,
-				&exporting,
-				&abi.clashes,
-				&|span| at(tcx, span),
-			);
+			let text = census::render(&collected.api, report, &config, &exporting, &abi.clashes, &|span| {
+				at(tcx, span)
+			});
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {

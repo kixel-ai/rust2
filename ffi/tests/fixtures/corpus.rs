@@ -18,10 +18,7 @@ use super::{cargo, manifest_dir, run, scratch, step};
 
 /// The crates a census or an export of fails today, each with the quest that fixes it.
 /// They are not run; the quest's PR deletes its entry.
-const KNOWN: &[(&str, &str)] = &[(
-	"js-sys",
-	"/quest/m1/ffi-inference.md: instance inference never settles",
-)];
+const KNOWN: &[(&str, &str)] = &[("js-sys", "/quest/m1/ffi-inference.md: instance inference never settles")];
 
 /// How many crates the update keeps, by all-time downloads, before dropping those that are
 /// no library or do not build as they are.
@@ -128,7 +125,10 @@ fn resolve(crates: &[Krate]) -> BTreeMap<String, String> {
 	(crates.iter())
 		.map(|k| {
 			let lib = libraries.get(&(k.name.clone(), k.version.clone()));
-			let lib = lib.cloned().flatten().unwrap_or_else(|| panic!("{} {} has no library", k.name, k.version));
+			let lib = lib
+				.cloned()
+				.flatten()
+				.unwrap_or_else(|| panic!("{} {} has no library", k.name, k.version));
 			(k.name.clone(), lib)
 		})
 		.collect()
@@ -201,7 +201,7 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	let name = &krate.name;
 	let fail = |stage: String, output: &Output| Failure {
 		krate: name.clone(),
-		stage: stage.to_string(),
+		stage,
 		output: trimmed(output),
 	};
 	let facade = workspace().join(name);
@@ -241,7 +241,10 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	languages(&lib, &out, &dir, &built).map_err(|(stage, output)| fail(stage.to_string(), &output))?;
 	Ok(Passed {
 		krate: name.clone(),
-		refused: exclude.lines().filter(|line| line.trim_start().starts_with('"')).count(),
+		refused: exclude
+			.lines()
+			.filter(|line| line.trim_start().starts_with('"'))
+			.count(),
 	})
 }
 
@@ -251,7 +254,10 @@ fn stage(output: &Output, stage: &str) -> String {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let lines: Vec<&str> = stderr.lines().collect();
 	let spanless = (lines.iter().enumerate()).any(|(i, line)| {
-		line.starts_with("error: rust2-ffi") && !lines.get(i + 1).is_some_and(|next| next.trim_start().starts_with("-->"))
+		line.starts_with("error: rust2-ffi")
+			&& !lines
+				.get(i + 1)
+				.is_some_and(|next| next.trim_start().starts_with("-->"))
 	});
 	match (stderr.contains("panicked at"), spanless) {
 		(true, _) => format!("{stage} panicked"),
@@ -269,15 +275,22 @@ fn excluded(census: &str) -> String {
 	toml[..toml.find("```").expect("the config's block ends")].to_string()
 }
 
-/// The last lines of what a command printed, enough to say why it failed.
+/// The first lines of what a command printed, where its first error is, enough to say why
+/// it failed.
 fn trimmed(output: &Output) -> String {
 	let text = format!(
 		"{}{}",
-		String::from_utf8_lossy(&output.stdout),
-		String::from_utf8_lossy(&output.stderr)
+		String::from_utf8_lossy(&output.stderr),
+		String::from_utf8_lossy(&output.stdout)
 	);
-	let lines: Vec<&str> = text.lines().collect();
-	lines[lines.len().saturating_sub(40)..].join("\n")
+	let lines: Vec<&str> = text
+		.lines()
+		.filter(|line| !line.trim_start().starts_with("Checking"))
+		.collect();
+	match lines.len() > 40 {
+		true => format!("{}\n... {} more lines", lines[..40].join("\n"), lines.len() - 40),
+		false => lines.join("\n"),
+	}
 }
 
 /// The glue's libraries, and what a program linking the static one links besides.
@@ -307,7 +320,10 @@ fn bind(lib: &str, out: &Path) -> Result<Built, (&'static str, Output)> {
 		return Err(("glue (python)", output));
 	}
 	let shared_lib = super::shared(lib);
-	step::copy(&python.join("debug").join(&shared_lib), &out.join("python").join(&shared_lib));
+	step::copy(
+		&python.join("debug").join(&shared_lib),
+		&out.join("python").join(&shared_lib),
+	);
 	let glue = shared.join("glue");
 	let output = build(&glue, "kotlin,dart");
 	if !output.status.success() {
@@ -340,7 +356,10 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 	let staticlib = built.lib.join(format!("lib{lib}.a"));
 	let include = out.join("include");
 	let c = dir.join("main.c");
-	step::write(&c, format!("#include <{lib}.h>\n\nint main(void) {{\n\treturn 0;\n}}\n"));
+	step::write(
+		&c,
+		format!("#include <{lib}.h>\n\nint main(void) {{\n\treturn 0;\n}}\n"),
+	);
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
 	checked(
 		"C",
@@ -354,7 +373,10 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 			.arg(dir.join("c")),
 	)?;
 	let cpp = dir.join("main.cpp");
-	step::write(&cpp, format!("#include <{lib}.hpp>\n\nint main() {{\n\treturn 0;\n}}\n"));
+	step::write(
+		&cpp,
+		format!("#include <{lib}.hpp>\n\nint main() {{\n\treturn 0;\n}}\n"),
+	);
 	let link = super::Link {
 		include: include.clone(),
 		staticlib: staticlib.clone(),
@@ -401,7 +423,10 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 	}
 	let dart = dir.join("dart");
 	let main = dart.join("main.dart");
-	step::write(&main, format!("import 'package:{lib}/{lib}.dart';\n\nvoid main() {{}}\n"));
+	step::write(
+		&main,
+		format!("import 'package:{lib}/{lib}.dart';\n\nvoid main() {{}}\n"),
+	);
 	let shared = built.lib.join(super::shared(lib));
 	let (mut kernel, _) = super::dart_kernel(lib, &dart, &out.join("dart"), &shared, &main);
 	checked("Dart", &mut kernel)?;
@@ -499,7 +524,9 @@ fn update() {
 		}
 		output.status.success()
 	});
-	let date = String::from_utf8_lossy(&run(Command::new("date").args(["-u", "+%Y-%m-%d"])).stdout).trim().to_string();
+	let date = String::from_utf8_lossy(&run(Command::new("date").args(["-u", "+%Y-%m-%d"])).stdout)
+		.trim()
+		.to_string();
 	let mut text = format!(
 		"# The top {TOP} crates on crates.io by all-time downloads on {date}, at their newest stable\n# versions, written by `just ffi corpus-update`. Left out:\n"
 	);
@@ -512,6 +539,8 @@ fn update() {
 	std::fs::write(corpus_dir().join("crates.txt"), text).unwrap();
 	// Cargo drops what only a dropped crate locked, and moves nothing else.
 	write_workspace(&crates, &BTreeMap::new());
-	run(cargo().args(["metadata", "--format-version", "1", "--offline"]).current_dir(workspace()));
+	run(cargo()
+		.args(["metadata", "--format-version", "1", "--offline"])
+		.current_dir(workspace()));
 	std::fs::copy(&lock, corpus_dir().join("Cargo.lock")).unwrap();
 }

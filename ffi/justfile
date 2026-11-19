@@ -41,9 +41,9 @@ test *args:
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
 
-# Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
+# Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does, with the exporter optimized, which the time spent exporting repays: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
 corpus:
-    cargo test --locked --test fixtures corpus::nightly -- --ignored --exact
+    cargo test --locked --release --test fixtures corpus::nightly -- --ignored --exact
 
 # Take corpus/crates.txt afresh from crates.io's top crates by downloads, and resolve corpus/Cargo.lock. It builds them, as `corpus` does.
 corpus-update:

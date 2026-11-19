@@ -2935,8 +2935,9 @@ impl<'tcx> Collector<'tcx> {
 			name.strip_prefix("poll_")
 				.is_some_and(|x| futures.iter().any(|f| f == x))
 		};
-		let (twins, kept): (Vec<Function>, Vec<Function>) =
-			(methods.into_iter()).partition(|m| m.future && m.task.is_some() && m.instance.as_ref().is_none_or(|i| i.named.is_empty()) && twin(m.name()));
+		let (twins, kept): (Vec<Function>, Vec<Function>) = (methods.into_iter()).partition(|m| {
+			m.future && m.task.is_some() && m.instance.as_ref().is_none_or(|i| i.named.is_empty()) && twin(m.name())
+		});
 		methods = kept;
 		for function in twins {
 			let (report, rest) = self.report(&function.shown);
@@ -6074,7 +6075,10 @@ impl<'tcx> Collector<'tcx> {
 							}
 							// Inference names no instance holding a future C implements, which
 							// crosses only as a parameter, as futures-util's `select` returns.
-							if ty.walk().any(|arg| arg.as_type().is_some_and(|ty| self.is_foreign_future(ty))) {
+							if ty
+								.walk()
+								.any(|arg| arg.as_type().is_some_and(|ty| self.is_foreign_future(ty)))
+							{
 								return Err(why("instance holding a foreign future", name));
 							}
 							// Inference admits or rejects each instance a signature names, so one
