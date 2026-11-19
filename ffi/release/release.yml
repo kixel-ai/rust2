@@ -2,8 +2,11 @@ name: Release @NAME@ bindings
 
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
 # below, exports @NAME@'s pub API, builds its Python wheels and Swift package, and checks
-# them in clean consumers, all read-only. The jobs after it publish only a tag's build:
+# them in clean consumers, all read-only. The jobs after it publish only a tag's build,
+# once `attest` has signed it:
 #
+# - Attestations: a build provenance attestation and an SBOM attestation for every wheel and
+#   the XCFramework, from this repository's GitHub, checked with `gh attestation verify`.
 # - PyPI: the project @NAME@, through the trusted publisher this repository registers there
 #   for this workflow and the `pypi` environment.
 # - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
@@ -14,7 +17,7 @@ name: Release @NAME@ bindings
 # To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
 # from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
 # "Re-run failed jobs": it reuses this run's build, and the publishing jobs upload only what
-# is missing. A rebuild's files differ, so "Re-run all jobs" stops at any already published.
+# is missing. A rebuild makes the same files, so "Re-run all jobs" works too.
 on:
   push:
     tags:
@@ -52,8 +55,39 @@ jobs:
             exit 1
           fi
 
-  pypi:
+  # Signs what the jobs below publish, before any of it is public, as this workflow's own
+  # build of this commit. The permissions are this job's alone.
+  attest:
     needs: [build, tag]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: @NAME@-build-*
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: artifacts/swift
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/swift/*FFI.xcframework.zip
+      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/swift/*FFI.xcframework.zip
+          sbom-path: artifacts/sbom.cdx.json
+
+  pypi:
+    needs: [build, tag, attest]
     runs-on: ubuntu-24.04
     environment:
       name: pypi
@@ -103,7 +137,7 @@ jobs:
   # resolved its checksum must never see other bytes at that URL. The release stays a draft
   # until its asset is up, as an immutable release takes no asset once published.
   github-release:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

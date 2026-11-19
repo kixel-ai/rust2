@@ -18,6 +18,8 @@ jobs:
       features: doubled
       example: transcript
       python-check: ffi/tests/api.py
+      # The small crate, so the second build costs little: moq's stand-in leaves it to its release.
+      reproduce: true
       # No swift-check: api.swift compiles against the fixture's own test export, of the host
       # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
 

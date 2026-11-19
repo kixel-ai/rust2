@@ -27,6 +27,10 @@ on:
         description: The main.swift of an executable run on the installed Swift package
         default: ''
         type: string
+      reproduce:
+        description: Build every host's packages a second time, with the export elsewhere, and fail unless the bytes match
+        default: false
+        type: boolean
     outputs:
       version:
         description: The package's Cargo version
@@ -258,6 +262,17 @@ jobs:
         run: |
           read -ra targets <<< "$TARGETS"
           python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${targets[@]}"
+      # The build again, as a rerun or anyone with the commit makes it: the same packages byte
+      # for byte, though the export lives in another directory. It doubles the job's time.
+      - name: Rebuild
+        if: inputs.reproduce
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --out again/export "${targets[@]}"
+          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export again/export --out again/dist "${targets[@]}"
+          python3 -I rust2/ffi/release/package.py same dist again/dist
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
@@ -273,7 +288,8 @@ jobs:
           if-no-files-found: error
 
   # The hosts' exports must be one binding: a module and a library from different builds
-  # refuse to load, but two wheels of different bindings would each load.
+  # refuse to load, but two wheels of different bindings would each load. Their SBOMs, of
+  # the one dependency graph, must match as well.
   agree:
     needs: [facts, build]
     runs-on: ubuntu-24.04
@@ -288,6 +304,10 @@ jobs:
           cat builds/*/digest.txt
           if [[ $(wc -l < digests) != 1 ]]; then
             echo '::error::The build hosts exported different bindings.'
+            exit 1
+          fi
+          if [[ $(sha256sum builds/*/sbom.cdx.json | cut -d' ' -f1 | sort -u | wc -l) != 1 ]]; then
+            echo '::error::The build hosts listed different dependencies.'
             exit 1
           fi
 

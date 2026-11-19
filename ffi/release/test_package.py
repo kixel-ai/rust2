@@ -1,9 +1,13 @@
 """The builder's decisions that need no toolchain: names, versions, metadata, and manifests."""
 
 import importlib.util
+import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -18,6 +22,7 @@ def info(root, **overrides):
         "name": "moq-ffi", "version": "0.4.12", "description": "Media over QUIC,\n bindings",
         "license": "MIT OR Apache-2.0", "license_file": None, "repository": "https://github.com/moq-dev/moq",
         "homepage": None, "lib": "moq", "dir": str(root), "workspace": str(root), "examples": [],
+        "epoch": 1_700_000_000, "sbom": b"{}\n",
     }
     return {**base, **overrides}
 
@@ -132,6 +137,165 @@ class Wheel(unittest.TestCase):
     def test_floor_comes_from_the_glue(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(package.python_floor(export(Path(tmp), "312")), 12)
+
+
+class Reproducible(unittest.TestCase):
+    def wheel(self, root, **touch):
+        """A wheel built from inputs of the given mtimes, whose repair tool put its files in any order and time."""
+        built = export(root / "export")
+        library = root / "libmoq.so"
+        library.write_bytes(b"\x7fELF")
+        for path in (library, built / "python/moq.py"):
+            os.utime(path, (touch.get("time", 0), touch.get("time", 0)))
+        return package.write_wheel(info(root), built, library, "x86_64-unknown-linux-gnu", root)
+
+    def test_wheel_bytes_ignore_when_and_where(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            first = self.wheel(Path(a), time=1_000_000_000)
+            second = self.wheel(Path(b), time=1_600_000_000)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with zipfile.ZipFile(first) as archive:
+                names = archive.namelist()
+                self.assertTrue(all(entry.date_time == (2023, 11, 14, 22, 13, 20) for entry in archive.infolist()))
+            self.assertTrue(names[-1].endswith(".dist-info/RECORD"))
+            self.assertEqual(names[:2], ["moq/__init__.py", "moq/libmoq.so"])
+
+    def test_a_repair_tools_wheel_is_rewritten_as_one_of_ours(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            wheel = self.wheel(root)
+            repaired = root / "repaired.whl"
+            with zipfile.ZipFile(wheel) as src, zipfile.ZipFile(repaired, "w") as dst:
+                # As a repair tool leaves it: directories, reversed order, its own times, and a RECORD of its own.
+                dst.writestr("moq/", b"")
+                for name in reversed(src.namelist()):
+                    entry = zipfile.ZipInfo(name, (2031, 5, 6, 7, 8, 10))
+                    entry.external_attr = src.getinfo(name).external_attr
+                    dst.writestr(entry, b"other\n" if name.endswith("/RECORD") else src.read(name))
+            package.normalize_wheel(repaired, 1_700_000_000)
+            package.check_wheel(repaired)
+            self.assertEqual(repaired.read_bytes(), wheel.read_bytes())
+
+    def test_the_sbom_rides_in_the_wheel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with zipfile.ZipFile(self.wheel(Path(tmp))) as archive:
+                self.assertEqual(archive.read("moq_ffi-0.4.12.dist-info/sboms/moq-ffi.cdx.json"), b"{}\n")
+
+    def test_xcframework_zip_ignores_mtimes_and_umask(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            zips = []
+            for index, (mode, time) in enumerate(((0o644, 1), (0o664, 2_000_000_000))):
+                tree = Path(tmp) / str(index) / "MoqFFI.xcframework"
+                (tree / "macos").mkdir(parents=True)
+                (tree / "Info.plist").write_text("plist\n")
+                (tree / "macos/libmoq.a").write_bytes(b"!<arch>\n")
+                for path in (tree, tree / "macos", tree / "Info.plist", tree / "macos/libmoq.a"):
+                    os.utime(path, (time, time))
+                (tree / "Info.plist").chmod(mode)
+                package.zip_tree(tree, Path(tmp) / f"{index}.zip", 1_700_000_000)
+                zips.append((Path(tmp) / f"{index}.zip").read_bytes())
+            self.assertEqual(zips[0], zips[1])
+            with zipfile.ZipFile(Path(tmp) / "0.zip") as archive:
+                self.assertEqual(archive.namelist(), [
+                    "MoqFFI.xcframework/", "MoqFFI.xcframework/Info.plist", "MoqFFI.xcframework/macos/",
+                    "MoqFFI.xcframework/macos/libmoq.a"])
+
+    def test_a_symlink_in_the_xcframework_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = Path(tmp) / "MoqFFI.xcframework"
+            tree.mkdir()
+            (tree / "link").symlink_to("target")
+            with self.assertRaises(SystemExit):
+                package.zip_tree(tree, Path(tmp) / "out.zip", 1_700_000_000)
+
+    def test_epoch_is_the_environment_or_the_commit(self):
+        with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "1700000000"}):
+            self.assertEqual(package.epoch("."), 1_700_000_000)
+        with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "86400"}), self.assertRaises(SystemExit):
+            package.epoch(".")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ):
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+            git = ["git", "-C", tmp, "-c", "user.name=t", "-c", "user.email=t@t"]
+            subprocess.run([*git, "init", "-q"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "x", "--date", "2023-11-14T22:13:20Z"],
+                           check=True, env={**os.environ, "GIT_COMMITTER_DATE": "2023-11-14T22:13:20Z"})
+            self.assertEqual(package.epoch(tmp), 1_700_000_000)
+
+    def test_paths_are_remapped_and_rustflags_kept(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C target-cpu=native", "CARGO_HOME": "/home/u/.cargo"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
+            flags = env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            self.assertEqual(flags[:2], ["-C", "target-cpu=native"])
+            self.assertIn(f"--remap-path-prefix={tmp}/export=/export", flags)
+            # The deeper directory comes last, as rustc prefers the last match.
+            self.assertLess(flags.index(f"--remap-path-prefix={tmp}=/source"), flags.index(f"--remap-path-prefix={tmp}/export=/export"))
+            self.assertEqual(env["SOURCE_DATE_EPOCH"], "1700000000")
+            self.assertIn(f"-ffile-prefix-map={tmp}=/source", env["CFLAGS"])
+            windows = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-pc-windows-msvc")
+            self.assertIn("link-arg=/Brepro", windows["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertNotIn("CFLAGS", windows)
+            self.assertEqual(package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")["ZERO_AR_DATE"], "1")
+
+    def test_a_cargo_config_that_RUSTFLAGS_would_replace_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            crate = Path(tmp) / "crate"
+            (crate / ".cargo").mkdir(parents=True)
+            (crate / ".cargo/config.toml").write_text('[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "x"]\n')
+            self.assertEqual(list(package.rustflags_config(crate, "x86_64-unknown-linux-gnu")), [])
+            self.assertEqual(len(list(package.rustflags_config(crate, "x86_64-pc-windows-msvc"))), 1)
+            (crate / ".cargo/config.toml").write_text('[build]\nrustflags = ["-C", "x"]\n')
+            with self.assertRaises(SystemExit):
+                package.reproducible(info(crate), crate / "export", "x86_64-unknown-linux-gnu")
+
+    def test_same_names_what_differs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = [Path(tmp) / "a", Path(tmp) / "b"]
+            for root in roots:
+                (root / "static/aarch64-apple-ios").mkdir(parents=True)
+                (root / "static/aarch64-apple-ios/libmoq.a").write_bytes(b"same")
+                (root / "wheels").mkdir()
+            first = self.wheel(roots[0])
+            second = self.wheel(roots[1])
+            for root, wheel in zip(roots, (first, second)):
+                wheel.replace(root / "wheels" / wheel.name)
+            package.same(roots[0], roots[1])
+            (roots[1] / "static/aarch64-apple-ios/libmoq.a").write_bytes(b"other")
+            with self.assertRaisesRegex(SystemExit, "static/aarch64-apple-ios/libmoq.a"):
+                package.same(roots[0], roots[1])
+
+
+class Sbom(unittest.TestCase):
+    def crate(self, root):
+        """A generated crate whose normal, proc-macro, and build dependencies are each a path crate."""
+        for name, extra in (("dep", ""), ("builder", ""), ("derive", "[lib]\nproc-macro = true\n")):
+            (root / name / "src").mkdir(parents=True)
+            (root / name / "src/lib.rs").write_text("")
+            (root / name / "Cargo.toml").write_text(f'[package]\nname = "{name}"\nversion = "1.2.3"\nedition = "2021"\nlicense = "MIT/Apache-2.0"\n{extra}')
+        (root / "glue/src").mkdir(parents=True)
+        (root / "glue/src/lib.rs").write_text("")
+        (root / "glue/Cargo.toml").write_text(
+            '[package]\nname = "glue"\nversion = "0.0.0"\nedition = "2021"\n[features]\npython = []\n'
+            '[dependencies]\ndep = { path = "../dep" }\nderive = { path = "../derive" }\n'
+            '[build-dependencies]\nbuilder = { path = "../builder" }\n[workspace]\n')
+        subprocess.run(["cargo", "generate-lockfile", "--offline", "--manifest-path", root / "glue/Cargo.toml"], check=True,
+                       capture_output=True)
+        return root / "glue/Cargo.toml"
+
+    def test_what_ships_is_what_the_library_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            crate = self.crate(Path(tmp))
+            first = package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate)
+            self.assertEqual(first, package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate))
+            document = json.loads(first)
+            self.assertEqual(document["bomFormat"], "CycloneDX")
+            self.assertEqual(document["metadata"]["timestamp"], "2023-11-14T22:13:20Z")
+            self.assertEqual([c["name"] for c in document["components"]], ["dep"])
+            self.assertEqual(document["components"][0]["licenses"], [{"license": {"name": "MIT/Apache-2.0"}}])
+            self.assertEqual(document["dependencies"], [
+                {"ref": "pkg:cargo/dep@1.2.3", "dependsOn": []},
+                {"ref": "pkg:cargo/moq-ffi@0.4.12", "dependsOn": ["pkg:cargo/dep@1.2.3"]},
+            ])
 
 
 class Digest(unittest.TestCase):

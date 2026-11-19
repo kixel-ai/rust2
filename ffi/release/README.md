@@ -32,15 +32,15 @@ Releasing is pushing `<crate>-v<version>`, the crate's version, which the releas
 Called without a tag, such as from a nightly, it runs everything up to publication.
 A release that failed while publishing is recovered with **Re-run failed jobs**, which keeps
 the run's successful build and its artifacts: each publishing job then finishes what the
-first attempt left, uploading only what is missing. A rebuild makes other bytes, as wheels
-and the XCFramework archive carry build times, so **Re-run all jobs** fails wherever a
-registry already holds the first attempt's files.
+first attempt left, uploading only what is missing. A rebuild makes the same bytes
+([Reproducible builds](#reproducible-builds)), so **Re-run all jobs** works as well.
 A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 
-The builder takes the crate's `Cargo.toml` and four optional inputs the caller's tests own:
-`features` to ship, an `example` whose stdout is native Rust's transcript, and the
+The builder takes the crate's `Cargo.toml` and five optional inputs the caller's tests own:
+`features` to ship, an `example` whose stdout is native Rust's transcript, the
 `python-check` and `swift-check` programs that must print it through the installed
-packages. Without a check, a consumer only imports the module.
+packages, and `reproduce`, which builds everything twice. Without a check, a consumer only
+imports the module.
 
 ## What the builder does
 
@@ -60,7 +60,7 @@ packages. Without a check, a consumer only imports the module.
    `win_amd64`.
 5. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
    at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
-   every object's declared minimum OS; one XCFramework of the three, zipped with `ditto`,
+   every object's declared minimum OS; one XCFramework of the three, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
@@ -77,6 +77,41 @@ rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
 wheels must print its native transcript, and on moq's stand-in facade at the exporter's moq
 pin, through `moq/moq.py` and `moq/moq.swift`.
+
+## Reproducible builds
+
+A rebuild of a commit makes the same bytes, so **Re-run all jobs** finds each registry
+holding exactly the files it would upload, and anyone with the commit can check them.
+
+- **Time.** Every file takes `SOURCE_DATE_EPOCH`, or else the commit's time, whatever its
+  archive format: the builder writes each ZIP itself, with sorted entries, fixed modes, and
+  no host, umask, or time of its own, and rewrites each repaired wheel the same way, its
+  RECORD rebuilt. Zlib's own output is the one thing a host could still change.
+- **Paths.** The crate's workspace, the exported crate, and `CARGO_HOME` are remapped to
+  fixed names for rustc and the C compilers, so panic messages and debug info name no
+  checkout. This takes `RUSTFLAGS` over a `.cargo/config.toml`'s `rustflags`, so a config
+  that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Linux
+  and macOS builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with
+  `/Brepro`.
+- **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
+  With `reproduce: true`, every build host builds a second time, from a new export, and
+  `package.py same` fails unless each wheel and static library matches byte for byte; rust2
+  turns it on for its api fixture. It doubles the build, so a large crate may leave it to a
+  nightly.
+- **Not yet.** The exporter writes the crate's absolute path into the generated crate's
+  version, which cargo hashes into every symbol, so a rebuild must keep the crate at the
+  same path, as a rerun does
+  ([planned](/quest/m1/ffi-packaging/relocatable.md)).
+
+**Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
+the crates the binding links (normal dependencies, platform-neutral, with each registry
+crate's checksum from `Cargo.lock`), which every wheel also carries in
+`.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
+runs on a tag, before anything is published, and gives every wheel and the XCFramework a
+build provenance attestation and an SBOM attestation, which `gh attestation verify
+<file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
+write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
+attestations for the wheels as well.
 
 ## Other registries
 
