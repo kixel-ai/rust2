@@ -1557,7 +1557,8 @@ fn web_checks(runtime: &str, cases: &[&str], ran: &mut dyn FnMut(Option<&str>) -
 	}
 }
 
-/// `tests/api.ts`'s script on `runtime`, Node or Deno, with `case`, from beside the binding.
+/// `tests/api.ts`'s script on `runtime`, Node, Deno, or Bun, with `case`, from beside the
+/// binding.
 fn web_script(runtime: &str, case: Option<&str>) -> Command {
 	let web = web();
 	let mut cmd = Command::new(runtime);
@@ -1575,15 +1576,15 @@ fn web_script(runtime: &str, case: Option<&str>) -> Command {
 	cmd
 }
 
-/// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
-/// the crate's `web` feature builds for wasm32-wasip1: it prints what native Rust prints on
-/// that target, then checks its futures, what disposing and the garbage collector free, what
-/// a closed object refuses, how bytes cross, and what a call lent bytes reads once memory
-/// grows, and fails loud on each contract it breaks; a binding of another contract refuses
-/// the module.
+/// The generated TypeScript runs `tests/api.ts`'s script on Node, Deno, and Bun, over the
+/// module the crate's `web` feature builds for wasm32-wasip1: it prints what native Rust
+/// prints on that target, then checks its futures, what disposing and the garbage collector
+/// free, what a closed object refuses, how bytes cross, and what a call lent bytes reads once
+/// memory grows, and fails loud on each contract it breaks; a binding of another contract
+/// refuses the module.
 #[test]
 fn api_web() {
-	for runtime in ["node", "deno"] {
+	for runtime in ["node", "deno", "bun"] {
 		web_checks(runtime, &WEB_CASES, &mut |case| {
 			output(&mut web_script(runtime, case)).into()
 		});
