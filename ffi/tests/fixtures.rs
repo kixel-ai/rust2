@@ -1107,6 +1107,39 @@ fn api_free_threaded() {
 		),
 		"importing under a free-threaded CPython printed {stderr}"
 	);
+
+	// The suffixes of the platforms this host is not, appended on the GIL build, which
+	// loads from beside the module whatever its list holds.
+	let gil = |suffix: &str| {
+		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		cmd.args(["-P", "-c"])
+			.arg(format!(
+				"import importlib.machinery as m; m.EXTENSION_SUFFIXES.append('{suffix}'); import api"
+			))
+			.env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	for suffix in [
+		".cp314t-win_amd64.pyd",
+		"_d.cp314t-win_amd64.pyd",
+		".cpython-313t-darwin.so",
+		".cpython-315t-aarch64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
+		assert!(
+			String::from_utf8_lossy(&output.stderr).contains("a free-threaded CPython cannot use"),
+			"{suffix} printed {output:?}"
+		);
+	}
+	for suffix in [
+		".cp314-win_amd64.pyd",
+		"_d.cp314-win_amd64.pyd",
+		".cpython-314-darwin.so",
+	] {
+		let output = gil(suffix);
+		assert!(output.status.success(), "{suffix} was refused: {output:?}");
+	}
 }
 
 /// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
