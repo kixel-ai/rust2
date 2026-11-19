@@ -257,9 +257,9 @@ class __Writer {
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
 		held?.forEachIndexed { i, h -> h.release(slots[i]) }
-		// A fence: clearing reads each, so none is collected before. `Reference.reachabilityFence`
-		// needs Android API 33.
-		kept?.clear()
+		// A fence on each: a monitor an object holds is a use the compiler cannot drop, while it
+		// escapes. `Reference.reachabilityFence` needs Android API 33.
+		kept?.forEach { if (it != null) synchronized(it) {} }
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
