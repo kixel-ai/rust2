@@ -186,62 +186,62 @@ export function asDeref$1l62o5g(self: rs.Arc<rs.u8> | undefined): rs.u8 | undefi
 	});
 }
 
-export function filter$1gn36in(self: rs.Arc<Noisy.Noisy> | undefined, predicate: (a0: rs.Arc<Noisy.Noisy>) => boolean): rs.Arc<Noisy.Noisy> | undefined {
+export function filter$0r2n6u0(self: rs.Arc<Noisy.Noisy> | undefined, predicate: (a0: rs.Arc<Noisy.Noisy>) => boolean): rs.Arc<Noisy.Noisy> | undefined {
 	if (self !== undefined) {
 		const x: rs.Arc<Noisy.Noisy> = self;
 		if (!predicate(x)) {
 			x[Symbol.dispose]();
-		} else {
-			return x;
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
 
-export function filter$02g8l8j(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, predicate: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => boolean): rs.Vec<rs.Arc<Noisy.Noisy>> | undefined {
+export function filter$0wl0mf5(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, predicate: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => boolean): rs.Vec<rs.Arc<Noisy.Noisy>> | undefined {
 	if (self !== undefined) {
 		const x: rs.Vec<rs.Arc<Noisy.Noisy>> = self;
 		if (!predicate(x)) {
 			rs.dropVec(x);
-		} else {
-			return x;
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
 
-export function filter$1asvriw(self: ArcShared.ArcShared | undefined, predicate: (a0: ArcShared.ArcShared) => boolean): ArcShared.ArcShared | undefined {
+export function filter$0d2pdv2(self: ArcShared.ArcShared | undefined, predicate: (a0: ArcShared.ArcShared) => boolean): ArcShared.ArcShared | undefined {
 	if (self !== undefined) {
 		const x: ArcShared.ArcShared = self;
 		if (!predicate(x)) {
 			x[Symbol.dispose]();
-		} else {
-			return x;
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
 
-export function filter$1gka6nq(self: Noisy.Noisy | undefined, predicate: (a0: Noisy.Noisy) => boolean): Noisy.Noisy | undefined {
+export function filter$0tb52nr(self: Noisy.Noisy | undefined, predicate: (a0: Noisy.Noisy) => boolean): Noisy.Noisy | undefined {
 	if (self !== undefined) {
 		const x: Noisy.Noisy = self;
 		if (!predicate(x)) {
 			x[Symbol.dispose]();
-		} else {
-			return x;
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
 
-export function filter$14b5774(self: RcShared.RcShared | undefined, predicate: (a0: RcShared.RcShared) => boolean): RcShared.RcShared | undefined {
+export function filter$1v5zjmb(self: RcShared.RcShared | undefined, predicate: (a0: RcShared.RcShared) => boolean): RcShared.RcShared | undefined {
 	if (self !== undefined) {
 		const x: RcShared.RcShared = self;
 		if (!predicate(x)) {
 			x[Symbol.dispose]();
-		} else {
-			return x;
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }

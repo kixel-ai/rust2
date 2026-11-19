@@ -22,40 +22,40 @@ export function runtime$09k496w(radix: rs.u32): never {
 	rs.panicFmt(["from_ascii_bytes_radix: radix must lie in the range `[2, 36]` - found ", (f: rs.Formatter) => rs.u32Display(radix, f)]);
 }
 
-export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$0zqckwi(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.u128 = 0;
 				b5: {
 					if (!canNotOverflow$05izqtt(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -68,20 +68,20 @@ export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u128 | undefined = rs.u128CheckedMul(result, radix as rs.u128);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u128 = _56 as rs.u128;
+							const x3: rs.u128 = _45 as rs.u128;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.u128 | undefined = rs.u128CheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.u128 | undefined = rs.u128CheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -114,8 +114,8 @@ export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromStrRadix$1wsezny(src: string, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
-	return fromAsciiBytesRadixImpl$0j2mrpu(rs.stringAsBytes(src), radix);
+export function fromStrRadix$0qmr8zv(src: string, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
+	return fromAsciiBytesRadixImpl$0zqckwi(rs.stringAsBytes(src), radix);
 }
 
 //# sourceMappingURL=num.ts.map

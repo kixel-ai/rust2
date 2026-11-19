@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$Option_array2_u16, copy$array_u16, copy$array_u8, copy$edits_Named, copy$tuple2_u8_u16 } from "./lib.ts";
 import { thenSome$0quywni } from "./core/bool.ts";
-import { unwrapOr$1fms76t as option_unwrapOr$1fms76t, unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$0igpqq7 as option_map$0igpqq7, map$1o3cool as option_map$1o3cool, mapOr$1ifckq6 as option_mapOr$1ifckq6, mapOr$1wei0sy as option_mapOr$1wei0sy, filter$184yuq2, clone$0vcwlo5 as option_clone$0vcwlo5 } from "./core/option.ts";
+import { unwrapOr$1fms76t as option_unwrapOr$1fms76t, unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$0igpqq7 as option_map$0igpqq7, map$1o3cool as option_map$1o3cool, mapOr$1ifckq6 as option_mapOr$1ifckq6, mapOr$1wei0sy as option_mapOr$1wei0sy, filter$04upm5c, clone$0vcwlo5 as option_clone$0vcwlo5 } from "./core/option.ts";
 import * as Down from "./edits.Down.ts";
 import * as Held from "./edits.Held.ts";
 import * as Hinted from "./edits.Hinted.ts";
@@ -470,7 +470,7 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.stringPush(copy2.name, 33);
 		put(out, boxed.name.v);
 		put(out, copy2.name.v);
-		const held: Named.Named | undefined = filter$184yuq2(boxed, (_27: Named.Named): boolean => {
+		const held: Named.Named | undefined = filter$04upm5c(boxed, (_27: Named.Named): boolean => {
 			return rs.u8Rem(at(([3] as [rs.usize])[0]), 2) === 0;
 		});
 		rs.byteVecPush(out, option_map$0igpqq7(option_clone$0vcwlo5(held), (b3: Named.Named): rs.u16 => {

@@ -700,73 +700,64 @@ export function bind$if_lets_drops_Plain_drops_Logged_drops_if_lets_closure3(mak
 
 export function picked$if_lets_Option_drops_Logged_drops_if_lets_closure2_closure0(pick: rs.u8, a: Logged.Logged, make: () => Logged.Logged | undefined): Picked.Picked<Logged.Logged | undefined> | undefined {
 	let _0!: Picked.Picked<Logged.Logged | undefined> | undefined;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: rs.u8 = rs.u8Rem(pick, 5);
 	if (_4 === 0) {
 		_0 = undefined;
-	} else if (_4 === 1) {
-		_16 = false;
-		_0 = { tag: "A", _0: a } as Picked.Picked<Logged.Logged | undefined>;
-	} else if (_4 === 2) {
-		_0 = { tag: "B", _0: make() } as Picked.Picked<Logged.Logged | undefined>;
-	} else if (_4 === 3) {
-		_0 = { tag: "C", _0: make() } as Picked.Picked<Logged.Logged | undefined>;
 	} else {
-		_0 = { tag: "C", _0: rs.None } as Picked.Picked<Logged.Logged | undefined>;
+		if (_4 === 1) {
+			return { tag: "A", _0: a } as Picked.Picked<Logged.Logged | undefined>;
+		}
+		if (_4 === 2) {
+			_0 = { tag: "B", _0: make() } as Picked.Picked<Logged.Logged | undefined>;
+		} else if (_4 === 3) {
+			_0 = { tag: "C", _0: make() } as Picked.Picked<Logged.Logged | undefined>;
+		} else {
+			_0 = { tag: "C", _0: rs.None } as Picked.Picked<Logged.Logged | undefined>;
+		}
 	}
-	if (_16) {
-		a[Symbol.dispose]();
-		return _0;
-	}
+	a[Symbol.dispose]();
 	return _0;
 }
 
 export function picked$if_lets_drops_Logged_drops_if_lets_closure1_closure0(pick: rs.u8, a: Logged.Logged, make: () => Logged.Logged): Picked.Picked<Logged.Logged> | undefined {
 	let _0!: Picked.Picked<Logged.Logged> | undefined;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: rs.u8 = rs.u8Rem(pick, 5);
 	if (_4 === 0) {
 		_0 = undefined;
-	} else if (_4 === 1) {
-		_16 = false;
-		_0 = { tag: "A", _0: a } as Picked.Picked<Logged.Logged>;
-	} else if (_4 === 2) {
-		_0 = { tag: "B", _0: make() } as Picked.Picked<Logged.Logged>;
-	} else if (_4 === 3) {
-		_0 = { tag: "C", _0: make() } as Picked.Picked<Logged.Logged>;
 	} else {
-		_0 = { tag: "C", _0: undefined } as Picked.Picked<Logged.Logged>;
+		if (_4 === 1) {
+			return { tag: "A", _0: a } as Picked.Picked<Logged.Logged>;
+		}
+		if (_4 === 2) {
+			_0 = { tag: "B", _0: make() } as Picked.Picked<Logged.Logged>;
+		} else if (_4 === 3) {
+			_0 = { tag: "C", _0: make() } as Picked.Picked<Logged.Logged>;
+		} else {
+			_0 = { tag: "C", _0: undefined } as Picked.Picked<Logged.Logged>;
+		}
 	}
-	if (_16) {
-		a[Symbol.dispose]();
-		return _0;
-	}
+	a[Symbol.dispose]();
 	return _0;
 }
 
 export function picked$if_lets_drops_Plain_drops_Logged_drops_if_lets_closure3_closure0(pick: rs.u8, a: Logged.Logged, make: () => Plain.Plain<Logged.Logged>): Picked.Picked<Plain.Plain<Logged.Logged>> | undefined {
 	let _0!: Picked.Picked<Plain.Plain<Logged.Logged>> | undefined;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: rs.u8 = rs.u8Rem(pick, 5);
 	if (_4 === 0) {
 		_0 = undefined;
-	} else if (_4 === 1) {
-		_16 = false;
-		_0 = { tag: "A", _0: a } as Picked.Picked<Plain.Plain<Logged.Logged>>;
-	} else if (_4 === 2) {
-		_0 = { tag: "B", _0: make() } as Picked.Picked<Plain.Plain<Logged.Logged>>;
-	} else if (_4 === 3) {
-		_0 = { tag: "C", _0: make() } as Picked.Picked<Plain.Plain<Logged.Logged>>;
 	} else {
-		_0 = { tag: "C", _0: undefined } as Picked.Picked<Plain.Plain<Logged.Logged>>;
+		if (_4 === 1) {
+			return { tag: "A", _0: a } as Picked.Picked<Plain.Plain<Logged.Logged>>;
+		}
+		if (_4 === 2) {
+			_0 = { tag: "B", _0: make() } as Picked.Picked<Plain.Plain<Logged.Logged>>;
+		} else if (_4 === 3) {
+			_0 = { tag: "C", _0: make() } as Picked.Picked<Plain.Plain<Logged.Logged>>;
+		} else {
+			_0 = { tag: "C", _0: undefined } as Picked.Picked<Plain.Plain<Logged.Logged>>;
+		}
 	}
-	if (_16) {
-		a[Symbol.dispose]();
-		return _0;
-	}
+	a[Symbol.dispose]();
 	return _0;
 }
 

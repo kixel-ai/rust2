@@ -970,7 +970,6 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
  * adaptors in place of another.
  */
 export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDeque<rs.String> {
-	let _0!: rs.VecDeque<rs.String>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
 	const _6: rs.u8 = rs.u8Rem(arg, 5);
 	if (_6 === 0) {
@@ -1028,13 +1027,11 @@ export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDequ
 		rs.iterToOption(it3.next());
 	}
 	if ((arg & 64) === 0) {
-		_0 = rs.dequeFromIntoIter(it3, 12) as rs.VecDeque<rs.String>;
-	} else {
-		_0 = rs.dequeFromIntoIter(it3.clone({ v: (a0: rs.String): rs.String => {
-			return rs.stringClone(a0);
-		} }), 12) as rs.VecDeque<rs.String>;
+		return rs.dequeFromIntoIter(it3, 12) as rs.VecDeque<rs.String>;
 	}
-	return _0;
+	return rs.dequeFromIntoIter(it3.clone({ v: (a0: rs.String): rs.String => {
+		return rs.stringClone(a0);
+	} }), 12) as rs.VecDeque<rs.String>;
 }
 
 /**
@@ -1044,7 +1041,6 @@ export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDequ
  * adaptors in place of another.
  */
 export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeque<Big.Big> {
-	let _0!: rs.VecDeque<Big.Big>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
 	const _6: rs.u8 = rs.u8Rem(arg, 5);
 	if (_6 === 0) {
@@ -1096,11 +1092,9 @@ export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeq
 		rs.iterToOption(it3.next());
 	}
 	if ((arg & 64) === 0) {
-		_0 = rs.dequeFromIntoIter(it3, 1101) as rs.VecDeque<Big.Big>;
-	} else {
-		_0 = rs.dequeFromIntoIter(it3.clone({ v: Big.clone$Clone }), 1101) as rs.VecDeque<Big.Big>;
+		return rs.dequeFromIntoIter(it3, 1101) as rs.VecDeque<Big.Big>;
 	}
-	return _0;
+	return rs.dequeFromIntoIter(it3.clone({ v: Big.clone$Clone }), 1101) as rs.VecDeque<Big.Big>;
 }
 
 /**
@@ -1110,7 +1104,6 @@ export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeq
  * adaptors in place of another.
  */
 export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u32> {
-	let _0!: rs.VecDeque<rs.u32>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
 	const _6: rs.u8 = rs.u8Rem(arg, 5);
 	if (_6 === 0) {
@@ -1162,11 +1155,9 @@ export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u
 		rs.iterToOption(it3.next());
 	}
 	if ((arg & 64) === 0) {
-		_0 = rs.dequeFromIntoIter(it3, 4) as rs.VecDeque<rs.u32>;
-	} else {
-		_0 = rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 4) as rs.VecDeque<rs.u32>;
+		return rs.dequeFromIntoIter(it3, 4) as rs.VecDeque<rs.u32>;
 	}
-	return _0;
+	return rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 4) as rs.VecDeque<rs.u32>;
 }
 
 /**
@@ -1176,7 +1167,6 @@ export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u
  * adaptors in place of another.
  */
 export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8> {
-	let _0!: rs.VecDeque<rs.u8>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
 	const _6: rs.u8 = rs.u8Rem(arg, 5);
 	if (_6 === 0) {
@@ -1228,11 +1218,9 @@ export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8>
 		rs.iterToOption(it3.next());
 	}
 	if ((arg & 64) === 0) {
-		_0 = rs.dequeFromIntoIter(it3, 1, true) as rs.VecDeque<rs.u8>;
-	} else {
-		_0 = rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 1, true) as rs.VecDeque<rs.u8>;
+		return rs.dequeFromIntoIter(it3, 1, true) as rs.VecDeque<rs.u8>;
 	}
-	return _0;
+	return rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 1, true) as rs.VecDeque<rs.u8>;
 }
 
 /**
@@ -1242,7 +1230,6 @@ export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8>
  * adaptors in place of another.
  */
 export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<undefined> {
-	let _0!: rs.VecDeque<undefined>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
 	const _6: rs.u8 = rs.u8Rem(arg, 5);
 	if (_6 === 0) {
@@ -1294,11 +1281,9 @@ export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<
 		rs.iterToOption(it3.next(), rs.None);
 	}
 	if ((arg & 64) === 0) {
-		_0 = rs.dequeFromIntoIter(it3, 0) as rs.VecDeque<undefined>;
-	} else {
-		_0 = rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 0) as rs.VecDeque<undefined>;
+		return rs.dequeFromIntoIter(it3, 0) as rs.VecDeque<undefined>;
 	}
-	return _0;
+	return rs.dequeFromIntoIter(it3.clone({ v: rs.itself }), 0) as rs.VecDeque<undefined>;
 }
 
 /**

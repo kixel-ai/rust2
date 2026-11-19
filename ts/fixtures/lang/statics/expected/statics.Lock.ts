@@ -28,96 +28,115 @@ export function new$tuple2_u8_Rc_unit(): Lock<[rs.u8, rs.Arc<undefined>]> {
 }
 
 export function getOrInit$Rc_unit_statics_onces_closure6(self: Lock<rs.Arc<undefined>>, f: () => rs.Arc<undefined>): rs.Arc<undefined> {
-	let _14: boolean = false;
-	_14 = true;
+	let _12!: rs.Place<rs.Arc<undefined>>;
+	let _13!: rs.Place<rs.Arc<undefined>>;
+	let _14!: rs.Cell<rs.Arc<undefined>>;
 	if (!(self.once.v === true)) {
 		const slot: rs.Place<rs.Arc<undefined>> = self.value;
-		_14 = false;
 		const captured = f;
 		rs.onceCall(self.once, rs.closure((): undefined => {
 			slot.v = captured();
 		}, (): void => {
 			rs.drop(captured);
 		}), rs.drop);
+		_14 = self.value;
+		_13 = _14;
+		_12 = _13;
+		return _12.v;
 	}
-	const _11: rs.Place<rs.Arc<undefined>> = self.value;
-	if (_14) {
-		rs.drop(f);
-	}
-	return _11.v;
+	_14 = self.value;
+	_13 = _14;
+	_12 = _13;
+	const _11: rs.Arc<undefined> = _12.v;
+	rs.drop(f);
+	return _11;
 }
 
 export function getOrInit$Rc_unit_statics_onces_closure7(self: Lock<rs.Arc<undefined>>, f: () => rs.Arc<undefined>): rs.Arc<undefined> {
-	let _14: boolean = false;
-	_14 = true;
+	let _12!: rs.Place<rs.Arc<undefined>>;
+	let _13!: rs.Place<rs.Arc<undefined>>;
+	let _14!: rs.Cell<rs.Arc<undefined>>;
 	if (!(self.once.v === true)) {
 		const slot: rs.Place<rs.Arc<undefined>> = self.value;
-		_14 = false;
 		const captured = f;
 		rs.onceCall(self.once, rs.closure((): undefined => {
 			slot.v = captured();
 		}, (): void => {
 			rs.drop(captured);
 		}), rs.drop);
+		_14 = self.value;
+		_13 = _14;
+		_12 = _13;
+		return _12.v;
 	}
-	const _11: rs.Place<rs.Arc<undefined>> = self.value;
-	if (_14) {
-		rs.drop(f);
-	}
-	return _11.v;
+	_14 = self.value;
+	_13 = _14;
+	_12 = _13;
+	const _11: rs.Arc<undefined> = _12.v;
+	rs.drop(f);
+	return _11;
 }
 
 export function getOrInit$statics_Collector_statics_onces_closure5(self: Lock<Collector.Collector>, f: () => Collector.Collector): Collector.Collector {
+	let _13!: Collector.Collector;
+	let _14!: rs.Cell<Collector.Collector>;
 	if (!(self.once.v === true)) {
 		const slot: Collector.Collector = self.value.v;
 		const captured = f;
 		rs.onceCall(self.once, (): undefined => {
 			rs.ptrWrite(slot, captured());
 		});
+		_14 = self.value;
+		_13 = _14.v;
+		return _13;
 	}
-	return self.value.v;
+	_14 = self.value;
+	_13 = _14.v;
+	return _13;
 }
 
 export function getOrInit$tuple2_u8_Rc_unit_statics_onces_closure8(self: Lock<[rs.u8, rs.Arc<undefined>]>, f: () => [rs.u8, rs.Arc<undefined>]): [rs.u8, rs.Arc<undefined>] {
-	let _14: boolean = false;
-	_14 = true;
+	let _13!: [rs.u8, rs.Arc<undefined>];
+	let _14!: rs.Cell<[rs.u8, rs.Arc<undefined>]>;
 	if (!(self.once.v === true)) {
 		const slot: [rs.u8, rs.Arc<undefined>] = self.value.v;
-		_14 = false;
 		const captured = f;
 		rs.onceCall(self.once, rs.closure((): undefined => {
 			rs.ptrWrite(slot, captured());
 		}, (): void => {
 			rs.drop(captured);
 		}), rs.drop);
+		_14 = self.value;
+		_13 = _14.v;
+		return _13;
 	}
-	const _11: [rs.u8, rs.Arc<undefined>] = self.value.v;
-	if (_14) {
-		rs.drop(f);
-		return _11;
-	}
-	return _11;
+	_14 = self.value;
+	_13 = _14.v;
+	const _12: [rs.u8, rs.Arc<undefined>] = _13;
+	rs.drop(f);
+	return _12;
 }
 
 export function getOrInit$tuple2_u8_Rc_unit_statics_onces_closure9(self: Lock<[rs.u8, rs.Arc<undefined>]>, f: () => [rs.u8, rs.Arc<undefined>]): [rs.u8, rs.Arc<undefined>] {
-	let _14: boolean = false;
-	_14 = true;
+	let _13!: [rs.u8, rs.Arc<undefined>];
+	let _14!: rs.Cell<[rs.u8, rs.Arc<undefined>]>;
 	if (!(self.once.v === true)) {
 		const slot: [rs.u8, rs.Arc<undefined>] = self.value.v;
-		_14 = false;
 		const captured = f;
 		rs.onceCall(self.once, rs.closure((): undefined => {
 			rs.ptrWrite(slot, captured());
 		}, (): void => {
 			rs.drop(captured);
 		}), rs.drop);
+		_14 = self.value;
+		_13 = _14.v;
+		return _13;
 	}
-	const _11: [rs.u8, rs.Arc<undefined>] = self.value.v;
-	if (_14) {
-		rs.drop(f);
-		return _11;
-	}
-	return _11;
+	_14 = self.value;
+	_13 = _14.v;
+	const _12: [rs.u8, rs.Arc<undefined>] = _13;
+	rs.drop(f);
+	return _12;
 }
 
 export function drop$ops_Drop_Rc_unit(self: Lock<rs.Arc<undefined>>): void {

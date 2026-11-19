@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { copy$Option_drops_Key, drop$Option_Result_model_Guard_u8 as lib_drop$Option_Result_model_Guard_u8, drop$Option_boxed_Box_drops_Held as lib_drop$Option_boxed_Box_drops_Held, drop$Option_drops_Held as lib_drop$Option_drops_Held, drop$Option_tuple2_model_Guard_model_Guard as lib_drop$Option_tuple2_model_Guard_model_Guard, drop$Result_model_Guard_model_Guard as lib_drop$Result_model_Guard_model_Guard, drop$Result_model_Guard_u8 as lib_drop$Result_model_Guard_u8, drop$drops_Held as lib_drop$drops_Held, drop$drops_Pair_drops_Held as lib_drop$drops_Pair_drops_Held, drop$drops_Wrap_Vec_drops_Wrap_drops_Held as lib_drop$drops_Wrap_Vec_drops_Wrap_drops_Held, drop$drops_Wrap_drops_Held as lib_drop$drops_Wrap_drops_Held, drop$drops_Wrap_drops_Pair_drops_Held as lib_drop$drops_Wrap_drops_Pair_drops_Held, drop$drops_Wrap_model_Guard as lib_drop$drops_Wrap_model_Guard, drop$drops_Wrap_sync_Arc_drops_Held as lib_drop$drops_Wrap_sync_Arc_drops_Held, drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held as lib_drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held, drop$sync_Mutex_drops_Held as lib_drop$sync_Mutex_drops_Held, drop$tuple2_drops_Key_drops_Key as lib_drop$tuple2_drops_Key_drops_Key, drop$tuple2_sync_Arc_str_sync_Arc_str as lib_drop$tuple2_sync_Arc_str_sync_Arc_str, out$u32 } from "./lib.ts";
-import { thenSome$0zvoczk } from "./core/bool.ts";
-import { isSomeAnd$17cacqw, unwrapOr$0v6ziq2 as option_unwrapOr$0v6ziq2, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$150c7g4 as option_map$150c7g4, map$1x5kkz1 as option_map$1x5kkz1, map$0bmexgo as option_map$0bmexgo, map$02u0dmi as option_map$02u0dmi, mapOr$0mko9ta as option_mapOr$0mko9ta, mapOr$19gmzl7 as option_mapOr$19gmzl7, okOr$0qyzozq as option_okOr$0qyzozq, filter$1vqc90z, orElse$0gn8afw as option_orElse$0gn8afw, zip$1rr0evn, clone$0cpy9zy as option_clone$0cpy9zy } from "./core/option.ts";
-import { ok$0p21n6j, err$1guw4rh, asRef$0auemm6, mapOr$1g4n0cf as result_mapOr$1g4n0cf, mapOrElse$0cjv9n5 as result_mapOrElse$0cjv9n5, andThen$1wsai1p as result_andThen$1wsai1p, unwrapOr$19ff01h as result_unwrapOr$19ff01h } from "./core/result.ts";
+import { thenSome$0c17n7b } from "./core/bool.ts";
+import { isSomeAnd$17cacqw, unwrapOr$0qmflam as option_unwrapOr$0qmflam, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$150c7g4 as option_map$150c7g4, map$1x5kkz1 as option_map$1x5kkz1, map$0bmexgo as option_map$0bmexgo, map$02u0dmi as option_map$02u0dmi, mapOr$0mko9ta as option_mapOr$0mko9ta, mapOr$1c9b9rz as option_mapOr$1c9b9rz, okOr$0tpl0e3 as option_okOr$0tpl0e3, filter$1951vah, orElse$1136dfg as option_orElse$1136dfg, zip$1fjl43b, clone$0cpy9zy as option_clone$0cpy9zy } from "./core/option.ts";
+import { ok$0p21n6j, err$1guw4rh, asRef$0auemm6, mapOr$1g4n0cf as result_mapOr$1g4n0cf, mapOrElse$0cjv9n5 as result_mapOrElse$0cjv9n5, andThen$1wsai1p as result_andThen$1wsai1p, unwrapOr$1h5bwoo as result_unwrapOr$1h5bwoo } from "./core/result.ts";
 import { called as called_called } from "./drops/called.ts";
 import { scoped, discarded, iterated } from "./drops/closures.ts";
 import { flattened as flattened_flattened } from "./drops/flattened.ts";
@@ -656,8 +656,8 @@ export function options(log: Log.Log, id: rs.u32): void {
 	const guard: (a0: rs.u32) => Guard.Guard = (n: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(n, id), Log.clone$Clone(log));
 	};
-	const some: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0qyzozq(guard(([1] as [rs.u32])[0]), guard(([2] as [rs.u32])[0]));
-	const none: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0qyzozq(undefined, guard(([3] as [rs.u32])[0]));
+	const some: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0tpl0e3(guard(([1] as [rs.u32])[0]), guard(([2] as [rs.u32])[0]));
+	const none: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0tpl0e3(undefined, guard(([3] as [rs.u32])[0]));
 	const _19: boolean = some.ok;
 	const _22: boolean = none.ok;
 	const args13 = [(f: rs.Formatter) => rs.fmtBool(_19, f), (f: rs.Formatter) => rs.fmtBool(_22, f)];
@@ -670,41 +670,41 @@ export function options(log: Log.Log, id: rs.u32): void {
 	const _51: boolean = flipped !== undefined;
 	const args17 = [(f: rs.Formatter) => rs.fmtBool(_45, f), (f: rs.Formatter) => rs.fmtBool(_48, f), (f: rs.Formatter) => rs.fmtBool(_51, f)];
 	Log.note(log, rs.fmtFormat(["ok ", args17[0], " ", args17[1], " ", args17[2]]));
-	const kept: Guard.Guard = option_unwrapOr$0v6ziq2(guard(([7] as [rs.u32])[0]), guard(([8] as [rs.u32])[0]));
-	const fallback: Guard.Guard = option_unwrapOr$0v6ziq2(undefined, guard(([9] as [rs.u32])[0]));
-	const value: Guard.Guard = result_unwrapOr$19ff01h(rs.Ok(guard(([10] as [rs.u32])[0])), guard(([11] as [rs.u32])[0]));
-	const error: Guard.Guard = result_unwrapOr$19ff01h(rs.Err(guard(([12] as [rs.u32])[0])), guard(([13] as [rs.u32])[0]));
+	const kept: Guard.Guard = option_unwrapOr$0qmflam(guard(([7] as [rs.u32])[0]), guard(([8] as [rs.u32])[0]));
+	const fallback: Guard.Guard = option_unwrapOr$0qmflam(undefined, guard(([9] as [rs.u32])[0]));
+	const value: Guard.Guard = result_unwrapOr$1h5bwoo(rs.Ok(guard(([10] as [rs.u32])[0])), guard(([11] as [rs.u32])[0]));
+	const error: Guard.Guard = result_unwrapOr$1h5bwoo(rs.Err(guard(([12] as [rs.u32])[0])), guard(([13] as [rs.u32])[0]));
 	const _84: rs.u32 = Guard.id(kept);
 	const _87: rs.u32 = Guard.id(fallback);
 	const _90: rs.u32 = Guard.id(value);
 	const _93: rs.u32 = Guard.id(error);
 	const args25 = [(f: rs.Formatter) => rs.u32Display(_84, f), (f: rs.Formatter) => rs.u32Display(_87, f), (f: rs.Formatter) => rs.u32Display(_90, f), (f: rs.Formatter) => rs.u32Display(_93, f)];
 	Log.note(log, rs.fmtFormat(["unwrap_or ", args25[0], " ", args25[1], " ", args25[2], " ", args25[3]]));
-	const mapped: Guard.Guard = option_mapOr$19gmzl7(id, guard(([14] as [rs.u32])[0]), (n2: rs.u32): Guard.Guard => {
+	const mapped: Guard.Guard = option_mapOr$1c9b9rz(id, guard(([14] as [rs.u32])[0]), (n2: rs.u32): Guard.Guard => {
 		Log.note(log, rs.fmtFormat(["mapped"]));
 		return Guard.new(rs.u32Add(n2, 15), Log.clone$Clone(log));
 	});
-	const unmapped: Guard.Guard = option_mapOr$19gmzl7(undefined, guard(([16] as [rs.u32])[0]), (n3: rs.u32): Guard.Guard => {
+	const unmapped: Guard.Guard = option_mapOr$1c9b9rz(undefined, guard(([16] as [rs.u32])[0]), (n3: rs.u32): Guard.Guard => {
 		return Guard.new(n3, Log.clone$Clone(log));
 	});
 	const _115: rs.u32 = Guard.id(mapped);
 	const _118: rs.u32 = Guard.id(unmapped);
 	const args28 = [(f: rs.Formatter) => rs.u32Display(_115, f), (f: rs.Formatter) => rs.u32Display(_118, f)];
 	Log.note(log, rs.fmtFormat(["map_or ", args28[0], " ", args28[1]]));
-	const then: Guard.Guard | undefined = thenSome$0zvoczk(some.ok, guard(([17] as [rs.u32])[0]));
-	const never: Guard.Guard | undefined = thenSome$0zvoczk(false, guard(([18] as [rs.u32])[0]));
+	const then: Guard.Guard | undefined = thenSome$0c17n7b(some.ok, guard(([17] as [rs.u32])[0]));
+	const never: Guard.Guard | undefined = thenSome$0c17n7b(false, guard(([18] as [rs.u32])[0]));
 	const _137: boolean = then !== undefined;
 	const _140: boolean = never !== undefined;
 	const args31 = [(f: rs.Formatter) => rs.fmtBool(_137, f), (f: rs.Formatter) => rs.fmtBool(_140, f)];
 	Log.note(log, rs.fmtFormat(["then_some ", args31[0], " ", args31[1]]));
-	const kept2: Guard.Guard | undefined = filter$1vqc90z(guard(([19] as [rs.u32])[0]), (g: Guard.Guard): boolean => {
+	const kept2: Guard.Guard | undefined = filter$1951vah(guard(([19] as [rs.u32])[0]), (g: Guard.Guard): boolean => {
 		return rs.u32Rem(Guard.id(g), 2) === 0;
 	});
-	const dropped: Guard.Guard | undefined = filter$1vqc90z(guard(([20] as [rs.u32])[0]), (_2: Guard.Guard): boolean => {
+	const dropped: Guard.Guard | undefined = filter$1951vah(guard(([20] as [rs.u32])[0]), (_2: Guard.Guard): boolean => {
 		return false;
 	});
-	const zipped: [Guard.Guard, Guard.Guard] | undefined = zip$1rr0evn(guard(([21] as [rs.u32])[0]), guard(([22] as [rs.u32])[0]));
-	const other: Guard.Guard | undefined = option_orElse$0gn8afw(undefined, (): Guard.Guard | undefined => {
+	const zipped: [Guard.Guard, Guard.Guard] | undefined = zip$1fjl43b(guard(([21] as [rs.u32])[0]), guard(([22] as [rs.u32])[0]));
+	const other: Guard.Guard | undefined = option_orElse$1136dfg(undefined, (): Guard.Guard | undefined => {
 		return guard(([23] as [rs.u32])[0]);
 	});
 	const flag: boolean = isSomeAnd$17cacqw(guard(([24] as [rs.u32])[0]), (g2: Guard.Guard): boolean => {

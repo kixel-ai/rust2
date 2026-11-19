@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import { drop$Option_Result_boxed_Box_model_Guard_boxed_Box_dyn_Any as lib_drop$Option_Result_boxed_Box_model_Guard_boxed_Box_dyn_Any, drop$Option_sync_Arc_tuple2_model_Guard_model_Guard as lib_drop$Option_sync_Arc_tuple2_model_Guard_model_Guard, drop$Result_boxed_Box_model_Guard_boxed_Box_dyn_Any as lib_drop$Result_boxed_Box_model_Guard_boxed_Box_dyn_Any, drop$drops_Held as lib_drop$drops_Held, drop$drops_Wrap_u32 as lib_drop$drops_Wrap_u32, of$drops_Held, of$drops_Wrap_u32, of$model_Guard, of$tuple2_model_Guard_model_Guard, of$u32, ofPlace$drops_Held } from "../lib.ts";
 import type * as Any from "../core/any.Any.ts";
-import { map$0cuxp9c as option_map$0cuxp9c, map$0aiphi9 as option_map$0aiphi9, map$0cktt1a as option_map$0cktt1a, map$0chhxcr as option_map$0chhxcr, map$0cxn9jm as option_map$0cxn9jm, mapOr$1uf7d6r as option_mapOr$1uf7d6r, mapOr$1yfuqyd as option_mapOr$1yfuqyd } from "../core/option.ts";
+import { map$0cuxp9c as option_map$0cuxp9c, map$0aiphi9 as option_map$0aiphi9, map$0cktt1a as option_map$0cktt1a, map$0chhxcr as option_map$0chhxcr, map$089gsv1 as option_map$089gsv1, mapOr$1uf7d6r as option_mapOr$1uf7d6r, mapOr$1yfuqyd as option_mapOr$1yfuqyd } from "../core/option.ts";
 import { ok$1xmzatr, asRef$165wjcp, map$0k9xqln as result_map$0k9xqln } from "../core/result.ts";
 import type * as Part from "../drops/objects.Part.ts";
 import type * as Held from "../drops.Held.ts";
@@ -376,7 +376,7 @@ export function fns(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.stringFrom("ran"));
 	const p: Guard.Guard = guard(([15] as [rs.u32])[0]);
 	const captured15 = guard(([16] as [rs.u32])[0]);
-	const _253: rs.u32 | undefined = option_map$0cxn9jm(1, rs.closure((x2: rs.u32): rs.u32 => {
+	const _253: rs.u32 | undefined = option_map$089gsv1(1, rs.closure((x2: rs.u32): rs.u32 => {
 		return rs.u32Add(x2, Guard.id(captured15));
 	}, (): void => {
 		captured15[Symbol.dispose]();

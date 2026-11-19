@@ -1114,7 +1114,7 @@ export function drain(it: rs.Iter<rs.u8>): rs.String {
  */
 export function pointers(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let f!: rs.Arc<(a0: rs.u8) => rs.u8>;
-	let _506: boolean = false;
+	let _504: boolean = false;
 	if (dataLen >= 2) {
 		const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 		const _14: rs.u8 = dataData[dataStart];
@@ -1291,7 +1291,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		}
 		const any2: rs.Arc<Any.Any> = new rs.Arc(new of$dyns_Noisy(new Noisy.Noisy(rs.u8WrappingAdd(_109, 1), rs.arcClone(log))));
 		const held: rs.Arc<Any.Any> = rs.arcClone(any2);
-		_506 = true;
+		_504 = true;
 		b5: {
 			const _356: [rs.Result<rs.Arc<Noisy.Noisy>, rs.Arc<Any.Any>>, rs.Result<rs.Arc<Noisy.Noisy>, rs.Arc<Any.Any>>] = [rs.arcDowncast(rs.arcClone(any2), of$dyns_Noisy, (object) => object.v), rs.arcDowncast(rs.arcClone(held), of$dyns_Noisy, (object) => object.v)];
 			if (_356[0].ok) {
@@ -1338,7 +1338,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const arg2 = _419._0;
 			const args34 = [(f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => rs.usizeDisplay(_422, f)];
 			put(out, rs.fmtFormat([args34[0], " ", args34[1], " "]).v);
-			_506 = false;
+			_504 = false;
 			held[Symbol.dispose]();
 			const _437: rs.usize = n2.strong;
 			const _440: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
@@ -1376,10 +1376,10 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		put(out, rs.fmtFormat([args38[0], " ", args38[1]]).v);
 		g[Symbol.dispose]();
 		f[Symbol.dispose]();
-		if (_506) {
+		if (_504) {
 			held[Symbol.dispose]();
 		}
-		_506 = false;
+		_504 = false;
 		looped[Symbol.dispose]();
 		weak4[Symbol.dispose]();
 		again[Symbol.dispose]();

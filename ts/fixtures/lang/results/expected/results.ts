@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$Result_array0_u8_u8, copy$Result_array1_u8_u8, copy$Result_array5_u8_u8, copy$results_Logged, drop$Result_results_Logged_results_Logged, out$u8 } from "./lib.ts";
-import { unwrapOr$0xy2nem as option_unwrapOr$0xy2nem, unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1px2rk4 as option_map$1px2rk4, map$0zvojrv as option_map$0zvojrv, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e, mapOr$0mkqwg8 as option_mapOr$0mkqwg8, mapOr$188iunt as option_mapOr$188iunt, filter$0hq86nl, clone$0e53k5z as option_clone$0e53k5z } from "./core/option.ts";
+import { unwrapOr$0xy2nem as option_unwrapOr$0xy2nem, unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1px2rk4 as option_map$1px2rk4, map$0zvojrv as option_map$0zvojrv, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e, mapOr$0mkqwg8 as option_mapOr$0mkqwg8, mapOr$188iunt as option_mapOr$188iunt, filter$0agadp5, clone$0e53k5z as option_clone$0e53k5z } from "./core/option.ts";
 import { map$1gelxzx as result_map$1gelxzx } from "./core/result.ts";
 import * as Logged from "./results.Logged.ts";
 
@@ -700,7 +700,7 @@ export function arrays$5(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const some: (a0: rs.usize) => rs.u8 | undefined = (i: rs.usize): rs.u8 | undefined => {
-		return filter$0hq86nl(rs.byteSliceGet(data, i), (b: rs.u8): boolean => {
+		return filter$0agadp5(rs.byteSliceGet(data, i), (b: rs.u8): boolean => {
 			return rs.u8Rem(b, 3) !== 0;
 		});
 	};

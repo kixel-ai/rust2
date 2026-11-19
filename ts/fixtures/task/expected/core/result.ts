@@ -68,22 +68,12 @@ export function map$0k9xqln(self: rs.Result<Guard.Guard, Any.Any>, op: (a0: Guar
 	return self as rs.Result<rs.u32, Any.Any>;
 }
 
-export function map$1tajsw3(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.u32): rs.Result<rs.u32, rs.u32> {
-	let _0!: rs.Result<rs.u32, rs.u32>;
-	let _9: boolean = false;
-	_9 = true;
+export function map$19caer7(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.u32): rs.Result<rs.u32, rs.u32> {
 	if (self.ok) {
-		const t: rs.u32 = self.value;
-		_9 = false;
-		_0 = rs.Ok(op(t));
-	} else {
-		_0 = self;
+		return rs.Ok(op(self.value));
 	}
-	if (_9) {
-		rs.drop(op);
-		return _0;
-	}
-	return _0;
+	rs.drop(op);
+	return self;
 }
 
 export function mapOr$1g4n0cf(self: rs.Result<Guard.Guard, rs.u8>, default_: rs.u32, _: (a0: Guard.Guard) => rs.u32): rs.u32 {
@@ -107,37 +97,21 @@ export function mapErr$18fct1o(self: rs.Result<rs.u32, Guard.Guard>, op: (a0: Gu
 	return rs.Err(op(self.error));
 }
 
-export function mapErr$04hu1u8(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.u32): rs.Result<rs.u32, rs.u32> {
-	let _0!: rs.Result<rs.u32, rs.u32>;
-	let _9: boolean = false;
-	_9 = true;
+export function mapErr$18nlkyi(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.u32): rs.Result<rs.u32, rs.u32> {
 	if (self.ok) {
-		_0 = self;
-	} else {
-		const e: rs.u32 = self.error;
-		_9 = false;
-		_0 = rs.Err(op(e));
-	}
-	if (_9) {
 		rs.drop(op);
-		return _0;
+		return self;
 	}
-	return _0;
+	return rs.Err(op(self.error));
 }
 
-export function inspectErr$1vjhjw3(self: rs.Result<rs.u32, rs.u32>, f: (a0: rs.u32) => undefined): rs.Result<rs.u32, rs.u32> {
-	let _8: boolean = false;
-	_8 = true;
+export function inspectErr$1sbbofo(self: rs.Result<rs.u32, rs.u32>, f: (a0: rs.u32) => undefined): rs.Result<rs.u32, rs.u32> {
 	if (!self.ok) {
-		_8 = false;
 		f(self.error);
+		return self;
 	}
-	const _0: rs.Result<rs.u32, rs.u32> = self;
-	if (_8) {
-		rs.drop(f);
-		return _0;
-	}
-	return _0;
+	rs.drop(f);
+	return self;
 }
 
 export function andThen$1wsai1p(self: rs.Result<Guard.Guard, Guard.Guard>, _: (a0: Guard.Guard) => rs.Result<Guard.Guard, Guard.Guard>): rs.Result<Guard.Guard, Guard.Guard> {
@@ -147,36 +121,21 @@ export function andThen$1wsai1p(self: rs.Result<Guard.Guard, Guard.Guard>, _: (a
 	return self;
 }
 
-export function andThen$0wxwepe(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.Result<rs.u32, rs.u32>): rs.Result<rs.u32, rs.u32> {
-	let _0!: rs.Result<rs.u32, rs.u32>;
-	let _8: boolean = false;
-	_8 = true;
+export function andThen$1op8upj(self: rs.Result<rs.u32, rs.u32>, op: (a0: rs.u32) => rs.Result<rs.u32, rs.u32>): rs.Result<rs.u32, rs.u32> {
 	if (self.ok) {
-		const t: rs.u32 = self.value;
-		_8 = false;
-		_0 = op(t);
-	} else {
-		_0 = self;
+		return op(self.value);
 	}
-	if (_8) {
-		rs.drop(op);
-		return _0;
-	}
-	return _0;
+	rs.drop(op);
+	return self;
 }
 
-export function unwrapOr$19ff01h(self: rs.Result<Guard.Guard, Guard.Guard>, default_: Guard.Guard): Guard.Guard {
+export function unwrapOr$1h5bwoo(self: rs.Result<Guard.Guard, Guard.Guard>, default_: Guard.Guard): Guard.Guard {
 	let _0!: Guard.Guard;
-	let _5: boolean = false;
-	_5 = true;
 	if (self.ok) {
 		_0 = self.value;
-	} else {
-		_5 = false;
-		_0 = default_;
-	}
-	if (_5) {
 		default_[Symbol.dispose]();
+	} else {
+		_0 = default_;
 	}
 	if (!self.ok) {
 		lib_drop$Result_model_Guard_model_Guard(self);

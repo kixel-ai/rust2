@@ -233,25 +233,16 @@ export function capacity$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap
  * calling `LinkedHashMap::back` will return a reference to this key / value pair.
  */
 export function insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged, v: Logged.Logged): Logged.Logged | undefined {
-	let _0!: Logged.Logged | undefined;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: RawEntryMut.RawEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self), k);
 	if (_4.tag === "Occupied") {
 		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
 		RawOccupiedEntryMut.toBack$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(occupied);
-		_0 = RawOccupiedEntryMut.replaceValue$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(occupied, copy$maps_Logged(v));
-	} else {
-		const vacant: RawVacantEntryMut.RawVacantEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
-		_16 = false;
-		RawVacantEntryMut.insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(vacant, k, copy$maps_Logged(v));
-		_0 = undefined;
-	}
-	if (_16) {
+		const _0: Logged.Logged | undefined = RawOccupiedEntryMut.replaceValue$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(occupied, copy$maps_Logged(v));
 		k[Symbol.dispose]();
 		return _0;
 	}
-	return _0;
+	RawVacantEntryMut.insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(_4._0, k, copy$maps_Logged(v));
+	return undefined;
 }
 
 /**
@@ -261,26 +252,16 @@ export function insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self:
  * calling `LinkedHashMap::back` will return a reference to this key / value pair.
  */
 export function insert$maps_Logged_unit_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged, _: undefined): undefined | rs.None {
-	let _0!: undefined | rs.None;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: RawEntryMut.RawEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_unit_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_unit_hashlink_DefaultHashBuilder(self), k);
 	if (_4.tag === "Occupied") {
 		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
 		RawOccupiedEntryMut.toBack$maps_Logged_unit_hashlink_DefaultHashBuilder(occupied);
 		RawOccupiedEntryMut.replaceValue$maps_Logged_unit_hashlink_DefaultHashBuilder(occupied, undefined);
-		_0 = undefined;
-	} else {
-		const vacant: RawVacantEntryMut.RawVacantEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
-		_16 = false;
-		RawVacantEntryMut.insert$maps_Logged_unit_hashlink_DefaultHashBuilder(vacant, k, undefined);
-		_0 = rs.None;
-	}
-	if (_16) {
 		k[Symbol.dispose]();
-		return _0;
+		return undefined;
 	}
-	return _0;
+	RawVacantEntryMut.insert$maps_Logged_unit_hashlink_DefaultHashBuilder(_4._0, k, undefined);
+	return rs.None;
 }
 
 /**
@@ -290,25 +271,16 @@ export function insert$maps_Logged_unit_hashlink_DefaultHashBuilder(self: Linked
  * calling `LinkedHashMap::back` will return a reference to this key / value pair.
  */
 export function insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rs.Arc<string>, v: rs.u32): rs.u32 | undefined {
-	let _0!: rs.u32 | undefined;
-	let _16: boolean = false;
-	_16 = true;
 	const _4: RawEntryMut.RawEntryMut<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$sync_Arc_str_u32_hashlink_DefaultHashBuilder_sync_Arc_str(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_4.tag === "Occupied") {
 		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
 		RawOccupiedEntryMut.toBack$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied);
-		_0 = RawOccupiedEntryMut.replaceValue$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied, v);
-	} else {
-		const vacant: RawVacantEntryMut.RawVacantEntryMut<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
-		_16 = false;
-		RawVacantEntryMut.insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(vacant, k, v);
-		_0 = undefined;
-	}
-	if (_16) {
+		const _0: rs.u32 | undefined = RawOccupiedEntryMut.replaceValue$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied, v);
 		k[Symbol.dispose]();
 		return _0;
 	}
-	return _0;
+	RawVacantEntryMut.insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(_4._0, k, v);
+	return undefined;
 }
 
 /**

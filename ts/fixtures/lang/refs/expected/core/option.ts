@@ -114,12 +114,13 @@ export function andThen$1x5wmg5(self: rs.Place<rs.u32> | undefined, f: (a0: rs.P
 	return f(self);
 }
 
-export function filter$00vpwuf(self: [rs.u8, rs.u8] | undefined, predicate: (a0: [rs.u8, rs.u8]) => boolean): [rs.u8, rs.u8] | undefined {
+export function filter$0qk0j59(self: [rs.u8, rs.u8] | undefined, predicate: (a0: [rs.u8, rs.u8]) => boolean): [rs.u8, rs.u8] | undefined {
 	if (self !== undefined) {
 		const x: [rs.u8, rs.u8] = self;
-		if (predicate(x)) {
-			return x;
+		if (!predicate(x)) {
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }

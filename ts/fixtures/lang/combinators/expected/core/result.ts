@@ -79,16 +79,18 @@ export function mapErr$16o3r40(self: rs.Result<rs.u8, rs.u16>, op: (a0: rs.u16) 
 	return rs.Err(op(self.error));
 }
 
-export function inspect$1lvk7wu(self: rs.Result<rs.u8, rs.u16>, f: (a0: rs.u8) => undefined): rs.Result<rs.u8, rs.u16> {
+export function inspect$01cllhs(self: rs.Result<rs.u8, rs.u16>, f: (a0: rs.u8) => undefined): rs.Result<rs.u8, rs.u16> {
 	if (self.ok) {
 		f(self.value);
+		return self;
 	}
 	return self;
 }
 
-export function inspectErr$0nqm52c(self: rs.Result<rs.u8, rs.u16>, f: (a0: rs.u16) => undefined): rs.Result<rs.u8, rs.u16> {
+export function inspectErr$0i81pkg(self: rs.Result<rs.u8, rs.u16>, f: (a0: rs.u16) => undefined): rs.Result<rs.u8, rs.u16> {
 	if (!self.ok) {
 		f(self.error);
+		return self;
 	}
 	return self;
 }

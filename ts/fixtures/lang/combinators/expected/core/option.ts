@@ -86,9 +86,10 @@ export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): r
 	return f(self);
 }
 
-export function inspect$1sa9a1m(self: rs.u8 | undefined, f: (a0: rs.u8) => undefined): rs.u8 | undefined {
+export function inspect$1gr85rr(self: rs.u8 | undefined, f: (a0: rs.u8) => undefined): rs.u8 | undefined {
 	if (self !== undefined) {
 		f(self);
+		return self;
 	}
 	return self;
 }
@@ -170,22 +171,24 @@ export function andThen$195hx6l(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8
 	return f(self);
 }
 
-export function filter$0hpv4s6(self: rs.String | undefined, predicate: (a0: rs.String) => boolean): rs.String | undefined {
+export function filter$0s16azs(self: rs.String | undefined, predicate: (a0: rs.String) => boolean): rs.String | undefined {
 	if (self !== undefined) {
 		const x: rs.String = self;
-		if (predicate(x)) {
-			return x;
+		if (!predicate(x)) {
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
 
-export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
+export function filter$0agadp5(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
-		if (predicate(x)) {
-			return x;
+		if (!predicate(x)) {
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }
@@ -211,35 +214,24 @@ export function orElse$1xazu5k(self: rs.u8 | undefined, f: () => rs.u8 | undefin
 	return self;
 }
 
-export function xor$0x5qjg4(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
-	let _0!: rs.u8 | undefined;
-	b0: {
-		if (self === undefined) {
-			if (optb !== undefined) {
-				_0 = optb;
-				break b0;
-			}
-		} else if (optb === undefined) {
-			_0 = self;
-			break b0;
+export function xor$1vju3wp(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
+	if (self === undefined) {
+		if (optb !== undefined) {
+			return optb;
 		}
-		_0 = undefined;
+	} else if (optb === undefined) {
+		return self;
 	}
-	return _0;
+	return undefined;
 }
 
-export function zip$0p00b0o(self: rs.u8 | undefined, other: rs.u8 | undefined): [rs.u8, rs.u8] | undefined {
-	let _0!: [rs.u8, rs.u8] | undefined;
-	b0: {
-		if (self !== undefined) {
-			if (other !== undefined) {
-				_0 = [self, other] as [rs.u8, rs.u8];
-				break b0;
-			}
+export function zip$0a685pg(self: rs.u8 | undefined, other: rs.u8 | undefined): [rs.u8, rs.u8] | undefined {
+	if (self !== undefined) {
+		if (other !== undefined) {
+			return [self, other] as [rs.u8, rs.u8];
 		}
-		_0 = undefined;
 	}
-	return _0;
+	return undefined;
 }
 
 export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {

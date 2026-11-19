@@ -42,17 +42,13 @@ export function first$u8(self: Shared<rs.u8>): rs.u8 | undefined {
 
 /** Its items, made its own, with `item` in place of its last. */
 export function setLast$shares_Logged(self: Shared<Logged.Logged>, item: Logged.Logged): void {
-	let _9: boolean = false;
-	_9 = true;
 	const _3: Logged.Logged | undefined = rs.sliceLast(rs.arcMakeMut(rs.place(() => self.items as rs.Arc<rs.Slice<Logged.Logged>>, (value) => (self.items as rs.Arc<rs.Slice<Logged.Logged>>) = value), (a0: rs.Slice<Logged.Logged>): rs.Slice<Logged.Logged> => {
 		return rs.sliceFrom(rs.sliceItems(a0).map(Logged.clone$Clone));
 	}, drop$Rc_slice_shares_Logged));
 	if (_3 !== undefined) {
-		_9 = false;
 		_3[Symbol.dispose]();
 		Object.assign(_3, item);
-	}
-	if (_9) {
+	} else {
 		item[Symbol.dispose]();
 	}
 }

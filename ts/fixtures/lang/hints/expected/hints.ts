@@ -2716,2311 +2716,2641 @@ export function typed$u8_hints_reserves_closure0(kind: rs.u8, data: rs.ByteSlice
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5_hints_typed_closure2_array275_u32_hints_reserves_closure5(coll: rs.u8, items: rs.Iter<rs.u32[]>, seed: rs.u32[], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 1100).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32[]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 1100);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
-		rs.iterExtend(v2, items, "next", 1100);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
-	} else if (coll === 9) {
-		const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
-		const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
-		const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t3, 1] as [rs.u32[], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t2, 1] as [rs.u32[], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
-	} else if (coll === 11) {
-		len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
-			let _0!: rs.Result<rs.u32[], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32[] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 1100).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32[]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 1100);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
+			rs.iterExtend(v2, items, "next", 1100);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
+				const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
+				const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t3, 1] as [rs.u32[], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t2, 1] as [rs.u32[], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
+			} else if (coll === 11) {
+				len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32[] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll: rs.u8, items: rs.Iter<rs.u32[]>, seed: rs.u32[], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 1100).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32[]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 1100);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
-		rs.iterExtend(v2, items, "next", 1100);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
-	} else if (coll === 9) {
-		const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
-		const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
-		const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t3, 1] as [rs.u32[], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t2, 1] as [rs.u32[], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
-	} else if (coll === 11) {
-		len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
-			let _0!: rs.Result<rs.u32[], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32[] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 1100).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32[]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 1100);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
+			rs.iterExtend(v2, items, "next", 1100);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
+				const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
+				const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t3, 1] as [rs.u32[], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t2, 1] as [rs.u32[], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
+			} else if (coll === 11) {
+				len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32[] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll: rs.u8, items: rs.Iter<rs.u32[]>, seed: rs.u32[], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 1100).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32[]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 1100);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
-		rs.iterExtend(v2, items, "next", 1100);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
-	} else if (coll === 9) {
-		const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
-		const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
-		const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t3, 1] as [rs.u32[], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t2, 1] as [rs.u32[], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
-	} else if (coll === 11) {
-		len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
-			let _0!: rs.Result<rs.u32[], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32[] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 1100).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32[]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 1100);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
+			rs.iterExtend(v2, items, "next", 1100);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
+				const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
+				const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t3, 1] as [rs.u32[], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t2, 1] as [rs.u32[], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
+			} else if (coll === 11) {
+				len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32[] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll: rs.u8, items: rs.Iter<rs.u32[]>, seed: rs.u32[], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, undefined, 1100, true).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32[]> = new rs.Vec();
-		rs.iterExtend(v, items, undefined, 1100, true);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
-		rs.iterExtend(v2, items, undefined, 1100, true);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 1100, true), 1100) as rs.VecDeque<rs.u32[]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 1100, true), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), undefined, 1100, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, undefined, 1100, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
-	} else if (coll === 9) {
-		const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
-		const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
-		const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t3, 1] as [rs.u32[], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t2, 1] as [rs.u32[], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, undefined, 1104, true));
-	} else if (coll === 11) {
-		len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, undefined, 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
-			let _0!: rs.Result<rs.u32[], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32[] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, undefined, 1100));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, undefined, 1100, true).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32[]> = new rs.Vec();
+			rs.iterExtend(v, items, undefined, 1100, true);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
+			rs.iterExtend(v2, items, undefined, 1100, true);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 1100, true), 1100) as rs.VecDeque<rs.u32[]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 1100, true), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), undefined, 1100, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, undefined, 1100, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
+				const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
+				const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t3, 1] as [rs.u32[], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t2, 1] as [rs.u32[], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, undefined, 1104, true));
+			} else if (coll === 11) {
+				len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, undefined, 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32[] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, undefined, 1100));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll: rs.u8, items: rs.Iter<rs.u32[]>, seed: rs.u32[], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 1100).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32[]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 1100);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
-		rs.iterExtend(v2, items, "next", 1100);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
-	} else if (coll === 9) {
-		const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
-		const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
-		const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t3, 1] as [rs.u32[], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
-			return [t2, 1] as [rs.u32[], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
-	} else if (coll === 11) {
-		len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
-			let _0!: rs.Result<rs.u32[], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32[] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 1100).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32[]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 1100);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
+			rs.iterExtend(v2, items, "next", 1100);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>, items, true, undefined, "next", 1100));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>, items, undefined, undefined, 917504));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32[], rs.u32][] = [[seed, 0] as [rs.u32[], rs.u32]];
+				const m: rs.HashMap<rs.u32[], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.u32[], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 917504);
+				const _46: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t3: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t3, 1] as [rs.u32[], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 917504);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32[], rs.u32]> = rs.iterMap(items, (t2: rs.u32[]): [rs.u32[], rs.u32] => {
+					return [t2, 1] as [rs.u32[], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeMap<rs.u32[], rs.u32>, _50, true, undefined, undefined, "next", 1104));
+			} else if (coll === 11) {
+				len = option_mapOr$1srande(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32[]): rs.u32[] | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100)), 255, (v4: rs.Vec<rs.u32[]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32[]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32[]]): rs.Result<rs.u32[], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32[] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32[]>) => rs.iterToVec(values, "next", 1100));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$hints_Unit_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_hints_Unit_hints_reserves_closure4_hints_typed_closure2_hints_Unit_hints_reserves_closure4(coll: rs.u8, items: rs.Iter<Unit.Unit>, seed: Unit.Unit, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 0).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<Unit.Unit> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 0);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
-		rs.iterExtend(v2, items, "next", 0);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
-		rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
-	} else if (coll === 9) {
-		const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
-		const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
-		const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t3, 1] as [Unit.Unit, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t2, 1] as [Unit.Unit, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
-	} else if (coll === 11) {
-		len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
-			return a0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
-			let _0!: rs.Result<Unit.Unit, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: Unit.Unit = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 0).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<Unit.Unit> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 0);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
+			rs.iterExtend(v2, items, "next", 0);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
+			rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
+				const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
+				const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t3, 1] as [Unit.Unit, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t2, 1] as [Unit.Unit, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
+			} else if (coll === 11) {
+				len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
+					return a0;
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: Unit.Unit = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll: rs.u8, items: rs.Iter<Unit.Unit>, seed: Unit.Unit, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 0).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<Unit.Unit> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 0);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
-		rs.iterExtend(v2, items, "next", 0);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
-		rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
-	} else if (coll === 9) {
-		const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
-		const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
-		const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t3, 1] as [Unit.Unit, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t2, 1] as [Unit.Unit, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
-	} else if (coll === 11) {
-		len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
-			return a0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
-			let _0!: rs.Result<Unit.Unit, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: Unit.Unit = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 0).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<Unit.Unit> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 0);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
+			rs.iterExtend(v2, items, "next", 0);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
+			rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
+				const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
+				const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t3, 1] as [Unit.Unit, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t2, 1] as [Unit.Unit, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
+			} else if (coll === 11) {
+				len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
+					return a0;
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: Unit.Unit = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll: rs.u8, items: rs.Iter<Unit.Unit>, seed: Unit.Unit, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 0).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<Unit.Unit> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 0);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
-		rs.iterExtend(v2, items, "next", 0);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
-		rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
-	} else if (coll === 9) {
-		const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
-		const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
-		const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t3, 1] as [Unit.Unit, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t2, 1] as [Unit.Unit, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
-	} else if (coll === 11) {
-		len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
-			return a0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
-			let _0!: rs.Result<Unit.Unit, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: Unit.Unit = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 0).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<Unit.Unit> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 0);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
+			rs.iterExtend(v2, items, "next", 0);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
+			rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
+				const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
+				const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t3, 1] as [Unit.Unit, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t2, 1] as [Unit.Unit, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
+			} else if (coll === 11) {
+				len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
+					return a0;
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: Unit.Unit = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$hints_Unit_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll: rs.u8, items: rs.Iter<Unit.Unit>, seed: Unit.Unit, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, undefined, 0, true).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<Unit.Unit> = new rs.Vec();
-		rs.iterExtend(v, items, undefined, 0, true);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
-		rs.iterExtend(v2, items, undefined, 0, true);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 0, true), 0) as rs.VecDeque<Unit.Unit>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 0, true), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
-		rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), undefined, 0, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, undefined, 0, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
-	} else if (coll === 9) {
-		const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
-		const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
-		const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t3, 1] as [Unit.Unit, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t2, 1] as [Unit.Unit, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, undefined, 4, true));
-	} else if (coll === 11) {
-		len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
-			return a0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, undefined, 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
-			let _0!: rs.Result<Unit.Unit, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: Unit.Unit = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, undefined, 0));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, undefined, 0, true).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<Unit.Unit> = new rs.Vec();
+			rs.iterExtend(v, items, undefined, 0, true);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
+			rs.iterExtend(v2, items, undefined, 0, true);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 0, true), 0) as rs.VecDeque<Unit.Unit>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 0, true), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
+			rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), undefined, 0, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, undefined, 0, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
+				const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
+				const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t3, 1] as [Unit.Unit, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t2, 1] as [Unit.Unit, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, undefined, 4, true));
+			} else if (coll === 11) {
+				len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
+					return a0;
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, undefined, 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: Unit.Unit = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, undefined, 0));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$hints_Unit_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll: rs.u8, items: rs.Iter<Unit.Unit>, seed: Unit.Unit, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 0).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<Unit.Unit> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 0);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
-		rs.iterExtend(v2, items, "next", 0);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
-		rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
-	} else if (coll === 9) {
-		const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
-		const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
-		const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t3, 1] as [Unit.Unit, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
-			return [t2, 1] as [Unit.Unit, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
-	} else if (coll === 11) {
-		len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
-			return a0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
-			let _0!: rs.Result<Unit.Unit, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: Unit.Unit = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 0).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<Unit.Unit> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 0);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<Unit.Unit> = rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone);
+			rs.iterExtend(v2, items, "next", 0);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 0), 0) as rs.VecDeque<Unit.Unit>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<Unit.Unit> = rs.dequeFromVec(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), 0) as rs.VecDeque<Unit.Unit>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 0), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd)).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<Unit.Unit> = rs.heapFrom(rs.vecFromElem(Unit.clone$Clone(seed), 2, Unit.clone$Clone), rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd));
+			rs.heapExtend(h, items, rs.cmpLe(Unit.partialCmp$cmp_PartialOrd), rs.cmpGe(Unit.partialCmp$cmp_PartialOrd), rs.cmpLt(Unit.partialCmp$cmp_PartialOrd), "next", 0);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeSet<Unit.Unit>, items, true, undefined, "next", 0));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashSet<Unit.Unit>, items, undefined, undefined, 536870911));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [Unit.Unit, rs.u32][] = [[seed, 0] as [Unit.Unit, rs.u32]];
+				const m: rs.HashMap<Unit.Unit, rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(Unit.hash$Hash_hash_DefaultHasher as (a0: Unit.Unit, a1: rs.Hasher) => undefined, Unit.eq$cmp_PartialEq)) as rs.HashMap<Unit.Unit, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 234881024);
+				const _46: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t3: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t3, 1] as [Unit.Unit, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 234881024);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[Unit.Unit, rs.u32]> = rs.iterMap(items, (t2: Unit.Unit): [Unit.Unit, rs.u32] => {
+					return [t2, 1] as [Unit.Unit, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(Unit.cmp$cmp_Ord) as rs.BTreeMap<Unit.Unit, rs.u32>, _50, true, undefined, undefined, "next", 4));
+			} else if (coll === 11) {
+				len = option_mapOr$1jtsi2n(rs.iterCollectOption(rs.iterMap(items, (a0: Unit.Unit): Unit.Unit | undefined => {
+					return a0;
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0)), 255, (v4: rs.Vec<Unit.Unit>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<Unit.Unit>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, Unit.Unit]): rs.Result<Unit.Unit, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: Unit.Unit = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<Unit.Unit>) => rs.iterToVec(values, "next", 0));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple2_u64_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3_hints_typed_closure2_tuple2_u64_u8_hints_reserves_closure3(coll: rs.u8, items: rs.Iter<[rs.u64, rs.u8]>, seed: [rs.u64, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 16).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 16);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 16);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
-	} else if (coll === 9) {
-		const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
-		const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
-	} else if (coll === 11) {
-		len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u64, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u64, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 16).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 16);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 16);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
+				const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
+			} else if (coll === 11) {
+				len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u64, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll: rs.u8, items: rs.Iter<[rs.u64, rs.u8]>, seed: [rs.u64, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 16).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 16);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 16);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
-	} else if (coll === 9) {
-		const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
-		const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
-	} else if (coll === 11) {
-		len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u64, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u64, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 16).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 16);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 16);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
+				const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
+			} else if (coll === 11) {
+				len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u64, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll: rs.u8, items: rs.Iter<[rs.u64, rs.u8]>, seed: [rs.u64, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 16).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 16);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 16);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
-	} else if (coll === 9) {
-		const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
-		const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
-	} else if (coll === 11) {
-		len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u64, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u64, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 16).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 16);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 16);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
+				const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
+			} else if (coll === 11) {
+				len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u64, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple2_u64_u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll: rs.u8, items: rs.Iter<[rs.u64, rs.u8]>, seed: [rs.u64, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, undefined, 16, true).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, undefined, 16, true);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, undefined, 16, true);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 16, true), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 16, true), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), undefined, 16, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, undefined, 16, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
-	} else if (coll === 9) {
-		const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
-		const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, undefined, 24, true));
-	} else if (coll === 11) {
-		len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, undefined, 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u64, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u64, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, undefined, 16));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, undefined, 16, true).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, undefined, 16, true);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, undefined, 16, true);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 16, true), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 16, true), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), undefined, 16, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, undefined, 16, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
+				const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, undefined, 24, true));
+			} else if (coll === 11) {
+				len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, undefined, 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u64, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, undefined, 16));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple2_u64_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll: rs.u8, items: rs.Iter<[rs.u64, rs.u8]>, seed: [rs.u64, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 16).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 16);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 16);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
-	} else if (coll === 9) {
-		const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
-		const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
-	} else if (coll === 11) {
-		len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u64, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u64, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 16).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u64, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 16);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 16);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 16), 16) as rs.VecDeque<[rs.u64, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u64, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 16) as rs.VecDeque<[rs.u64, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 16), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u64, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), "next", 16);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u64, rs.u8]>, items, true, undefined, "next", 16));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashSet<[rs.u64, rs.u8]>, items, undefined, undefined, 58720256));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u64, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u64, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u64, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash64, rs.hash8]), rs.eqTuple([rs.u64Eq, rs.same]))) as rs.HashMap<[rs.u64, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 58720256);
+				const _46: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 58720256);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u64, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u64, rs.u8]): [[rs.u64, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u64, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u64, rs.u8], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u64, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 24));
+			} else if (coll === 11) {
+				len = option_mapOr$1tgduhr(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u64, rs.u8]): [rs.u64, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16)), 255, (v4: rs.Vec<[rs.u64, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u64, rs.u8]]): rs.Result<[rs.u64, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u64, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u64, rs.u8]>) => rs.iterToVec(values, "next", 16));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple3_u8_u8_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2_hints_typed_closure2_tuple3_u8_u8_u8_hints_reserves_closure2(coll: rs.u8, items: rs.Iter<[rs.u8, rs.u8, rs.u8]>, seed: [rs.u8, rs.u8, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 3).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 3);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 3);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u8, rs.u8, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 3).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 3);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 3);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u8, rs.u8, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll: rs.u8, items: rs.Iter<[rs.u8, rs.u8, rs.u8]>, seed: [rs.u8, rs.u8, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 3).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 3);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 3);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u8, rs.u8, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 3).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 3);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 3);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u8, rs.u8, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll: rs.u8, items: rs.Iter<[rs.u8, rs.u8, rs.u8]>, seed: [rs.u8, rs.u8, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 3).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 3);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 3);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u8, rs.u8, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 3).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 3);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 3);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u8, rs.u8, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple3_u8_u8_u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll: rs.u8, items: rs.Iter<[rs.u8, rs.u8, rs.u8]>, seed: [rs.u8, rs.u8, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, undefined, 3, true).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, undefined, 3, true);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, undefined, 3, true);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 3, true), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 3, true), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), undefined, 3, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, undefined, 3, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
-	} else if (coll === 11) {
-		len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, undefined, 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u8, rs.u8, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, undefined, 3));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, undefined, 3, true).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, undefined, 3, true);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, undefined, 3, true);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 3, true), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 3, true), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), undefined, 3, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, undefined, 3, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
+			} else if (coll === 11) {
+				len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, undefined, 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u8, rs.u8, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, undefined, 3));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$tuple3_u8_u8_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll: rs.u8, items: rs.Iter<[rs.u8, rs.u8, rs.u8]>, seed: [rs.u8, rs.u8, rs.u8], out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 3).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 3);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 3);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
-		rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
-		const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
-			return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
-			return a0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
-			let _0!: rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: [rs.u8, rs.u8, rs.u8] = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 3).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<[rs.u8, rs.u8, rs.u8]> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 3);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<[rs.u8, rs.u8, rs.u8]> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 3);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 3), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<[rs.u8, rs.u8, rs.u8]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 3) as rs.VecDeque<[rs.u8, rs.u8, rs.u8]>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 3), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp]))).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<[rs.u8, rs.u8, rs.u8]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])));
+			rs.heapExtend(h, items, rs.cmpLe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpGe(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp, rs.cmp])), "next", 3);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeSet<[rs.u8, rs.u8, rs.u8]>, items, true, undefined, "next", 3));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashSet<[rs.u8, rs.u8, rs.u8]>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [[rs.u8, rs.u8, rs.u8], rs.u32][] = [[seed, 0] as [[rs.u8, rs.u8, rs.u8], rs.u32]];
+				const m: rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8, rs.u8], rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t3: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t3, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[[rs.u8, rs.u8, rs.u8], rs.u32]> = rs.iterMap(items, (t2: [rs.u8, rs.u8, rs.u8]): [[rs.u8, rs.u8, rs.u8], rs.u32] => {
+					return [t2, 1] as [[rs.u8, rs.u8, rs.u8], rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.u8, rs.u8], rs.Ordering>([rs.cmp, rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.u8, rs.u8], rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$0vgdmy4(rs.iterCollectOption(rs.iterMap(items, (a0: [rs.u8, rs.u8, rs.u8]): [rs.u8, rs.u8, rs.u8] | undefined => {
+					return a0;
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3)), 255, (v4: rs.Vec<[rs.u8, rs.u8, rs.u8]>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<[rs.u8, rs.u8, rs.u8]>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, [rs.u8, rs.u8, rs.u8]]): rs.Result<[rs.u8, rs.u8, rs.u8], rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: [rs.u8, rs.u8, rs.u8] = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<[rs.u8, rs.u8, rs.u8]>) => rs.iterToVec(values, "next", 3));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u32_hints_reserves_closure1_hints_typed_closure2_u32_hints_reserves_closure1(coll: rs.u8, items: rs.Iter<rs.u32>, seed: rs.u32, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 4).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 4);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 4);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
-		const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
-			return [t3, 1] as [rs.u32, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
-			return [t2, 1] as [rs.u32, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
-			let _0!: rs.Result<rs.u32, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 4).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 4);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 4);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
+				const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
+					return [t3, 1] as [rs.u32, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
+					return [t2, 1] as [rs.u32, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u32_hints_reserves_closure1(coll: rs.u8, items: rs.Iter<rs.u32>, seed: rs.u32, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 4).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 4);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 4);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
-		const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
-			return [t3, 1] as [rs.u32, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
-			return [t2, 1] as [rs.u32, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
-			let _0!: rs.Result<rs.u32, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 4).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 4);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 4);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
+				const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
+					return [t3, 1] as [rs.u32, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
+					return [t2, 1] as [rs.u32, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u32_hints_reserves_closure1(coll: rs.u8, items: rs.Iter<rs.u32>, seed: rs.u32, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 4).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 4);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 4);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
-		const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
-			return [t3, 1] as [rs.u32, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
-			return [t2, 1] as [rs.u32, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
-			let _0!: rs.Result<rs.u32, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 4).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 4);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 4);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
+				const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
+					return [t3, 1] as [rs.u32, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
+					return [t2, 1] as [rs.u32, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u32_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u32_hints_reserves_closure1(coll: rs.u8, items: rs.Iter<rs.u32>, seed: rs.u32, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, undefined, 4, true).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32> = new rs.Vec();
-		rs.iterExtend(v, items, undefined, 4, true);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, undefined, 4, true);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 4, true), 4) as rs.VecDeque<rs.u32>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 4, true), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, undefined, 4, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, undefined, 4, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
-		const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
-			return [t3, 1] as [rs.u32, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
-			return [t2, 1] as [rs.u32, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
-	} else if (coll === 11) {
-		len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, undefined, 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
-			let _0!: rs.Result<rs.u32, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, undefined, 4));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, undefined, 4, true).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32> = new rs.Vec();
+			rs.iterExtend(v, items, undefined, 4, true);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, undefined, 4, true);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 4, true), 4) as rs.VecDeque<rs.u32>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 4, true), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, undefined, 4, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, undefined, 4, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
+				const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
+					return [t3, 1] as [rs.u32, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
+					return [t2, 1] as [rs.u32, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
+			} else if (coll === 11) {
+				len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, undefined, 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, undefined, 4));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u32_hints_reserves_closure1(coll: rs.u8, items: rs.Iter<rs.u32>, seed: rs.u32, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToVec(items, "next", 4).items.length;
-	} else if (coll === 1) {
-		const v: rs.Vec<rs.u32> = new rs.Vec();
-		rs.iterExtend(v, items, "next", 4);
-		len = v.items.length;
-	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
-		rs.iterExtend(v2, items, "next", 4);
-		len = v2.items.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
-	} else if (coll === 9) {
-		const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
-		const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
-			return [t3, 1] as [rs.u32, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
-			return [t2, 1] as [rs.u32, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
-			return v4.items.length;
-		});
-	} else {
-		const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
-			let _0!: rs.Result<rs.u32, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u32 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
-		if (_53.ok) {
-			len = _53.value.items.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToVec(items, "next", 4).items.length;
+		} else if (coll === 1) {
+			const v: rs.Vec<rs.u32> = new rs.Vec();
+			rs.iterExtend(v, items, "next", 4);
+			len = v.items.length;
+		} else if (coll === 2) {
+			const v2: rs.Vec<rs.u32> = rs.vecFromElem(seed, 2, undefined);
+			rs.iterExtend(v2, items, "next", 4);
+			len = v2.items.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 4), 4) as rs.VecDeque<rs.u32>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u32> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 4) as rs.VecDeque<rs.u32>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 4), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u32> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 4);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, items, true, undefined, "next", 4));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u32>, items, undefined, undefined, 234881024));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u32, rs.u32][] = [[seed, 0] as [rs.u32, rs.u32]];
+				const m: rs.HashMap<rs.u32, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u32, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t3: rs.u32): [rs.u32, rs.u32] => {
+					return [t3, 1] as [rs.u32, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(items, (t2: rs.u32): [rs.u32, rs.u32] => {
+					return [t2, 1] as [rs.u32, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$09ae03o(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u32): rs.u32 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4)), 255, (v4: rs.Vec<rs.u32>): rs.usize => {
+					return v4.items.length;
+				});
+			} else {
+				const _53: rs.Result<rs.Vec<rs.u32>, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u32]): rs.Result<rs.u32, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u32 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u32>) => rs.iterToVec(values, "next", 4));
+				if (_53.ok) {
+					len = _53.value.items.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0_hints_typed_closure2_u8_hints_reserves_closure0(coll: rs.u8, items: rs.Iter<rs.u8>, seed: rs.u8, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToByteVec(items, "next").length;
-	} else if (coll === 1) {
-		const v: rs.ByteVec = new rs.ByteVec();
-		rs.iterExtendBytes(v, items, "next");
-		len = v.length;
-	} else if (coll === 2) {
-		const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
-		rs.iterExtendBytes(v2, items, "next");
-		len = v2.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
-	} else if (coll === 9) {
-		const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
-		const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
-			return [t3, 1] as [rs.u8, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
-			return [t2, 1] as [rs.u8, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
-			return v4.length;
-		});
-	} else {
-		const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
-			let _0!: rs.Result<rs.u8, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u8 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
-		if (_53.ok) {
-			len = _53.value.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToByteVec(items, "next").length;
+		} else if (coll === 1) {
+			const v: rs.ByteVec = new rs.ByteVec();
+			rs.iterExtendBytes(v, items, "next");
+			len = v.length;
+		} else if (coll === 2) {
+			const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
+			rs.iterExtendBytes(v2, items, "next");
+			len = v2.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
+				const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
+					return [t3, 1] as [rs.u8, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
+					return [t2, 1] as [rs.u8, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
+					return v4.length;
+				});
+			} else {
+				const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u8 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
+				if (_53.ok) {
+					len = _53.value.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u8_hints_reserves_closure0(coll: rs.u8, items: rs.Iter<rs.u8>, seed: rs.u8, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToByteVec(items, "next").length;
-	} else if (coll === 1) {
-		const v: rs.ByteVec = new rs.ByteVec();
-		rs.iterExtendBytes(v, items, "next");
-		len = v.length;
-	} else if (coll === 2) {
-		const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
-		rs.iterExtendBytes(v2, items, "next");
-		len = v2.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
-	} else if (coll === 9) {
-		const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
-		const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
-			return [t3, 1] as [rs.u8, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
-			return [t2, 1] as [rs.u8, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
-			return v4.length;
-		});
-	} else {
-		const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
-			let _0!: rs.Result<rs.u8, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u8 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
-		if (_53.ok) {
-			len = _53.value.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToByteVec(items, "next").length;
+		} else if (coll === 1) {
+			const v: rs.ByteVec = new rs.ByteVec();
+			rs.iterExtendBytes(v, items, "next");
+			len = v.length;
+		} else if (coll === 2) {
+			const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
+			rs.iterExtendBytes(v2, items, "next");
+			len = v2.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
+				const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
+					return [t3, 1] as [rs.u8, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
+					return [t2, 1] as [rs.u8, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
+					return v4.length;
+				});
+			} else {
+				const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u8 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
+				if (_53.ok) {
+					len = _53.value.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u8_hints_reserves_closure0(coll: rs.u8, items: rs.Iter<rs.u8>, seed: rs.u8, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToByteVec(items, "next").length;
-	} else if (coll === 1) {
-		const v: rs.ByteVec = new rs.ByteVec();
-		rs.iterExtendBytes(v, items, "next");
-		len = v.length;
-	} else if (coll === 2) {
-		const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
-		rs.iterExtendBytes(v2, items, "next");
-		len = v2.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
-	} else if (coll === 9) {
-		const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
-		const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
-			return [t3, 1] as [rs.u8, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
-			return [t2, 1] as [rs.u8, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
-			return v4.length;
-		});
-	} else {
-		const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
-			let _0!: rs.Result<rs.u8, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u8 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
-		if (_53.ok) {
-			len = _53.value.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToByteVec(items, "next").length;
+		} else if (coll === 1) {
+			const v: rs.ByteVec = new rs.ByteVec();
+			rs.iterExtendBytes(v, items, "next");
+			len = v.length;
+		} else if (coll === 2) {
+			const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
+			rs.iterExtendBytes(v2, items, "next");
+			len = v2.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
+				const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
+					return [t3, 1] as [rs.u8, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
+					return [t2, 1] as [rs.u8, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
+					return v4.length;
+				});
+			} else {
+				const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u8 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
+				if (_53.ok) {
+					len = _53.value.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0(coll: rs.u8, items: rs.Iter<rs.u8>, seed: rs.u8, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToByteVec(items, undefined, true).length;
-	} else if (coll === 1) {
-		const v: rs.ByteVec = new rs.ByteVec();
-		rs.iterExtendBytes(v, items, undefined, true);
-		len = v.length;
-	} else if (coll === 2) {
-		const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
-		rs.iterExtendBytes(v2, items, undefined, true);
-		len = v2.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 1, true), 1, true) as rs.VecDeque<rs.u8>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
-		rs.dequeExtend(q, items, undefined, true);
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, undefined, 1, true), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, undefined, 1, true);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, undefined, 1, true));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
-	} else if (coll === 9) {
-		const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
-		const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
-			return [t3, 1] as [rs.u8, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
-			return [t2, 1] as [rs.u8, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
-	} else if (coll === 11) {
-		len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values)), 255, (v4: rs.ByteVec): rs.usize => {
-			return v4.length;
-		});
-	} else {
-		const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
-			let _0!: rs.Result<rs.u8, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u8 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values));
-		if (_53.ok) {
-			len = _53.value.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToByteVec(items, undefined, true).length;
+		} else if (coll === 1) {
+			const v: rs.ByteVec = new rs.ByteVec();
+			rs.iterExtendBytes(v, items, undefined, true);
+			len = v.length;
+		} else if (coll === 2) {
+			const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
+			rs.iterExtendBytes(v2, items, undefined, true);
+			len = v2.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 1, true), 1, true) as rs.VecDeque<rs.u8>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
+			rs.dequeExtend(q, items, undefined, true);
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, undefined, 1, true), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, undefined, 1, true);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, undefined, 1, true));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
+				const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
+					return [t3, 1] as [rs.u8, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
+					return [t2, 1] as [rs.u8, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, undefined, 8, true));
+			} else if (coll === 11) {
+				len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values)), 255, (v4: rs.ByteVec): rs.usize => {
+					return v4.length;
+				});
+			} else {
+				const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u8 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values));
+				if (_53.ok) {
+					len = _53.value.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
 export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0(coll: rs.u8, items: rs.Iter<rs.u8>, seed: rs.u8, out: rs.ByteVec): void {
 	let len!: rs.usize;
-	if (coll === 0) {
-		len = rs.iterToByteVec(items, "next").length;
-	} else if (coll === 1) {
-		const v: rs.ByteVec = new rs.ByteVec();
-		rs.iterExtendBytes(v, items, "next");
-		len = v.length;
-	} else if (coll === 2) {
-		const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
-		rs.iterExtendBytes(v2, items, "next");
-		len = v2.length;
-	} else if (coll === 3) {
-		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
-	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
-		rs.dequeExtend(q, items, "next");
-		len = q.n;
-	} else if (coll === 5) {
-		len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
-	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
-		rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
-		len = h.items.length;
-	} else if (coll === 7) {
-		len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
-	} else if (coll === 8) {
-		len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
-	} else if (coll === 9) {
-		const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
-		const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
-		const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
-			return [t3, 1] as [rs.u8, rs.u32];
-		});
-		rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
-		len = rs.hashLen(m);
-	} else if (coll === 10) {
-		const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
-			return [t2, 1] as [rs.u8, rs.u32];
-		});
-		len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
-	} else if (coll === 11) {
-		len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
-			return a0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
-			return v4.length;
-		});
-	} else {
-		const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
-			let _0!: rs.Result<rs.u8, rs.usize>;
-			const i2: rs.usize = _2[0];
-			const t: rs.u8 = _2[1];
-			if (!(i2 < 3)) {
-				_0 = rs.Err(i2);
-			} else {
-				_0 = rs.Ok(t);
-			}
-			return _0;
-		}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
-		if (_53.ok) {
-			len = _53.value.length;
+	let _62!: rs.ByteSlice;
+	let _63!: rs.ByteSlice;
+	let _64!: Uint8Array;
+	let _65!: rs.u32;
+	let _66!: rs.usize;
+	b0: {
+		if (coll === 0) {
+			len = rs.iterToByteVec(items, "next").length;
+		} else if (coll === 1) {
+			const v: rs.ByteVec = new rs.ByteVec();
+			rs.iterExtendBytes(v, items, "next");
+			len = v.length;
+		} else if (coll === 2) {
+			const v2: rs.ByteVec = rs.byteVecOf(seed, 2);
+			rs.iterExtendBytes(v2, items, "next");
+			len = v2.length;
+		} else if (coll === 3) {
+			len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1), 1, true) as rs.VecDeque<rs.u8>).n;
+		} else if (coll === 4) {
+			const q: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(seed, 2)), 1, true) as rs.VecDeque<rs.u8>;
+			rs.dequeExtend(q, items, "next");
+			len = q.n;
+		} else if (coll === 5) {
+			len = rs.heapFrom(rs.iterToVec(items, "next", 1), rs.le, rs.ge, rs.lt).items.length;
+		} else if (coll === 6) {
+			const h: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.byteVecToVec(rs.byteVecOf(seed, 2)), rs.le, rs.ge, rs.lt);
+			rs.heapExtend(h, items, rs.le, rs.ge, rs.lt, "next", 1);
+			len = h.items.length;
+		} else if (coll === 7) {
+			len = rs.btreeLen(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, items, true, undefined, "next", 1));
+		} else if (coll === 8) {
+			len = rs.hashLen(rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, items, undefined, undefined, 469762048));
 		} else {
-			len = rs.usizeAdd(_53.error, 256);
+			if (coll === 9) {
+				const _41: [rs.u8, rs.u32][] = [[seed, 0] as [rs.u8, rs.u32]];
+				const m: rs.HashMap<rs.u8, rs.u32> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u32>, rs.iterSlice(_41), undefined, undefined, undefined, 117440512);
+				const _46: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t3: rs.u8): [rs.u8, rs.u32] => {
+					return [t3, 1] as [rs.u8, rs.u32];
+				});
+				rs.hashExtend(m, _46, undefined, undefined, undefined, 117440512);
+				len = rs.hashLen(m);
+				_66 = len;
+				_65 = _66 as rs.u32;
+				_64 = rs.u32ToBeBytes(_65);
+				_63 = rs.byteSliceFrom(_64);
+				_62 = _63;
+				rs.byteVecExtendFromSlice(out, _62);
+				break b0;
+			}
+			if (coll === 10) {
+				const _50: rs.Iter<[rs.u8, rs.u32]> = rs.iterMap(items, (t2: rs.u8): [rs.u8, rs.u32] => {
+					return [t2, 1] as [rs.u8, rs.u32];
+				});
+				len = rs.btreeLen(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>, _50, true, undefined, undefined, "next", 8));
+			} else if (coll === 11) {
+				len = option_mapOr$19z8yie(rs.iterCollectOption(rs.iterMap(items, (a0: rs.u8): rs.u8 | undefined => {
+					return a0;
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next")), 255, (v4: rs.ByteVec): rs.usize => {
+					return v4.length;
+				});
+			} else {
+				const _53: rs.Result<rs.ByteVec, rs.usize> = rs.iterCollectResult(rs.iterMap(rs.iterEnumerate(items), (_2: [rs.usize, rs.u8]): rs.Result<rs.u8, rs.usize> => {
+					const i2: rs.usize = _2[0];
+					const t: rs.u8 = _2[1];
+					if (!(i2 < 3)) {
+						return rs.Err(i2);
+					}
+					return rs.Ok(t);
+				}), (values: rs.Iter<rs.u8>) => rs.iterToByteVec(values, "next"));
+				if (_53.ok) {
+					len = _53.value.length;
+				} else {
+					len = rs.usizeAdd(_53.error, 256);
+				}
+			}
 		}
+		_66 = len;
+		_65 = _66 as rs.u32;
+		_64 = rs.u32ToBeBytes(_65);
+		_63 = rs.byteSliceFrom(_64);
+		_62 = _63;
+		rs.byteVecExtendFromSlice(out, _62);
 	}
-	const dst = out;
-	const word = len as rs.u32;
-	rs.byteVecReserve(dst, 4 as rs.usize);
-	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
-	dst.length = dst.length + 4;
 }
 
 //# sourceMappingURL=hints.ts.map

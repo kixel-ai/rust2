@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { drop$task_Poll_futures_Logged, drop$tuple2_task_Waker_Option_task_Waker, drop$tuple3_futures_Held_Option_task_Waker_array2_task_Waker } from "./lib.ts";
-import { isSomeAnd$1s2u5lz, filter$0hq86nl } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, filter$0agadp5 } from "./core/option.ts";
 import { eq$1o5v7fd as poll_eq$1o5v7fd, eq$1qrb1lw as poll_eq$1qrb1lw, map$1jzbsum as poll_map$1jzbsum, isReady$1olyx0w, isPending$0bap0yh, isPending$189w6zf } from "./core/task/poll.ts";
 import * as Count from "./futures.Count.ts";
 import * as Held from "./futures.Held.ts";
@@ -253,8 +253,7 @@ export class readiesFuture$closure0 {
  * the values around it.
  */
 export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _102: boolean = false;
-	let _101: boolean = false;
+	let after!: Logged.Logged;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const s: Uint8Array = rs.byteSliceView(data);
 	let front: number = 0;
@@ -266,50 +265,53 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b: rs.u8 = x;
 		const before: Logged.Logged = new Logged.Logged(b, rs.arcClone(log));
 		const r: rs.Ready<Logged.Logged> = new rs.Ready(new Logged.Logged(b ^ 128, rs.arcClone(log)), rs.drop);
-		_102 = true;
-		const _25: rs.Arc<rs.RefCell<rs.ByteVec>> = rs.arcClone(log);
-		_101 = true;
-		const after: Logged.Logged = new Logged.Logged(b ^ 64, _25);
-		const _28: rs.usize = rs.usizeRem(i, 6);
-		if (_28 !== 0) {
+		b2: {
+			after = new Logged.Logged(b ^ 64, rs.arcClone(log));
+			const _28: rs.usize = rs.usizeRem(i, 6);
+			if (_28 === 0) {
+				break b2;
+			}
 			if (_28 === 1) {
-				_102 = false;
 				r[Symbol.dispose]();
-			} else if (_28 === 2) {
-				const _30: rs.Poll<Logged.Logged> = pollOnce$future_Ready_futures_Logged(r);
-				if (_30 !== rs.Pending) {
-					const v: Logged.Logged = _30;
-					const _38: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-					rs.byteVecPush(_38.value, 240);
-					rs.refMutRelease(_38);
-					v[Symbol.dispose]();
-				}
-				const _45: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-				rs.byteVecPush(_45.value, 241);
-				rs.refMutRelease(_45);
-			} else if (_28 === 3) {
-				_102 = false;
-				const v2: Logged.Logged = r.intoInner();
-				_101 = false;
-				after[Symbol.dispose]();
-				const _55: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-				rs.byteVecPush(_55.value, v2._0);
-				rs.refMutRelease(_55);
-				v2[Symbol.dispose]();
-			} else if (_28 === 4) {
-				const clone: rs.Ready<rs.Arc<Logged.Logged>> = new rs.Ready(new rs.Arc(new Logged.Logged(b ^ 32, rs.arcClone(log))), rs.drop);
-				const copy: rs.Ready<rs.Arc<Logged.Logged>> = clone.clone((a0: rs.Arc<Logged.Logged>): rs.Arc<Logged.Logged> => {
-					return rs.arcClone(a0);
-				});
-				clone[Symbol.dispose]();
-				const _70: rs.Arc<Logged.Logged> = copy.intoInner();
-				const count: rs.usize = _70.strong;
-				_70[Symbol.dispose]();
-				const _74: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-				rs.byteVecPush(_74.value, count & 0xff);
-				rs.refMutRelease(_74);
 			} else {
-				_102 = false;
+				if (_28 === 2) {
+					const _30: rs.Poll<Logged.Logged> = pollOnce$future_Ready_futures_Logged(r);
+					if (_30 !== rs.Pending) {
+						const v: Logged.Logged = _30;
+						const _38: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+						rs.byteVecPush(_38.value, 240);
+						rs.refMutRelease(_38);
+						v[Symbol.dispose]();
+					}
+					const _45: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+					rs.byteVecPush(_45.value, 241);
+					rs.refMutRelease(_45);
+					break b2;
+				}
+				if (_28 === 3) {
+					const v2: Logged.Logged = r.intoInner();
+					after[Symbol.dispose]();
+					const _55: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+					rs.byteVecPush(_55.value, v2._0);
+					rs.refMutRelease(_55);
+					v2[Symbol.dispose]();
+					before[Symbol.dispose]();
+					continue;
+				}
+				if (_28 === 4) {
+					const clone: rs.Ready<rs.Arc<Logged.Logged>> = new rs.Ready(new rs.Arc(new Logged.Logged(b ^ 32, rs.arcClone(log))), rs.drop);
+					const copy: rs.Ready<rs.Arc<Logged.Logged>> = clone.clone((a0: rs.Arc<Logged.Logged>): rs.Arc<Logged.Logged> => {
+						return rs.arcClone(a0);
+					});
+					clone[Symbol.dispose]();
+					const _70: rs.Arc<Logged.Logged> = copy.intoInner();
+					const count: rs.usize = _70.strong;
+					_70[Symbol.dispose]();
+					const _74: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+					rs.byteVecPush(_74.value, count & 0xff);
+					rs.refMutRelease(_74);
+					break b2;
+				}
 				const pinned: rs.Future<rs.u8> = new droppedFuture$closure0(r);
 				const _82: rs.Poll<rs.u8> = pollOnce$futures_dropped_closure0(pinned);
 				if (_82 !== rs.Pending) {
@@ -320,16 +322,13 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				rs.drop(pinned);
 			}
+			before[Symbol.dispose]();
+			after[Symbol.dispose]();
+			continue;
 		}
 		before[Symbol.dispose]();
-		if (_101) {
-			after[Symbol.dispose]();
-		}
-		_101 = false;
-		if (_102) {
-			r[Symbol.dispose]();
-		}
-		_102 = false;
+		after[Symbol.dispose]();
+		r[Symbol.dispose]();
 	}
 	const _97: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_97.value))), undefined, true);
@@ -452,7 +451,7 @@ export function polls(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const args2 = [(f: rs.Formatter) => rs.fmtPoll(_23, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(p, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 4 }, args2[0]), "|", rs.fmtSpec({ align: "<", alternate: true, debugHex: "x", width: 5 }, args2[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args2[1])]).v);
 		debug$task_Poll_Option_u8(out, poll_map$1jzbsum(b as rs.Poll<rs.u8 | undefined>, (o: rs.u8 | undefined): rs.u8 | undefined => {
-			return filter$0hq86nl(o, (v: rs.u8): boolean => {
+			return filter$0agadp5(o, (v: rs.u8): boolean => {
 				return rs.u8Rem(v, 2) === 0;
 			});
 		}));

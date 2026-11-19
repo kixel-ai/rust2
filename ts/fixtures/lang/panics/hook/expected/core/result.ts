@@ -11,8 +11,9 @@ export function asRef$11fb4n1(self: rs.Result<rs.u8, Any.Any>): rs.Result<rs.u8,
 	return rs.Err(self.error);
 }
 
-export function map$1hfd4x1(self: rs.Result<rs.RefCell<rs.u8>, rs.BorrowMutError>, _: (a0: rs.RefCell<rs.u8>) => undefined): rs.Result<undefined, rs.BorrowMutError> {
+export function map$0rnnt8e(self: rs.Result<rs.RefCell<rs.u8>, rs.BorrowMutError>, _: (a0: rs.RefCell<rs.u8>) => undefined): rs.Result<undefined, rs.BorrowMutError> {
 	if (self.ok) {
+		const part = self.value;
 		return rs.OK;
 	}
 	return self as rs.Result<undefined, rs.BorrowMutError>;

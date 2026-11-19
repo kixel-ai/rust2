@@ -386,21 +386,24 @@ export function holds(out: rs.ByteVec, len: rs.usize, cap: rs.usize, floor: rs.u
  * allocates, and an allocation while it holds any.
  */
 export function capacity(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let m!: rs.HashMap<rs.u16, rs.u64>;
+	let s!: rs.HashSet<rs.u8>;
+	let t!: rs.HashTable<rs.u32>;
 	let floor!: rs.usize;
-	let _49!: boolean;
+	let _48!: boolean;
 	let before!: rs.usize[];
 	let additional!: rs.usize | undefined;
 	let keptMin!: rs.usize | undefined;
-	let _78!: rs.u8;
-	let _150!: boolean;
-	let _182!: rs.usize;
+	let _77!: rs.u8;
+	let _149!: boolean;
+	let _181!: rs.usize;
 	let floor2!: rs.usize;
 	let grew!: boolean;
-	let _210!: boolean;
-	let _220!: boolean;
-	let _224!: rs.HashMap<rs.u16, rs.u64>;
-	let _225!: rs.HashSet<rs.u8>;
-	let _226!: rs.HashTable<rs.u32>;
+	let _209!: boolean;
+	let _219!: boolean;
+	let _223!: rs.HashMap<rs.u16, rs.u64>;
+	let _224!: rs.HashSet<rs.u8>;
+	let _225!: rs.HashTable<rs.u32>;
 	if (dataLen !== 0) {
 		const first: rs.u8 = dataData[dataStart];
 		const made: rs.usize = first >> 2 as rs.usize;
@@ -409,40 +412,40 @@ export function capacity(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const _13: rs.HashMap<rs.u16, rs.u64> = rs.hashNew() as rs.HashMap<rs.u16, rs.u64>;
 			const _14: rs.HashSet<rs.u8> = rs.hashNew() as rs.HashSet<rs.u8>;
 			const _15: rs.HashTable<rs.u32> = rs.hashNew() as rs.HashTable<rs.u32>;
-			_224 = _13;
-			_225 = _14;
-			_226 = _15;
+			_223 = _13;
+			_224 = _14;
+			_225 = _15;
+			m = _223;
+			s = _224;
+			t = _225;
+			floor = 0;
 		} else {
 			rs.randomState();
 			const _16: rs.HashMap<rs.u16, rs.u64> = rs.hashWithCapacity(made, 58720256) as rs.HashMap<rs.u16, rs.u64>;
 			const _18: rs.HashSet<rs.u8> = rs.hashWithCapacity(made, 469762048) as rs.HashSet<rs.u8>;
 			const _19: rs.HashTable<rs.u32> = rs.hashWithCapacity(made, 234881024) as rs.HashTable<rs.u32>;
-			_224 = _16;
-			_225 = _18;
-			_226 = _19;
-		}
-		const m: rs.HashMap<rs.u16, rs.u64> = _224;
-		const s: rs.HashSet<rs.u8> = _225;
-		const t: rs.HashTable<rs.u32> = _226;
-		if (!(_12 === 0)) {
+			_223 = _16;
+			_224 = _18;
+			_225 = _19;
+			m = _223;
+			s = _224;
+			t = _225;
 			floor = made;
-		} else {
-			floor = 0;
 		}
 		const iter: rs.Iter<[rs.usize, rs.usize]> = rs.iterSlice([[rs.hashCapacity(m), rs.hashLen(m)] as [rs.usize, rs.usize], [rs.hashCapacity(s), rs.hashLen(s)] as [rs.usize, rs.usize], [rs.hashCapacity(t), rs.hashLen(t)] as [rs.usize, rs.usize]]);
 		while (true) {
-			const _40: [rs.usize, rs.usize] | rs.Done = iter.next();
-			if (_40 === rs.DONE) {
+			const _39: [rs.usize, rs.usize] | rs.Done = iter.next();
+			if (_39 === rs.DONE) {
 				break;
 			}
-			const cap: rs.usize = _40[0];
-			holds(out, _40[1], cap, floor);
+			const cap: rs.usize = _39[0];
+			holds(out, _39[1], cap, floor);
 			if (!(cap === 0)) {
-				_49 = _12 !== 0;
+				_48 = _12 !== 0;
 			} else {
-				_49 = true;
+				_48 = true;
 			}
-			rs.byteVecPush(out, _49 ? 1 : 0);
+			rs.byteVecPush(out, _48 ? 1 : 0);
 		}
 		const hasher: rs.RandomState = rs.randomState();
 		const rehash: (a0: rs.u32) => rs.u64 = (v3: rs.u32): rs.u64 => {
@@ -452,62 +455,59 @@ export function capacity(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			return true;
 		});
 		const iter2: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 2);
-		l7: while (true) {
-			const _58: rs.ByteSlice | rs.Done = iter2.next();
-			if (_58 === rs.DONE) {
+		l6: while (true) {
+			const _57: rs.ByteSlice | rs.Done = iter2.next();
+			if (_57 === rs.DONE) {
 				break;
 			}
-			rs.idx(_58, 0);
-			const op: rs.u8 = _58.data[_58.start];
-			const _66: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_58, 1), 0);
-			const _70: rs.usize = rs.hashCapacity(m);
-			const _72: rs.usize = rs.hashCapacity(s);
-			const _74: rs.usize = rs.hashCapacity(t);
-			b8: {
-				before = [_70, _72, _74];
+			rs.idx(_57, 0);
+			const op: rs.u8 = _57.data[_57.start];
+			const _65: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_57, 1), 0);
+			const _69: rs.usize = rs.hashCapacity(m);
+			const _71: rs.usize = rs.hashCapacity(s);
+			const _73: rs.usize = rs.hashCapacity(t);
+			b7: {
+				before = [_69, _71, _73];
 				additional = undefined;
 				keptMin = undefined;
-				_78 = rs.u8Rem(op, 7);
-				const arg: rs.u8 = _66;
-				if (0 <= _78) {
-					if (_78 <= 2) {
-						rs.hashInsert(m, _66 as rs.u16, op as rs.u64);
-						rs.hashAdd(s, _66);
-						const v: rs.u32 = _66 as rs.u32;
-						const _92: rs.u64 = rs.hashOne(rs.buildHasher(hasher), v, rs.hash32);
-						if (!(rs.tableFind(t, _92, (_2: rs.u32): boolean => {
+				_77 = rs.u8Rem(op, 7);
+				const arg: rs.u8 = _65;
+				if (0 <= _77) {
+					if (_77 <= 2) {
+						rs.hashInsert(m, _65 as rs.u16, op as rs.u64);
+						rs.hashAdd(s, _65);
+						const v: rs.u32 = _65 as rs.u32;
+						if (!(rs.tableFind(t, rs.hashOne(rs.buildHasher(hasher), v, rs.hash32), (_2: rs.u32): boolean => {
 							return _2 === v;
 						}) === undefined)) {
-							break b8;
+							break b7;
 						}
-						const _98: rs.u64 = rs.hashOne(rs.buildHasher(hasher), v, rs.hash32);
-						rs.tableInsertUnique(t, _98, v, rehash);
-						break b8;
+						rs.tableInsertUnique(t, rs.hashOne(rs.buildHasher(hasher), v, rs.hash32), v, rehash);
+						break b7;
 					}
 				}
-				if (_78 === 3) {
-					rs.hashRemove(m, _66 as rs.u16);
+				if (_77 === 3) {
+					rs.hashRemove(m, _65 as rs.u16);
 					rs.hashDelete(s, arg);
-					const v2: rs.u32 = _66 as rs.u32;
-					const _110: rs.u64 = rs.hashOne(rs.buildHasher(hasher), v2, rs.hash32);
-					const _108: rs.Result<rs.TableEntry<rs.u32>, rs.TableEntry<rs.u32>> = rs.tableFindEntry(t, _110, (_26: rs.u32): boolean => {
-						return _26 === v2;
+					const v2: rs.u32 = _65 as rs.u32;
+					const _107: rs.Result<rs.TableEntry<rs.u32>, rs.TableEntry<rs.u32>> = rs.tableFindEntry(t, rs.hashOne(rs.buildHasher(hasher), v2, rs.hash32), (_217: rs.u32): boolean => {
+						return _217 === v2;
 					});
-					if (_108.ok) {
-						rs.tableRemove(_108.value);
+					if (_107.ok) {
+						rs.tableRemove(_107.value);
 					}
 					kept = Array.from({ length: 3 }, (): boolean => {
 						return false;
 					});
-				} else if (_78 === 4) {
-					const n: rs.usize = rs.u8Rem(_66, 40) as rs.usize;
+				} else if (_77 === 4) {
+					const n: rs.usize = rs.u8Rem(_65, 40) as rs.usize;
 					rs.hashReserve(m, n, 58720256);
 					rs.hashReserve(s, n, 469762048);
 					rs.hashReserve(t, n, 234881024, rehash);
 					additional = n;
-				} else if (_78 === 5) {
-					const min: rs.usize = rs.u8Rem(_66, 20) as rs.usize;
-					if ((_66 & 128) === 0) {
+				} else if (_77 === 5) {
+					const min: rs.usize = rs.u8Rem(_65, 20) as rs.usize;
+					if ((_65 & 128) === 0) {
 						rs.hashShrinkTo(m, min);
 						rs.hashShrinkTo(s, min);
 						rs.hashShrinkTo(t, min, rehash);
@@ -524,16 +524,16 @@ export function capacity(dataData: Uint8Array, dataStart: number, dataLen: numbe
 					rs.hashClear(m);
 					rs.hashClear(s);
 					rs.hashClear(t, undefined);
-					b10: {
-						if (rs.hashCapacity(m) >= _70) {
-							if (rs.hashCapacity(s) >= _72) {
-								_150 = rs.hashCapacity(t) >= _74;
-								break b10;
+					b9: {
+						if (rs.hashCapacity(m) >= _69) {
+							if (rs.hashCapacity(s) >= _71) {
+								_149 = rs.hashCapacity(t) >= _73;
+								break b9;
 							}
 						}
-						_150 = false;
+						_149 = false;
 					}
-					rs.byteVecPush(out, _150 ? 1 : 0);
+					rs.byteVecPush(out, _149 ? 1 : 0);
 				}
 			}
 			const lens: rs.usize[] = [rs.hashLen(m), rs.hashLen(s), rs.hashLen(t)];
@@ -541,100 +541,100 @@ export function capacity(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const sizes: rs.usize[] = [rs.hashAllocationSize(m, 16), rs.hashAllocationSize(s, 1), rs.hashAllocationSize(t, 4)];
 			const iter3: rs.Range<rs.usize> = new rs.Range(0, 3);
 			while (true) {
-				const _182Some: boolean = iter3.start < iter3.end;
-				if (_182Some) {
-					_182 = iter3.start++;
+				const _181Some: boolean = iter3.start < iter3.end;
+				if (_181Some) {
+					_181 = iter3.start++;
 				}
-				if (!_182Some) {
-					continue l7;
+				if (!_181Some) {
+					continue l6;
 				}
-				const i: rs.usize = _182;
-				const _187 = additional as rs.usize | undefined;
-				const _188 = keptMin as rs.usize | undefined;
-				if (_187 !== undefined) {
-					const n2: rs.usize = _187;
+				const i: rs.usize = _181;
+				const _186 = additional as rs.usize | undefined;
+				const _187 = keptMin as rs.usize | undefined;
+				if (_186 !== undefined) {
+					const n2: rs.usize = _186;
 					if (!(i < 3)) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
 					floor2 = rs.usizeAdd(n2, lens[i]);
-				} else if (_188 !== undefined) {
-					const min2: rs.usize = _188;
-					const _197: boolean = i < 3;
-					if (!_197) {
+				} else if (_187 !== undefined) {
+					const min2: rs.usize = _187;
+					const _196: boolean = i < 3;
+					if (!_196) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
-					const _196: rs.usize = before[i];
-					if (!_197) {
+					const _195: rs.usize = before[i];
+					if (!_196) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
-					floor2 = rs.min(_196, rs.max(lens[i], min2));
+					floor2 = rs.min(_195, rs.max(lens[i], min2));
 				} else {
 					floor2 = 0;
 				}
-				const _202: boolean = i < 3;
-				if (!_202) {
+				const _201: boolean = i < 3;
+				if (!_201) {
 					rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 				}
-				const _201: rs.usize = lens[i];
-				if (!_202) {
+				const _200: rs.usize = lens[i];
+				if (!_201) {
 					rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 				}
-				const _203: rs.usize = caps[i];
-				holds(out, _201, _203, floor2);
-				if (!(_78 <= 2)) {
+				const _202: rs.usize = caps[i];
+				holds(out, _200, _202, floor2);
+				if (!(_77 <= 2)) {
 					grew = false;
 				} else {
-					if (!_202) {
+					if (!_201) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
-					if (!_202) {
+					if (!_201) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
-					grew = _203 > before[i];
+					grew = _202 > before[i];
 				}
-				b17: {
+				b16: {
 					if (grew) {
-						if (!_202) {
+						if (!_201) {
 							rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 						}
 						if (kept[i]) {
-							if (!_202) {
+							if (!_201) {
 								rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 							}
-							const _214: rs.usize = before[i];
-							if (!(_214 === 0)) {
-								if (!_202) {
+							const _213: rs.usize = before[i];
+							if (!(_213 === 0)) {
+								if (!_201) {
 									rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 								}
-								if (!_202) {
+								if (!_201) {
 									rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 								}
-								_210 = _203 >= rs.usizeMul(_214, 2);
-								break b17;
+								_209 = _202 >= rs.usizeMul(_213, 2);
+								break b16;
 							}
 						}
 					}
-					_210 = true;
+					_209 = true;
 				}
-				rs.byteVecPush(out, _210 ? 1 : 0);
+				rs.byteVecPush(out, _209 ? 1 : 0);
 				if (grew) {
-					if (!_202) {
+					if (!_201) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
 					kept[i] = true;
 				}
-				if (!_202) {
+				if (!_201) {
 					rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 				}
-				if (!(_201 === 0)) {
-					if (!_202) {
+				if (!(_200 === 0)) {
+					if (!_201) {
 						rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 					}
-					_220 = sizes[i] > 0;
+					_219 = sizes[i] > 0;
 				} else {
-					_220 = true;
+					_219 = true;
 				}
-				rs.byteVecPush(out, _220 ? 1 : 0);
+				rs.byteVecPush(out, _219 ? 1 : 0);
 			}
 		}
 	}
@@ -1023,10 +1023,8 @@ export function ends$hashlink_linked_hash_map_Values_u16_u32_maps_linked_iters_c
 export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let _15!: rs.u16;
 	let it!: ValuesMut.ValuesMut<rs.u16, rs.u32>;
-	let _101: boolean = false;
 	if (dataLen >= 2) {
 		const m: LinkedHashMap.LinkedHashMap<rs.u16, rs.u32, rs.RandomState> = LinkedHashMap.withHasher$u16_u32_hash_RandomState(rs.randomState());
-		_101 = true;
 		const _12: rs.u16 = rs.u8Rem(dataData[dataStart], 12) as rs.u16;
 		let iterStart: rs.u16 = 0;
 		const iterEnd: rs.u16 = _12;
@@ -1035,79 +1033,81 @@ export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: nu
 			LinkedHashMap.insert$u16_u32_hash_RandomState(m, rs.u16Rem(rs.u16Add(rs.u16Mul(i, 5), rs.u8Shr(dataData[dataStart], 4) as rs.u16), 12), rs.u32Mul(i as rs.u32, 3));
 		}
 		const k: rs.usize = rs.u8Shr(dataData[dataStart + 1], 3) as rs.usize;
-		const _34: rs.u8 = rs.u8Rem(dataData[dataStart + 1], 8);
-		const _33: (a0: [rs.u16, rs.u32]) => rs.usize = (_2: [rs.u16, rs.u32]): rs.usize => {
-			return rs.usizeAdd(rs.usizeMul(_2[0] as rs.usize, 4096), _2[1] as rs.usize);
-		};
-		if (_34 === 0) {
-			ends$hashlink_linked_hash_map_Iter_u16_u32_maps_linked_iters_closure0(LinkedHashMap.iter$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_215: [rs.u16, rs.u32]): rs.usize => {
-				return rs.usizeAdd(rs.usizeMul(_215[0] as rs.usize, 4096), _215[1] as rs.usize);
-			});
-		} else if (_34 === 1) {
-			ends$hashlink_linked_hash_map_IterMut_u16_u32_maps_linked_iters_closure1(LinkedHashMap.iterMut$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_214: [rs.u16, rs.Place<rs.u32>]): rs.usize => {
-				_214[1].v = rs.u32Add(_214[1].v, 100);
-				return _214[0] as rs.usize;
-			});
-			const _41: linked_hash_map_Iter.Iter<rs.u16, rs.u32> = LinkedHashMap.iter$u16_u32_hash_RandomState(m);
-			const _43: (a0: [rs.u16, rs.u32]) => undefined = (e2: [rs.u16, rs.u32]): undefined => {
-				put(out, _33(e2));
+		b3: {
+			const _34: rs.u8 = rs.u8Rem(dataData[dataStart + 1], 8);
+			const _33: (a0: [rs.u16, rs.u32]) => rs.usize = (_2: [rs.u16, rs.u32]): rs.usize => {
+				return rs.usizeAdd(rs.usizeMul(_2[0] as rs.usize, 4096), _2[1] as rs.usize);
 			};
-			rs.iterForEach(rs.iterFrom(_41, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), _43);
-		} else if (_34 === 2) {
-			ends$hashlink_linked_hash_map_Keys_u16_u32_maps_linked_iters_closure3(LinkedHashMap.keys$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (k5: rs.u16): rs.usize => {
-				return k5 as rs.usize;
-			});
-		} else if (_34 === 3) {
-			ends$hashlink_linked_hash_map_Values_u16_u32_maps_linked_iters_closure4(LinkedHashMap.values$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (v6: rs.u32): rs.usize => {
-				return v6 as rs.usize;
-			});
-		} else if (_34 === 4) {
-			_101 = false;
-			ends$hashlink_linked_hash_map_IntoIter_u16_u32_maps_linked_iters_closure5(LinkedHashMap.intoIter$iter_IntoIterator_u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_213: [rs.u16, rs.u32]): rs.usize => {
-				return rs.usizeAdd(rs.usizeMul(_213[0] as rs.usize, 4096), _213[1] as rs.usize);
-			});
-		} else if (_34 === 5) {
-			ends$hashlink_linked_hash_map_Drain_u16_u32_maps_linked_iters_closure6(LinkedHashMap.drain$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_212: [rs.u16, rs.u32]): rs.usize => {
-				return rs.usizeAdd(rs.usizeMul(_212[0] as rs.usize, 4096), _212[1] as rs.usize);
-			});
-			put(out, LinkedHashMap.len$u16_u32_hash_RandomState(m));
-		} else if (_34 === 6) {
-			it = LinkedHashMap.valuesMut$u16_u32_hash_RandomState(m);
-			const _63: rs.usize = rs.usizeRem(k, 4);
-			put(out, option_mapOr$17oc7db(rs.iterNthBack(rs.iterFrom(it, ValuesMut.next$iter_Iterator_u16_u32, undefined, { hint: ValuesMut.sizeHint$iter_Iterator_u16_u32, back: (it: ValuesMut.ValuesMut<rs.u16, rs.u32>) => rs.iterFromOption(ValuesMut.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: ValuesMut.len$iter_ExactSizeIterator_u16_u32 }), _63), 256, (v: rs.Place<rs.u32>): rs.usize => {
-				return v.v as rs.usize;
-			}));
-			put(out, ValuesMut.len$iter_ExactSizeIterator_u16_u32(it));
-			rs.iterForEach(rs.iterRev(rs.iterFrom(it, ValuesMut.next$iter_Iterator_u16_u32, undefined, { hint: ValuesMut.sizeHint$iter_Iterator_u16_u32, back: (it: ValuesMut.ValuesMut<rs.u16, rs.u32>) => rs.iterFromOption(ValuesMut.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: ValuesMut.len$iter_ExactSizeIterator_u16_u32 })), (v2: rs.Place<rs.u32>): undefined => {
-				v2.v = rs.u32Add(v2.v, 1);
-			});
-			rs.iterForEach(rs.iterFrom(LinkedHashMap.values$u16_u32_hash_RandomState(m), linked_hash_map_Values.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Values.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Values.Values<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Values.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: linked_hash_map_Values.len$iter_ExactSizeIterator_u16_u32 }), (v3: rs.u32): undefined => {
-				put(out, v3 as rs.usize);
-			});
-		} else {
-			const it2: linked_hash_map_Iter.Iter<rs.u16, rs.u32> = LinkedHashMap.iter$u16_u32_hash_RandomState(m);
-			put(out, option_mapOr$0o00yzv(rs.iterToOption(linked_hash_map_Iter.next$iter_Iterator_u16_u32(it2)), 256, (_210: [rs.u16, rs.u32]): rs.usize => {
-				return rs.usizeAdd(rs.usizeMul(_210[0] as rs.usize, 4096), _210[1] as rs.usize);
-			}));
-			put(out, rs.iterFrom(it2, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }).len());
-			const rest: rs.Vec<rs.usize> = rs.iterToVec(rs.iterMap(rs.iterSkip(rs.iterRev(rs.iterFrom(it2, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) })), rs.usizeRem(k, 4)), (_211: [rs.u16, rs.u32]): rs.usize => {
-				return rs.usizeAdd(rs.usizeMul(_211[0] as rs.usize, 4096), _211[1] as rs.usize);
-			}), "next", 4);
-			put(out, rs.vecCapacity(rest, 4));
-			const s = rest.items;
-			let front = 0;
-			let back = s.length;
-			while (!(front >= back)) {
-				put(out, s[front++]);
+			if (_34 === 0) {
+				ends$hashlink_linked_hash_map_Iter_u16_u32_maps_linked_iters_closure0(LinkedHashMap.iter$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_215: [rs.u16, rs.u32]): rs.usize => {
+					return rs.usizeAdd(rs.usizeMul(_215[0] as rs.usize, 4096), _215[1] as rs.usize);
+				});
+			} else if (_34 === 1) {
+				ends$hashlink_linked_hash_map_IterMut_u16_u32_maps_linked_iters_closure1(LinkedHashMap.iterMut$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_214: [rs.u16, rs.Place<rs.u32>]): rs.usize => {
+					_214[1].v = rs.u32Add(_214[1].v, 100);
+					return _214[0] as rs.usize;
+				});
+				const _41: linked_hash_map_Iter.Iter<rs.u16, rs.u32> = LinkedHashMap.iter$u16_u32_hash_RandomState(m);
+				const _43: (a0: [rs.u16, rs.u32]) => undefined = (e2: [rs.u16, rs.u32]): undefined => {
+					put(out, _33(e2));
+				};
+				rs.iterForEach(rs.iterFrom(_41, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), _43);
+			} else if (_34 === 2) {
+				ends$hashlink_linked_hash_map_Keys_u16_u32_maps_linked_iters_closure3(LinkedHashMap.keys$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (k5: rs.u16): rs.usize => {
+					return k5 as rs.usize;
+				});
+			} else if (_34 === 3) {
+				ends$hashlink_linked_hash_map_Values_u16_u32_maps_linked_iters_closure4(LinkedHashMap.values$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (v6: rs.u32): rs.usize => {
+					return v6 as rs.usize;
+				});
+			} else {
+				if (_34 === 4) {
+					ends$hashlink_linked_hash_map_IntoIter_u16_u32_maps_linked_iters_closure5(LinkedHashMap.intoIter$iter_IntoIterator_u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_213: [rs.u16, rs.u32]): rs.usize => {
+						return rs.usizeAdd(rs.usizeMul(_213[0] as rs.usize, 4096), _213[1] as rs.usize);
+					});
+					break b3;
+				}
+				if (_34 === 5) {
+					ends$hashlink_linked_hash_map_Drain_u16_u32_maps_linked_iters_closure6(LinkedHashMap.drain$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_212: [rs.u16, rs.u32]): rs.usize => {
+						return rs.usizeAdd(rs.usizeMul(_212[0] as rs.usize, 4096), _212[1] as rs.usize);
+					});
+					put(out, LinkedHashMap.len$u16_u32_hash_RandomState(m));
+				} else if (_34 === 6) {
+					it = LinkedHashMap.valuesMut$u16_u32_hash_RandomState(m);
+					const _63: rs.usize = rs.usizeRem(k, 4);
+					put(out, option_mapOr$17oc7db(rs.iterNthBack(rs.iterFrom(it, ValuesMut.next$iter_Iterator_u16_u32, undefined, { hint: ValuesMut.sizeHint$iter_Iterator_u16_u32, back: (it: ValuesMut.ValuesMut<rs.u16, rs.u32>) => rs.iterFromOption(ValuesMut.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: ValuesMut.len$iter_ExactSizeIterator_u16_u32 }), _63), 256, (v: rs.Place<rs.u32>): rs.usize => {
+						return v.v as rs.usize;
+					}));
+					put(out, ValuesMut.len$iter_ExactSizeIterator_u16_u32(it));
+					rs.iterForEach(rs.iterRev(rs.iterFrom(it, ValuesMut.next$iter_Iterator_u16_u32, undefined, { hint: ValuesMut.sizeHint$iter_Iterator_u16_u32, back: (it: ValuesMut.ValuesMut<rs.u16, rs.u32>) => rs.iterFromOption(ValuesMut.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: ValuesMut.len$iter_ExactSizeIterator_u16_u32 })), (v2: rs.Place<rs.u32>): undefined => {
+						v2.v = rs.u32Add(v2.v, 1);
+					});
+					rs.iterForEach(rs.iterFrom(LinkedHashMap.values$u16_u32_hash_RandomState(m), linked_hash_map_Values.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Values.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Values.Values<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Values.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: linked_hash_map_Values.len$iter_ExactSizeIterator_u16_u32 }), (v3: rs.u32): undefined => {
+						put(out, v3 as rs.usize);
+					});
+				} else {
+					const it2: linked_hash_map_Iter.Iter<rs.u16, rs.u32> = LinkedHashMap.iter$u16_u32_hash_RandomState(m);
+					put(out, option_mapOr$0o00yzv(rs.iterToOption(linked_hash_map_Iter.next$iter_Iterator_u16_u32(it2)), 256, (_210: [rs.u16, rs.u32]): rs.usize => {
+						return rs.usizeAdd(rs.usizeMul(_210[0] as rs.usize, 4096), _210[1] as rs.usize);
+					}));
+					put(out, rs.iterFrom(it2, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }).len());
+					const rest: rs.Vec<rs.usize> = rs.iterToVec(rs.iterMap(rs.iterSkip(rs.iterRev(rs.iterFrom(it2, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rs.u16, rs.u32>) => rs.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) })), rs.usizeRem(k, 4)), (_211: [rs.u16, rs.u32]): rs.usize => {
+						return rs.usizeAdd(rs.usizeMul(_211[0] as rs.usize, 4096), _211[1] as rs.usize);
+					}), "next", 4);
+					put(out, rs.vecCapacity(rest, 4));
+					const s = rest.items;
+					let front = 0;
+					let back = s.length;
+					while (!(front >= back)) {
+						put(out, s[front++]);
+					}
+					put(out, option_unwrapOr$05jq4mv(rs.iterRposition(rs.iterFrom(LinkedHashMap.keys$u16_u32_hash_RandomState(m), Keys.next$iter_Iterator_u16_u32, undefined, { hint: Keys.sizeHint$iter_Iterator_u16_u32, back: (it: Keys.Keys<rs.u16, rs.u32>) => rs.iterFromOption(Keys.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: Keys.len$iter_ExactSizeIterator_u16_u32 }), (k2: rs.u16): boolean => {
+						return rs.u16Rem(k2, 2) === 0;
+					}), 256));
+				}
 			}
-			put(out, option_unwrapOr$05jq4mv(rs.iterRposition(rs.iterFrom(LinkedHashMap.keys$u16_u32_hash_RandomState(m), Keys.next$iter_Iterator_u16_u32, undefined, { hint: Keys.sizeHint$iter_Iterator_u16_u32, back: (it: Keys.Keys<rs.u16, rs.u32>) => rs.iterFromOption(Keys.nextBack$iter_DoubleEndedIterator_u16_u32(it)), len: Keys.len$iter_ExactSizeIterator_u16_u32 }), (k2: rs.u16): boolean => {
-				return rs.u16Rem(k2, 2) === 0;
-			}), 256));
-		}
-		if (_101) {
 			lib_drop$hashlink_LinkedHashMap_u16_u32_hash_RandomState(m);
 		}
-		_101 = false;
 	}
 }
 
@@ -1117,7 +1117,6 @@ export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: nu
  * written after each step, and after the end.
  */
 export function nested(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
-	let _127: boolean = false;
 	if (dataLen >= 1) {
 		const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 		const cache: LruCache.LruCache<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = LruCache.new$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(rs.u8Rem(dataData[dataStart], 5) as rs.usize);
@@ -1181,20 +1180,18 @@ export function nested(dataData: Uint8Array, dataStart: number, dataLen: number,
 				const old2 = held;
 				held = _97;
 				const _95: Held.Held<Logged.Logged> = old2;
-				_127 = true;
 				const moved: LruCache.LruCache<rs.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _95.cache;
 				const last: Logged.Logged = _95.last;
 				rs.byteVecPush(out, last._0);
-				if ((arg & 1) === 1) {
-					_127 = false;
+				if (!((arg & 1) === 1)) {
+					rs.byteVecPush(out, 253);
+					last[Symbol.dispose]();
 					lib_drop$hashlink_LruCache_u16_maps_Logged(moved);
-				}
-				rs.byteVecPush(out, 253);
-				last[Symbol.dispose]();
-				if (_127) {
+				} else {
 					lib_drop$hashlink_LruCache_u16_maps_Logged(moved);
+					rs.byteVecPush(out, 253);
+					last[Symbol.dispose]();
 				}
-				_127 = false;
 			}
 			rs.byteVecPush(out, 254);
 			const _113: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);

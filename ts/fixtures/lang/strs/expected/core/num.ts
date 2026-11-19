@@ -50,8 +50,15 @@ export function runtime$09k496w(radix: rs.u32): never {
 	rs.panicFmt(["from_ascii_bytes_radix: radix must lie in the range `[2, 36]` - found ", (f: rs.Formatter) => rs.u32Display(radix, f)]);
 }
 
-export function fromAsciiBytesRadixImpl$0xqkqn5(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i128, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$1qcf5pv(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i128, rs.ParseIntError> {
+	let result!: rs.i128;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -66,68 +73,93 @@ export function fromAsciiBytesRadixImpl$0xqkqn5(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.i128 = 0;
-				b5: {
-					if (!canNotOverflow$05izqtt(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$05izqtt(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.i128 | undefined = rs.i128CheckedMul(result, radix as rs.i128);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.i128 = _75 as rs.i128;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.i128 | undefined = rs.i128CheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.i128 | undefined = rs.i128CheckedMul(result, radix as rs.i128);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.i128WrappingMul(result, radix as rs.i128);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.i128WrappingSub(result, _40 as rs.i128);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.i128 = _75 as rs.i128;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.i128 | undefined = rs.i128CheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$05izqtt(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -153,29 +185,9 @@ export function fromAsciiBytesRadixImpl$0xqkqn5(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.i128WrappingMul(result, radix as rs.i128);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.i128WrappingSub(result, _40 as rs.i128);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -200,8 +212,15 @@ export function fromAsciiBytesRadixImpl$0xqkqn5(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1vqyue1(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i16, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$0jia5ee(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i16, rs.ParseIntError> {
+	let result!: rs.i16;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -216,68 +235,93 @@ export function fromAsciiBytesRadixImpl$1vqyue1(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.i16 = 0;
-				b5: {
-					if (!canNotOverflow$0du5ub4(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$0du5ub4(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.i16 | undefined = rs.i16CheckedMul(result, (radix << 16) >> 16);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.i16 = (_75 << 16) >> 16;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.i16 | undefined = rs.i16CheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.i16 | undefined = rs.i16CheckedMul(result, (radix << 16) >> 16);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.i16WrappingMul(result, (radix << 16) >> 16);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.i16WrappingSub(result, (_40 << 16) >> 16);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.i16 = (_75 << 16) >> 16;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.i16 | undefined = rs.i16CheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$0du5ub4(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -303,29 +347,9 @@ export function fromAsciiBytesRadixImpl$1vqyue1(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.i16WrappingMul(result, (radix << 16) >> 16);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.i16WrappingSub(result, (_40 << 16) >> 16);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -350,8 +374,15 @@ export function fromAsciiBytesRadixImpl$1vqyue1(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1e0ydpt(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i32, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$18iy0zl(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i32, rs.ParseIntError> {
+	let result!: rs.i32;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -366,68 +397,93 @@ export function fromAsciiBytesRadixImpl$1e0ydpt(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.i32 = 0;
-				b5: {
-					if (!canNotOverflow$14pvtu0(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$14pvtu0(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.i32 | undefined = rs.i32CheckedMul(result, radix | 0);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.i32 = _75 | 0;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.i32 | undefined = rs.i32CheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.i32 | undefined = rs.i32CheckedMul(result, radix | 0);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.i32WrappingMul(result, radix | 0);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.i32WrappingSub(result, _40 | 0);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.i32 = _75 | 0;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.i32 | undefined = rs.i32CheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$14pvtu0(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -453,29 +509,9 @@ export function fromAsciiBytesRadixImpl$1e0ydpt(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.i32WrappingMul(result, radix | 0);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.i32WrappingSub(result, _40 | 0);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -500,8 +536,15 @@ export function fromAsciiBytesRadixImpl$1e0ydpt(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0zasqfi(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i64, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$0ncu2qc(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i64, rs.ParseIntError> {
+	let result!: rs.i64;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -516,68 +559,93 @@ export function fromAsciiBytesRadixImpl$0zasqfi(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.i64 = 0;
-				b5: {
-					if (!canNotOverflow$09fz75c(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$09fz75c(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.i64 | undefined = rs.i64CheckedMul(result, radix as rs.i64);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.i64 = _75 as rs.i64;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.i64 | undefined = rs.i64CheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.i64 | undefined = rs.i64CheckedMul(result, radix as rs.i64);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.i64WrappingMul(result, radix as rs.i64);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.i64WrappingSub(result, _40 as rs.i64);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.i64 = _75 as rs.i64;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.i64 | undefined = rs.i64CheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$09fz75c(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -603,29 +671,9 @@ export function fromAsciiBytesRadixImpl$0zasqfi(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.i64WrappingMul(result, radix as rs.i64);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.i64WrappingSub(result, _40 as rs.i64);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -650,8 +698,15 @@ export function fromAsciiBytesRadixImpl$0zasqfi(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$02taten(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i8, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$08nfk66(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i8, rs.ParseIntError> {
+	let result!: rs.i8;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -666,68 +721,93 @@ export function fromAsciiBytesRadixImpl$02taten(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.i8 = 0;
-				b5: {
-					if (!canNotOverflow$0bdyog2(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$0bdyog2(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.i8 | undefined = rs.i8CheckedMul(result, (radix << 24) >> 24);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.i8 = (_75 << 24) >> 24;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.i8 | undefined = rs.i8CheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.i8 | undefined = rs.i8CheckedMul(result, (radix << 24) >> 24);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.i8WrappingMul(result, (radix << 24) >> 24);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.i8WrappingSub(result, (_40 << 24) >> 24);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.i8 = (_75 << 24) >> 24;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.i8 | undefined = rs.i8CheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$0bdyog2(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -753,29 +833,9 @@ export function fromAsciiBytesRadixImpl$02taten(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.i8WrappingMul(result, (radix << 24) >> 24);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.i8WrappingSub(result, (_40 << 24) >> 24);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -800,8 +860,15 @@ export function fromAsciiBytesRadixImpl$02taten(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0js2iy0(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.isize, rs.ParseIntError> {
-	let _87!: boolean;
+export function fromAsciiBytesRadixImpl$0vd153y(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.isize, rs.ParseIntError> {
+	let result!: rs.isize;
+	let _16!: boolean;
+	let digitsData!: Uint8Array;
+	let digitsStart!: number;
+	let digitsLen!: number;
+	let _17Data!: Uint8Array;
+	let _17Start!: number;
+	let _17Len!: number;
 	let _88Data!: Uint8Array;
 	let _88Start!: number;
 	let _88Len!: number;
@@ -816,68 +883,93 @@ export function fromAsciiBytesRadixImpl$0js2iy0(src: rs.ByteSlice, radix: rs.u32
 					}
 				}
 				b3: {
-					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_87 = true;
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
-							break b3;
-						}
-						if (value8 === 45) {
-							const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
-							_87 = false;
-							_88Data = rest2.data;
-							_88Start = rest2.start;
-							_88Len = rest2.length;
-							break b3;
-						}
-					}
-					_87 = true;
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
-				}
-				const isPositive: boolean = _87;
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
-				let result: rs.isize = 0;
-				b5: {
-					if (!canNotOverflow$14pvtu0(radix, true, digitsData, digitsStart, digitsLen)) {
-						if (!isPositive) {
-							while (true) {
-								if (!(digitsLen >= 1)) {
-									break b5;
+					b4: {
+						if (_9 >= 1) {
+							const value8 = src.data[src.start];
+							if (value8 === 43) {
+								_88Data = src.data;
+								_88Start = src.start + 1;
+								_88Len = src.length - 1;
+								break b4;
+							}
+							if (value8 === 45) {
+								const rest2: rs.ByteSlice = rs.byteSliceRange(src, 1);
+								_88Data = rest2.data;
+								_88Start = rest2.start;
+								_88Len = rest2.length;
+								digitsData = _88Data;
+								digitsStart = _88Start;
+								digitsLen = _88Len;
+								result = 0;
+								_17Data = digitsData;
+								_17Start = digitsStart;
+								_17Len = digitsLen;
+								_16 = canNotOverflow$14pvtu0(radix, true, _17Data, _17Start, _17Len);
+								if (!_16) {
+									while (true) {
+										if (!(digitsLen >= 1)) {
+											break b3;
+										}
+										const c4: rs.u8 = digitsData[digitsStart];
+										const restData5: Uint8Array = digitsData;
+										const restStart5: number = digitsStart + 1;
+										const restLen5: number = digitsLen - 1;
+										const mul2: rs.isize | undefined = rs.isizeCheckedMul(result, radix | 0);
+										const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
+										if (_75 === undefined) {
+											return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+										}
+										const x4: rs.isize = _75 | 0;
+										if (mul2 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = mul2;
+										const _82: rs.isize | undefined = rs.isizeCheckedSub(result, x4);
+										if (_82 === undefined) {
+											return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
+										}
+										result = _82;
+										digitsData = restData5;
+										digitsStart = restStart5;
+										digitsLen = restLen5;
+									}
 								}
-								const c4: rs.u8 = digitsData[digitsStart];
-								const restData5: Uint8Array = digitsData;
-								const restStart5: number = digitsStart + 1;
-								const restLen5: number = digitsLen - 1;
-								const mul2: rs.isize | undefined = rs.isizeCheckedMul(result, radix | 0);
-								const _75: rs.u32 | undefined = toDigit$1wtrt1r(c4 as rs.char, radix);
-								if (_75 === undefined) {
-									return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+								while (true) {
+									if (!(digitsLen >= 1)) {
+										break b3;
+									}
+									const c2: rs.u8 = digitsData[digitsStart];
+									const restData3: Uint8Array = digitsData;
+									const restStart3: number = digitsStart + 1;
+									const restLen3: number = digitsLen - 1;
+									result = rs.isizeWrappingMul(result, radix | 0);
+									const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
+									if (_40 === undefined) {
+										return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
+									}
+									result = rs.isizeWrappingSub(result, _40 | 0);
+									digitsData = restData3;
+									digitsStart = restStart3;
+									digitsLen = restLen3;
 								}
-								const x4: rs.isize = _75 | 0;
-								if (mul2 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = mul2;
-								const _82: rs.isize | undefined = rs.isizeCheckedSub(result, x4);
-								if (_82 === undefined) {
-									return rs.Err({ kind: "NegOverflow" as rs.IntErrorKind });
-								}
-								result = _82;
-								digitsData = restData5;
-								digitsStart = restStart5;
-								digitsLen = restLen5;
 							}
 						}
+						_88Data = src.data;
+						_88Start = src.start;
+						_88Len = src.length;
+					}
+					digitsData = _88Data;
+					digitsStart = _88Start;
+					digitsLen = _88Len;
+					result = 0;
+					_17Data = digitsData;
+					_17Start = digitsStart;
+					_17Len = digitsLen;
+					_16 = canNotOverflow$14pvtu0(radix, true, _17Data, _17Start, _17Len);
+					if (!_16) {
 						while (true) {
 							if (!(digitsLen >= 1)) {
-								break b5;
+								break b3;
 							}
 							const c3: rs.u8 = digitsData[digitsStart];
 							const restData4: Uint8Array = digitsData;
@@ -903,29 +995,9 @@ export function fromAsciiBytesRadixImpl$0js2iy0(src: rs.ByteSlice, radix: rs.u32
 							digitsLen = restLen4;
 						}
 					}
-					if (!isPositive) {
-						while (true) {
-							if (!(digitsLen >= 1)) {
-								break b5;
-							}
-							const c2: rs.u8 = digitsData[digitsStart];
-							const restData3: Uint8Array = digitsData;
-							const restStart3: number = digitsStart + 1;
-							const restLen3: number = digitsLen - 1;
-							result = rs.isizeWrappingMul(result, radix | 0);
-							const _40: rs.u32 | undefined = toDigit$1wtrt1r(c2 as rs.char, radix);
-							if (_40 === undefined) {
-								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
-							}
-							result = rs.isizeWrappingSub(result, _40 | 0);
-							digitsData = restData3;
-							digitsStart = restStart3;
-							digitsLen = restLen3;
-						}
-					}
 					while (true) {
 						if (!(digitsLen >= 1)) {
-							break b5;
+							break b3;
 						}
 						const c: rs.u8 = digitsData[digitsStart];
 						const restData2: Uint8Array = digitsData;
@@ -950,40 +1022,40 @@ export function fromAsciiBytesRadixImpl$0js2iy0(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$0zqckwi(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u128, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.u128 = 0;
 				b5: {
 					if (!canNotOverflow$05izqtt(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -996,20 +1068,20 @@ export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u128 | undefined = rs.u128CheckedMul(result, radix as rs.u128);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u128 = _56 as rs.u128;
+							const x3: rs.u128 = _45 as rs.u128;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.u128 | undefined = rs.u128CheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.u128 | undefined = rs.u128CheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1042,40 +1114,40 @@ export function fromAsciiBytesRadixImpl$0j2mrpu(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0szi7ry(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u16, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$1fmndga(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u16, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.u16 = 0;
 				b5: {
 					if (!canNotOverflow$0du5ub4(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -1088,20 +1160,20 @@ export function fromAsciiBytesRadixImpl$0szi7ry(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u16 | undefined = rs.u16CheckedMul(result, radix & 0xffff);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u16 = _56 & 0xffff;
+							const x3: rs.u16 = _45 & 0xffff;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.u16 | undefined = rs.u16CheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.u16 | undefined = rs.u16CheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1134,40 +1206,40 @@ export function fromAsciiBytesRadixImpl$0szi7ry(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1otay6v(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u32, rs.ParseIntError> {
-	let _80Data!: Uint8Array;
-	let _80Start!: number;
-	let _80Len!: number;
+export function fromAsciiBytesRadixImpl$1mjs7ck(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u32, rs.ParseIntError> {
+	let _61Data!: Uint8Array;
+	let _61Start!: number;
+	let _61Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value5 = src.data[src.start];
-					if (value5 === 43 || value5 === 45) {
+					const value7 = src.data[src.start];
+					if (value7 === 43 || value7 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value6 = src.data[src.start];
-						if (value6 === 43) {
-							_80Data = src.data;
-							_80Start = src.start + 1;
-							_80Len = src.length - 1;
+						const value8 = src.data[src.start];
+						if (value8 === 43) {
+							_61Data = src.data;
+							_61Start = src.start + 1;
+							_61Len = src.length - 1;
 							break b3;
 						}
-						if (value6 === 45) {
+						if (value8 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_80Data = src.data;
-					_80Start = src.start;
-					_80Len = src.length;
+					_61Data = src.data;
+					_61Start = src.start;
+					_61Len = src.length;
 				}
-				let digitsData: Uint8Array = _80Data;
-				let digitsStart: number = _80Start;
-				let digitsLen: number = _80Len;
+				let digitsData: Uint8Array = _61Data;
+				let digitsStart: number = _61Start;
+				let digitsLen: number = _61Len;
 				let result: rs.u32 = 0;
 				b5: {
 					if (!canNotOverflow$14pvtu0(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -1180,20 +1252,20 @@ export function fromAsciiBytesRadixImpl$1otay6v(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u32 | undefined = rs.u32CheckedMul(result, radix);
-							const _50: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_50 === undefined) {
+							const _41: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_41 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u32 = _50;
+							const x3: rs.u32 = _41;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _57: rs.u32 | undefined = rs.u32CheckedAdd(result, x3);
-							if (_57 === undefined) {
+							const _48: rs.u32 | undefined = rs.u32CheckedAdd(result, x3);
+							if (_48 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _57;
+							result = _48;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1226,40 +1298,40 @@ export function fromAsciiBytesRadixImpl$1otay6v(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$03wy9m8(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u64, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$0fapl8p(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u64, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.u64 = 0;
 				b5: {
 					if (!canNotOverflow$09fz75c(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -1272,20 +1344,20 @@ export function fromAsciiBytesRadixImpl$03wy9m8(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u64 | undefined = rs.u64CheckedMul(result, radix as rs.u64);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u64 = _56 as rs.u64;
+							const x3: rs.u64 = _45 as rs.u64;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.u64 | undefined = rs.u64CheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.u64 | undefined = rs.u64CheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1318,40 +1390,40 @@ export function fromAsciiBytesRadixImpl$03wy9m8(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$01kfuxn(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u8, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$06dftkv(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u8, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.u8 = 0;
 				b5: {
 					if (!canNotOverflow$0bdyog2(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -1364,20 +1436,20 @@ export function fromAsciiBytesRadixImpl$01kfuxn(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.u8 | undefined = rs.u8CheckedMul(result, radix & 0xff);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.u8 = _56 & 0xff;
+							const x3: rs.u8 = _45 & 0xff;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.u8 | undefined = rs.u8CheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.u8 | undefined = rs.u8CheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1410,40 +1482,40 @@ export function fromAsciiBytesRadixImpl$01kfuxn(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0o5ty48(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.usize, rs.ParseIntError> {
-	let _88Data!: Uint8Array;
-	let _88Start!: number;
-	let _88Len!: number;
+export function fromAsciiBytesRadixImpl$1ify2at(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.usize, rs.ParseIntError> {
+	let _65Data!: Uint8Array;
+	let _65Start!: number;
+	let _65Len!: number;
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
 				const _9: rs.usize = src.length;
 				if (_9 === 1) {
-					const value7 = src.data[src.start];
-					if (value7 === 43 || value7 === 45) {
+					const value8 = src.data[src.start];
+					if (value8 === 43 || value8 === 45) {
 						return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 					}
 				}
 				b3: {
 					if (_9 >= 1) {
-						const value8 = src.data[src.start];
-						if (value8 === 43) {
-							_88Data = src.data;
-							_88Start = src.start + 1;
-							_88Len = src.length - 1;
+						const value9 = src.data[src.start];
+						if (value9 === 43) {
+							_65Data = src.data;
+							_65Start = src.start + 1;
+							_65Len = src.length - 1;
 							break b3;
 						}
-						if (value8 === 45) {
+						if (value9 === 45) {
 							rs.byteSliceRange(src, 1);
 						}
 					}
-					_88Data = src.data;
-					_88Start = src.start;
-					_88Len = src.length;
+					_65Data = src.data;
+					_65Start = src.start;
+					_65Len = src.length;
 				}
-				let digitsData: Uint8Array = _88Data;
-				let digitsStart: number = _88Start;
-				let digitsLen: number = _88Len;
+				let digitsData: Uint8Array = _65Data;
+				let digitsStart: number = _65Start;
+				let digitsLen: number = _65Len;
 				let result: rs.usize = 0;
 				b5: {
 					if (!canNotOverflow$14pvtu0(radix, false, digitsData, digitsStart, digitsLen)) {
@@ -1456,20 +1528,20 @@ export function fromAsciiBytesRadixImpl$0o5ty48(src: rs.ByteSlice, radix: rs.u32
 							const restStart3: number = digitsStart + 1;
 							const restLen3: number = digitsLen - 1;
 							const mul: rs.usize | undefined = rs.usizeCheckedMul(result, radix as rs.usize);
-							const _56: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
-							if (_56 === undefined) {
+							const _45: rs.u32 | undefined = toDigit$1wtrt1r(c3 as rs.char, radix);
+							if (_45 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							const x3: rs.usize = _56 as rs.usize;
+							const x3: rs.usize = _45 as rs.usize;
 							if (mul === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
 							result = mul;
-							const _63: rs.usize | undefined = rs.usizeCheckedAdd(result, x3);
-							if (_63 === undefined) {
+							const _52: rs.usize | undefined = rs.usizeCheckedAdd(result, x3);
+							if (_52 === undefined) {
 								return rs.Err({ kind: "PosOverflow" as rs.IntErrorKind });
 							}
-							result = _63;
+							result = _52;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;

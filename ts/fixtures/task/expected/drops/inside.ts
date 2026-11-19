@@ -186,8 +186,8 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g8[Symbol.dispose]();
 		}, true);
 		rs.iterFold(rs.hashKeys(map3(([3] as [rs.u32])[0]), rs.drop, rs.drop), undefined, (_: undefined, k3: Key.Key): undefined => {
-			const _811: rs.u32 = rs.u32Sub(k3.id, id);
-			Log.note(log, rs.fmtFormat(["fold ", (f: rs.Formatter) => rs.u32Display(_811, f)]));
+			const _810: rs.u32 = rs.u32Sub(k3.id, id);
+			Log.note(log, rs.fmtFormat(["fold ", (f: rs.Formatter) => rs.u32Display(_810, f)]));
 			k3[Symbol.dispose]();
 		}, true);
 		const _371: rs.u32 | undefined = option_map$06w9waf(rs.ownedLast(rs.hashValues(map3(([4] as [rs.u32])[0]), rs.drop, rs.drop), rs.drop), (g9: Guard.Guard): rs.u32 => {
@@ -296,26 +296,12 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured7[Symbol.dispose]();
 		}), true, true);
 		const kept: Guard.Guard = rs.iterFold(rs.iterMap(new rs.Range(8, 10), guard), guard(([15] as [rs.u32])[0]), (kept2: Guard.Guard, g6: Guard.Guard): Guard.Guard => {
-			let _05!: Guard.Guard;
-			let _92: boolean = false;
-			let _810: boolean = false;
-			_92 = true;
-			_810 = true;
 			if (!(rs.u32Rem(Guard.id(g6), 2) === 0)) {
-				_92 = false;
-				_05 = kept2;
-			} else {
-				_810 = false;
-				_05 = g6;
-			}
-			if (_810) {
 				g6[Symbol.dispose]();
+				return kept2;
 			}
-			if (_92) {
-				kept2[Symbol.dispose]();
-				return _05;
-			}
-			return _05;
+			kept2[Symbol.dispose]();
+			return g6;
 		});
 		const _490: rs.u32 = Guard.id(kept);
 		Log.note(log, rs.fmtFormat(["kept ", (f: rs.Formatter) => rs.u32Display(_490, f)]));

@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { thenSome$0quywni, thenSome$1n1oy1h, then$1uky7mt } from "./core/bool.ts";
-import { isNoneOr$0xn3i4j, unwrapOr$1hs5os9 as option_unwrapOr$1hs5os9, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$008v810 as option_map$008v810, map$16kn1k2 as option_map$16kn1k2, map$1yv0md6 as option_map$1yv0md6, map$057a36e as option_map$057a36e, map$0f5oamy as option_map$0f5oamy, map$1yjmt5m as option_map$1yjmt5m, map$1eqzs00 as option_map$1eqzs00, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$19a4gco as option_mapOr$19a4gco, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$0mkqwg8 as option_mapOr$0mkqwg8, okOr$1j8owgb as option_okOr$1j8owgb, okOr$06f2ml7 as option_okOr$06f2ml7, andThen$0xvwl6s as option_andThen$0xvwl6s, andThen$0q72czq as option_andThen$0q72czq, andThen$0jc4o0i as option_andThen$0jc4o0i, filter$1iofxfx, filter$0hq86nl, or$0farkzq as option_or$0farkzq, xor$0ucxb2n, xor$0x5qjg4, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
+import { isNoneOr$0xn3i4j, unwrapOr$1hs5os9 as option_unwrapOr$1hs5os9, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$008v810 as option_map$008v810, map$16kn1k2 as option_map$16kn1k2, map$1yv0md6 as option_map$1yv0md6, map$057a36e as option_map$057a36e, map$0f5oamy as option_map$0f5oamy, map$1yjmt5m as option_map$1yjmt5m, map$1eqzs00 as option_map$1eqzs00, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$19a4gco as option_mapOr$19a4gco, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$0mkqwg8 as option_mapOr$0mkqwg8, okOr$1j8owgb as option_okOr$1j8owgb, okOr$06f2ml7 as option_okOr$06f2ml7, andThen$0xvwl6s as option_andThen$0xvwl6s, andThen$0q72czq as option_andThen$0q72czq, andThen$0jc4o0i as option_andThen$0jc4o0i, filter$19n05b9, filter$0agadp5, or$0farkzq as option_or$0farkzq, xor$0v0kir8, xor$1vju3wp, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
 import { map$1gelxzx as result_map$1gelxzx, mapErr$136pgpq as result_mapErr$136pgpq } from "./core/result.ts";
 import * as Halves from "./nested.Halves.ts";
 import type * as Slot from "./nested.Slot.ts";
@@ -93,14 +93,14 @@ export function made(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return rs.u8WrappingAdd(y2, 1);
 			});
 		})));
-		rs.byteVecPush(out, code(filter$1iofxfx(o, (x3: rs.u8 | undefined): boolean => {
+		rs.byteVecPush(out, code(filter$19n05b9(o, (x3: rs.u8 | undefined): boolean => {
 			return x3 !== undefined;
 		})));
 		rs.byteVecPush(out, code(option_or$0farkzq(o, undefined)));
 		const _50: rs.u8 | undefined | rs.None = option_map$1eqzs00(u, (_: undefined): rs.u8 | undefined => {
 			return undefined;
 		});
-		rs.byteVecPush(out, code(xor$0ucxb2n(o, _50)));
+		rs.byteVecPush(out, code(xor$0v0kir8(o, _50)));
 		rs.byteVecPush(out, option_mapOr$0mkqwg8(u, 208, (_2: undefined): rs.u8 => {
 			return 209;
 		}));
@@ -357,7 +357,7 @@ export function consumers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return 0;
 	}, undefined, undefined, undefined, rs.None)));
 	rs.byteVecPush(out, code(rs.iterReduce(it(), (a2: rs.u8 | undefined, b11: rs.u8 | undefined): rs.u8 | undefined => {
-		return xor$0x5qjg4(a2, b11);
+		return xor$1vju3wp(a2, b11);
 	}, undefined, undefined, rs.None)));
 	const written: rs.Peekable<rs.u8 | undefined> = rs.iterPeekable(it());
 	const _139: rs.Place<rs.u8 | undefined> | undefined = rs.peekablePeekMut(written, true);
@@ -829,7 +829,7 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(q.n & 0xff, rs.dequeEnd(q, true, rs.None) !== rs.None ? 1 : 0)), undefined, true);
 	const o: undefined | rs.None = option_map$057a36e(rs.byteSliceFirst(data), (_27: rs.u8): undefined => {});
-	const none: undefined | rs.None = option_map$057a36e(filter$0hq86nl(rs.byteSliceGet(data, 1), (b: rs.u8): boolean => {
+	const none: undefined | rs.None = option_map$057a36e(filter$0agadp5(rs.byteSliceGet(data, 1), (b: rs.u8): boolean => {
 		return rs.u8Rem(b, 2) === 0;
 	}), (_28: rs.u8): undefined => {});
 	const r: rs.Result<undefined, rs.u8> = result_map$1gelxzx(option_okOr$1j8owgb(rs.byteSliceFirst(data), 238), (_29: rs.u8): undefined => {});

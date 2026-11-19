@@ -23,61 +23,44 @@ function new_(): WaiterList {
 }
 
 export function register(self: WaiterList, waiter: Waiter.Waiter): void {
-	let _58: boolean = false;
-	let _57: boolean = false;
 	const weak: rs.Weak<rs.Waker> = new rs.Weak(waiter.shared);
-	_58 = true;
-	b0: {
-		b1: {
-			for (const _8 of self.entries.items) {
-				if (_8.arc === weak.arc) {
-					break b1;
-				}
+	b1: {
+		for (const _8 of self.entries.items) {
+			if (_8.arc === weak.arc) {
+				weak[Symbol.dispose]();
+				break b1;
 			}
-			let probes: rs.usize = rs.min(self.entries.items.length, 2);
-			while (probes > 0) {
-				if (!(self.entries.items[rs.idx(self.entries.items, self.cursor)].arc.strong === 0)) {
-					self.cursor = rs.usizeRem(rs.usizeAdd(self.cursor, 1), self.entries.items.length);
-					probes = rs.usizeSub(probes, 1);
+		}
+		let probes: rs.usize = rs.min(self.entries.items.length, 2);
+		while (probes > 0) {
+			if (!(self.entries.items[rs.idx(self.entries.items, self.cursor)].arc.strong === 0)) {
+				self.cursor = rs.usizeRem(rs.usizeAdd(self.cursor, 1), self.entries.items.length);
+				probes = rs.usizeSub(probes, 1);
+			} else {
+				const _24: rs.Weak<rs.Waker> = weak;
+				const at2 = rs.idx(self.entries.items, self.cursor);
+				self.entries.items[at2][Symbol.dispose]();
+				self.entries.items[at2] = _24;
+				break b1;
+			}
+		}
+		if (self.entries.items.length >= 4) {
+			const live: rs.Vec<rs.Weak<rs.Waker>> = new rs.Vec();
+			const taken = self.entries;
+			self.entries = new rs.Vec();
+			for (const entry of taken.items) {
+				if (!(entry.arc.strong > 0)) {
+					entry[Symbol.dispose]();
 				} else {
-					_58 = false;
-					const _24: rs.Weak<rs.Waker> = weak;
-					const at2 = rs.idx(self.entries.items, self.cursor);
-					self.entries.items[at2][Symbol.dispose]();
-					self.entries.items[at2] = _24;
-					break b1;
+					live.items.push(entry);
 				}
 			}
-			if (self.entries.items.length >= 4) {
-				const live: rs.Vec<rs.Weak<rs.Waker>> = new rs.Vec();
-				const taken = self.entries;
-				self.entries = new rs.Vec();
-				for (const _43 of taken.items) {
-					_57 = true;
-					const entry: rs.Weak<rs.Waker> = _43;
-					if (entry.arc.strong > 0) {
-						_57 = false;
-						live.items.push(entry);
-					}
-					if (_57) {
-						entry[Symbol.dispose]();
-					}
-					_57 = false;
-				}
-				const _53: rs.Vec<rs.Weak<rs.Waker>> = live;
-				rs.dropVec(self.entries);
-				self.entries = _53;
-				self.cursor = 0;
-			}
-			_58 = false;
-			self.entries.items.push(weak);
-			_58 = false;
-			break b0;
+			const _53: rs.Vec<rs.Weak<rs.Waker>> = live;
+			rs.dropVec(self.entries);
+			self.entries = _53;
+			self.cursor = 0;
 		}
-		if (_58) {
-			weak[Symbol.dispose]();
-		}
-		_58 = false;
+		self.entries.items.push(weak);
 	}
 }
 

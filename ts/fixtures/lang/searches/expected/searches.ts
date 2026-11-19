@@ -1697,7 +1697,6 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_c
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Lines(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1706,16 +1705,11 @@ export function both$ref_str_str_Lines(it: rs.Iter<string>, data: rs.ByteSlice, 
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1728,11 +1722,11 @@ export function both$ref_str_str_Lines(it: rs.Iter<string>, data: rs.ByteSlice, 
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1745,7 +1739,6 @@ export function both$ref_str_str_Lines(it: rs.Iter<string>, data: rs.ByteSlice, 
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Matches_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1754,16 +1747,11 @@ export function both$ref_str_str_Matches_array2_char(it: rs.Iter<string>, data: 
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1776,11 +1764,11 @@ export function both$ref_str_str_Matches_array2_char(it: rs.Iter<string>, data: 
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1793,7 +1781,6 @@ export function both$ref_str_str_Matches_array2_char(it: rs.Iter<string>, data: 
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Matches_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1802,16 +1789,11 @@ export function both$ref_str_str_Matches_char(it: rs.Iter<string>, data: rs.Byte
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1824,11 +1806,11 @@ export function both$ref_str_str_Matches_char(it: rs.Iter<string>, data: rs.Byte
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1841,7 +1823,6 @@ export function both$ref_str_str_Matches_char(it: rs.Iter<string>, data: rs.Byte
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Matches_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1850,16 +1831,11 @@ export function both$ref_str_str_Matches_ref_slice_char(it: rs.Iter<string>, dat
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1872,11 +1848,11 @@ export function both$ref_str_str_Matches_ref_slice_char(it: rs.Iter<string>, dat
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1889,7 +1865,6 @@ export function both$ref_str_str_Matches_ref_slice_char(it: rs.Iter<string>, dat
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Matches_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1898,16 +1873,11 @@ export function both$ref_str_str_Matches_searches_searches_closure1(it: rs.Iter<
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1920,11 +1890,11 @@ export function both$ref_str_str_Matches_searches_searches_closure1(it: rs.Iter<
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1937,7 +1907,6 @@ export function both$ref_str_str_Matches_searches_searches_closure1(it: rs.Iter<
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RMatches_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1946,16 +1915,11 @@ export function both$ref_str_str_RMatches_array2_char(it: rs.Iter<string>, data:
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -1968,11 +1932,11 @@ export function both$ref_str_str_RMatches_array2_char(it: rs.Iter<string>, data:
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -1985,7 +1949,6 @@ export function both$ref_str_str_RMatches_array2_char(it: rs.Iter<string>, data:
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RMatches_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -1994,16 +1957,11 @@ export function both$ref_str_str_RMatches_char(it: rs.Iter<string>, data: rs.Byt
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2016,11 +1974,11 @@ export function both$ref_str_str_RMatches_char(it: rs.Iter<string>, data: rs.Byt
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2033,7 +1991,6 @@ export function both$ref_str_str_RMatches_char(it: rs.Iter<string>, data: rs.Byt
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RMatches_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2042,16 +1999,11 @@ export function both$ref_str_str_RMatches_ref_slice_char(it: rs.Iter<string>, da
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2064,11 +2016,11 @@ export function both$ref_str_str_RMatches_ref_slice_char(it: rs.Iter<string>, da
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2081,7 +2033,6 @@ export function both$ref_str_str_RMatches_ref_slice_char(it: rs.Iter<string>, da
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RMatches_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2090,16 +2041,11 @@ export function both$ref_str_str_RMatches_searches_searches_closure1(it: rs.Iter
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2112,11 +2058,11 @@ export function both$ref_str_str_RMatches_searches_searches_closure1(it: rs.Iter
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2129,7 +2075,6 @@ export function both$ref_str_str_RMatches_searches_searches_closure1(it: rs.Iter
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplitTerminator_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2138,16 +2083,11 @@ export function both$ref_str_str_RSplitTerminator_array2_char(it: rs.Iter<string
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2160,11 +2100,11 @@ export function both$ref_str_str_RSplitTerminator_array2_char(it: rs.Iter<string
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2177,7 +2117,6 @@ export function both$ref_str_str_RSplitTerminator_array2_char(it: rs.Iter<string
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplitTerminator_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2186,16 +2125,11 @@ export function both$ref_str_str_RSplitTerminator_char(it: rs.Iter<string>, data
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2208,11 +2142,11 @@ export function both$ref_str_str_RSplitTerminator_char(it: rs.Iter<string>, data
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2225,7 +2159,6 @@ export function both$ref_str_str_RSplitTerminator_char(it: rs.Iter<string>, data
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplitTerminator_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2234,16 +2167,11 @@ export function both$ref_str_str_RSplitTerminator_ref_slice_char(it: rs.Iter<str
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2256,11 +2184,11 @@ export function both$ref_str_str_RSplitTerminator_ref_slice_char(it: rs.Iter<str
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2273,7 +2201,6 @@ export function both$ref_str_str_RSplitTerminator_ref_slice_char(it: rs.Iter<str
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplitTerminator_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2282,16 +2209,11 @@ export function both$ref_str_str_RSplitTerminator_searches_searches_closure1(it:
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2304,11 +2226,11 @@ export function both$ref_str_str_RSplitTerminator_searches_searches_closure1(it:
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2321,7 +2243,6 @@ export function both$ref_str_str_RSplitTerminator_searches_searches_closure1(it:
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplit_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2330,16 +2251,11 @@ export function both$ref_str_str_RSplit_array2_char(it: rs.Iter<string>, data: r
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2352,11 +2268,11 @@ export function both$ref_str_str_RSplit_array2_char(it: rs.Iter<string>, data: r
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2369,7 +2285,6 @@ export function both$ref_str_str_RSplit_array2_char(it: rs.Iter<string>, data: r
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplit_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2378,16 +2293,11 @@ export function both$ref_str_str_RSplit_char(it: rs.Iter<string>, data: rs.ByteS
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2400,11 +2310,11 @@ export function both$ref_str_str_RSplit_char(it: rs.Iter<string>, data: rs.ByteS
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2417,7 +2327,6 @@ export function both$ref_str_str_RSplit_char(it: rs.Iter<string>, data: rs.ByteS
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplit_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2426,16 +2335,11 @@ export function both$ref_str_str_RSplit_ref_slice_char(it: rs.Iter<string>, data
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2448,11 +2352,11 @@ export function both$ref_str_str_RSplit_ref_slice_char(it: rs.Iter<string>, data
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2465,7 +2369,6 @@ export function both$ref_str_str_RSplit_ref_slice_char(it: rs.Iter<string>, data
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_RSplit_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2474,16 +2377,11 @@ export function both$ref_str_str_RSplit_searches_searches_closure1(it: rs.Iter<s
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2496,11 +2394,11 @@ export function both$ref_str_str_RSplit_searches_searches_closure1(it: rs.Iter<s
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2513,7 +2411,6 @@ export function both$ref_str_str_RSplit_searches_searches_closure1(it: rs.Iter<s
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitAsciiWhitespace(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2522,16 +2419,11 @@ export function both$ref_str_str_SplitAsciiWhitespace(it: rs.Iter<string>, data:
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2544,11 +2436,11 @@ export function both$ref_str_str_SplitAsciiWhitespace(it: rs.Iter<string>, data:
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2561,7 +2453,6 @@ export function both$ref_str_str_SplitAsciiWhitespace(it: rs.Iter<string>, data:
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitInclusive_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2570,16 +2461,11 @@ export function both$ref_str_str_SplitInclusive_array2_char(it: rs.Iter<string>,
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2592,11 +2478,11 @@ export function both$ref_str_str_SplitInclusive_array2_char(it: rs.Iter<string>,
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2609,7 +2495,6 @@ export function both$ref_str_str_SplitInclusive_array2_char(it: rs.Iter<string>,
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitInclusive_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2618,16 +2503,11 @@ export function both$ref_str_str_SplitInclusive_char(it: rs.Iter<string>, data: 
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2640,11 +2520,11 @@ export function both$ref_str_str_SplitInclusive_char(it: rs.Iter<string>, data: 
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2657,7 +2537,6 @@ export function both$ref_str_str_SplitInclusive_char(it: rs.Iter<string>, data: 
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitInclusive_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2666,16 +2545,11 @@ export function both$ref_str_str_SplitInclusive_ref_slice_char(it: rs.Iter<strin
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2688,11 +2562,11 @@ export function both$ref_str_str_SplitInclusive_ref_slice_char(it: rs.Iter<strin
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2705,7 +2579,6 @@ export function both$ref_str_str_SplitInclusive_ref_slice_char(it: rs.Iter<strin
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitInclusive_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2714,16 +2587,11 @@ export function both$ref_str_str_SplitInclusive_searches_searches_closure1(it: r
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2736,11 +2604,11 @@ export function both$ref_str_str_SplitInclusive_searches_searches_closure1(it: r
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2753,7 +2621,6 @@ export function both$ref_str_str_SplitInclusive_searches_searches_closure1(it: r
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitTerminator_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2762,16 +2629,11 @@ export function both$ref_str_str_SplitTerminator_array2_char(it: rs.Iter<string>
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2784,11 +2646,11 @@ export function both$ref_str_str_SplitTerminator_array2_char(it: rs.Iter<string>
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2801,7 +2663,6 @@ export function both$ref_str_str_SplitTerminator_array2_char(it: rs.Iter<string>
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitTerminator_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2810,16 +2671,11 @@ export function both$ref_str_str_SplitTerminator_char(it: rs.Iter<string>, data:
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2832,11 +2688,11 @@ export function both$ref_str_str_SplitTerminator_char(it: rs.Iter<string>, data:
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2849,7 +2705,6 @@ export function both$ref_str_str_SplitTerminator_char(it: rs.Iter<string>, data:
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitTerminator_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2858,16 +2713,11 @@ export function both$ref_str_str_SplitTerminator_ref_slice_char(it: rs.Iter<stri
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2880,11 +2730,11 @@ export function both$ref_str_str_SplitTerminator_ref_slice_char(it: rs.Iter<stri
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2897,7 +2747,6 @@ export function both$ref_str_str_SplitTerminator_ref_slice_char(it: rs.Iter<stri
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitTerminator_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2906,16 +2755,11 @@ export function both$ref_str_str_SplitTerminator_searches_searches_closure1(it: 
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2928,11 +2772,11 @@ export function both$ref_str_str_SplitTerminator_searches_searches_closure1(it: 
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2945,7 +2789,6 @@ export function both$ref_str_str_SplitTerminator_searches_searches_closure1(it: 
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_SplitWhitespace(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -2954,16 +2797,11 @@ export function both$ref_str_str_SplitWhitespace(it: rs.Iter<string>, data: rs.B
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -2976,11 +2814,11 @@ export function both$ref_str_str_SplitWhitespace(it: rs.Iter<string>, data: rs.B
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -2993,7 +2831,6 @@ export function both$ref_str_str_SplitWhitespace(it: rs.Iter<string>, data: rs.B
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Split_array2_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -3002,16 +2839,11 @@ export function both$ref_str_str_Split_array2_char(it: rs.Iter<string>, data: rs
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -3024,11 +2856,11 @@ export function both$ref_str_str_Split_array2_char(it: rs.Iter<string>, data: rs
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3041,7 +2873,6 @@ export function both$ref_str_str_Split_array2_char(it: rs.Iter<string>, data: rs
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Split_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -3050,16 +2881,11 @@ export function both$ref_str_str_Split_char(it: rs.Iter<string>, data: rs.ByteSl
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -3072,11 +2898,11 @@ export function both$ref_str_str_Split_char(it: rs.Iter<string>, data: rs.ByteSl
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3089,7 +2915,6 @@ export function both$ref_str_str_Split_char(it: rs.Iter<string>, data: rs.ByteSl
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Split_ref_slice_char(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -3098,16 +2923,11 @@ export function both$ref_str_str_Split_ref_slice_char(it: rs.Iter<string>, data:
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -3120,11 +2940,11 @@ export function both$ref_str_str_Split_ref_slice_char(it: rs.Iter<string>, data:
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3137,7 +2957,6 @@ export function both$ref_str_str_Split_ref_slice_char(it: rs.Iter<string>, data:
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$ref_str_str_Split_searches_searches_closure1(it: rs.Iter<string>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: string | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<string> | undefined;
@@ -3146,16 +2965,11 @@ export function both$ref_str_str_Split_searches_searches_closure1(it: rs.Iter<st
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_ref_str(_14, out);
@@ -3168,11 +2982,11 @@ export function both$ref_str_str_Split_searches_searches_closure1(it: rs.Iter<st
 			if (copy !== undefined) {
 				const iter: rs.Iter<string> = rs.iterRev(copy);
 				while (true) {
-					const _34: string | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: string | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_ref_str(_34, out);
+					put$searches_Item_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3185,7 +2999,6 @@ export function both$ref_str_str_Split_searches_searches_closure1(it: rs.Iter<st
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_char_str_CharIndices(it: rs.Iter<[rs.usize, rs.char]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, rs.char] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, rs.char]> | undefined;
@@ -3194,16 +3007,11 @@ export function both$tuple2_usize_char_str_CharIndices(it: rs.Iter<[rs.usize, rs
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_char(_14, out);
@@ -3216,11 +3024,11 @@ export function both$tuple2_usize_char_str_CharIndices(it: rs.Iter<[rs.usize, rs
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, rs.char]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, rs.char] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, rs.char] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_char(_34, out);
+					put$searches_Item_tuple2_usize_char(_33, out);
 				}
 			}
 			return;
@@ -3233,7 +3041,6 @@ export function both$tuple2_usize_char_str_CharIndices(it: rs.Iter<[rs.usize, rs
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_MatchIndices_array2_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3242,16 +3049,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_array2_char(it: rs.It
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3264,11 +3066,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_array2_char(it: rs.It
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3281,7 +3083,6 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_array2_char(it: rs.It
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_MatchIndices_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3290,16 +3091,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_char(it: rs.Iter<[rs.
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3312,11 +3108,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_char(it: rs.Iter<[rs.
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3329,7 +3125,6 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_char(it: rs.Iter<[rs.
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3338,16 +3133,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(it: rs
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3360,11 +3150,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(it: rs
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3377,7 +3167,6 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(it: rs
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_MatchIndices_searches_searches_closure1(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3386,16 +3175,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_searches_searches_clo
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3408,11 +3192,11 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_searches_searches_clo
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3425,7 +3209,6 @@ export function both$tuple2_usize_ref_str_str_MatchIndices_searches_searches_clo
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_RMatchIndices_array2_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3434,16 +3217,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_array2_char(it: rs.I
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3456,11 +3234,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_array2_char(it: rs.I
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3473,7 +3251,6 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_array2_char(it: rs.I
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_RMatchIndices_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3482,16 +3259,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_char(it: rs.Iter<[rs
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3504,11 +3276,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_char(it: rs.Iter<[rs
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3521,7 +3293,6 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_char(it: rs.Iter<[rs
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3530,16 +3301,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(it: r
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3552,11 +3318,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(it: r
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;
@@ -3569,7 +3335,6 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(it: r
  * how many it gave, then a clone made after the first, read from the back.
  */
 export function both$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_closure1(it: rs.Iter<[rs.usize, string]>, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let back!: boolean;
 	let _14!: [rs.usize, string] | undefined;
 	let n: rs.usize = 0;
 	let copy = undefined as rs.Iter<[rs.usize, string]> | undefined;
@@ -3578,16 +3343,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_cl
 		b1: {
 			if (_7 !== undefined) {
 				if ((_7 & 128) !== 0) {
-					back = true;
+					_14 = rs.iterToOption(it.nextBack());
 					break b1;
 				}
 			}
-			back = false;
-		}
-		if (!back) {
 			_14 = rs.iterToOption(it.next());
-		} else {
-			_14 = rs.iterToOption(it.nextBack());
 		}
 		if (_14 !== undefined) {
 			put$searches_Item_tuple2_usize_ref_str(_14, out);
@@ -3600,11 +3360,11 @@ export function both$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_cl
 			if (copy !== undefined) {
 				const iter: rs.Iter<[rs.usize, string]> = rs.iterRev(copy);
 				while (true) {
-					const _34: [rs.usize, string] | rs.Done = iter.next();
-					if (_34 === rs.DONE) {
+					const _33: [rs.usize, string] | rs.Done = iter.next();
+					if (_33 === rs.DONE) {
 						break;
 					}
-					put$searches_Item_tuple2_usize_ref_str(_34, out);
+					put$searches_Item_tuple2_usize_ref_str(_33, out);
 				}
 			}
 			return;

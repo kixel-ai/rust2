@@ -1967,6 +1967,10 @@ export function call(what: rs.u8, side: rs.u8, other: rs.u8, n: rs.u8): void {
  * visits before one differs follows std's order.
  */
 export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(a: rs.HashMap<Sided.Sided, Sided.Sided>, b: rs.HashMap<Sided.Sided, Sided.Sided>, len: rs.usize, out: rs.ByteVec): void {
+	let _21!: rs.Vec<rs.u32>;
+	let _22!: rs.usize;
+	let _23!: rs.usize;
+	let _24!: rs.Vec<rs.u32>;
 	((calls2: rs.RefCell<rs.Vec<rs.u32>>): undefined => {
 		const _5: rs.RefCell<rs.Vec<rs.u32>> = rs.refCellBorrowMut(calls2);
 		rs.vecTruncate(_5.value, 0);
@@ -1978,14 +1982,21 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 	const calls: rs.Vec<rs.u32> = ((calls3: rs.RefCell<rs.Vec<rs.u32>>): rs.Vec<rs.u32> => {
 		return rs.refCellReplace(calls3, new rs.Vec());
 	})(CALLS.get());
-	const _17: boolean = len > 1;
-	if (_17) {
+	if (!(len > 1)) {
+		_21 = calls;
+		_24 = calls;
+		_23 = _24.items.length;
+		_22 = rs.usizeDiv(_23, 2);
+		rs.vecTruncate(_21, _22);
+	} else {
 		if (!equal) {
 			rs.vecTruncate(calls, 0);
 		}
-	}
-	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
-	if (_17) {
+		_21 = calls;
+		_24 = calls;
+		_23 = _24.items.length;
+		_22 = rs.usizeDiv(_23, 2);
+		rs.vecTruncate(_21, _22);
 		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
@@ -2008,6 +2019,10 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
  * visits before one differs follows std's order.
  */
 export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.HashSet<Sided.Sided>, b: rs.HashSet<Sided.Sided>, len: rs.usize, out: rs.ByteVec): void {
+	let _21!: rs.Vec<rs.u32>;
+	let _22!: rs.usize;
+	let _23!: rs.usize;
+	let _24!: rs.Vec<rs.u32>;
 	((calls2: rs.RefCell<rs.Vec<rs.u32>>): undefined => {
 		const _5: rs.RefCell<rs.Vec<rs.u32>> = rs.refCellBorrowMut(calls2);
 		rs.vecTruncate(_5.value, 0);
@@ -2019,14 +2034,21 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 	const calls: rs.Vec<rs.u32> = ((calls3: rs.RefCell<rs.Vec<rs.u32>>): rs.Vec<rs.u32> => {
 		return rs.refCellReplace(calls3, new rs.Vec());
 	})(CALLS.get());
-	const _17: boolean = len > 1;
-	if (_17) {
+	if (!(len > 1)) {
+		_21 = calls;
+		_24 = calls;
+		_23 = _24.items.length;
+		_22 = rs.usizeDiv(_23, 2);
+		rs.vecTruncate(_21, _22);
+	} else {
 		if (!equal) {
 			rs.vecTruncate(calls, 0);
 		}
-	}
-	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
-	if (_17) {
+		_21 = calls;
+		_24 = calls;
+		_23 = _24.items.length;
+		_22 = rs.usizeDiv(_23, 2);
+		rs.vecTruncate(_21, _22);
 		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);

@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$Option_tuple2_u8_u8, copy$array_u32, out$u8 } from "./lib.ts";
 import { thenSome$1c6ozzd, then$17csa2h } from "./core/bool.ts";
-import { unwrapOr$0w1py1w as option_unwrapOr$0w1py1w, unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1exlfpa as option_unwrapOrDefault$1exlfpa, unwrapOrDefault$0w012ed as option_unwrapOrDefault$0w012ed, map$0cwxh6b as option_map$0cwxh6b, map$1pv2dfs as option_map$1pv2dfs, map$1yjmt5m as option_map$1yjmt5m, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1fzqoua as option_mapOr$1fzqoua, mapOr$14runhi as option_mapOr$14runhi, mapOr$1ldmp8y as option_mapOr$1ldmp8y, mapOr$1h9hu6n as option_mapOr$1h9hu6n, mapOr$0rvzdvd as option_mapOr$0rvzdvd, mapOr$0vxw5sq as option_mapOr$0vxw5sq, andThen$1x5wmg5 as option_andThen$1x5wmg5, filter$00vpwuf, or$0ar58vy as option_or$0ar58vy } from "./core/option.ts";
+import { unwrapOr$0w1py1w as option_unwrapOr$0w1py1w, unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1exlfpa as option_unwrapOrDefault$1exlfpa, unwrapOrDefault$0w012ed as option_unwrapOrDefault$0w012ed, map$0cwxh6b as option_map$0cwxh6b, map$1pv2dfs as option_map$1pv2dfs, map$1yjmt5m as option_map$1yjmt5m, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1fzqoua as option_mapOr$1fzqoua, mapOr$14runhi as option_mapOr$14runhi, mapOr$1ldmp8y as option_mapOr$1ldmp8y, mapOr$1h9hu6n as option_mapOr$1h9hu6n, mapOr$0rvzdvd as option_mapOr$0rvzdvd, mapOr$0vxw5sq as option_mapOr$0vxw5sq, andThen$1x5wmg5 as option_andThen$1x5wmg5, filter$0qk0j59, or$0ar58vy as option_or$0ar58vy } from "./core/option.ts";
 import { err$1igyjfc, asRef$1pwjn59 } from "./core/result.ts";
 import * as Counts from "./refs.Counts.ts";
 import * as Cursor from "./refs.Cursor.ts";
@@ -400,16 +400,11 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	let total: rs.u32 = 0;
 	const iterS4: Uint8Array = rs.byteSliceView(data);
-	let iterI4: number = 0;
-	while (true) {
-		const _265: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
-		const _262: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x5: rs.Place<rs.u32>, b9: rs.u8): undefined => {
-			bump(x5, b9);
-		};
-		if (_265 === rs.DONE) {
-			break;
-		}
-		_262(rs.place(() => total, (value15) => total = value15), _265);
+	const _262: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x5: rs.Place<rs.u32>, b9: rs.u8): undefined => {
+		bump(x5, b9);
+	};
+	for (const b7 of iterS4) {
+		_262(rs.place(() => total, (value15) => total = value15), b7);
 	}
 	const dst9 = out;
 	const word7 = total;
@@ -498,7 +493,7 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_42 !== undefined) {
 			_42[0] = rs.u8WrappingAdd(_42[0], 1);
 		}
-		const _48: [rs.u8, rs.u8] | undefined = option_map$0cwxh6b(filter$00vpwuf(last, (p: [rs.u8, rs.u8]): boolean => {
+		const _48: [rs.u8, rs.u8] | undefined = option_map$0cwxh6b(filter$0qk0j59(last, (p: [rs.u8, rs.u8]): boolean => {
 			return rs.u8Rem(p[0], 2) === 0;
 		}), (p2: [rs.u8, rs.u8]): [rs.u8, rs.u8] => {
 			p2[1] = rs.u8WrappingAdd(p2[1], 2);

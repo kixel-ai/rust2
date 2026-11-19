@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$Option_array2_u16, copy$Option_array2_u8, copy$Vec_u8, copy$array_array2_array2_u8, copy$array_array2_u16, copy$array_array2_u8, copy$array_mem_ManuallyDrop_array2_u8, copy$array_u16, copy$array_u32, copy$array_u8, copy$mem_MaybeUninit_array_u8, copy$ops_RangeFrom_usize, copy$ops_Range_usize, copy$slices_Pair, drop$tuple2_Vec_slices_Noisy_Vec_u8 } from "./lib.ts";
 import { thenSome$1gvhopg } from "./core/bool.ts";
-import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0cigbgc as option_map$0cigbgc, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, mapOr$17z0l8m as option_mapOr$17z0l8m, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
+import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0cigbgc as option_map$0cigbgc, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, mapOr$17z0l8m as option_mapOr$17z0l8m, or$0as8tia as option_or$0as8tia, zip$1t2iyk4, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
 import * as Counted from "./slices.Counted.ts";
 import type * as Held$item_writes from "./slices.Held$item_writes.ts";
 import * as Item from "./slices.Item.ts";
@@ -993,6 +993,9 @@ export function pokeArray(s: rs.Slice<rs.u32>): void {
  * panics; with what is written through each part landing in what it came from.
  */
 export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let p!: rs.Place<rs.u16>;
+	let _281!: rs.Slice<rs.u16>;
+	let _282!: rs.Vec<rs.u16>;
 	if (data.length >= 2) {
 		const reach: rs.usize = rs.usizeAdd(rs.byteSliceRange(data, 2).length, 2);
 		const a: rs.usize = rs.usizeRem(data.data[data.start] as rs.usize, reach);
@@ -1034,26 +1037,26 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const _41: rs.u8 = rs.u8Rem(kind, 9);
 		if (_41 === 0) {
 			const _45: rs.Range<rs.usize> = new rs.Range(a, b);
-			const range8 = copy$ops_Range_usize(_45);
-			pokeWords(0, rs.sliceRange(rs.sliceFrom(words.items), range8.start, range8.end));
 			const range9 = copy$ops_Range_usize(_45);
-			pokePairs(0, rs.sliceRange(rs.sliceFrom(pairs.items), range9.start, range9.end));
+			pokeWords(0, rs.sliceRange(rs.sliceFrom(words.items), range9.start, range9.end));
+			const range10 = copy$ops_Range_usize(_45);
+			pokePairs(0, rs.sliceRange(rs.sliceFrom(pairs.items), range10.start, range10.end));
 			pokeArray(rs.sliceRange(rs.sliceFrom(array), rs.min(a, 5), rs.min(b, 5)));
 		} else if (_41 === 1) {
 			const _58: { end: rs.usize } = { end: b };
 			pokeWords(1, rs.sliceRange(rs.sliceFrom(words.items), 0, _58.end));
 			const _62: rs.RangeFrom<rs.usize> = new rs.RangeFrom(a, rs.usizeStep);
-			const range5 = copy$ops_RangeFrom_usize(_62);
-			pokeWords(2, rs.sliceRange(rs.sliceFrom(words.items), range5.start));
 			const range6 = copy$ops_RangeFrom_usize(_62);
-			pokePairs(1, rs.sliceRange(rs.sliceFrom(pairs.items), range6.start));
+			pokeWords(2, rs.sliceRange(rs.sliceFrom(words.items), range6.start));
+			const range7 = copy$ops_RangeFrom_usize(_62);
+			pokePairs(1, rs.sliceRange(rs.sliceFrom(pairs.items), range7.start));
 			pokePairs(2, rs.sliceFrom(pairs.items));
 			pokeWords(3, rs.sliceRange(rs.sliceFrom(words.items), 0, _58.end));
 			pokeArray(rs.sliceRange(rs.sliceFrom(array), copy$ops_RangeFrom_usize(_62).start));
 		} else if (_41 === 2) {
 			const _78: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeDiv(a, 2), rs.usizeStep);
-			const range3 = copy$ops_RangeFrom_usize(_78);
-			const outer: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), range3.start);
+			const range4 = copy$ops_RangeFrom_usize(_78);
+			const outer: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), range4.start);
 			pokeWords(4, rs.sliceRange(outer, 0, rs.usizeDiv(b, 2)));
 			const _84: rs.Place<rs.u16> | undefined = rs.sliceLastMut(outer);
 			if (_84 !== undefined) {
@@ -1160,8 +1163,8 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const _252: rs.Slice<rs.u32> = rs.sliceFrom(array);
 			pokeArray(rs.sliceRange(_252, 1, 5));
-			const slice3 = rs.sliceRange(_252, 1, 5);
-			slice3.data[slice3.start + 3] = 7;
+			const slice4 = rs.sliceRange(_252, 1, 5);
+			slice4.data[slice4.start + 3] = 7;
 			rs.sliceSwap(rs.sliceRange(rs.sliceFrom(array), 1, 4), 0, 2);
 		} else if (_41 === 7) {
 			const n4: rs.usize = words.items.length;
@@ -1171,13 +1174,17 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const range = copy$ops_Range_usize(_269);
 			const at: rs.Place<rs.u16> = rs.sliceAsPtr(rs.sliceRange(rs.sliceFrom(words.items), range.start, range.end));
 			rs.byteVecPush(out, rs.ptrOffsetFrom(at, rs.vecAsPtr(words, 2)) & 0xff);
-			const _275: boolean = l > 0;
-			if (_275) {
+			if (!(l > 0)) {
+				_282 = words;
+				const range3 = copy$ops_Range_usize(_269);
+				_281 = rs.sliceRange(rs.sliceFrom(_282.items), range3.start, range3.end);
+				p = rs.sliceAsPtr(_281);
+			} else {
 				rs.byteVecPush(out, rs.ptrAdd(at, -1).v & 0xff);
-			}
-			const range2 = copy$ops_Range_usize(_269);
-			const p: rs.Place<rs.u16> = rs.sliceAsPtr(rs.sliceRange(rs.sliceFrom(words.items), range2.start, range2.end));
-			if (_275) {
+				_282 = words;
+				const range2 = copy$ops_Range_usize(_269);
+				_281 = rs.sliceRange(rs.sliceFrom(_282.items), range2.start, range2.end);
+				p = rs.sliceAsPtr(_281);
 				const _283: rs.Place<rs.u16> = rs.ptrAdd(p, -1);
 				_283.v = _283.v ^ 15420;
 			}
@@ -2342,11 +2349,11 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _155: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 2);
 		const range5 = new rs.RangeFrom(1, rs.usizeStep);
 		const _159: [rs.ByteSlice, rs.ArraySlice<rs.ByteSlice>] = rs.sliceAsRchunks(rs.byteSliceRange(rs.byteVecSlice(bytes), range5.start), 2);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceFirst(_155[0]), rs.byteSliceGetRange(rs.byteVecSlice(bytes), 0, 2)), (_26: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([isSomeAnd$1ouf3e6(zip$1t2iyk4(rs.arraySliceFirst(_155[0]), rs.byteSliceGetRange(rs.byteVecSlice(bytes), 0, 2)), (_26: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_26[0], _26[1]);
-		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceFirst(_155[0]), rs.arraySliceFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0])), (_28: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		}), isSomeAnd$1ouf3e6(zip$1t2iyk4(rs.arraySliceFirst(_155[0]), rs.arraySliceFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0])), (_28: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_28[0], _28[1]);
-		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceLast(_159[1]), rs.arraySliceLast(_155[0])), (_210: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		}), isSomeAnd$1ouf3e6(zip$1t2iyk4(rs.arraySliceLast(_159[1]), rs.arraySliceLast(_155[0])), (_210: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_210[0], _210[1]);
 		})], (a0: boolean): rs.u8 => {
 			return a0 ? 1 : 0;

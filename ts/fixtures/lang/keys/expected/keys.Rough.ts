@@ -19,11 +19,11 @@ export function partialCmp$cmp_PartialOrd(self: Rough, other: Rough): rs.Orderin
 	const _5: rs.u8 = self._0;
 	if (!(_5 > 200)) {
 		_3 = other._0 > 200;
+		if (!_3) {
+			return rs.cmp(rs.u8Div(_5, 4), rs.u8Div(other._0, 4));
+		}
 	} else {
 		_3 = true;
-	}
-	if (!_3) {
-		return rs.cmp(rs.u8Div(_5, 4), rs.u8Div(other._0, 4));
 	}
 	return undefined;
 }

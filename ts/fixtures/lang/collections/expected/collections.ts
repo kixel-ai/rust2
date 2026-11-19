@@ -5014,34 +5014,47 @@ export function cellEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	rs.refRelease(_847);
 	const shared: rs.Arc<rs.RefCell<Quirky.Quirky>> = new rs.Arc(new rs.RefCell(copy$collections_Quirky(x)));
 	b1: {
-		const _853: rs.u8 = rs.u8Rem(kind, 6);
-		if (_853 === 0) {
-			shared[Symbol.dispose]();
-			break b1;
-		}
-		if (_853 === 1) {
-			_mutable = rs.refCellBorrowMut(ra);
-		} else if (_853 === 2) {
-			_mutable = rs.refCellBorrowMut(rb);
-		} else {
-			_mutable = rs.refCellBorrowMut(shared.value);
-		}
-		if (_853 === 1) {
+		b2: {
+			b3: {
+				const _853: rs.u8 = rs.u8Rem(kind, 6);
+				if (_853 === 0) {
+					shared[Symbol.dispose]();
+					break b1;
+				}
+				if (_853 === 1) {
+					_mutable = rs.refCellBorrowMut(ra);
+					break b3;
+				}
+				if (_853 === 2) {
+					_mutable = rs.refCellBorrowMut(rb);
+				} else {
+					_mutable = rs.refCellBorrowMut(shared.value);
+					if (_853 === 1) {
+						break b3;
+					}
+					if (_853 !== 2) {
+						if (_853 === 3) {
+							const _870: rs.Arc<rs.RefCell<Quirky.Quirky>> = rs.arcClone(shared);
+							putEq(rs.eqArc(rs.refCellBy(Quirky.eq$cmp_PartialEq), true)(shared, _870), log, out);
+							_870[Symbol.dispose]();
+							break b2;
+						}
+						if (_853 === 4) {
+							const _876: rs.Arc<rs.RefCell<Quirky.Quirky>> = new rs.Arc(new rs.RefCell(copy$collections_Quirky(y)));
+							putEq(!rs.eqArc(rs.refCellBy(Quirky.eq$cmp_PartialEq), true)(shared, _876), log, out);
+							_876[Symbol.dispose]();
+							break b2;
+						}
+						const _882: rs.Arc<rs.RefCell<Quirky.Quirky>> = rs.arcClone(shared);
+						putOrder(rs.cmpArc(rs.refCellBy(Quirky.partialCmp$cmp_PartialOrd))(shared, _882), log, out);
+						_882[Symbol.dispose]();
+						break b2;
+					}
+				}
+				putEq(rs.refCellBy(Quirky.lt$cmp_PartialOrd)(ra, rb), log, out);
+				break b2;
+			}
 			putEq(rs.refCellBy(Quirky.eq$cmp_PartialEq)(ra, rb), log, out);
-		} else if (_853 === 2) {
-			putEq(rs.refCellBy(Quirky.lt$cmp_PartialOrd)(ra, rb), log, out);
-		} else if (_853 === 3) {
-			const _870: rs.Arc<rs.RefCell<Quirky.Quirky>> = rs.arcClone(shared);
-			putEq(rs.eqArc(rs.refCellBy(Quirky.eq$cmp_PartialEq), true)(shared, _870), log, out);
-			_870[Symbol.dispose]();
-		} else if (_853 === 4) {
-			const _876: rs.Arc<rs.RefCell<Quirky.Quirky>> = new rs.Arc(new rs.RefCell(copy$collections_Quirky(y)));
-			putEq(!rs.eqArc(rs.refCellBy(Quirky.eq$cmp_PartialEq), true)(shared, _876), log, out);
-			_876[Symbol.dispose]();
-		} else {
-			const _882: rs.Arc<rs.RefCell<Quirky.Quirky>> = rs.arcClone(shared);
-			putOrder(rs.cmpArc(rs.refCellBy(Quirky.partialCmp$cmp_PartialOrd))(shared, _882), log, out);
-			_882[Symbol.dispose]();
 		}
 		const held2: rs.RefCell<rs.RefCell<Quirky.Quirky>> = rs.refCellBorrow(rra);
 		const _inner2: rs.RefCell<Quirky.Quirky> = rs.refCellBorrowMut(held2.value);

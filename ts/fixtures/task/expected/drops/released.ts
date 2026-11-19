@@ -29,29 +29,15 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _10: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(guards(log, id, new rs.Range(1, 5)), rs.drop), 3, rs.drop);
 		const captured26 = a;
 		const _19: rs.u32 | undefined = option_map$06w9waf(rs.iterReduce(_10, rs.closure((x4: Guard.Guard, y4: Guard.Guard): Guard.Guard => {
-			let _029!: Guard.Guard;
-			let _235: boolean = false;
-			let _225: boolean = false;
-			_235 = true;
-			_225 = true;
 			const _1212: rs.u32 = Guard.id(captured26);
 			const _626: string = rs.fmtFormat(["reduce ", (f: rs.Formatter) => rs.u32Display(_1212, f)]).v;
 			Guard.note(y4, _626);
 			if (!(Guard.id(x4) < Guard.id(y4))) {
-				_235 = false;
-				_029 = x4;
-			} else {
-				_225 = false;
-				_029 = y4;
-			}
-			if (_225) {
 				y4[Symbol.dispose]();
+				return x4;
 			}
-			if (_235) {
-				x4[Symbol.dispose]();
-				return _029;
-			}
-			return _029;
+			x4[Symbol.dispose]();
+			return y4;
 		}, (): void => {
 			captured26[Symbol.dispose]();
 		}), true, true), (g18: Guard.Guard): rs.u32 => {
@@ -76,26 +62,12 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _43: rs.Iter<Guard.Guard> = rs.iterMap(new rs.Range(13, 16), guard);
 		const captured28 = c;
 		const _50: rs.u32 | undefined = option_map$06w9waf(rs.iterReduce(_43, rs.closure((x6: Guard.Guard, y5: Guard.Guard): Guard.Guard => {
-			let _032!: Guard.Guard;
-			let _1213: boolean = false;
-			let _1112: boolean = false;
-			_1213 = true;
-			_1112 = true;
 			if (!(Guard.id(y5) === rs.u32Add(Guard.id(captured28), 2))) {
-				_1213 = false;
-				_032 = x6;
-			} else {
-				_1112 = false;
-				_032 = y5;
-			}
-			if (_1112) {
 				y5[Symbol.dispose]();
+				return x6;
 			}
-			if (_1213) {
-				x6[Symbol.dispose]();
-				return _032;
-			}
-			return _032;
+			x6[Symbol.dispose]();
+			return y5;
 		}, (): void => {
 			captured28[Symbol.dispose]();
 		}), undefined, true), (g19: Guard.Guard): rs.u32 => {

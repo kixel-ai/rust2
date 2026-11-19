@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { of$ids_Byte, of$ids_Mood, of$ref_str, of$u32, of$u8, ofPlace$ids_Mood, ofPlace$u32 } from "./lib.ts";
 import type * as Any from "./core/any.Any.ts";
-import { fromStrRadix$1wsezny as num_fromStrRadix$1wsezny } from "./core/num.ts";
+import { fromStrRadix$0qmr8zv as num_fromStrRadix$0qmr8zv } from "./core/num.ts";
 import { unwrapOrDefault$15dio94 as option_unwrapOrDefault$15dio94, map$0v3tpx3 as option_map$0v3tpx3 } from "./core/option.ts";
 import { ok$03r6cuf } from "./core/result.ts";
 import { put } from "./harness.ts";
@@ -71,11 +71,11 @@ export function hashOf(id: rs.TypeId): rs.u128 | undefined {
 					}
 					return !rs.isAsciiUppercase(b);
 				});
+				if (_19) {
+					return ok$03r6cuf(num_fromStrRadix$0qmr8zv(_9, 16));
+				}
 			}
-			if (!_19) {
-				return undefined;
-			}
-			return ok$03r6cuf(num_fromStrRadix$1wsezny(_9, 16));
+			return undefined;
 		}
 		return undefined;
 	}

@@ -781,8 +781,8 @@ export function keys(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * another handle, or by a `Weak` alone, read after `make_mut` writes it.
  */
 export function addresses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _41!: rs.u8;
 	let _42!: boolean;
-	let _46: boolean = false;
 	let wide: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
 		return ((_2 as rs.u16) << 4) & 0xffff;
 	}), undefined, 2, true).items));
@@ -794,7 +794,6 @@ export function addresses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const weak: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>] | undefined = then$0zcjz7j(_10 === 2, (): [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>] => {
 		return [new rs.Weak(wide), new rs.Weak(bytes)] as [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>];
 	});
-	_46 = true;
 	const _19: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(rs.arcMakeMut(rs.place(() => wide, (value) => wide = value), (a0: rs.Slice<rs.u16>): rs.Slice<rs.u16> => {
 		return rs.sliceFrom(rs.sliceToArray(a0));
 	}, rs.drop));
@@ -814,7 +813,6 @@ export function addresses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 	putBytes(_34.derefBytes(false), out);
 	if (!(other !== undefined)) {
-		_46 = false;
 		_42 = isSomeAnd$15uicdu(weak, (_27: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>]): boolean => {
 			let _07!: boolean;
 			const a: rs.Weak<rs.Slice<rs.u16>> = _27[0];
@@ -833,14 +831,14 @@ export function addresses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			a[Symbol.dispose]();
 			return _07;
 		});
+		_41 = _42 ? 1 : 0;
+		rs.byteVecPush(out, _41);
 	} else {
 		_42 = true;
-	}
-	rs.byteVecPush(out, _42 ? 1 : 0);
-	if (_46) {
+		_41 = _42 ? 1 : 0;
+		rs.byteVecPush(out, _41);
 		drop$Option_tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(weak);
 	}
-	_46 = false;
 	drop$Option_tuple2_Rc_slice_u16_sync_Arc_slice_u8(other);
 	bytes[Symbol.dispose]();
 	wide[Symbol.dispose]();

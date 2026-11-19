@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$String, copy$collections_VecDeque_orders_Part, copy$orders_Item, copy$tuple2_u8_u8 } from "./lib.ts";
 import { thenSome$1qfl7tz } from "./core/bool.ts";
-import { min$10ohimp, min$0hz2v7s, min$1akgklh, min$094dtzd, minBy$18ytev0, minBy$0p6yz91, minByKey$1qsvvgc, max$16nac37, max$0vq2d0c, max$0n458i1, max$1nu2xoq, max$12ifqlw, max$0we2ghu, maxBy$1ghjx71, maxBy$1gr65n2, maxByKey$1a9sf4b } from "./core/cmp.ts";
+import { min$10ohimp, min$0hz2v7s, min$1akgklh, min$094dtzd, minBy$1df5r4m, minBy$0p6yz91, minByKey$1hyawcy, max$16nac37, max$0vq2d0c, max$0n458i1, max$1nu2xoq, max$12ifqlw, max$0we2ghu, maxBy$1ltklc6, maxBy$1gr65n2, maxByKey$10z18zs } from "./core/cmp.ts";
 import { unwrapOr$18rai12 as option_unwrapOr$18rai12, map$0adj75b as option_map$0adj75b, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$13h3wxw as option_mapOr$13h3wxw, mapOr$172961h as option_mapOr$172961h, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$0i0fno7 as option_mapOr$0i0fno7 } from "./core/option.ts";
 import { eq$1wvyxyw as result_eq$1wvyxyw, eq$0p2ygx3 as result_eq$0p2ygx3, partialCmp$1frpo9k as result_partialCmp$1frpo9k, partialCmp$1ks7sga as result_partialCmp$1ks7sga, partialCmp$0rzsy3r as result_partialCmp$0rzsy3r, partialCmp$0wss1z6 as result_partialCmp$0wss1z6, cmp$0lhhufb as result_cmp$0lhhufb, cmp$13u97s2 as result_cmp$13u97s2, cmp$0h35u3j as result_cmp$0h35u3j, cmp$18cbpvu as result_cmp$18cbpvu } from "./core/result.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, cmp$17et0iz as poll_cmp$17et0iz, partialCmp$1gaal0x as poll_partialCmp$1gaal0x, partialCmp$12m7vp8 as poll_partialCmp$12m7vp8 } from "./core/task/poll.ts";
@@ -97,25 +97,25 @@ export function cmps(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		rs.byteVecPush(out, _79.tag);
 		_79[Symbol.dispose]();
 		const _82: [Item.Item, Item.Item] = pair();
-		const _86: Item.Item = maxBy$1ghjx71(_82[0], _82[1], (l: Item.Item, r: Item.Item): rs.Ordering => {
+		const _86: Item.Item = maxBy$1ltklc6(_82[0], _82[1], (l: Item.Item, r: Item.Item): rs.Ordering => {
 			return rs.orderingReverse(rs.cmp(l.key, r.key));
 		});
 		rs.byteVecPush(out, _86.tag);
 		_86[Symbol.dispose]();
 		const _89: [Item.Item, Item.Item] = pair();
-		const _93: Item.Item = minBy$18ytev0(_89[0], _89[1], (l2: Item.Item, r2: Item.Item): rs.Ordering => {
+		const _93: Item.Item = minBy$1df5r4m(_89[0], _89[1], (l2: Item.Item, r2: Item.Item): rs.Ordering => {
 			return rs.cmp(rs.u8Div(l2.key, 2), rs.u8Div(r2.key, 2));
 		});
 		rs.byteVecPush(out, _93.tag);
 		_93[Symbol.dispose]();
 		const _96: [Item.Item, Item.Item] = pair();
-		const _100: Item.Item = maxByKey$1a9sf4b(_96[0], _96[1], (v: Item.Item): Item.Item => {
+		const _100: Item.Item = maxByKey$10z18zs(_96[0], _96[1], (v: Item.Item): Item.Item => {
 			return item(rs.usizeAdd(v.tag as rs.usize, 100), rs.u8Div(v.key, 2));
 		});
 		rs.byteVecPush(out, _100.tag);
 		_100[Symbol.dispose]();
 		const _103: [Item.Item, Item.Item] = pair();
-		const _107: Item.Item = minByKey$1qsvvgc(_103[0], _103[1], (v2: Item.Item): rs.u8 => {
+		const _107: Item.Item = minByKey$1hyawcy(_103[0], _103[1], (v2: Item.Item): rs.u8 => {
 			return v2.key;
 		});
 		rs.byteVecPush(out, _107.tag);
@@ -250,8 +250,6 @@ export function sorted(data: rs.ByteSlice, out: rs.ByteVec): void {
  * comparison its sifts make, which of equal items it gives back, and when each drops.
  */
 export function heaps(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _123: boolean = false;
-	let _124: boolean = false;
 	let heap: rs.BinaryHeap<Item.Item> = rs.heapNew() as rs.BinaryHeap<Item.Item>;
 	const other: rs.BinaryHeap<Item.Item> = rs.heapWithCapacity(4, 2) as rs.BinaryHeap<Item.Item>;
 	const ops: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
@@ -280,33 +278,26 @@ export function heaps(data: rs.ByteSlice, out: rs.ByteVec): void {
 				} else if (_17 === 4) {
 					const _25: rs.PeekMut<Item.Item> | undefined = rs.heapPeekMut(heap, Item.le$cmp_PartialOrd, Item.ge$cmp_PartialOrd, Item.lt$cmp_PartialOrd);
 					if (_25 !== undefined) {
-						_123 = true;
 						const top: rs.PeekMut<Item.Item> = _25;
 						rs.peekMutDerefMut(top);
 						top.v.key = rs.u8Rem(v, 8);
-						if ((v & 16) !== 0) {
-							_123 = false;
-						}
-						if (_123) {
+						if (!((v & 16) !== 0)) {
 							rs.peekMutDrop(top);
 						}
-						_123 = false;
 					}
 				} else if (_17 === 5) {
 					const _35: rs.PeekMut<Item.Item> | undefined = rs.heapPeekMut(heap, Item.le$cmp_PartialOrd, Item.ge$cmp_PartialOrd, Item.lt$cmp_PartialOrd);
 					if (_35 !== undefined) {
-						_124 = true;
 						const top2: rs.PeekMut<Item.Item> = _35;
 						const _39: rs.u8 = rs.u8Rem(v, 3);
 						if (_39 === 0) {
-							_124 = false;
 							const _41: Item.Item = rs.peekMutPop(top2);
 							rs.byteVecPush(out, _41.tag);
 							_41[Symbol.dispose]();
 						} else if (_39 === 1) {
 							rs.byteVecPush(out, top2.v.tag);
+							rs.peekMutDrop(top2);
 						} else {
-							_124 = false;
 							const top3: rs.PeekMut<Item.Item> = top2;
 							rs.peekMutDerefMut(top3);
 							const _47: Item.Item = top3.v;
@@ -315,10 +306,6 @@ export function heaps(data: rs.ByteSlice, out: rs.ByteVec): void {
 							rs.byteVecPush(out, _51.tag);
 							_51[Symbol.dispose]();
 						}
-						if (_124) {
-							rs.peekMutDrop(top2);
-						}
-						_124 = false;
 					}
 				} else if (_17 === 6) {
 					const _54: Item.Item = item(i, v);
@@ -936,6 +923,10 @@ export function deque$u8_orders_held_closure8(sData: Uint8Array, sStart: number,
 export function held(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _312!: Uint8Array;
 	let key!: rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>;
+	let _353!: rs.u8 | undefined;
+	let _354!: rs.usize | undefined;
+	let _355!: rs.BTreeMap<rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>, rs.usize>;
+	let _356!: rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>;
 	const _3: (a0: rs.usize, a1: rs.u8) => rs.Result<Part.Part, Part.Part> = (i5: rs.usize, b2: rs.u8): rs.Result<Part.Part, Part.Part> => {
 		if ((b2 & 128) === 0) {
 			return rs.Ok(part(i5, b2));
@@ -1136,12 +1127,23 @@ export function held(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (!((_345 & 1) === 0)) {
 			rs.idx(_334[1], 0);
 			key = rs.Err(_5(_345));
+			_355 = deques;
+			_356 = key as rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>;
+			_354 = rs.btreeInsert(_355, _356, i4);
+			_353 = option_map$14ju55r(_354, (i11: rs.usize): rs.u8 => {
+				return i11 & 0xff;
+			});
+			rs.iterExtendBytes(out, rs.iterOption(_353), undefined, true);
 		} else {
 			key = rs.Ok(d2);
+			_355 = deques;
+			_356 = key as rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>;
+			_354 = rs.btreeInsert(_355, _356, i4);
+			_353 = option_map$14ju55r(_354, (i10: rs.usize): rs.u8 => {
+				return i10 & 0xff;
+			});
+			rs.iterExtendBytes(out, rs.iterOption(_353), undefined, true);
 		}
-		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(deques, key as rs.Result<rs.VecDeque<rs.u8>, rs.Poll<rs.u8>>, i4), (i10: rs.usize): rs.u8 => {
-			return i10 & 0xff;
-		})), undefined, true);
 	}
 	rs.iterExtendBytes(out, rs.iterMap(rs.btreeValues(deques), (_221: rs.usize): rs.u8 => {
 		return _221 & 0xff;

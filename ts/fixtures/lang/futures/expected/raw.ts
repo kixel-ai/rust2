@@ -144,31 +144,32 @@ export function waker(byte: rs.u8): rs.Waker {
  * used, and those it made dropped in reverse.
  */
 export function calls(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _37: boolean = false;
 	const kept: rs.Vec<rs.Waker> = new rs.Vec();
 	for (const byte of rs.byteSliceView(data)) {
 		const w: rs.Waker = waker(byte);
-		_37 = true;
 		rs.byteVecPush(out, (w.data as rs.Place<undefined>) === rs.NULL ? 1 : 0);
 		const _17: rs.u8 = rs.u8Rem(rs.u8Div(byte, 12), 6);
 		if (_17 === 0) {
 			w.wakeByRef();
-		} else if (_17 === 1) {
-			_37 = false;
-			w.wake();
-		} else if (_17 === 2) {
-			const _22: rs.Waker = w.clone();
-			kept.items.push(_22);
-		} else if (_17 === 3) {
-			_37 = false;
-		} else if (_17 === 4) {
-			w.clone().wake();
-			w.wakeByRef();
+		} else {
+			if (_17 === 1) {
+				w.wake();
+				continue;
+			}
+			if (_17 === 2) {
+				const _22: rs.Waker = w.clone();
+				kept.items.push(_22);
+			} else {
+				if (_17 === 3) {
+					continue;
+				}
+				if (_17 === 4) {
+					w.clone().wake();
+					w.wakeByRef();
+				}
+			}
 		}
-		if (_37) {
-			w[Symbol.dispose]();
-		}
-		_37 = false;
+		w[Symbol.dispose]();
 	}
 	while (true) {
 		const _30: rs.Waker | undefined = rs.vecPop(kept);

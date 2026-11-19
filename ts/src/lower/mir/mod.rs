@@ -3540,7 +3540,8 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 			Exit::End => Exit::End,
 		};
 		// A loop runs its body anew each time: what is held back to fold into its one read
-		// runs where it was made, before the loop, if running it again would differ.
+		// runs where it was made, before the loop, if running it again would differ, or
+		// would make an object again, as a constant array would.
 		let targets: Vec<usize> = match &exit {
 			Exit::Goto(to) => vec![*to],
 			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
@@ -3552,7 +3553,7 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 		{
 			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
 				.into_iter()
-				.partition(|p| p.effect || p.memory);
+				.partition(|p| p.effect || p.memory || allocates(&p.value));
 			self.pending = kept;
 			for p in held {
 				self.flush_one(p, out);
@@ -3564,6 +3565,15 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
 		self.flush_pending(out);
 	}
+}
+
+/// Whether evaluating `e` makes a JS object: an array, object, class, or function literal.
+fn allocates(e: &Expr) -> bool {
+	let mut found = false;
+	visit_expr(e, &mut |e| {
+		found |= matches!(e, Expr::Array(_) | Expr::Object(_) | Expr::New(..) | Expr::Arrow(..) | Expr::Lambda(..))
+	});
+	found
 }
 
 impl Fx<'_, '_, '_, '_> {

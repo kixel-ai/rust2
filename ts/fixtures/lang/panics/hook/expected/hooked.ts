@@ -6,8 +6,8 @@ import { take$bytes_Buf_bytes_Bytes as buf_impl_take$bytes_Buf_bytes_Bytes } fro
 import * as Take from "./bytes/buf/take.Take.ts";
 import * as UninitSlice from "./bytes/buf/uninit_slice.UninitSlice.ts";
 import type * as Any from "./core/any.Any.ts";
-import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$18ftgyp as option_map$18ftgyp, map$04ry0e1 as option_map$04ry0e1, mapOr$14runhi as option_mapOr$14runhi, filter$0hq86nl } from "./core/option.ts";
-import { map$1hfd4x1 as result_map$1hfd4x1, unwrapOrDefault$0t7trfe as result_unwrapOrDefault$0t7trfe, unwrapOr$1tftpn5 as result_unwrapOr$1tftpn5 } from "./core/result.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$18ftgyp as option_map$18ftgyp, map$04ry0e1 as option_map$04ry0e1, mapOr$14runhi as option_mapOr$14runhi, filter$0agadp5 } from "./core/option.ts";
+import { map$0rnnt8e as result_map$0rnnt8e, unwrapOrDefault$0t7trfe as result_unwrapOrDefault$0t7trfe, unwrapOr$1tftpn5 as result_unwrapOr$1tftpn5 } from "./core/result.ts";
 import { panicked as edition2018_panicked } from "./edition2018.ts";
 import * as Failing from "./hooked.Failing.ts";
 import * as Lying from "./hooked.Lying.ts";
@@ -111,13 +111,13 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (_10 === 3) {
 		rs.byteVecPush(out, rs.u8Add(rs.max(n, 200), rs.max(n, 100), { file: "fixtures/lang/panics/src/hooked.rs", line: 91, col: 23 }));
 	} else if (_10 === 4) {
-		rs.byteVecPush(out, rs.optionUnwrap(filter$0hq86nl(n, (_210: rs.u8): boolean => {
+		rs.byteVecPush(out, rs.optionUnwrap(filter$0agadp5(n, (_210: rs.u8): boolean => {
 			return false;
 		}), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 92, col: 49 }));
 	} else if (_10 === 5) {
 		rs.byteVecPush(out, rs.resultUnwrap(rs.Err(n), rs.u8Debug, { file: "fixtures/lang/panics/src/hooked.rs", line: 93, col: 40 }));
 	} else if (_10 === 6) {
-		rs.byteVecPush(out, rs.optionExpect(filter$0hq86nl(n, (_2: rs.u8): boolean => {
+		rs.byteVecPush(out, rs.optionExpect(filter$0agadp5(n, (_2: rs.u8): boolean => {
 			return false;
 		}), "expected", undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 94, col: 49 }));
 	} else if (_10 === 7) {
@@ -409,7 +409,7 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/std/src/thread/local.rs", line: 721, col: 38 });
 		} else if (k === 34) {
 			((cell3: rs.RefCell<rs.u8>): undefined => {
-				result_unwrapOrDefault$0t7trfe(result_map$1hfd4x1(rs.refCellTryBorrowMut(cell3), (_a03: rs.RefCell<rs.u8>): undefined => {
+				result_unwrapOrDefault$0t7trfe(result_map$0rnnt8e(rs.refCellTryBorrowMut(cell3), (_a03: rs.RefCell<rs.u8>): undefined => {
 					undefined;
 				}));
 			})(EXCLUSIVE.get());

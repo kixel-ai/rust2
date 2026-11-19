@@ -126,10 +126,6 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 	let _401!: Weak.Weak;
 	let up!: mpsc_Tx.Tx | undefined;
 	b0: {
-		let _443: boolean = false;
-		let _445: boolean = false;
-		let _447: boolean = false;
-		let _450: boolean = false;
 		if (op === 0) {
 			const _4: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
 			if (_4 !== undefined) {
@@ -148,81 +144,56 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			}
 		} else if (op === 3) {
 			const item: Item.Item = mpsc_State.item(s);
-			_443 = true;
 			const _31: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			if (_31 !== undefined) {
-				if (_31.tag === "Bounded") {
-					const tx: rs.MpscSender<Item.Item> = _31._0;
-					_443 = false;
-					Executor.spawn$mpsc_step_run_closure3(s.exec, new stepRunFuture$closure3(tx, item));
-				} else {
-					const tx2: rs.MpscSender<Item.Item> = _31._0;
-					_443 = false;
-					const _39: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx2, item, (a08: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
-						return new mpsc_error_SendError.SendError(a08);
-					});
-					if (_39.ok) {
-						note(rs.stringFrom("sent"));
-					} else {
-						const e: mpsc_error_SendError.SendError<Item.Item> = _39.error;
-						const _51: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Display_log_Item(e, f);
-						const _52: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Debug_log_Item(e, f);
-						const arg2 = e._0;
-						const args30 = [_51, _52, (f: rs.Formatter) => Item.fmt$fmt_Display(arg2, f)];
-						note(rs.fmtFormat(["send ", args30[0], " ", args30[1], " ", args30[2]]));
-						e[Symbol.dispose]();
-					}
-					tx2[Symbol.dispose]();
-				}
-			}
-			if (_443) {
+			if (_31 === undefined) {
 				item[Symbol.dispose]();
+			} else if (_31.tag === "Bounded") {
+				Executor.spawn$mpsc_step_run_closure3(s.exec, new stepRunFuture$closure3(_31._0, item));
+			} else {
+				const tx2: rs.MpscSender<Item.Item> = _31._0;
+				const _39: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx2, item, (a08: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
+					return new mpsc_error_SendError.SendError(a08);
+				});
+				if (_39.ok) {
+					note(rs.stringFrom("sent"));
+				} else {
+					const e: mpsc_error_SendError.SendError<Item.Item> = _39.error;
+					const _51: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Display_log_Item(e, f);
+					const _52: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Debug_log_Item(e, f);
+					const arg2 = e._0;
+					const args30 = [_51, _52, (f: rs.Formatter) => Item.fmt$fmt_Display(arg2, f)];
+					note(rs.fmtFormat(["send ", args30[0], " ", args30[1], " ", args30[2]]));
+					e[Symbol.dispose]();
+				}
+				tx2[Symbol.dispose]();
 			}
-			_443 = false;
 		} else if (op === 4) {
 			const item2: Item.Item = mpsc_State.item(s);
-			_445 = true;
 			const _56: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b25: {
-				if (_56 !== undefined) {
-					if (_56.tag === "Bounded") {
-						const tx3: rs.MpscSender<Item.Item> = _56._0;
-						_445 = false;
-						Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(tx3, arg, item2));
-						break b25;
-					}
-				}
-				if (_56 !== undefined) {
-					drop$mpsc_Tx(_56);
+			if (_56 !== undefined) {
+				if (_56.tag === "Bounded") {
+					Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(_56._0, arg, item2));
+					break b0;
 				}
 			}
-			if (_445) {
-				item2[Symbol.dispose]();
+			if (_56 !== undefined) {
+				drop$mpsc_Tx(_56);
 			}
-			_445 = false;
+			item2[Symbol.dispose]();
 		} else if (op === 5) {
 			const first: Item.Item = mpsc_State.item(s);
-			_447 = true;
 			const _65: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b21: {
-				if (_65 !== undefined) {
-					if (_65.tag === "Bounded") {
-						const tx4: rs.MpscSender<Item.Item> = _65._0;
-						const n: rs.usize = rs.u8Rem(arg, 6) as rs.usize;
-						const sent: rs.usize = rs.usizeRem(arg >> 4 as rs.usize, 3);
-						_447 = false;
-						Executor.spawn$mpsc_step_run_closure5(s.exec, new stepRunFuture$closure5(tx4, n, first, sent));
-						break b21;
-					}
-				}
-				if (_65 !== undefined) {
-					drop$mpsc_Tx(_65);
+			if (_65 !== undefined) {
+				if (_65.tag === "Bounded") {
+					const _77: rs.Future<rs.String> = new stepRunFuture$closure5(_65._0, rs.u8Rem(arg, 6) as rs.usize, first, rs.usizeRem(arg >> 4 as rs.usize, 3));
+					Executor.spawn$mpsc_step_run_closure5(s.exec, _77);
+					break b0;
 				}
 			}
-			if (_447) {
-				first[Symbol.dispose]();
+			if (_65 !== undefined) {
+				drop$mpsc_Tx(_65);
 			}
-			_447 = false;
+			first[Symbol.dispose]();
 		} else if (op === 6) {
 			const _78: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
 			if (_78 !== undefined) {
@@ -278,7 +249,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 				s.owned.items[at5] = undefined;
 				const permit2: rs.MpscOwnedPermit<Item.Item> = rs.optionExpect(taken2, "live");
 				const _123: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, 0);
-				b13: {
+				b11: {
 					if (_123 !== undefined) {
 						if (_123.tag === "Bounded") {
 							const tx6: rs.MpscSender<Item.Item> = _123._0;
@@ -294,7 +265,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 							const args27 = [(f: rs.Formatter) => rs.fmtBool(_133, f), (f: rs.Formatter) => rs.fmtBool(_136, f)];
 							note(rs.fmtFormat(["same ", args27[0], " ", args27[1]]));
 							tx6[Symbol.dispose]();
-							break b13;
+							break b11;
 						}
 					}
 					if (_123 !== undefined) {
@@ -325,47 +296,40 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			}
 		} else if (op === 9) {
 			const item4: Item.Item = mpsc_State.item(s);
-			_450 = true;
 			const _203: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			if (_203 !== undefined) {
-				if (_203.tag === "Bounded") {
-					const tx10: rs.MpscSender<Item.Item> = _203._0;
-					_450 = false;
-					const _208: rs.Result<undefined, TrySendError.TrySendError<Item.Item>> = rs.mpscTrySend(tx10, item4, (a06: Item.Item): TrySendError.TrySendError<Item.Item> => {
-						return { tag: "Full", _0: a06 };
-					}, (a07: Item.Item): TrySendError.TrySendError<Item.Item> => {
-						return { tag: "Closed", _0: a07 };
-					});
-					if (_208.ok) {
-						note(rs.stringFrom("try_send ok"));
-					} else {
-						const e2: TrySendError.TrySendError<Item.Item> = _208.error;
-						const args25 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_log_Item(e2, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_log_Item(e2, f)];
-						const line: rs.String = rs.fmtFormat(["try_send ", args25[0], " ", args25[1]]);
-						const _227: Item.Item = TrySendError.intoInner$log_Item(e2);
-						const args26 = [(f: rs.Formatter) => rs.fmtPad(f, line.v), (f: rs.Formatter) => Item.fmt$fmt_Display(_227, f)];
-						const _224: rs.String = rs.fmtFormat([args26[0], " ", args26[1]]);
-						_227[Symbol.dispose]();
-						note(_224);
-					}
-					tx10[Symbol.dispose]();
-				} else {
-					const tx11: rs.MpscSender<Item.Item> = _203._0;
-					_450 = false;
-					const _240: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx11, item4, (a05: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
-						return new mpsc_error_SendError.SendError(a05);
-					});
-					const _238: boolean = _240.ok;
-					const _235: rs.String = rs.fmtFormat(["send ", (f: rs.Formatter) => rs.fmtBool(_238, f)]);
-					drop$Result_unit_tokio_sync_mpsc_error_SendError_log_Item(_240);
-					note(_235);
-					tx11[Symbol.dispose]();
-				}
-			}
-			if (_450) {
+			if (_203 === undefined) {
 				item4[Symbol.dispose]();
+			} else if (_203.tag === "Bounded") {
+				const tx10: rs.MpscSender<Item.Item> = _203._0;
+				const _208: rs.Result<undefined, TrySendError.TrySendError<Item.Item>> = rs.mpscTrySend(tx10, item4, (a06: Item.Item): TrySendError.TrySendError<Item.Item> => {
+					return { tag: "Full", _0: a06 };
+				}, (a07: Item.Item): TrySendError.TrySendError<Item.Item> => {
+					return { tag: "Closed", _0: a07 };
+				});
+				if (_208.ok) {
+					note(rs.stringFrom("try_send ok"));
+				} else {
+					const e2: TrySendError.TrySendError<Item.Item> = _208.error;
+					const args25 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_log_Item(e2, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_log_Item(e2, f)];
+					const line: rs.String = rs.fmtFormat(["try_send ", args25[0], " ", args25[1]]);
+					const _227: Item.Item = TrySendError.intoInner$log_Item(e2);
+					const args26 = [(f: rs.Formatter) => rs.fmtPad(f, line.v), (f: rs.Formatter) => Item.fmt$fmt_Display(_227, f)];
+					const _224: rs.String = rs.fmtFormat([args26[0], " ", args26[1]]);
+					_227[Symbol.dispose]();
+					note(_224);
+				}
+				tx10[Symbol.dispose]();
+			} else {
+				const tx11: rs.MpscSender<Item.Item> = _203._0;
+				const _240: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx11, item4, (a05: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
+					return new mpsc_error_SendError.SendError(a05);
+				});
+				const _238: boolean = _240.ok;
+				const _235: rs.String = rs.fmtFormat(["send ", (f: rs.Formatter) => rs.fmtBool(_238, f)]);
+				drop$Result_unit_tokio_sync_mpsc_error_SendError_log_Item(_240);
+				note(_235);
+				tx11[Symbol.dispose]();
 			}
-			_450 = false;
 		} else if (op === 10) {
 			const _246: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
 			if (_246 !== undefined) {

@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 import { drop$Vec_model_Guard as lib_drop$Vec_model_Guard, drop$tuple2_usize_model_Guard as lib_drop$tuple2_usize_model_Guard } from "../lib.ts";
-import { thenSome$0zvoczk } from "../core/bool.ts";
+import { thenSome$0c17n7b } from "../core/bool.ts";
 import { map$06w9waf as option_map$06w9waf, map$1389p4b as option_map$1389p4b } from "../core/option.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
@@ -133,7 +133,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["filter ", (f: rs.Formatter) => rs.fmtOption(_176, f, rs.u32Debug)]));
 		rs.drop(it4);
 		const it5: rs.Iter<Guard.Guard> = rs.iterFilterMap(firsts(log, id, 20), (g20: Guard.Guard): Guard.Guard | undefined => {
-			return thenSome$0zvoczk(Guard.id(g20) !== rs.u32Add(id, 20), g20);
+			return thenSome$0c17n7b(Guard.id(g20) !== rs.u32Add(id, 20), g20);
 		});
 		const part19 = rs.iterToOption(it5.next());
 		const _195: rs.u32 | undefined = idOf(part19);

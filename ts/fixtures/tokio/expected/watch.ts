@@ -52,8 +52,6 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 	let rx5!: rs.WatchReceiver<Item.Item> | undefined;
 	let same2!: boolean;
 	b0: {
-		let _286: boolean = false;
-		let _287: boolean = false;
 		if (op === 0) {
 			const _4: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>> | undefined = watch_State.slot(s, arg);
 			if (_4 !== undefined) {
@@ -86,10 +84,8 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 			}
 		} else if (op === 3) {
 			const item: Item.Item = watch_State.item(s);
-			_286 = true;
 			const _47: rs.WatchSender<Item.Item> | undefined = watch_State.sender(s, arg);
 			if (_47 !== undefined) {
-				_286 = false;
 				const _51: rs.Result<undefined, watch_error_SendError.SendError<Item.Item>> = rs.watchSend(_47, item, (a02: Item.Item): watch_error_SendError.SendError<Item.Item> => {
 					return new watch_error_SendError.SendError(a02);
 				}, rs.drop);
@@ -104,25 +100,19 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 					note(rs.fmtFormat(["send ", args16[0], " ", args16[1], " ", args16[2]]));
 					e[Symbol.dispose]();
 				}
-			}
-			if (_286) {
+			} else {
 				item[Symbol.dispose]();
 			}
-			_286 = false;
 		} else if (op === 4) {
 			const item2: Item.Item = watch_State.item(s);
-			_287 = true;
 			const _67: rs.WatchSender<Item.Item> | undefined = watch_State.sender(s, arg);
 			if (_67 !== undefined) {
-				_287 = false;
 				const old: Item.Item = rs.watchSendReplace(_67, item2);
 				note(rs.fmtFormat(["replaced ", (f: rs.Formatter) => Item.fmt$fmt_Display(old, f)]));
 				old[Symbol.dispose]();
-			}
-			if (_287) {
+			} else {
 				item2[Symbol.dispose]();
 			}
-			_287 = false;
 		} else if (op === 5) {
 			const _81: rs.WatchSender<Item.Item> | undefined = watch_State.sender(s, arg);
 			if (_81 !== undefined) {

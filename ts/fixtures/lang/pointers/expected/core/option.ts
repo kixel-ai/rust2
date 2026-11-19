@@ -146,12 +146,13 @@ export function mapOr$0smr0aj(self: rs.u16 | undefined, default_: Uint8Array, _:
 	return rs.u16ToBeBytes(self);
 }
 
-export function filter$0wvwd70(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {
+export function filter$0eym6fy(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {
 	if (self !== undefined) {
 		const x: rs.u32 = self;
-		if (predicate(x)) {
-			return x;
+		if (!predicate(x)) {
+			return undefined;
 		}
+		return x;
 	}
 	return undefined;
 }

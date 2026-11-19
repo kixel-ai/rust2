@@ -7455,60 +7455,44 @@ export function writeAs$array3_u8_mut_slice_array3_u8(b: rs.ArraySlice<rs.ByteSl
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
 export function writeAs$conversions_Logged_mut_Vec_conversions_Logged(b: rs.Vec<Logged.Logged>, value: Logged.Logged): void {
-	let _9: boolean = false;
-	_9 = true;
 	const _3: Logged.Logged | undefined = rs.sliceLast(rs.sliceFrom(b.items));
 	if (_3 !== undefined) {
-		_9 = false;
 		_3[Symbol.dispose]();
 		Object.assign(_3, value);
-	}
-	if (_9) {
+	} else {
 		value[Symbol.dispose]();
 	}
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
 export function writeAs$conversions_Logged_mut_array3_conversions_Logged(b: rs.Slice<Logged.Logged>, value: Logged.Logged): void {
-	let _9: boolean = false;
-	_9 = true;
 	const _3: Logged.Logged | undefined = rs.sliceLast(b);
 	if (_3 !== undefined) {
-		_9 = false;
 		_3[Symbol.dispose]();
 		Object.assign(_3, value);
-	}
-	if (_9) {
+	} else {
 		value[Symbol.dispose]();
 	}
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
 export function writeAs$conversions_Logged_mut_mut_Vec_conversions_Logged(b: rs.Place<rs.Vec<Logged.Logged>>, value: Logged.Logged): void {
-	let _9: boolean = false;
-	_9 = true;
 	const _3: Logged.Logged | undefined = rs.sliceLast(rs.sliceFrom(b.v.items));
 	if (_3 !== undefined) {
-		_9 = false;
 		_3[Symbol.dispose]();
 		Object.assign(_3, value);
-	}
-	if (_9) {
+	} else {
 		value[Symbol.dispose]();
 	}
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
 export function writeAs$conversions_Logged_mut_slice_conversions_Logged(b: rs.Slice<Logged.Logged>, value: Logged.Logged): void {
-	let _9: boolean = false;
-	_9 = true;
 	const _3: Logged.Logged | undefined = rs.sliceLast(b);
 	if (_3 !== undefined) {
-		_9 = false;
 		_3[Symbol.dispose]();
 		Object.assign(_3, value);
-	}
-	if (_9) {
+	} else {
 		value[Symbol.dispose]();
 	}
 }
