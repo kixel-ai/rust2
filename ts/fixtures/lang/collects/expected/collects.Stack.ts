@@ -24,13 +24,15 @@ export class Stack<T> {
 
 export function fromIter$iter_FromIterator_collects_Item_collects_Item_iter_Map_iter_Take_slice_Iter_u8_collects_collects_closure8(iter: rs.Iter<Item.Item>): Stack<Item.Item> {
 	const items: rs.Vec<Item.Item> = rs.iterToVec(iter, undefined, 8, true);
-	rs.sliceReverse(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	rs.sliceReverse(new rs.Slice(items2, 0, items2.length));
 	return new Stack(items, items.items.length);
 }
 
 export function fromIter$iter_FromIterator_u16_u16_iter_Map_slice_Iter_u8_collects_collects_closure7(iter: rs.Iter<rs.u16>): Stack<rs.u16> {
 	const items: rs.Vec<rs.u16> = rs.iterToVec(iter, undefined, 2, true);
-	rs.sliceReverse(rs.sliceFrom(items.items));
+	const items2: rs.u16[] = items.items;
+	rs.sliceReverse(new rs.Slice(items2, 0, items2.length));
 	return new Stack(items, items.items.length);
 }
 

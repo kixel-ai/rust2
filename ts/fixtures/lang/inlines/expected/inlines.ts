@@ -109,7 +109,8 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const halves: rs.Vec<Small.Small> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), Small.from$4), undefined, 12, true);
 	const _46: rs.ByteSlice = Small.bytes$2(two);
 	const _49: rs.ByteSlice = Small.bytes$4(four);
-	const s3 = halves.items;
+	const items: Small.Small[] = halves.items;
+	const s3 = rs.sliceItems(new rs.Slice(items, 0, items.length));
 	let front = 0;
 	let back = s3.length;
 	const f = (h: Small.Small): boolean => {
@@ -135,7 +136,8 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _58: Mod.Mod = big;
 	const args8 = [(f: rs.Formatter) => Mod.fmt$fmt_Debug_7(_57, f), (f: rs.Formatter) => Mod.fmt$fmt_Debug_4294967291(_58, f), (f: rs.Formatter) => rs.fmtPad(f, marks.v), (f: rs.Formatter) => Small.fmt$fmt_Debug_2(two, f), (f: rs.Formatter) => Small.fmt$fmt_Debug_4(four, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_46), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_49), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_52, f)];
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " ", args8[3], " ", args8[4], " ", args8[5], " ", args8[6], " ", args8[7]]).v));
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(halves.items), (h2: Small.Small): rs.ByteSlice => {
+	const items2: Small.Small[] = halves.items;
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (h2: Small.Small): rs.ByteSlice => {
 		return Small.bytes$4(h2);
 	}, (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), "next");
 	const block: Block.Block = { _0: copy$array_u8(rs.bytesFromFn(3, (i: rs.usize): rs.u8 => {

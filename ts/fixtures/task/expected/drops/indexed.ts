@@ -206,7 +206,9 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _452: rs.Iter<Guard.Guard> = rs.iterMap(_453, (_224: rs.u32): Guard.Guard => {
 			return captured15(_224);
 		});
-		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const slice: rs.Slice<rs.u32> = rs.sliceFrom(w);
+		rs.rangeCheck(slice.length, 0, 3);
+		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(new rs.Slice(slice.data, slice.start, 3)));
 		const captured16 = made;
 		const it7: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterZip(_452, rs.iterMap(_458, (_228: rs.u32): Guard.Guard => {
 			return captured16(_228);
@@ -222,7 +224,9 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _498: rs.Iter<Guard.Guard> = rs.iterMap(_499, (_230: rs.u32): Guard.Guard => {
 			return captured17(_230);
 		});
-		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 2)));
+		const slice2: rs.Slice<rs.u32> = rs.sliceFrom(w);
+		rs.rangeCheck(slice2.length, 0, 2);
+		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 2)));
 		const captured18 = made;
 		const part17 = rs.ownedCount(rs.iterRev(rs.iterZip(rs.iterZip(_498, rs.iterMap(_504, (_231: rs.u32): Guard.Guard => {
 			return captured18(_231);
@@ -233,7 +237,9 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _521: rs.Iter<Guard.Guard> = rs.iterMap(_522, (_235: rs.u32): Guard.Guard => {
 			return captured19(_235);
 		});
-		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const slice3: rs.Slice<rs.u32> = rs.sliceFrom(w);
+		rs.rangeCheck(slice3.length, 0, 3);
+		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(new rs.Slice(slice3.data, slice3.start, 3)));
 		const captured20 = made;
 		const it8: rs.Iter<[Guard.Guard, Guard.Guard]> = rs.iterZip(_521, rs.iterMap(_527, (_236: rs.u32): Guard.Guard => {
 			return captured20(_236);
@@ -291,7 +297,9 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _665: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(rs.iterMap(_667, (_245: rs.u32): Guard.Guard => {
 			return captured21(_245);
 		}));
-		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const slice4: rs.Slice<rs.u32> = rs.sliceFrom(w);
+		rs.rangeCheck(slice4.length, 0, 3);
+		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(new rs.Slice(slice4.data, slice4.start, 3)));
 		const captured22 = made;
 		const part34 = option_map$1pp5yot(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_247: rs.u32): Guard.Guard => {
 			return captured22(_247);

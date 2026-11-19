@@ -31,14 +31,16 @@ export function item(self: State): Item.Item {
 }
 
 export function sender(self: State, arg: rs.u8): rs.WatchSender<Item.Item> | undefined {
-	const live: rs.Vec<rs.WatchSender<Item.Item>> = rs.iterToVec(rs.iterFlatten(rs.iterSlice(self.senders.items), (value: rs.WatchSender<Item.Item> | undefined) => rs.iterOption(value), true, undefined, true), "next", 4);
+	const items: Array<rs.WatchSender<Item.Item> | undefined> = self.senders.items;
+	const live: rs.Vec<rs.WatchSender<Item.Item>> = rs.iterToVec(rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (value: rs.WatchSender<Item.Item> | undefined) => rs.iterOption(value), true, undefined, true), "next", 4);
 	return then$1r68mrf(!(live.items.length === 0), (): rs.WatchSender<Item.Item> => {
 		return live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))];
 	});
 }
 
 export function slot(self: State, arg: rs.u8): rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>> | undefined {
-	const s2 = self.receivers.items;
+	const items: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>[] = self.receivers.items;
+	const s2 = rs.sliceItems(new rs.Slice(items, 0, items.length));
 	let front = 0;
 	let back = s2.length;
 	const f = (s: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>): boolean => {

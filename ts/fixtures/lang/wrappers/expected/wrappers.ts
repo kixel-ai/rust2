@@ -474,7 +474,8 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			v.items.push(y2);
 		}
 		const ranked: rs.Vec<[rs.u8, rs.usize]> = v;
-		rs.sliceSort(rs.sliceFrom(ranked.items), rs.keyLt((_25: [rs.u8, rs.usize]): [rs.u8, rs.usize] => {
+		const items: [rs.u8, rs.usize][] = ranked.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.keyLt((_25: [rs.u8, rs.usize]): [rs.u8, rs.usize] => {
 			return [rs.u8Rem(_25[0], 4), _25[1]] as [rs.u8, rs.usize];
 		}, rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp]))), 8, true);
 		for (const _487 of ranked.items) {

@@ -590,7 +590,8 @@ export function erased(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			wakers.items.push(w);
 		}
-		rs.byteVecPush(out, noteOf(option_mapOr$1ntkzhx(rs.sliceLast(rs.sliceFrom(wakers.items)), shared, (a0: rs.Waker): rs.Place<undefined> => {
+		const items: rs.Waker[] = wakers.items;
+		rs.byteVecPush(out, noteOf(option_mapOr$1ntkzhx(rs.sliceLast(new rs.Slice(items, 0, items.length)), shared, (a0: rs.Waker): rs.Place<undefined> => {
 			return a0.data as rs.Place<undefined>;
 		})).id);
 	}

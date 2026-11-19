@@ -19,7 +19,8 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
  * `lang.ts` targets by.
  */
 export function op(name: string): rs.u16 {
-	const s = cases().items;
+	const items: [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined][] = cases().items;
+	const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
 	let front = 0;
 	let back = s.length;
 	let i2 = 0;

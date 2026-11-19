@@ -517,7 +517,8 @@ export function hashes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.hashPoll(rs.hashPoll(rs.hash8), rs.OuterPending)(_41, h2);
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(rs.hashFinish(h2))), undefined, true);
-	const _48: rs.Iter<rs.Poll<rs.u8>> = rs.iterSlice(polls.items);
+	const items: rs.Poll<rs.u8>[] = polls.items;
+	const _48: rs.Iter<rs.Poll<rs.u8>> = rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length)));
 	const set: rs.HashSet<rs.Poll<rs.u8>> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashPoll(rs.hash8), poll_eq$1qrb1lw)) as rs.HashSet<rs.Poll<rs.u8>>, _48, undefined, undefined, 469762048);
 	const _53: rs.Iter<rs.Poll<rs.u8> | rs.OuterPending> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.Poll<rs.u8> | rs.OuterPending => {
 		return nested(_22);

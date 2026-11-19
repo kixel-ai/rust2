@@ -1136,7 +1136,8 @@ export class borrowedFuture {
 				case 15:
 					const _22: Noted.Noted | rs.Done = this.#iter.next();
 					if (_22 === rs.DONE) {
-						this.#iter = rs.iterRev(rs.iterSlice(this.#v.items));
+						const items: Noted.Noted[] = this.#v.items;
+						this.#iter = rs.iterRev(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))));
 						bb0 = 30;
 						continue;
 					}

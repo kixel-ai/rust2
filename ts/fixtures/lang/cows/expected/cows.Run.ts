@@ -31,9 +31,10 @@ export interface Run {
 export function bump(self: Run): void {
 	const owned = rs.cowIntoOwned(self.words);
 	self.words = owned;
-	const iterS: rs.u16[] = owned.items;
+	const items: rs.u16[] = owned.items;
+	const iterS: rs.u16[] = items;
 	let iterI: number = 0;
-	const iterE: number = owned.items.length;
+	const iterE: number = items.length;
 	while (iterI < iterE) {
 		const _8: number = iterI++;
 		iterS[_8] = rs.u16WrappingAdd(iterS[_8], 1);

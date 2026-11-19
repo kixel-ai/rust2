@@ -224,7 +224,8 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 					s.senders.items.push(_219);
 				}
 			} else {
-				const s2 = s.senders.items;
+				const items: Array<rs.WatchSender<Item.Item> | undefined> = s.senders.items;
+				const s2 = rs.sliceItems(new rs.Slice(items, 0, items.length));
 				let front = 0;
 				let back = s2.length;
 				let i2 = 0;

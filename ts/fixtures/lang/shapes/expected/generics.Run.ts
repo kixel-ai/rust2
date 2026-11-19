@@ -34,7 +34,8 @@ export type Run<T> =
 
 export function first$u16(self: Run<rs.u16>): rs.u16 | undefined {
 	if (self.tag === "Listed") {
-		return rs.sliceFirst(rs.sliceFrom((self._0 as rs.Vec<rs.u16>).items));
+		const items: rs.u16[] = (self._0 as rs.Vec<rs.u16>).items;
+		return rs.sliceFirst(new rs.Slice(items, 0, items.length));
 	}
 	if (self.tag === "Fixed") {
 		const array: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);

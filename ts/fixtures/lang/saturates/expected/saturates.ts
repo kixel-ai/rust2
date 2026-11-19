@@ -418,7 +418,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.u8SaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.u8> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u8 = 0;
@@ -426,7 +428,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.u8SaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.u8> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u8 = 1;
@@ -680,7 +684,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.u16SaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.u16> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u16 = 0;
@@ -688,7 +694,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.u16SaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.u16> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u16 = 1;
@@ -948,7 +956,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.u32SaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.u32> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u32 = 0;
@@ -956,7 +966,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.u32SaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.u32> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u32 = 1;
@@ -1226,7 +1238,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.u64SaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.u64> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u64 = 0;
@@ -1234,7 +1248,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.u64SaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.u64> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u64 = 1;
@@ -1526,7 +1542,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.u128SaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.u128> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u128 = 0;
@@ -1534,7 +1552,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.u128SaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.u128> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u128 = 1;
@@ -1830,7 +1850,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc4 = rs.usizeSaturatingMul(acc4, s4[front4++]);
 		}
 		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice: rs.Slice<rs.usize> = rs.sliceFrom(all);
+		rs.rangeCheck(slice.length, 0, 0);
+		const s5 = rs.sliceItems(new rs.Slice(slice.data, slice.start, 0));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.usize = 0;
@@ -1838,7 +1860,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			acc5 = rs.usizeSaturatingAdd(acc5, s5[front5++]);
 		}
 		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		const slice2: rs.Slice<rs.usize> = rs.sliceFrom(all);
+		rs.rangeCheck(slice2.length, 0, 0);
+		const s6 = rs.sliceItems(new rs.Slice(slice2.data, slice2.start, 0));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.usize = 1;

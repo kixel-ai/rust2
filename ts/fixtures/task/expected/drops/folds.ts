@@ -1824,7 +1824,8 @@ export function reducers(log: Log.Log, id: rs.u32): void {
 	const _69: [rs.Vec<Guard.Guard>, Guard.Guard] = [guards(1, 3), guard(12)];
 	const held: rs.Vec<Guard.Guard> = _69[0];
 	const e: Guard.Guard = _69[1];
-	const _77: rs.Iter<Guard.Guard> = rs.iterSlice(held.items);
+	const items: Guard.Guard[] = held.items;
+	const _77: rs.Iter<Guard.Guard> = rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length)));
 	const captured3 = e;
 	const part = option_map$02u0dmi(rs.iterMinBy(_77, rs.closure((a5: Guard.Guard, b5: Guard.Guard): rs.Ordering => {
 		return rs.cmp(rs.u32Add(Guard.id(a5), Guard.id(captured3)), rs.u32Add(Guard.id(b5), Guard.id(captured3)));

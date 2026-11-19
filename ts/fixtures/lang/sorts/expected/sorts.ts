@@ -245,38 +245,47 @@ export function sorts(kind: rs.u8, dataData: Uint8Array, dataStart: number, data
 	}
 	const n: rs.usize = [0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097][_7];
 	const keys_: rs.Vec<rs.u16> = keys(n, dataData, dataStart, dataLen);
-	sorted$unit_sorts_sorts_closure0(rs.sliceFrom(keys_.items), (): undefined => {}, out);
-	sorted$Cell_u32_sorts_sorts_closure1(rs.sliceFrom(keys_.items), (): rs.Cell<rs.u32> => {
+	const items: rs.u16[] = keys_.items;
+	sorted$unit_sorts_sorts_closure0(new rs.Slice(items, 0, items.length), (): undefined => {}, out);
+	const items2: rs.u16[] = keys_.items;
+	sorted$Cell_u32_sorts_sorts_closure1(new rs.Slice(items2, 0, items2.length), (): rs.Cell<rs.u32> => {
 		return new rs.Cell(0);
 	}, out);
 	if (n <= 300) {
-		sorted$sorts_Held_sorts_sorts_closure2(rs.sliceFrom(keys_.items), (): Held.Held => {
+		const items3: rs.u16[] = keys_.items;
+		sorted$sorts_Held_sorts_sorts_closure2(new rs.Slice(items3, 0, items3.length), (): Held.Held => {
 			return { _0: rs.bytes(2) };
 		}, out);
-		sorted$array10_u32_sorts_sorts_closure3(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+		const items4: rs.u16[] = keys_.items;
+		sorted$array10_u32_sorts_sorts_closure3(new rs.Slice(items4, 0, items4.length), (): rs.u32[] => {
 			return Array.from({ length: 10 }, (): rs.u32 => {
 				return 0;
 			});
 		}, out);
-		sorted$array22_u32_sorts_sorts_closure4(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+		const items5: rs.u16[] = keys_.items;
+		sorted$array22_u32_sorts_sorts_closure4(new rs.Slice(items5, 0, items5.length), (): rs.u32[] => {
 			return Array.from({ length: 22 }, (): rs.u32 => {
 				return 0;
 			});
 		}, out);
-		sorted$array30_u32_sorts_sorts_closure5(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+		const items6: rs.u16[] = keys_.items;
+		sorted$array30_u32_sorts_sorts_closure5(new rs.Slice(items6, 0, items6.length), (): rs.u32[] => {
 			return Array.from({ length: 30 }, (): rs.u32 => {
 				return 0;
 			});
 		}, out);
 	}
 	if (n === 2000) {
-		const v: rs.Vec<Item.Item<rs.u32[]>> = items$array1100_u32_sorts_sorts_closure6(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+		const items7: rs.u16[] = keys_.items;
+		const v: rs.Vec<Item.Item<rs.u32[]>> = items$array1100_u32_sorts_sorts_closure6(new rs.Slice(items7, 0, items7.length), (): rs.u32[] => {
 			return Array.from({ length: 1100 }, (): rs.u32 => {
 				return 0;
 			});
 		});
-		rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_array1100_u32, 4404, true);
-		put$array1100_u32(rs.sliceFrom(v.items), out);
+		const items8: Item.Item<rs.u32[]>[] = v.items;
+		rs.sliceSort(new rs.Slice(items8, 0, items8.length), Item.lt$cmp_PartialOrd_array1100_u32, 4404, true);
+		const items9: Item.Item<rs.u32[]>[] = v.items;
+		put$array1100_u32(new rs.Slice(items9, 0, items9.length), out);
 	}
 }
 
@@ -568,38 +577,52 @@ export function sorted$Cell_u32_sorts_sorts_closure1(keys: rs.Slice<rs.u16>, pad
 		return items$Cell_u32_ref_sorts_sorts_closure1(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_Cell_u32, 8, false);
-	put$Cell_u32(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<rs.Cell<rs.u32>>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_Cell_u32, 8, false);
+	const items3: Item.Item<rs.Cell<rs.u32>>[] = v.items;
+	put$Cell_u32(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_Cell_u32, 8, false, false);
-	put$Cell_u32(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<rs.Cell<rs.u32>>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_Cell_u32, 8, false, false);
+	const items5: Item.Item<rs.Cell<rs.u32>>[] = v2.items;
+	put$Cell_u32(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<rs.Cell<rs.u32>>, b: Item.Item<rs.Cell<rs.u32>>): rs.Ordering => {
+	const items6: Item.Item<rs.Cell<rs.u32>>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<rs.Cell<rs.u32>>, b: Item.Item<rs.Cell<rs.u32>>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 8, false);
-	put$Cell_u32(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<rs.Cell<rs.u32>>[] = v3.items;
+	put$Cell_u32(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_Cell_u32), 8, false, false);
-	put$Cell_u32(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<rs.Cell<rs.u32>>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_Cell_u32), 8, false, false);
+	const items9: Item.Item<rs.Cell<rs.u32>>[] = v4.items;
+	put$Cell_u32(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<rs.Cell<rs.u32>>): rs.u16 => {
+	const items10: Item.Item<rs.Cell<rs.u32>>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<rs.Cell<rs.u32>>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 8, false);
-	put$Cell_u32(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<rs.Cell<rs.u32>>[] = v5.items;
+	put$Cell_u32(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<rs.Cell<rs.u32>>): rs.u16 => {
+	const items12: Item.Item<rs.Cell<rs.u32>>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<rs.Cell<rs.u32>>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 8, false, false);
-	put$Cell_u32(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<rs.Cell<rs.u32>>[] = v6.items;
+	put$Cell_u32(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<rs.Cell<rs.u32>>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<rs.Cell<rs.u32>>): Item.Item<rs.u8> => {
+	const items14: Item.Item<rs.Cell<rs.u32>>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<rs.Cell<rs.u32>>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$Cell_u32(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<rs.Cell<rs.u32>>[] = v7.items;
+	put$Cell_u32(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -608,38 +631,52 @@ export function sorted$array10_u32_sorts_sorts_closure3(keys: rs.Slice<rs.u16>, 
 		return items$array10_u32_ref_sorts_sorts_closure3(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_array10_u32, 44, true);
-	put$array10_u32(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<rs.u32[]>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_array10_u32, 44, true);
+	const items3: Item.Item<rs.u32[]>[] = v.items;
+	put$array10_u32(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_array10_u32, 44, true, true);
-	put$array10_u32(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<rs.u32[]>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_array10_u32, 44, true, true);
+	const items5: Item.Item<rs.u32[]>[] = v2.items;
+	put$array10_u32(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
+	const items6: Item.Item<rs.u32[]>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 44, true);
-	put$array10_u32(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<rs.u32[]>[] = v3.items;
+	put$array10_u32(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_array10_u32), 44, true, true);
-	put$array10_u32(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<rs.u32[]>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_array10_u32), 44, true, true);
+	const items9: Item.Item<rs.u32[]>[] = v4.items;
+	put$array10_u32(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
+	const items10: Item.Item<rs.u32[]>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 44, true);
-	put$array10_u32(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<rs.u32[]>[] = v5.items;
+	put$array10_u32(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
+	const items12: Item.Item<rs.u32[]>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 44, true, true);
-	put$array10_u32(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<rs.u32[]>[] = v6.items;
+	put$array10_u32(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
+	const items14: Item.Item<rs.u32[]>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$array10_u32(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<rs.u32[]>[] = v7.items;
+	put$array10_u32(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -648,38 +685,52 @@ export function sorted$array22_u32_sorts_sorts_closure4(keys: rs.Slice<rs.u16>, 
 		return items$array22_u32_ref_sorts_sorts_closure4(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_array22_u32, 92, true);
-	put$array22_u32(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<rs.u32[]>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_array22_u32, 92, true);
+	const items3: Item.Item<rs.u32[]>[] = v.items;
+	put$array22_u32(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_array22_u32, 92, true, true);
-	put$array22_u32(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<rs.u32[]>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_array22_u32, 92, true, true);
+	const items5: Item.Item<rs.u32[]>[] = v2.items;
+	put$array22_u32(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
+	const items6: Item.Item<rs.u32[]>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 92, true);
-	put$array22_u32(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<rs.u32[]>[] = v3.items;
+	put$array22_u32(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_array22_u32), 92, true, true);
-	put$array22_u32(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<rs.u32[]>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_array22_u32), 92, true, true);
+	const items9: Item.Item<rs.u32[]>[] = v4.items;
+	put$array22_u32(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
+	const items10: Item.Item<rs.u32[]>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 92, true);
-	put$array22_u32(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<rs.u32[]>[] = v5.items;
+	put$array22_u32(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
+	const items12: Item.Item<rs.u32[]>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 92, true, true);
-	put$array22_u32(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<rs.u32[]>[] = v6.items;
+	put$array22_u32(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
+	const items14: Item.Item<rs.u32[]>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$array22_u32(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<rs.u32[]>[] = v7.items;
+	put$array22_u32(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -688,38 +739,52 @@ export function sorted$array30_u32_sorts_sorts_closure5(keys: rs.Slice<rs.u16>, 
 		return items$array30_u32_ref_sorts_sorts_closure5(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_array30_u32, 124, true);
-	put$array30_u32(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<rs.u32[]>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_array30_u32, 124, true);
+	const items3: Item.Item<rs.u32[]>[] = v.items;
+	put$array30_u32(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_array30_u32, 124, true, true);
-	put$array30_u32(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<rs.u32[]>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_array30_u32, 124, true, true);
+	const items5: Item.Item<rs.u32[]>[] = v2.items;
+	put$array30_u32(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
+	const items6: Item.Item<rs.u32[]>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<rs.u32[]>, b: Item.Item<rs.u32[]>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 124, true);
-	put$array30_u32(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<rs.u32[]>[] = v3.items;
+	put$array30_u32(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_array30_u32), 124, true, true);
-	put$array30_u32(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<rs.u32[]>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_array30_u32), 124, true, true);
+	const items9: Item.Item<rs.u32[]>[] = v4.items;
+	put$array30_u32(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
+	const items10: Item.Item<rs.u32[]>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 124, true);
-	put$array30_u32(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<rs.u32[]>[] = v5.items;
+	put$array30_u32(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
+	const items12: Item.Item<rs.u32[]>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<rs.u32[]>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 124, true, true);
-	put$array30_u32(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<rs.u32[]>[] = v6.items;
+	put$array30_u32(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<rs.u32[]>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
+	const items14: Item.Item<rs.u32[]>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<rs.u32[]>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$array30_u32(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<rs.u32[]>[] = v7.items;
+	put$array30_u32(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -728,38 +793,52 @@ export function sorted$sorts_Held_sorts_sorts_closure2(keys: rs.Slice<rs.u16>, p
 		return items$sorts_Held_ref_sorts_sorts_closure2(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_sorts_Held, 6, true);
-	put$sorts_Held(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<Held.Held>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_sorts_Held, 6, true);
+	const items3: Item.Item<Held.Held>[] = v.items;
+	put$sorts_Held(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_sorts_Held, 6, true, false);
-	put$sorts_Held(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<Held.Held>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_sorts_Held, 6, true, false);
+	const items5: Item.Item<Held.Held>[] = v2.items;
+	put$sorts_Held(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<Held.Held>, b: Item.Item<Held.Held>): rs.Ordering => {
+	const items6: Item.Item<Held.Held>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<Held.Held>, b: Item.Item<Held.Held>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 6, true);
-	put$sorts_Held(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<Held.Held>[] = v3.items;
+	put$sorts_Held(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_sorts_Held), 6, true, false);
-	put$sorts_Held(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<Held.Held>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_sorts_Held), 6, true, false);
+	const items9: Item.Item<Held.Held>[] = v4.items;
+	put$sorts_Held(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<Held.Held>): rs.u16 => {
+	const items10: Item.Item<Held.Held>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<Held.Held>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 6, true);
-	put$sorts_Held(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<Held.Held>[] = v5.items;
+	put$sorts_Held(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<Held.Held>): rs.u16 => {
+	const items12: Item.Item<Held.Held>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<Held.Held>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 6, true, false);
-	put$sorts_Held(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<Held.Held>[] = v6.items;
+	put$sorts_Held(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<Held.Held>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<Held.Held>): Item.Item<rs.u8> => {
+	const items14: Item.Item<Held.Held>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<Held.Held>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$sorts_Held(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<Held.Held>[] = v7.items;
+	put$sorts_Held(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -768,38 +847,52 @@ export function sorted$unit_sorts_sorts_closure0(keys: rs.Slice<rs.u16>, pad: ()
 		return items$unit_ref_sorts_sorts_closure0(keys, pad);
 	};
 	const v: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSort(rs.sliceFrom(v.items), Item.lt$cmp_PartialOrd_unit, 4, true);
-	put$unit(rs.sliceFrom(v.items), out);
+	const items2: Item.Item<undefined>[] = v.items;
+	rs.sliceSort(new rs.Slice(items2, 0, items2.length), Item.lt$cmp_PartialOrd_unit, 4, true);
+	const items3: Item.Item<undefined>[] = v.items;
+	put$unit(new rs.Slice(items3, 0, items3.length), out);
 	const v2: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v2.items), Item.lt$cmp_PartialOrd_unit, 4, true, true);
-	put$unit(rs.sliceFrom(v2.items), out);
+	const items4: Item.Item<undefined>[] = v2.items;
+	rs.sliceSortUnstable(new rs.Slice(items4, 0, items4.length), Item.lt$cmp_PartialOrd_unit, 4, true, true);
+	const items5: Item.Item<undefined>[] = v2.items;
+	put$unit(new rs.Slice(items5, 0, items5.length), out);
 	const v3: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSort(rs.sliceFrom(v3.items), rs.cmpLt((a: Item.Item<undefined>, b: Item.Item<undefined>): rs.Ordering => {
+	const items6: Item.Item<undefined>[] = v3.items;
+	rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.cmpLt((a: Item.Item<undefined>, b: Item.Item<undefined>): rs.Ordering => {
 		note(98, a.tag, b.tag);
 		return rs.cmp(b.key, a.key);
 	}), 4, true);
-	put$unit(rs.sliceFrom(v3.items), out);
+	const items7: Item.Item<undefined>[] = v3.items;
+	put$unit(new rs.Slice(items7, 0, items7.length), out);
 	const v4: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v4.items), rs.cmpLt(Item.cmp$cmp_Ord_unit), 4, true, true);
-	put$unit(rs.sliceFrom(v4.items), out);
+	const items8: Item.Item<undefined>[] = v4.items;
+	rs.sliceSortUnstable(new rs.Slice(items8, 0, items8.length), rs.cmpLt(Item.cmp$cmp_Ord_unit), 4, true, true);
+	const items9: Item.Item<undefined>[] = v4.items;
+	put$unit(new rs.Slice(items9, 0, items9.length), out);
 	const v5: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSort(rs.sliceFrom(v5.items), rs.keyLt((x: Item.Item<undefined>): rs.u16 => {
+	const items10: Item.Item<undefined>[] = v5.items;
+	rs.sliceSort(new rs.Slice(items10, 0, items10.length), rs.keyLt((x: Item.Item<undefined>): rs.u16 => {
 		note(107, x.tag, 0);
 		return rs.u16Div(x.key, 4);
 	}, rs.lt), 4, true);
-	put$unit(rs.sliceFrom(v5.items), out);
+	const items11: Item.Item<undefined>[] = v5.items;
+	put$unit(new rs.Slice(items11, 0, items11.length), out);
 	const v6: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSortUnstable(rs.sliceFrom(v6.items), rs.keyLt((x2: Item.Item<undefined>): rs.u16 => {
+	const items12: Item.Item<undefined>[] = v6.items;
+	rs.sliceSortUnstable(new rs.Slice(items12, 0, items12.length), rs.keyLt((x2: Item.Item<undefined>): rs.u16 => {
 		note(107, x2.tag, 0);
 		return rs.u16Rem(x2.key, 3);
 	}, rs.lt), 4, true, true);
-	put$unit(rs.sliceFrom(v6.items), out);
+	const items13: Item.Item<undefined>[] = v6.items;
+	put$unit(new rs.Slice(items13, 0, items13.length), out);
 	const v7: rs.Vec<Item.Item<undefined>> = items();
-	rs.sliceSortByCachedKey(rs.sliceFrom(v7.items), (x3: Item.Item<undefined>): Item.Item<rs.u8> => {
+	const items14: Item.Item<undefined>[] = v7.items;
+	rs.sliceSortByCachedKey(new rs.Slice(items14, 0, items14.length), (x3: Item.Item<undefined>): Item.Item<rs.u8> => {
 		note(107, x3.tag, 0);
 		return new Item.Item(rs.u16Rem(x3.key, 5), x3.tag, 0);
 	}, rs.cmpLt(rs.cmpTuple<[Item.Item<rs.u8>, rs.usize], rs.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rs.cmp])), 12, true, true);
-	put$unit(rs.sliceFrom(v7.items), out);
+	const items15: Item.Item<undefined>[] = v7.items;
+	put$unit(new rs.Slice(items15, 0, items15.length), out);
 }
 
 /**
@@ -817,21 +910,25 @@ export function disorders(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const stable: boolean = rs.u8Rem(rs.u8Div(kind, 20), 2) === 0;
 	const _21: rs.u8 = rs.u8Rem(rs.u8Div(kind, 40), 4);
 	if (_21 === 0) {
-		disordered$unit_sorts_disorders_closure0(rs.sliceFrom(keys_.items), stable, (): undefined => {}, data, out);
+		const items4: rs.u16[] = keys_.items;
+		disordered$unit_sorts_disorders_closure0(new rs.Slice(items4, 0, items4.length), stable, (): undefined => {}, data, out);
 	} else if (_21 === 1) {
-		disordered$array10_u32_sorts_disorders_closure1(rs.sliceFrom(keys_.items), stable, (): rs.u32[] => {
+		const items3: rs.u16[] = keys_.items;
+		disordered$array10_u32_sorts_disorders_closure1(new rs.Slice(items3, 0, items3.length), stable, (): rs.u32[] => {
 			return Array.from({ length: 10 }, (): rs.u32 => {
 				return 0;
 			});
 		}, data, out);
 	} else if (_21 === 2) {
-		disordered$array30_u32_sorts_disorders_closure2(rs.sliceFrom(keys_.items), stable, (): rs.u32[] => {
+		const items2: rs.u16[] = keys_.items;
+		disordered$array30_u32_sorts_disorders_closure2(new rs.Slice(items2, 0, items2.length), stable, (): rs.u32[] => {
 			return Array.from({ length: 30 }, (): rs.u32 => {
 				return 0;
 			});
 		}, data, out);
 	} else {
-		disordered$Cell_u32_sorts_disorders_closure3(rs.sliceFrom(keys_.items), stable, (): rs.Cell<rs.u32> => {
+		const items: rs.u16[] = keys_.items;
+		disordered$Cell_u32_sorts_disorders_closure3(new rs.Slice(items, 0, items.length), stable, (): rs.Cell<rs.u32> => {
 			return new rs.Cell(0);
 		}, data, out);
 	}
@@ -855,11 +952,14 @@ export function disordered$Cell_u32_sorts_disorders_closure3(keys: rs.Slice<rs.u
 		return 1;
 	};
 	if (!stable) {
-		rs.sliceSortUnstable(rs.sliceFrom(v.items), rs.cmpLt(by), 8, false, false);
+		const items2: Item.Item<rs.Cell<rs.u32>>[] = v.items;
+		rs.sliceSortUnstable(new rs.Slice(items2, 0, items2.length), rs.cmpLt(by), 8, false, false);
 	} else {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(by), 8, false);
+		const items: Item.Item<rs.Cell<rs.u32>>[] = v.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(by), 8, false);
 	}
-	put$Cell_u32(rs.sliceFrom(v.items), out);
+	const items3: Item.Item<rs.Cell<rs.u32>>[] = v.items;
+	put$Cell_u32(new rs.Slice(items3, 0, items3.length), out);
 }
 
 export function disordered$array10_u32_sorts_disorders_closure1(keys: rs.Slice<rs.u16>, stable: boolean, pad: () => rs.u32[], data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -880,11 +980,14 @@ export function disordered$array10_u32_sorts_disorders_closure1(keys: rs.Slice<r
 		return 1;
 	};
 	if (!stable) {
-		rs.sliceSortUnstable(rs.sliceFrom(v.items), rs.cmpLt(by), 44, true, true);
+		const items2: Item.Item<rs.u32[]>[] = v.items;
+		rs.sliceSortUnstable(new rs.Slice(items2, 0, items2.length), rs.cmpLt(by), 44, true, true);
 	} else {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(by), 44, true);
+		const items: Item.Item<rs.u32[]>[] = v.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(by), 44, true);
 	}
-	put$array10_u32(rs.sliceFrom(v.items), out);
+	const items3: Item.Item<rs.u32[]>[] = v.items;
+	put$array10_u32(new rs.Slice(items3, 0, items3.length), out);
 }
 
 export function disordered$array30_u32_sorts_disorders_closure2(keys: rs.Slice<rs.u16>, stable: boolean, pad: () => rs.u32[], data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -905,11 +1008,14 @@ export function disordered$array30_u32_sorts_disorders_closure2(keys: rs.Slice<r
 		return 1;
 	};
 	if (!stable) {
-		rs.sliceSortUnstable(rs.sliceFrom(v.items), rs.cmpLt(by), 124, true, true);
+		const items2: Item.Item<rs.u32[]>[] = v.items;
+		rs.sliceSortUnstable(new rs.Slice(items2, 0, items2.length), rs.cmpLt(by), 124, true, true);
 	} else {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(by), 124, true);
+		const items: Item.Item<rs.u32[]>[] = v.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(by), 124, true);
 	}
-	put$array30_u32(rs.sliceFrom(v.items), out);
+	const items3: Item.Item<rs.u32[]>[] = v.items;
+	put$array30_u32(new rs.Slice(items3, 0, items3.length), out);
 }
 
 export function disordered$unit_sorts_disorders_closure0(keys: rs.Slice<rs.u16>, stable: boolean, pad: () => undefined, data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -930,11 +1036,14 @@ export function disordered$unit_sorts_disorders_closure0(keys: rs.Slice<rs.u16>,
 		return 1;
 	};
 	if (!stable) {
-		rs.sliceSortUnstable(rs.sliceFrom(v.items), rs.cmpLt(by), 4, true, true);
+		const items2: Item.Item<undefined>[] = v.items;
+		rs.sliceSortUnstable(new rs.Slice(items2, 0, items2.length), rs.cmpLt(by), 4, true, true);
 	} else {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(by), 4, true);
+		const items: Item.Item<undefined>[] = v.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(by), 4, true);
 	}
-	put$unit(rs.sliceFrom(v.items), out);
+	const items3: Item.Item<undefined>[] = v.items;
+	put$unit(new rs.Slice(items3, 0, items3.length), out);
 }
 
 /**
@@ -949,20 +1058,26 @@ export function btrees(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 		rs.panic("index out of bounds: the len is " + 20 + " but the index is " + _8);
 	}
 	const keys_: rs.Vec<rs.u16> = keys(rs.min([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097][_8], 300), dataData, dataStart, dataLen);
-	const _17: rs.Iter<Item.Item<undefined>> = rs.vecIntoIter(items$unit_sorts_btrees_closure0(rs.sliceFrom(keys_.items), (): undefined => {}));
-	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollectKeys(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeSet<Item.Item<undefined>>, rs.iterToVec(_17, "next", 4, true, 4).items, 4, true, Item.lt$cmp_PartialOrd_unit, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
-	const _27: rs.Iter<[Item.Item<undefined>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$unit_sorts_btrees_closure1(rs.sliceFrom(keys_.items), (): undefined => {})), (x: Item.Item<undefined>): [Item.Item<undefined>, rs.u16] => {
+	const items: rs.u16[] = keys_.items;
+	const _17: rs.Iter<Item.Item<undefined>> = rs.vecIntoIter(items$unit_sorts_btrees_closure0(new rs.Slice(items, 0, items.length), (): undefined => {}));
+	const items2: Item.Item<undefined>[] = rs.iterToVec(rs.btreeKeys(rs.btreeCollectKeys(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeSet<Item.Item<undefined>>, rs.iterToVec(_17, "next", 4, true, 4).items, 4, true, Item.lt$cmp_PartialOrd_unit, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items;
+	put$unit(new rs.Slice(items2, 0, items2.length), out);
+	const items3: rs.u16[] = keys_.items;
+	const _27: rs.Iter<[Item.Item<undefined>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$unit_sorts_btrees_closure1(new rs.Slice(items3, 0, items3.length), (): undefined => {})), (x: Item.Item<undefined>): [Item.Item<undefined>, rs.u16] => {
 		return [x, x.tag] as [Item.Item<undefined>, rs.u16];
 	});
-	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeMap<Item.Item<undefined>, rs.u16>, rs.iterToVec(_27, undefined, 6, true).items, 6, true, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
-	const _38: rs.Iter<[Item.Item<rs.u32[]>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$array30_u32_sorts_btrees_closure3(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+	const items4: Item.Item<undefined>[] = rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeMap<Item.Item<undefined>, rs.u16>, rs.iterToVec(_27, undefined, 6, true).items, 6, true, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items;
+	put$unit(new rs.Slice(items4, 0, items4.length), out);
+	const items5: rs.u16[] = keys_.items;
+	const _38: rs.Iter<[Item.Item<rs.u32[]>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$array30_u32_sorts_btrees_closure3(new rs.Slice(items5, 0, items5.length), (): rs.u32[] => {
 		return Array.from({ length: 30 }, (): rs.u32 => {
 			return 0;
 		});
 	})), (x2: Item.Item<rs.u32[]>): [Item.Item<rs.u32[]>, rs.u16] => {
 		return [x2, x2.tag] as [Item.Item<rs.u32[]>, rs.u16];
 	});
-	put$array30_u32(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_array30_u32) as rs.BTreeMap<Item.Item<rs.u32[]>, rs.u16>, rs.iterToVec(_38, undefined, 128, true).items, 128, true, Item.eq$cmp_PartialEq_array30_u32)), undefined, 124, true).items), out);
+	const items6: Item.Item<rs.u32[]>[] = rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_array30_u32) as rs.BTreeMap<Item.Item<rs.u32[]>, rs.u16>, rs.iterToVec(_38, undefined, 128, true).items, 128, true, Item.eq$cmp_PartialEq_array30_u32)), undefined, 124, true).items;
+	put$array30_u32(new rs.Slice(items6, 0, items6.length), out);
 }
 
 //# sourceMappingURL=sorts.ts.map

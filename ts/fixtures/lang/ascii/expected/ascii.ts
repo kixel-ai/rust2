@@ -196,7 +196,8 @@ export function chars(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	rs.iterExtend(all, _9, "next", 4);
 	const others: rs.Vec<rs.char> = rs.vecFrom(all.items.slice());
-	const s: rs.char[] = all.items;
+	const items: rs.char[] = all.items;
+	const s: rs.char[] = rs.sliceItems(new rs.Slice(items, 0, items.length));
 	let front: number = 0;
 	const back: number = s.length;
 	let count: number = 0;
@@ -479,7 +480,8 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, array[1].v);
 		put(out, array[0].v);
 	} else if (_32 === 3) {
-		for (const _98 of v.items) {
+		const items: rs.String[] = v.items;
+		for (const _98 of rs.sliceItems(new rs.Slice(items, 0, items.length))) {
 			_98.v = rs.strToAsciiUppercase(_98.v);
 		}
 		const _100: rs.Place<string> = rs.strPart(v.items[rs.idx(v.items, 0)], 0);

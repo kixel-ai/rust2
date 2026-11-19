@@ -35,8 +35,8 @@ pub(crate) enum Shape<'tcx> {
 	/// One JS value, held whole: a number, a reference to one, an `Option` of one, or an
 	/// error.
 	Leaf(Ty<'tcx>),
-	/// `&[u8]` or `&[u8; N]`: its bytes, start, and length.
-	Slice,
+	/// A reference to a slice or array of the element: its storage, start, and length.
+	Slice(Ty<'tcx>),
 	Tuple(Ty<'tcx>, Vec<Shape<'tcx>>),
 	/// An `Option`, `Result`, or `ControlFlow`: whether it is its second variant, if both
 	/// can be, then the fields of each variant that can be, in order.
@@ -48,7 +48,7 @@ impl<'tcx> Shape<'tcx> {
 		match self {
 			Shape::Unit => 0,
 			Shape::Leaf(_) => 1,
-			Shape::Slice => 3,
+			Shape::Slice(_) => 3,
 			Shape::Tuple(_, fields) => fields.iter().map(Shape::size).sum(),
 			Shape::Enum(_, variants) => {
 				let flag = usize::from(variants.iter().all(Option::is_some));
@@ -59,7 +59,7 @@ impl<'tcx> Shape<'tcx> {
 
 	fn has_slice(&self) -> bool {
 		match self {
-			Shape::Slice => true,
+			Shape::Slice(_) => true,
 			Shape::Unit | Shape::Leaf(_) => false,
 			Shape::Tuple(_, fields) => fields.iter().any(Shape::has_slice),
 			Shape::Enum(_, variants) => variants.iter().flatten().flatten().any(Shape::has_slice),
@@ -70,7 +70,7 @@ impl<'tcx> Shape<'tcx> {
 	/// again: a tuple, a `Result` or `ControlFlow`, or an `Option` of one.
 	fn boxed(&self) -> bool {
 		match self {
-			Shape::Unit | Shape::Leaf(_) | Shape::Slice => false,
+			Shape::Unit | Shape::Leaf(_) | Shape::Slice(_) => false,
 			Shape::Tuple(..) => true,
 			Shape::Enum(ty, variants) => match ty.kind() {
 				ty::Adt(adt, _) if adt.variant(VariantIdx::from_usize(0)).name.as_str() == "None" => {
@@ -84,7 +84,7 @@ impl<'tcx> Shape<'tcx> {
 	fn has_enum(&self) -> bool {
 		match self {
 			Shape::Enum(..) => true,
-			Shape::Unit | Shape::Leaf(_) | Shape::Slice => false,
+			Shape::Unit | Shape::Leaf(_) | Shape::Slice(_) => false,
 			Shape::Tuple(_, fields) => fields.iter().any(Shape::has_enum),
 		}
 	}
@@ -108,8 +108,8 @@ impl<'tcx> Shape<'tcx> {
 		match self {
 			Shape::Unit => {}
 			Shape::Leaf(ty) => out.push((suffix.to_string(), Part::Value(*ty))),
-			Shape::Slice => {
-				for (key, part) in [("Data", Part::Data), ("Start", Part::Number), ("Len", Part::Number)] {
+			Shape::Slice(elem) => {
+				for (key, part) in [("Data", Part::Data(*elem)), ("Start", Part::Number), ("Len", Part::Number)] {
 					out.push((format!("{suffix}{key}"), part));
 				}
 			}
@@ -145,7 +145,7 @@ impl<'tcx> Shape<'tcx> {
 					out.push(at);
 				}
 			}
-			Shape::Slice => out.push(at),
+			Shape::Slice(_) => out.push(at),
 			Shape::Tuple(_, fields) => {
 				let mut at = at;
 				for field in fields {
@@ -169,7 +169,8 @@ impl<'tcx> Shape<'tcx> {
 enum Part<'tcx> {
 	Flag,
 	Value(Ty<'tcx>),
-	Data,
+	/// A slice's storage, of its element.
+	Data(Ty<'tcx>),
 	Number,
 }
 
@@ -469,7 +470,8 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 	fn part_ty(&mut self, part: Part<'tcx>, span: Span) -> Type {
 		match part {
 			Part::Flag => Type::Builtin("boolean"),
-			Part::Data => Type::Builtin("Uint8Array"),
+			Part::Data(elem) if crate::lower::byte(elem) => Type::Builtin("Uint8Array"),
+			Part::Data(elem) => Type::Array(Box::new(self.ty(elem, span))),
 			Part::Number => Type::Builtin("number"),
 			Part::Value(ty) => self.held_ty(ty, span),
 		}
@@ -479,7 +481,7 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 	pub(crate) fn shape(&self, ty: Ty<'tcx>) -> Option<Shape<'tcx>> {
 		let tcx = self.tcx;
 		match ty.kind() {
-			_ if slice_ref(ty) => Some(Shape::Slice),
+			_ if let Some(elem) = self.slice_elem(ty) => Some(Shape::Slice(elem)),
 			ty::Tuple(tys) if tys.is_empty() => Some(Shape::Unit),
 			ty::Tuple(tys) => {
 				let fields = tys.iter().map(|t| self.shape(t)).collect::<Option<Vec<_>>>()?;
@@ -518,6 +520,23 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			ty::Ref(_, _, rustc_ast::Mutability::Mut) | ty::RawPtr(..) => None,
 			_ if self.needs_copy(ty) => None,
 			_ => Some(Shape::Leaf(ty)),
+		}
+	}
+
+	/// The element of `ty` if it is a reference to a slice or array that a local may hold
+	/// as its parts: a shared one of bytes, an `rs.ByteSlice`, or one of elements that are
+	/// no arrays, which an `rs.ArraySlice` holds, and that every instance agrees on, an
+	/// `rs.Slice`, which no write to it changes.
+	pub(crate) fn slice_elem(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let ty::Ref(_, inner, mutbl) = ty.kind() else {
+			return None;
+		};
+		let (ty::Slice(elem) | ty::Array(elem, _)) = *inner.kind() else {
+			return None;
+		};
+		match crate::lower::byte(elem) {
+			true => mutbl.is_not().then_some(elem),
+			false => (!elem.is_array() && !ty::TypeVisitableExt::has_param(&elem)).then_some(elem),
 		}
 	}
 }
@@ -592,7 +611,7 @@ fn build_plain<'tcx>(
 	match shape {
 		Shape::Unit => Expr::undefined(),
 		Shape::Leaf(_) => parts[0].clone(),
-		Shape::Slice => Expr::New(Box::new(Expr::Rs("ByteSlice".into())), parts.to_vec()),
+		Shape::Slice(elem) => new_slice(*elem, parts.to_vec()),
 		Shape::Tuple(ty, fields) => {
 			let mut at = 0;
 			let mut items = Vec::with_capacity(fields.len());
@@ -627,7 +646,13 @@ fn tuple_items(value: &Expr, n: usize) -> Option<&[Expr]> {
 	}
 }
 
-/// Whether `ty` is a `&[u8]` or `&[u8; N]`, which is an `rs.ByteSlice`.
+/// A new slice of `elem`s of `parts`, its storage, start, and length: an `rs.ByteSlice` of
+/// bytes, and else an `rs.Slice`.
+fn new_slice(elem: Ty<'_>, parts: Vec<Expr>) -> Expr {
+	Expr::New(Box::new(Expr::Rs(super::place::slice_class(elem).into())), parts)
+}
+
+/// Whether `ty` is a `&[u8]` or `&[u8; N]`, which a function may take as its parts.
 fn slice_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
 		if super::place::byte_slice(*inner) || crate::lower::byte_array(*inner))
@@ -715,6 +740,11 @@ enum Producer {
 	FromResidual,
 	/// A function that hands back its `Ok`'s parts in its slot.
 	Slotted,
+	/// All of a `Vec`'s elements, or a range of a `Vec`'s, a slice's, or an array's, if
+	/// `range`.
+	Source {
+		range: bool,
+	},
 }
 
 /// A part of a local, by index, and the part of another held local it copies, if any.
@@ -751,6 +781,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		if self.slotted_calls.contains_key(&block) {
 			return Some(Producer::Slotted);
 		}
+		if matches!(shape, Shape::Slice(_))
+			&& let Some(range) = self.source(func)
+		{
+			return Some(Producer::Source { range });
+		}
 		let tcx = self.tcx;
 		let ty::FnDef(def_id, gargs) = *func.ty(&self.mir.local_decls, tcx).kind() else {
 			return None;
@@ -769,15 +804,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}),
 			_ => false,
 		};
-		let bytes = || gargs.types().next().is_some_and(crate::lower::byte);
+		// A split of a slice that a local may hold as its parts.
+		let parts = || {
+			args.first()
+				.is_some_and(|arg| self.b.t.slice_elem(arg.node.ty(&self.mir.local_decls, tcx)).is_some())
+		};
 		match (owner.as_str(), name.as_str()) {
-			("slice", "split_first") if bytes() => Some(Producer::SplitFirst),
-			("slice", "split_first_chunk") if bytes() => {
+			("slice", _) if !parts() => None,
+			("slice", "split_first" | "split_first_mut") => Some(Producer::SplitFirst),
+			("slice", "split_first_chunk" | "split_first_chunk_mut") => {
 				let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 				Some(Producer::SplitFirstChunk(n))
 			}
-			("slice", "split_at") if bytes() => Some(Producer::SplitAt { checked: false }),
-			("slice", "split_at_checked") if bytes() => Some(Producer::SplitAt { checked: true }),
+			("slice", "split_at" | "split_at_mut") => Some(Producer::SplitAt { checked: false }),
+			("slice", "split_at_checked" | "split_at_mut_checked") => Some(Producer::SplitAt { checked: true }),
 			("Option", "ok_or") if held(&args[0].node) && self.ok_or_error(&args[1].node, shape, shapes) => {
 				Some(Producer::OkOr)
 			}
@@ -798,6 +838,40 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						.is_some_and(|t| self.b.t.std_of(t) == Some(Std::Result)) =>
 			{
 				Some(Producer::FromResidual)
+			}
+			_ => None,
+		}
+	}
+
+	/// Whether the call of `func` makes a slice of elements other than bytes from what
+	/// holds them: all of a `Vec`'s, or, if `true`, a range of a `Vec`'s, a slice's, or an
+	/// array's.
+	fn source(&self, func: &Operand<'tcx>) -> Option<bool> {
+		let tcx = self.tcx;
+		let ty::FnDef(def_id, gargs) = *func.ty(&self.mir.local_decls, tcx).kind() else {
+			return None;
+		};
+		if !library::is_std(tcx, def_id) {
+			return None;
+		}
+		let gargs = gargs.skip_binder();
+		let (owner, name) = library::key(tcx, def_id)?;
+		// A `Vec` of elements other than bytes, as its `Deref` and `Index` name it.
+		let vec = |ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, args)
+			if Std::of(tcx, adt.did()) == Some(Std::Vec) && !crate::lower::byte(args.type_at(0)));
+		match (owner.as_str(), name.as_str()) {
+			("Vec", "as_slice" | "as_mut_slice") if !crate::lower::byte(gargs.type_at(0)) => Some(false),
+			("Deref", "deref") | ("DerefMut", "deref_mut") if vec(gargs.type_at(0)) => Some(false),
+			("Index", "index") | ("IndexMut", "index_mut") => {
+				let container = gargs.type_at(0);
+				let elems = match container.kind() {
+					ty::Slice(elem) | ty::Array(elem, _) => !crate::lower::byte(*elem),
+					_ => vec(container),
+				};
+				let range = matches!(gargs.type_at(1).kind(), ty::Adt(adt, _)
+					if library::is_std(tcx, adt.did())
+						&& matches!(tcx.item_name(adt.did()).as_str(), "Range" | "RangeTo" | "RangeFrom" | "RangeFull"));
+				(elems && range).then_some(true)
 			}
 			_ => None,
 		}
@@ -825,9 +899,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Rvalue::Use(op, _) => source(op, shape),
 			Rvalue::CopyForDeref(p) => source(&Operand::Copy(*p), shape),
 			Rvalue::Cast(CastKind::PointerCoercion(PointerCoercion::Unsize, _), op, _) => {
-				matches!(shape, Shape::Slice) && crate::lower::bytes_ref(op.ty(&self.mir.local_decls, self.tcx))
+				let from = op.ty(&self.mir.local_decls, self.tcx);
+				matches!(shape, Shape::Slice(_))
+					&& crate::lower::array_ref(from).is_some()
+					&& self.b.t.slice_elem(from).is_some()
 			}
-			Rvalue::Ref(_, mir::BorrowKind::Shared, p) => matches!(shape, Shape::Slice) && self.reborrow(*p).is_some(),
+			Rvalue::Ref(_, mir::BorrowKind::Shared | mir::BorrowKind::Mut { .. }, p) => {
+				matches!(shape, Shape::Slice(_)) && self.reborrow(*p).is_some()
+			}
 			Rvalue::Aggregate(kind, ops) => match (&**kind, shape) {
 				(AggregateKind::Tuple, Shape::Tuple(_, fields)) => ops.iter().zip(fields).all(|(op, f)| source(op, f)),
 				(AggregateKind::Adt(_, v, ..), Shape::Enum(_, variants)) => variants[v.as_usize()]
@@ -893,8 +972,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			&& self.b.t.split(&adt.non_enum_variant().fields[*field]))
 	}
 
-	/// What a shared borrow of bytes through a reference to them borrows: the reference,
-	/// and the range of them, as `&*s` or `&s[a..b]` of an array or slice pattern make it.
+	/// What a borrow of a slice's elements through a reference to them borrows: the
+	/// reference, and the range of them, as `&*s` or `&s[a..b]` of an array or slice pattern
+	/// make it.
 	fn reborrow(&self, p: Place<'tcx>) -> Option<(Place<'tcx>, Option<PlaceElem<'tcx>>)> {
 		let (base, range) = match p.projection.as_slice() {
 			[.., ProjectionElem::Deref] => (p.projection.len() - 1, None),
@@ -908,12 +988,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			projection: self.tcx.mk_place_elems(&p.projection[..base]),
 		};
 		let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
-		match ty.kind() {
-			ty::Ref(_, inner, _) if super::place::byte_slice(*inner) || crate::lower::byte_array(*inner) => {
-				Some((base, range))
-			}
-			_ => None,
-		}
+		self.b.t.slice_elem(ty).map(|_| (base, range))
 	}
 
 	/// Find the calls of functions that hand back their `Ok`'s parts in a slot.
@@ -1154,7 +1229,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							&& let Some(shape) = shapes.get(&p.local)
 							&& let (node, n) = walk(shape, p.projection)
 							&& n == p.projection.len()
-							&& matches!(node.shape, Shape::Slice)
+							&& matches!(node.shape, Shape::Slice(_))
 						{
 							taken.insert(at);
 						}
@@ -1194,7 +1269,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						&& let Some(shape) = shapes.get(&p.local)
 						&& let (node, n) = walk(shape, p.projection)
 						&& n == p.projection.len()
-						&& matches!(node.shape, Shape::Slice)
+						&& matches!(node.shape, Shape::Slice(_))
 					{
 						passed.insert((at, *p));
 					}
@@ -1239,12 +1314,19 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						NonMutatingUseContext::Inspect | NonMutatingUseContext::PlaceMention,
 					)
 					| PlaceContext::MutatingUse(MutatingUseContext::Drop) => return,
-					// Assigned whole, as checked above, or written into.
+					// Assigned whole, as checked above.
+					PlaceContext::MutatingUse(_) if place.projection.is_empty() => return,
+					// Written into, unless through a slice: into its elements, which its
+					// parts point at, as its object would.
 					PlaceContext::MutatingUse(_) => {
-						if !place.projection.is_empty() {
+						let (node, n) = walk(shape, place.projection);
+						if !matches!(
+							(node.shape, &place.projection[n..]),
+							(Shape::Slice(_), [ProjectionElem::Deref, ..])
+						) {
 							self.bad.insert(place.local);
+							return;
 						}
-						return;
 					}
 					PlaceContext::NonMutatingUse(_) => {}
 				}
@@ -1255,9 +1337,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let rest = &place.projection[n..];
 				let part = match (node.shape, rest) {
 					(Shape::Unit | Shape::Leaf(_), _) => true,
-					// A byte, read where it is.
+					// An element, read or written where it is.
 					(
-						Shape::Slice,
+						Shape::Slice(_),
 						[
 							ProjectionElem::Deref,
 							ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
@@ -1430,7 +1512,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			| Producer::SplitFirstChunk(_)
 			| Producer::SplitAt { .. }
 			| Producer::FromResidual
-			| Producer::Slotted => None,
+			| Producer::Slotted
+			| Producer::Source { .. } => None,
 			// The `Option`'s flag, then its value, then the error.
 			Producer::OkOr => (part >= 1 && part < node.shape.size()).then_some((p.local, node.at + part)),
 			Producer::Branch => {
@@ -1490,7 +1573,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			(node.shape, rest),
 			(Shape::Unit | Shape::Leaf(_), _)
 				| (
-					Shape::Slice,
+					Shape::Slice(_),
 					[
 						ProjectionElem::Deref,
 						ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
@@ -1597,9 +1680,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Shape::Unit => Expr::undefined(),
 			Shape::Leaf(_) => parts[0].clone(),
 			// The parts of a slice bound whole are that slice.
-			Shape::Slice => match members(parts) {
+			Shape::Slice(elem) => match members(parts) {
 				Some(slice) => Expr::ident(slice),
-				None => Expr::New(Box::new(Expr::Rs("ByteSlice".into())), parts.to_vec()),
+				None => new_slice(*elem, parts.to_vec()),
 			},
 			Shape::Tuple(ty, fields) => {
 				let mut at = 0;
@@ -1780,6 +1863,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				parts
 			}
 			Producer::Slotted => self.slotted_call(local, args, span, out),
+			Producer::Source { range } => self.source_parts(&args[0].node, range.then(|| &args[1].node), span, out)
+				.into_iter()
+				.map(Some)
+				.collect(),
 			// The `Err` of the residual's error, converted.
 			Producer::FromResidual => {
 				let residual = args[0].node.ty(&self.mir.local_decls, self.tcx);
@@ -1862,6 +1949,63 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 		};
 		self.set_or_return(local, parts, span, out);
+	}
+
+	/// The parts of the slice of elements other than bytes that std makes from `container`,
+	/// a reference to a `Vec`, a slice, or an array: all of them, or the range `range`,
+	/// checked as std's `Index` checks it.
+	fn source_parts(
+		&mut self,
+		container: &Operand<'tcx>,
+		range: Option<&Operand<'tcx>>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> [(Expr, bool); 3] {
+		// The range's bounds are taken apart first, while they are still held back.
+		let bounds = range.map(|range| {
+			let index_ty = range.ty(&self.mir.local_decls, self.tcx);
+			let (from, to) = self
+				.range_bounds(range, index_ty, span, out)
+				.expect("checked by source");
+			let (from, _) = self.steady_value(from, "from", Type::Builtin("number"), out);
+			let to = to.map(|to| self.steady_value(to, "to", Type::Builtin("number"), out).0);
+			(from, to)
+		});
+		let ty = container.ty(&self.mir.local_decls, self.tcx);
+		let [d, (s, ss), (n, ns)] = match ty.builtin_deref(true).map(|t| t.kind()) {
+			Some(ty::Adt(_, args)) => {
+				let elem = args.type_at(0);
+				let vec = self.operand(container, span, out);
+				let vec_ty = self.b.t.ty(ty, span);
+				let (vec, _) = self.steady_value(vec, "vec", vec_ty, out);
+				let items_ty = self.b.t.part_ty(Part::Data(elem), span);
+				// What it holds stays put while the slice borrows it.
+				let (items, _) = self.steady_value(vec.member("items"), "items", items_ty, out);
+				let length = items.clone().member("length");
+				[(items, true), (Expr::lit("0"), true), (length, true)]
+			}
+			_ => self.slice_parts(container, span, out),
+		};
+		let Some((from, to)) = bounds else {
+			return [d, (s, ss), (n, ns)];
+		};
+		let whole = from == Expr::lit("0") && to.is_none();
+		let to = to.unwrap_or_else(|| n.clone());
+		if !whole {
+			let mut check = vec![n, from.clone(), to.clone()];
+			// Where its caller is, in a program with a panic hook.
+			if self.b.t.hooked {
+				let at = self.b.std_site.as_ref().and_then(|(_, at)| at.clone());
+				check.push(at.unwrap_or_else(Expr::undefined));
+			}
+			let loc = self.b.t.loc(span);
+			self.emit(vec![StmtKind::Expr(Expr::rs("rangeCheck", check)).at(loc)], false, out);
+		}
+		let start = match &s {
+			Expr::Lit(t) if t == "0" => from.clone(),
+			_ => add(s, from.clone()),
+		};
+		[d, (start, ss), (sub(to, from), ns)]
 	}
 
 	/// The parts of what a function that hands back its `Ok`'s parts returns into `local`:
@@ -2142,12 +2286,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Shape::Leaf(_) => vec![self.leaf(value)],
 			// Each part a struct's fields hold may change, so it reads the same later only
 			// if it is held.
-			Shape::Slice if let Some(parts) = super::place::made_slice(&value) => parts
+			Shape::Slice(_) if let Some(parts) = super::place::made_slice(&value) => parts
 				.iter()
 				.map(|part| (part.clone(), self.steady_expr(part)))
 				.collect(),
-			Shape::Slice => {
-				let (slice, _) = self.steady_value(value, "slice", Type::Rs("ByteSlice", Vec::new()), out);
+			Shape::Slice(elem) => {
+				let ty = self.b.t.slice_ty(*elem, span);
+				let (slice, _) = self.steady_value(value, "slice", ty, out);
 				["data", "start", "length"]
 					.into_iter()
 					.map(|key| (super::place::slice_member(slice.clone(), key), true))
@@ -2184,7 +2329,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// The parts a slice operand is taken apart into: a slice held as its parts, or one
 	/// read from a value that reads the same later.
 	fn slice_parts(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> [(Expr, bool); 3] {
-		let parts = self.scalar_operand(op, &Shape::Slice, span, out);
+		let ty = op.ty(&self.mir.local_decls, self.tcx);
+		let elem = self.b.t.slice_elem(ty).expect("a slice");
+		let parts = self.scalar_operand(op, &Shape::Slice(elem), span, out);
 		<[(Expr, bool); 3]>::try_from(parts).expect("a slice's three parts")
 	}
 
@@ -2324,7 +2471,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// in a variable named after `base` of type `ty` assigned it now.
 	fn steady_value(&mut self, value: Expr, base: &str, ty: Type, out: &mut Vec<Stmt>) -> (Expr, bool) {
 		let made =
-			matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rs(n) if n == "ByteSlice") && args.len() == 3);
+			matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rs(n) if n == "ByteSlice" || n == "Slice") && args.len() == 3);
 		if made || self.steady_expr(&value) {
 			return (value, true);
 		}
@@ -2404,6 +2551,7 @@ pub(super) fn add(e: Expr, k: Expr) -> Expr {
 	};
 	match (e, lit(&k)) {
 		(e, Some(0)) => e,
+		(e, _) if lit(&e) == Some(0) => k,
 		(Expr::Binary(base, "+", a), Some(b)) if let Some(a) = lit(&a) => {
 			Expr::Binary(base, "+", Box::new(Expr::lit((a + b).to_string())))
 		}

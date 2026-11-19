@@ -396,15 +396,21 @@ export function order(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}
 	let v: rs.Vec<rs.u32> = v2;
 	if (selector === 0) {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 4, true);
+		const items7: rs.u32[] = v.items;
+		rs.sliceSort(new rs.Slice(items7, 0, items7.length), rs.lt, 4, true);
 	} else if (selector === 1) {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.keyLt((_212: rs.u32): rs.u32 => {
+		const items6: rs.u32[] = v.items;
+		rs.sliceSort(new rs.Slice(items6, 0, items6.length), rs.keyLt((_212: rs.u32): rs.u32 => {
 			return rs.u32Rem(_212, 1024);
 		}, rs.lt), 4, true);
 	} else if (selector === 2) {
-		v = rs.vecFrom([rs.optionUnwrap(rs.iterMax(rs.iterSlice(v.items), rs.lt)), rs.optionUnwrap(rs.iterMin(rs.iterSlice(v.items), rs.lt))]);
+		const items4: rs.u32[] = v.items;
+		const _21: rs.u32 = rs.optionUnwrap(rs.iterMax(rs.iterSlice(rs.sliceItems(new rs.Slice(items4, 0, items4.length))), rs.lt));
+		const items5: rs.u32[] = v.items;
+		v = rs.vecFrom([_21, rs.optionUnwrap(rs.iterMin(rs.iterSlice(rs.sliceItems(new rs.Slice(items5, 0, items5.length))), rs.lt))]);
 	} else if (selector === 3) {
-		const s = v.items;
+		const items3: rs.u32[] = v.items;
+		const s = rs.sliceItems(new rs.Slice(items3, 0, items3.length));
 		let front = 0;
 		let back = s.length;
 		const f2 = [0, 4294967295] as [rs.u32, rs.u32];
@@ -421,14 +427,16 @@ export function order(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const _35: [rs.u32, rs.u32] = acc;
 		v = rs.vecFrom([_35[0], _35[1]]);
 	} else if (selector === 5) {
-		const _43: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(rs.iterSlice(v.items), (_210: rs.u32): [rs.u32, rs.u32] => {
+		const items2: rs.u32[] = v.items;
+		const _43: rs.Iter<[rs.u32, rs.u32]> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (_210: rs.u32): [rs.u32, rs.u32] => {
 			const x6: rs.u32 = _210;
 			return [rs.u32Rem(x6, 512), x6] as [rs.u32, rs.u32];
 		});
 		const map: rs.BTreeMap<rs.u32, rs.u32> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>, _43, true, undefined, undefined, undefined, 8, true);
 		v = rs.vecFrom([rs.optionUnwrap(rs.iterToOption(rs.btreeKeys(map).next())), rs.btreeLen(map) as rs.u32, rs.optionUnwrap(rs.iterToOption(rs.btreeValues(map).nextBack()))]);
 	} else if (selector === 6) {
-		const _65: rs.Iter<rs.u32> = rs.iterMap(rs.iterSlice(v.items), (_2: rs.u32): rs.u32 => {
+		const items: rs.u32[] = v.items;
+		const _65: rs.Iter<rs.u32> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (_2: rs.u32): rs.u32 => {
 			return rs.u32Rem(_2, 512);
 		});
 		const set: rs.BTreeSet<rs.u32> = rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _65, true, undefined, undefined, 4, true);
@@ -509,7 +517,10 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		while ((_66 = iterStart3++) < iterEnd3) {
 			v2.items.push(_66);
 		}
-		_13 = [v2.items.length, rs.sliceGet(rs.sliceFrom(v2.items), rs.usizeDiv(v2.items.length, 2))] as [rs.usize, rs.u32 | undefined];
+		const _72: rs.usize = v2.items.length;
+		const items: rs.u32[] = v2.items;
+		const _78: rs.usize = rs.usizeDiv(v2.items.length, 2);
+		_13 = [_72, rs.sliceGet(new rs.Slice(items, 0, items.length), _78)] as [rs.usize, rs.u32 | undefined];
 	}
 	const len: rs.usize = _13[0];
 	const middle: rs.u32 | undefined = _13[1];
@@ -664,7 +675,8 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}
 	const keys: rs.Vec<rs.String> = v;
 	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.u64>;
-	const s: rs.String[] = keys.items;
+	const items: rs.String[] = keys.items;
+	const s: rs.String[] = rs.sliceItems(new rs.Slice(items, 0, items.length));
 	let front: number = 0;
 	const back: number = s.length;
 	let count2: number = 0;
@@ -766,7 +778,8 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	b0: {
 		sum = 0;
 		if (selector === 0) {
-			rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 8, true);
+			const items2: rs.u64[] = v.items;
+			rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.lt, 8, true);
 			const iter: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
 			while (true) {
 				const _25: rs.u64 | rs.Done = iter.next();
@@ -789,18 +802,30 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 							}
 							c = l;
 						}
-						const _61: [rs.Slice<rs.u64>, rs.Slice<rs.u64>] = rs.sliceSplitAt(rs.sliceFrom(v.items), c);
+						const items3: rs.u64[] = v.items;
+						const mid: number = c;
+						if (mid > items3.length) {
+							rs.panic("mid > len");
+						}
 						const _67: rs.usize = i;
-						rs.idx(_61[0], _67);
-						const _66: rs.u64 = _61[0].data[_61[0].start + _67];
-						rs.idx(_61[1], 0);
-						if (!rs.u64Le(_66, _61[1].data[_61[1].start])) {
+						if (_67 >= mid) {
+							rs.panic("index out of bounds: the len is " + mid + " but the index is " + _67);
+						}
+						const _66: rs.u64 = items3[_67];
+						if (0 >= items3.length - mid) {
+							rs.panic("index out of bounds: the len is " + (items3.length - mid) + " but the index is " + 0);
+						}
+						if (!rs.u64Le(_66, items3[mid])) {
 							const _78: rs.usize = i;
-							rs.idx(_61[0], _78);
-							rs.idx(_61[1], 0);
-							const swapped = _61[0].data[_61[0].start + _78];
-							_61[0].data[_61[0].start + _78] = _61[1].data[_61[1].start];
-							_61[1].data[_61[1].start] = swapped;
+							if (_78 >= mid) {
+								rs.panic("index out of bounds: the len is " + mid + " but the index is " + _78);
+							}
+							if (0 >= items3.length - mid) {
+								rs.panic("index out of bounds: the len is " + (items3.length - mid) + " but the index is " + 0);
+							}
+							const swapped = items3[_78];
+							items3[_78] = items3[mid];
+							items3[mid] = swapped;
 							i = c;
 						} else {
 							break;
@@ -818,18 +843,21 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			if (_96 === rs.DONE) {
 				break b0;
 			}
-			const part2 = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
-			const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(v.items), 0, part2);
-			const iterS: rs.u64[] = part.data;
-			let iterI: number = part.start;
-			const iterE: number = part.start + part.length;
+			const to: number = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
+			const items: rs.u64[] = v.items;
+			rs.rangeCheck(items.length, 0, to);
+			const iterS: rs.u64[] = items;
+			let iterI: number = 0;
+			const iterE: number = to;
 			while (iterI < iterE) {
 				const _111: number = iterI++;
 				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
 			}
-			const _120: rs.usize = rs.usizeSub(part.length, 1);
-			rs.idx(part, _120);
-			sum = rs.u64WrappingAdd(sum, part.data[part.start + _120]);
+			const _120: rs.usize = rs.usizeSub(to, 1);
+			if (_120 >= to) {
+				rs.panic("index out of bounds: the len is " + to + " but the index is " + _120);
+			}
+			sum = rs.u64WrappingAdd(sum, items[_120]);
 		}
 	}
 	harness_putU64(out, v.items[rs.idx(v.items, 0)]);

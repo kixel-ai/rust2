@@ -167,12 +167,16 @@ export function read(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _84: rs.Location = outer({ file: "fixtures/lang/panics/src/located.rs", line: 221, col: 46 });
 		const _85: rs.Location = picked(rs.u8WrappingAdd(first, 1), { file: "fixtures/lang/panics/src/located.rs", line: 221, col: 55 });
 		const all: rs.Vec<rs.Location> = rs.vecFrom([b, _83, a, _84, _85]);
-		rs.sliceSort(rs.sliceFrom(all.items), rs.cmpLt(rs.locationCmp), 4, true);
+		const items: rs.Location[] = all.items;
+		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(rs.locationCmp), 4, true);
 		rs.vecDedupBy(all, rs.locationEq);
-		lines(out, rs.sliceFrom(all.items));
-		const _96: rs.Iter<rs.Location> = rs.iterSlice(all.items);
+		const items2: rs.Location[] = all.items;
+		lines(out, new rs.Slice(items2, 0, items2.length));
+		const items3: rs.Location[] = all.items;
+		const _96: rs.Iter<rs.Location> = rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length)));
 		const set: rs.BTreeSet<rs.Location> = rs.btreeExtendKeys(rs.btreeNew(rs.locationCmp) as rs.BTreeSet<rs.Location>, _96, true, undefined, undefined, 4, true);
-		const _101: rs.Iter<rs.Location> = rs.iterMap(rs.iterSlice(all.items), (l: rs.Location): rs.Location => {
+		const items4: rs.Location[] = all.items;
+		const _101: rs.Iter<rs.Location> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items4, 0, items4.length))), (l: rs.Location): rs.Location => {
 			return l;
 		});
 		const hashed: rs.HashSet<rs.Location> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.locationHash, rs.locationEq)) as rs.HashSet<rs.Location>, _101, undefined, undefined, 58720256);

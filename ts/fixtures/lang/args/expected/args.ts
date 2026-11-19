@@ -163,7 +163,8 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, sum(data.data, data.start, data.length));
 		rs.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rs.byteVecPush(out, byRef(data) & 0xff);
-		const s3 = kept(data, kind).items;
+		const items: rs.ByteSlice[] = kept(data, kind).items;
+		const s3 = rs.sliceItems(new rs.Slice(items, 0, items.length));
 		let front2 = 0;
 		let back2 = s3.length;
 		let acc: rs.u8 = 0;

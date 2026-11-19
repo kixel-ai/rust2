@@ -7,10 +7,11 @@ import * as Log from "../log.Log.ts";
 
 /** The ids of a list's keys, front to back, apart from `id`. */
 export function ids(id: rs.u32, l: rs.LinkedList<Key.Key>): rs.String {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.listIter(l), (k: Key.Key): rs.String => {
+	const items: rs.String[] = rs.iterToVec(rs.iterMap(rs.listIter(l), (k: Key.Key): rs.String => {
 		const _4: rs.u32 = rs.u32Sub(k.id, id);
 		return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_4, f), 0);
-	}), undefined, 12, true).items, ",");
+	}), undefined, 12, true).items;
+	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
 }
 
 /** Run scenario `arg % 8`. */

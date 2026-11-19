@@ -432,7 +432,8 @@ export class frontFuture {
 						const args6 = [_69, (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u64Debug)];
 						const _60: string = rs.fmtFormat(["closed with ", args6[0], " in flight ", args6[1]]).v;
 						Guard.note(this.#guard, _60);
-						const s = this.#inFlight.items;
+						const items: rs.u64[] = this.#inFlight.items;
+						const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
 						let front = 0;
 						let back = s.length;
 						let acc: rs.u64 = 0;

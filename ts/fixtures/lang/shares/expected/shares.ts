@@ -357,11 +357,13 @@ export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		v.items.push(rs.u16Mul(x2 as rs.u16, 257));
 	}
 	const wide: rs.Vec<rs.u16> = v;
-	const fromRef: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(wide.items.slice()));
+	const items: rs.u16[] = wide.items;
+	const fromRef: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.sliceToArray(new rs.Slice(items, 0, items.length))));
 	const fromVec: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(wide.items.slice()).items));
 	const fromBox: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(wide.items.slice()).items));
 	const fromArray: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom([1, 2, 768]));
-	const collected: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(wide.items), (_23: rs.u16): rs.u16 => {
+	const items2: rs.u16[] = wide.items;
+	const collected: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (_23: rs.u16): rs.u16 => {
 		return rs.intRotateLeft(_23, 3, 16, false);
 	}), undefined, 2, true).items));
 	const empty: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom([]));
@@ -436,17 +438,20 @@ export function copies(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		v.items.push(y);
 	}
 	const source: rs.Vec<[rs.u8, rs.u16]> = v;
-	const fromRef: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(source.items.map(copy$tuple2_u8_u16)));
+	const items: [rs.u8, rs.u16][] = source.items;
+	const fromRef: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(rs.sliceItems(new rs.Slice(items, 0, items.length)).map(copy$tuple2_u8_u16)));
 	const fromVec: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(source.items.map(copy$tuple2_u8_u16)).items));
 	const p: [rs.u8, rs.u16] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data2), 5), 6];
 	const twins: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom([copy$tuple2_u8_u16(p), copy$tuple2_u8_u16(p)]));
-	for (const _35 of source.items) {
+	const items2: [rs.u8, rs.u16][] = source.items;
+	for (const _35 of rs.sliceItems(new rs.Slice(items2, 0, items2.length))) {
 		_35[0] = _35[0] ^ 255;
 	}
 	const _39: rs.Slice<[rs.u8, rs.u16]> = rs.optionExpect(rs.arcGetMut(twins), "alone");
 	rs.idx(_39, 0);
 	_39.data[_39.start][0] = _39.data[_39.start][0] ^ 1;
-	pairs(rs.sliceFrom(source.items), out);
+	const items3: [rs.u8, rs.u16][] = source.items;
+	pairs(new rs.Slice(items3, 0, items3.length), out);
 	pairs(fromRef.value, out);
 	pairs(fromVec.value, out);
 	pairs(twins.value, out);
@@ -717,7 +722,8 @@ export function generics(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 export function keys(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const data2: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeRem(kind >> 3 as rs.usize, rs.usizeAdd(data.length, 1)));
 	const words: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data2, 2), text), undefined, 12, true);
-	const _19: rs.Iter<rs.Arc<string>> = rs.iterMap(rs.iterSlice(words.items), (w: rs.String): rs.Arc<string> => {
+	const items: rs.String[] = words.items;
+	const _19: rs.Iter<rs.Arc<string>> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (w: rs.String): rs.Arc<string> => {
 		return new rs.Arc(w.v);
 	});
 	const interned: rs.HashSet<rs.Arc<string>> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashArc(rs.hashStr), rs.eqArc(rs.same, true))) as rs.HashSet<rs.Arc<string>>, _19, rs.drop, undefined, 117440512);
@@ -755,7 +761,8 @@ export function keys(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 2, true).items));
 	putWides(fromIter.value, out);
 	putWides(fromIter.value, out);
-	const text_: rs.Arc<string> = new rs.Arc(rs.strsJoin(words.items, "").v);
+	const items2: rs.String[] = words.items;
+	const text_: rs.Arc<string> = new rs.Arc(rs.strsJoin(rs.sliceItems(new rs.Slice(items2, 0, items2.length)), "").v);
 	put(out, text_.value);
 	put(out, text_.value);
 	let slot: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(rs.byteSliceToArray(data2)));

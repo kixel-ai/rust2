@@ -36,7 +36,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Filter_it
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -64,7 +65,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Rev_slice
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -92,7 +94,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Skip_slic
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -120,7 +123,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Take_slic
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -148,7 +152,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -176,7 +181,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -204,7 +210,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -232,7 +239,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -260,7 +268,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -288,7 +297,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Skip_vec_IntoIter_
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -318,7 +328,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -346,7 +357,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 			break;
 		}
 	}
-	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
+	const items2: Item.Item[] = items.items;
+	const _17: Item.Item | undefined = rs.sliceFirst(new rs.Slice(items2, 0, items2.length));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
@@ -362,7 +374,8 @@ export function intoIter$iter_IntoIterator(self: Bag): rs.Iter<Item.Item> {
 }
 
 export function intoIter$iter_IntoIterator_ref(self: Bag): rs.Iter<Item.Item> {
-	return rs.iterSlice(self.items.items);
+	const items: Item.Item[] = self.items.items;
+	return rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length)));
 }
 
 //# sourceMappingURL=collects.Bag.ts.map
