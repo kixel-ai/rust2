@@ -438,10 +438,9 @@ fn main() {
 
 	channel();
 
-	let list = Node {
-		value: 1,
-		next: Some(Box::new(Node { value: 2, next: None })),
-	};
+	// A recursive type is an object, made by its functions.
+	let mut list = Node::new(1, None);
+	list.push(2);
 	println!("node {}", list.sum());
 
 	let tally = Tally::new();
@@ -541,7 +540,7 @@ fn main() {
 	let five = Point { x: 5, y: 2 };
 	println!(
 		"kept or {} {} keeper {}",
-		api::kept_or(five),
+		api::kept_or::<Point>(Some(five)),
 		api::kept_or::<Point>(None),
 		api::keeper(five)
 	);
