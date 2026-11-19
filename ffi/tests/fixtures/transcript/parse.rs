@@ -216,6 +216,10 @@ impl Scope<'_> {
 				let syn::Pat::Ident(name) = &*f.pat else {
 					fail(&f.pat, "a for loop binding anything but a name")
 				};
+				// Each use is the element spelled again, which no write could change.
+				if name.mutability.is_some() || name.by_ref.is_some() {
+					fail(&f.pat, "a for loop binding a mutable name");
+				}
 				for item in &items.elems {
 					// Each element is spelled again at each use in the unrolled body, so one
 					// whose evaluation could be seen, such as a call, would run once per use,
@@ -605,8 +609,14 @@ impl Scope<'_> {
 						"" => Spec::Display,
 						"?" => Spec::Debug,
 						"x" => Spec::Hex(0),
-						s if s.starts_with('0') && s.ends_with('x') => Spec::Hex(s[1..s.len() - 1].parse().unwrap()),
-						s if s.starts_with('0') => Spec::Padded(s[1..].parse().unwrap()),
+						s if s.starts_with('0') && s.ends_with('x') => Spec::Hex(
+							s[1..s.len() - 1]
+								.parse()
+								.unwrap_or_else(|_| fail(&lit, format!("the format {s}"))),
+						),
+						s if s.starts_with('0') => {
+							Spec::Padded(s[1..].parse().unwrap_or_else(|_| fail(&lit, format!("the format {s}"))))
+						}
 						s => fail(&lit, format!("the format {s}")),
 					};
 					let value = if name.is_empty() {
@@ -622,6 +632,16 @@ impl Scope<'_> {
 						});
 						self.infer(&path)
 					};
+					// Hex of a signed integer is its two's complement, which no writer spells.
+					if let Spec::Hex(_) = spec
+						&& !matches!(
+							unref(&value.ty).base(),
+							Type::Int(int) | Type::NonZero(int) if !int.signed()
+						)
+						&& !matches!(unref(&value.ty).base(), Type::U128)
+					{
+						fail(&lit, format!("hex of {}", self.describe(&value.ty)));
+					}
 					if !literal.is_empty() {
 						pieces.push(Piece::Text(std::mem::take(&mut literal)));
 					}
@@ -1788,6 +1808,9 @@ impl Scope<'_> {
 		let [p] = c.inputs.iter().collect::<Vec<_>>()[..] else {
 			fail(c, "a map_or closure of one parameter")
 		};
+		if !matches!(p, syn::Pat::Ident(_)) {
+			fail(p, "a map_or closure's parameter other than a name");
+		}
 		let depth = self.vars.len();
 		let pat = self.bind(p, inner);
 		let ty = none.ty.clone();

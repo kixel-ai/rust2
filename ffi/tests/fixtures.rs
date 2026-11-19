@@ -2367,7 +2367,9 @@ fn dart_kernel(
 		.and_then(Path::parent)
 		.expect("dart is in the SDK's bin")
 		.to_path_buf();
-	let config = dir.join("package_config.json");
+	// Each program's own, as two compiled in one directory at once would race on one.
+	let stem = main.file_stem().unwrap().to_string_lossy();
+	let config = dir.join(format!("{stem}.package_config.json"));
 	let packages: Vec<String> = std::iter::once((name, package))
 		.chain(others.iter().copied())
 		.map(|(name, root)| {
@@ -2388,7 +2390,7 @@ fn dart_kernel(
 		"aarch64" => "arm64",
 		_ => "x64",
 	};
-	let assets = dir.join("native_assets.yaml");
+	let assets = dir.join(format!("{stem}.native_assets.yaml"));
 	step::write(
 		&assets,
 		format!(
@@ -2396,7 +2398,7 @@ fn dart_kernel(
 			lib.display().to_string()
 		),
 	);
-	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
+	let dill = dir.join(format!("{stem}.dill"));
 	let mut cmd = Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")));
 	cmd.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
 		.arg("--platform")
@@ -4759,6 +4761,15 @@ fn transcript_refusals() {
 		(
 			"let x: Option<Option<()>> = Some(None); println!(\"{}\", x.is_none());",
 			"an option of an option of an option or of ()",
+		),
+		(
+			"for mut n in [7u32] { set(&mut n); println!(\"{n}\"); }",
+			"a for loop binding a mutable name",
+		),
+		("let n = 7i32; println!(\"{n:x}\");", "hex of Int(I32)"),
+		(
+			"let x: Option<u32> = Some(1); println!(\"{}\", x.map_or(0u32, |_| 7));",
+			"a map_or closure's parameter other than a name",
 		),
 		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
 		(
