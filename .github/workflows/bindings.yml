@@ -1,6 +1,6 @@
 name: Binding packages
 
-# The shared, read-only builder of a crate's rust2-ffi Python wheels and Swift package, which
+# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, and C archives, which
 # a release workflow ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
@@ -25,6 +25,10 @@ on:
         type: string
       swift-check:
         description: The main.swift of an executable run on the installed Swift package
+        default: ''
+        type: string
+      c-check:
+        description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive
         default: ''
         type: string
     outputs:
@@ -262,10 +266,13 @@ jobs:
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
           SWIFT_CHECK: ${{ inputs.swift-check }}
+          C_CHECK: ${{ inputs.c-check }}
         run: |
           mkdir -p dist/checks
           if [[ -n "$PYTHON_CHECK" ]]; then cp "source/$PYTHON_CHECK" dist/checks/check.py; fi
           if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
+          # Its extension says whether it is C or C++.
+          if [[ -n "$C_CHECK" ]]; then mkdir dist/checks/c && cp "source/$C_CHECK" dist/checks/c/; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
@@ -419,3 +426,54 @@ jobs:
         env:
           MODULE: ${{ needs.facts.outputs.module }}
         run: bash rust2/ffi/release/consume-swift.sh swift apple
+
+  # Each C archive unpacked alone, with no checkout, Rust, or source path: a new CMake project
+  # finding it by its CPS file and by its config package, and on Linux and macOS a pkg-config
+  # build, each linking the static and the shared library.
+  c:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      # The oldest CMake that reads CPS is 4.3; the config package serves older ones too.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Consume
+        run: |
+          python -m pip install cmake==4.4.5
+          if [[ "$RUNNER_OS" == macOS ]] && ! command -v pkg-config > /dev/null; then brew install pkgconf; fi
+          shopt -s nullglob
+          archives=(dist/c/*)
+          [[ ${#archives[@]} == 1 ]] || { echo "::error::expected one C archive, found ${archives[*]}"; exit 1; }
+          args=(--archive "${archives[0]}")
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          checks=(dist/checks/c/*)
+          if [[ ${#checks[@]} == 1 ]]; then args+=(--check "${checks[0]}"); fi
+          python -I rust2/ffi/release/package.py consume-c "${args[@]}"

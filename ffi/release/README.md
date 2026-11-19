@@ -1,7 +1,7 @@
 # Binding releases
 
-A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels and a Swift
-package. Two halves, split where Cargo's knowledge ends:
+A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
+and C and C++ archives. Two halves, split where Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -37,10 +37,11 @@ and the XCFramework archive carry build times, so **Re-run all jobs** fails wher
 registry already holds the first attempt's files.
 A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 
-The builder takes the crate's `Cargo.toml` and four optional inputs the caller's tests own:
+The builder takes the crate's `Cargo.toml` and five optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check` and `swift-check` programs that must print it through the installed
-packages. Without a check, a consumer only imports the module.
+`python-check`, `swift-check`, and `c-check` programs that must print it through the
+installed packages. Without a check, a consumer only imports the module, or links a function
+of each C and C++ header. A `c-check` is C or C++ by its extension, built at C11 or C++17.
 
 ## What the builder does
 
@@ -67,16 +68,44 @@ packages. Without a check, a consumer only imports the module.
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
-6. Consumers, with no checkout, Rust, or source path: each wheel installed with
+6. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`
+   on Windows, built like the wheels, Linux's against glibc 2.28 and macOS's at 11.0. It
+   holds `include/` with both headers, the static and shared libraries, and three ways to
+   find them, each naming the native libraries the static library needs, from rustc's
+   `--print native-static-libs`:
+   - `lib/cmake/<lib>/<lib>-config.cmake`, whose `find_package(<lib>)` gives `<lib>::<lib>`,
+     the static library, and `<lib>::shared`;
+   - `lib/cps/<lib>.cps`, the [Common Package Specification](https://cps-org.github.io/cps/)
+     of the same two components, which CMake 4.3 and newer prefers;
+   - `lib/pkgconfig/<lib>.pc`, the shared library by default and the static one with
+     `--static`; none on Windows, whose MSVC has no pkg-config convention.
+
+   The shared library's name holds Cargo's compatible line, `lib<lib>.so.1` for 1.x,
+   `.so.0.4` for 0.4.x, the whole version for a 0.0.x or prerelease, as its SONAME, or its
+   `@rpath` install name on macOS (`lib<lib>.1.dylib`); the [API lock](/ffi/README.md#the-api-lock)
+   is what keeps a line's ABI. The CMake and CPS versions accept a request within that line.
+   On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
+
+   The static library is one object prelinked from Rust's archive (`ld -r`, then `objcopy`
+   on ELF and the linker's exported-symbols list on Mach-O) whose only global symbols are
+   the C ABI's, `<lib>_*`. So its std and compiler-builtins, with unmangled symbols such as
+   `__addvdi3`, cannot clash with another Rust static library in the same program, which
+   each build checks by linking one beside it. MSVC's linker has no relocatable link, so the
+   Windows static library keeps every symbol: a program with two Rust static libraries
+   there links the DLL instead.
+7. Consumers, with no checkout, Rust, or source path: each wheel installed with
    `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
    from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
-   and the iOS Simulator, then consumed by a new executable package that runs the check.
+   and the iOS Simulator, then consumed by a new executable package that runs the check;
+   and each C archive unpacked alone, built by a new CMake project through its CPS file and
+   through its config package, and on Linux and macOS by pkg-config, linking each library,
+   where a shared consumer must record the versioned name.
    With an `example`, each must print native Rust's stdout byte for byte.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels must print its native transcript, and on moq's stand-in facade at the exporter's moq
-pin, through `moq/moq.py` and `moq/moq.swift`.
+wheels and C++ consumers must print its native transcript, and on moq's stand-in facade at
+the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`, and `moq/moq.cpp`.
 
 ## Other registries
 
