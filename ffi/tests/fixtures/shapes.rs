@@ -1455,6 +1455,7 @@ fn round_trip(built: &Built, language: &str) {
 				include: built.out.join("include"),
 				staticlib: built.staticlib(),
 				native: &built.native,
+				generated: None,
 			};
 			super::cxx(&link, 17, false, &main, &exe);
 			run(&mut Command::new(&exe))
