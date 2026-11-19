@@ -181,8 +181,9 @@ class Go(unittest.TestCase):
             go = Path(root) / "go"
             go.mkdir()
             for text, want in [("module example.com/own/v2 // a release\n", "example.com/own/v2"),
-                               ('module "example.com/q"\n', "example.com/q"), ("module `example.com/r`\n", "example.com/r"),
-                               ("// module wrong\nmodule example.com/s\n\ngo 1.24\n", "example.com/s")]:
+                               ('module "example.com/q"\n', "example.com/q"),
+                               ("// module wrong\nmodule example.com/s\n\ngo 1.24\n", "example.com/s"),
+                               ('module ( // the app\n\t"example.com/app"\n)\n', "example.com/app")]:
                 (go / "go.mod").write_text(text)
                 self.assertEqual(package.go_module_path(root), want)
 

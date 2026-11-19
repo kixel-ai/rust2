@@ -614,14 +614,12 @@ def go_version(version):
 
 
 def go_module_path(export):
-    """The module the export's go.mod declares."""
-    text = (Path(export) / "go" / "go.mod").read_text(encoding="utf-8")
-    # A path bare or quoted, then perhaps a comment, as the go command reads the directive.
-    match = re.search(r'^module\s+(?:"((?:[^"\\]|\\.)+)"|`([^`]+)`|([^\s"`/]+(?:/[^\s"`/]+)*))\s*(?://.*)?$', text, re.M)
-    if match is None:
-        raise SystemExit("the export's go.mod declares no module on one line")
-    quoted, raw, bare = match.groups()
-    return json.loads(f'"{quoted}"') if quoted else raw or bare
+    """The module the export's go.mod declares, as the go command reads it."""
+    path = Path(export) / "go" / "go.mod"
+    module = json.loads(output("go", "mod", "edit", "-json", path, env={**os.environ, "GOTOOLCHAIN": "local"})).get("Module")
+    if not module:
+        raise SystemExit(f"{path} declares no module")
+    return module["Path"]
 
 
 def check_major(module, version):
