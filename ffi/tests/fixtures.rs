@@ -248,6 +248,13 @@ fn api() -> &'static Api {
 /// exclusively.
 const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
 
+/// The directory of the C script generated from the transcript, which `tests/api.c`
+/// includes.
+fn c_transcript() -> PathBuf {
+	let header = std::fs::read_to_string(api().out.join("include").join("api.h")).unwrap();
+	generated("c", "transcript.c", &transcript::c::emit(transcript(), &header))
+}
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -255,15 +262,18 @@ fn api_c() {
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
 	let src = manifest_dir().join("tests").join("api.c");
 	let include = api.out.join("include");
+	let script = c_transcript();
 	Step {
 		stamp: &step::stamp(&exe),
-		reads: &[&src, &include, &api.staticlib()],
+		reads: &[&src, &include, &script, &api.staticlib()],
 		writes: &[&exe],
 	}
 	.run(
 		Command::new(cc)
 			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
 			.arg(&include)
+			.arg("-I")
+			.arg(&script)
 			.arg(&src)
 			.arg(api.staticlib())
 			.args(&api.native)
@@ -408,7 +418,8 @@ fn sanitized(sanitizer: &str) {
 		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
 		("TSAN_OPTIONS", "halt_on_error=1"),
 	];
-	let scripts = cpp_transcript();
+	// Each language's generated script, which its test includes.
+	let scripts = [c_transcript(), cpp_transcript()];
 	for (compiler, std, src, args) in [
 		("clang", "-std=c11", "api.c", &["threads"][..]),
 		(
@@ -422,8 +433,7 @@ fn sanitized(sanitizer: &str) {
 		run(Command::new(compiler)
 			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
 			.arg(api.out.join("include"))
-			.arg("-I")
-			.arg(&scripts)
+			.args(scripts.iter().flat_map(|dir| [std::ffi::OsStr::new("-I"), dir.as_os_str()]))
 			.arg(tests.join(src))
 			.arg(&lib)
 			.args(&native)

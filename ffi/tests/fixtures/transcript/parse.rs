@@ -8,14 +8,16 @@ use syn::spanned::Spanned;
 use super::ir::{Access, Collection, Family, Function, Int, Literal, Mutability, Type};
 use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, unref};
 
-/// The steps of `source`'s `main`.
-pub(super) fn main(t: &Transcript, source: &str) -> Vec<Step> {
+/// The steps of `source`'s `main`, and the parameters' types of each function it defines
+/// that `main` calls.
+pub(super) fn main(t: &Transcript, source: &str) -> (Vec<Step>, BTreeMap<String, Vec<Type>>) {
 	let file = syn::parse_file(source).unwrap_or_else(|e| panic!("{}: {e}", at(e.span())));
 	let mut scope = Scope {
 		t,
 		vars: Vec::new(),
 		units: Vec::new(),
 		locals: BTreeMap::new(),
+		params: BTreeMap::new(),
 		uses: BTreeMap::new(),
 		taken: BTreeMap::new(),
 	};
@@ -35,11 +37,12 @@ pub(super) fn main(t: &Transcript, source: &str) -> Vec<Step> {
 				main = Some(f);
 				continue;
 			}
-			scope.locals.insert(f.sig.ident.to_string(), f.sig.output.clone());
+			scope.locals.insert(f.sig.ident.to_string(), f.sig.clone());
 		}
 	}
 	let main = main.expect("transcript.rs has a main");
-	scope.block(&main.block.stmts)
+	let steps = scope.block(&main.block.stmts);
+	(steps, scope.params)
 }
 
 /// `transcript.rs:line:column` of a span.
@@ -66,7 +69,10 @@ struct Scope<'t> {
 	units: Vec<String>,
 	/// The functions `transcript.rs` defines, each a language's own: what each returns,
 	/// typed where it is called.
-	locals: BTreeMap<String, syn::ReturnType>,
+	locals: BTreeMap<String, syn::Signature>,
+	/// The parameters' types of each function `transcript.rs` defines that `main` calls,
+	/// which a language whose own functions are typed declares them by.
+	params: BTreeMap<String, Vec<Type>>,
 	/// What each name a `use` brings in stands for.
 	uses: BTreeMap<String, Vec<String>>,
 	/// How many locals took each name, so each binding gets its own.
@@ -656,6 +662,7 @@ impl Scope<'_> {
 					&& let Some(name) = p.path.get_ident()
 					&& self.locals.contains_key(&name.to_string())
 				{
+					self.local_params(&name.to_string());
 					let args = call.args.iter().map(|a| self.infer(a)).collect();
 					return Expr::new(Kind::Local(name.to_string(), args), ty.clone());
 				}
@@ -705,6 +712,18 @@ impl Scope<'_> {
 			);
 		}
 		value
+	}
+
+	/// Record the parameters' types of the function `name` that `transcript.rs` defines.
+	fn local_params(&mut self, name: &str) {
+		let inputs = self.locals[name].inputs.clone();
+		let params = (inputs.iter())
+			.map(|input| match input {
+				syn::FnArg::Typed(typed) => self.ty(&typed.ty),
+				input => fail(input, "a function of transcript.rs taking self"),
+			})
+			.collect();
+		self.params.insert(name.to_string(), params);
 	}
 
 	/// Whether `m` calls a method of the API's, not a conversion of the same name.
@@ -1312,9 +1331,11 @@ impl Scope<'_> {
 		};
 		let args: Vec<syn::Expr> = call.args.iter().cloned().collect();
 		if let Some(name) = p.path.get_ident().map(|i| i.to_string())
-			&& let Some(output) = self.locals.get(&name)
+			&& let Some(signature) = self.locals.get(&name)
 		{
-			let ty = match output.clone() {
+			let output = signature.output.clone();
+			self.local_params(&name);
+			let ty = match output {
 				syn::ReturnType::Default => Type::Unit,
 				syn::ReturnType::Type(_, ty) => self.ty(&ty),
 			};
