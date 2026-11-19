@@ -107,12 +107,11 @@ export function chunksVectored$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeq
 			const _9: rs.ByteSlice = _8[0];
 			rs.idx(dst, 0);
 			dst.data[dst.start] = _9;
-			const _10: rs.usize = dst.length;
 			if (!(_8[1].length === 0)) {
-				if (!(_10 === 1)) {
-					const _14: rs.ByteSlice = _8[1];
+				if (!(dst.length === 1)) {
+					const _18: rs.ByteSlice = _8[1];
 					rs.idx(dst, 1);
-					dst.data[dst.start + 1] = _14;
+					dst.data[dst.start + 1] = _18;
 					return 2;
 				}
 			}

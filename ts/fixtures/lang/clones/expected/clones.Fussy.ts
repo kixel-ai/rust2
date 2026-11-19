@@ -9,7 +9,7 @@ export interface Fussy {
 
 export function clone$Clone(self: Fussy): Fussy {
 	if (!(rs.u8Rem(self._0, 3) === 0)) {
-		return self;
+		return { _0: self._0 };
 	}
 	const arg = self._0;
 	rs.panicFmt(["cloning ", (f: rs.Formatter) => rs.u8Display(arg, f)]);

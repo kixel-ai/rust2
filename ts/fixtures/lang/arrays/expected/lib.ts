@@ -76,13 +76,13 @@ export function copy$array_u8(v: Uint8Array): Uint8Array {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["arrays::from_fns", (_22: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["arrays::from_fns", (_27: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		fromFns(data, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::as_slices", (_23: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::as_slices", (_28: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		asSlices(data2, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::maps", (_24: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::maps", (_29: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		maps(data3, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::lent", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::lent", (_210: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		lent(data4, out4);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::given", given as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::flattened", flattened as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::rests", rests as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["arrays::converted", converted as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

@@ -70,9 +70,9 @@ export function resize$Option_tuple2_u8_u16(self: Spill<[rs.u8, rs.u16] | undefi
 	if (_11.ok) {
 		const _18: rs.Result<rs.Layout, Fault.Fault> = layoutArray$Option_tuple2_u8_u16(cap);
 		if (_18.ok) {
-			const val: rs.Layout = _18.value;
-			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<[rs.u8, rs.u16] | undefined>, 6, "std::option::Option<(u8, u16)>"), val.size);
-			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout: val } as Fault.Fault);
+			const layout: rs.Layout = _18.value;
+			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<[rs.u8, rs.u16] | undefined>, 6, "std::option::Option<(u8, u16)>"), layout.size);
+			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout } as Fault.Fault);
 			if (_30.ok) {
 				const _29: rs.Place<[rs.u8, rs.u16] | undefined> = rs.allocAs(_30.value, 6, "std::option::Option<(u8, u16)>");
 				(self.ptr as rs.Place<[rs.u8, rs.u16] | undefined>) = _29;
@@ -96,9 +96,9 @@ export function resize$sync_Arc_u8(self: Spill<rs.Arc<rs.u8>>, cap: rs.usize): r
 	if (_11.ok) {
 		const _18: rs.Result<rs.Layout, Fault.Fault> = layoutArray$sync_Arc_u8(cap);
 		if (_18.ok) {
-			const val: rs.Layout = _18.value;
-			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<rs.Arc<rs.u8>>, 4, "std::sync::Arc<u8>"), val.size);
-			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout: val } as Fault.Fault);
+			const layout: rs.Layout = _18.value;
+			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<rs.Arc<rs.u8>>, 4, "std::sync::Arc<u8>"), layout.size);
+			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout } as Fault.Fault);
 			if (_30.ok) {
 				const _29: rs.Place<rs.Arc<rs.u8>> = rs.allocAs(_30.value, 4, "std::sync::Arc<u8>");
 				(self.ptr as rs.Place<rs.Arc<rs.u8>>) = _29;
@@ -122,9 +122,9 @@ export function resize$u32(self: Spill<rs.u32>, cap: rs.usize): rs.Result<undefi
 	if (_11.ok) {
 		const _18: rs.Result<rs.Layout, Fault.Fault> = layoutArray$u32(cap);
 		if (_18.ok) {
-			const val: rs.Layout = _18.value;
-			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<rs.u32>, 4, "u32"), val.size);
-			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout: val } as Fault.Fault);
+			const layout: rs.Layout = _18.value;
+			const pointer = rs.realloc(rs.allocBytes(self.ptr as rs.Place<rs.u32>, 4, "u32"), layout.size);
+			const _30: rs.Result<rs.Place<rs.u8>, Fault.Fault> = option_okOr$122zmjk(pointer === rs.NULL ? undefined : pointer, { tag: "Alloc", layout } as Fault.Fault);
 			if (_30.ok) {
 				const _29: rs.Place<rs.u32> = rs.allocAs(_30.value, 4, "u32");
 				(self.ptr as rs.Place<rs.u32>) = _29;

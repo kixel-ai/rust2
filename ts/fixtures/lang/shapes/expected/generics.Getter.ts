@@ -10,14 +10,12 @@ export interface Getter {
 }
 
 export function get$generics_Get_u8(self: Getter): rs.u8 | undefined {
-	const _4: rs.u8 = self._0;
-	return thenSome$0quywni(rs.u8Rem(_4, 3) !== 0, _4);
+	return thenSome$0quywni(rs.u8Rem(self._0, 3) !== 0, self._0);
 }
 
 export function holder$generics_Get_u8(self: Getter): Holder.Holder | undefined {
 	return then$1tgze8k(self._0 > 128, (): Holder.Holder => {
-		const _22: rs.u8 = rs.u8Div(self._0, 2);
-		return Holder.new(_22, _22);
+		return Holder.new(rs.u8Div(self._0, 2), rs.u8Div(self._0, 2));
 	});
 }
 

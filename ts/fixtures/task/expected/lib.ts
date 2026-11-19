@@ -5,40 +5,15 @@ import type * as Any from "./core/any.Any.ts";
 import { take$drops_objects_Part_u32 as objects_take$drops_objects_Part_u32, id$drops_objects_Part_u32 } from "./drops/objects.ts";
 import type * as Ranked from "./drops/orders.Ranked.ts";
 import * as Held from "./drops.Held.ts";
-import * as Key from "./drops.Key.ts";
+import type * as Key from "./drops.Key.ts";
 import type * as Pair from "./drops.Pair.ts";
 import type * as Text from "./drops.Text.ts";
 import * as Wrap from "./drops.Wrap.ts";
-import * as Relay from "./futures.Relay.ts";
 import * as Guard from "./model.Guard.ts";
 import type * as Tally from "./model.Tally.ts";
 
-export function copy$Option_Option_model_Guard(v: Guard.Guard | undefined | rs.None): Guard.Guard | undefined | rs.None {
-	return v === rs.None ? v : copy$Option_model_Guard(v);
-}
-
-export function copy$Option_drops_Key(v: Key.Key | undefined): Key.Key | undefined {
-	return v === undefined ? v : copy$drops_Key(v);
-}
-
-export function copy$Option_model_Guard(v: Guard.Guard | undefined): Guard.Guard | undefined {
-	return v === undefined ? v : copy$model_Guard(v);
-}
-
 export function copy$array_u32(v: rs.u32[]): rs.u32[] {
 	return v.slice();
-}
-
-export function copy$drops_Key(v: Key.Key): Key.Key {
-	return new Key.Key(v.id, v.log, v.counted);
-}
-
-export function copy$futures_Relay(v: Relay.Relay): Relay.Relay {
-	return new Relay.Relay(v.task, copy$model_Guard(v.guard));
-}
-
-export function copy$model_Guard(v: Guard.Guard): Guard.Guard {
-	return new Guard.Guard(v.id, v.log);
 }
 
 export function copy$model_Tally(v: Tally.Tally): Tally.Tally {

@@ -14,23 +14,21 @@ export function fmt$fmt_Debug(self: Shape, f: rs.Formatter): rs.Result<undefined
 }
 
 export function eq$cmp_PartialEq(self: Shape, other: Shape): boolean {
-	const _4: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
-	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[other.tag];
-	if (!(_4 === _5)) {
+	if (!({ Dot: 0, Line: 1, Rect: 2 }[self.tag] === { Dot: 0, Line: 1, Rect: 2 }[other.tag])) {
 		return false;
 	}
-	if (_4 === 1) {
-		if (_5 === 1) {
-			if (!Point.eq$cmp_PartialEq((self as { tag: "Line"; _0: Point.Point; _1: Point.Point })._0, (other as { tag: "Line"; _0: Point.Point; _1: Point.Point })._0)) {
+	if (self.tag === "Line") {
+		if (other.tag === "Line") {
+			if (!Point.eq$cmp_PartialEq(self._0, other._0)) {
 				return false;
 			}
-			return Point.eq$cmp_PartialEq((self as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1, (other as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1);
+			return Point.eq$cmp_PartialEq(self._1, other._1);
 		}
-	} else if (_4 === 2) {
-		if (_5 === 2) {
-			if ((self as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).width === (other as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).width) {
-				if ((self as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).height === (other as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).height) {
-					return Point.eq$cmp_PartialEq((self as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).corner, (other as { tag: "Rect"; corner: Point.Point; width: rs.u16; height: rs.u16 }).corner);
+	} else if (self.tag === "Rect") {
+		if (other.tag === "Rect") {
+			if (self.width === other.width) {
+				if (self.height === other.height) {
+					return Point.eq$cmp_PartialEq(self.corner, other.corner);
 				}
 			}
 			return false;

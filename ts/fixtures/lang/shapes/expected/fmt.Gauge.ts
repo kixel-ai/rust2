@@ -9,8 +9,8 @@ export interface Gauge {
 
 export function fmt$fmt_Debug(self: Gauge, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _5: rs.DebugTuple = rs.fmtDebugTuple(f, "Gauge");
-	const _8: rs.u8 = self._0.v;
-	return rs.debugTupleFinish(rs.debugTupleField(_5, (f: rs.Formatter) => rs.u8Debug(_8, f)));
+	const _9: rs.u8 = self._0.v;
+	return rs.debugTupleFinish(rs.debugTupleField(_5, (f: rs.Formatter) => rs.u8Debug(_9, f)));
 }
 
 //# sourceMappingURL=fmt.Gauge.ts.map

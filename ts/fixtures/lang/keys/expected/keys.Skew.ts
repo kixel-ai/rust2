@@ -24,11 +24,11 @@ export function partialCmp$cmp_PartialOrd(self: Skew, other: Skew): rs.Ordering 
 		_3 = false;
 	} else {
 		_3 = rs.u8Rem(other._0, 2) === 1;
-		if (_3) {
-			return undefined;
-		}
 	}
-	return rs.cmp(other._0, self._0);
+	if (!_3) {
+		return rs.cmp(other._0, self._0);
+	}
+	return undefined;
 }
 
 //# sourceMappingURL=keys.Skew.ts.map

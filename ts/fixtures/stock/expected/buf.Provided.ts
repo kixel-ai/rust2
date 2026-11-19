@@ -234,9 +234,9 @@ export function copyToSlice$bytes_Buf(self: Provided, dst: rs.ByteSlice): void {
  */
 export function getU8$bytes_Buf(self: Provided): rs.u8 {
 	if (!(remaining$bytes_Buf_mut(self) < 1)) {
-		const _6: rs.ByteSlice = chunk$bytes_Buf_mut(self);
-		rs.idx(_6, 0);
-		const ret: rs.u8 = _6.data[_6.start];
+		const _7: rs.ByteSlice = chunk$bytes_Buf_mut(self);
+		rs.idx(_7, 0);
+		const ret: rs.u8 = _7.data[_7.start];
 		advance$bytes_Buf(self, 1);
 		return ret;
 	}
@@ -263,9 +263,9 @@ export function getU8$bytes_Buf(self: Provided): rs.u8 {
  */
 export function getI8$bytes_Buf(self: Provided): rs.i8 {
 	if (!(remaining$bytes_Buf_mut(self) < 1)) {
-		const _7: rs.ByteSlice = chunk$bytes_Buf_mut(self);
-		rs.idx(_7, 0);
-		const ret: rs.i8 = (_7.data[_7.start] << 24) >> 24;
+		const _8: rs.ByteSlice = chunk$bytes_Buf_mut(self);
+		rs.idx(_8, 0);
+		const ret: rs.i8 = (_8.data[_8.start] << 24) >> 24;
 		advance$bytes_Buf(self, 1);
 		return ret;
 	}
@@ -453,8 +453,7 @@ export function tryCopyToSlice$bytes_Buf(self: Provided, dst: rs.ByteSlice): rs.
 		while (!(dst.length === 0)) {
 			const src: rs.ByteSlice = chunk$bytes_Buf_mut(self);
 			const cnt: rs.usize = rs.min(src.length, dst.length);
-			const _24: { end: rs.usize } = { end: cnt };
-			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, _24.end), rs.byteSliceRange(src, 0, _24.end));
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt), rs.byteSliceRange(src, 0, cnt));
 			dst = rs.byteSliceRange(dst, cnt);
 			advance$bytes_Buf(self, cnt);
 		}

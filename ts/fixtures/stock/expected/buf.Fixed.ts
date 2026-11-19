@@ -46,7 +46,7 @@ export interface Fixed {
  * `remaining_mut` may return value smaller than actual available space.
  */
 export function remainingMut$bytes_BufMut(self: Fixed): rs.usize {
-	return rs.usizeSub(48, self.len);
+	return rs.usizeSub(rs.byteSliceFrom(self.bytes).length, self.len);
 }
 
 /**
@@ -177,8 +177,7 @@ export function putSlice$bytes_BufMut(self: Fixed, src: rs.ByteSlice): void {
 		while (!(src.length === 0)) {
 			const dst: rs.ByteSlice = chunkMut$bytes_BufMut(self);
 			const cnt: rs.usize = rs.min(src.length, UninitSlice.len(dst));
-			const _25: { end: rs.usize } = { end: cnt };
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, _25, { file: "bytes/source/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, _25.end));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, cnt));
 			src = rs.byteSliceRange(src, cnt);
 			advanceMut$bytes_BufMut(self, cnt);
 		}

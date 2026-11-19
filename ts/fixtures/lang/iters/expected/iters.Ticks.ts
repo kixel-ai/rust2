@@ -15,7 +15,7 @@ export function next$iter_Iterator(self: rs.Place<Ticks>): rs.u8 | rs.Done {
 		if (self.v._0 === 0) {
 			self.v._1._1 = rs.u8Add(self.v._1._1, 1);
 			drop$iters_Ticks(self.v);
-			self.v = ({ tag: "Done" } as Ticks) as Ticks;
+			self.v = { tag: "Done" } as Ticks;
 			return rs.DONE;
 		}
 		self.v._0 = rs.u8Sub(self.v._0, 1);

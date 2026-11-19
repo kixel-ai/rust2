@@ -364,8 +364,6 @@ pub(crate) struct Fx<'m, 'b, 'a, 'tcx> {
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
 	/// How many times each local is read, and assigned whole.
 	uses: IndexVec<Local, u32>,
-	/// The places of each local read as a value, copied or moved.
-	value_reads: FxHashMap<Local, Vec<Place<'tcx>>>,
 	defs: IndexVec<Local, u32>,
 	/// Locals something borrows, which a call or closure can change behind a read.
 	borrowed: IndexVec<Local, bool>,
@@ -541,7 +539,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			slots: IndexVec::from_elem_n(Slot::Unit, n),
 			def_at: IndexVec::from_elem_n(None, n),
 			uses: IndexVec::from_elem_n(0, n),
-			value_reads: FxHashMap::default(),
 			defs: IndexVec::from_elem_n(0, n),
 			borrowed: IndexVec::from_elem_n(false, n),
 			mutated: IndexVec::from_elem_n(false, n),
@@ -1086,7 +1083,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn operand_use(&mut self, op: &Operand<'tcx>) {
 		if let Operand::Copy(place) | Operand::Move(place) = op {
 			self.place_use(*place);
-			self.value_reads.entry(place.local).or_default().push(*place);
 		}
 	}
 
@@ -1169,33 +1165,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		)
 	}
 
-	/// `place`, or the box's field it copies whole if it is a local scalar replacement left
-	/// of a box's `BoxRaw` field, which a box's pointer is cast from, and which stands for
-	/// the box's place as a copy of the box would: where what it holds needs one.
-	pub(super) fn box_field(&self, place: Place<'tcx>) -> Place<'tcx> {
-		if let Some(local) = place.as_local()
-			&& self.box_raw_place(local)
-			&& self.defs[local] == 1
-			&& let Some(Rvalue::Use(Operand::Copy(field) | Operand::Move(field), _)) = self.def_rvalue(local)
-			&& let [.., mir::ProjectionElem::Field(..)] = field.projection.as_slice()
-		{
-			return *field;
-		}
-		place
-	}
-
-	/// Whether `local` is a box's `BoxRaw`, as scalar replacement takes it out of the box,
-	/// of a value JS keeps in a place, which the box's place stands for.
-	fn box_raw_place(&self, local: Local) -> bool {
-		let ty = self.mir.local_decls[local].ty;
-		match ty.kind() {
-			ty::Adt(_, args) if !ty.is_box() && self.b.t.std_of(ty) == Some(crate::lower::library::Std::Box) => {
-				self.b.t.needs_place(args.type_at(0))
-			}
-			_ => false,
-		}
-	}
-
 	/// `place` with each box's pointer or copy of a box it starts from replaced by the place
 	/// holding the box, which those aliases read in their place.
 	fn through_boxes(&self, mut place: Place<'tcx>) -> Place<'tcx> {
@@ -1205,7 +1174,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(
 					Some(Rvalue::Cast(mir::CastKind::BoxDerefTransmute, op, _)),
 					[mir::ProjectionElem::Deref, rest @ ..],
-				) if let Some(p) = op.place().map(|p| self.box_field(p))
+				) if let Some(p) = op.place()
 					&& let Some(n) = (0..=p.projection.len()).rev().find(|&n| {
 						Place::ty_from(p.local, &p.projection[..n], &self.mir.local_decls, tcx)
 							.ty
@@ -1268,7 +1237,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				true
 			}
-			(ty::Adt(..), Rvalue::Use(Operand::Copy(_), _)) if self.box_raw_place(local) => true,
 			// A borrow: borrow checking keeps the place as it is but through the borrow,
 			// unless the path to it goes through a reference held in a field or element,
 			// which can be replaced while the borrow lives.
@@ -1712,7 +1680,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `T = undefined`.
 	fn widen(&mut self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>, value: Expr, span: Span) -> Expr {
 		let ty = place.ty(&self.mir.local_decls, self.tcx).ty;
-		if !self.made_here(rvalue) || !self.tested[place.local] || !self.b.t.narrows(ty) {
+		// What is made here, rather than read from a place declared with its type.
+		let made = matches!(rvalue, Rvalue::Aggregate(..) | Rvalue::Use(Operand::Constant(_), _));
+		if !made || !self.tested[place.local] || !self.b.t.narrows(ty) {
 			return value;
 		}
 		// `Some` narrows to its payload's type, which only a test for `None` refutes, and
@@ -1742,26 +1712,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.widened.insert(name.clone());
 		}
 		value
-	}
-
-	/// Whether `rvalue` is made here, rather than read from a place declared with its type:
-	/// an aggregate, a constant, or a copy of a local assigned one once, as value numbering
-	/// leaves, which may fold into the read.
-	pub(super) fn made_here(&self, rvalue: &Rvalue<'tcx>) -> bool {
-		let mut rvalue = rvalue;
-		// A copy of a copy, at most once each, as copies in a loop may read each other.
-		for _ in 0..self.mir.local_decls.len() {
-			match rvalue {
-				Rvalue::Aggregate(..) | Rvalue::Use(Operand::Constant(_), _) => return true,
-				Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _)
-					if let Some(r) = p.as_local().and_then(|local| self.def_rvalue(local)) =>
-				{
-					rvalue = r
-				}
-				_ => return false,
-			}
-		}
-		false
 	}
 
 	/// The whole type of the place whose discriminant `discr` holds.
@@ -1811,32 +1761,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Whether every read of `local` is a `switchInt` on it, after its one assignment of a
-	/// discriminant. Several switches, as value numbering leaves one read for a match and
-	/// its drop, each read the place again, so it must hold the same variant throughout.
+	/// discriminant.
 	fn discr_only(&self, local: Local) -> bool {
-		let Some(Rvalue::Discriminant(place)) = self.def_rvalue(local) else {
-			return false;
-		};
-		if self.defs[local] != 1 || self.uses[local] == 0 {
+		if self.defs[local] != 1 || self.uses[local] != 1 {
 			return false;
 		}
-		let switches = (self.mir.basic_blocks.iter())
-			.filter(|data| {
-				matches!(
-					&data.terminator().kind,
-					TerminatorKind::SwitchInt { discr: Operand::Move(p) | Operand::Copy(p), .. }
-						if p.as_local() == Some(local)
-				)
-			})
-			.count() as u32;
-		switches == self.uses[local]
-			&& (switches == 1
-				|| self.stable(*place)
-					&& !self.mutated[place.local]
-					&& !self.borrowed[place.local]
-					&& (place.projection.iter()).all(|e| {
-						matches!(e, mir::ProjectionElem::Field(..) | mir::ProjectionElem::Downcast(..) | mir::ProjectionElem::Deref)
-					}))
+		let assigned = matches!(self.def_rvalue(local), Some(Rvalue::Discriminant(_)));
+		let mut switched = false;
+		for data in self.mir.basic_blocks.iter() {
+			if let TerminatorKind::SwitchInt {
+				discr: Operand::Move(p) | Operand::Copy(p),
+				..
+			} = &data.terminator().kind
+				&& p.as_local() == Some(local)
+			{
+				switched = true;
+			}
+		}
+		assigned && switched
 	}
 
 	/// Whether the switch on the discriminant `local` tests it, rather than going the one
@@ -2897,8 +2839,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					// A switch whose other variants can't exist tests nothing, so the read
 					// runs only for its effects.
 					let target = match self.discr_tested(local) {
-						// Read again by each of several switches, in blocks of their own.
-						true if self.uses[local] > 1 && !self.part_reads(&target).0 => target,
 						true => self.path(target, "scrutinee", out),
 						false => {
 							let target = self.fold_exprs(Vec::new(), vec![target], false, out).remove(0);
@@ -3571,7 +3511,10 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 fn allocates(e: &Expr) -> bool {
 	let mut found = false;
 	visit_expr(e, &mut |e| {
-		found |= matches!(e, Expr::Array(_) | Expr::Object(_) | Expr::New(..) | Expr::Arrow(..) | Expr::Lambda(..))
+		found |= matches!(
+			e,
+			Expr::Array(_) | Expr::Object(_) | Expr::New(..) | Expr::Arrow(..) | Expr::Lambda(..)
+		)
 	});
 	found
 }

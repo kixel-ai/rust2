@@ -26,23 +26,24 @@ export function fmt$fmt_Display(self: EncodeError, __formatter: rs.Formatter): r
 }
 
 export function fmt$fmt_Debug(self: EncodeError, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	let _3!: rs.usize;
+	let _4!: rs.usize;
+	const _3: string = "BoundsExceeded TooLarge Short InvalidState TooMany Version Unsupported";
 	if (self === "BoundsExceeded") {
-		_3 = 0;
+		_4 = 0;
 	} else if (self === "TooLarge") {
-		_3 = 15;
+		_4 = 15;
 	} else if (self === "Short") {
-		_3 = 24;
+		_4 = 24;
 	} else if (self === "InvalidState") {
-		_3 = 30;
+		_4 = 30;
 	} else if (self === "TooMany") {
-		_3 = 43;
+		_4 = 43;
 	} else if (self === "Version") {
-		_3 = 51;
+		_4 = 51;
 	} else {
-		_3 = 59;
+		_4 = 59;
 	}
-	return rs.fmtDebugEnum(f, "BoundsExceeded TooLarge Short InvalidState TooMany Version Unsupported", _3);
+	return rs.fmtDebugEnum(f, _3, _4);
 }
 
 /** An error that occurs during encoding. */

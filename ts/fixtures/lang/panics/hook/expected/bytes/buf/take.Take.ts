@@ -72,8 +72,7 @@ export function tryCopyToSlice$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, d
 		while (!(dst.length === 0)) {
 			const src: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
 			const cnt: rs.usize = rs.min(src.length, dst.length);
-			const _24: { end: rs.usize } = { end: cnt };
-			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, _24.end, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 16 }), rs.byteSliceRange(src, 0, _24.end, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 44 }), { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 24 });
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 16 }), rs.byteSliceRange(src, 0, cnt, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 44 }), { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 24 });
 			dst = rs.byteSliceRange(dst, cnt, undefined, { file: "bytes/source/buf/buf_impl.rs", line: 1179, col: 27 });
 			advance$bytes_Buf_bytes_Bytes(self, cnt);
 		}

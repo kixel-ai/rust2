@@ -18,87 +18,61 @@ export function fromHalves(hi: rs.u32, lo: rs.u32): rs.u64 {
 
 /** The bytes `value` takes on the wire in `form`, or [`BoundsExceeded`] if it does not fit. */
 export function size(value: rs.u64, form: Form.Form): rs.usize | undefined {
-	let _0!: rs.Result<rs.usize, BoundsExceeded.BoundsExceeded>;
-	let _6!: rs.usize;
 	const _5: [rs.u32, rs.u32] = toHalves(value);
-	b0: {
-		b1: {
-			const hi: rs.u32 = _5[0];
-			const lo: rs.u32 = _5[1];
-			if (form.tag === "Quic") {
-				const _8: boolean = hi === 0;
-				if (_8) {
-					if (lo < 64) {
-						_6 = 1;
-						break b1;
-					}
-				}
-				if (_8) {
-					if (lo < 16384) {
-						_6 = 2;
-						break b1;
-					}
-				}
-				if (_8) {
-					if (lo < 1073741824) {
-						_6 = 4;
-						break b1;
-					}
-				}
-				if (!(hi < 1073741824)) {
-					_0 = rs.Err({});
-					break b0;
-				}
-				_6 = 8;
-			} else {
-				const _13: boolean = hi === 0;
-				if (_13) {
-					if (lo < 128) {
-						_6 = 1;
-						break b1;
-					}
-				}
-				if (_13) {
-					if (lo < 16384) {
-						_6 = 2;
-						break b1;
-					}
-				}
-				if (_13) {
-					if (lo < 2097152) {
-						_6 = 3;
-						break b1;
-					}
-				}
-				if (_13) {
-					if (lo < 268435456) {
-						_6 = 4;
-						break b1;
-					}
-				}
-				if (!(hi < 8)) {
-					if (!(hi < 1024)) {
-						if (!(hi < 16777216)) {
-							_6 = 9;
-						} else {
-							_6 = 8;
-						}
-					} else {
-						_6 = 6;
-					}
-				} else {
-					_6 = 5;
-				}
+	const hi: rs.u32 = _5[0];
+	const lo: rs.u32 = _5[1];
+	if (form.tag === "Quic") {
+		if (hi === 0) {
+			if (lo < 64) {
+				return 1;
 			}
 		}
-		_0 = rs.Ok(_6);
+		if (hi === 0) {
+			if (lo < 16384) {
+				return 2;
+			}
+		}
+		if (hi === 0) {
+			if (lo < 1073741824) {
+				return 4;
+			}
+		}
+		if (!(hi < 1073741824)) {
+			out$usize.err = {};
+			return undefined;
+		}
+		return 8;
 	}
-	const result: rs.Result<rs.usize, BoundsExceeded.BoundsExceeded> = _0;
-	if (!result.ok) {
-		out$usize.err = result.error;
-		return undefined;
+	if (hi === 0) {
+		if (lo < 128) {
+			return 1;
+		}
 	}
-	return result.value;
+	if (hi === 0) {
+		if (lo < 16384) {
+			return 2;
+		}
+	}
+	if (hi === 0) {
+		if (lo < 2097152) {
+			return 3;
+		}
+	}
+	if (hi === 0) {
+		if (lo < 268435456) {
+			return 4;
+		}
+	}
+	if (!(hi < 8)) {
+		if (!(hi < 1024)) {
+			if (!(hi < 16777216)) {
+				return 9;
+			}
+			return 8;
+		}
+		return 6;
+	}
+	return 5;
 }
 
 /**
@@ -119,33 +93,32 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 	b1: {
 		const hi: rs.u32 = _5[0];
 		const lo: rs.u32 = _5[1];
-		const _6: boolean = hi === 0;
-		if (_6) {
+		if (hi === 0) {
 			if (lo < 64) {
 				rs.byteVecPush(out, lo & 0xff);
 				break b1;
 			}
 		}
-		if (_6) {
+		if (hi === 0) {
 			if (lo < 16384) {
 				const dst = out;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = (((lo & 0xffff) | 16384) >>> 8) & 255;
-				dst.data[pos + 1] = ((lo & 0xffff) | 16384) & 255;
+				dst.data[pos + 0] = ((16384 | (lo & 0xffff)) >>> 8) & 255;
+				dst.data[pos + 1] = (16384 | (lo & 0xffff)) & 255;
 				dst.length = dst.length + 2;
 				break b1;
 			}
 		}
-		if (_6) {
+		if (hi === 0) {
 			if (lo < 1073741824) {
 				const dst2 = out;
 				rs.byteVecReserve(dst2, 4 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = ((lo | 2147483648) >>> 0 >>> 24) & 255;
-				dst2.data[pos2 + 1] = ((lo | 2147483648) >>> 0 >>> 16) & 255;
-				dst2.data[pos2 + 2] = ((lo | 2147483648) >>> 0 >>> 8) & 255;
-				dst2.data[pos2 + 3] = ((lo | 2147483648) >>> 0) & 255;
+				dst2.data[pos2 + 0] = ((2147483648 | lo) >>> 0 >>> 24) & 255;
+				dst2.data[pos2 + 1] = ((2147483648 | lo) >>> 0 >>> 16) & 255;
+				dst2.data[pos2 + 2] = ((2147483648 | lo) >>> 0 >>> 8) & 255;
+				dst2.data[pos2 + 3] = ((2147483648 | lo) >>> 0) & 255;
 				dst2.length = dst2.length + 4;
 				break b1;
 			}
@@ -153,10 +126,10 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 		if (!(hi < 1073741824)) {
 			return rs.Err({});
 		}
-		const a: rs.u8 = ((hi | 3221225472) >>> 0 >>> 24) & 255;
-		const b: rs.u8 = ((hi | 3221225472) >>> 0 >>> 16) & 255;
-		const c: rs.u8 = ((hi | 3221225472) >>> 0 >>> 8) & 255;
-		const d: rs.u8 = ((hi | 3221225472) >>> 0) & 255;
+		const a: rs.u8 = ((3221225472 | hi) >>> 0 >>> 24) & 255;
+		const b: rs.u8 = ((3221225472 | hi) >>> 0 >>> 16) & 255;
+		const c: rs.u8 = ((3221225472 | hi) >>> 0 >>> 8) & 255;
+		const d: rs.u8 = ((3221225472 | hi) >>> 0) & 255;
 		const dst3 = out;
 		rs.byteVecReserve(dst3, 8 as rs.usize);
 		const pos3 = dst3.length;
@@ -182,42 +155,41 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		const b: rs.u8 = (lo >>> 16) & 255;
 		const c: rs.u8 = (lo >>> 8) & 255;
 		const d: rs.u8 = lo & 255;
-		const _11: boolean = hi === 0;
-		if (_11) {
+		if (hi === 0) {
 			if (lo < 128) {
 				rs.byteVecPush(out, d);
 				break b0;
 			}
 		}
-		if (_11) {
+		if (hi === 0) {
 			if (lo < 16384) {
 				const dst = out;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = c | 128;
+				dst.data[pos + 0] = 128 | c;
 				dst.data[pos + 1] = d;
 				dst.length = dst.length + 2;
 				break b0;
 			}
 		}
-		if (_11) {
+		if (hi === 0) {
 			if (lo < 2097152) {
 				const dst2 = out;
 				rs.byteVecReserve(dst2, 3 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = b | 192;
+				dst2.data[pos2 + 0] = 192 | b;
 				dst2.data[pos2 + 1] = c;
 				dst2.data[pos2 + 2] = d;
 				dst2.length = dst2.length + 3;
 				break b0;
 			}
 		}
-		if (_11) {
+		if (hi === 0) {
 			if (lo < 268435456) {
 				const dst3 = out;
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = a | 224;
+				dst3.data[pos3 + 0] = 224 | a;
 				dst3.data[pos3 + 1] = b;
 				dst3.data[pos3 + 2] = c;
 				dst3.data[pos3 + 3] = d;
@@ -259,7 +231,7 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 				const dst6 = out;
 				rs.byteVecReserve(dst6, 6 as rs.usize);
 				const pos6 = dst6.length;
-				dst6.data[pos6 + 0] = ((hi >>> 8) & 0xff) | 248;
+				dst6.data[pos6 + 0] = 248 | ((hi >>> 8) & 0xff);
 				dst6.data[pos6 + 1] = hi & 0xff;
 				dst6.data[pos6 + 2] = a;
 				dst6.data[pos6 + 3] = b;
@@ -271,7 +243,7 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 			const dst7 = out;
 			rs.byteVecReserve(dst7, 5 as rs.usize);
 			const pos7 = dst7.length;
-			dst7.data[pos7 + 0] = (hi & 0xff) | 240;
+			dst7.data[pos7 + 0] = 240 | (hi & 0xff);
 			dst7.data[pos7 + 1] = a;
 			dst7.data[pos7 + 2] = b;
 			dst7.data[pos7 + 3] = c;
@@ -296,31 +268,31 @@ export function readQuic(bufData: Uint8Array, bufStart: number, bufLen: number):
 			if (!(first < 128)) {
 				if (!(first < 192)) {
 					if (bufLen >= 8) {
-						const _55_0: rs.u64 = fromHalves((((bufData[bufStart] & 63) << 24) | (bufData[bufStart + 1] << 16) | (bufData[bufStart + 2] << 8) | bufData[bufStart + 3]) >>> 0, ((bufData[bufStart + 4] << 24) | (bufData[bufStart + 5] << 16) | (bufData[bufStart + 6] << 8) | bufData[bufStart + 7]) >>> 0);
+						const _61_0: rs.u64 = fromHalves((((bufData[bufStart] & 63) << 24) | (bufData[bufStart + 1] << 16) | (bufData[bufStart + 2] << 8) | bufData[bufStart + 3]) >>> 0, ((bufData[bufStart + 4] << 24) | (bufData[bufStart + 5] << 16) | (bufData[bufStart + 6] << 8) | bufData[bufStart + 7]) >>> 0);
 						out$tuple2_u64_ref_slice_u8.p_1Data = bufData;
 						out$tuple2_u64_ref_slice_u8.p_1Start = bufStart + 8;
 						out$tuple2_u64_ref_slice_u8.p_1Len = bufLen - 8;
-						return _55_0;
+						return _61_0;
 					}
 					out$tuple2_u64_ref_slice_u8.err = { tag: "Short" } as DecodeError.DecodeError;
 					return undefined;
 				}
 				if (bufLen >= 4) {
-					const _36_0: rs.u64 = (((bufData[bufStart] & 63) << 24) | (bufData[bufStart + 1] << 16) | (bufData[bufStart + 2] << 8) | bufData[bufStart + 3]) >>> 0 as rs.u64;
+					const _40_0: rs.u64 = (((bufData[bufStart] & 63) << 24) | (bufData[bufStart + 1] << 16) | (bufData[bufStart + 2] << 8) | bufData[bufStart + 3]) >>> 0 as rs.u64;
 					out$tuple2_u64_ref_slice_u8.p_1Data = bufData;
 					out$tuple2_u64_ref_slice_u8.p_1Start = bufStart + 4;
 					out$tuple2_u64_ref_slice_u8.p_1Len = bufLen - 4;
-					return _36_0;
+					return _40_0;
 				}
 				out$tuple2_u64_ref_slice_u8.err = { tag: "Short" } as DecodeError.DecodeError;
 				return undefined;
 			}
 			if (bufLen >= 2) {
-				const _19_0: rs.u64 = (((bufData[bufStart] & 63) << 8) | bufData[bufStart + 1]) as rs.u64;
+				const _21_0: rs.u64 = (((bufData[bufStart] & 63) << 8) | bufData[bufStart + 1]) as rs.u64;
 				out$tuple2_u64_ref_slice_u8.p_1Data = bufData;
 				out$tuple2_u64_ref_slice_u8.p_1Start = bufStart + 2;
 				out$tuple2_u64_ref_slice_u8.p_1Len = bufLen - 2;
-				return _19_0;
+				return _21_0;
 			}
 			out$tuple2_u64_ref_slice_u8.err = { tag: "Short" } as DecodeError.DecodeError;
 			return undefined;

@@ -13,8 +13,9 @@ export function next$iter_Iterator(self: Resuming): rs.u8 | rs.Done {
 		self._0 = 2;
 		return rs.DONE;
 	}
-	self._0 = _2;
-	return rs.iterFromOption(_2);
+	const n: rs.u8 = _2;
+	self._0 = n;
+	return n;
 }
 
 //# sourceMappingURL=dyns.Resuming.ts.map

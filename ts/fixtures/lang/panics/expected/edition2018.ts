@@ -5,7 +5,7 @@ import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 
 /** Panic as `kind` picks, or write the first byte. */
 export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _20!: string;
+	let _23!: string;
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const _7: rs.u8 = rs.u8Rem(kind, 7);
 	if (_7 === 0) {
@@ -13,20 +13,20 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (_7 === 1) {
 		rs.panic("a literal");
 	} else if (_7 === 2) {
-		const _15: rs.usize = data.length;
-		rs.panic(rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(_15, f), " bytes"]).v);
+		const arg2 = data.length;
+		rs.panic(rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg2, f), " bytes"]).v);
 	} else if (_7 === 3) {
 		if (!(rs.u8Rem(first, 2) === 0)) {
-			_20 = "odd";
+			_23 = "odd";
 		} else {
-			_20 = "even";
+			_23 = "even";
 		}
-		rs.panic(_20);
+		rs.panic(_23);
 	} else if (_7 === 4) {
 		rs.panic("Box<dyn Any>");
 	} else if (_7 === 5) {
-		const _27: rs.usize = data.length;
-		rs.panicFmt([(f: rs.Formatter) => rs.usizeDisplay(_27, f), " bytes"]);
+		const arg = data.length;
+		rs.panicFmt([(f: rs.Formatter) => rs.usizeDisplay(arg, f), " bytes"]);
 	} else if (!(first > 200)) {
 		rs.byteVecPush(out, first);
 	} else {

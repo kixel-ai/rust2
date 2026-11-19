@@ -39,9 +39,9 @@ export function nth$iter_Iterator(self: Pile, n: rs.usize): Guard.Guard | undefi
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;
 	while (iterStart++ < iterEnd) {
-		const _19: Guard.Guard | undefined = rs.vecPop(self.held);
-		if (_19 !== undefined) {
-			_19[Symbol.dispose]();
+		const _21: Guard.Guard | undefined = rs.vecPop(self.held);
+		if (_21 !== undefined) {
+			_21[Symbol.dispose]();
 		} else {
 			return undefined;
 		}
@@ -58,15 +58,15 @@ export function fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Opt
 		acc = f(acc, part);
 	}
 	rs.drop(f);
-	const _22: rs.String = rs.stringFrom("pile folded");
-	Log.note(self.log, _22);
+	const _23: rs.String = rs.stringFrom("pile folded");
+	Log.note(self.log, _23);
 	self[Symbol.dispose]();
 	return acc;
 }
 
 export function count$iter_Iterator(self: Pile): rs.usize {
-	const _8: rs.usize = self.held.items.length;
-	const _4: rs.String = rs.fmtFormat(["pile count ", (f: rs.Formatter) => rs.usizeDisplay(_8, f)]);
+	const part = self.held.items.length;
+	const _4: rs.String = rs.fmtFormat(["pile count ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 	Log.note(self.log, _4);
 	const _0: rs.usize = self.held.items.length;
 	self[Symbol.dispose]();
@@ -95,9 +95,9 @@ export function nthBack$iter_DoubleEndedIterator(self: Pile, n: rs.usize): Guard
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;
 	while (iterStart++ < iterEnd) {
-		const _19: Guard.Guard | undefined = nextBack$iter_DoubleEndedIterator(self);
-		if (_19 !== undefined) {
-			_19[Symbol.dispose]();
+		const _21: Guard.Guard | undefined = nextBack$iter_DoubleEndedIterator(self);
+		if (_21 !== undefined) {
+			_21[Symbol.dispose]();
 		} else {
 			return undefined;
 		}
@@ -114,8 +114,8 @@ export function rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMu
 		acc = f(acc, part);
 	}
 	rs.drop(f);
-	const _21: rs.String = rs.stringFrom("pile rfolded");
-	Log.note(self.log, _21);
+	const _22: rs.String = rs.stringFrom("pile rfolded");
+	Log.note(self.log, _22);
 	self[Symbol.dispose]();
 	return acc;
 }

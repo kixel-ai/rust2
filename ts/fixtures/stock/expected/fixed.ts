@@ -13,29 +13,28 @@ import { mapOr$0yzb10z as option_mapOr$0yzb10z } from "./core/option.ts";
 export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let s: ArrayString.ArrayString = copy$arrayvec_ArrayString_12(ArrayString.new$12());
 	for (const b of rs.byteSliceView(data)) {
-		const _14: rs.u8 = b >> 3;
-		const _12: rs.usize = rs.usizeRem(_14 as rs.usize, 5);
+		const _12: rs.usize = rs.usizeRem(b >> 3 as rs.usize, rs.sliceFrom([47, 97, 233, 2048, 128512]).length);
 		if (!(_12 < 5)) {
 			rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _12);
 		}
+		const c: rs.char = [47, 97, 233, 2048, 128512][_12];
 		b2: {
-			const c: rs.char = [47, 97, 233, 2048, 128512][_12];
-			const _17: rs.u8 = rs.u8Rem(b, 8);
-			if (_17 === 0) {
+			const _23: rs.u8 = rs.u8Rem(b, 8);
+			if (_23 === 0) {
 				rs.byteVecPush(out, ArrayString.tryPush$12(s, c).ok ? 1 : 0);
 				break b2;
 			}
-			if (_17 === 1) {
+			if (_23 === 1) {
 				const run: rs.String = rs.stringFromChars(rs.iterRepeatN(c, b >> 5 as rs.usize));
-				const _27: rs.Result<undefined, CapacityError.CapacityError<string>> = ArrayString.tryPushStr$12(s, run.v);
-				if (_27.ok) {
+				const _36: rs.Result<undefined, CapacityError.CapacityError<string>> = ArrayString.tryPushStr$12(s, run.v);
+				if (_36.ok) {
 					rs.byteVecPush(out, 0);
 				} else {
-					rs.byteVecExtendFromSlice(out, rs.stringAsBytes(CapacityError.element$ref_str(_27.error)));
+					rs.byteVecExtendFromSlice(out, rs.stringAsBytes(CapacityError.element$ref_str(_36.error)));
 				}
 				break b2;
 			}
-			if (_17 === 2) {
+			if (_23 === 2) {
 				const dst = out;
 				const word = option_mapOr$0yzb10z(ArrayString.pop$12(s), 0, (a0: rs.char): rs.u32 => {
 					return a0 as rs.u32;
@@ -49,14 +48,14 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst.length = dst.length + 4;
 				break b2;
 			}
-			if (_17 === 3) {
+			if (_23 === 3) {
 				const ends: rs.Vec<rs.usize> = rs.iterToVec(rs.iterChain(rs.iterMap(rs.strCharIndices(ArrayString.deref$ops_Deref_12(s)), (_2: [rs.usize, rs.char]): rs.usize => {
 					return _2[0];
 				}), rs.iterSlice([ArrayString.len$12(s)])), "next", 4);
-				ArrayString.truncate$12(s, ends.items[rs.idx(ends.items, rs.usizeRem(_14 as rs.usize, ends.items.length))]);
+				ArrayString.truncate$12(s, ends.items[rs.idx(ends.items, rs.usizeRem(b >> 3 as rs.usize, ends.items.length))]);
 				break b2;
 			}
-			if (_17 === 4) {
+			if (_23 === 4) {
 				if (!ArrayString.isEmpty$12(s)) {
 					const dst2 = out;
 					const word2 = ArrayString.remove$12(s, 0) as rs.u32;
@@ -70,16 +69,16 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 					break b2;
 				}
 			} else {
-				if (_17 === 5) {
-					const _68: rs.Result<ArrayString.ArrayString, CapacityError.CapacityError<string>> = ArrayString.from$12(ArrayString.asStr$12(s));
-					if (_68.ok) {
-						s = copy$arrayvec_ArrayString_12(_68.value);
+				if (_23 === 5) {
+					const _80: rs.Result<ArrayString.ArrayString, CapacityError.CapacityError<string>> = ArrayString.from$12(ArrayString.asStr$12(s));
+					if (_80.ok) {
+						s = copy$arrayvec_ArrayString_12(_80.value);
 						break b2;
 					}
-					rs.byteVecPush(out, rs.stringLen(CapacityError.element$ref_str(_68.error)) & 0xff);
+					rs.byteVecPush(out, rs.stringLen(CapacityError.element$ref_str(_80.error)) & 0xff);
 					break b2;
 				}
-				if (_17 === 6) {
+				if (_23 === 6) {
 					if (ArrayString.remainingCapacity$12(s) >= rs.charLenUtf8(c)) {
 						ArrayString.pushStr$12(s, rs.charEncodeUtf8(c, rs.byteSliceFrom(rs.bytes(4))).v, { file: "fixtures/stock/src/fixed.rs", line: 37, col: 62 });
 						break b2;

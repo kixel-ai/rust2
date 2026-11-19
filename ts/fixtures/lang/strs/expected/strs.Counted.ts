@@ -10,30 +10,33 @@ export interface Counted<T> {
 
 export function next$iter_Iterator_String(self: Counted<rs.String>): rs.String | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _6: [rs.String, rs.Slice<rs.String>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.String>);
-	if (_6 !== undefined) {
-		(self.items as rs.Slice<rs.String>) = _6[1];
-		return rs.stringClone(_6[0]);
+	const _8: [rs.String, rs.Slice<rs.String>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.String>);
+	if (_8 !== undefined) {
+		const val: [rs.String, rs.Slice<rs.String>] = _8;
+		(self.items as rs.Slice<rs.String>) = val[1];
+		return rs.stringClone(val[0]);
 	}
 	return rs.DONE;
 }
 
 export function next$iter_Iterator_char(self: Counted<rs.char>): rs.char | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _6: [rs.char, rs.Slice<rs.char>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.char>);
-	if (_6 !== undefined) {
-		(self.items as rs.Slice<rs.char>) = _6[1];
-		return _6[0];
+	const _8: [rs.char, rs.Slice<rs.char>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.char>);
+	if (_8 !== undefined) {
+		const val: [rs.char, rs.Slice<rs.char>] = _8;
+		(self.items as rs.Slice<rs.char>) = val[1];
+		return val[0];
 	}
 	return rs.DONE;
 }
 
 export function next$iter_Iterator_ref_str(self: Counted<string>): string | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _6: [string, rs.Slice<string>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<string>);
-	if (_6 !== undefined) {
-		(self.items as rs.Slice<string>) = _6[1];
-		return _6[0];
+	const _8: [string, rs.Slice<string>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<string>);
+	if (_8 !== undefined) {
+		const val: [string, rs.Slice<string>] = _8;
+		(self.items as rs.Slice<string>) = val[1];
+		return val[0];
 	}
 	return rs.DONE;
 }

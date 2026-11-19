@@ -35,10 +35,10 @@ export function fmt$fmt_Display(self: DecodeError, __formatter: rs.Formatter): r
 		return rs.fmtWriteStr(__formatter, "expected end");
 	}
 	if (self.tag === "MessageTooLarge") {
-		const _14: rs.usize = asDisplay$thiserror___private21_AsDisplay_ref_usize(self.size);
-		const _16: rs.usize = asDisplay$thiserror___private21_AsDisplay_ref_usize(self.max);
-		const args3 = [(f: rs.Formatter) => rs.usizeDisplay(_14, f), (f: rs.Formatter) => rs.usizeDisplay(_16, f)];
-		return rs.fmtWriteFmt(__formatter, ["message too large: ", args3[0], " bytes exceeds ", args3[1], " byte limit"]);
+		const _26: rs.usize = asDisplay$thiserror___private21_AsDisplay_ref_usize(self.size);
+		const _28: rs.usize = asDisplay$thiserror___private21_AsDisplay_ref_usize(self.max);
+		const args5 = [(f: rs.Formatter) => rs.usizeDisplay(_26, f), (f: rs.Formatter) => rs.usizeDisplay(_28, f)];
+		return rs.fmtWriteFmt(__formatter, ["message too large: ", args5[0], " bytes exceeds ", args5[1], " byte limit"]);
 	}
 	if (self.tag === "ExpectedData") {
 		return rs.fmtWriteStr(__formatter, "expected data");

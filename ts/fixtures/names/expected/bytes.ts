@@ -5,7 +5,7 @@ import { out$ref_slice_u8 } from "./lib.ts";
 import { okOr$1pcnf6t as option_okOr$1pcnf6t } from "./core/option.ts";
 
 export function read(data: rs.ByteSlice): rs.u8 | undefined {
-	const _0: rs.Result<rs.ByteSlice, rs.u8> = option_okOr$1pcnf6t(rs.byteSliceGetRange(data, 0, { end: 1 }.end), 0);
+	const _0: rs.Result<rs.ByteSlice, rs.u8> = option_okOr$1pcnf6t(rs.byteSliceGetRange(data, 0, 1), 0);
 	if (!_0.ok) {
 		return _0.error;
 	}

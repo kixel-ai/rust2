@@ -26,177 +26,177 @@ export class Executor {
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure0(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure1(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure2(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure3(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure4(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure5(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure6(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$mpsc_step_run_closure8(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$oneshot_script_closure0(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$oneshot_script_closure1(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$oneshot_script_closure3(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$select_decoded_closure0(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$select_unbiased_closure0(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$watch_step_run_closure0(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$watch_step_run_closure1(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /** Spawn a task, polled at the next run. */
 export function spawn$watch_step_run_closure2(self: Executor, future: rs.Future<rs.String>): void {
 	const flag: rs.Arc<Flag.Flag> = new rs.Arc({ _0: new rs.Atomic(true) });
-	const _11: rs.usize = self.tasks.items.length;
-	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(_11, f), " spawn"]));
-	const _20: rs.Future<rs.String> = future;
-	const _22: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
-	const _18: exec_Task.Task | undefined = new exec_Task.Task(_20, flag, _22);
-	self.tasks.items.push(_18);
+	const part = self.tasks.items.length;
+	note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f), " spawn"]));
+	const _22: rs.Future<rs.String> = future;
+	const _24: rs.Waker = rs.arcWaker(rs.arcClone(flag), Flag.wake$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined, (arc: rs.Arc<Flag.Flag>) => arc[Symbol.dispose](), Flag.wakeByRef$task_Wake as (a0: rs.Arc<Flag.Flag>) => undefined);
+	const _20: exec_Task.Task | undefined = new exec_Task.Task(_22, flag, _24);
+	self.tasks.items.push(_20);
 }
 
 /**
@@ -204,31 +204,24 @@ export function spawn$watch_step_run_closure2(self: Executor, future: rs.Future<
  * times, so one that wakes itself forever stops.
  */
 export function run(self: Executor): void {
-	let _14!: rs.usize;
-	const iter: rs.Range<rs.i32> = new rs.Range(0, 16);
-	while (true) {
-		const _4Some: boolean = iter.start < iter.end;
-		if (_4Some) {
-			iter.start++;
-		}
-		if (!_4Some) {
-			break;
-		}
+	let _15!: rs.usize;
+	let iterStart: rs.i32 = 0;
+	const iterEnd: rs.i32 = 16;
+	while (iterStart++ < iterEnd) {
 		let polled: boolean = false;
-		const _10: rs.usize = self.tasks.items.length;
-		let iterStart: rs.usize = 0;
-		const iterEnd: rs.usize = _10;
-		while ((_14 = iterStart++) < iterEnd) {
-			const id: rs.usize = _14;
-			const _19: exec_Task.Task | undefined = self.tasks.items[rs.idx(self.tasks.items, id)];
-			if (_19 !== undefined) {
-				if (rs.atomicSwap(_19.flag.value._0, false, 0)) {
+		const _11: rs.usize = self.tasks.items.length;
+		let iterStart2: rs.usize = 0;
+		const iterEnd2: rs.usize = _11;
+		while ((_15 = iterStart2++) < iterEnd2) {
+			const id: rs.usize = _15;
+			const _20: exec_Task.Task | undefined = self.tasks.items[rs.idx(self.tasks.items, id)];
+			if (_20 !== undefined) {
+				if (rs.atomicSwap(_20.flag.value._0, false, 0)) {
 					polled = true;
-					const _29: rs.Poll<rs.String> = _19.future.poll(_19.waker);
-					if (_29 !== rs.Pending) {
-						const out: rs.String = _29;
-						const args4 = [(f: rs.Formatter) => rs.usizeDisplay(id, f), (f: rs.Formatter) => rs.fmtPad(f, out.v)];
-						note(rs.fmtFormat(["t", args4[0], " ready ", args4[1]]));
+					const _31: rs.Poll<rs.String> = _20.future.poll(_20.waker);
+					if (_31 !== rs.Pending) {
+						const args6 = [(f: rs.Formatter) => rs.usizeDisplay(id, f), (f: rs.Formatter) => rs.fmtPad(f, _31.v)];
+						note(rs.fmtFormat(["t", args6[0], " ready ", args6[1]]));
 						const at2 = rs.idx(self.tasks.items, id);
 						rs.drop(self.tasks.items[at2]);
 						self.tasks.items[at2] = undefined;
@@ -256,8 +249,8 @@ export function woken(self: Executor): rs.String {
 		});
 	};
 	const f2 = (_22: [rs.usize, exec_Task.Task | undefined]): rs.String => {
-		const id: rs.usize = _22[0];
-		return rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(id, f)]);
+		const part = _22[0];
+		return rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 	};
 	const d: rs.String[] = [];
 	let cap = 0;

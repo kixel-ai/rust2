@@ -18,7 +18,7 @@ export function next$iter_Iterator(self: Hinted): Tracked.Tracked | rs.Done {
 	const _7: rs.RefCell<rs.ByteVec> = self.log;
 	return rs.iterFromOption(then$0p4vbxd(self.i < self.n, (): Tracked.Tracked => {
 		self.i = rs.u8Add(self.i, 1);
-		return new Tracked.Tracked(rs.u8Add(self.i, 208), 0, _7);
+		return new Tracked.Tracked(rs.u8Add(208, self.i), 0, _7);
 	}));
 }
 

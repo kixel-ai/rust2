@@ -25,7 +25,7 @@ export class Tagged {
 
 export function clone$Clone(self: Tagged): Tagged {
 	const _5: rs.Mutex<rs.ByteVec> = rs.mutexLock(self.log.value);
-	rs.byteVecPush(_5.value, self.id | 128);
+	rs.byteVecPush(_5.value, 128 | self.id);
 	rs.mutexUnlock(_5);
 	return new Tagged(rs.u8WrappingAdd(self.id, 1), self.n, rs.arcClone(self.log));
 }

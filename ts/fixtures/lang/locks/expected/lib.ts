@@ -232,23 +232,23 @@ export function drop$sync_TryLockError_sync_RwLockWriteGuard_u32(_1: rs.TryLockE
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["locks::locks", (_22: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["locks::locks", (_210: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		locks(data, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::relock", (_23: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::relock", (_211: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		relock(data2, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::rwlocks", (_24: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::rwlocks", (_212: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		rwlocks(data3, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::mapped", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::mapped", (_213: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		mapped(data4, out4);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::mutex_mapped", (_26: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::mutex_mapped", (_214: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
 		mutexMapped(data5, out5);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::printed", (_27: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::printed", (_215: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
 		printed(data6, out6);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::downgraded", (_28: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::downgraded", (_216: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
 		downgraded(data7, out7);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::shown", (_29: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::shown", (_217: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
 		shown(data8, out8);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::guarded", (_210: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["locks::guarded", (_218: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
 		guarded(data9, out9);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

@@ -31,13 +31,12 @@ export function op(name: string): rs.u16 {
 		}
 		i2++;
 	}
-	const _9: rs.usize | undefined = at;
-	if (_9 !== undefined) {
-		const _18: rs.Result<rs.u16, rs.TryFromIntError> = rs.u16TryFrom(_9);
-		if (_18.ok) {
-			const op: rs.u16 = _18.value;
-			if ((op >> 8) !== 255) {
-				return op;
+	const _11: rs.usize | undefined = at;
+	if (_11 !== undefined) {
+		const _20: rs.Result<rs.u16, rs.TryFromIntError> = rs.u16TryFrom(_11);
+		if (_20.ok) {
+			if ((_20.value >> 8) !== 255) {
+				return _20.value;
 			}
 		}
 		rs.panicFmt(["case ", (f: rs.Formatter) => rs.fmtPad(f, name), " is past what two bytes pick"]);

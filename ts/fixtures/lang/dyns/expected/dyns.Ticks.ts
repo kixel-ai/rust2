@@ -37,7 +37,7 @@ export function poll$Future(self: Ticks, cx: rs.Context): rs.Poll<rs.u8> {
 
 export function drop$ops_Drop(self: Ticks): void {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log.value);
-	rs.byteVecPush(_5.value, self.polls | 240);
+	rs.byteVecPush(_5.value, 240 | self.polls);
 	rs.refMutRelease(_5);
 }
 

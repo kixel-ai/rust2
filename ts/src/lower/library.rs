@@ -414,8 +414,6 @@ impl Std {
 			["collections", "binary_heap", "PeekMut"] => Some(Self::PeekMut),
 			["ops", "range", "Bound"] => Some(Self::Bound),
 			["num", "nonzero", "NonZero"] => Some(Self::NonZero),
-			// A box's pointer, which scalar replacement takes out of the box: the box itself.
-			["boxed", "BoxRaw"] => Some(Self::Box),
 			["num", "wrapping", "Wrapping"] => Some(Self::Wrapping),
 			["num", "saturating", "Saturating"] => Some(Self::Saturating),
 			["hash", "random", "DefaultHasher"] => Some(Self::Hasher),

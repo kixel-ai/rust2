@@ -9,11 +9,11 @@ import { unwrapOr$0u1litd as result_unwrapOr$0u1litd, unwrapOr$14lx6wa as result
 /** An ordering from `b`: one of `valid`, or from 0xf0 on any, which may panic. */
 export function order(b: rs.u8, valid: rs.Slice<rs.AtomicOrdering>): rs.AtomicOrdering {
 	if (!(b >= 240)) {
-		const _8: rs.usize = rs.usizeRem(b as rs.usize, valid.length);
-		rs.idx(valid, _8);
-		return valid.data[valid.start + _8];
+		const _12: rs.usize = rs.usizeRem(b as rs.usize, valid.length);
+		rs.idx(valid, _12);
+		return valid.data[valid.start + _12];
 	}
-	const _5: rs.usize = rs.usizeRem(b as rs.usize, 5);
+	const _5: rs.usize = rs.usizeRem(b as rs.usize, rs.sliceFrom([0, 1, 2, 3, 4]).length);
 	if (!(_5 < 5)) {
 		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _5);
 	}
@@ -30,65 +30,62 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.i16, rs.i16>;
 	let x!: rs.i16;
 	const buf: Uint8Array = rs.bytes(2);
-	const n: rs.usize = rs.min(data.length, 2);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.i16 = rs.i16FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i16 = rs.i16FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.i16 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.i16> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(2);
-		const n2: rs.usize = rs.min(rest.length, 2);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.i16 = rs.i16FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.i16 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.i16 = rs.i16FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.i16 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.i16WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.i16WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.i16WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.i16WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.i16WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.i16WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -97,8 +94,8 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.i16, rs.i16> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i16): rs.i16 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.i16, rs.i16> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i16): rs.i16 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -107,12 +104,12 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i16CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.i16WrappingAdd(_76.error, 1);
+				old = rs.i16WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.i16): rs.i16 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -122,13 +119,13 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i16WrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0u1litd(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.i16): rs.i16 | undefined => {
 				return thenSome$0dd86kk(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.i16> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.i16> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -158,65 +155,62 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.i32, rs.i32>;
 	let x!: rs.i32;
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.i32 = rs.i32FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i32 = rs.i32FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.i32 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.i32> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(4);
-		const n2: rs.usize = rs.min(rest.length, 4);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.i32 = rs.i32FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.i32 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.i32 = rs.i32FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.i32 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.i32WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.i32WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.i32WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.i32WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.i32WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.i32WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -225,8 +219,8 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.i32, rs.i32> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i32): rs.i32 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.i32, rs.i32> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i32): rs.i32 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -235,12 +229,12 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i32CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.i32WrappingAdd(_76.error, 1);
+				old = rs.i32WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.i32): rs.i32 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -250,13 +244,13 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i32WrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$14lx6wa(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.i32): rs.i32 | undefined => {
 				return thenSome$05ku0zn(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.i32> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.i32> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -290,65 +284,62 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.i64, rs.i64>;
 	let x!: rs.i64;
 	const buf: Uint8Array = rs.bytes(8);
-	const n: rs.usize = rs.min(data.length, 8);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.i64 = rs.i64FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i64 = rs.i64FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.i64 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.i64> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(8);
-		const n2: rs.usize = rs.min(rest.length, 8);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.i64 = rs.i64FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.i64 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.i64 = rs.i64FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.i64 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.i64WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.i64WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.i64And(old, value), _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.i64Or(old, value), _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.i64Xor(old, value), _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.i64Max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.i64Min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.i64WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.i64WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.i64WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.i64And(old, value), v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.i64Or(old, value), v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.i64Xor(old, value), v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.i64Max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.i64Min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.i64WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure, rs.i64Eq);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure, rs.i64Eq);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure, rs.i64Eq);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure, rs.i64Eq);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -357,8 +348,8 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.i64, rs.i64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i64): rs.i64 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.i64, rs.i64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i64): rs.i64 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (rs.i64Ne(x6, v)) {
 					if ((b2 & 2) === 0) {
@@ -367,12 +358,12 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i64CheckedAdd(x6, v);
 			}, rs.i64Eq);
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.i64WrappingAdd(_76.error, 1);
+				old = rs.i64WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.i64): rs.i64 => {
 				rs.byteVecPush(out, 193);
 				if (rs.i64Ne(x5, v)) {
@@ -382,13 +373,13 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i64Xor(rs.i64WrappingSub(x5, v), 1);
 			}, rs.i64Eq);
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$1vlkfwl(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.i64): rs.i64 | undefined => {
 				return thenSome$179x8nl(rs.i64Ne(x4, v), v);
-			}, rs.i64Eq), _31);
+			}, rs.i64Eq), v);
 		} else {
-			const _94: rs.Place<rs.i64> = atomic;
-			_94.v = rs.i64Xor(_31, _94.v);
+			const _116: rs.Place<rs.i64> = atomic;
+			_116.v = rs.i64Xor(_116.v, v);
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -434,65 +425,62 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.i8, rs.i8>;
 	let x!: rs.i8;
 	const buf: Uint8Array = Uint8Array.of(0);
-	const n: rs.usize = rs.min(data.length, 1);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.i8 = rs.i8FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i8 = rs.i8FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.i8 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.i8> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = Uint8Array.of(0);
-		const n2: rs.usize = rs.min(rest.length, 1);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.i8 = rs.i8FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.i8 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.i8 = rs.i8FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.i8 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.i8WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.i8WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.i8WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.i8WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.i8WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.i8WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -501,8 +489,8 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.i8, rs.i8> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i8): rs.i8 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.i8, rs.i8> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i8): rs.i8 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -511,12 +499,12 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i8CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.i8WrappingAdd(_76.error, 1);
+				old = rs.i8WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.i8): rs.i8 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -526,13 +514,13 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.i8WrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$08ab42n(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.i8): rs.i8 | undefined => {
 				return thenSome$0kk1b17(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.i8> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.i8> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -558,65 +546,62 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.isize, rs.isize>;
 	let x!: rs.isize;
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.isize = rs.isizeFromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.isize = rs.isizeFromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.isize = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.isize> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(4);
-		const n2: rs.usize = rs.min(rest.length, 4);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.isize = rs.isizeFromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.isize = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.isize = rs.isizeFromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.isize = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.isizeWrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.isizeWrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.isizeWrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.isizeWrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.isizeWrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.isizeWrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -625,8 +610,8 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.isize, rs.isize> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.isize): rs.isize | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.isize, rs.isize> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.isize): rs.isize | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -635,12 +620,12 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.isizeCheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.isizeWrappingAdd(_76.error, 1);
+				old = rs.isizeWrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.isize): rs.isize => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -650,13 +635,13 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.isizeWrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$1495lg8(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.isize): rs.isize | undefined => {
 				return thenSome$0v7hg8b(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.isize> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.isize> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -690,65 +675,62 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.u16, rs.u16>;
 	let x!: rs.u16;
 	const buf: Uint8Array = rs.bytes(2);
-	const n: rs.usize = rs.min(data.length, 2);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.u16 = rs.u16FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u16 = rs.u16FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.u16 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.u16> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(2);
-		const n2: rs.usize = rs.min(rest.length, 2);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.u16 = rs.u16FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.u16 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.u16 = rs.u16FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.u16 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.u16WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.u16WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.u16WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.u16WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.u16WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.u16WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -757,8 +739,8 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.u16, rs.u16> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u16): rs.u16 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.u16, rs.u16> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u16): rs.u16 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -767,12 +749,12 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u16CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.u16WrappingAdd(_76.error, 1);
+				old = rs.u16WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.u16): rs.u16 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -782,13 +764,13 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u16WrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0jt2sr8(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.u16): rs.u16 | undefined => {
 				return thenSome$1gvhopg(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.u16> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.u16> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -818,65 +800,62 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.u32, rs.u32>;
 	let x!: rs.u32;
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.u32 = rs.u32FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u32 = rs.u32FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.u32 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.u32> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(4);
-		const n2: rs.usize = rs.min(rest.length, 4);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.u32 = rs.u32FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.u32 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.u32 = rs.u32FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.u32 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.u32WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.u32WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => (old & value) >>> 0, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => (old | value) >>> 0, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => (old ^ value) >>> 0, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.u32WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.u32WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.u32WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => (old & value) >>> 0, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => (old | value) >>> 0, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => (old ^ value) >>> 0, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.u32WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -885,8 +864,8 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.u32, rs.u32> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u32): rs.u32 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.u32, rs.u32> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u32): rs.u32 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -895,12 +874,12 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u32CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.u32WrappingAdd(_76.error, 1);
+				old = rs.u32WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.u32): rs.u32 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -910,13 +889,13 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return (rs.u32WrappingSub(x5, v) ^ 1) >>> 0;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0sf2nxo(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.u32): rs.u32 | undefined => {
 				return thenSome$1bahm2u(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.u32> = atomic;
-			_94.v = (_31 ^ _94.v) >>> 0;
+			const _116: rs.Place<rs.u32> = atomic;
+			_116.v = (_116.v ^ v) >>> 0;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -950,65 +929,62 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.u64, rs.u64>;
 	let x!: rs.u64;
 	const buf: Uint8Array = rs.bytes(8);
-	const n: rs.usize = rs.min(data.length, 8);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.u64 = rs.u64FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u64 = rs.u64FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.u64 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.u64> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(8);
-		const n2: rs.usize = rs.min(rest.length, 8);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.u64 = rs.u64FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.u64 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.u64 = rs.u64FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.u64 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.u64WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.u64WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.u64And(old, value), _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.u64Or(old, value), _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => rs.u64Xor(old, value), _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.u64Max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.u64Min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.u64WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.u64WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.u64WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.u64And(old, value), v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.u64Or(old, value), v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => rs.u64Xor(old, value), v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.u64Max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.u64Min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.u64WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure, rs.u64Eq);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure, rs.u64Eq);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure, rs.u64Eq);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure, rs.u64Eq);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -1017,8 +993,8 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.u64, rs.u64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u64): rs.u64 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.u64, rs.u64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u64): rs.u64 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (rs.u64Ne(x6, v)) {
 					if ((b2 & 2) === 0) {
@@ -1027,12 +1003,12 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u64CheckedAdd(x6, v);
 			}, rs.u64Eq);
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.u64WrappingAdd(_76.error, 1);
+				old = rs.u64WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.u64): rs.u64 => {
 				rs.byteVecPush(out, 193);
 				if (rs.u64Ne(x5, v)) {
@@ -1042,13 +1018,13 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u64Xor(rs.u64WrappingSub(x5, v), 1);
 			}, rs.u64Eq);
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0ca9158(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.u64): rs.u64 | undefined => {
 				return thenSome$0be218t(rs.u64Ne(x4, v), v);
-			}, rs.u64Eq), _31);
+			}, rs.u64Eq), v);
 		} else {
-			const _94: rs.Place<rs.u64> = atomic;
-			_94.v = rs.u64Xor(_31, _94.v);
+			const _116: rs.Place<rs.u64> = atomic;
+			_116.v = rs.u64Xor(_116.v, v);
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -1094,65 +1070,62 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.u8, rs.u8>;
 	let x!: rs.u8;
 	const buf: Uint8Array = Uint8Array.of(0);
-	const n: rs.usize = rs.min(data.length, 1);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.u8 = rs.u8FromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u8 = rs.u8FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.u8 = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.u8> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = Uint8Array.of(0);
-		const n2: rs.usize = rs.min(rest.length, 1);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.u8 = rs.u8FromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.u8 = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.u8 = rs.u8FromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.u8 = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.u8WrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.u8WrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => old & value, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => old | value, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => old ^ value, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.u8WrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.u8WrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.u8WrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => old & value, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => old | value, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => old ^ value, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.u8WrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -1161,8 +1134,8 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.u8, rs.u8> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u8): rs.u8 | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.u8, rs.u8> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u8): rs.u8 | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -1171,12 +1144,12 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u8CheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.u8WrappingAdd(_76.error, 1);
+				old = rs.u8WrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.u8): rs.u8 => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -1186,13 +1159,13 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.u8WrappingSub(x5, v) ^ 1;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0gfqfcv(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.u8): rs.u8 | undefined => {
 				return thenSome$0quywni(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.u8> = atomic;
-			_94.v = _31 ^ _94.v;
+			const _116: rs.Place<rs.u8> = atomic;
+			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -1218,65 +1191,62 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let result!: rs.Result<rs.usize, rs.usize>;
 	let x!: rs.usize;
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const first: rs.usize = rs.usizeFromBeBytes(buf);
-	let data2: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.usize = rs.usizeFromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const first: rs.usize = _18;
+	let data2: rs.ByteSlice = _20;
 	const atomic: rs.Atomic<rs.usize> = new rs.Atomic(first);
 	while (data2.length >= 2) {
 		const op: rs.u8 = data2.data[data2.start];
 		const b: rs.u8 = data2.data[data2.start + 1];
 		const rest: rs.ByteSlice = rs.byteSliceRange(data2, 2);
 		const buf2: Uint8Array = rs.bytes(4);
-		const n2: rs.usize = rs.min(rest.length, 4);
-		const _28: rs.ByteSlice = rs.byteSliceFrom(buf2);
-		const _29: { end: rs.usize } = { end: n2 };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_28, 0, _29.end), rs.byteSliceRange(rest, 0, _29.end));
-		const _31: rs.usize = rs.usizeFromBeBytes(buf2);
-		const rest2: rs.ByteSlice = rs.byteSliceRange(rest, n2);
-		const v: rs.usize = _31;
-		data2 = rest2;
-		const _36: rs.u8 = b;
+		const n2: rs.usize = rs.min(rest.length, rs.byteSliceFrom(buf2).length);
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(rest, 0, n2));
+		const _43: rs.usize = rs.usizeFromBeBytes(buf2);
+		const _45: rs.ByteSlice = rs.byteSliceRange(rest, n2);
+		const v: rs.usize = _43;
+		data2 = _45;
+		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const b2: rs.u8 = _36;
-		const any: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const failure: rs.AtomicOrdering = order(_36 ^ 15, rs.sliceFrom([0, 2, 4]));
-		const _44: rs.u8 = rs.u8Rem(op2, 16);
-		if (_44 === 0) {
-			const _46: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(atomic, _46);
-		} else if (_44 === 1) {
-			const _50: rs.AtomicOrdering = order(_36, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(atomic, _31, _50);
-			old = _31;
-		} else if (_44 === 2) {
-			old = rs.atomicSwap(atomic, _31, any);
-		} else if (_44 === 3) {
-			old = rs.atomicFetch(atomic, rs.usizeWrappingAdd, _31, any);
-		} else if (_44 === 4) {
-			old = rs.atomicFetch(atomic, rs.usizeWrappingSub, _31, any);
-		} else if (_44 === 5) {
-			old = rs.atomicFetch(atomic, (old, value) => (old & value) >>> 0, _31, any);
-		} else if (_44 === 6) {
-			old = rs.atomicFetch(atomic, (old, value) => (old | value) >>> 0, _31, any);
-		} else if (_44 === 7) {
-			old = rs.atomicFetch(atomic, (old, value) => (old ^ value) >>> 0, _31, any);
-		} else if (_44 === 8) {
-			old = rs.atomicFetch(atomic, rs.max, _31, any);
-		} else if (_44 === 9) {
-			old = rs.atomicFetch(atomic, rs.min, _31, any);
-		} else if (_44 === 10 || _44 === 11) {
-			if (!((_36 & 1) === 0)) {
-				current = rs.usizeWrappingAdd(_31, 1);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+		const _60: rs.u8 = rs.u8Rem(op2, 16);
+		if (_60 === 0) {
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(atomic, _63);
+		} else if (_60 === 1) {
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(atomic, v, _68);
+			old = v;
+		} else if (_60 === 2) {
+			old = rs.atomicSwap(atomic, v, any);
+		} else if (_60 === 3) {
+			old = rs.atomicFetch(atomic, rs.usizeWrappingAdd, v, any);
+		} else if (_60 === 4) {
+			old = rs.atomicFetch(atomic, rs.usizeWrappingSub, v, any);
+		} else if (_60 === 5) {
+			old = rs.atomicFetch(atomic, (old, value) => (old & value) >>> 0, v, any);
+		} else if (_60 === 6) {
+			old = rs.atomicFetch(atomic, (old, value) => (old | value) >>> 0, v, any);
+		} else if (_60 === 7) {
+			old = rs.atomicFetch(atomic, (old, value) => (old ^ value) >>> 0, v, any);
+		} else if (_60 === 8) {
+			old = rs.atomicFetch(atomic, rs.max, v, any);
+		} else if (_60 === 9) {
+			old = rs.atomicFetch(atomic, rs.min, v, any);
+		} else if (_60 === 10 || _60 === 11) {
+			if (!((b2 & 1) === 0)) {
+				current = rs.usizeWrappingAdd(v, 1);
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
-			if (!(_44 === 10)) {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+			if (!(rs.u8Rem(op2, 16) === 10)) {
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			} else {
-				result = rs.atomicCompareExchange(atomic, current, _31, any, failure);
+				result = rs.atomicCompareExchange(atomic, current, v, any, failure);
 			}
 			rs.byteVecPush(out, result.ok ? 1 : 0);
 			if (result.ok) {
@@ -1285,8 +1255,8 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				x = result.error;
 			}
 			old = x;
-		} else if (_44 === 12) {
-			const _76: rs.Result<rs.usize, rs.usize> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.usize): rs.usize | undefined => {
+		} else if (_60 === 12) {
+			const _98: rs.Result<rs.usize, rs.usize> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.usize): rs.usize | undefined => {
 				rs.byteVecPush(out, 192);
 				if (x6 !== v) {
 					if ((b2 & 2) === 0) {
@@ -1295,12 +1265,12 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.usizeCheckedAdd(x6, v);
 			});
-			if (_76.ok) {
-				old = _76.value;
+			if (_98.ok) {
+				old = _98.value;
 			} else {
-				old = rs.usizeWrappingAdd(_76.error, 1);
+				old = rs.usizeWrappingAdd(_98.error, 1);
 			}
-		} else if (_44 === 13) {
+		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.usize): rs.usize => {
 				rs.byteVecPush(out, 193);
 				if (x5 !== v) {
@@ -1310,13 +1280,13 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return (rs.usizeWrappingSub(x5, v) ^ 1) >>> 0;
 			});
-		} else if (_44 === 14) {
+		} else if (_60 === 14) {
 			old = result_unwrapOr$0kcfya3(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.usize): rs.usize | undefined => {
 				return thenSome$12zzmkc(x4 !== v, v);
-			}), _31);
+			}), v);
 		} else {
-			const _94: rs.Place<rs.usize> = atomic;
-			_94.v = (_31 ^ _94.v) >>> 0;
+			const _116: rs.Place<rs.usize> = atomic;
+			_116.v = (_116.v ^ v) >>> 0;
 			old = rs.atomicLoad(atomic, 4);
 		}
 		const dst = out;
@@ -1361,36 +1331,36 @@ export function bools(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b2: rs.u8 = b;
 		const v: boolean = (b2 & 1) === 1;
 		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
-		const _19: rs.u8 = rs.u8Rem(op2, 11);
-		if (_19 === 0) {
-			const _21: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
-			old = rs.atomicLoad(flag, _21);
-		} else if (_19 === 1) {
-			const _25: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
-			rs.atomicStore(flag, v, _25);
+		const _23: rs.u8 = rs.u8Rem(op2, 11);
+		if (_23 === 0) {
+			const _26: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
+			old = rs.atomicLoad(flag, _26);
+		} else if (_23 === 1) {
+			const _31: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
+			rs.atomicStore(flag, v, _31);
 			old = v;
-		} else if (_19 === 2) {
+		} else if (_23 === 2) {
 			old = rs.atomicSwap(flag, v, any);
-		} else if (_19 === 3) {
+		} else if (_23 === 3) {
 			old = rs.atomicFetch(flag, (old, value) => old && value, v, any);
-		} else if (_19 === 4) {
+		} else if (_23 === 4) {
 			old = rs.atomicFetch(flag, (old, value) => old || value, v, any);
-		} else if (_19 === 5) {
+		} else if (_23 === 5) {
 			old = rs.atomicFetch(flag, (old, value) => old !== value, v, any);
-		} else if (_19 === 6) {
+		} else if (_23 === 6) {
 			old = rs.atomicFetch(flag, (old, value) => !(old && value), v, any);
-		} else if (_19 === 7) {
+		} else if (_23 === 7) {
 			old = rs.atomicFetch(flag, (old, value) => old !== value, true, any);
-		} else if (_19 === 8) {
-			const _35: boolean = !v;
-			const _36: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
-			const _33: rs.Result<boolean, boolean> = rs.atomicCompareExchange(flag, v, _35, any, _36);
-			if (_33.ok) {
-				old = _33.value;
+		} else if (_23 === 8) {
+			const _42: boolean = !v;
+			const _43: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
+			const _40: rs.Result<boolean, boolean> = rs.atomicCompareExchange(flag, v, _42, any, _43);
+			if (_40.ok) {
+				old = _40.value;
 			} else {
-				old = !_33.error;
+				old = !_40.error;
 			}
-		} else if (_19 === 9) {
+		} else if (_23 === 9) {
 			rs.fence(order(b2, rs.sliceFrom([1, 2, 3, 4])));
 			rs.fence(order(b2 ^ 15, rs.sliceFrom([1, 2, 3, 4])));
 			old = v;
@@ -1465,11 +1435,11 @@ export function shared(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function spins(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	const left: rs.Atomic<rs.usize> = new rs.Atomic(dataLen);
 	while (rs.atomicLoad(left, 4) > 0) {
-		const _12: rs.usize = rs.usizeSub(rs.atomicLoad(left, 0), 1);
-		if (_12 >= dataLen) {
-			rs.panic("index out of bounds: the len is " + dataLen + " but the index is " + _12);
+		const _13: rs.usize = rs.usizeSub(rs.atomicLoad(left, 0), 1);
+		if (_13 >= dataLen) {
+			rs.panic("index out of bounds: the len is " + dataLen + " but the index is " + _13);
 		}
-		if (!(((kind ^ dataData[dataStart + _12]) & 1) === 0)) {
+		if (!(((dataData[dataStart + _13] ^ kind) & 1) === 0)) {
 			undefined;
 		} else {
 			undefined;

@@ -24,9 +24,9 @@ export function finish$hash_Hasher(self: Switch): rs.u64 {
 	if (self.tag === "Log") {
 		const log: rs.RefCell<rs.ByteVec> = self._0;
 		record(log, 102, rs.byteSliceFrom(Uint8Array.of()));
-		const _9: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
-		const _0: rs.u64 = _9.value.length as rs.u64;
-		rs.refRelease(_9);
+		const _10: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
+		const _0: rs.u64 = _10.value.length as rs.u64;
+		rs.refRelease(_10);
 		return _0;
 	}
 	const log2: rs.RefCell<rs.ByteVec> = self._0;
@@ -54,9 +54,9 @@ export function writeU8$hash_Hasher(self: rs.Place<Switch>, i: rs.u8): void {
 		if (!(rs.u8Rem(i, 4) === 0)) {
 			record(self.v._0, 1, rs.byteSliceFrom(Uint8Array.of(i)));
 		} else {
-			const _8: Switch = { tag: "Sum", _0: self.v._0, _1: i as rs.u64 };
+			const _9: Switch = { tag: "Sum", _0: self.v._0, _1: i as rs.u64 };
 			drop$hashes_Switch(self.v);
-			self.v = _8 as Switch;
+			self.v = _9;
 		}
 	} else {
 		self.v._1 = rs.u64Xor(self.v._1, rs.u64Shl(i as rs.u64, 56));

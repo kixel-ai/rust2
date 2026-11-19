@@ -7,10 +7,6 @@ import * as Failure from "./errors.Failure.ts";
 import * as Leaf from "./errors.Leaf.ts";
 import * as Transported from "./errors.Transported.ts";
 
-export function copy$errors_Leaf(v: Leaf.Leaf): Leaf.Leaf {
-	return new Leaf.Leaf(v.code);
-}
-
 export function drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send(_1: rs.Result<rs.u8, Error.Error>): void {
 	if (!_1.ok) {
 		rs.drop(_1.error);

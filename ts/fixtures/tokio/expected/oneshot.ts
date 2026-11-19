@@ -13,145 +13,146 @@ export function script(data: rs.ByteSlice, out: rs.String): void {
 	const _5: [rs.OneshotSender<Item.Item>, rs.OneshotReceiver<Item.Item>] = rs.oneshotChannel<Item.Item>(rs.drop);
 	const tx: rs.OneshotSender<Item.Item> = _5[0];
 	const rx: rs.OneshotReceiver<Item.Item> = _5[1];
-	const args8 = [(f: rs.Formatter) => rs.oneshotDebug(tx, f, "Sender"), (f: rs.Formatter) => rs.oneshotDebug(rx, f, "Receiver")];
-	note(rs.fmtFormat([args8[0], " ", args8[1]]));
+	const args15 = [(f: rs.Formatter) => rs.oneshotDebug(tx, f, "Sender"), (f: rs.Formatter) => rs.oneshotDebug(rx, f, "Receiver")];
+	note(rs.fmtFormat([args15[0], " ", args15[1]]));
 	const tx2: rs.Arc<rs.RefCell<rs.OneshotSender<Item.Item> | undefined>> = new rs.Arc(new rs.RefCell(tx));
 	const rx2: rs.Arc<rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined>> = new rs.Arc(new rs.RefCell(rx));
 	const exec: Executor.Executor = Executor.default$Default();
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(data, 2);
 	while (true) {
-		const _26: rs.ByteSlice | rs.Done = iter.next();
-		if (_26 === rs.DONE) {
+		const _28: rs.ByteSlice | rs.Done = iter.next();
+		if (_28 === rs.DONE) {
 			break;
 		}
-		rs.idx(_26, 0);
-		const op: rs.u8 = _26.data[_26.start];
-		const arg: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_26, 1), 0);
-		const _37: rs.u8 = rs.u8Rem(op, 11);
-		if (_37 === 0) {
-			const _41: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-			const taken6 = _41.value;
-			_41.value = undefined;
-			const _38: rs.OneshotReceiver<Item.Item> | undefined = taken6;
-			if (_38 !== undefined) {
-				const _50: rs.Future<rs.String> = new scriptFuture$closure0(_38, rs.arcClone(rx2));
-				Executor.spawn$oneshot_script_closure0(exec, _50);
-				rs.refMutRelease(_41);
+		rs.idx(_28, 0);
+		const _34: [rs.u8, rs.u8] = [_28.data[_28.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_28, 1), 0)];
+		const op: rs.u8 = _34[0];
+		const arg: rs.u8 = _34[1];
+		const _43: rs.u8 = rs.u8Rem(op, 11);
+		if (_43 === 0) {
+			const _48: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+			const taken6 = _48.value;
+			_48.value = undefined;
+			const _45: rs.OneshotReceiver<Item.Item> | undefined = taken6;
+			if (_45 !== undefined) {
+				const _57: rs.Future<rs.String> = new scriptFuture$closure0(_45, rs.arcClone(rx2));
+				Executor.spawn$oneshot_script_closure0(exec, _57);
+				rs.refMutRelease(_48);
 			} else {
-				rs.refMutRelease(_41);
+				rs.refMutRelease(_48);
 			}
-		} else if (_37 === 1) {
-			const _54: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
-			const taken5 = _54.value;
-			_54.value = undefined;
-			const _51: rs.OneshotSender<Item.Item> | undefined = taken5;
-			if (_51 !== undefined) {
-				const _63: rs.Future<rs.String> = new scriptFuture$closure1(arg, _51, rs.arcClone(tx2));
-				Executor.spawn$oneshot_script_closure1(exec, _63);
-				rs.refMutRelease(_54);
+		} else if (_43 === 1) {
+			const _61: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
+			const taken5 = _61.value;
+			_61.value = undefined;
+			const _58: rs.OneshotSender<Item.Item> | undefined = taken5;
+			if (_58 !== undefined) {
+				const _70: rs.Future<rs.String> = new scriptFuture$closure1(arg, _58, rs.arcClone(tx2));
+				Executor.spawn$oneshot_script_closure1(exec, _70);
+				rs.refMutRelease(_61);
 			} else {
-				rs.refMutRelease(_54);
+				rs.refMutRelease(_61);
 			}
-		} else if (_37 === 2) {
-			const _67: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
-			const taken4 = _67.value;
-			_67.value = undefined;
-			const _64: rs.OneshotSender<Item.Item> | undefined = taken4;
-			if (_64 !== undefined) {
-				const _72: rs.Result<undefined, Item.Item> = rs.oneshotSend(_64, new Item.Item(arg));
-				if (_72.ok) {
+		} else if (_43 === 2) {
+			const _74: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
+			const taken4 = _74.value;
+			_74.value = undefined;
+			const _71: rs.OneshotSender<Item.Item> | undefined = taken4;
+			if (_71 !== undefined) {
+				const _79: rs.Result<undefined, Item.Item> = rs.oneshotSend(_71, new Item.Item(arg));
+				if (_79.ok) {
 					note(rs.stringFrom("sent"));
 				} else {
-					const v: Item.Item = _72.error;
+					const v: Item.Item = _79.error;
 					note(rs.fmtFormat(["send back ", (f: rs.Formatter) => Item.fmt$fmt_Display(v, f)]));
 					v[Symbol.dispose]();
 				}
-				rs.refMutRelease(_67);
+				rs.refMutRelease(_74);
 			} else {
-				rs.refMutRelease(_67);
+				rs.refMutRelease(_74);
 			}
-		} else if (_37 === 3) {
-			const _87: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-			const _84: rs.OneshotReceiver<Item.Item> | undefined = _87.value;
-			if (_84 !== undefined) {
-				const _92: rs.Result<Item.Item, oneshot_error_TryRecvError.TryRecvError> = rs.oneshotTryRecv(_84, "Empty" as oneshot_error_TryRecvError.TryRecvError, "Closed" as oneshot_error_TryRecvError.TryRecvError);
-				if (_92.ok) {
-					const v2: Item.Item = _92.value;
+		} else if (_43 === 3) {
+			const _97: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+			const _94: rs.OneshotReceiver<Item.Item> | undefined = _97.value;
+			if (_94 !== undefined) {
+				const _102: rs.Result<Item.Item, oneshot_error_TryRecvError.TryRecvError> = rs.oneshotTryRecv(_94, "Empty" as oneshot_error_TryRecvError.TryRecvError, "Closed" as oneshot_error_TryRecvError.TryRecvError);
+				if (_102.ok) {
+					const v2: Item.Item = _102.value;
 					note(rs.fmtFormat(["try_recv ", (f: rs.Formatter) => Item.fmt$fmt_Display(v2, f)]));
 					v2[Symbol.dispose]();
 				} else {
-					const e: oneshot_error_TryRecvError.TryRecvError = _92.error;
-					const args11 = [(f: rs.Formatter) => oneshot_error_TryRecvError.fmt$fmt_Display(e, f), (f: rs.Formatter) => oneshot_error_TryRecvError.fmt$fmt_Debug(e, f)];
-					note(rs.fmtFormat(["try_recv ", args11[0], " ", args11[1]]));
+					const e: oneshot_error_TryRecvError.TryRecvError = _102.error;
+					const args18 = [(f: rs.Formatter) => oneshot_error_TryRecvError.fmt$fmt_Display(e, f), (f: rs.Formatter) => oneshot_error_TryRecvError.fmt$fmt_Debug(e, f)];
+					note(rs.fmtFormat(["try_recv ", args18[0], " ", args18[1]]));
 				}
-				rs.refMutRelease(_87);
+				rs.refMutRelease(_97);
 			} else {
-				rs.refMutRelease(_87);
+				rs.refMutRelease(_97);
 			}
-		} else if (_37 === 4) {
-			const _114: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-			const _111: rs.OneshotReceiver<Item.Item> | undefined = _114.value;
-			if (_111 !== undefined) {
-				rs.oneshotClose(_111);
-				rs.refMutRelease(_114);
+		} else if (_43 === 4) {
+			const _128: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+			const _125: rs.OneshotReceiver<Item.Item> | undefined = _128.value;
+			if (_125 !== undefined) {
+				rs.oneshotClose(_125);
+				rs.refMutRelease(_128);
 			} else {
-				rs.refMutRelease(_114);
+				rs.refMutRelease(_128);
 			}
-		} else if (_37 === 5) {
+		} else if (_43 === 5) {
 			note(rs.stringFrom("drop sender"));
-			const _126: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
-			const taken3 = _126.value;
-			_126.value = undefined;
+			const _141: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
+			const taken3 = _141.value;
+			_141.value = undefined;
 			rs.drop(taken3);
-			rs.refMutRelease(_126);
-		} else if (_37 === 6) {
+			rs.refMutRelease(_141);
+		} else if (_43 === 6) {
 			note(rs.stringFrom("drop receiver"));
-			const _135: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-			const taken2 = _135.value;
-			_135.value = undefined;
+			const _151: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+			const taken2 = _151.value;
+			_151.value = undefined;
 			rs.drop(taken2);
-			rs.refMutRelease(_135);
-		} else if (_37 === 7) {
+			rs.refMutRelease(_151);
+		} else if (_43 === 7) {
 			Executor.cancel(exec, arg);
-		} else if (_37 === 8) {
+		} else if (_43 === 8) {
 			Executor.run(exec);
-		} else if (_37 === 9) {
-			const _143: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrow(rx2.value);
-			const _140: rs.OneshotReceiver<Item.Item> | undefined = _143.value;
-			if (_140 !== undefined) {
-				const r2: rs.OneshotReceiver<Item.Item> = _140;
-				const _153: boolean = rs.oneshotIsEmpty(r2);
-				const _155: boolean = rs.oneshotIsTerminated(r2);
-				const args9 = [(f: rs.Formatter) => rs.fmtBool(_153, f), (f: rs.Formatter) => rs.fmtBool(_155, f), (f: rs.Formatter) => rs.oneshotDebug(r2, f, "Receiver")];
-				note(rs.fmtFormat(["rx empty ", args9[0], " terminated ", args9[1], " ", args9[2]]));
-				rs.refRelease(_143);
+		} else if (_43 === 9) {
+			const _159: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrow(rx2.value);
+			const _156: rs.OneshotReceiver<Item.Item> | undefined = _159.value;
+			if (_156 !== undefined) {
+				const r2: rs.OneshotReceiver<Item.Item> = _156;
+				const _170: boolean = rs.oneshotIsEmpty(r2);
+				const _172: boolean = rs.oneshotIsTerminated(r2);
+				const args16 = [(f: rs.Formatter) => rs.fmtBool(_170, f), (f: rs.Formatter) => rs.fmtBool(_172, f), (f: rs.Formatter) => rs.oneshotDebug(r2, f, "Receiver")];
+				note(rs.fmtFormat(["rx empty ", args16[0], " terminated ", args16[1], " ", args16[2]]));
+				rs.refRelease(_159);
 			} else {
-				rs.refRelease(_143);
+				rs.refRelease(_159);
 			}
-			const _165: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrow(tx2.value);
-			const _162: rs.OneshotSender<Item.Item> | undefined = _165.value;
-			if (_162 !== undefined) {
-				const t3: rs.OneshotSender<Item.Item> = _162;
-				const _175: boolean = rs.oneshotIsClosed(t3);
-				const args10 = [(f: rs.Formatter) => rs.fmtBool(_175, f), (f: rs.Formatter) => rs.oneshotDebug(t3, f, "Sender")];
-				note(rs.fmtFormat(["tx closed ", args10[0], " ", args10[1]]));
-				rs.refRelease(_165);
+			const _183: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrow(tx2.value);
+			const _180: rs.OneshotSender<Item.Item> | undefined = _183.value;
+			if (_180 !== undefined) {
+				const t3: rs.OneshotSender<Item.Item> = _180;
+				const _194: boolean = rs.oneshotIsClosed(t3);
+				const args17 = [(f: rs.Formatter) => rs.fmtBool(_194, f), (f: rs.Formatter) => rs.oneshotDebug(t3, f, "Sender")];
+				note(rs.fmtFormat(["tx closed ", args17[0], " ", args17[1]]));
+				rs.refRelease(_183);
 			} else {
-				rs.refRelease(_165);
+				rs.refRelease(_183);
 			}
 		} else {
-			const _185: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrow(rx2.value);
-			const done: boolean = isSomeAnd$1jrr4l1(_185.value, (r4: rs.OneshotReceiver<Item.Item>): boolean => {
+			const _205: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrow(rx2.value);
+			const done: boolean = isSomeAnd$1jrr4l1(_205.value, (r4: rs.OneshotReceiver<Item.Item>): boolean => {
 				return rs.oneshotIsTerminated(r4);
 			});
-			rs.refRelease(_185);
+			rs.refRelease(_205);
 			if (done) {
 				if (arg === 90) {
-					const _193: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-					const taken = _193.value;
-					_193.value = undefined;
+					const _213: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+					const taken = _213.value;
+					_213.value = undefined;
 					const r3: rs.OneshotReceiver<Item.Item> = rs.optionExpect(taken, "live");
-					rs.refMutRelease(_193);
+					rs.refMutRelease(_213);
 					Executor.spawn$oneshot_script_closure3(exec, new scriptFuture$closure3(r3));
 					Executor.run(exec);
 				}
@@ -164,16 +165,16 @@ export function script(data: rs.ByteSlice, out: rs.String): void {
 	}
 	note(rs.stringFrom("end"));
 	Executor.clear(exec);
-	const _221: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
-	const taken7 = _221.value;
-	_221.value = undefined;
+	const _245: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(tx2.value);
+	const taken7 = _245.value;
+	_245.value = undefined;
 	rs.drop(taken7);
-	rs.refMutRelease(_221);
-	const _228: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
-	const taken8 = _228.value;
-	_228.value = undefined;
+	rs.refMutRelease(_245);
+	const _252: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(rx2.value);
+	const taken8 = _252.value;
+	_252.value = undefined;
 	rs.drop(taken8);
-	rs.refMutRelease(_228);
+	rs.refMutRelease(_252);
 	note(rs.stringFrom("dropped"));
 	rs.stringPushStr(out, log_take().v);
 	exec[Symbol.dispose]();
@@ -215,11 +216,11 @@ export class scriptFuture$closure0 {
 			const arg = this.#r;
 			const args3 = [_21, (f: rs.Formatter) => rs.oneshotDebug(arg, f, "Receiver")];
 			const line: rs.String = rs.fmtFormat(["recv ", args3[0], " ", args3[1]]);
-			const _24: rs.OneshotReceiver<Item.Item> | undefined = this.#r;
-			const _28: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
-			rs.drop(_28.value);
-			_28.value = _24;
-			rs.refMutRelease(_28);
+			const _25: rs.OneshotReceiver<Item.Item> | undefined = this.#r;
+			const _29: rs.RefCell<rs.OneshotReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
+			rs.drop(_29.value);
+			_29.value = _25;
+			rs.refMutRelease(_29);
 			drop$Result_log_Item_tokio_sync_oneshot_error_RecvError(got);
 			this.#slot[Symbol.dispose]();
 			this.#state = 1;
@@ -287,13 +288,13 @@ export class scriptFuture$closure1 {
 				return rs.Pending;
 			}
 		}
-		const _33: boolean = rs.oneshotIsClosed(this.#t);
-		const line: rs.String = rs.fmtFormat(["closed ", (f: rs.Formatter) => rs.fmtBool(_33, f)]);
-		const _38: rs.OneshotSender<Item.Item> | undefined = this.#t;
-		const _42: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
-		rs.drop(_42.value);
-		_42.value = _38;
-		rs.refMutRelease(_42);
+		const part = rs.oneshotIsClosed(this.#t);
+		const line: rs.String = rs.fmtFormat(["closed ", (f: rs.Formatter) => rs.fmtBool(part, f)]);
+		const _39: rs.OneshotSender<Item.Item> | undefined = this.#t;
+		const _43: rs.RefCell<rs.OneshotSender<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
+		rs.drop(_43.value);
+		_43.value = _39;
+		rs.refMutRelease(_43);
 		this.#slot[Symbol.dispose]();
 		this.#state = 1;
 		return line;
@@ -328,10 +329,10 @@ export class scriptFuture$closure3 {
 			const _7: rs.Result<Item.Item, oneshot_error_RecvError.RecvError> = _10;
 			const _3: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(_7, f, (value: Item.Item, f: rs.Formatter) => Item.fmt$fmt_Debug(value, f), (value: oneshot_error_RecvError.RecvError, f: rs.Formatter) => oneshot_error_RecvError.fmt$fmt_Debug(value, f))]);
 			drop$Result_log_Item_tokio_sync_oneshot_error_RecvError(_7);
-			const _21: rs.String = _3;
+			const _23: rs.String = _3;
 			this.#r[Symbol.dispose]();
 			this.#state = 1;
-			return _21;
+			return _23;
 		}
 		this.#state = 3;
 		return rs.Pending;

@@ -296,9 +296,9 @@ export function copyToSlice$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, dst
  */
 export function getU8$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.u8 {
 	if (!(remaining$bytes_Buf_bytes_Bytes_mut(self) < 1)) {
-		const _6: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
-		rs.idx(_6, 0);
-		const ret: rs.u8 = _6.data[_6.start];
+		const _7: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
+		rs.idx(_7, 0);
+		const ret: rs.u8 = _7.data[_7.start];
 		advance$bytes_Buf_bytes_Bytes(self, 1);
 		return ret;
 	}
@@ -325,9 +325,9 @@ export function getU8$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.u8 {
  */
 export function getU8$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.u8 {
 	if (!(remaining$bytes_Buf_ref_slice_u8_mut(self) < 1)) {
-		const _6: rs.ByteSlice = chunk$bytes_Buf_ref_slice_u8_mut(self);
-		rs.idx(_6, 0);
-		const ret: rs.u8 = _6.data[_6.start];
+		const _7: rs.ByteSlice = chunk$bytes_Buf_ref_slice_u8_mut(self);
+		rs.idx(_7, 0);
+		const ret: rs.u8 = _7.data[_7.start];
 		advance$bytes_Buf_ref_slice_u8(self, 1);
 		return ret;
 	}
@@ -354,9 +354,9 @@ export function getU8$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.u8 {
  */
 export function getI8$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.i8 {
 	if (!(remaining$bytes_Buf_bytes_Bytes_mut(self) < 1)) {
-		const _7: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
-		rs.idx(_7, 0);
-		const ret: rs.i8 = (_7.data[_7.start] << 24) >> 24;
+		const _8: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
+		rs.idx(_8, 0);
+		const ret: rs.i8 = (_8.data[_8.start] << 24) >> 24;
 		advance$bytes_Buf_bytes_Bytes(self, 1);
 		return ret;
 	}
@@ -383,9 +383,9 @@ export function getI8$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.i8 {
  */
 export function getI8$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.i8 {
 	if (!(remaining$bytes_Buf_ref_slice_u8_mut(self) < 1)) {
-		const _7: rs.ByteSlice = chunk$bytes_Buf_ref_slice_u8_mut(self);
-		rs.idx(_7, 0);
-		const ret: rs.i8 = (_7.data[_7.start] << 24) >> 24;
+		const _8: rs.ByteSlice = chunk$bytes_Buf_ref_slice_u8_mut(self);
+		rs.idx(_8, 0);
+		const ret: rs.i8 = (_8.data[_8.start] << 24) >> 24;
 		advance$bytes_Buf_ref_slice_u8(self, 1);
 		return ret;
 	}
@@ -717,8 +717,7 @@ export function tryCopyToSlice$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, d
 		while (!(dst.length === 0)) {
 			const src: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
 			const cnt: rs.usize = rs.min(src.length, dst.length);
-			const _24: { end: rs.usize } = { end: cnt };
-			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, _24.end), rs.byteSliceRange(src, 0, _24.end));
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt), rs.byteSliceRange(src, 0, cnt));
 			dst = rs.byteSliceRange(dst, cnt);
 			advance$bytes_Buf_bytes_Bytes(self, cnt);
 		}
@@ -764,8 +763,7 @@ export function tryCopyToSlice$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, 
 		while (!(dst.length === 0)) {
 			const src: rs.ByteSlice = chunk$bytes_Buf_ref_slice_u8_mut(self);
 			const cnt: rs.usize = rs.min(src.length, dst.length);
-			const _24: { end: rs.usize } = { end: cnt };
-			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, _24.end), rs.byteSliceRange(src, 0, _24.end));
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt), rs.byteSliceRange(src, 0, cnt));
 			dst = rs.byteSliceRange(dst, cnt);
 			advance$bytes_Buf_ref_slice_u8(self, cnt);
 		}
@@ -2593,23 +2591,23 @@ export function chunksVectored$bytes_Buf_buf_Pieces(self: Take<Pieces.Pieces>, d
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _10: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
-		const cnt: rs.usize = Pieces.chunksVectored$bytes_Buf(self.inner, _10);
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = Pieces.chunksVectored$bytes_Buf(self.inner, _11);
 		let limit: rs.usize = self.limit;
 		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
-			const _26: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
-			if (_26 === rs.DONE) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _26[0];
-			const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(_26[1][1], 0, limit);
-			if (_32 !== undefined) {
-				_26[1][0].v = _32;
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
 				return rs.usizeAdd(i, 1);
 			}
-			_26[1][0].v = _26[1][1];
-			limit = rs.usizeSub(limit, _26[1][1].length);
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
 		}
 		return cnt;
 	}
@@ -2651,23 +2649,23 @@ export function chunksVectored$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, d
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _10: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
-		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.inner, _10);
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.inner, _11);
 		let limit: rs.usize = self.limit;
 		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
-			const _26: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
-			if (_26 === rs.DONE) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _26[0];
-			const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(_26[1][1], 0, limit);
-			if (_32 !== undefined) {
-				_26[1][0].v = _32;
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
 				return rs.usizeAdd(i, 1);
 			}
-			_26[1][0].v = _26[1][1];
-			limit = rs.usizeSub(limit, _26[1][1].length);
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
 		}
 		return cnt;
 	}
@@ -2709,23 +2707,23 @@ export function chunksVectored$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, 
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _10: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
-		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.inner, _10);
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.inner, _11);
 		let limit: rs.usize = self.limit;
 		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
-			const _26: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
-			if (_26 === rs.DONE) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _26[0];
-			const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(_26[1][1], 0, limit);
-			if (_32 !== undefined) {
-				_26[1][0].v = _32;
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
 				return rs.usizeAdd(i, 1);
 			}
-			_26[1][0].v = _26[1][1];
-			limit = rs.usizeSub(limit, _26[1][1].length);
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
 		}
 		return cnt;
 	}

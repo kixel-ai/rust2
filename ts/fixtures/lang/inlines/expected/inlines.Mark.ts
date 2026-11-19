@@ -8,32 +8,26 @@ export interface Mark {
 
 export function fmt$fmt_Display_u1f600_true(_self: Mark, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (false) {
-		const _11: rs.char = 128512;
-		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(_11, f)]);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(128512, f)]);
 	}
-	const _12: rs.char = 128512;
-	const args3 = [(f: rs.Formatter) => rs.fmtCharDisplay(_12, f)];
-	return rs.fmtWriteFmt(f, [args3[0], args3[0]]);
+	const args5 = [(f: rs.Formatter) => rs.fmtCharDisplay(128512, f)];
+	return rs.fmtWriteFmt(f, [args5[0], args5[0]]);
 }
 
 export function fmt$fmt_Display_ue9_true(_self: Mark, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (false) {
-		const _11: rs.char = 233;
-		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(_11, f)]);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(233, f)]);
 	}
-	const _12: rs.char = 233;
-	const args3 = [(f: rs.Formatter) => rs.fmtCharDisplay(_12, f)];
-	return rs.fmtWriteFmt(f, [args3[0], args3[0]]);
+	const args5 = [(f: rs.Formatter) => rs.fmtCharDisplay(233, f)];
+	return rs.fmtWriteFmt(f, [args5[0], args5[0]]);
 }
 
 export function fmt$fmt_Display_x_false(_self: Mark, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (true) {
-		const _11: rs.char = 120;
-		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(_11, f)]);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.fmtCharDisplay(120, f)]);
 	}
-	const _12: rs.char = 120;
-	const args3 = [(f: rs.Formatter) => rs.fmtCharDisplay(_12, f)];
-	return rs.fmtWriteFmt(f, [args3[0], args3[0]]);
+	const args5 = [(f: rs.Formatter) => rs.fmtCharDisplay(120, f)];
+	return rs.fmtWriteFmt(f, [args5[0], args5[0]]);
 }
 
 //# sourceMappingURL=inlines.Mark.ts.map

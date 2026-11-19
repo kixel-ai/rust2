@@ -14,7 +14,7 @@ import * as Tally from "./locks.Tally.ts";
 
 /** Each byte an operation on the mutexes, its value the operand; each puts what it read. */
 export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _83!: boolean;
+	let _85!: boolean;
 	const shared: rs.Arc<rs.Mutex<Tally.Tally>> = new rs.Arc(new rs.Mutex(Tally.default$Default()));
 	const other: rs.Arc<rs.Mutex<Tally.Tally>> = rs.arcClone(shared);
 	const own: rs.Mutex<rs.ByteVec> = new rs.Mutex(new rs.ByteVec());
@@ -25,7 +25,7 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _18: rs.u8 = rs.u8Rem(op, 8);
 		if (_18 === 0) {
 			const tally: rs.Mutex<Tally.Tally> = rs.mutexLock(shared.value);
-			tally.value.n = rs.u64Add(op as rs.u64, tally.value.n);
+			tally.value.n = rs.u64Add(tally.value.n, op as rs.u64);
 			rs.byteVecPush(tally.value.seen, op);
 			rs.mutexUnlock(tally);
 		} else if (_18 === 1) {
@@ -35,52 +35,52 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.mutexUnlock(tally2);
 		} else if (_18 === 2) {
 			rs.byteVecPush(own.value, op);
-			const _50: rs.u32 = op as rs.u32;
-			const _51: rs.Place<rs.u32> = rs.valuePlace(number);
-			_51.v = rs.u32Add(_50, _51.v);
+			const _52: rs.u32 = op as rs.u32;
+			const _53: rs.Place<rs.u32> = rs.valuePlace(number);
+			_53.v = rs.u32Add(_53.v, _52);
 			const held: rs.Place<rs.u8 | undefined> = rs.valuePlace(slot);
 			const taken = held.v;
 			held.v = undefined;
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(taken, 253));
-			held.v = op as rs.u8 | undefined;
+			held.v = op;
 		} else if (_18 === 3) {
-			const _62: rs.u32 = op as rs.u32;
-			const _65: rs.Mutex<rs.u32> = rs.mutexLock(number);
-			_65.value = rs.u32Add(_62, _65.value);
-			rs.mutexUnlock(_65);
-			const _74: rs.Mutex<rs.u32> = rs.mutexLock(number);
-			rs.byteVecPush(out, _74.value & 0xff);
-			rs.mutexUnlock(_74);
+			const _64: rs.u32 = op as rs.u32;
+			const _67: rs.Mutex<rs.u32> = rs.mutexLock(number);
+			_67.value = rs.u32Add(_67.value, _64);
+			rs.mutexUnlock(_67);
+			const _76: rs.Mutex<rs.u32> = rs.mutexLock(number);
+			rs.byteVecPush(out, _76.value & 0xff);
+			rs.mutexUnlock(_76);
 		} else if (_18 === 4) {
 			const held2: rs.Mutex<Tally.Tally> = rs.mutexLock(shared.value);
-			const _84: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(other.value);
-			if (!_84.ok) {
-				_83 = true;
+			const _86: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(other.value);
+			if (!_86.ok) {
+				_85 = true;
 			} else {
-				_83 = false;
+				_85 = false;
 			}
-			rs.byteVecPush(out, _83 ? 1 : 0);
-			drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_84);
+			rs.byteVecPush(out, _85 ? 1 : 0);
+			drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_86);
 			rs.mutexUnlock(held2);
-			const _90: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(other.value);
-			if (_90.ok) {
-				const tally3: rs.Mutex<Tally.Tally> = _90.value;
+			const _92: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(other.value);
+			if (_92.ok) {
+				const tally3: rs.Mutex<Tally.Tally> = _92.value;
 				rs.byteVecPush(out, tally3.value.seen.length & 0xff);
 				rs.mutexUnlock(tally3);
 			} else {
 				rs.byteVecPush(out, 254);
 			}
 		} else if (_18 === 5) {
-			const _101: rs.u32 = op as rs.u32;
-			const _104: rs.Mutex<rs.u32> = rs.mutexLock(lock._0);
-			_104.value = rs.u32Add(_101, _104.value);
-			rs.mutexUnlock(_104);
+			const _104: rs.u32 = op as rs.u32;
+			const _107: rs.Mutex<rs.u32> = rs.mutexLock(lock._0);
+			_107.value = rs.u32Add(_107.value, _104);
+			rs.mutexUnlock(_107);
 			const free: rs.String = rs.fmtFormat([(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)]);
 			const guard: rs.Result<rs.Mutex<rs.u32>, rs.TryLockError<rs.Mutex<rs.u32>>> = rs.mutexTryLock(lock._0);
 			const held3: rs.String = rs.fmtFormat([(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)]);
-			const _131: boolean = guard.ok;
-			const args6 = [(f: rs.Formatter) => rs.fmtPad(f, free.v), (f: rs.Formatter) => rs.fmtPad(f, held3.v), (f: rs.Formatter) => rs.fmtBool(_131, f)];
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2]]).v));
+			const _139: boolean = guard.ok;
+			const args9 = [(f: rs.Formatter) => rs.fmtPad(f, free.v), (f: rs.Formatter) => rs.fmtPad(f, held3.v), (f: rs.Formatter) => rs.fmtBool(_139, f)];
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2]]).v));
 			drop$Result_sync_MutexGuard_u32_sync_TryLockError_sync_MutexGuard_u32(guard);
 		} else if (_18 === 6) {
 			rs.byteVecPush(out, false ? 1 : 0);
@@ -112,9 +112,9 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const lock: rs.RefCell<Tally.Tally> = new rs.RefCell({ n: pick as rs.u64, seen: rs.byteVecFrom(Uint8Array.of(pick)) });
 		const again: (a0: rs.ByteVec) => undefined = (out2: rs.ByteVec): undefined => {
 			if ((pick & 1) === 0) {
-				const _92: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-				rs.byteVecPush(out2, rs.u64Low(_92.value.n) & 0xff);
-				rs.refRelease(_92);
+				const _93: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+				rs.byteVecPush(out2, rs.u64Low(_93.value.n) & 0xff);
+				rs.refRelease(_93);
 			} else {
 				const _162: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
 				rs.byteVecPush(out2, _162.value.seen.length & 0xff);
@@ -125,21 +125,21 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_15 === 0) {
 			const guard: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
 			rs.byteVecPush(out, guard.value);
-			const _28: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
-			rs.byteVecPush(out, _28.value);
-			rs.mutexUnlock(_28);
+			const _31: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
+			rs.byteVecPush(out, _31.value);
+			rs.mutexUnlock(_31);
 			rs.mutexUnlock(guard);
 		} else if (_15 === 1) {
-			const _34: rs.Result<rs.Mutex<rs.u8>, rs.TryLockError<rs.Mutex<rs.u8>>> = rs.mutexTryLock(mutex);
-			if (_34.ok) {
-				const guard2: rs.Mutex<rs.u8> = _34.value;
+			const _37: rs.Result<rs.Mutex<rs.u8>, rs.TryLockError<rs.Mutex<rs.u8>>> = rs.mutexTryLock(mutex);
+			if (_37.ok) {
+				const guard2: rs.Mutex<rs.u8> = _37.value;
 				rs.byteVecPush(out, guard2.value);
-				const _45: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
-				rs.byteVecPush(out, _45.value);
-				rs.mutexUnlock(_45);
+				const _48: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
+				rs.byteVecPush(out, _48.value);
+				rs.mutexUnlock(_48);
 				rs.mutexUnlock(guard2);
 			} else {
-				drop$Result_sync_MutexGuard_u8_sync_TryLockError_sync_MutexGuard_u8(_34);
+				drop$Result_sync_MutexGuard_u8_sync_TryLockError_sync_MutexGuard_u8(_37);
 				rs.panicFmt(["internal error: entered unreachable code: nothing holds the mutex"]);
 			}
 		} else if (_15 === 2) {
@@ -153,28 +153,28 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
 			again(out);
 			rs.refMutRelease(write);
 		} else if (_15 === 4) {
-			const _71: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_71, ((t4: Tally.Tally): rs.ByteVec => {
+			const _74: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_74, ((t4: Tally.Tally): rs.ByteVec => {
 				return t4.seen;
-			})(_71.value));
+			})(_74.value));
 			rs.byteVecPush(out, seen.value.length & 0xff);
 			again(out);
 			rs.refRelease(seen);
 		} else if (_15 === 5) {
-			const _83: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const n: rs.RefCell<rs.u64> = rs.refMutMap(_83, ((t3: Tally.Tally): rs.Place<rs.u64> => {
+			const _86: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const n: rs.RefCell<rs.u64> = rs.refMutMap(_86, ((t3: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t3.n, (value2) => t3.n = value2);
-			})(_83.value));
+			})(_86.value));
 			rs.byteVecPush(out, rs.u64Low(n.value) & 0xff);
 			again(out);
 			rs.refMutRelease(n);
 		} else if (_15 === 6) {
-			const _98: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			const _97: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refFilterMap(_98, ((t2: Tally.Tally): rs.u8 | undefined => {
+			const _101: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			const _100: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refFilterMap(_101, ((t2: Tally.Tally): rs.u8 | undefined => {
 				return rs.byteSliceFirst(rs.byteVecSlice(t2.seen));
-			})(_98.value));
-			if (_97.ok) {
-				const first: rs.RefCell<rs.u8> = _97.value;
+			})(_101.value));
+			if (_100.ok) {
+				const first: rs.RefCell<rs.u8> = _100.value;
 				const first2: rs.RefCell<rs.u8> = rs.refMap(first, ((b: rs.u8): rs.u8 => {
 					return b;
 				})(first.value));
@@ -182,14 +182,14 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
 				again(out);
 				rs.refRelease(first2);
 			} else {
-				drop$Result_sync_MappedRwLockReadGuard_u8_sync_RwLockReadGuard_locks_Tally(_97);
+				drop$Result_sync_MappedRwLockReadGuard_u8_sync_RwLockReadGuard_locks_Tally(_100);
 				rs.panicFmt(["internal error: entered unreachable code: seen holds the pick"]);
 			}
 		} else {
-			const _111: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const n2: rs.RefCell<rs.u64> = rs.refMutMap(_111, ((t: Tally.Tally): rs.Place<rs.u64> => {
+			const _114: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const n2: rs.RefCell<rs.u64> = rs.refMutMap(_114, ((t: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t.n, (value) => t.n = value);
-			})(_111.value));
+			})(_114.value));
 			const n3: rs.RefCell<rs.u64> = rs.refMutMap(n2, ((n4: rs.Place<rs.u64>): rs.Place<rs.u64> => {
 				return n4;
 			})(rs.valuePlace(n2)));
@@ -197,9 +197,9 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
 			again(out);
 			rs.refMutRelease(n3);
 		}
-		const _127: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
-		rs.byteVecPush(out, _127.value);
-		rs.mutexUnlock(_127);
+		const _130: rs.Mutex<rs.u8> = rs.mutexLock(mutex);
+		rs.byteVecPush(out, _130.value);
+		rs.mutexUnlock(_130);
 		again(out);
 	}
 }
@@ -209,8 +209,8 @@ export function relock(data: rs.ByteSlice, out: rs.ByteVec): void {
  * read.
  */
 export function rwlocks(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _73!: boolean;
-	let _89!: boolean;
+	let _75!: boolean;
+	let _91!: boolean;
 	const lock: rs.Arc<rs.RefCell<Tally.Tally>> = new rs.Arc(new rs.RefCell(Tally.default$Default()));
 	const number: rs.RefCell<rs.u32> = new rs.RefCell(0);
 	const owned: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
@@ -218,7 +218,7 @@ export function rwlocks(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _13: rs.u8 = rs.u8Rem(op, 8);
 		if (_13 === 0) {
 			const tally: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock.value);
-			tally.value.n = rs.u64Add(op as rs.u64, tally.value.n);
+			tally.value.n = rs.u64Add(tally.value.n, op as rs.u64);
 			rs.byteVecPush(tally.value.seen, op);
 			rs.refMutRelease(tally);
 		} else if (_13 === 1) {
@@ -229,42 +229,42 @@ export function rwlocks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refRelease(b);
 			rs.refRelease(a);
 		} else if (_13 === 2) {
-			const _45: rs.u32 = op as rs.u32;
-			const _48: rs.RefCell<rs.u32> = rs.rwLockWrite(number);
-			_48.value = rs.u32Add(_45, _48.value);
-			rs.refMutRelease(_48);
-			const _57: rs.RefCell<rs.u32> = rs.rwLockRead(number);
-			rs.byteVecPush(out, _57.value & 0xff);
-			rs.refRelease(_57);
+			const _47: rs.u32 = op as rs.u32;
+			const _50: rs.RefCell<rs.u32> = rs.rwLockWrite(number);
+			_50.value = rs.u32Add(_50.value, _47);
+			rs.refMutRelease(_50);
+			const _59: rs.RefCell<rs.u32> = rs.rwLockRead(number);
+			rs.byteVecPush(out, _59.value & 0xff);
+			rs.refRelease(_59);
 		} else if (_13 === 3) {
 			const read: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock.value);
-			const _68: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock.value);
-			rs.byteVecPush(out, _68.ok ? 1 : 0);
-			drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_68);
-			const _74: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock.value);
-			if (!_74.ok) {
-				_73 = true;
+			const _70: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock.value);
+			rs.byteVecPush(out, _70.ok ? 1 : 0);
+			drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_70);
+			const _76: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock.value);
+			if (!_76.ok) {
+				_75 = true;
 			} else {
-				_73 = false;
+				_75 = false;
 			}
-			rs.byteVecPush(out, _73 ? 1 : 0);
-			drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(_74);
+			rs.byteVecPush(out, _75 ? 1 : 0);
+			drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(_76);
 			rs.refRelease(read);
 			const write: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock.value);
 			rs.byteVecPush(out, write.ok ? 1 : 0);
-			const _90: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock.value);
-			if (!_90.ok) {
-				_89 = true;
+			const _92: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock.value);
+			if (!_92.ok) {
+				_91 = true;
 			} else {
-				_89 = false;
+				_91 = false;
 			}
-			rs.byteVecPush(out, _89 ? 1 : 0);
-			drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_90);
+			rs.byteVecPush(out, _91 ? 1 : 0);
+			drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_92);
 			drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(write);
 		} else if (_13 === 4) {
-			const _95: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock.value);
-			if (_95.ok) {
-				const tally2: rs.RefCell<Tally.Tally> = _95.value;
+			const _97: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock.value);
+			if (_97.ok) {
+				const tally2: rs.RefCell<Tally.Tally> = _97.value;
 				rs.byteVecPush(out, tally2.value.seen.length & 0xff);
 				rs.refMutRelease(tally2);
 			} else {
@@ -272,29 +272,29 @@ export function rwlocks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		} else if (_13 === 5) {
 			const made: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
-			const _110: rs.RefCell<rs.ByteVec> = rs.rwLockWrite(made);
-			rs.byteVecPush(_110.value, op);
-			rs.refMutRelease(_110);
-			const _117: rs.RefCell<rs.ByteVec> = rs.rwLockRead(made);
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_117.value));
-			rs.refRelease(_117);
+			const _113: rs.RefCell<rs.ByteVec> = rs.rwLockWrite(made);
+			rs.byteVecPush(_113.value, op);
+			rs.refMutRelease(_113);
+			const _120: rs.RefCell<rs.ByteVec> = rs.rwLockRead(made);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_120.value));
+			rs.refRelease(_120);
 		} else if (_13 === 6) {
-			const _120: rs.u32 = op as rs.u32;
-			const _121: rs.Place<rs.u32> = rs.valuePlace(number);
-			_121.v = rs.u32Add(_120, _121.v);
+			const _123: rs.u32 = op as rs.u32;
+			const _124: rs.Place<rs.u32> = rs.valuePlace(number);
+			_124.v = rs.u32Add(_124.v, _123);
 			rs.byteVecPush(owned.value, op);
-			const _134: rs.RefCell<rs.u32> = rs.rwLockRead(number);
-			rs.byteVecPush(out, _134.value & 0xff);
-			rs.refRelease(_134);
+			const _137: rs.RefCell<rs.u32> = rs.rwLockRead(number);
+			rs.byteVecPush(out, _137.value & 0xff);
+			rs.refRelease(_137);
 		} else {
 			const tally3: Tally.Tally = new rs.RefCell({ n: op as rs.u64, seen: rs.byteVecFrom(Uint8Array.of(op)) }).value;
 			rs.byteVecPush(out, rs.u64Low(tally3.n) & 0xff);
 			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(tally3.seen));
 		}
 	}
-	const _155: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock.value);
-	rs.byteVecPush(out, rs.u64Low(_155.value.n) & 0xff);
-	rs.refRelease(_155);
+	const _158: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock.value);
+	rs.byteVecPush(out, rs.u64Low(_158.value.n) & 0xff);
+	rs.refRelease(_158);
 	rs.byteVecPush(out, number.value & 0xff);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(owned.value));
 	lock[Symbol.dispose]();
@@ -310,13 +310,13 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const locked: (a0: rs.ByteVec) => undefined = (out2: rs.ByteVec): undefined => {
 		let read!: boolean;
 		let write!: boolean;
-		const _44: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock);
-		if (!_44.ok) {
+		const _43: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryRead(lock);
+		if (!_43.ok) {
 			read = true;
 		} else {
 			read = false;
 		}
-		drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_44);
+		drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_43);
 		const _8: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>> = rs.rwLockTryWrite(lock);
 		if (!_8.ok) {
 			write = true;
@@ -329,122 +329,118 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const op of rs.byteSliceView(data)) {
 		const _13: rs.u8 = rs.u8Rem(op, 4);
 		if (_13 === 0) {
-			const _15: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const n: rs.RefCell<rs.u64> = rs.refMutMap(_15, ((t7: Tally.Tally): rs.Place<rs.u64> => {
+			const _16: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const n: rs.RefCell<rs.u64> = rs.refMutMap(_16, ((t7: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t7.n, (value3) => t7.n = value3);
-			})(_15.value));
-			n.value = rs.u64Add(op as rs.u64, n.value);
-			const _24: [rs.ByteVec] = [out];
-			locked(_24[0]);
-			const _26: rs.RefCell<rs.u64> = n;
-			const again: rs.RefCell<rs.u64> = rs.refMutMap(_26, ((n9: rs.Place<rs.u64>): rs.Place<rs.u64> => {
+			})(_16.value));
+			n.value = rs.u64Add(n.value, op as rs.u64);
+			locked(out);
+			const _27: rs.RefCell<rs.u64> = n;
+			const again: rs.RefCell<rs.u64> = rs.refMutMap(_27, ((n9: rs.Place<rs.u64>): rs.Place<rs.u64> => {
 				return n9;
-			})(rs.valuePlace(_26)));
-			const _27: rs.u64 = rs.u64WrappingMul(again.value, 3);
-			again.value = _27;
+			})(rs.valuePlace(_27)));
+			const _28: rs.u64 = rs.u64WrappingMul(again.value, 3);
+			again.value = _28;
 			rs.refMutRelease(again);
-			locked(_24[0]);
-			const _42: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			rs.byteVecPush(out, rs.u64Low(_42.value.n) & 0xff);
-			rs.refRelease(_42);
+			locked(out);
+			const _44: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			rs.byteVecPush(out, rs.u64Low(_44.value.n) & 0xff);
+			rs.refRelease(_44);
 		} else if (_13 === 1) {
-			const _46: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_46, ((t6: Tally.Tally): rs.ByteVec => {
+			const _48: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_48, ((t6: Tally.Tally): rs.ByteVec => {
 				return t6.seen;
-			})(_46.value));
+			})(_48.value));
 			rs.byteVecPush(out, seen.value.length & 0xff);
 			const last: rs.RefCell<rs.u8> = rs.refMap(seen, ((s: rs.ByteVec): rs.u8 => {
 				return option_unwrapOr$1fr498u(rs.byteSliceLast(rs.byteVecSlice(s)), 253);
 			})(seen.value));
 			rs.byteVecPush(out, last.value);
-			const _61: [rs.ByteVec] = [out];
-			locked(_61[0]);
+			locked(out);
 			rs.refRelease(last);
-			locked(_61[0]);
+			locked(out);
 		} else if (_13 === 2) {
-			const _67: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const _66: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refMutFilterMap(_67, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
+			const _70: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const _69: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refMutFilterMap(_70, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
 				return rs.sliceLastMut(rs.byteVecSlice(t3.seen));
-			})(_67.value));
-			if (_66.ok) {
-				const last2: rs.RefCell<rs.u8> = _66.value;
-				const _72: rs.u8 = rs.u8WrappingAdd(last2.value, op);
-				last2.value = _72;
+			})(_70.value));
+			if (_69.ok) {
+				const last2: rs.RefCell<rs.u8> = _69.value;
+				const _75: rs.u8 = rs.u8WrappingAdd(last2.value, op);
+				last2.value = _75;
 				rs.refMutRelease(last2);
 			} else {
-				const whole: rs.RefCell<Tally.Tally> = _66.error;
+				const whole: rs.RefCell<Tally.Tally> = _69.error;
 				rs.byteVecPush(whole.value.seen, op);
 				rs.refMutRelease(whole);
 			}
-			const _84: [rs.ByteVec] = [out];
-			locked(_84[0]);
-			const _87: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			const _86: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refFilterMap(_87, ((t4: Tally.Tally): rs.u8 | undefined => {
+			locked(out);
+			const _90: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			const _89: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refFilterMap(_90, ((t4: Tally.Tally): rs.u8 | undefined => {
 				return rs.byteSliceFirst(rs.byteVecSlice(t4.seen));
-			})(_87.value));
-			if (_86.ok) {
-				const first: rs.RefCell<rs.u8> = _86.value;
-				const _92: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<rs.u8>> = rs.refFilterMap(first, ((b2: rs.u8): rs.u8 | undefined => {
+			})(_90.value));
+			if (_89.ok) {
+				const first: rs.RefCell<rs.u8> = _89.value;
+				const _95: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<rs.u8>> = rs.refFilterMap(first, ((b2: rs.u8): rs.u8 | undefined => {
 					return thenSome$0quywni(b2 > 128, b2);
 				})(first.value));
-				if (_92.ok) {
-					const b: rs.RefCell<rs.u8> = _92.value;
+				if (_95.ok) {
+					const b: rs.RefCell<rs.u8> = _95.value;
 					rs.byteVecPush(out, b.value);
 					rs.refRelease(b);
 				} else {
-					const first2: rs.RefCell<rs.u8> = _92.error;
+					const first2: rs.RefCell<rs.u8> = _95.error;
 					rs.byteVecPush(out, ~first2.value & 0xff);
 					rs.refRelease(first2);
 				}
 			} else {
-				const whole2: rs.RefCell<Tally.Tally> = _86.error;
-				rs.byteVecPush(out, (whole2.value.seen.length & 0xff) | 240);
+				const whole2: rs.RefCell<Tally.Tally> = _89.error;
+				rs.byteVecPush(out, 240 | (whole2.value.seen.length & 0xff));
 				rs.refRelease(whole2);
 			}
-			locked(_84[0]);
-			const _113: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const _117: rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> = result_map$14a22s8(rs.refMutFilterMap(_113, ((t5: Tally.Tally): rs.Place<rs.u64> | undefined => {
+			locked(out);
+			const _117: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const _121: rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> = result_map$14a22s8(rs.refMutFilterMap(_117, ((t5: Tally.Tally): rs.Place<rs.u64> | undefined => {
 				return rs.place(() => t5.n, (value2) => t5.n = value2);
-			})(_113.value)), (n7: rs.RefCell<rs.u64>): rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>> => {
+			})(_117.value)), (n7: rs.RefCell<rs.u64>): rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>> => {
 				return rs.refMutFilterMap(n7, ((n8: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined => {
 					return thenSome$1ueb688(rs.u64And(n8.v, 1) === 0, n8);
 				})(rs.valuePlace(n7)));
 			});
-			if (_117.ok) {
-				if (_117.value.ok) {
-					const n3: rs.RefCell<rs.u64> = _117.value.value;
+			if (_121.ok) {
+				if (_121.value.ok) {
+					const n3: rs.RefCell<rs.u64> = _121.value.value;
 					n3.value = rs.u64Add(n3.value, 1);
 					rs.refMutRelease(n3);
 				} else {
-					const n4: rs.RefCell<rs.u64> = _117.value.error;
+					const n4: rs.RefCell<rs.u64> = _121.value.error;
 					n4.value = rs.u64Add(n4.value, 2);
 					rs.refMutRelease(n4);
 				}
 			} else {
 				rs.byteVecPush(out, 254);
 			}
-			if (!_117.ok) {
-				drop$Result_Result_sync_MappedRwLockWriteGuard_u64_sync_MappedRwLockWriteGuard_u64_sync_RwLockWriteGuard_locks_Tally(_117);
+			if (!_121.ok) {
+				drop$Result_Result_sync_MappedRwLockWriteGuard_u64_sync_MappedRwLockWriteGuard_u64_sync_RwLockWriteGuard_locks_Tally(_121);
 			}
-			const _133: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			rs.byteVecPush(out, rs.u64Low(_133.value.n) & 0xff);
-			rs.refRelease(_133);
-			const _141: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_141.value.seen));
-			rs.refRelease(_141);
+			const _137: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			rs.byteVecPush(out, rs.u64Low(_137.value.n) & 0xff);
+			rs.refRelease(_137);
+			const _145: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_145.value.seen));
+			rs.refRelease(_145);
 		} else {
-			const _145: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const n5: rs.RefCell<rs.u64> = rs.refMutMap(_145, ((t: Tally.Tally): rs.Place<rs.u64> => {
+			const _149: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
+			const n5: rs.RefCell<rs.u64> = rs.refMutMap(_149, ((t: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t.n, (value) => t.n = value);
-			})(_145.value));
-			const _150: [rs.ByteVec] = [out];
-			locked(_150[0]);
+			})(_149.value));
+			locked(out);
 			rs.refMutRelease(n5);
-			const _153: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
-			const n6: rs.RefCell<rs.u64> = rs.refMap(_153, ((t2: Tally.Tally): rs.u64 => {
+			const _157: rs.RefCell<Tally.Tally> = rs.rwLockRead(lock);
+			const n6: rs.RefCell<rs.u64> = rs.refMap(_157, ((t2: Tally.Tally): rs.u64 => {
 				return t2.n;
-			})(_153.value));
-			locked(_150[0]);
+			})(_157.value));
+			locked(out);
 			rs.byteVecPush(out, rs.u64Low(n6.value) & 0xff);
 			rs.refRelease(n6);
 		}
@@ -465,13 +461,13 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const locked: (a0: rs.ByteVec) => undefined = (out2: rs.ByteVec): undefined => {
 		let tally!: boolean;
 		let number2!: boolean;
-		const _43: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(mutex);
-		if (!_43.ok) {
+		const _45: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(mutex);
+		if (!_45.ok) {
 			tally = true;
 		} else {
 			tally = false;
 		}
-		drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_43);
+		drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_45);
 		const _8: rs.Result<rs.Mutex<rs.u32>, rs.TryLockError<rs.Mutex<rs.u32>>> = rs.mutexTryLock(number);
 		if (!_8.ok) {
 			number2 = true;
@@ -484,129 +480,125 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const op of rs.byteSliceView(data)) {
 		const _15: rs.u8 = rs.u8Rem(op, 4);
 		if (_15 === 0) {
-			const _17: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const n: rs.Mutex<rs.u64> = rs.mutexMap(_17, ((t7: Tally.Tally): rs.Place<rs.u64> => {
+			const _18: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			const n: rs.Mutex<rs.u64> = rs.mutexMap(_18, ((t7: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t7.n, (value3) => t7.n = value3);
-			})(_17.value));
-			n.value = rs.u64Add(op as rs.u64, n.value);
-			const _26: [rs.ByteVec] = [out];
-			locked(_26[0]);
-			const _28: rs.Mutex<rs.u64> = n;
-			const again: rs.Mutex<rs.u64> = rs.mutexMap(_28, ((n8: rs.Place<rs.u64>): rs.Place<rs.u64> => {
+			})(_18.value));
+			n.value = rs.u64Add(n.value, op as rs.u64);
+			locked(out);
+			const _29: rs.Mutex<rs.u64> = n;
+			const again: rs.Mutex<rs.u64> = rs.mutexMap(_29, ((n8: rs.Place<rs.u64>): rs.Place<rs.u64> => {
 				return n8;
-			})(rs.valuePlace(_28)));
-			const _29: rs.u64 = rs.u64WrappingMul(again.value, 3);
-			again.value = _29;
+			})(rs.valuePlace(_29)));
+			const _30: rs.u64 = rs.u64WrappingMul(again.value, 3);
+			again.value = _30;
 			rs.mutexUnlock(again);
-			locked(_26[0]);
-			const _44: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			rs.byteVecPush(out, rs.u64Low(_44.value.n) & 0xff);
-			rs.mutexUnlock(_44);
-			const _48: rs.Mutex<rs.u32> = rs.mutexLock(number);
-			const whole: rs.Mutex<rs.u32> = rs.mutexMap(_48, ((n9: rs.Place<rs.u32>): rs.Place<rs.u32> => {
+			locked(out);
+			const _46: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			rs.byteVecPush(out, rs.u64Low(_46.value.n) & 0xff);
+			rs.mutexUnlock(_46);
+			const _50: rs.Mutex<rs.u32> = rs.mutexLock(number);
+			const whole: rs.Mutex<rs.u32> = rs.mutexMap(_50, ((n9: rs.Place<rs.u32>): rs.Place<rs.u32> => {
 				return n9;
-			})(rs.valuePlace(_48)));
-			const _56: rs.u32 = rs.u32Add(rs.u32WrappingMul(whole.value, 5), op as rs.u32);
-			whole.value = _56;
-			locked(_26[0]);
+			})(rs.valuePlace(_50)));
+			const _58: rs.u32 = rs.u32Add(rs.u32WrappingMul(whole.value, 5), op as rs.u32);
+			whole.value = _58;
+			locked(out);
 			rs.mutexUnlock(whole);
-			const _68: rs.Mutex<rs.u32> = rs.mutexLock(number);
-			rs.byteVecPush(out, _68.value & 0xff);
-			rs.mutexUnlock(_68);
+			const _71: rs.Mutex<rs.u32> = rs.mutexLock(number);
+			rs.byteVecPush(out, _71.value & 0xff);
+			rs.mutexUnlock(_71);
 		} else if (_15 === 1) {
-			const _72: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const seen: rs.Mutex<rs.ByteVec> = rs.mutexMap(_72, rs.partPlace(((t5: Tally.Tally): rs.ByteVec => {
+			const _75: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			const seen: rs.Mutex<rs.ByteVec> = rs.mutexMap(_75, rs.partPlace(((t5: Tally.Tally): rs.ByteVec => {
 				return t5.seen;
-			})(_72.value)));
+			})(_75.value)));
 			rs.byteVecPush(seen.value, op);
-			const _79: rs.u8 = op >> 4;
-			if (_79 === 15) {
-				const _80: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(op, op));
-				seen.value = _80;
+			if ((op >> 4) === 15) {
+				const _85: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(op, op));
+				seen.value = _85;
 			}
 			locked(out);
 			rs.mutexUnlock(seen);
-			const _94: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_94.value.seen));
-			rs.mutexUnlock(_94);
-			if (_79 === 14) {
-				const _99: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-				const whole2: rs.Mutex<Tally.Tally> = rs.mutexMap(_99, rs.partPlace(((t6: Tally.Tally): Tally.Tally => {
+			const _99: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_99.value.seen));
+			rs.mutexUnlock(_99);
+			if ((op >> 4) === 14) {
+				const _107: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+				const whole2: rs.Mutex<Tally.Tally> = rs.mutexMap(_107, rs.partPlace(((t6: Tally.Tally): Tally.Tally => {
 					return t6;
-				})(_99.value)));
-				const _102: Tally.Tally = { n: op as rs.u64, seen: rs.byteVecFrom(Uint8Array.of(op)) };
-				whole2.value = _102;
+				})(_107.value)));
+				const _110: Tally.Tally = { n: op as rs.u64, seen: rs.byteVecFrom(Uint8Array.of(op)) };
+				whole2.value = _110;
 				rs.mutexUnlock(whole2);
-				const _115: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-				rs.byteVecPush(out, rs.u64Low(_115.value.n) & 0xff);
-				rs.mutexUnlock(_115);
+				const _123: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+				rs.byteVecPush(out, rs.u64Low(_123.value.n) & 0xff);
+				rs.mutexUnlock(_123);
 			}
 		} else if (_15 === 2) {
-			const _120: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const _119: rs.Result<rs.Mutex<rs.u8>, rs.Mutex<Tally.Tally>> = rs.mutexFilterMap(_120, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
+			const _128: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			const _127: rs.Result<rs.Mutex<rs.u8>, rs.Mutex<Tally.Tally>> = rs.mutexFilterMap(_128, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
 				return rs.sliceLastMut(rs.byteVecSlice(t3.seen));
-			})(_120.value));
-			if (_119.ok) {
-				const last: rs.Mutex<rs.u8> = _119.value;
-				const _125: rs.u8 = rs.u8WrappingAdd(last.value, op);
-				last.value = _125;
+			})(_128.value));
+			if (_127.ok) {
+				const last: rs.Mutex<rs.u8> = _127.value;
+				const _133: rs.u8 = rs.u8WrappingAdd(last.value, op);
+				last.value = _133;
 				rs.mutexUnlock(last);
 			} else {
-				const whole3: rs.Mutex<Tally.Tally> = _119.error;
+				const whole3: rs.Mutex<Tally.Tally> = _127.error;
 				rs.byteVecPush(whole3.value.seen, op);
 				rs.mutexUnlock(whole3);
 			}
-			const _137: [rs.ByteVec] = [out];
-			locked(_137[0]);
-			const _139: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const _143: rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> = result_map$1t3pwfi(rs.mutexFilterMap(_139, ((t4: Tally.Tally): rs.Place<rs.u64> | undefined => {
+			locked(out);
+			const _147: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			const _151: rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> = result_map$1t3pwfi(rs.mutexFilterMap(_147, ((t4: Tally.Tally): rs.Place<rs.u64> | undefined => {
 				return rs.place(() => t4.n, (value2) => t4.n = value2);
-			})(_139.value)), (n6: rs.Mutex<rs.u64>): rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>> => {
+			})(_147.value)), (n6: rs.Mutex<rs.u64>): rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>> => {
 				return rs.mutexFilterMap(n6, ((n7: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined => {
 					return thenSome$1ueb688(rs.u64And(n7.v, 1) === 0, n7);
 				})(rs.valuePlace(n6)));
 			});
-			if (_143.ok) {
-				if (_143.value.ok) {
-					const n3: rs.Mutex<rs.u64> = _143.value.value;
+			if (_151.ok) {
+				if (_151.value.ok) {
+					const n3: rs.Mutex<rs.u64> = _151.value.value;
 					n3.value = rs.u64Add(n3.value, 1);
 					rs.mutexUnlock(n3);
 				} else {
-					const n4: rs.Mutex<rs.u64> = _143.value.error;
-					locked(_137[0]);
+					const n4: rs.Mutex<rs.u64> = _151.value.error;
+					locked(out);
 					n4.value = rs.u64Add(n4.value, 2);
 					rs.mutexUnlock(n4);
 				}
 			} else {
 				rs.byteVecPush(out, 254);
 			}
-			if (!_143.ok) {
-				drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally(_143);
+			if (!_151.ok) {
+				drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally(_151);
 			}
-			locked(_137[0]);
-			const _163: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			rs.byteVecPush(out, rs.u64Low(_163.value.n) & 0xff);
-			rs.mutexUnlock(_163);
-			const _171: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_171.value.seen));
-			rs.mutexUnlock(_171);
+			locked(out);
+			const _173: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			rs.byteVecPush(out, rs.u64Low(_173.value.n) & 0xff);
+			rs.mutexUnlock(_173);
+			const _181: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_181.value.seen));
+			rs.mutexUnlock(_181);
 		} else {
-			const _175: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const n5: rs.Mutex<rs.u64> = rs.mutexMap(_175, ((t: Tally.Tally): rs.Place<rs.u64> => {
+			const _185: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
+			const n5: rs.Mutex<rs.u64> = rs.mutexMap(_185, ((t: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t.n, (value) => t.n = value);
-			})(_175.value));
-			const _180: [rs.ByteVec] = [out];
-			locked(_180[0]);
-			const _185: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(mutex);
-			rs.byteVecPush(out, !_185.ok ? 1 : 0);
-			drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_185);
+			})(_185.value));
+			locked(out);
+			const _195: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>> = rs.mutexTryLock(mutex);
+			rs.byteVecPush(out, !_195.ok ? 1 : 0);
+			drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_195);
 			rs.mutexUnlock(n5);
 			rs.byteVecPush(out, result_mapOr$162krng(rs.mutexTryLock(mutex), 254, (t2: rs.Mutex<Tally.Tally>): rs.u8 => {
 				const _0: rs.u8 = t2.value.seen.length & 0xff;
 				rs.mutexUnlock(t2);
 				return _0;
 			}));
-			locked(_180[0]);
+			locked(out);
 		}
 	}
 	const last2: Tally.Tally = mutex.value;
@@ -621,46 +613,46 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.char => {
-		return rs.u8Add(rs.u8Rem(b, 26), 97) as rs.char;
+		return rs.u8Add(97, rs.u8Rem(b, 26)) as rs.char;
 	}));
 	const mutex: rs.Mutex<[rs.u8, rs.String]> = new rs.Mutex([data.length & 0xff, rs.stringClone(text)] as [rs.u8, rs.String]);
 	const lock: rs.RefCell<[rs.ByteVec, rs.String]> = new rs.RefCell([rs.byteSliceToByteVec(data), text] as [rs.ByteVec, rs.String]);
 	const guard: rs.Mutex<[rs.u8, rs.String]> = rs.mutexLock(mutex);
-	const args11 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(guard.value[0], f), (f: rs.Formatter) => rs.fmtStr(guard.value[1].v, f)], f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args11[0], " ", rs.fmtSpec({ alternate: true }, args11[0])]).v));
+	const args21 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(guard.value[0], f), (f: rs.Formatter) => rs.fmtStr(guard.value[1].v, f)], f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args21[0], " ", rs.fmtSpec({ alternate: true }, args21[0])]).v));
 	const n: rs.Mutex<rs.u8> = rs.mutexMap(guard, ((t: [rs.u8, rs.String]): rs.Place<rs.u8> => {
 		return rs.place(() => t[0], (value) => t[0] = value);
 	})(guard.value));
-	const args12 = [(f: rs.Formatter) => rs.u8Display(n.value, f), (f: rs.Formatter) => rs.u8Debug(n.value, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args12[0], " ", args12[1], " ", rs.fmtSpec({ align: ">", width: 4 }, args12[0]), " ", rs.fmtSpec({ zero: true, width: 4 }, args12[0])]).v));
+	const args22 = [(f: rs.Formatter) => rs.u8Display(n.value, f), (f: rs.Formatter) => rs.u8Debug(n.value, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args22[0], " ", args22[1], " ", rs.fmtSpec({ align: ">", width: 4 }, args22[0]), " ", rs.fmtSpec({ zero: true, width: 4 }, args22[0])]).v));
 	const n2: rs.Mutex<rs.u8> = rs.mutexMap(n, ((n3: rs.Place<rs.u8>): rs.Place<rs.u8> => {
 		return n3;
 	})(rs.valuePlace(n)));
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat(["[", rs.fmtSpec({ align: "<", width: 3 }, (f: rs.Formatter) => rs.u8Display(n2.value, f)), "]"]).v));
 	rs.mutexUnlock(n2);
-	const _52: rs.Mutex<[rs.u8, rs.String]> = rs.mutexLock(mutex);
-	const text2: rs.Mutex<rs.String> = rs.mutexMap(_52, rs.partPlace(((t2: [rs.u8, rs.String]): rs.String => {
+	const _58: rs.Mutex<[rs.u8, rs.String]> = rs.mutexLock(mutex);
+	const text2: rs.Mutex<rs.String> = rs.mutexMap(_58, rs.partPlace(((t2: [rs.u8, rs.String]): rs.String => {
 		return t2[1];
-	})(_52.value)));
-	const args14 = [(f: rs.Formatter) => rs.fmtPad(f, text2.value.v), (f: rs.Formatter) => rs.fmtStr(text2.value.v, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args14[0], " ", args14[1], " [", rs.fmtSpec({ align: "^", width: 9 }, args14[0]), "]"]).v));
+	})(_58.value)));
+	const args24 = [(f: rs.Formatter) => rs.fmtPad(f, text2.value.v), (f: rs.Formatter) => rs.fmtStr(text2.value.v, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args24[0], " ", args24[1], " [", rs.fmtSpec({ align: "^", width: 9 }, args24[0]), "]"]).v));
 	rs.mutexUnlock(text2);
 	const read: rs.RefCell<[rs.ByteVec, rs.String]> = rs.rwLockRead(lock);
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(read.value[0]), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtStr(read.value[1].v, f)], f)]).v));
 	const bytes: rs.RefCell<rs.ByteVec> = rs.refMap(read, ((t3: [rs.ByteVec, rs.String]): rs.ByteVec => {
 		return t3[0];
 	})(read.value));
-	const args16 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(bytes.value), f, rs.u8Debug)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args16[0], " ", rs.fmtSpec({ alternate: true }, args16[0])]).v));
-	const _92: rs.RefCell<[rs.ByteVec, rs.String]> = rs.rwLockRead(lock);
-	const text3: rs.RefCell<rs.String> = rs.refMap(_92, ((t4: [rs.ByteVec, rs.String]): rs.String => {
+	const args26 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(bytes.value), f, rs.u8Debug)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args26[0], " ", rs.fmtSpec({ alternate: true }, args26[0])]).v));
+	const _104: rs.RefCell<[rs.ByteVec, rs.String]> = rs.rwLockRead(lock);
+	const text3: rs.RefCell<rs.String> = rs.refMap(_104, ((t4: [rs.ByteVec, rs.String]): rs.String => {
 		return t4[1];
-	})(_92.value));
+	})(_104.value));
 	const first: rs.RefCell<string> = rs.refMap(text3, ((t5: rs.String): string => {
-		return option_unwrapOr$1iemzn8(rs.strGet(t5.v, 0, { end: 1 }.end), "-");
+		return option_unwrapOr$1iemzn8(rs.strGet(t5.v, 0, 1), "-");
 	})(text3.value));
-	const args17 = [(f: rs.Formatter) => rs.fmtPad(f, first.value), (f: rs.Formatter) => rs.fmtStr(first.value, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args17[0], " ", args17[1], " ", rs.fmtSpec({ align: ">", width: 3 }, args17[0])]).v));
+	const args27 = [(f: rs.Formatter) => rs.fmtPad(f, first.value), (f: rs.Formatter) => rs.fmtStr(first.value, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args27[0], " ", args27[1], " ", rs.fmtSpec({ align: ">", width: 3 }, args27[0])]).v));
 	rs.refRelease(first);
 	rs.refRelease(bytes);
 	const write: rs.RefCell<[rs.ByteVec, rs.String]> = rs.rwLockWrite(lock);
@@ -669,12 +661,12 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return t6[1];
 	})(write.value)));
 	rs.stringPush(text4.value, 33);
-	const args19 = [(f: rs.Formatter) => rs.fmtPad(f, text4.value.v), (f: rs.Formatter) => rs.fmtStr(text4.value.v, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args19[0], " ", args19[1]]).v));
-	const _136: rs.RefCell<rs.String> = text4;
-	const text5: rs.RefCell<rs.String> = rs.refMutMap(_136, rs.partPlace(((t7: rs.String): rs.String => {
+	const args29 = [(f: rs.Formatter) => rs.fmtPad(f, text4.value.v), (f: rs.Formatter) => rs.fmtStr(text4.value.v, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args29[0], " ", args29[1]]).v));
+	const _154: rs.RefCell<rs.String> = text4;
+	const text5: rs.RefCell<rs.String> = rs.refMutMap(_154, rs.partPlace(((t7: rs.String): rs.String => {
 		return t7;
-	})(_136.value)));
+	})(_154.value)));
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([rs.fmtSpec({ align: ">", width: 12 }, (f: rs.Formatter) => rs.fmtPad(f, text5.value.v))]).v));
 	rs.refMutRelease(text5);
 }
@@ -693,7 +685,7 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _16: rs.u8 = rs.u8Rem(op, 4);
 		if (_16 === 0) {
 			const write: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			write.value.n = rs.u64Add(op as rs.u64, write.value.n);
+			write.value.n = rs.u64Add(write.value.n, op as rs.u64);
 			rs.byteVecPush(write.value.seen, op);
 			const read: rs.RefCell<Tally.Tally> = rs.rwLockDowngrade(write);
 			rs.byteVecPush(out, held$locks_Tally(lock));
@@ -707,7 +699,7 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, held$locks_Tally(lock));
 		} else if (_16 === 1) {
 			const write2: rs.RefCell<rs.u32> = rs.rwLockWrite(number);
-			write2.value = rs.u32Add(op as rs.u32, write2.value);
+			write2.value = rs.u32Add(write2.value, op as rs.u32);
 			const read2: rs.RefCell<rs.u32> = rs.rwLockDowngrade(write2);
 			const other: rs.RefCell<rs.u32> = rs.rwLockRead(number);
 			const dst = out;
@@ -729,73 +721,72 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, held$u32(number));
 		} else if (_16 === 2) {
-			const _89: rs.RefCell<Uint8Array> = rs.rwLockWrite(quad);
+			const _90: rs.RefCell<Uint8Array> = rs.rwLockWrite(quad);
 			const f = (q: rs.ByteSlice): rs.ByteSlice => {
 				return q;
 			};
-			const bytes: rs.RefCell<Uint8Array> = rs.refMutMap(_89, rs.partPlace(rs.byteSliceView(((held) => f(rs.byteSliceFrom(held)))(_89.value))));
-			const _92: rs.ByteSlice = rs.byteSliceFrom(bytes.value);
-			const _94: rs.usize = (op & 3) as rs.usize;
-			if (!(_94 < 4)) {
-				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _94);
+			const bytes: rs.RefCell<Uint8Array> = rs.refMutMap(_90, rs.partPlace(rs.byteSliceView(((held) => f(rs.byteSliceFrom(held)))(_90.value))));
+			const _93: rs.ByteSlice = rs.byteSliceFrom(bytes.value);
+			const _95: rs.usize = (op & 3) as rs.usize;
+			if (!(_95 < 4)) {
+				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _95);
 			}
-			_92.data[_92.start + _94] = op ^ _92.data[_92.start + _94];
+			_93.data[_93.start + _95] = _93.data[_93.start + _95] ^ op;
 			rs.byteVecPush(out, held$array4_u8(quad));
-			const _101: rs.RefCell<Uint8Array> = bytes;
+			const _102: rs.RefCell<Uint8Array> = bytes;
 			const f2 = (q2: rs.ByteSlice): rs.ByteSlice => {
 				return q2;
 			};
-			const again: rs.RefCell<Uint8Array> = rs.refMutMap(_101, rs.partPlace(rs.byteSliceView(((held2) => f2(rs.byteSliceFrom(held2)))(_101.value))));
-			const _103: rs.u8 = op >> 4;
-			if (_103 === 15) {
-				const _104: rs.ByteSlice = rs.byteSliceFrom(again.value);
-				_104.data.set(rs.bytes(4).fill(op), _104.start);
+			const again: rs.RefCell<Uint8Array> = rs.refMutMap(_102, rs.partPlace(rs.byteSliceView(((held2) => f2(rs.byteSliceFrom(held2)))(_102.value))));
+			if ((op >> 4) === 15) {
+				const _107: rs.ByteSlice = rs.byteSliceFrom(again.value);
+				_107.data.set(rs.bytes(4).fill(op), _107.start);
 			}
 			rs.refMutRelease(again);
 			rs.byteVecPush(out, held$array4_u8(quad));
-			const _112: rs.RefCell<Uint8Array> = rs.rwLockRead(quad);
+			const _115: rs.RefCell<Uint8Array> = rs.rwLockRead(quad);
 			const f3 = (q3: rs.ByteSlice): rs.ByteSlice => {
 				return q3;
 			};
-			const read3: rs.RefCell<Uint8Array> = rs.refMap(_112, rs.byteSliceView(((held3) => f3(rs.byteSliceFrom(held3)))(_112.value)));
+			const read3: rs.RefCell<Uint8Array> = rs.refMap(_115, rs.byteSliceView(((held3) => f3(rs.byteSliceFrom(held3)))(_115.value)));
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(read3.value));
 			rs.byteVecPush(out, held$array4_u8(quad));
 			rs.refRelease(read3);
-			const _124: rs.Mutex<Uint8Array> = rs.mutexLock(mutex);
+			const _127: rs.Mutex<Uint8Array> = rs.mutexLock(mutex);
 			const f4 = (q4: rs.ByteSlice): rs.ByteSlice => {
 				return q4;
 			};
-			const bytes2: rs.Mutex<Uint8Array> = rs.mutexMap(_124, rs.partPlace(rs.byteSliceView(((held4) => f4(rs.byteSliceFrom(held4)))(_124.value))));
+			const bytes2: rs.Mutex<Uint8Array> = rs.mutexMap(_127, rs.partPlace(rs.byteSliceView(((held4) => f4(rs.byteSliceFrom(held4)))(_127.value))));
 			rs.byteSliceRotateLeft(rs.byteSliceFrom(bytes2.value), 1);
-			if (_103 === 14) {
-				const _132: rs.ByteSlice = rs.byteSliceFrom(bytes2.value);
-				_132.data.set(rs.bytes(4).fill(op), _132.start);
+			if ((op >> 4) === 14) {
+				const _138: rs.ByteSlice = rs.byteSliceFrom(bytes2.value);
+				_138.data.set(rs.bytes(4).fill(op), _138.start);
 			}
-			const _138: rs.Result<rs.Mutex<Uint8Array>, rs.TryLockError<rs.Mutex<Uint8Array>>> = rs.mutexTryLock(mutex);
-			rs.byteVecPush(out, !_138.ok ? 1 : 0);
-			drop$Result_sync_MutexGuard_array4_u8_sync_TryLockError_sync_MutexGuard_array4_u8(_138);
+			const _144: rs.Result<rs.Mutex<Uint8Array>, rs.TryLockError<rs.Mutex<Uint8Array>>> = rs.mutexTryLock(mutex);
+			rs.byteVecPush(out, !_144.ok ? 1 : 0);
+			drop$Result_sync_MutexGuard_array4_u8_sync_TryLockError_sync_MutexGuard_array4_u8(_144);
 			rs.mutexUnlock(bytes2);
-			const _146: rs.Mutex<Uint8Array> = rs.mutexLock(mutex);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(_146.value));
-			rs.mutexUnlock(_146);
+			const _152: rs.Mutex<Uint8Array> = rs.mutexLock(mutex);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(_152.value));
+			rs.mutexUnlock(_152);
 		} else {
-			const _153: rs.RefCell<Tally.Tally> = rs.rwLockDowngrade(rs.rwLockWrite(lock));
-			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_153, ((t: Tally.Tally): rs.ByteVec => {
+			const _159: rs.RefCell<Tally.Tally> = rs.rwLockDowngrade(rs.rwLockWrite(lock));
+			const seen: rs.RefCell<rs.ByteVec> = rs.refMap(_159, ((t: Tally.Tally): rs.ByteVec => {
 				return t.seen;
-			})(_153.value));
+			})(_159.value));
 			rs.byteVecPush(out, held$locks_Tally(lock));
 			rs.byteVecPush(out, seen.value.length & 0xff);
 			rs.refRelease(seen);
 			rs.byteVecPush(out, held$locks_Tally(lock));
 			const write4: rs.RefCell<Uint8Array> = rs.rwLockWrite(quad);
-			const _171: rs.ByteSlice = rs.byteSliceFrom(write4.value);
-			const _169: rs.u8 = rs.u8WrappingAdd(_171.data[_171.start], op);
-			const _173: rs.ByteSlice = rs.byteSliceFrom(write4.value);
-			_173.data[_173.start] = _169;
+			const _177: rs.ByteSlice = rs.byteSliceFrom(write4.value);
+			const _175: rs.u8 = rs.u8WrappingAdd(_177.data[_177.start], op);
+			const _181: rs.ByteSlice = rs.byteSliceFrom(write4.value);
+			_181.data[_181.start] = _175;
 			const read4: rs.RefCell<Uint8Array> = rs.rwLockDowngrade(write4);
-			const _182: rs.ByteSlice = rs.byteSliceFrom(read4.value);
+			const _192: rs.ByteSlice = rs.byteSliceFrom(read4.value);
 			const dst2 = out;
-			const byte3 = _182.data[_182.start];
+			const byte3 = _192.data[_192.start];
 			const byte4 = held$array4_u8(quad);
 			rs.byteVecReserve(dst2, 2 as rs.usize);
 			const pos2 = dst2.length;
@@ -889,56 +880,56 @@ export function shown(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const lock: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = new rs.RefCell(rs.vecFrom([new rs.Mutex(97)]));
 	for (const op of rs.byteSliceView(data)) {
 		const v: rs.u8 = rs.u8Div(op, 5);
-		const _17: rs.u8 = rs.u8Rem(op, 5);
-		if (_17 === 0) {
-			const _20: rs.Mutex<rs.u8> = rs.mutexLock(mutex.value);
-			_20.value = v;
-			rs.mutexUnlock(_20);
-			const args17 = [(f: rs.Formatter) => rs.mutexDebug(mutex.value, f, rs.u8Debug)];
-			const free: rs.String = rs.fmtFormat([args17[0], " ", rs.fmtSpec({ alternate: true }, args17[0]), " ", rs.fmtSpec({ align: ">", width: 4 }, args17[0])]);
+		const _18: rs.u8 = rs.u8Rem(op, 5);
+		if (_18 === 0) {
+			const _22: rs.Mutex<rs.u8> = rs.mutexLock(mutex.value);
+			_22.value = v;
+			rs.mutexUnlock(_22);
+			const args26 = [(f: rs.Formatter) => rs.mutexDebug(mutex.value, f, rs.u8Debug)];
+			const free: rs.String = rs.fmtFormat([args26[0], " ", rs.fmtSpec({ alternate: true }, args26[0]), " ", rs.fmtSpec({ align: ">", width: 4 }, args26[0])]);
 			const _held: rs.Mutex<rs.u8> = rs.mutexLock(mutex.value);
-			const args18 = [(f: rs.Formatter) => rs.fmtPad(f, free.v), (f: rs.Formatter) => rs.mutexDebug(mutex.value, f, rs.u8Debug)];
-			text = rs.fmtFormat([args18[0], " ", args18[1], " ", rs.fmtSpec({ alternate: true }, args18[1]), " ", rs.fmtSpec({ align: ">", width: 12 }, args18[1])]);
+			const args27 = [(f: rs.Formatter) => rs.fmtPad(f, free.v), (f: rs.Formatter) => rs.mutexDebug(mutex.value, f, rs.u8Debug)];
+			text = rs.fmtFormat([args27[0], " ", args27[1], " ", rs.fmtSpec({ alternate: true }, args27[1]), " ", rs.fmtSpec({ align: ">", width: 12 }, args27[1])]);
 			rs.mutexUnlock(_held);
-		} else if (_17 === 1) {
-			const _46: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = rs.rwLockWrite(lock);
-			const _49: rs.Mutex<rs.char> = new rs.Mutex(rs.u8Add(rs.u8Rem(v, 26), 97) as rs.char);
-			_46.value.items.push(_49);
-			rs.refMutRelease(_46);
-			const args14 = [(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
-			const free2: rs.String = rs.fmtFormat([args14[0], " ", rs.fmtSpec({ alternate: true }, args14[0])]);
+		} else if (_18 === 1) {
+			const _52: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = rs.rwLockWrite(lock);
+			const _55: rs.Mutex<rs.char> = new rs.Mutex(rs.u8Add(97, rs.u8Rem(v, 26)) as rs.char);
+			_52.value.items.push(_55);
+			rs.refMutRelease(_52);
+			const args23 = [(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
+			const free2: rs.String = rs.fmtFormat([args23[0], " ", rs.fmtSpec({ alternate: true }, args23[0])]);
 			const read: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = rs.rwLockRead(lock);
 			const shared: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))]);
-			const _74: rs.Vec<rs.Mutex<rs.char>> = read.value;
-			const _held2: rs.Mutex<rs.char> = rs.mutexLock(_74.items[rs.idx(_74.items, 0)]);
-			const args16 = [(f: rs.Formatter) => rs.fmtPad(f, free2.v), (f: rs.Formatter) => rs.fmtPad(f, shared.v), (f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
-			text = rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", rs.fmtSpec({ alternate: true }, args16[2])]);
+			const _85: rs.Vec<rs.Mutex<rs.char>> = read.value;
+			const _held2: rs.Mutex<rs.char> = rs.mutexLock(_85.items[rs.idx(_85.items, 0)]);
+			const args25 = [(f: rs.Formatter) => rs.fmtPad(f, free2.v), (f: rs.Formatter) => rs.fmtPad(f, shared.v), (f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
+			text = rs.fmtFormat([args25[0], " ", args25[1], " ", args25[2], " ", rs.fmtSpec({ alternate: true }, args25[2])]);
 			rs.mutexUnlock(_held2);
 			rs.refRelease(read);
-		} else if (_17 === 2) {
+		} else if (_18 === 2) {
 			const _held3: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = rs.rwLockWrite(lock);
-			const args13 = [(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
-			text = rs.fmtFormat([args13[0], " ", rs.fmtSpec({ alternate: true }, args13[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args13[0])]);
+			const args22 = [(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
+			text = rs.fmtFormat([args22[0], " ", rs.fmtSpec({ alternate: true }, args22[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args22[0])]);
 			rs.refMutRelease(_held3);
-		} else if (_17 === 3) {
+		} else if (_18 === 3) {
 			if (!(rs.u8Rem(v, 2) === 0)) {
 				const lock2: rs.Arc<rs.RefCell<rs.Mutex<Probe.Probe>>> = rs.arcNewCyclic((me2: rs.Weak<rs.RefCell<rs.Mutex<Probe.Probe>>>): rs.RefCell<rs.Mutex<Probe.Probe>> => {
 					return new rs.RefCell(new rs.Mutex(new Probe.Probe(new rs.Weak(), rs.weakClone(me2))));
 				});
-				const args12 = [(f: rs.Formatter) => rs.rwLockDebug(lock2.value, f, (value: rs.Mutex<Probe.Probe>, f: rs.Formatter) => rs.mutexDebug(value, f, (value: Probe.Probe, f: rs.Formatter) => Probe.fmt$fmt_Debug(value, f)))];
-				text = rs.fmtFormat([args12[0], " ", rs.fmtSpec({ alternate: true }, args12[0])]);
+				const args21 = [(f: rs.Formatter) => rs.rwLockDebug(lock2.value, f, (value: rs.Mutex<Probe.Probe>, f: rs.Formatter) => rs.mutexDebug(value, f, (value: Probe.Probe, f: rs.Formatter) => Probe.fmt$fmt_Debug(value, f)))];
+				text = rs.fmtFormat([args21[0], " ", rs.fmtSpec({ alternate: true }, args21[0])]);
 				lock2[Symbol.dispose]();
 			} else {
 				const mutex2: rs.Arc<rs.Mutex<Probe.Probe>> = rs.arcNewCyclic((me: rs.Weak<rs.Mutex<Probe.Probe>>): rs.Mutex<Probe.Probe> => {
 					return new rs.Mutex(new Probe.Probe(rs.weakClone(me), new rs.Weak()));
 				});
-				const args11 = [(f: rs.Formatter) => rs.mutexDebug(mutex2.value, f, (value: Probe.Probe, f: rs.Formatter) => Probe.fmt$fmt_Debug(value, f))];
-				text = rs.fmtFormat([args11[0], " ", rs.fmtSpec({ alternate: true }, args11[0])]);
+				const args20 = [(f: rs.Formatter) => rs.mutexDebug(mutex2.value, f, (value: Probe.Probe, f: rs.Formatter) => Probe.fmt$fmt_Debug(value, f))];
+				text = rs.fmtFormat([args20[0], " ", rs.fmtSpec({ alternate: true }, args20[0])]);
 				mutex2[Symbol.dispose]();
 			}
 		} else {
-			const _114: rs.RefCell<rs.Mutex<rs.String>> = new rs.RefCell(new rs.Mutex(rs.stringFrom("s")));
-			text = rs.fmtFormat([(f: rs.Formatter) => rs.rwLockDebug(_114, f, (value: rs.Mutex<rs.String>, f: rs.Formatter) => rs.mutexDebug(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]);
+			const part = new rs.RefCell(new rs.Mutex(rs.stringFrom("s")));
+			text = rs.fmtFormat([(f: rs.Formatter) => rs.rwLockDebug(part, f, (value: rs.Mutex<rs.String>, f: rs.Formatter) => rs.mutexDebug(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]);
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(text.v));
 	}
@@ -958,78 +949,78 @@ export function guarded(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const seen: Shared.Shared<rs.ByteVec> = Shared.new$Vec_u8(new rs.ByteVec());
 	const tally: [rs.u8, rs.u8 | undefined] = [0, undefined];
 	for (const op of rs.byteSliceView(data)) {
-		const _16: rs.u8 = rs.u8Rem(op, 6);
-		if (_16 === 0) {
-			const _17: rs.u8 | undefined = op;
-			const _20: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
-			Held.derefMut$ops_DerefMut_Option_u8(_20).v = _17;
-			_20[Symbol.dispose]();
-		} else if (_16 === 1) {
+		const _18: rs.u8 = rs.u8Rem(op, 6);
+		if (_18 === 0) {
+			const _20: rs.u8 | undefined = op;
+			const _23: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
+			Held.derefMut$ops_DerefMut_Option_u8(_23).v = _20;
+			_23[Symbol.dispose]();
+		} else if (_18 === 1) {
 			const held: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
-			const _27: rs.Place<rs.u8 | undefined> = Held.derefMut$ops_DerefMut_Option_u8(held);
-			const taken = _27.v;
-			_27.v = undefined;
+			const _30: rs.Place<rs.u8 | undefined> = Held.derefMut$ops_DerefMut_Option_u8(held);
+			const taken = _30.v;
+			_30.v = undefined;
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(taken, 253));
-			const _29: rs.u8 | undefined = op;
-			Held.derefMut$ops_DerefMut_Option_u8(held).v = _29;
+			const _32: rs.u8 | undefined = op;
+			Held.derefMut$ops_DerefMut_Option_u8(held).v = _32;
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(Held.deref$ops_Deref_Option_u8(held), 253));
 			held[Symbol.dispose]();
-		} else if (_16 === 2) {
-			const _37: rs.u32 = op as rs.u32;
-			const _40: Held.Held<rs.u32> = Shared.lock$u32(number);
-			const _38: rs.Place<rs.u32> = Held.derefMut$ops_DerefMut_u32(_40);
-			_38.v = rs.u32Add(_37, _38.v);
-			_40[Symbol.dispose]();
-			const _48: Held.Held<rs.u32> = Shared.lock$u32(number);
-			rs.byteVecPush(out, Held.deref$ops_Deref_u32(_48) & 0xff);
-			_48[Symbol.dispose]();
-		} else if (_16 === 3) {
-			const _53: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
-			const _51: rs.Place<rs.u8 | undefined> = Held.derefMut$ops_DerefMut_Option_u8(_53);
-			const _50: rs.Place<rs.u8> | undefined = _51.v === undefined ? undefined : rs.place(() => _51.v as rs.u8, (value) => _51.v = value);
-			if (_50 !== undefined) {
-				_50.v = rs.u8WrappingAdd(_50.v, op);
-				_53[Symbol.dispose]();
+		} else if (_18 === 2) {
+			const _40: rs.u32 = op as rs.u32;
+			const _43: Held.Held<rs.u32> = Shared.lock$u32(number);
+			const _41: rs.Place<rs.u32> = Held.derefMut$ops_DerefMut_u32(_43);
+			_41.v = rs.u32Add(_41.v, _40);
+			_43[Symbol.dispose]();
+			const _51: Held.Held<rs.u32> = Shared.lock$u32(number);
+			rs.byteVecPush(out, Held.deref$ops_Deref_u32(_51) & 0xff);
+			_51[Symbol.dispose]();
+		} else if (_18 === 3) {
+			const _56: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
+			const _54: rs.Place<rs.u8 | undefined> = Held.derefMut$ops_DerefMut_Option_u8(_56);
+			const _53: rs.Place<rs.u8> | undefined = _54.v === undefined ? undefined : rs.place(() => _54.v as rs.u8, (value) => _54.v = value);
+			if (_53 !== undefined) {
+				_53.v = rs.u8WrappingAdd(_53.v, op);
+				_56[Symbol.dispose]();
 			} else {
-				_53[Symbol.dispose]();
+				_56[Symbol.dispose]();
 			}
-			const _64: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
-			rs.byteVecPush(out, option_unwrapOr$1fr498u(Held.deref$ops_Deref_Option_u8(_64), 254));
-			_64[Symbol.dispose]();
-		} else if (_16 === 4) {
-			const _69: Held.Held<rs.String> = Shared.lock$String(text);
-			rs.stringPush(Held.derefMut$ops_DerefMut_String(_69), rs.u8Add(rs.u8Rem(op, 26), 97) as rs.char);
-			_69[Symbol.dispose]();
+			const _67: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
+			rs.byteVecPush(out, option_unwrapOr$1fr498u(Held.deref$ops_Deref_Option_u8(_67), 254));
+			_67[Symbol.dispose]();
+		} else if (_18 === 4) {
+			const _72: Held.Held<rs.String> = Shared.lock$String(text);
+			rs.stringPush(Held.derefMut$ops_DerefMut_String(_72), rs.u8Add(97, rs.u8Rem(op, 26)) as rs.char);
+			_72[Symbol.dispose]();
 			const held2: Held.Held<rs.String> = Shared.lock$String(text);
 			if (Held.deref$ops_Deref_String(held2).len > 3) {
-				const _81: rs.String = rs.strToUppercase(Held.deref$ops_Deref_String(held2).v);
-				Object.assign(Held.derefMut$ops_DerefMut_String(held2), _81);
+				const _85: rs.String = rs.strToUppercase(Held.deref$ops_Deref_String(held2).v);
+				Object.assign(Held.derefMut$ops_DerefMut_String(held2), _85);
 			}
-			const _90: Held.Held<rs.ByteVec> = Shared.lock$Vec_u8(seen);
-			rs.byteVecPush(Held.derefMut$ops_DerefMut_Vec_u8(_90), op);
-			_90[Symbol.dispose]();
+			const _94: Held.Held<rs.ByteVec> = Shared.lock$Vec_u8(seen);
+			rs.byteVecPush(Held.derefMut$ops_DerefMut_Vec_u8(_94), op);
+			_94[Symbol.dispose]();
 			held2[Symbol.dispose]();
 		} else {
 			const lent: Lent.Lent = new Lent.Lent(tally, out);
-			const _94: rs.u8 | undefined = option_mapOr$19a4gco(Lent.deref$ops_Deref(lent), op, (b: rs.u8): rs.u8 | undefined => {
+			const _98: rs.u8 | undefined = option_mapOr$19a4gco(Lent.deref$ops_Deref(lent), op, (b: rs.u8): rs.u8 | undefined => {
 				return rs.u8CheckedAdd(b, op);
 			});
-			Lent.derefMut$ops_DerefMut(lent).v = _94;
+			Lent.derefMut$ops_DerefMut(lent).v = _98;
 			lent[Symbol.dispose]();
 		}
 	}
-	const _108: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
-	rs.byteVecPush(out, option_unwrapOr$1fr498u(Held.deref$ops_Deref_Option_u8(_108), 253));
-	_108[Symbol.dispose]();
-	const _115: Held.Held<rs.u32> = Shared.lock$u32(number);
-	rs.byteVecPush(out, Held.deref$ops_Deref_u32(_115) & 0xff);
-	_115[Symbol.dispose]();
-	const _121: Held.Held<rs.String> = Shared.lock$String(text);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(Held.deref$ops_Deref_String(_121).v));
-	_121[Symbol.dispose]();
-	const _127: Held.Held<rs.ByteVec> = Shared.lock$Vec_u8(seen);
-	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(Held.deref$ops_Deref_Vec_u8(_127)));
-	_127[Symbol.dispose]();
+	const _112: Held.Held<rs.u8 | undefined> = Shared.lock$Option_u8(slot);
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(Held.deref$ops_Deref_Option_u8(_112), 253));
+	_112[Symbol.dispose]();
+	const _119: Held.Held<rs.u32> = Shared.lock$u32(number);
+	rs.byteVecPush(out, Held.deref$ops_Deref_u32(_119) & 0xff);
+	_119[Symbol.dispose]();
+	const _125: Held.Held<rs.String> = Shared.lock$String(text);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(Held.deref$ops_Deref_String(_125).v));
+	_125[Symbol.dispose]();
+	const _131: Held.Held<rs.ByteVec> = Shared.lock$Vec_u8(seen);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(Held.deref$ops_Deref_Vec_u8(_131)));
+	_131[Symbol.dispose]();
 	rs.byteVecPush(out, tally[0]);
 	seen[Symbol.dispose]();
 	text[Symbol.dispose]();

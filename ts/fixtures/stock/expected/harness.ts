@@ -97,38 +97,35 @@ export function slices(dataData: Uint8Array, dataStart: number, dataLen: number,
 	let range!: rs.RangeInclusive<rs.usize>;
 	if (dataLen >= 3) {
 		const bytes: rs.ByteSlice = rs.bytesCopyFromSlice(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3));
-		const _11: rs.u8 = dataData[dataStart + 2];
-		const past: boolean = _11 === 255;
-		const _13: rs.usize = dataData[dataStart + 1] as rs.usize;
-		const _16: rs.usize = dataLen - 3;
-		const _15: rs.usize = rs.usizeAdd(_16, 2);
-		const a: rs.usize = rs.usizeRem(_13, _15);
-		const b: rs.usize = rs.usizeRem(_11 as rs.usize, _15);
+		const past: boolean = dataData[dataStart + 2] === 255;
+		const _14: [rs.usize, rs.usize] = [rs.usizeRem(dataData[dataStart + 1] as rs.usize, rs.usizeAdd(dataLen - 3, 2)), rs.usizeRem(dataData[dataStart + 2] as rs.usize, rs.usizeAdd(dataLen - 3, 2))];
+		const a: rs.usize = _14[0];
+		const b: rs.usize = _14[1];
 		if ((dataData[dataStart] & 128) !== 0) {
 			rs.bytesDrop(rs.bytesSlice(bytes, b));
 		}
-		const _27: rs.u8 = rs.u8Rem(dataData[dataStart], 7);
-		if (_27 === 0) {
+		const _35: rs.u8 = rs.u8Rem(dataData[dataStart], 7);
+		if (_35 === 0) {
 			part = rs.bytesSlice(bytes, a, b);
-		} else if (_27 === 1) {
+		} else if (_35 === 1) {
 			part = rs.bytesSlice(bytes, a);
-		} else if (_27 === 2) {
+		} else if (_35 === 2) {
 			part = rs.bytesSlice(bytes, 0, b);
-		} else if (_27 === 3) {
+		} else if (_35 === 3) {
 			part = rs.bytesSlice(bytes, 0);
-		} else if (_27 === 4) {
+		} else if (_35 === 4) {
 			if (!past) {
-				const _38: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, b, rs.usizeStep);
-				part = rs.bytesSliceInclusive(bytes, _38);
+				const _46: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, b, rs.usizeStep);
+				part = rs.bytesSliceInclusive(bytes, _46);
 			} else {
-				const _36: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, 4294967295, rs.usizeStep);
-				part = rs.bytesSliceInclusive(bytes, _36);
+				const _44: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, 4294967295, rs.usizeStep);
+				part = rs.bytesSliceInclusive(bytes, _44);
 			}
-		} else if (_27 === 5) {
+		} else if (_35 === 5) {
 			if (!past) {
 				part = rs.bytesSliceToInclusive(bytes, b);
 			} else {
-				part = rs.bytesSliceToInclusive(bytes, { end: 4294967295, inclusive: true }.end);
+				part = rs.bytesSliceToInclusive(bytes, 4294967295);
 			}
 		} else {
 			if (!past) {
@@ -144,17 +141,17 @@ export function slices(dataData: Uint8Array, dataStart: number, dataLen: number,
 		rs.byteVecPush(out, part.length === 0 ? 1 : 0);
 		rs.byteVecExtendFromSlice(out, part);
 		rs.byteVecPush(out, rs.byteSliceEq(part, bytes) ? 1 : 0);
-		const _69: rs.ByteSlice = rs.bytesClone(part);
-		const _71: rs.ByteSlice = rs.byteSliceRange(part, 0);
-		rs.byteVecPush(out, rs.byteSliceEq(_69, _71) ? 1 : 0);
-		rs.bytesDrop(_69);
-		const _80: rs.ByteSlice = rs.bytesSlice(bytes, rs.min(a, _16));
-		const _78: rs.ByteSlice = rs.bytesSlice(_80, 0, { end: 0 }.end);
-		const _85: rs.ByteSlice = rs.bytesNew();
-		rs.byteVecPush(out, rs.byteSliceEq(_78, _85) ? 1 : 0);
-		rs.bytesDrop(_85);
+		const _78: rs.ByteSlice = rs.bytesClone(part);
+		const _80: rs.ByteSlice = rs.byteSliceRange(part, 0);
+		rs.byteVecPush(out, rs.byteSliceEq(_78, _80) ? 1 : 0);
 		rs.bytesDrop(_78);
-		rs.bytesDrop(_80);
+		const _89: rs.ByteSlice = rs.bytesSlice(bytes, rs.min(a, dataLen - 3));
+		const _87: rs.ByteSlice = rs.bytesSlice(_89, 0, 0);
+		const _96: rs.ByteSlice = rs.bytesNew();
+		rs.byteVecPush(out, rs.byteSliceEq(_87, _96) ? 1 : 0);
+		rs.bytesDrop(_96);
+		rs.bytesDrop(_87);
+		rs.bytesDrop(_89);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.bytesToByteVec(part)));
 		rs.bytesDrop(bytes);
 	}
@@ -173,14 +170,14 @@ export function made(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(copied, f)]).v));
 		const iter: rs.Iter<rs.ByteSlice> = rs.iterSlice(made, rs.bytesDrop);
 		while (true) {
-			const _40: rs.ByteSlice | rs.Done = iter.next();
-			if (_40 === rs.DONE) {
+			const _44: rs.ByteSlice | rs.Done = iter.next();
+			if (_44 === rs.DONE) {
 				break;
 			}
-			const bytes: rs.ByteSlice = _40;
-			const _51: rs.usize = bytes.length;
-			const args4 = [(f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.usizeDisplay(_51, f)];
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1], "\n"]).v));
+			const bytes: rs.ByteSlice = _44;
+			const _56: rs.usize = bytes.length;
+			const args6 = [(f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.usizeDisplay(_56, f)];
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], "\n"]).v));
 			rs.bytesDrop(bytes);
 		}
 		rs.drop(iter);
@@ -207,104 +204,110 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const a: rs.u8 = dataData[dataStart + 1];
 		const b: rs.u8 = dataData[dataStart + 2];
 		rs.randRng();
-		const _10: rs.u8 = rs.u8Rem(kind, 10);
-		if (_10 === 0) {
-			const range4 = new rs.Range(a, b);
-			const x: rs.u8 = rs.randRange(range4.start, range4.end, 8, false) as rs.u8;
-			if (!(a <= x)) {
-				inRange = false;
-			} else {
-				inRange = x < b;
-			}
-		} else if (_10 === 1) {
-			const x2: rs.u8 = rs.randRangeInclusive(new rs.RangeInclusive(a, b, rs.u8Step), 8, false) as rs.u8;
-			if (!(a <= x2)) {
-				inRange = false;
-			} else {
-				inRange = x2 <= b;
-			}
-		} else if (_10 === 2) {
-			const lo: rs.i32 = rs.i32Mul((a << 24) >> 24 as rs.i32, 1000);
-			const hi: rs.i32 = rs.i32Mul((b << 24) >> 24 as rs.i32, 1000);
-			const range3 = new rs.Range(lo, hi);
-			const x3: rs.i32 = rs.randRange(range3.start, range3.end, 32, true) as rs.i32;
-			if (!(lo <= x3)) {
-				inRange = false;
-			} else {
-				inRange = x3 < hi;
-			}
-		} else if (_10 === 3) {
-			const lo2: rs.u64 = rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Mul(a as rs.u64, 1099511627776));
-			inRange = rs.u64Le(lo2, rs.randRangeInclusive(new rs.RangeInclusive(lo2, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step), 64, false) as rs.u64);
-		} else if (_10 === 4) {
-			const lo3: rs.i128 = rs.i128Shl((a << 24) >> 24 as rs.i128, 100);
-			const hi2: rs.i128 = rs.i128Shl((b << 24) >> 24 as rs.i128, 100);
-			const range2 = new rs.Range(lo3, hi2, rs.i128Step);
-			const x5: rs.i128 = rs.randRange(range2.start, range2.end, 128, true) as rs.i128;
-			if (!rs.i128Le(lo3, x5)) {
-				inRange = false;
-			} else {
-				inRange = rs.i128Lt(x5, hi2);
-			}
-		} else if (_10 === 5) {
-			const lo4: rs.u64 = rs.u64Add(a as rs.u64, { hi: 0x10000000, lo: 0 } as rs.u64);
-			const seen: boolean[] = Array.from({ length: 4 }, (): boolean => {
-				return false;
-			});
-			const iter: rs.Range<rs.i32> = new rs.Range(0, 256);
-			while (true) {
-				const _55Some: boolean = iter.start < iter.end;
-				if (_55Some) {
-					iter.start++;
+		b1: {
+			const _10: rs.u8 = rs.u8Rem(kind, 10);
+			if (_10 === 0) {
+				const range4 = new rs.Range(a, b);
+				const x: rs.u8 = rs.randRange(range4.start, range4.end, 8, false) as rs.u8;
+				if (!(a <= x)) {
+					inRange = false;
+				} else {
+					inRange = x < b;
 				}
-				if (!_55Some) {
-					break;
+			} else if (_10 === 1) {
+				const x2: rs.u8 = rs.randRangeInclusive(new rs.RangeInclusive(a, b, rs.u8Step), 8, false) as rs.u8;
+				if (!(a <= x2)) {
+					inRange = false;
+				} else {
+					inRange = x2 <= b;
 				}
-				const range = new rs.Range(lo4, rs.u64Add(lo4, 4), rs.u64Step);
-				const _58: rs.usize = rs.u64Low(rs.u64Sub(rs.randRange(range.start, range.end, 64, false) as rs.u64, lo4));
-				if (!(_58 < 4)) {
-					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _58);
+			} else if (_10 === 2) {
+				const _22: [rs.i32, rs.i32] = [rs.i32Mul((a << 24) >> 24 as rs.i32, 1000), rs.i32Mul((b << 24) >> 24 as rs.i32, 1000)];
+				const lo: rs.i32 = _22[0];
+				const hi: rs.i32 = _22[1];
+				const range3 = new rs.Range(lo, hi);
+				const x3: rs.i32 = rs.randRange(range3.start, range3.end, 32, true) as rs.i32;
+				if (!(lo <= x3)) {
+					inRange = false;
+				} else {
+					inRange = x3 < hi;
 				}
-				seen[_58] = true;
-			}
-			const s2 = seen;
-			let front = 0;
-			let back = s2.length;
-			let found = true;
-			while (!(front >= back)) {
-				if (!s2[front++]) {
-					found = false;
-					break;
+			} else if (_10 === 3) {
+				const lo2: rs.u64 = rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Mul(a as rs.u64, 1099511627776));
+				inRange = rs.u64Le(lo2, rs.randRangeInclusive(new rs.RangeInclusive(lo2, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step), 64, false) as rs.u64);
+			} else if (_10 === 4) {
+				const _48: [rs.i128, rs.i128] = [rs.i128Shl((a << 24) >> 24 as rs.i128, 100), rs.i128Shl((b << 24) >> 24 as rs.i128, 100)];
+				const lo3: rs.i128 = _48[0];
+				const hi2: rs.i128 = _48[1];
+				const range2 = new rs.Range(lo3, hi2, rs.i128Step);
+				const x5: rs.i128 = rs.randRange(range2.start, range2.end, 128, true) as rs.i128;
+				if (!rs.i128Le(lo3, x5)) {
+					inRange = false;
+				} else {
+					inRange = rs.i128Lt(x5, hi2);
 				}
-			}
-			inRange = found;
-		} else if (_10 === 6) {
-			const lo5: rs.i64 = rs.i64Add(a as rs.i64, { hi: -0x80000000, lo: 0 } as rs.i64);
-			const hi3: rs.i64 = rs.i64Sub({ hi: 0x7fffffff, lo: 0xffffffff } as rs.i64, b as rs.i64);
-			const x6: rs.i64 = rs.randRangeInclusive(new rs.RangeInclusive(lo5, hi3, rs.i64Step), 64, true) as rs.i64;
-			if (!rs.i64Le(lo5, x6)) {
+			} else if (_10 === 5) {
+				const lo4: rs.u64 = rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, a as rs.u64);
+				const seen: boolean[] = Array.from({ length: 4 }, (): boolean => {
+					return false;
+				});
+				let iterStart: rs.i32 = 0;
+				const iterEnd: rs.i32 = 256;
+				while (iterStart++ < iterEnd) {
+					const range = new rs.Range(lo4, rs.u64Add(lo4, 4), rs.u64Step);
+					const _76: rs.usize = rs.u64Low(rs.u64Sub(rs.randRange(range.start, range.end, 64, false) as rs.u64, lo4));
+					if (!(_76 < 4)) {
+						rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _76);
+					}
+					seen[_76] = true;
+				}
+				const s2 = seen;
+				let front = 0;
+				let back = s2.length;
+				let found = true;
+				while (!(front >= back)) {
+					if (!s2[front++]) {
+						found = false;
+						break;
+					}
+				}
+				inRange = found;
+			} else if (_10 === 6) {
+				const _91: [rs.i64, rs.i64] = [rs.i64Add({ hi: -0x80000000, lo: 0 } as rs.i64, a as rs.i64), rs.i64Sub({ hi: 0x7fffffff, lo: 0xffffffff } as rs.i64, b as rs.i64)];
+				const lo5: rs.i64 = _91[0];
+				const hi3: rs.i64 = _91[1];
+				const x6: rs.i64 = rs.randRangeInclusive(new rs.RangeInclusive(lo5, hi3, rs.i64Step), 64, true) as rs.i64;
+				if (!rs.i64Le(lo5, x6)) {
+					inRange = false;
+				} else {
+					inRange = rs.i64Le(x6, hi3);
+				}
+			} else if (_10 === 7) {
+				inRange = (rs.randRange(0, { end: b }.end, 8, false) as rs.u8) < b;
+			} else if (_10 === 8) {
+				const hi4: rs.u64 = rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, a as rs.u64);
+				if (!((rs.randRangeToInclusive({ end: b, inclusive: true }.end, 8) as rs.u8) <= b)) {
+					inRange = false;
+				} else {
+					inRange = rs.u64Le(rs.randRangeToInclusive({ end: hi4, inclusive: true }.end, 64) as rs.u64, hi4);
+				}
+			} else {
+				const _117: [rs.u64, rs.i16] = [rs.randInt(64, false) as rs.u64, rs.randInt(16, true) as rs.i16];
+				const x7: rs.u64 = _117[0];
+				const y: rs.i16 = _117[1];
+				rs.randRng();
+				const flag: boolean = rs.randBool();
+				if (rs.u64Eq(x7, x7)) {
+					if (y === y) {
+						if (!flag) {
+							inRange = !flag;
+							break b1;
+						}
+						inRange = true;
+						break b1;
+					}
+				}
 				inRange = false;
-			} else {
-				inRange = rs.i64Le(x6, hi3);
-			}
-		} else if (_10 === 7) {
-			inRange = (rs.randRange(0, { end: b }.end, 8, false) as rs.u8) < b;
-		} else if (_10 === 8) {
-			const hi4: rs.u64 = rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, a as rs.u64);
-			if (!((rs.randRangeToInclusive({ end: b, inclusive: true }.end, 8) as rs.u8) <= b)) {
-				inRange = false;
-			} else {
-				inRange = rs.u64Le(rs.randRangeToInclusive({ end: hi4, inclusive: true }.end, 64) as rs.u64, hi4);
-			}
-		} else {
-			rs.randInt(64, false) as rs.u64;
-			rs.randInt(16, true) as rs.i16;
-			rs.randRng();
-			const flag: boolean = rs.randBool();
-			if (!flag) {
-				inRange = !flag;
-			} else {
-				inRange = true;
 			}
 		}
 		rs.byteVecPush(out, inRange ? 1 : 0);

@@ -16,12 +16,10 @@ export function clone$Clone(self: Loud): Loud {
 	rs.localKeyWithBorrowMut(CLONES, (log: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(log, rs.iterSlice(rs.u16ToBeBytes(self._0).reverse()), undefined, true);
 	});
-	const _6: rs.u16 = self._0;
-	const rightVal: rs.u16 = 255;
-	if (!(_6 === 255)) {
-		return { _0: rs.u16WrappingAdd(_6, 1) };
+	if (!(self._0 === 255)) {
+		return { _0: rs.u16WrappingAdd(self._0, 1) };
 	}
-	rs.assertFailed("!=", (f: rs.Formatter) => rs.u16Debug(self._0, f), (f: rs.Formatter) => rs.u16Debug(rightVal, f), ["a clone of 0xff"]);
+	rs.assertFailed("!=", (f: rs.Formatter) => rs.u16Debug(self._0, f), (f: rs.Formatter) => rs.u16Debug(255, f), ["a clone of 0xff"]);
 }
 
 export function put$lengths_Put(self: Loud, out: rs.ByteVec): void {

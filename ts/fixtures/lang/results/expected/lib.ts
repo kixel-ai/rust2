@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { results, optionSlices } from "./results.ts";
-import * as Logged from "./results.Logged.ts";
+import type * as Logged from "./results.Logged.ts";
 
 export function copy$Result_array0_u8_u8(v: rs.Result<Uint8Array, rs.u8>): rs.Result<Uint8Array, rs.u8> {
 	return v.ok ? rs.Ok(copy$array_u8(v.value)) : rs.Err(v.error);
@@ -18,10 +18,6 @@ export function copy$Result_array5_u8_u8(v: rs.Result<Uint8Array, rs.u8>): rs.Re
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
-}
-
-export function copy$results_Logged(v: Logged.Logged): Logged.Logged {
-	return new Logged.Logged(v.id, v.log);
 }
 
 export function drop$Result_results_Logged_results_Logged(_1: rs.Result<Logged.Logged, Logged.Logged>): void {

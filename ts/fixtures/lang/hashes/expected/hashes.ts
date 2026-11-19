@@ -999,30 +999,26 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _5: rs.u8 = rs.u8Rem(kind, 5);
 	if (_5 === 0) {
-		const args6 = [0, 16] as [rs.usize, rs.usize];
-		const _8: rs.u128 = w(args6[0], args6[1]);
-		const args7 = [3, 8] as [rs.usize, rs.usize];
-		const _10: rs.u64 = rs.u64Cast(w(args7[0], args7[1]));
-		digest$u8(rs.u128Low(_8) & 0xff, out);
-		digest$u16(rs.u128Low(_8) & 0xffff, out);
-		const _21: rs.u32 = rs.u128Low(_8);
-		digest$u32(_21, out);
-		digest$u64(_10, out);
-		digest$u64(rs.u64Shr(_10, rs.usizeRem(data.length, 64)), out);
-		digest$u128(_8, out);
-		digest$i8((rs.u128Low(_8) << 24) >> 24, out);
-		digest$i16((rs.u128Low(_8) << 16) >> 16, out);
-		digest$i32(rs.u128Low(_8) | 0, out);
-		const _43: rs.i64 = rs.i64Cast(_10);
-		digest$i64(_43, out);
-		digest$i64(rs.i64Shr(_43, 11), out);
-		const _49: rs.i128 = rs.i128Cast(_8);
-		digest$i128(_49, out);
-		digest$i128(rs.i128Shr(_49, 70), out);
-		digest$usize(rs.u128Low(_8), out);
-		digest$isize(rs.u128Low(_8) | 0, out);
-		digest$bool(rs.u128And(_8, 1) === 1, out);
-		digest$char(option_unwrapOr$04rqm9m(rs.charFromU32((_21 & 2097151) >>> 0), 1114111), out);
+		const _9: [rs.u128, rs.u64] = [w(0, 16), rs.u64Cast(w(3, 8))];
+		const a: rs.u128 = _9[0];
+		const b: rs.u64 = _9[1];
+		digest$u8(rs.u128Low(a) & 0xff, out);
+		digest$u16(rs.u128Low(a) & 0xffff, out);
+		digest$u32(rs.u128Low(a), out);
+		digest$u64(b, out);
+		digest$u64(rs.u64Shr(b, rs.usizeRem(data.length, 64)), out);
+		digest$u128(a, out);
+		digest$i8((rs.u128Low(a) << 24) >> 24, out);
+		digest$i16((rs.u128Low(a) << 16) >> 16, out);
+		digest$i32(rs.u128Low(a) | 0, out);
+		digest$i64(rs.i64Cast(b), out);
+		digest$i64(rs.i64Shr(rs.i64Cast(b), 11), out);
+		digest$i128(rs.i128Cast(a), out);
+		digest$i128(rs.i128Shr(rs.i128Cast(a), 70), out);
+		digest$usize(rs.u128Low(a), out);
+		digest$isize(rs.u128Low(a) | 0, out);
+		digest$bool(rs.u128And(a, 1) === 1, out);
+		digest$char(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), out);
 	} else if (_5 === 1) {
 		const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 		digest$str(text, out);
@@ -1033,14 +1029,11 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$sync_Arc_str(arc, out);
 		arc[Symbol.dispose]();
 	} else if (_5 === 2) {
-		const args2 = [0, 4] as [rs.usize, rs.usize];
-		const n: rs.u32 = rs.u128Low(w(args2[0], args2[1]));
+		const n: rs.u32 = rs.u128Low(w(0, 4));
 		digest$Option_u32(n, out);
 		digest$Option_u32(undefined, out);
-		const _93: rs.u8 = n & 0xff;
-		digest$Option_Option_u8(_93, out);
-		const args3 = [4, 8] as [rs.usize, rs.usize];
-		digest$tuple3_u8_ref_str_u64([_93, "pair", rs.u64Cast(w(args3[0], args3[1]))] as [rs.u8, string, rs.u64], out);
+		digest$Option_Option_u8(n & 0xff, out);
+		digest$tuple3_u8_ref_str_u64([n & 0xff, "pair", rs.u64Cast(w(4, 8))] as [rs.u8, string, rs.u64], out);
 		const s3 = rs.byteSliceView(data);
 		let front3 = 0;
 		let back3 = s3.length;
@@ -1054,17 +1047,14 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part = rs.usizeDiv(words.items.length, 2);
 		digest$slice_u16(rs.sliceRange(rs.sliceFrom(words.items), part), out);
 		digest$array3_u32(rs.sliceFrom([n, (n ^ 1) >>> 0, n >>> 3]), out);
-		const args4 = [4, 1] as [rs.usize, rs.usize];
-		digest$cmp_Ordering(rs.cmp(_93, rs.u128Low(w(args4[0], args4[1])) & 0xff), out);
-		const args5 = [0, 6] as [rs.usize, rs.usize];
-		digest$time_Duration(rs.durationNew(rs.u64Cast(w(args5[0], args5[1])), rs.u32Rem(n, 1000000000)), out);
+		digest$cmp_Ordering(rs.cmp(n & 0xff, rs.u128Low(w(4, 1)) & 0xff), out);
+		digest$time_Duration(rs.durationNew(rs.u64Cast(w(0, 6)), rs.u32Rem(n, 1000000000)), out);
 		digest$cmp_Reverse_u16(n & 0xffff, out);
 		digest$Option_num_NonZero_u32(rs.nonZero((n | 1) >>> 0), out);
 	} else if (_5 === 3) {
-		const args = [0, 8] as [rs.usize, rs.usize];
-		const n2: rs.u64 = rs.u64Cast(w(args[0], args[1]));
-		const _145: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-		const _148: rs.String = rs.stringFrom(result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "?"));
+		const n2: rs.u64 = rs.u64Cast(w(0, 8));
+		const _170: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+		const _173: rs.String = rs.stringFrom(result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "?"));
 		const s2 = rs.byteSliceView(data);
 		let front2 = 0;
 		let back2 = s2.length;
@@ -1073,11 +1063,11 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const x2 = s2[front2++];
 			v2.items.push(x2 as rs.u16);
 		}
-		const _156: rs.u64 = rs.u64Rem(n2, 3);
-		digest$hashes_Packet({ id: n2, flags: _145, name: _148, tags: v2, next: thenSome$05ku0zn(_156 !== 0, rs.u64Low(n2) | 0) }, out);
-		if (_156 === 0) {
+		digest$hashes_Packet({ id: n2, flags: _170, name: _173, tags: v2, next: thenSome$05ku0zn(rs.u64Rem(n2, 3) !== 0, rs.u64Low(n2) | 0) }, out);
+		const _188: rs.u64 = rs.u64Rem(n2, 3);
+		if (_188 === 0) {
 			shape = { tag: "Dot" } as Shape.Shape;
-		} else if (_156 === 1) {
+		} else if (_188 === 1) {
 			shape = { tag: "Line", _0: rs.u64Low(n2) } as Shape.Shape;
 		} else {
 			shape = { tag: "Rect", w: (rs.u64Low(n2) << 16) >> 16, h: (rs.u64Low(rs.u64Shr(n2, 16)) << 16) >> 16 } as Shape.Shape;
@@ -1097,32 +1087,32 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const i: rs.usize = count++;
 			const b2: rs.u8 = x;
 			const v: rs.u128 = w(i, 16);
-			const _187: rs.u8 = rs.u8Rem(b2, 14);
-			if (_187 === 0) {
+			const _220: rs.u8 = rs.u8Rem(b2, 14);
+			if (_220 === 0) {
 				rs.hash8(rs.u128Low(v) & 0xff, h);
-			} else if (_187 === 1) {
+			} else if (_220 === 1) {
 				rs.hash16(rs.u128Low(v) & 0xffff, h);
-			} else if (_187 === 2) {
+			} else if (_220 === 2) {
 				rs.hash32(rs.u128Low(v), h);
-			} else if (_187 === 3) {
+			} else if (_220 === 3) {
 				rs.hash64(rs.u64Cast(v), h);
-			} else if (_187 === 4) {
+			} else if (_220 === 4) {
 				rs.hash128(v, h);
-			} else if (_187 === 5) {
+			} else if (_220 === 5) {
 				rs.hashUsize(rs.u128Low(v), h);
-			} else if (_187 === 6) {
+			} else if (_220 === 6) {
 				rs.hashI8((rs.u128Low(v) << 24) >> 24, h);
-			} else if (_187 === 7) {
+			} else if (_220 === 7) {
 				rs.hashI16((rs.u128Low(v) << 16) >> 16, h);
-			} else if (_187 === 8) {
+			} else if (_220 === 8) {
 				rs.hashI32(rs.u128Low(v) | 0, h);
-			} else if (_187 === 9) {
+			} else if (_220 === 9) {
 				rs.hashI64(rs.i64Cast(v), h);
-			} else if (_187 === 10) {
+			} else if (_220 === 10) {
 				rs.hashI128(rs.i128Cast(v), h);
-			} else if (_187 === 11) {
+			} else if (_220 === 11) {
 				rs.hashIsize(rs.u128Low(v) | 0, h);
-			} else if (_187 === 12) {
+			} else if (_220 === 12) {
 				rs.hashWrite(rs.byteSliceRange(data, i), h);
 			} else {
 				const dst = out;
@@ -1184,21 +1174,20 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashFinish(built)) ? 1 : 0);
 		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashOne(rs.buildHasher(copy), n, rs.hash64)) ? 1 : 0);
 		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashOne(rs.buildHasher(s), n, rs.hash64)) ? 1 : 0);
-		const _52: rs.u64 = rs.hashOne(rs.buildHasher(other.state), text, rs.hashStr);
-		const _56: rs.String = rs.stringFrom(text);
-		rs.byteVecPush(out, rs.u64Eq(_52, rs.hashOne(rs.buildHasher(other.state), _56, rs.hashStr)) ? 1 : 0);
-		const _62: [rs.u8, string] = [b, text];
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), _62, rs.hashTuple([rs.hash8, rs.hashStr])), rs.hashOne(rs.buildHasher(copy), _62, rs.hashTuple([rs.hash8, rs.hashStr]))) ? 1 : 0);
+		const _53: rs.u64 = rs.hashOne(rs.buildHasher(other.state), text, rs.hashStr);
+		const _57: rs.String = rs.stringFrom(text);
+		rs.byteVecPush(out, rs.u64Eq(_53, rs.hashOne(rs.buildHasher(other.state), _57, rs.hashStr)) ? 1 : 0);
+		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr])), rs.hashOne(rs.buildHasher(copy), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr]))) ? 1 : 0);
 		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), { _0: b }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined), rs.hashOne(rs.buildHasher(s), { _0: b ^ 240 }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined)) ? 1 : 0);
 		const arc: rs.Arc<string> = new rs.Arc(text);
-		const _83: rs.Arc<string> = rs.arcClone(arc);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), _83, rs.hashArc(rs.hashStr), rs.drop), rs.hashOne(rs.buildHasher(s), arc, rs.hashArc(rs.hashStr))) ? 1 : 0);
+		const _84: rs.Arc<string> = rs.arcClone(arc);
+		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), _84, rs.hashArc(rs.hashStr), rs.drop), rs.hashOne(rs.buildHasher(s), arc, rs.hashArc(rs.hashStr))) ? 1 : 0);
 		rs.byteVecPush(out, arc.strong & 0xff);
 		const drops: rs.Cell<rs.u8> = new rs.Cell(0);
 		const counted: Counted.Counted = new Counted.Counted(b, drops);
-		const _98: rs.u64 = rs.hashOne(rs.buildHasher(s), counted, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined);
-		const _103: Counted.Counted = new Counted.Counted(b, drops);
-		rs.byteVecPush(out, rs.u64Eq(_98, rs.hashOne(rs.buildHasher(s), _103, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined, rs.drop)) ? 1 : 0);
+		const _99: rs.u64 = rs.hashOne(rs.buildHasher(s), counted, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined);
+		const _104: Counted.Counted = new Counted.Counted(b, drops);
+		rs.byteVecPush(out, rs.u64Eq(_99, rs.hashOne(rs.buildHasher(s), _104, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined, rs.drop)) ? 1 : 0);
 		rs.byteVecPush(out, drops.v);
 		counted[Symbol.dispose]();
 		rs.byteVecPush(out, drops.v);
@@ -1217,9 +1206,9 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.hashOne(rs.buildHasher(other.state), k2, rs.hash64);
 	}, rs.lt), 8, true);
 	rs.sliceSort(rs.sliceFrom(keys.items), rs.lt, 8, true);
-	for (const _126 of keys.items) {
+	for (const _127 of keys.items) {
 		const dst = out;
-		const word = _126;
+		const word = _127;
 		const word2 = rs.intWord(word, 0);
 		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
@@ -1263,42 +1252,42 @@ export function bytes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const state: rs.RandomState = rs.randomState();
 	const iter2: rs.Iter<rs.ByteSlice> = rs.byteSliceWindows(data, 3);
 	while (true) {
-		const _40: rs.ByteSlice | rs.Done = iter2.next();
-		if (_40 === rs.DONE) {
+		const _41: rs.ByteSlice | rs.Done = iter2.next();
+		if (_41 === rs.DONE) {
 			break;
 		}
-		rs.idx(_40, 0);
-		const _45: rs.u8 = _40.data[_40.start];
-		rs.idx(_40, 1);
-		const _48: rs.u8 = _40.data[_40.start + 1];
-		rs.idx(_40, 2);
-		const a: Uint8Array = Uint8Array.of(_45, _48, _40.data[_40.start + 2]);
-		rs.idx(_40, 0);
-		const _53: rs.u8 = rs.u8Rem(_45, 2);
-		rs.idx(_40, 1);
-		const pair: Uint8Array = Uint8Array.of(_53, rs.u8Rem(_48, 2));
+		rs.idx(_41, 0);
+		const _46: rs.u8 = _41.data[_41.start];
+		rs.idx(_41, 1);
+		const _50: rs.u8 = _41.data[_41.start + 1];
+		rs.idx(_41, 2);
+		const a: Uint8Array = Uint8Array.of(_46, _50, _41.data[_41.start + 2]);
+		rs.idx(_41, 0);
+		const _59: rs.u8 = rs.u8Rem(_41.data[_41.start], 2);
+		rs.idx(_41, 1);
+		const pair: Uint8Array = Uint8Array.of(_59, rs.u8Rem(_41.data[_41.start + 1], 2));
 		digest$array3_u8(rs.byteSliceFrom(a), out);
 		digest$array2_u8(rs.byteSliceFrom(pair), out);
 		digest$tuple2_array2_u8_array3_u8([pair, a] as [Uint8Array, Uint8Array], out);
 		digest$Option_array2_u8(pair, out);
-		const _67: rs.Arc<Uint8Array> = new rs.Arc(a);
-		digest$sync_Arc_array3_u8(_67, out);
-		_67[Symbol.dispose]();
-		const _71: rs.u64 = rs.hashOne(rs.buildHasher(state), a, rs.hashBytes);
-		const _75: rs.ByteSlice = rs.byteSliceRange(_40, 0, { end: 3 }.end);
-		rs.byteVecPush(out, rs.u64Eq(_71, rs.hashOne(rs.buildHasher(state), _75, rs.hashBytes)) ? 1 : 0);
-		const _81: rs.ByteSlice = rs.byteSliceFrom(a);
-		const _79: rs.u64 = rs.hashOne(rs.buildHasher(state), _81, rs.hashBytes);
-		const _84: rs.ByteVec = rs.byteSliceToByteVec(_40);
-		rs.byteVecPush(out, rs.u64Eq(_79, rs.hashOne(rs.buildHasher(state), _84, rs.hashBytes)) ? 1 : 0);
-		const _90: [Uint8Array, rs.u8] = [pair, 1];
-		const _88: rs.u64 = rs.hashOne(rs.buildHasher(state), _90, rs.hashTuple([rs.hashBytes, rs.hash8]));
-		const _93: [rs.ByteSlice, rs.u8] = [rs.byteSliceRange(_40, 0, { end: 2 }.end), 1];
-		rs.byteVecPush(out, rs.u64Eq(_88, rs.hashOne(rs.buildHasher(state), _93, rs.hashTuple([rs.hashBytes, rs.hash8]))) ? 1 : 0);
+		const _83: rs.Arc<Uint8Array> = new rs.Arc(a);
+		digest$sync_Arc_array3_u8(_83, out);
+		_83[Symbol.dispose]();
+		const _87: rs.u64 = rs.hashOne(rs.buildHasher(state), a, rs.hashBytes);
+		const _91: rs.ByteSlice = rs.byteSliceRange(_41, 0, 3);
+		rs.byteVecPush(out, rs.u64Eq(_87, rs.hashOne(rs.buildHasher(state), _91, rs.hashBytes)) ? 1 : 0);
+		const _98: rs.ByteSlice = rs.byteSliceFrom(a);
+		const _96: rs.u64 = rs.hashOne(rs.buildHasher(state), _98, rs.hashBytes);
+		const _101: rs.ByteVec = rs.byteSliceToByteVec(_41);
+		rs.byteVecPush(out, rs.u64Eq(_96, rs.hashOne(rs.buildHasher(state), _101, rs.hashBytes)) ? 1 : 0);
+		const _107: [Uint8Array, rs.u8] = [pair, 1];
+		const _105: rs.u64 = rs.hashOne(rs.buildHasher(state), _107, rs.hashTuple([rs.hashBytes, rs.hash8]));
+		const _110: [rs.ByteSlice, rs.u8] = [rs.byteSliceRange(_41, 0, 2), 1];
+		rs.byteVecPush(out, rs.u64Eq(_105, rs.hashOne(rs.buildHasher(state), _110, rs.hashTuple([rs.hashBytes, rs.hash8]))) ? 1 : 0);
 	}
-	const _98: rs.u64 = rs.hashOne(rs.buildHasher(state), Uint8Array.of(), rs.hashBytes);
-	const _102: rs.ByteVec = new rs.ByteVec();
-	rs.byteVecPush(out, rs.u64Eq(_98, rs.hashOne(rs.buildHasher(state), _102, rs.hashBytes)) ? 1 : 0);
+	const _116: rs.u64 = rs.hashOne(rs.buildHasher(state), Uint8Array.of(), rs.hashBytes);
+	const _120: rs.ByteVec = new rs.ByteVec();
+	rs.byteVecPush(out, rs.u64Eq(_116, rs.hashOne(rs.buildHasher(state), _120, rs.hashBytes)) ? 1 : 0);
 }
 
 /** Log a call of `tag`'s method, given `bytes`, as its tag, their count, and them. */
@@ -1315,50 +1304,39 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	const w: (a0: rs.usize, a1: rs.usize) => rs.u128 = (at: rs.usize, n: rs.usize): rs.u128 => {
 		return wide(data, at, n);
 	};
-	const args = [0, 16] as [rs.usize, rs.usize];
-	const _6: rs.u128 = w(args[0], args[1]);
-	const args2 = [3, 8] as [rs.usize, rs.usize];
-	const _8: rs.u64 = rs.u64Cast(w(args2[0], args2[1]));
-	const _13: rs.u8 = rs.u128Low(_6) & 0xff;
-	rs.hash8(_13, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _16: rs.u16 = rs.u128Low(_6) & 0xffff;
-	rs.hash16(_16, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _19: rs.u32 = rs.u128Low(_6);
-	rs.hash32(_19, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash64(_8, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash64(rs.u64Shr(_8, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash128(_6, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashI8((rs.u128Low(_6) << 24) >> 24, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _35: rs.i16 = (rs.u128Low(_6) << 16) >> 16;
-	rs.hashI16(_35, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _38: rs.i32 = rs.u128Low(_6) | 0;
-	rs.hashI32(_38, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _41: rs.i64 = rs.i64Cast(_8);
-	rs.hashI64(_41, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Shr(_41, 11), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _47: rs.i128 = rs.i128Cast(_6);
-	rs.hashI128(_47, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashI128(rs.i128Shr(_47, 70), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashUsize(rs.u128Low(_6), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _56: rs.isize = rs.u128Low(_6) | 0;
-	rs.hashIsize(_56, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _60: rs.u128 = rs.u128And(_6, 1);
-	rs.hash8(_60 === 1, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((_19 & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _6: [rs.u128, rs.u64] = [w(0, 16), rs.u64Cast(w(3, 8))];
+	const a: rs.u128 = _6[0];
+	const b: rs.u64 = _6[1];
+	rs.hash8(rs.u128Low(a) & 0xff, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash32(rs.u128Low(a), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash64(b, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash64(rs.u64Shr(b, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash128(a, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI8((rs.u128Low(a) << 24) >> 24, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI16((rs.u128Low(a) << 16) >> 16, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Cast(b), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Shr(rs.i64Cast(b), 11), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Cast(a), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Shr(rs.i128Cast(a), 70), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashStr(rs.stringFrom(text), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _75: [string, rs.u8, rs.u64 | undefined] = [text, _13, _8];
-	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_75, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _88: [string, rs.u8, rs.u64 | undefined] = [text, rs.u128Low(a) & 0xff, b];
+	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_88, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashOption(rs.hash32)(undefined, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _80: rs.Arc<string> = new rs.Arc(text);
-	rs.hashArc(rs.hashStr)(_80, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	_80[Symbol.dispose]();
+	const _95: rs.Arc<string> = new rs.Arc(text);
+	rs.hashArc(rs.hashStr)(_95, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	_95[Symbol.dispose]();
 	rs.hashBytes(data, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _88: rs.u8 = rs.u64Low(_8) & 0xff;
-	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(_13, _88)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -1370,40 +1348,41 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
-	const _95: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
-	rs.hashInts(2)(_95, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _102: rs.Slice<rs.u64> = rs.sliceFrom([_8, rs.u64Shl(_8, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, _8)]);
-	rs.hashInts(8)(_102, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _108: rs.Slice<rs.i128> = rs.sliceFrom([_47, rs.i128Neg(_47)]);
-	rs.hashInts(16)(_108, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _113: rs.Slice<rs.isize> = rs.sliceFrom([_56, -1]);
-	rs.hashInts(4)(_113, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashSlice(rs.hash8)(rs.sliceFrom([_60 === 0, true]), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
+	rs.hashInts(8)(_119, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
+	rs.hashInts(16)(_127, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _134: rs.Slice<rs.isize> = rs.sliceFrom([rs.u128Low(a) | 0, -1]);
+	rs.hashInts(4)(_134, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _138: rs.Slice<boolean> = rs.sliceFrom([rs.u128And(a, 1) === 0, true]);
+	rs.hashSlice(rs.hash8)(_138, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashSlice(rs.hash32)(rs.sliceFrom([233, 120]), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _121: rs.Slice<rs.u16> = rs.sliceFrom([_16, 3]);
-	rs.hashSlice(rs.hash16)(_121, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _127: rs.Vec<[rs.u8, string]> = rs.vecFrom([[_13, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
-	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_127, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashI8(rs.cmp(_13, _88), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.durationHash(rs.durationNew(_8, rs.u32Rem(_19, 1000000000)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash16(_16, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _147: rs.u32 | undefined = rs.nonZero((_19 | 1) >>> 0);
-	rs.hashOption(rs.hash32)(_147, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _151: rs.Range<rs.u8> = new rs.Range(_13, _88);
-	rs.rangeHash(rs.hash8)(_151, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _154: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(_13, _88, rs.u8Step);
-	rs.rangeHash(rs.hash8)(_154, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _158: rs.String = rs.stringFrom(text);
-	const _159: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(_8, 3) !== 0, rs.u64Low(_8) | 0);
-	Packet.hash$Hash_hashes_Bare({ id: _8, flags: _13, name: _158, tags: words, next: _159 }, h);
-	Shape.hash$Hash_hashes_Bare({ tag: "Rect", w: _35, h: -1 } as Shape.Shape, h);
+	const _145: rs.Slice<rs.u16> = rs.sliceFrom([rs.u128Low(a) & 0xffff, 3]);
+	rs.hashSlice(rs.hash16)(_145, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _152: rs.Vec<[rs.u8, string]> = rs.vecFrom([[rs.u128Low(a) & 0xff, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
+	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_152, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI8(rs.cmp(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.durationHash(rs.durationNew(b, rs.u32Rem(rs.u128Low(a), 1000000000)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _177: rs.u32 | undefined = rs.nonZero((rs.u128Low(a) | 1) >>> 0);
+	rs.hashOption(rs.hash32)(_177, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _182: rs.Range<rs.u8> = new rs.Range(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff);
+	rs.rangeHash(rs.hash8)(_182, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _187: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff, rs.u8Step);
+	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const _193: rs.u8 = rs.u128Low(a) & 0xff;
+	const _194: rs.String = rs.stringFrom(text);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	Packet.hash$Hash_hashes_Bare({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
+	Shape.hash$Hash_hashes_Bare({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Bare as (a0: Dir.Dir, a1: Bare.Bare) => undefined))(rs.sliceFrom(["Up" as Dir.Dir, "Down" as Dir.Dir]), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashTuple([rs.hashOwn(Small.hash$Hash_hashes_Bare as (a0: Small.Small, a1: Bare.Bare) => undefined), rs.hashOwn(Small.hash$Hash_hashes_Bare as (a0: Small.Small, a1: Bare.Bare) => undefined)])(["Low" as Small.Small, "High" as Small.Small], new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	Nibble.hash$Hash_hashes_Bare({ _0: _13 }, h);
-	const state = new rs.OwnHasher(h, Bare.hasher$hash_Hasher);
-	rs.hashI32(_38, state);
-	rs.hashIsize(rs.isizeNeg(_56), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Neg(_41), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	Nibble.hash$Hash_hashes_Bare({ _0: rs.u128Low(a) & 0xff }, h);
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashIsize(rs.isizeNeg(rs.u128Low(a) | 0), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Neg(rs.i64Cast(b)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 }
 
 /** Hash values of std's types and the crate's, made of `data`, into `h`. */
@@ -1411,50 +1390,39 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	const w: (a0: rs.usize, a1: rs.usize) => rs.u128 = (at: rs.usize, n: rs.usize): rs.u128 => {
 		return wide(data, at, n);
 	};
-	const args = [0, 16] as [rs.usize, rs.usize];
-	const _6: rs.u128 = w(args[0], args[1]);
-	const args2 = [3, 8] as [rs.usize, rs.usize];
-	const _8: rs.u64 = rs.u64Cast(w(args2[0], args2[1]));
-	const _13: rs.u8 = rs.u128Low(_6) & 0xff;
-	rs.hash8(_13, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _16: rs.u16 = rs.u128Low(_6) & 0xffff;
-	rs.hash16(_16, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _19: rs.u32 = rs.u128Low(_6);
-	rs.hash32(_19, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash64(_8, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash64(rs.u64Shr(_8, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash128(_6, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashI8((rs.u128Low(_6) << 24) >> 24, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _35: rs.i16 = (rs.u128Low(_6) << 16) >> 16;
-	rs.hashI16(_35, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _38: rs.i32 = rs.u128Low(_6) | 0;
-	rs.hashI32(_38, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _41: rs.i64 = rs.i64Cast(_8);
-	rs.hashI64(_41, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Shr(_41, 11), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _47: rs.i128 = rs.i128Cast(_6);
-	rs.hashI128(_47, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashI128(rs.i128Shr(_47, 70), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashUsize(rs.u128Low(_6), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _56: rs.isize = rs.u128Low(_6) | 0;
-	rs.hashIsize(_56, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _60: rs.u128 = rs.u128And(_6, 1);
-	rs.hash8(_60 === 1, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((_19 & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _6: [rs.u128, rs.u64] = [w(0, 16), rs.u64Cast(w(3, 8))];
+	const a: rs.u128 = _6[0];
+	const b: rs.u64 = _6[1];
+	rs.hash8(rs.u128Low(a) & 0xff, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash32(rs.u128Low(a), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash64(b, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash64(rs.u64Shr(b, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash128(a, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI8((rs.u128Low(a) << 24) >> 24, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI16((rs.u128Low(a) << 16) >> 16, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Cast(b), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Shr(rs.i64Cast(b), 11), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Cast(a), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Shr(rs.i128Cast(a), 70), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashStr(rs.stringFrom(text), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _75: [string, rs.u8, rs.u64 | undefined] = [text, _13, _8];
-	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_75, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _88: [string, rs.u8, rs.u64 | undefined] = [text, rs.u128Low(a) & 0xff, b];
+	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_88, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashOption(rs.hash32)(undefined, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _80: rs.Arc<string> = new rs.Arc(text);
-	rs.hashArc(rs.hashStr)(_80, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	_80[Symbol.dispose]();
+	const _95: rs.Arc<string> = new rs.Arc(text);
+	rs.hashArc(rs.hashStr)(_95, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	_95[Symbol.dispose]();
 	rs.hashBytes(data, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _88: rs.u8 = rs.u64Low(_8) & 0xff;
-	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(_13, _88)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -1466,39 +1434,41 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
-	const _95: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
-	rs.hashInts(2)(_95, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _102: rs.Slice<rs.u64> = rs.sliceFrom([_8, rs.u64Shl(_8, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, _8)]);
-	rs.hashInts(8)(_102, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _108: rs.Slice<rs.i128> = rs.sliceFrom([_47, rs.i128Neg(_47)]);
-	rs.hashInts(16)(_108, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _113: rs.Slice<rs.isize> = rs.sliceFrom([_56, -1]);
-	rs.hashInts(4)(_113, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashSlice(rs.hash8)(rs.sliceFrom([_60 === 0, true]), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
+	rs.hashInts(8)(_119, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
+	rs.hashInts(16)(_127, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _134: rs.Slice<rs.isize> = rs.sliceFrom([rs.u128Low(a) | 0, -1]);
+	rs.hashInts(4)(_134, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _138: rs.Slice<boolean> = rs.sliceFrom([rs.u128And(a, 1) === 0, true]);
+	rs.hashSlice(rs.hash8)(_138, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashSlice(rs.hash32)(rs.sliceFrom([233, 120]), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _121: rs.Slice<rs.u16> = rs.sliceFrom([_16, 3]);
-	rs.hashSlice(rs.hash16)(_121, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _127: rs.Vec<[rs.u8, string]> = rs.vecFrom([[_13, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
-	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_127, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hashI8(rs.cmp(_13, _88), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.durationHash(rs.durationNew(_8, rs.u32Rem(_19, 1000000000)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash16(_16, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _147: rs.u32 | undefined = rs.nonZero((_19 | 1) >>> 0);
-	rs.hashOption(rs.hash32)(_147, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _151: rs.Range<rs.u8> = new rs.Range(_13, _88);
-	rs.rangeHash(rs.hash8)(_151, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _154: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(_13, _88, rs.u8Step);
-	rs.rangeHash(rs.hash8)(_154, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _158: rs.String = rs.stringFrom(text);
-	const _159: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(_8, 3) !== 0, rs.u64Low(_8) | 0);
-	Packet.hash$Hash_hashes_Full({ id: _8, flags: _13, name: _158, tags: words, next: _159 }, h);
-	Shape.hash$Hash_hashes_Full({ tag: "Rect", w: _35, h: -1 } as Shape.Shape, h);
+	const _145: rs.Slice<rs.u16> = rs.sliceFrom([rs.u128Low(a) & 0xffff, 3]);
+	rs.hashSlice(rs.hash16)(_145, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _152: rs.Vec<[rs.u8, string]> = rs.vecFrom([[rs.u128Low(a) & 0xff, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
+	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_152, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hashI8(rs.cmp(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.durationHash(rs.durationNew(b, rs.u32Rem(rs.u128Low(a), 1000000000)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _177: rs.u32 | undefined = rs.nonZero((rs.u128Low(a) | 1) >>> 0);
+	rs.hashOption(rs.hash32)(_177, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _182: rs.Range<rs.u8> = new rs.Range(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff);
+	rs.rangeHash(rs.hash8)(_182, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _187: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff, rs.u8Step);
+	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const _193: rs.u8 = rs.u128Low(a) & 0xff;
+	const _194: rs.String = rs.stringFrom(text);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	Packet.hash$Hash_hashes_Full({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
+	Shape.hash$Hash_hashes_Full({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Full as (a0: Dir.Dir, a1: Full.Full) => undefined))(rs.sliceFrom(["Up" as Dir.Dir, "Down" as Dir.Dir]), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashTuple([rs.hashOwn(Small.hash$Hash_hashes_Full as (a0: Small.Small, a1: Full.Full) => undefined), rs.hashOwn(Small.hash$Hash_hashes_Full as (a0: Small.Small, a1: Full.Full) => undefined)])(["Low" as Small.Small, "High" as Small.Small], new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	Nibble.hash$Hash_hashes_Full({ _0: _13 }, h);
-	Full.writeI32$hash_Hasher(h, _38);
-	Full.writeIsize$hash_Hasher(h, rs.isizeNeg(_56));
-	Full.writeI64$hash_Hasher(h, rs.i64Neg(_41));
+	Nibble.hash$Hash_hashes_Full({ _0: rs.u128Low(a) & 0xff }, h);
+	Full.writeI32$hash_Hasher(h, rs.u128Low(a) | 0);
+	Full.writeIsize$hash_Hasher(h, rs.isizeNeg(rs.u128Low(a) | 0));
+	Full.writeI64$hash_Hasher(h, rs.i64Neg(rs.i64Cast(b)));
 }
 
 /** Hash values of std's types and the crate's, made of `data`, into `h`. */
@@ -1506,50 +1476,39 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	const w: (a0: rs.usize, a1: rs.usize) => rs.u128 = (at: rs.usize, n: rs.usize): rs.u128 => {
 		return wide(data, at, n);
 	};
-	const args = [0, 16] as [rs.usize, rs.usize];
-	const _6: rs.u128 = w(args[0], args[1]);
-	const args2 = [3, 8] as [rs.usize, rs.usize];
-	const _8: rs.u64 = rs.u64Cast(w(args2[0], args2[1]));
-	const _13: rs.u8 = rs.u128Low(_6) & 0xff;
-	rs.hash8(_13, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _16: rs.u16 = rs.u128Low(_6) & 0xffff;
-	rs.hash16(_16, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _19: rs.u32 = rs.u128Low(_6);
-	rs.hash32(_19, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash64(_8, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash64(rs.u64Shr(_8, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash128(_6, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashI8((rs.u128Low(_6) << 24) >> 24, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _35: rs.i16 = (rs.u128Low(_6) << 16) >> 16;
-	rs.hashI16(_35, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _38: rs.i32 = rs.u128Low(_6) | 0;
-	rs.hashI32(_38, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _41: rs.i64 = rs.i64Cast(_8);
-	rs.hashI64(_41, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Shr(_41, 11), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _47: rs.i128 = rs.i128Cast(_6);
-	rs.hashI128(_47, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashI128(rs.i128Shr(_47, 70), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashUsize(rs.u128Low(_6), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _56: rs.isize = rs.u128Low(_6) | 0;
-	rs.hashIsize(_56, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _60: rs.u128 = rs.u128And(_6, 1);
-	rs.hash8(_60 === 1, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((_19 & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _6: [rs.u128, rs.u64] = [w(0, 16), rs.u64Cast(w(3, 8))];
+	const a: rs.u128 = _6[0];
+	const b: rs.u64 = _6[1];
+	rs.hash8(rs.u128Low(a) & 0xff, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash32(rs.u128Low(a), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash64(b, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash64(rs.u64Shr(b, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash128(a, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI8((rs.u128Low(a) << 24) >> 24, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI16((rs.u128Low(a) << 16) >> 16, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Cast(b), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Shr(rs.i64Cast(b), 11), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Cast(a), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Shr(rs.i128Cast(a), 70), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashStr(rs.stringFrom(text), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _75: [string, rs.u8, rs.u64 | undefined] = [text, _13, _8];
-	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_75, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _88: [string, rs.u8, rs.u64 | undefined] = [text, rs.u128Low(a) & 0xff, b];
+	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_88, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashOption(rs.hash32)(undefined, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _80: rs.Arc<string> = new rs.Arc(text);
-	rs.hashArc(rs.hashStr)(_80, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	_80[Symbol.dispose]();
+	const _95: rs.Arc<string> = new rs.Arc(text);
+	rs.hashArc(rs.hashStr)(_95, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	_95[Symbol.dispose]();
 	rs.hashBytes(data, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _88: rs.u8 = rs.u64Low(_8) & 0xff;
-	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(_13, _88)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -1561,40 +1520,41 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
-	const _95: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
-	rs.hashInts(2)(_95, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _102: rs.Slice<rs.u64> = rs.sliceFrom([_8, rs.u64Shl(_8, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, _8)]);
-	rs.hashInts(8)(_102, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _108: rs.Slice<rs.i128> = rs.sliceFrom([_47, rs.i128Neg(_47)]);
-	rs.hashInts(16)(_108, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _113: rs.Slice<rs.isize> = rs.sliceFrom([_56, -1]);
-	rs.hashInts(4)(_113, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashSlice(rs.hash8)(rs.sliceFrom([_60 === 0, true]), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
+	rs.hashInts(8)(_119, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
+	rs.hashInts(16)(_127, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _134: rs.Slice<rs.isize> = rs.sliceFrom([rs.u128Low(a) | 0, -1]);
+	rs.hashInts(4)(_134, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _138: rs.Slice<boolean> = rs.sliceFrom([rs.u128And(a, 1) === 0, true]);
+	rs.hashSlice(rs.hash8)(_138, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashSlice(rs.hash32)(rs.sliceFrom([233, 120]), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _121: rs.Slice<rs.u16> = rs.sliceFrom([_16, 3]);
-	rs.hashSlice(rs.hash16)(_121, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _127: rs.Vec<[rs.u8, string]> = rs.vecFrom([[_13, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
-	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_127, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashI8(rs.cmp(_13, _88), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.durationHash(rs.durationNew(_8, rs.u32Rem(_19, 1000000000)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash16(_16, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _147: rs.u32 | undefined = rs.nonZero((_19 | 1) >>> 0);
-	rs.hashOption(rs.hash32)(_147, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _151: rs.Range<rs.u8> = new rs.Range(_13, _88);
-	rs.rangeHash(rs.hash8)(_151, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _154: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(_13, _88, rs.u8Step);
-	rs.rangeHash(rs.hash8)(_154, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _158: rs.String = rs.stringFrom(text);
-	const _159: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(_8, 3) !== 0, rs.u64Low(_8) | 0);
-	Packet.hash$Hash_hashes_Partial({ id: _8, flags: _13, name: _158, tags: words, next: _159 }, h);
-	Shape.hash$Hash_hashes_Partial({ tag: "Rect", w: _35, h: -1 } as Shape.Shape, h);
+	const _145: rs.Slice<rs.u16> = rs.sliceFrom([rs.u128Low(a) & 0xffff, 3]);
+	rs.hashSlice(rs.hash16)(_145, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _152: rs.Vec<[rs.u8, string]> = rs.vecFrom([[rs.u128Low(a) & 0xff, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
+	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_152, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI8(rs.cmp(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.durationHash(rs.durationNew(b, rs.u32Rem(rs.u128Low(a), 1000000000)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _177: rs.u32 | undefined = rs.nonZero((rs.u128Low(a) | 1) >>> 0);
+	rs.hashOption(rs.hash32)(_177, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _182: rs.Range<rs.u8> = new rs.Range(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff);
+	rs.rangeHash(rs.hash8)(_182, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _187: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff, rs.u8Step);
+	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const _193: rs.u8 = rs.u128Low(a) & 0xff;
+	const _194: rs.String = rs.stringFrom(text);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	Packet.hash$Hash_hashes_Partial({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
+	Shape.hash$Hash_hashes_Partial({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Partial as (a0: Dir.Dir, a1: Partial.Partial) => undefined))(rs.sliceFrom(["Up" as Dir.Dir, "Down" as Dir.Dir]), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashTuple([rs.hashOwn(Small.hash$Hash_hashes_Partial as (a0: Small.Small, a1: Partial.Partial) => undefined), rs.hashOwn(Small.hash$Hash_hashes_Partial as (a0: Small.Small, a1: Partial.Partial) => undefined)])(["Low" as Small.Small, "High" as Small.Small], new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	Nibble.hash$Hash_hashes_Partial({ _0: _13 }, h);
-	const state = new rs.OwnHasher(h, Partial.hasher$hash_Hasher);
-	rs.hashI32(_38, state);
-	rs.hashIsize(rs.isizeNeg(_56), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Neg(_41), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	Nibble.hash$Hash_hashes_Partial({ _0: rs.u128Low(a) & 0xff }, h);
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashIsize(rs.isizeNeg(rs.u128Low(a) | 0), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Neg(rs.i64Cast(b)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 }
 
 /** Hash values of std's types and the crate's, made of `data`, into `h`. */
@@ -1602,50 +1562,39 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	const w: (a0: rs.usize, a1: rs.usize) => rs.u128 = (at: rs.usize, n: rs.usize): rs.u128 => {
 		return wide(data, at, n);
 	};
-	const args = [0, 16] as [rs.usize, rs.usize];
-	const _6: rs.u128 = w(args[0], args[1]);
-	const args2 = [3, 8] as [rs.usize, rs.usize];
-	const _8: rs.u64 = rs.u64Cast(w(args2[0], args2[1]));
-	const _13: rs.u8 = rs.u128Low(_6) & 0xff;
-	rs.hash8(_13, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _16: rs.u16 = rs.u128Low(_6) & 0xffff;
-	rs.hash16(_16, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _19: rs.u32 = rs.u128Low(_6);
-	rs.hash32(_19, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash64(_8, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash64(rs.u64Shr(_8, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash128(_6, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashI8((rs.u128Low(_6) << 24) >> 24, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _35: rs.i16 = (rs.u128Low(_6) << 16) >> 16;
-	rs.hashI16(_35, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _38: rs.i32 = rs.u128Low(_6) | 0;
-	rs.hashI32(_38, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _41: rs.i64 = rs.i64Cast(_8);
-	rs.hashI64(_41, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Shr(_41, 11), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _47: rs.i128 = rs.i128Cast(_6);
-	rs.hashI128(_47, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashI128(rs.i128Shr(_47, 70), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashUsize(rs.u128Low(_6), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _56: rs.isize = rs.u128Low(_6) | 0;
-	rs.hashIsize(_56, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _60: rs.u128 = rs.u128And(_6, 1);
-	rs.hash8(_60 === 1, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((_19 & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _6: [rs.u128, rs.u64] = [w(0, 16), rs.u64Cast(w(3, 8))];
+	const a: rs.u128 = _6[0];
+	const b: rs.u64 = _6[1];
+	rs.hash8(rs.u128Low(a) & 0xff, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash32(rs.u128Low(a), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash64(b, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash64(rs.u64Shr(b, rs.usizeRem(data.length, 64)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash128(a, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI8((rs.u128Low(a) << 24) >> 24, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI16((rs.u128Low(a) << 16) >> 16, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Cast(b), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Shr(rs.i64Cast(b), 11), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Cast(a), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI128(rs.i128Shr(rs.i128Cast(a), 70), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashStr(rs.stringFrom(text), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _75: [string, rs.u8, rs.u64 | undefined] = [text, _13, _8];
-	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_75, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _88: [string, rs.u8, rs.u64 | undefined] = [text, rs.u128Low(a) & 0xff, b];
+	rs.hashTuple([rs.hashStr, rs.hash8, rs.hashOption(rs.hash64)])(_88, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashOption(rs.hash32)(undefined, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _80: rs.Arc<string> = new rs.Arc(text);
-	rs.hashArc(rs.hashStr)(_80, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	_80[Symbol.dispose]();
+	const _95: rs.Arc<string> = new rs.Arc(text);
+	rs.hashArc(rs.hashStr)(_95, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	_95[Symbol.dispose]();
 	rs.hashBytes(data, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _88: rs.u8 = rs.u64Low(_8) & 0xff;
-	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(_13, _88)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -1657,40 +1606,41 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
-	const _95: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
-	rs.hashInts(2)(_95, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _102: rs.Slice<rs.u64> = rs.sliceFrom([_8, rs.u64Shl(_8, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, _8)]);
-	rs.hashInts(8)(_102, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _108: rs.Slice<rs.i128> = rs.sliceFrom([_47, rs.i128Neg(_47)]);
-	rs.hashInts(16)(_108, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _113: rs.Slice<rs.isize> = rs.sliceFrom([_56, -1]);
-	rs.hashInts(4)(_113, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashSlice(rs.hash8)(rs.sliceFrom([_60 === 0, true]), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
+	rs.hashInts(8)(_119, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
+	rs.hashInts(16)(_127, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _134: rs.Slice<rs.isize> = rs.sliceFrom([rs.u128Low(a) | 0, -1]);
+	rs.hashInts(4)(_134, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _138: rs.Slice<boolean> = rs.sliceFrom([rs.u128And(a, 1) === 0, true]);
+	rs.hashSlice(rs.hash8)(_138, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashSlice(rs.hash32)(rs.sliceFrom([233, 120]), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _121: rs.Slice<rs.u16> = rs.sliceFrom([_16, 3]);
-	rs.hashSlice(rs.hash16)(_121, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _127: rs.Vec<[rs.u8, string]> = rs.vecFrom([[_13, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
-	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_127, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashI8(rs.cmp(_13, _88), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.durationHash(rs.durationNew(_8, rs.u32Rem(_19, 1000000000)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash16(_16, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _147: rs.u32 | undefined = rs.nonZero((_19 | 1) >>> 0);
-	rs.hashOption(rs.hash32)(_147, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _151: rs.Range<rs.u8> = new rs.Range(_13, _88);
-	rs.rangeHash(rs.hash8)(_151, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _154: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(_13, _88, rs.u8Step);
-	rs.rangeHash(rs.hash8)(_154, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _158: rs.String = rs.stringFrom(text);
-	const _159: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(_8, 3) !== 0, rs.u64Low(_8) | 0);
-	Packet.hash$Hash_hashes_Switch({ id: _8, flags: _13, name: _158, tags: words, next: _159 }, h);
-	Shape.hash$Hash_hashes_Switch({ tag: "Rect", w: _35, h: -1 } as Shape.Shape, h);
+	const _145: rs.Slice<rs.u16> = rs.sliceFrom([rs.u128Low(a) & 0xffff, 3]);
+	rs.hashSlice(rs.hash16)(_145, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _152: rs.Vec<[rs.u8, string]> = rs.vecFrom([[rs.u128Low(a) & 0xff, "pair"] as [rs.u8, string], [0, ""] as [rs.u8, string]]);
+	rs.hashSlice(rs.hashTuple([rs.hash8, rs.hashStr]))(_152, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI8(rs.cmp(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.durationHash(rs.durationNew(b, rs.u32Rem(rs.u128Low(a), 1000000000)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hash16(rs.u128Low(a) & 0xffff, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _177: rs.u32 | undefined = rs.nonZero((rs.u128Low(a) | 1) >>> 0);
+	rs.hashOption(rs.hash32)(_177, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _182: rs.Range<rs.u8> = new rs.Range(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff);
+	rs.rangeHash(rs.hash8)(_182, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _187: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff, rs.u8Step);
+	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const _193: rs.u8 = rs.u128Low(a) & 0xff;
+	const _194: rs.String = rs.stringFrom(text);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	Packet.hash$Hash_hashes_Switch({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
+	Shape.hash$Hash_hashes_Switch({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Switch as (a0: Dir.Dir, a1: rs.Place<Switch.Switch>) => undefined))(rs.sliceFrom(["Up" as Dir.Dir, "Down" as Dir.Dir]), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashTuple([rs.hashOwn(Small.hash$Hash_hashes_Switch as (a0: Small.Small, a1: rs.Place<Switch.Switch>) => undefined), rs.hashOwn(Small.hash$Hash_hashes_Switch as (a0: Small.Small, a1: rs.Place<Switch.Switch>) => undefined)])(["Low" as Small.Small, "High" as Small.Small], new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	Nibble.hash$Hash_hashes_Switch({ _0: _13 }, h);
-	const state = new rs.OwnHasher(h, Switch.hasher$hash_Hasher);
-	rs.hashI32(_38, state);
-	rs.hashIsize(rs.isizeNeg(_56), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hashI64(rs.i64Neg(_41), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	Nibble.hash$Hash_hashes_Switch({ _0: rs.u128Low(a) & 0xff }, h);
+	rs.hashI32(rs.u128Low(a) | 0, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashIsize(rs.isizeNeg(rs.u128Low(a) | 0), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	rs.hashI64(rs.i64Neg(rs.i64Cast(b)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 }
 
 /**
@@ -1712,29 +1662,29 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const build: Build.Build = { _0: log };
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const n: rs.u16 = rs.u128Low(wide(data, 0, 2)) & 0xffff;
-	const _28: rs.u64 = Bare.finish$hash_Hasher(bare);
-	const _30: rs.u64 = Partial.finish$hash_Hasher(partial);
-	const _32: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), n, rs.hash16, undefined, rs.drop);
-	const _35: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), text, rs.hashStr, undefined, rs.drop);
-	const _40: rs.Arc<string> = new rs.Arc(text);
-	const _37: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _40, rs.hashArc(rs.hashStr), undefined, rs.drop);
-	const _43: [rs.u8, string] = [n & 0xff, text];
-	const _41: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _43, rs.hashTuple([rs.hash8, rs.hashStr]), undefined, rs.drop);
-	const _47: Logged.Logged = new Logged.Logged((n << 16) >> 16, log);
-	const _45: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _47, rs.hashOwn(Logged.hash$Hash_hashes_Full as (a0: Logged.Logged, a1: Full.Full) => undefined), rs.drop, rs.drop);
-	const _53: Logged.Logged = new Logged.Logged(-1, log);
-	const hashes: rs.u64[] = [finish, _28, _30, _32, _35, _37, _41, _45, rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _53, rs.hashOwn(Logged.hash$Hash_hashes_Full as (a0: Logged.Logged, a1: Full.Full) => undefined), undefined, rs.drop)];
-	_53[Symbol.dispose]();
-	_40[Symbol.dispose]();
+	const _29: rs.u64 = Bare.finish$hash_Hasher(bare);
+	const _31: rs.u64 = Partial.finish$hash_Hasher(partial);
+	const _33: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), n, rs.hash16, undefined, rs.drop);
+	const _36: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), text, rs.hashStr, undefined, rs.drop);
+	const _41: rs.Arc<string> = new rs.Arc(text);
+	const _38: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _41, rs.hashArc(rs.hashStr), undefined, rs.drop);
+	const _44: [rs.u8, string] = [n & 0xff, text];
+	const _42: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _44, rs.hashTuple([rs.hash8, rs.hashStr]), undefined, rs.drop);
+	const _48: Logged.Logged = new Logged.Logged((n << 16) >> 16, log);
+	const _46: rs.u64 = rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _48, rs.hashOwn(Logged.hash$Hash_hashes_Full as (a0: Logged.Logged, a1: Full.Full) => undefined), rs.drop, rs.drop);
+	const _54: Logged.Logged = new Logged.Logged(-1, log);
+	const hashes: rs.u64[] = [finish, _29, _31, _33, _36, _38, _42, _46, rs.hashOne(new rs.OwnHasher(Build.buildHasher$hash_BuildHasher(build), Full.hasher$hash_Hasher), _54, rs.hashOwn(Logged.hash$Hash_hashes_Full as (a0: Logged.Logged, a1: Full.Full) => undefined), undefined, rs.drop)];
+	_54[Symbol.dispose]();
+	_41[Symbol.dispose]();
 	const iter: rs.Iter<rs.u64> = rs.iterSlice(hashes);
 	while (true) {
-		const _57: rs.u64 | rs.Done = iter.next();
-		if (_57 === rs.DONE) {
+		const _58: rs.u64 | rs.Done = iter.next();
+		if (_58 === rs.DONE) {
 			break;
 		}
 		const dst = out;
-		const word = rs.intWord(_57, 0);
-		const word2 = rs.intWord(_57, 32);
+		const word = rs.intWord(_58, 0);
+		const word2 = rs.intWord(_58, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = word & 255;
@@ -1760,38 +1710,39 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.u16 = rs.u128Low(wide(data, 0, 2)) & 0xffff;
 	let local = { tag: "Log", _0: log } as Switch.Switch;
 	hashInto$hashes_Switch(rs.place(() => local, (value) => local = value), data);
-	const _12: rs.u8 = n & 0xff;
-	const holder: Holder.Holder = new Holder.Holder(_12, { tag: "Log", _0: log } as Switch.Switch);
-	Switch.writeU8$hash_Hasher(rs.place(() => holder.h, (value2) => holder.h = value2), _12 | 1);
+	const holder: Holder.Holder = new Holder.Holder(n & 0xff, { tag: "Log", _0: log } as Switch.Switch);
+	const _17: rs.u8 = (n & 0xff) | 1;
+	Switch.writeU8$hash_Hasher(rs.place(() => holder.h, (value2) => holder.h = value2), _17);
 	rs.hash16(n, new rs.OwnHasher(rs.place(() => holder.h, (value3) => holder.h = value3), Switch.hasher$hash_Hasher));
-	const _23: rs.ByteSlice = rs.byteSliceRange(data, rs.usizeDiv(data.length, 2));
-	hashInto$hashes_Switch(rs.place(() => holder.h, (value4) => holder.h = value4), _23);
+	const _24: rs.ByteSlice = rs.byteSliceRange(data, rs.usizeDiv(data.length, 2));
+	hashInto$hashes_Switch(rs.place(() => holder.h, (value4) => holder.h = value4), _24);
 	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const seeded: Seeded.Seeded = new Seeded.Seeded({ tag: "Log", _0: log } as Switch.Switch);
 	const summing: Seeded.Seeded = new Seeded.Seeded({ tag: "Sum", _0: log, _1: n as rs.u64 } as Switch.Switch);
-	const _37: rs.u64 = Switch.finish$hash_Hasher(local);
-	const _39: rs.u64 = Switch.finish$hash_Hasher(holder.h);
-	const _41: rs.u64 = holder.tag as rs.u64;
-	const _43: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), n, rs.hash16, undefined, (h2: rs.Place<Switch.Switch>) => drop$hashes_Switch(h2.v));
-	const _46: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), text, rs.hashStr, undefined, (h3: rs.Place<Switch.Switch>) => drop$hashes_Switch(h3.v));
-	const _48: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), [_12, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr]), undefined, (h4: rs.Place<Switch.Switch>) => drop$hashes_Switch(h4.v));
-	const _53: Logged.Logged = new Logged.Logged((n << 16) >> 16, log);
-	const _51: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), _53, rs.hashOwn(Logged.hash$Hash_hashes_Switch as (a0: Logged.Logged, a1: rs.Place<Switch.Switch>) => undefined), rs.drop, (h5: rs.Place<Switch.Switch>) => drop$hashes_Switch(h5.v));
-	const _59: Logged.Logged = new Logged.Logged(-1, log);
-	const hashes: rs.u64[] = [_37, _39, _41, _43, _46, _48, _51, rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(summing) }, Switch.hasher$hash_Hasher), _59, rs.hashOwn(Logged.hash$Hash_hashes_Switch as (a0: Logged.Logged, a1: rs.Place<Switch.Switch>) => undefined), undefined, (h6: rs.Place<Switch.Switch>) => drop$hashes_Switch(h6.v)), rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(summing) }, Switch.hasher$hash_Hasher), data, rs.hashBytes, undefined, (h7: rs.Place<Switch.Switch>) => drop$hashes_Switch(h7.v))];
-	_59[Symbol.dispose]();
-	drop$hashes_Switch(local as Switch.Switch);
+	const _40: rs.u64 = Switch.finish$hash_Hasher(local);
+	const _42: rs.u64 = Switch.finish$hash_Hasher(holder.h);
+	const _44: rs.u64 = holder.tag as rs.u64;
+	const _46: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), n, rs.hash16, undefined, (h2: rs.Place<Switch.Switch>) => drop$hashes_Switch(h2.v));
+	const _49: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), text, rs.hashStr, undefined, (h3: rs.Place<Switch.Switch>) => drop$hashes_Switch(h3.v));
+	const _53: [rs.u8, string] = [n & 0xff, text];
+	const _51: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), _53, rs.hashTuple([rs.hash8, rs.hashStr]), undefined, (h4: rs.Place<Switch.Switch>) => drop$hashes_Switch(h4.v));
+	const _57: Logged.Logged = new Logged.Logged((n << 16) >> 16, log);
+	const _55: rs.u64 = rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(seeded) }, Switch.hasher$hash_Hasher), _57, rs.hashOwn(Logged.hash$Hash_hashes_Switch as (a0: Logged.Logged, a1: rs.Place<Switch.Switch>) => undefined), rs.drop, (h5: rs.Place<Switch.Switch>) => drop$hashes_Switch(h5.v));
+	const _63: Logged.Logged = new Logged.Logged(-1, log);
+	const hashes: rs.u64[] = [_40, _42, _44, _46, _49, _51, _55, rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(summing) }, Switch.hasher$hash_Hasher), _63, rs.hashOwn(Logged.hash$Hash_hashes_Switch as (a0: Logged.Logged, a1: rs.Place<Switch.Switch>) => undefined), undefined, (h6: rs.Place<Switch.Switch>) => drop$hashes_Switch(h6.v)), rs.hashOne(new rs.OwnHasher({ v: Seeded.buildHasher$hash_BuildHasher(summing) }, Switch.hasher$hash_Hasher), data, rs.hashBytes, undefined, (h7: rs.Place<Switch.Switch>) => drop$hashes_Switch(h7.v))];
+	_63[Symbol.dispose]();
+	drop$hashes_Switch(local);
 	holder[Symbol.dispose]();
 	drop$tuple2_hashes_Seeded_hashes_Seeded([seeded, summing] as [Seeded.Seeded, Seeded.Seeded]);
 	const iter: rs.Iter<rs.u64> = rs.iterSlice(hashes);
 	while (true) {
-		const _71: rs.u64 | rs.Done = iter.next();
-		if (_71 === rs.DONE) {
+		const _75: rs.u64 | rs.Done = iter.next();
+		if (_75 === rs.DONE) {
 			break;
 		}
 		const dst = out;
-		const word = rs.intWord(_71, 0);
-		const word2 = rs.intWord(_71, 32);
+		const word = rs.intWord(_75, 0);
+		const word2 = rs.intWord(_75, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = word & 255;
@@ -1816,9 +1767,9 @@ export function EVENTS$init(): rs.RefCell<rs.ByteVec> {
 /** Log `what` happened to the value numbered `n`. */
 export function event(what: rs.u8, n: rs.u8): void {
 	((events: rs.RefCell<rs.ByteVec>): undefined => {
-		const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
-		rs.iterExtendBytes(_5.value, rs.iterSlice(Uint8Array.of(what, n)), undefined, true);
-		rs.refMutRelease(_5);
+		const _52: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
+		rs.iterExtendBytes(_52.value, rs.iterSlice(Uint8Array.of(what, n)), undefined, true);
+		rs.refMutRelease(_52);
 	})(EVENTS.get());
 }
 
@@ -1832,9 +1783,9 @@ export function event(what: rs.u8, n: rs.u8): void {
  */
 export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	((events: rs.RefCell<rs.ByteVec>): undefined => {
-		const _53: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
-		rs.byteVecClear(_53.value);
-		rs.refMutRelease(_53);
+		const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
+		rs.byteVecClear(_5.value);
+		rs.refMutRelease(_5);
 	})(EVENTS.get());
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	const keyed: rs.HashMap<Key.Key, rs.u8> = rs.hashWithCapacity(data.length, 58720256, rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq), new Numbered.Numbered(first)) as rs.HashMap<Key.Key, rs.u8>;
@@ -1847,24 +1798,23 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
-		const _25: rs.u8 = rs.u8Rem(b, 8);
-		const _24: rs.u16 = _25 as rs.u16;
+		const _26: rs.u16 = rs.u8Rem(b, 8) as rs.u16;
 		const bounds = rs.sliceIndexBounds(new rs.RangeInclusive(i, i, rs.usizeStep), data.length);
-		const _23: Key.Key = { _0: _24, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };
-		const _20: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(keyed, _23), (): rs.u8 => {
+		const _25: Key.Key = { _0: _26, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };
+		const _22: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(keyed, _25), (): rs.u8 => {
 			return 0;
 		});
-		_20.v = rs.u8Add(_20.v, 1);
+		_22.v = rs.u8Add(_22.v, 1);
 		rs.byteVecPush(out, rs.hashAdd(seen, rs.u8Rem(b, 16)) ? 1 : 0);
-		const _40: Key.Key = { _0: (_25 ^ 1) as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(b ^ 1))) };
-		rs.byteVecPush(out, rs.hashContains(keyed, _40) ? 1 : 0);
+		const _44: Key.Key = { _0: (rs.u8Rem(b, 8) ^ 1) as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(b ^ 1))) };
+		rs.byteVecPush(out, rs.hashContains(keyed, _44) ? 1 : 0);
 	}
 	const held: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
 	rs.sliceSort(rs.sliceFrom(held.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
-	for (const _57 of held.items) {
-		rs.byteVecPush(out, _57[0]._0 & 0xff);
-		put(out, _57[0]._1.v);
-		rs.byteVecPush(out, _57[1]);
+	for (const _63 of held.items) {
+		rs.byteVecPush(out, _63[0]._0 & 0xff);
+		put(out, _63[0]._1.v);
+		rs.byteVecPush(out, _63[1]);
 	}
 	const probe: Key.Key = { _0: first as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(first))) };
 	rs.byteVecPush(out, (keyed.s as Numbered.Numbered)._0);
@@ -1915,10 +1865,10 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const taken: rs.HashMap<rs.u8, Noisy.Noisy> = taken2;
 	rs.byteVecPush(out, rs.hashLen(taken) & 0xff);
 	rs.byteVecPush(out, rs.hashLen(made) & 0xff);
-	const _128: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
+	const _136: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
 		return rs.u8Rem(b2, 4);
 	});
-	const small: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(undefined, Numbered.default$Default()) as rs.HashSet<rs.u8>, _128, undefined, undefined, 469762048);
+	const small: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(undefined, Numbered.default$Default()) as rs.HashSet<rs.u8>, _136, undefined, undefined, 469762048);
 	const union: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(undefined, Numbered.default$Default()) as rs.HashSet<rs.u8>, rs.hashUnion(small, seen), undefined, undefined, 469762048);
 	rs.byteVecPush(out, rs.hashLen(union) & 0xff);
 	rs.byteVecPush(out, rs.hashIsSubset(small, seen) ? 1 : 0);
@@ -1929,11 +1879,11 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, keys.items.length & 0xff);
 	const iter3: rs.Iter<Noisy.Noisy> = rs.hashValues(taken, rs.drop, undefined, rs.drop);
 	while (true) {
-		const _161: Noisy.Noisy | rs.Done = iter3.next();
-		if (_161 === rs.DONE) {
+		const _169: Noisy.Noisy | rs.Done = iter3.next();
+		if (_169 === rs.DONE) {
 			break;
 		}
-		const value: Noisy.Noisy = _161;
+		const value: Noisy.Noisy = _169;
 		event(118, value._0);
 		value[Symbol.dispose]();
 	}
@@ -1967,10 +1917,6 @@ export function call(what: rs.u8, side: rs.u8, other: rs.u8, n: rs.u8): void {
  * visits before one differs follows std's order.
  */
 export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(a: rs.HashMap<Sided.Sided, Sided.Sided>, b: rs.HashMap<Sided.Sided, Sided.Sided>, len: rs.usize, out: rs.ByteVec): void {
-	let _21!: rs.Vec<rs.u32>;
-	let _22!: rs.usize;
-	let _23!: rs.usize;
-	let _24!: rs.Vec<rs.u32>;
 	((calls2: rs.RefCell<rs.Vec<rs.u32>>): undefined => {
 		const _5: rs.RefCell<rs.Vec<rs.u32>> = rs.refCellBorrowMut(calls2);
 		rs.vecTruncate(_5.value, 0);
@@ -1982,27 +1928,19 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 	const calls: rs.Vec<rs.u32> = ((calls3: rs.RefCell<rs.Vec<rs.u32>>): rs.Vec<rs.u32> => {
 		return rs.refCellReplace(calls3, new rs.Vec());
 	})(CALLS.get());
-	if (!(len > 1)) {
-		_21 = calls;
-		_24 = calls;
-		_23 = _24.items.length;
-		_22 = rs.usizeDiv(_23, 2);
-		rs.vecTruncate(_21, _22);
-	} else {
+	if (len > 1) {
 		if (!equal) {
 			rs.vecTruncate(calls, 0);
 		}
-		_21 = calls;
-		_24 = calls;
-		_23 = _24.items.length;
-		_22 = rs.usizeDiv(_23, 2);
-		rs.vecTruncate(_21, _22);
+	}
+	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
+	if (len > 1) {
 		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
-	for (const _35 of calls.items) {
+	for (const _39 of calls.items) {
 		const dst = out;
-		const word = _35;
+		const word = _39;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -2019,10 +1957,6 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
  * visits before one differs follows std's order.
  */
 export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.HashSet<Sided.Sided>, b: rs.HashSet<Sided.Sided>, len: rs.usize, out: rs.ByteVec): void {
-	let _21!: rs.Vec<rs.u32>;
-	let _22!: rs.usize;
-	let _23!: rs.usize;
-	let _24!: rs.Vec<rs.u32>;
 	((calls2: rs.RefCell<rs.Vec<rs.u32>>): undefined => {
 		const _5: rs.RefCell<rs.Vec<rs.u32>> = rs.refCellBorrowMut(calls2);
 		rs.vecTruncate(_5.value, 0);
@@ -2034,27 +1968,19 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 	const calls: rs.Vec<rs.u32> = ((calls3: rs.RefCell<rs.Vec<rs.u32>>): rs.Vec<rs.u32> => {
 		return rs.refCellReplace(calls3, new rs.Vec());
 	})(CALLS.get());
-	if (!(len > 1)) {
-		_21 = calls;
-		_24 = calls;
-		_23 = _24.items.length;
-		_22 = rs.usizeDiv(_23, 2);
-		rs.vecTruncate(_21, _22);
-	} else {
+	if (len > 1) {
 		if (!equal) {
 			rs.vecTruncate(calls, 0);
 		}
-		_21 = calls;
-		_24 = calls;
-		_23 = _24.items.length;
-		_22 = rs.usizeDiv(_23, 2);
-		rs.vecTruncate(_21, _22);
+	}
+	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
+	if (len > 1) {
 		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
-	for (const _35 of calls.items) {
+	for (const _39 of calls.items) {
 		const dst = out;
-		const word = _35;
+		const word = _39;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -2082,11 +2008,11 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const iterS: Uint8Array = rs.byteSliceView(bytes);
 		let iterI: number = 0;
 		while (true) {
-			const _152: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-			if (_152 === rs.DONE) {
+			const _155: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			if (_155 === rs.DONE) {
 				return m;
 			}
-			const b: rs.u8 = _152;
+			const b: rs.u8 = _155;
 			const _212: Sided.Sided = { n: b & 127, side };
 			const _23: Sided.Sided = { n: b >> 6, side: rs.u8Add(side, 2) };
 			rs.hashInsert(m, _212, _23);
@@ -2133,13 +2059,11 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const flipped: rs.ByteVec = v2;
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
-	const _24: [rs.u8, rs.ByteSlice] = [1, data];
-	const left: rs.HashMap<Sided.Sided, Sided.Sided> = map(_24[0], _24[1]);
+	const left: rs.HashMap<Sided.Sided, Sided.Sided> = map(1, data);
 	const part2 = rs.byteVecSlice(reversed);
 	const _27: rs.HashMap<Sided.Sided, Sided.Sided> = map(2, part2);
 	const _32: rs.HashMap<Sided.Sided, Sided.Sided> = map(2, data);
-	const _37: [rs.u8, rs.ByteSlice] = [2, shorter];
-	const _35: rs.HashMap<Sided.Sided, Sided.Sided> = map(_37[0], _37[1]);
+	const _35: rs.HashMap<Sided.Sided, Sided.Sided> = map(2, shorter);
 	const part3 = rs.byteVecSlice(flipped);
 	const iter: rs.Iter<rs.HashMap<Sided.Sided, Sided.Sided>> = rs.iterSlice([_27, _32, _35, map(2, part3)]);
 	while (true) {
@@ -2153,89 +2077,88 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _56: rs.usize = rs.hashLen(left);
 		compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(right, left, _56, out);
 	}
-	const left2: rs.HashSet<Sided.Sided> = _8(_24[0], _24[1]);
+	const left2: rs.HashSet<Sided.Sided> = _8(1, data);
 	const part4 = rs.byteVecSlice(reversed);
-	const _62: rs.HashSet<Sided.Sided> = _8(2, part4);
-	const _67: rs.HashSet<Sided.Sided> = _8(_37[0], _37[1]);
+	const _63: rs.HashSet<Sided.Sided> = _8(2, part4);
+	const _68: rs.HashSet<Sided.Sided> = _8(2, shorter);
 	const part5 = rs.byteVecSlice(flipped);
-	const iter2: rs.Iter<rs.HashSet<Sided.Sided>> = rs.iterSlice([_62, _67, _8(2, part5)]);
+	const iter2: rs.Iter<rs.HashSet<Sided.Sided>> = rs.iterSlice([_63, _68, _8(2, part5)]);
 	while (true) {
-		const _75: rs.HashSet<Sided.Sided> | rs.Done = iter2.next();
-		if (_75 === rs.DONE) {
+		const _77: rs.HashSet<Sided.Sided> | rs.Done = iter2.next();
+		if (_77 === rs.DONE) {
 			break;
 		}
-		const right2: rs.HashSet<Sided.Sided> = _75;
-		const _82: rs.usize = rs.hashLen(left2);
-		compared$collections_HashSet_hashes_Sided_hashes_Spread(left2, right2, _82, out);
-		const _87: rs.usize = rs.hashLen(left2);
-		compared$collections_HashSet_hashes_Sided_hashes_Spread(right2, left2, _87, out);
+		const right2: rs.HashSet<Sided.Sided> = _77;
+		const _84: rs.usize = rs.hashLen(left2);
+		compared$collections_HashSet_hashes_Sided_hashes_Spread(left2, right2, _84, out);
+		const _89: rs.usize = rs.hashLen(left2);
+		compared$collections_HashSet_hashes_Sided_hashes_Spread(right2, left2, _89, out);
 	}
 	compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, 0, out);
-	const _94: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
+	const _96: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
 		const m2: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
 		const iterS3: Uint8Array = rs.byteSliceView(bytes3);
 		let iterI3: number = 0;
 		while (true) {
-			const _68: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_68 === rs.DONE) {
+			const _69: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
+			if (_69 === rs.DONE) {
 				return m2;
 			}
-			const b4: rs.u8 = _68;
+			const b4: rs.u8 = _69;
 			const _104: rs.u16 = b4 as rs.u16;
-			const _116: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m2, rs.u8Rem(b4, 8)), (): rs.u16 => {
+			const _117: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m2, rs.u8Rem(b4, 8)), (): rs.u16 => {
 				return 0;
 			});
-			_116.v = rs.u16Add(_104, _116.v);
+			_117.v = rs.u16Add(_117.v, _104);
 		}
 	};
-	const _101: [rs.ByteSlice] = [data];
-	const _99: rs.HashMap<rs.u8, rs.u16> = _94(_101[0]);
+	const _101: rs.HashMap<rs.u8, rs.u16> = _96(data);
 	const part6 = rs.byteVecSlice(reversed);
-	const _103: rs.HashMap<rs.u8, rs.u16> = _94(part6);
-	rs.byteVecPush(out, rs.hashEq(rs.same)(_99, _103) ? 1 : 0);
-	const _112: rs.HashMap<rs.u8, rs.u16> = _94(_101[0]);
+	const _105: rs.HashMap<rs.u8, rs.u16> = _96(part6);
+	rs.byteVecPush(out, rs.hashEq(rs.same)(_101, _105) ? 1 : 0);
+	const _114: rs.HashMap<rs.u8, rs.u16> = _96(data);
 	const part7 = rs.byteVecSlice(flipped);
-	const _115: rs.HashMap<rs.u8, rs.u16> = _94(part7);
-	rs.byteVecPush(out, !rs.hashEq(rs.same)(_112, _115) ? 1 : 0);
-	const _120: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes4: rs.ByteSlice): rs.HashSet<rs.String> => {
-		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_28: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_28, 4))));
+	const _118: rs.HashMap<rs.u8, rs.u16> = _96(part7);
+	rs.byteVecPush(out, !rs.hashEq(rs.same)(_114, _118) ? 1 : 0);
+	const _123: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes4: rs.ByteSlice): rs.HashSet<rs.String> => {
+		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_210: rs.u8): rs.String => {
+			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_210, 4))));
 		});
 		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
 	};
-	const _125: rs.HashSet<rs.String> = _120(_101[0]);
+	const _128: rs.HashSet<rs.String> = _123(data);
 	const part8 = rs.byteVecSlice(reversed);
-	const _128: rs.HashSet<rs.String> = _120(part8);
-	rs.byteVecPush(out, rs.hashEq()(_125, _128) ? 1 : 0);
-	const _137: rs.HashSet<rs.String> = _120(_101[0]);
-	const _140: rs.HashSet<rs.String> = _120(shorter);
-	rs.byteVecPush(out, rs.hashEq()(_137, _140) ? 1 : 0);
-	const _149: rs.HashSet<rs.String> = _120(_101[0]);
+	const _132: rs.HashSet<rs.String> = _123(part8);
+	rs.byteVecPush(out, rs.hashEq()(_128, _132) ? 1 : 0);
+	const _141: rs.HashSet<rs.String> = _123(data);
+	const _145: rs.HashSet<rs.String> = _123(shorter);
+	rs.byteVecPush(out, rs.hashEq()(_141, _145) ? 1 : 0);
+	const _154: rs.HashSet<rs.String> = _123(data);
 	const part9 = rs.byteVecSlice(flipped);
-	const _147: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_149, _120(part9)]);
+	const _152: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_154, _123(part9)]);
 	const part10 = rs.byteVecSlice(reversed);
-	const _159: rs.HashSet<rs.String> = _120(part10);
+	const _165: rs.HashSet<rs.String> = _123(part10);
 	const part11 = rs.byteVecSlice(flipped);
-	const _157: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_159, _120(part11)]);
-	rs.byteVecPush(out, rs.eqSeq(rs.hashEq())(_147, _157) ? 1 : 0);
-	const _169: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes5: rs.ByteSlice): hashes_Index.Index => {
-		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_210: rs.u8): [rs.u8, rs.String] => {
-			const b6: rs.u8 = _210;
+	const _163: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_165, _123(part11)]);
+	rs.byteVecPush(out, rs.eqSeq(rs.hashEq())(_152, _163) ? 1 : 0);
+	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes5: rs.ByteSlice): hashes_Index.Index => {
+		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_211: rs.u8): [rs.u8, rs.String] => {
+			const b6: rs.u8 = _211;
 			return [rs.u8Rem(b6, 8), text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(b6, 3))))] as [rs.u8, rs.String];
 		});
 		const _33: rs.HashMap<rs.u8, rs.String> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.String>, _46, undefined, undefined, undefined, 58720256);
-		const _77: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_211: rs.u8): [rs.u8, boolean] => {
-			const b7: rs.u8 = _211;
+		const _78: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_213: rs.u8): [rs.u8, boolean] => {
+			const b7: rs.u8 = _213;
 			return [rs.u8Rem(b7, 5), rs.u8Rem(b7, 2) === 0] as [rs.u8, boolean];
 		});
-		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _77, undefined, undefined, 469762048) };
+		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _78, undefined, undefined, 469762048) };
 	};
-	const _174: hashes_Index.Index = _169(_101[0]);
+	const _180: hashes_Index.Index = _175(data);
 	const part12 = rs.byteVecSlice(reversed);
-	rs.byteVecPush(out, hashes_Index.eq$cmp_PartialEq(_174, _169(part12)) ? 1 : 0);
-	const _186: hashes_Index.Index = _169(_101[0]);
+	rs.byteVecPush(out, hashes_Index.eq$cmp_PartialEq(_180, _175(part12)) ? 1 : 0);
+	const _193: hashes_Index.Index = _175(data);
 	const part13 = rs.byteVecSlice(flipped);
-	rs.byteVecPush(out, !hashes_Index.eq$cmp_PartialEq(_186, _169(part13)) ? 1 : 0);
+	rs.byteVecPush(out, !hashes_Index.eq$cmp_PartialEq(_193, _175(part13)) ? 1 : 0);
 }
 
 /**
@@ -2246,9 +2169,9 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	((events: rs.RefCell<rs.ByteVec>): undefined => {
-		const _52: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
-		rs.byteVecClear(_52.value);
-		rs.refMutRelease(_52);
+		const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(events);
+		rs.byteVecClear(_5.value);
+		rs.refMutRelease(_5);
 	})(EVENTS.get());
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	Tallied.default$Default();
@@ -2257,33 +2180,32 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, true ? 1 : 0);
 	rs.byteVecPush(out, false ? 1 : 0);
 	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, cloned) ? 1 : 0);
-	const _34: Tallied.Tallied = Tallied.default$Default();
-	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, _34) ? 1 : 0);
-	const _217: undefined | rs.None = undefined;
-	const args3 = [(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), (f: rs.Formatter) => rs.fmtOption(_217, f, (_value: undefined, f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), rs.None), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(cloned, f), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(held, f)];
-	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", rs.fmtSpec({ alternate: true }, args3[3])]).v);
+	const _36: Tallied.Tallied = Tallied.default$Default();
+	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, _36) ? 1 : 0);
+	const args5 = [(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), (f: rs.Formatter) => rs.fmtOption(undefined, f, (_value: undefined, f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), rs.None), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(cloned, f), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(held, f)];
+	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", rs.fmtSpec({ alternate: true }, args5[3])]).v);
 	const word: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const n: rs.u16 = rs.u128Low(wide(data, 0, 2)) & 0xffff;
 	const built: Tally.Tally = Tally.default$Default();
 	rs.hash16(n, new rs.OwnHasher(built, Tally.hasher$hash_Hasher));
-	const _60: rs.u64 = Tally.finish$hash_Hasher(built);
-	const _62: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), n, rs.hash16, undefined, rs.drop);
-	const _64: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), word, rs.hashStr, undefined, rs.drop);
-	const _67: [rs.u8, string] = [n & 0xff, word];
-	const _66: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _67, rs.hashTuple([rs.hash8, rs.hashStr]), undefined, rs.drop);
-	const _73: rs.String = rs.stringFrom(word);
-	const _72: Key.Key = { _0: n, _1: _73 };
-	const hashes: rs.u64[] = [_60, _62, _64, _66, rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _72, rs.hashOwn(Key.hash$Hash_hashes_Tally as (a0: Key.Key, a1: Tally.Tally) => undefined), undefined, rs.drop)];
+	const _66: rs.u64 = Tally.finish$hash_Hasher(built);
+	const _68: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), n, rs.hash16, undefined, rs.drop);
+	const _70: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), word, rs.hashStr, undefined, rs.drop);
+	const _74: [rs.u8, string] = [n & 0xff, word];
+	const _72: rs.u64 = rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _74, rs.hashTuple([rs.hash8, rs.hashStr]), undefined, rs.drop);
+	const _80: rs.String = rs.stringFrom(word);
+	const _79: Key.Key = { _0: n, _1: _80 };
+	const hashes: rs.u64[] = [_66, _68, _70, _72, rs.hashOne(new rs.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _79, rs.hashOwn(Key.hash$Hash_hashes_Tally as (a0: Key.Key, a1: Tally.Tally) => undefined), undefined, rs.drop)];
 	built[Symbol.dispose]();
 	const iter: rs.Iter<rs.u64> = rs.iterSlice(hashes);
 	while (true) {
-		const _78: rs.u64 | rs.Done = iter.next();
-		if (_78 === rs.DONE) {
+		const _85: rs.u64 | rs.Done = iter.next();
+		if (_85 === rs.DONE) {
 			break;
 		}
 		const dst = out;
-		const word2 = rs.intWord(_78, 0);
-		const word3 = rs.intWord(_78, 32);
+		const word2 = rs.intWord(_85, 0);
+		const word3 = rs.intWord(_85, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = word2 & 255;
@@ -2306,24 +2228,23 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
-		const _104: rs.u8 = rs.u8Rem(b, 8);
-		const _103: rs.u16 = _104 as rs.u16;
+		const _110: rs.u16 = rs.u8Rem(b, 8) as rs.u16;
 		const bounds = rs.sliceIndexBounds(new rs.RangeInclusive(i, i, rs.usizeStep), data.length);
-		const _102: Key.Key = { _0: _103, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };
-		const _99: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(keyed, _102), (): rs.u8 => {
+		const _109: Key.Key = { _0: _110, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };
+		const _106: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(keyed, _109), (): rs.u8 => {
 			return 0;
 		});
-		_99.v = rs.u8Add(_99.v, 1);
+		_106.v = rs.u8Add(_106.v, 1);
 		rs.byteVecPush(out, rs.hashAdd(seen, rs.u8Rem(b, 16)) ? 1 : 0);
-		const _119: Key.Key = { _0: (_104 ^ 1) as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(b ^ 1))) };
-		rs.byteVecPush(out, rs.hashContains(keyed, _119) ? 1 : 0);
+		const _128: Key.Key = { _0: (rs.u8Rem(b, 8) ^ 1) as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(b ^ 1))) };
+		rs.byteVecPush(out, rs.hashContains(keyed, _128) ? 1 : 0);
 	}
 	const entries: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
 	rs.sliceSort(rs.sliceFrom(entries.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
-	for (const _136 of entries.items) {
-		rs.byteVecPush(out, _136[0]._0 & 0xff);
-		put(out, _136[0]._1.v);
-		rs.byteVecPush(out, _136[1]);
+	for (const _147 of entries.items) {
+		rs.byteVecPush(out, _147[0]._0 & 0xff);
+		put(out, _147[0]._1.v);
+		rs.byteVecPush(out, _147[1]);
 	}
 	const probe: Key.Key = { _0: first as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(first))) };
 	const dst2 = out;
@@ -2360,15 +2281,15 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.data[pos3 + 7] = (word9 >>> 24) & 255;
 	dst3.length = dst3.length + 8;
 	rs.byteVecPush(out, true ? 1 : 0);
-	const _184: rs.HashMap<Key.Key, rs.u8> = rs.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
+	const _195: rs.HashMap<Key.Key, rs.u8> = rs.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
 		return undefined;
 	});
-	rs.byteVecPush(out, rs.hashEq(rs.same)(keyed, _184) ? 1 : 0);
+	rs.byteVecPush(out, rs.hashEq(rs.same)(keyed, _195) ? 1 : 0);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault")]).v);
-	const _199: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
+	const _212: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
 		return rs.u8Rem(b2, 4);
 	});
-	const small: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(undefined, undefined) as rs.HashSet<rs.u8>, _199, undefined, undefined, 469762048);
+	const small: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(undefined, undefined) as rs.HashSet<rs.u8>, _212, undefined, undefined, 469762048);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(undefined, undefined) as rs.HashSet<rs.u8>, rs.hashUnion(small, seen), undefined, undefined, 469762048)) & 0xff);
 	rs.byteVecPush(out, rs.hashIsSubset(small, seen) ? 1 : 0);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(((events2: rs.RefCell<rs.ByteVec>): rs.ByteVec => {

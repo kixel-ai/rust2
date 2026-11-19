@@ -47,15 +47,15 @@ export function decodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			rs.byteVecPush(out, option_mapOr$188iunt(e.errorLen, 255, (n: rs.usize): rs.u8 => {
 				return n & 0xff;
 			}));
-			const args3 = [(f: rs.Formatter) => rs.fmtUtf8ErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtUtf8ErrorDebug(e, f)];
-			put(out, rs.fmtFormat([args3[0], "|", rs.fmtSpec({ align: ">", width: 64 }, args3[0]), "|", args3[1], "|", rs.fmtSpec({ alternate: true }, args3[1])]).v);
+			const args5 = [(f: rs.Formatter) => rs.fmtUtf8ErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtUtf8ErrorDebug(e, f)];
+			put(out, rs.fmtFormat([args5[0], "|", rs.fmtSpec({ align: ">", width: 64 }, args5[0]), "|", args5[1], "|", rs.fmtSpec({ alternate: true }, args5[1])]).v);
 		}
 	}
-	const _53: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rs.byteVecSlice(bytes));
-	if (_53.ok) {
-		rs.byteVecPush(out, rs.stringLen(_53.value) & 0xff);
+	const _57: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rs.byteVecSlice(bytes));
+	if (_57.ok) {
+		rs.byteVecPush(out, rs.stringLen(_57.value) & 0xff);
 	} else {
-		rs.byteVecPush(out, _53.error.validUpTo & 0xff);
+		rs.byteVecPush(out, _57.error.validUpTo & 0xff);
 	}
 }
 
@@ -76,8 +76,8 @@ export function lossy(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			_20 = false;
 		}
 		rs.byteVecPush(out, _20 ? 1 : 0);
-		const args7 = [(f: rs.Formatter) => rs.fmtPad(f, rs.strCowStr(text)), (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(text), f)];
-		put(out, rs.fmtFormat([args7[0], "|", args7[1]]).v);
+		const args13 = [(f: rs.Formatter) => rs.fmtPad(f, rs.strCowStr(text)), (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(text), f)];
+		put(out, rs.fmtFormat([args13[0], "|", args13[1]]).v);
 		rs.byteVecPush(out, rs.stringLen(rs.strCowStr(text)) & 0xff);
 		const owned: rs.String = rs.strCowIntoOwned(text);
 		put(out, owned.v);
@@ -86,36 +86,36 @@ export function lossy(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.strToBytes(owned.v)));
 		put(out, rs.stringFromUtf8Unchecked(rs.stringIntoBytes(owned)).v);
 		const chunks: rs.Iter<rs.Utf8Chunk> = rs.byteSliceUtf8Chunks(rest);
-		const args8 = [(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)];
-		put(out, rs.fmtFormat([args8[0], "|", rs.fmtSpec({ alternate: true }, args8[0])]).v);
+		const args14 = [(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)];
+		put(out, rs.fmtFormat([args14[0], "|", rs.fmtSpec({ alternate: true }, args14[0])]).v);
 		let last: rs.Utf8Chunk | undefined = undefined;
 		while (true) {
-			const _75: rs.Utf8Chunk | undefined = rs.iterToOption(chunks.next());
-			if (_75 !== undefined) {
-				const chunk: rs.Utf8Chunk = _75;
+			const _79: rs.Utf8Chunk | rs.Done = chunks.next();
+			if (_79 !== rs.DONE) {
+				const chunk: rs.Utf8Chunk = _79;
 				put(out, chunk.valid);
 				rs.byteVecExtendFromSlice(out, chunk.invalid);
 				rs.byteVecPush(out, chunk.invalid.length & 0xff);
-				const args9 = [(f: rs.Formatter) => rs.fmtUtf8ChunkDebug(chunk, f)];
-				put(out, rs.fmtFormat([args9[0], "|", rs.fmtSpec({ alternate: true }, args9[0])]).v);
+				const args15 = [(f: rs.Formatter) => rs.fmtUtf8ChunkDebug(chunk, f)];
+				put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ alternate: true }, args15[0])]).v);
 				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)]).v);
 				rs.byteVecPush(out, rs.iterCount(chunks.clone()) & 0xff);
 				rs.byteVecPush(out, lossy_eq$1kzzmg3(chunk, chunk) ? 1 : 0);
-				const _126: rs.Utf8Chunk | undefined = last;
-				const _129: rs.Utf8Chunk | undefined = chunk;
-				rs.byteVecPush(out, rs.eqOption(lossy_eq$1kzzmg3)(_126, _129) ? 1 : 0);
-				last = _75;
+				const _134: rs.Utf8Chunk | undefined = last;
+				const _137: rs.Utf8Chunk | undefined = chunk;
+				rs.byteVecPush(out, rs.eqOption(lossy_eq$1kzzmg3)(_134, _137) ? 1 : 0);
+				last = chunk;
 			} else {
 				break;
 			}
 		}
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)]).v);
 	}
-	const _141: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(bytes);
-	if (_141.ok) {
-		put(out, _141.value.v);
+	const _152: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(bytes);
+	if (_152.ok) {
+		put(out, _152.value.v);
 	} else {
-		const e: rs.FromUtf8Error = _141.error;
+		const e: rs.FromUtf8Error = _152.error;
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(e.bytes));
 		const u: rs.Utf8Error = e.error;
 		rs.byteVecPush(out, u.validUpTo & 0xff);

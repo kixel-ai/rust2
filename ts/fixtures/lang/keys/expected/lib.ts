@@ -34,12 +34,6 @@ export function copy$keys_Horizon(v: Horizon.Horizon): Horizon.Horizon {
 	return { exclude: copy$Option_keys_Hop(v.exclude), local: v.local };
 }
 
-export function copy$ops_RangeFrom_array2_u8(v: rs.RangeFrom<Uint8Array>): rs.RangeFrom<Uint8Array> {
-	const c = rs.objectCopy(v);
-	c.start = copy$array_u8(c.start);
-	return c;
-}
-
 export function copy$tuple2_u8_keys_Horizon(v: [rs.u8, Horizon.Horizon]): [rs.u8, Horizon.Horizon] {
 	return [v[0], copy$keys_Horizon(v[1])];
 }

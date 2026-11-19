@@ -19,7 +19,7 @@ export function fill(self: Filled): void {
 	} else {
 		_2 = undefined;
 	}
-	self.shape = _2 as Shape.Shape | undefined;
+	self.shape = _2;
 }
 
 export function run(self: Filled): rs.u8 {
@@ -29,7 +29,7 @@ export function run(self: Filled): rs.u8 {
 			return 41;
 		}
 		if (((self.shape as Shape.Shape | undefined) as Shape.Shape).tag === "Line") {
-			return (((self.shape as Shape.Shape | undefined) as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1.y & 0xff;
+			return copy$shapes_Point((((self.shape as Shape.Shape | undefined) as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1).y & 0xff;
 		}
 		return 40;
 	}
@@ -37,7 +37,7 @@ export function run(self: Filled): rs.u8 {
 		fill(self);
 		if ((self.shape as Shape.Shape | undefined) !== undefined) {
 			if ((self.shape as Shape.Shape).tag === "Line") {
-				return ((self.shape as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._0.x & 0xff;
+				return copy$shapes_Point(((self.shape as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._0).x & 0xff;
 			}
 		}
 		return 42;

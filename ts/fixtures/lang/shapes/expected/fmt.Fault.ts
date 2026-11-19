@@ -37,10 +37,10 @@ export function fmt$fmt_Display(self: Fault, f: rs.Formatter): rs.Result<undefin
 	}
 	if (self.tag === "TooLarge") {
 		const arg2 = self.size;
-		const _16: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg2, f);
+		const _20: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg2, f);
 		const arg3 = self.max;
-		const args5 = [_16, (f: rs.Formatter) => rs.usizeDisplay(arg3, f)];
-		return rs.fmtWriteFmt(f, [args5[0], " bytes exceeds the ", args5[1], " byte limit"]);
+		const args8 = [_20, (f: rs.Formatter) => rs.usizeDisplay(arg3, f)];
+		return rs.fmtWriteFmt(f, [args8[0], " bytes exceeds the ", args8[1], " byte limit"]);
 	}
 	const arg = self._0;
 	return rs.fmtWriteFmt(f, ["at ", (f: rs.Formatter) => Pair.fmt$fmt_Debug(arg, f)]);
@@ -51,17 +51,17 @@ function new_(data: rs.ByteSlice): Fault {
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
-	const _3: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 4);
+	const _3: rs.u8 = rs.u8Rem(at(0), 4);
 	if (_3 === 0) {
 		return { tag: "Short" } as Fault;
 	}
 	if (_3 === 1) {
-		return { tag: "Code", _0: (at(([1] as [rs.usize])[0]) << 8) | at(([2] as [rs.usize])[0]) } as Fault;
+		return { tag: "Code", _0: (at(1) << 8) | at(2) } as Fault;
 	}
 	if (_3 === 2) {
-		return { tag: "TooLarge", size: ((((at(([1] as [rs.usize])[0]) as rs.usize) << 24) >>> 0) | at(([2] as [rs.usize])[0]) as rs.usize) >>> 0, max: at(([3] as [rs.usize])[0]) as rs.usize } as Fault;
+		return { tag: "TooLarge", size: ((((at(1) as rs.usize) << 24) >>> 0) | at(2) as rs.usize) >>> 0, max: at(3) as rs.usize } as Fault;
 	}
-	return { tag: "At", _0: { _0: at(([1] as [rs.usize])[0]), _1: rs.i64Shl((at(([2] as [rs.usize])[0]) << 24) >> 24 as rs.i64, 40) } } as Fault;
+	return { tag: "At", _0: { _0: at(1), _1: rs.i64Shl((at(2) << 24) >> 24 as rs.i64, 40) } } as Fault;
 }
 
 export { new_ as new };

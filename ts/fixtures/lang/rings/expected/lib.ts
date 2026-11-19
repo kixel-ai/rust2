@@ -2,15 +2,6 @@
 
 import * as rs from "./rs.ts";
 import { slices } from "./rings.ts";
-import type * as Big from "./rings.Big.ts";
-
-export function copy$array_u8(v: Uint8Array): Uint8Array {
-	return v.slice();
-}
-
-export function copy$rings_Big(v: Big.Big): Big.Big {
-	return { id: v.id, pad: copy$array_u8(v.pad) };
-}
 
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo

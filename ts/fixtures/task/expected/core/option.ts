@@ -14,12 +14,21 @@ export function isSomeAnd$17cacqw(self: Guard.Guard | undefined, f: (a0: Guard.G
 	return f(self);
 }
 
-export function unwrapOr$0qmflam(self: Guard.Guard | undefined, default_: Guard.Guard): Guard.Guard {
+export function unwrapOr$0v6ziq2(self: Guard.Guard | undefined, default_: Guard.Guard): Guard.Guard {
+	let _0!: Guard.Guard;
+	let _5: boolean = false;
+	_5 = true;
 	if (self === undefined) {
-		return default_;
+		_5 = false;
+		_0 = default_;
+	} else {
+		_0 = self;
 	}
-	default_[Symbol.dispose]();
-	return self;
+	if (_5) {
+		default_[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 export function unwrapOr$15hbiwd(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
@@ -155,20 +164,40 @@ export function map$1389p4b(self: [rs.usize, Guard.Guard] | undefined, f: (a0: [
 	return f(self);
 }
 
-export function map$089gsv1(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$0cxn9jm(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+	let _0!: rs.u32 | undefined;
+	let _8: boolean = false;
+	_8 = true;
 	if (self === undefined) {
-		rs.drop(f);
-		return undefined;
+		_0 = undefined;
+	} else {
+		const x: rs.u32 = self;
+		_8 = false;
+		_0 = rs.callOnce(f, x);
 	}
-	return rs.callOnce(f, self);
+	if (_8) {
+		rs.drop(f);
+		return _0;
+	}
+	return _0;
 }
 
-export function map$04a36aa(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$1ol7nt5(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+	let _0!: rs.u32 | undefined;
+	let _8: boolean = false;
+	_8 = true;
 	if (self === undefined) {
-		rs.drop(f);
-		return undefined;
+		_0 = undefined;
+	} else {
+		const x: rs.u32 = self;
+		_8 = false;
+		_0 = f(x);
 	}
-	return f(self);
+	if (_8) {
+		rs.drop(f);
+		return _0;
+	}
+	return _0;
 }
 
 export function map$1nux4ms(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.Result<rs.u64, rs.u64>): rs.Result<rs.u64, rs.u64> | undefined {
@@ -227,29 +256,55 @@ export function mapOr$1yfuqyd(self: rs.Arc<Part.Part> | undefined, default_: rs.
 	return f(self);
 }
 
-export function mapOr$1c9b9rz(self: rs.u32 | undefined, default_: Guard.Guard, f: (a0: rs.u32) => Guard.Guard): Guard.Guard {
+export function mapOr$19gmzl7(self: rs.u32 | undefined, default_: Guard.Guard, f: (a0: rs.u32) => Guard.Guard): Guard.Guard {
+	let _0!: Guard.Guard;
+	let _9: boolean = false;
+	_9 = true;
 	if (self === undefined) {
-		return default_;
+		_9 = false;
+		_0 = default_;
+	} else {
+		_0 = f(self);
 	}
-	const _0: Guard.Guard = f(self);
-	default_[Symbol.dispose]();
+	if (_9) {
+		default_[Symbol.dispose]();
+		return _0;
+	}
 	return _0;
 }
 
-export function mapOr$02odxgz(self: rs.u32 | undefined, default_: rs.u32, f: (a0: rs.u32) => rs.u32): rs.u32 {
+export function mapOr$0lyy1bs(self: rs.u32 | undefined, default_: rs.u32, f: (a0: rs.u32) => rs.u32): rs.u32 {
+	let _0!: rs.u32;
+	let _8: boolean = false;
+	_8 = true;
 	if (self === undefined) {
-		rs.drop(f);
-		return default_;
+		_0 = default_;
+	} else {
+		const t: rs.u32 = self;
+		_8 = false;
+		_0 = f(t);
 	}
-	return f(self);
+	if (_8) {
+		rs.drop(f);
+		return _0;
+	}
+	return _0;
 }
 
-export function okOr$0tpl0e3(self: Guard.Guard | undefined, err: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> {
+export function okOr$0qyzozq(self: Guard.Guard | undefined, err: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> {
+	let _0!: rs.Result<Guard.Guard, Guard.Guard>;
+	let _6: boolean = false;
+	_6 = true;
 	if (self === undefined) {
-		return rs.Err(err);
+		_6 = false;
+		_0 = rs.Err(err);
+	} else {
+		_0 = rs.Ok(self);
 	}
-	const _0: rs.Result<Guard.Guard, Guard.Guard> = rs.Ok(self);
-	err[Symbol.dispose]();
+	if (_6) {
+		err[Symbol.dispose]();
+		return _0;
+	}
 	return _0;
 }
 
@@ -260,41 +315,67 @@ export function okOr$1fxnv80(self: rs.u64 | undefined, err: rs.u64): rs.Result<r
 	return rs.Ok(self);
 }
 
-export function filter$1951vah(self: Guard.Guard | undefined, predicate: (a0: Guard.Guard) => boolean): Guard.Guard | undefined {
+export function filter$1vqc90z(self: Guard.Guard | undefined, predicate: (a0: Guard.Guard) => boolean): Guard.Guard | undefined {
 	if (self !== undefined) {
 		const x: Guard.Guard = self;
 		if (!predicate(x)) {
 			x[Symbol.dispose]();
-			return undefined;
+		} else {
+			return x;
 		}
-		return x;
 	}
 	return undefined;
 }
 
-export function orElse$1136dfg(self: Guard.Guard | undefined, f: () => Guard.Guard | undefined): Guard.Guard | undefined {
+export function orElse$0gn8afw(self: Guard.Guard | undefined, f: () => Guard.Guard | undefined): Guard.Guard | undefined {
+	let _0!: Guard.Guard | undefined;
+	let _7: boolean = false;
+	_7 = true;
 	if (self === undefined) {
-		const _0: Guard.Guard | undefined = f();
+		_0 = f();
+	} else {
+		_7 = false;
+		_0 = self;
+	}
+	if (_7) {
 		rs.drop(self);
 		return _0;
 	}
-	return self;
+	return _0;
 }
 
-export function zip$1fjl43b(self: Guard.Guard | undefined, other: Guard.Guard | undefined): [Guard.Guard, Guard.Guard] | undefined {
+export function zip$1rr0evn(self: Guard.Guard | undefined, other: Guard.Guard | undefined): [Guard.Guard, Guard.Guard] | undefined {
+	let _0!: [Guard.Guard, Guard.Guard] | undefined;
+	let _9!: boolean;
+	let _10!: boolean;
+	b0: {
+		_10 = false;
+		_9 = false;
+		_9 = true;
+		_10 = true;
+		if (self !== undefined) {
+			if (other !== undefined) {
+				_10 = false;
+				const a: Guard.Guard = self;
+				_9 = false;
+				_0 = [a, other] as [Guard.Guard, Guard.Guard];
+				break b0;
+			}
+		}
+		_0 = undefined;
+	}
 	if (self !== undefined) {
-		if (other !== undefined) {
-			return [self, other] as [Guard.Guard, Guard.Guard];
+		if (_10) {
+			self[Symbol.dispose]();
 		}
 	}
-	const _0: [Guard.Guard, Guard.Guard] | undefined = undefined;
-	if (self !== undefined) {
-		self[Symbol.dispose]();
-	}
 	if (other !== undefined) {
-		other[Symbol.dispose]();
-		return _0;
+		if (_9) {
+			other[Symbol.dispose]();
+		}
 	}
+	_9 = false;
+	_10 = false;
 	return _0;
 }
 

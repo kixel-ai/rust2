@@ -28,53 +28,53 @@ export const TABLE: rs.ByteSlice = /* @__PURE__ */ rs.byteSliceFrom(Uint8Array.o
  * which only the value it starts with can be.
  */
 export function statics(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _45!: rs.u8;
+	let _68!: rs.u8;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(rs.atomicLoad(COUNT, 0)).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.i64ToBeBytes(rs.atomicLoad(WIDE, 0)).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.atomicLoad(SIGNED, 0) & 0xff, rs.atomicLoad(FLAG, 0) ? 1 : 0, rs.atomicLoad(SIZE, 0) & 0xff)), undefined, true);
 	rs.byteVecPush(out, next(false));
 	for (const op of rs.byteSliceView(data)) {
 		const n: rs.u8 = rs.u8Div(op, 6);
-		const _27: rs.u8 = rs.u8Rem(op, 6);
-		if (_27 === 0) {
+		const _38: rs.u8 = rs.u8Rem(op, 6);
+		if (_38 === 0) {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(rs.atomicFetch(COUNT, rs.u64WrappingAdd, n as rs.u64, 3)).reverse()), undefined, true);
 			continue;
 		}
-		if (_27 === 1) {
+		if (_38 === 1) {
 			rs.byteVecPush(out, rs.atomicFetch(SIGNED, rs.i8WrappingSub, (n << 24) >> 24, 4) & 0xff);
 			continue;
 		}
-		if (_27 === 2) {
+		if (_38 === 2) {
 			rs.byteVecPush(out, rs.atomicFetch(FLAG, (old, value) => old !== value, rs.u8Rem(n, 2) === 0, 0) ? 1 : 0);
 			continue;
 		}
-		if (_27 === 3) {
+		if (_38 === 3) {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.i64ToBeBytes(rs.atomicSwap(WIDE, rs.i64Neg(n as rs.i64), 2)).reverse()), undefined, true);
 			continue;
 		}
-		if (_27 === 4) {
+		if (_38 === 4) {
 			const seen: rs.usize = rs.atomicLoad(SIZE, 0);
-			const _46: rs.Result<rs.usize, rs.usize> = rs.atomicCompareExchange(SIZE, seen, rs.usizeWrappingMul(seen, n as rs.usize), 4, 0);
-			if (_46.ok) {
-				_45 = _46.value & 0xff;
+			const _69: rs.Result<rs.usize, rs.usize> = rs.atomicCompareExchange(SIZE, seen, rs.usizeWrappingMul(seen, n as rs.usize), 4, 0);
+			if (_69.ok) {
+				_68 = _69.value & 0xff;
 			} else {
-				_45 = 253;
+				_68 = 253;
 			}
-			rs.byteVecPush(out, _45);
+			rs.byteVecPush(out, _68);
 			continue;
 		}
-		if (_27 === 5) {
+		if (_38 === 5) {
 			if (rs.u8Rem(n, 2) === 0) {
 				rs.byteVecPush(out, next(false));
 				continue;
 			}
 		}
-		const _56: rs.ByteSlice = table();
-		const _57: rs.usize = rs.usizeRem(n as rs.usize, 4);
-		if (!(_57 < 4)) {
-			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _57);
+		const _83: rs.ByteSlice = table();
+		const _84: rs.usize = rs.usizeRem(n as rs.usize, 4);
+		if (!(_84 < 4)) {
+			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _84);
 		}
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_56.data[_56.start + _57], rs.byteSliceSame(table(), table()) ? 1 : 0)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_83.data[_83.start + _84], rs.byteSliceSame(table(), table()) ? 1 : 0)), undefined, true);
 	}
 	rs.atomicStore(COUNT, { hi: 0xffffffff, lo: 0xfffffffd } as rs.u64, 0);
 	rs.atomicStore(SIGNED, -128, 0);
@@ -126,77 +126,77 @@ export const FORCED: rs.Atomic<rs.u8> = /* @__PURE__ */ new rs.Atomic(0);
 
 /** Each byte an operation on statics and constants read from memory; each puts what it read. */
 export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _5: Counter.Counter = COUNTER;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(_5.name))), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(copy$array_u8(_5.steps)), undefined, true);
-	if (_5.state === undefined) {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(COUNTER.name))), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(copy$array_u8(COUNTER.steps)), undefined, true);
+	const _10: Counter.Counter = COUNTER;
+	if (_10.state === undefined) {
 		rs.byteVecPush(out, 255);
 	} else {
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_5.state[0], _5.state[1] & 0xff)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_10.state[0], _10.state[1] & 0xff)), undefined, true);
 	}
 	const a: Raw.Raw = { locked: new rs.Atomic(false), count: new rs.Atomic(200) };
 	const b: Raw.Raw = { locked: new rs.Atomic(false), count: new rs.Atomic(200) };
-	const _20: [rs.u8, rs.ByteVec] = SECOND.force();
-	const _17: Raw.Raw = { locked: new rs.Atomic(false), count: new rs.Atomic(200) };
-	const _23: rs.u8 = _20[0];
-	const _26: rs.ByteVec = FIRST.force();
-	const _24: rs.u8 = _26.data[rs.idx(_26, 0)];
-	const slice = _20[1];
-	const _27: rs.u8 = slice.data[rs.idx(slice, 0)];
-	const _31: rs.ByteVec = FIRST.force();
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_23, _24, _27, _31.data[rs.idx(_31, 1)])), undefined, true);
+	const _22: [rs.u8, rs.ByteVec] = SECOND.force();
+	const _19: Raw.Raw = { locked: new rs.Atomic(false), count: new rs.Atomic(200) };
+	const _26: rs.u8 = _22[0];
+	const _29: rs.ByteVec = FIRST.force();
+	const _27: rs.u8 = _29.data[rs.idx(_29, 0)];
+	const slice = _22[1];
+	const _31: rs.u8 = slice.data[rs.idx(slice, 0)];
+	const _35: rs.ByteVec = FIRST.force();
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_26, _27, _31, _35.data[rs.idx(_35, 1)])), undefined, true);
 	const tally: rs.Cell<rs.u8> = new rs.Cell(250);
-	const _35: rs.u8 = rs.u8WrappingAdd(tally.v, 10);
-	rs.cellSet(tally, _35);
+	const _40: rs.u8 = rs.u8WrappingAdd(tally.v, 10);
+	rs.cellSet(tally, _40);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(tally.v, new rs.Cell(250).v, new rs.Cell([1, 2] as [rs.u8, rs.u8]).v[1])), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(new rs.Cell(new rs.Cell(3)).v.v, new rs.Cell(new rs.Cell(4)).v.v)), undefined, true);
 	for (const op of rs.byteSliceView(data)) {
 		const n2: rs.u8 = rs.u8Div(op, 8);
-		const _62: rs.u8 = rs.u8Rem(op, 8);
-		if (_62 === 0) {
-			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicFetch(_5.hits, rs.u32WrappingAdd, rs.u32Rem(n2 as rs.u32, _5.limit), 3)).reverse()), undefined, true);
+		const _68: rs.u8 = rs.u8Rem(op, 8);
+		if (_68 === 0) {
+			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicFetch(COUNTER.hits, rs.u32WrappingAdd, rs.u32Rem(n2 as rs.u32, COUNTER.limit), 3)).reverse()), undefined, true);
 			continue;
 		}
-		if (_62 === 1) {
+		if (_68 === 1) {
 			rs.byteVecPush(out, rs.atomicSwap(a.locked, rs.u8Rem(n2, 2) === 0, 2) ? 1 : 0);
 			continue;
 		}
-		if (_62 === 2) {
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.atomicFetch(a.count, rs.u8WrappingAdd, n2, 0), rs.atomicLoad(b.count, 0), rs.atomicLoad(_17.count, 0))), undefined, true);
+		if (_68 === 2) {
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.atomicFetch(a.count, rs.u8WrappingAdd, n2, 0), rs.atomicLoad(b.count, 0), rs.atomicLoad(_19.count, 0))), undefined, true);
 			continue;
 		}
-		if (_62 === 3) {
+		if (_68 === 3) {
 			rs.byteVecPush(out, rs.atomicLoad(b.locked, 0) ? 1 : 0);
 			continue;
 		}
-		if (_62 === 4) {
+		if (_68 === 4) {
 			const node: Node.Node = { value: n2 };
 			const old: Node.Node = rs.atomicSwap(SLOT, node, 3);
 			rs.byteVecPush(out, old === rs.NULL ? 1 : 0);
 			rs.byteVecPush(out, rs.atomicLoad(SLOT, 2).value);
-			const _96: rs.Result<Node.Node, Node.Node> = rs.atomicCompareExchange(SLOT, old, rs.NULL, 3, 2);
-			if (_96.ok) {
+			const _116: rs.Result<Node.Node, Node.Node> = rs.atomicCompareExchange(SLOT, old, rs.NULL, 3, 2);
+			if (_116.ok) {
 				rs.byteVecPush(out, 253);
 			} else {
-				rs.byteVecPush(out, node === _96.error ? 1 : 0);
+				rs.byteVecPush(out, _116.error === node ? 1 : 0);
 			}
-			const _102: rs.Result<Node.Node, Node.Node> = rs.atomicCompareExchange(SLOT, node, rs.NULL, 3, 2);
-			if (_102.ok) {
-				rs.byteVecPush(out, _102.value.value);
+			const _125: rs.Result<Node.Node, Node.Node> = rs.atomicCompareExchange(SLOT, node, rs.NULL, 3, 2);
+			if (_125.ok) {
+				rs.byteVecPush(out, _125.value.value);
 			} else {
 				rs.byteVecPush(out, 252);
 			}
 			rs.byteVecPush(out, rs.atomicLoad(SLOT, 0) === rs.NULL ? 1 : 0);
 			continue;
 		}
-		if (_62 === 5) {
-			const _113: [rs.u8, rs.u32] = rs.onceGetOrInit(ONCE, (): [rs.u8, rs.u32] => {
+		if (_68 === 5) {
+			const _141: [rs.u8, rs.u32] = rs.onceGetOrInit(ONCE, (): [rs.u8, rs.u32] => {
 				return [3, 9] as [rs.u8, rs.u32];
 			});
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_113[0], _113[1] & 0xff, ONCE.v !== undefined ? 1 : 0)), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_141[0], _141[1] & 0xff, ONCE.v !== undefined ? 1 : 0)), undefined, true);
 			continue;
 		}
-		if (_62 === 6) {
+		if (_68 === 6) {
 			const x: rs.LazyCell<rs.u8> = new rs.LazyCell((): rs.u8 => {
 				return rs.u8Add(rs.atomicFetch(FORCED, rs.u8WrappingAdd, 1, 0), 10);
 			});
@@ -208,7 +208,7 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, rs.atomicSwap(FORCED, 0, 0));
 			continue;
 		}
-		if (_62 === 7) {
+		if (_68 === 7) {
 			if (rs.u8Rem(n2, 2) === 0) {
 				rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.atomicFetch(SHARED.force(), rs.u8WrappingAdd, n2, 0), rs.atomicLoad(LATER, 0), read())), undefined, true);
 				rs.atomicStore(LATER, 40, 0);
@@ -220,20 +220,19 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return item;
 		});
 		const i: rs.usize = rs.usizeRem(n2 as rs.usize, 3);
-		const _157: boolean = i < 3;
-		if (!_157) {
+		if (!(i < 3)) {
 			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 		}
-		const _158: rs.u16 = rs.u16Mul(n2 as rs.u16, 300);
+		const _199: rs.u16 = rs.u16Mul(n2 as rs.u16, 300);
 		const uninit = rs.place(() => slots[i], (value) => slots[i] = value);
-		uninit.v = _158;
+		uninit.v = _199;
 		uninit;
-		if (!_157) {
+		if (!(i < 3)) {
 			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(slots[i]).reverse()), undefined, true);
 	}
-	rs.atomicStore(_5.hits, 4294967294, 0);
+	rs.atomicStore(COUNTER.hits, 4294967295 - 1, 0);
 }
 
 export const COLLECTOR: rs.LazyCell<Lock.Lock<Collector.Collector>> = /* @__PURE__ */ new rs.LazyCell((): Lock.Lock<Collector.Collector> => {
@@ -251,14 +250,14 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const owned: rs.Arc<undefined> = new rs.Arc(undefined);
 	for (const op of rs.byteSliceView(data)) {
 		const n: rs.u8 = rs.u8Div(op, 6);
-		const _12: rs.u8 = rs.u8Rem(op, 6);
-		if (_12 === 0) {
+		const _13: rs.u8 = rs.u8Rem(op, 6);
+		if (_13 === 0) {
 			rs.byteVecPush(out, once.v === true ? 1 : 0);
 			rs.onceCall(once, (): undefined => {
 				rs.byteVecPush(out, n);
 			});
 			rs.byteVecPush(out, once.v === true ? 1 : 0);
-		} else if (_12 === 1) {
+		} else if (_13 === 1) {
 			const captured5 = rs.arcClone(owned);
 			rs.onceCall(once, rs.closure((state: rs.OnceState): undefined => {
 				rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.onceIsPoisoned(state) ? 1 : 0, once.v === true ? 1 : 0, n)), undefined, true);
@@ -267,7 +266,7 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 				captured5[Symbol.dispose]();
 			}), rs.drop);
 			rs.byteVecPush(out, owned.strong & 0xff);
-		} else if (_12 === 2) {
+		} else if (_13 === 2) {
 			const fresh: rs.Once = new rs.OnceLock(undefined);
 			rs.onceCall(fresh, (): undefined => {
 				rs.byteVecPush(out, fresh.v === true ? 1 : 0);
@@ -278,7 +277,7 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			});
 			rs.byteVecPush(out, fresh.v === true ? 1 : 0);
-		} else if (_12 === 3) {
+		} else if (_13 === 3) {
 			if (!(rs.u8Rem(n, 2) === 1)) {
 				rs.onceCall(STARTED, (): undefined => {});
 				rs.byteVecPush(out, STARTED.v === true ? 1 : 0);
@@ -290,53 +289,50 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 					});
 				});
 			}
-		} else if (_12 === 4) {
+		} else if (_13 === 4) {
 			const collector: Collector.Collector = Lock.getOrInit$statics_Collector_statics_onces_closure5(COLLECTOR.force(), (): Collector.Collector => {
 				return new Collector.Collector(new rs.Arc(16909060));
 			});
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(collector.global.value).reverse()), undefined, true);
 			rs.byteVecPush(out, collector.global.strong & 0xff);
-		} else {
-			const _68: rs.u8 = rs.u8Rem(n, 3);
-			if (!(_68 === 0)) {
-				if (!(_68 === 1)) {
-					drop$statics_Lock_Rc_unit(Lock.new$Rc_unit());
-					rs.byteVecPush(out, owned.strong & 0xff);
-				} else {
-					const slot2: Lock.Lock<[rs.u8, rs.Arc<undefined>]> = Lock.new$tuple2_u8_Rc_unit();
-					const captured3 = rs.arcClone(owned);
-					rs.byteVecPush(out, Lock.getOrInit$tuple2_u8_Rc_unit_statics_onces_closure8(slot2, rs.closure((): [rs.u8, rs.Arc<undefined>] => {
-						return [n, captured3] as [rs.u8, rs.Arc<undefined>];
-					}, (): void => {
-						captured3[Symbol.dispose]();
-					}))[0]);
-					const captured4 = rs.arcClone(owned);
-					rs.byteVecPush(out, Lock.getOrInit$tuple2_u8_Rc_unit_statics_onces_closure9(slot2, rs.closure((): [rs.u8, rs.Arc<undefined>] => {
-						return [238, captured4] as [rs.u8, rs.Arc<undefined>];
-					}, (): void => {
-						captured4[Symbol.dispose]();
-					}))[0]);
-					rs.byteVecPush(out, owned.strong & 0xff);
-					drop$statics_Lock_tuple2_u8_Rc_unit(slot2);
-					rs.byteVecPush(out, owned.strong & 0xff);
-				}
+		} else if (!(rs.u8Rem(n, 3) === 0)) {
+			if (!(rs.u8Rem(n, 3) === 1)) {
+				drop$statics_Lock_Rc_unit(Lock.new$Rc_unit());
+				rs.byteVecPush(out, owned.strong & 0xff);
 			} else {
-				const slot: Lock.Lock<rs.Arc<undefined>> = Lock.new$Rc_unit();
-				const captured = rs.arcClone(owned);
-				rs.byteVecPush(out, Lock.getOrInit$Rc_unit_statics_onces_closure6(slot, rs.closure((): rs.Arc<undefined> => {
-					return captured;
+				const slot2: Lock.Lock<[rs.u8, rs.Arc<undefined>]> = Lock.new$tuple2_u8_Rc_unit();
+				const captured3 = rs.arcClone(owned);
+				rs.byteVecPush(out, Lock.getOrInit$tuple2_u8_Rc_unit_statics_onces_closure8(slot2, rs.closure((): [rs.u8, rs.Arc<undefined>] => {
+					return [n, captured3] as [rs.u8, rs.Arc<undefined>];
 				}, (): void => {
-					captured[Symbol.dispose]();
-				})).strong & 0xff);
-				const captured2 = rs.arcClone(owned);
-				rs.byteVecPush(out, Lock.getOrInit$Rc_unit_statics_onces_closure7(slot, rs.closure((): rs.Arc<undefined> => {
-					return captured2;
+					captured3[Symbol.dispose]();
+				}))[0]);
+				const captured4 = rs.arcClone(owned);
+				rs.byteVecPush(out, Lock.getOrInit$tuple2_u8_Rc_unit_statics_onces_closure9(slot2, rs.closure((): [rs.u8, rs.Arc<undefined>] => {
+					return [238, captured4] as [rs.u8, rs.Arc<undefined>];
 				}, (): void => {
-					captured2[Symbol.dispose]();
-				})).strong & 0xff);
-				drop$statics_Lock_Rc_unit(slot);
+					captured4[Symbol.dispose]();
+				}))[0]);
+				rs.byteVecPush(out, owned.strong & 0xff);
+				drop$statics_Lock_tuple2_u8_Rc_unit(slot2);
 				rs.byteVecPush(out, owned.strong & 0xff);
 			}
+		} else {
+			const slot: Lock.Lock<rs.Arc<undefined>> = Lock.new$Rc_unit();
+			const captured = rs.arcClone(owned);
+			rs.byteVecPush(out, Lock.getOrInit$Rc_unit_statics_onces_closure6(slot, rs.closure((): rs.Arc<undefined> => {
+				return captured;
+			}, (): void => {
+				captured[Symbol.dispose]();
+			})).strong & 0xff);
+			const captured2 = rs.arcClone(owned);
+			rs.byteVecPush(out, Lock.getOrInit$Rc_unit_statics_onces_closure7(slot, rs.closure((): rs.Arc<undefined> => {
+				return captured2;
+			}, (): void => {
+				captured2[Symbol.dispose]();
+			})).strong & 0xff);
+			drop$statics_Lock_Rc_unit(slot);
+			rs.byteVecPush(out, owned.strong & 0xff);
 		}
 	}
 	owned[Symbol.dispose]();
@@ -345,8 +341,8 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 export const SHOWN: rs.LazyLock<rs.String> = /* @__PURE__ */ new rs.LazyLock(shown);
 
 export function shown(): rs.String {
-	const args2 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-	return rs.fmtFormat([args2[0], " ", rs.fmtSpec({ alternate: true }, args2[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args2[0])]);
+	const args3 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+	return rs.fmtFormat([args3[0], " ", rs.fmtSpec({ alternate: true }, args3[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args3[0])]);
 }
 
 export const FORCING: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>> = /* @__PURE__ */ new rs.LocalKey(FORCING$init, false);
@@ -368,66 +364,66 @@ export function lazies(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const cell: rs.LazyCell<rs.u8> = new rs.LazyCell((): rs.u8 => {
 				return rs.u8Add(rs.atomicFetch(FORCED, rs.u8WrappingAdd, 1, 0), 10);
 			});
-			const args32 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
-			const before: rs.String = rs.fmtFormat([args32[0], " ", rs.fmtSpec({ alternate: true }, args32[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args32[0]), "|"]);
+			const args49 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
+			const before: rs.String = rs.fmtFormat([args49[0], " ", rs.fmtSpec({ alternate: true }, args49[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args49[0]), "|"]);
 			const forced: rs.u8 = rs.atomicLoad(FORCED, 0);
 			cell.force();
 			rs.atomicSwap(FORCED, 0, 0);
-			const args33 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
-			const _26: rs.String = rs.fmtFormat([args33[0], " ", rs.fmtSpec({ alternate: true }, args33[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args33[0]), "|"]);
-			const args34 = [(f: rs.Formatter) => rs.fmtPad(f, before.v), (f: rs.Formatter) => rs.u8Display(forced, f), (f: rs.Formatter) => rs.fmtPad(f, _26.v)];
-			text = rs.fmtFormat([args34[0], args34[1], args34[2]]);
+			const args50 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
+			const _34: rs.String = rs.fmtFormat([args50[0], " ", rs.fmtSpec({ alternate: true }, args50[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args50[0]), "|"]);
+			const args51 = [(f: rs.Formatter) => rs.fmtPad(f, before.v), (f: rs.Formatter) => rs.u8Display(forced, f), (f: rs.Formatter) => rs.fmtPad(f, _34.v)];
+			text = rs.fmtFormat([args51[0], args51[1], args51[2]]);
 		} else if (_10 === 1) {
 			const cell2: rs.LazyCell<undefined> = new rs.LazyCell((): undefined => {});
-			const args29 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
-			const before2: rs.String = rs.fmtFormat([args29[0], " ", rs.fmtSpec({ alternate: true }, args29[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args29[0]), "|"]);
+			const args46 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
+			const before2: rs.String = rs.fmtFormat([args46[0], " ", rs.fmtSpec({ alternate: true }, args46[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args46[0]), "|"]);
 			cell2.force();
-			const args30 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
-			const _53: rs.String = rs.fmtFormat([args30[0], " ", rs.fmtSpec({ alternate: true }, args30[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args30[0]), "|"]);
-			const args31 = [(f: rs.Formatter) => rs.fmtPad(f, before2.v), (f: rs.Formatter) => rs.fmtPad(f, _53.v)];
-			text = rs.fmtFormat([args31[0], args31[1]]);
+			const args47 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
+			const _67: rs.String = rs.fmtFormat([args47[0], " ", rs.fmtSpec({ alternate: true }, args47[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args47[0]), "|"]);
+			const args48 = [(f: rs.Formatter) => rs.fmtPad(f, before2.v), (f: rs.Formatter) => rs.fmtPad(f, _67.v)];
+			text = rs.fmtFormat([args48[0], args48[1]]);
 		} else if (_10 === 2) {
 			const lock: rs.LazyLock<rs.u8 | undefined> = new rs.LazyLock((): rs.u8 | undefined => {
 				return undefined;
 			});
-			const args26 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-			const before3: rs.String = rs.fmtFormat([args26[0], " ", rs.fmtSpec({ alternate: true }, args26[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args26[0]), "|"]);
+			const args43 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
+			const before3: rs.String = rs.fmtFormat([args43[0], " ", rs.fmtSpec({ alternate: true }, args43[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args43[0]), "|"]);
 			lock.force();
-			const args27 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-			const _78: rs.String = rs.fmtFormat([args27[0], " ", rs.fmtSpec({ alternate: true }, args27[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args27[0]), "|"]);
-			const args28 = [(f: rs.Formatter) => rs.fmtPad(f, before3.v), (f: rs.Formatter) => rs.fmtPad(f, _78.v)];
-			text = rs.fmtFormat([args28[0], args28[1]]);
+			const args44 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
+			const _98: rs.String = rs.fmtFormat([args44[0], " ", rs.fmtSpec({ alternate: true }, args44[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args44[0]), "|"]);
+			const args45 = [(f: rs.Formatter) => rs.fmtPad(f, before3.v), (f: rs.Formatter) => rs.fmtPad(f, _98.v)];
+			text = rs.fmtFormat([args45[0], args45[1]]);
 		} else if (_10 === 3) {
 			const lock2: rs.LazyLock<rs.Vec<string>> = new rs.LazyLock((): rs.Vec<string> => {
 				return rs.vecFrom(["a", "bc"]);
 			});
-			const args23 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
-			const before4: rs.String = rs.fmtFormat([args23[0], " ", rs.fmtSpec({ alternate: true }, args23[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args23[0]), "|"]);
+			const args40 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
+			const before4: rs.String = rs.fmtFormat([args40[0], " ", rs.fmtSpec({ alternate: true }, args40[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args40[0]), "|"]);
 			lock2.force().items.length;
-			const args24 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
-			const _104: rs.String = rs.fmtFormat([args24[0], " ", rs.fmtSpec({ alternate: true }, args24[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args24[0]), "|"]);
-			const args25 = [(f: rs.Formatter) => rs.fmtPad(f, before4.v), (f: rs.Formatter) => rs.fmtPad(f, _104.v)];
-			text = rs.fmtFormat([args25[0], args25[1]]);
+			const args41 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
+			const _130: rs.String = rs.fmtFormat([args41[0], " ", rs.fmtSpec({ alternate: true }, args41[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args41[0]), "|"]);
+			const args42 = [(f: rs.Formatter) => rs.fmtPad(f, before4.v), (f: rs.Formatter) => rs.fmtPad(f, _130.v)];
+			text = rs.fmtFormat([args42[0], args42[1]]);
 		} else if (_10 === 4) {
-			const _118: rs.String = SHOWN.force();
-			const args21 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-			const _120: rs.String = rs.fmtFormat([args21[0], " ", rs.fmtSpec({ alternate: true }, args21[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args21[0]), "|"]);
-			const args22 = [(f: rs.Formatter) => rs.fmtPad(f, _118.v), (f: rs.Formatter) => rs.fmtPad(f, _120.v)];
-			text = rs.fmtFormat([args22[0], " ", args22[1]]);
+			const _148: rs.String = SHOWN.force();
+			const args38 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+			const _151: rs.String = rs.fmtFormat([args38[0], " ", rs.fmtSpec({ alternate: true }, args38[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args38[0]), "|"]);
+			const args39 = [(f: rs.Formatter) => rs.fmtPad(f, _148.v), (f: rs.Formatter) => rs.fmtPad(f, _151.v)];
+			text = rs.fmtFormat([args39[0], " ", args39[1]]);
 		} else {
 			const cell3: rs.Arc<rs.LazyCell<rs.String>> = new rs.Arc(new rs.LazyCell((): rs.String => {
 				return withBorrow$15t368r(FORCING, (me: rs.Arc<rs.LazyCell<rs.String>> | undefined): rs.String => {
-					const _6: rs.Arc<rs.LazyCell<rs.String>> = rs.optionUnwrap(me);
-					const args18 = [(f: rs.Formatter) => _6.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-					return rs.fmtFormat([args18[0], " ", rs.fmtSpec({ alternate: true }, args18[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args18[0]), "|"]);
+					const part = rs.optionUnwrap(me);
+					const args35 = [(f: rs.Formatter) => part.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+					return rs.fmtFormat([args35[0], " ", rs.fmtSpec({ alternate: true }, args35[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args35[0]), "|"]);
 				});
 			}));
 			rs.localKeyRefCellSet(FORCING, rs.arcClone(cell3), rs.drop);
-			const _138: rs.String = cell3.value.force();
-			const args19 = [(f: rs.Formatter) => cell3.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-			const _142: rs.String = rs.fmtFormat([args19[0], " ", rs.fmtSpec({ alternate: true }, args19[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args19[0]), "|"]);
-			const args20 = [(f: rs.Formatter) => rs.fmtPad(f, _138.v), (f: rs.Formatter) => rs.fmtPad(f, _142.v)];
-			const text2: rs.String = rs.fmtFormat([args20[0], " ", args20[1]]);
+			const _175: rs.String = cell3.value.force();
+			const args36 = [(f: rs.Formatter) => cell3.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+			const _179: rs.String = rs.fmtFormat([args36[0], " ", rs.fmtSpec({ alternate: true }, args36[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args36[0]), "|"]);
+			const args37 = [(f: rs.Formatter) => rs.fmtPad(f, _175.v), (f: rs.Formatter) => rs.fmtPad(f, _179.v)];
+			const text2: rs.String = rs.fmtFormat([args37[0], " ", args37[1]]);
 			rs.drop(take$1o1xmz7(FORCING));
 			text = text2;
 			cell3[Symbol.dispose]();
@@ -504,10 +500,10 @@ export function writes(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyCell<Dropped.Dropped>, out: rs.ByteVec): void {
-	let _100: boolean = false;
+	let _103: boolean = false;
 	let a: rs.LazyCell<Dropped.Dropped> = make(1);
 	let b: rs.LazyCell<Dropped.Dropped> = make(2);
-	_100 = true;
+	_103 = true;
 	if ((op & 1) !== 0) {
 		rs.byteVecPush(out, a.force()._0);
 	}
@@ -519,13 +515,13 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 	};
 	const _20: rs.u8 = rs.u8Rem(op >> 2, 7);
 	if (_20 === 0) {
-		const _22: rs.LazyCell<Dropped.Dropped> = a;
-		_100 = false;
-		assign$cell_LazyCell_statics_Dropped_statics_cell_closure0(_22, b);
-	} else if (_20 === 1) {
 		const _25: rs.LazyCell<Dropped.Dropped> = a;
-		_100 = false;
-		const old: rs.LazyCell<Dropped.Dropped> = rs.replaceIn(_25, b);
+		_103 = false;
+		assign$cell_LazyCell_statics_Dropped_statics_cell_closure0(_25, b);
+	} else if (_20 === 1) {
+		const _28: rs.LazyCell<Dropped.Dropped> = a;
+		_103 = false;
+		const old: rs.LazyCell<Dropped.Dropped> = rs.replaceIn(_28, b);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(old).v));
 		rs.lazyDrop(old, rs.drop);
 	} else if (_20 === 2) {
@@ -533,47 +529,47 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(b).v));
 		rs.byteVecPush(out, b.force()._0);
 	} else if (_20 === 3) {
-		const _49: rs.Cell<rs.LazyCell<Dropped.Dropped>> = rs.cellIn(a);
-		_100 = false;
-		const old2: rs.LazyCell<Dropped.Dropped> = rs.cellReplace(_49, b);
+		const _52: rs.Cell<rs.LazyCell<Dropped.Dropped>> = rs.cellIn(a);
+		_103 = false;
+		const old2: rs.LazyCell<Dropped.Dropped> = rs.cellReplace(_52, b);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(old2).v));
 		rs.lazyDrop(old2, rs.drop);
 	} else if (_20 === 4) {
-		const _59: rs.Cell<rs.LazyCell<Dropped.Dropped>> = rs.cellIn(a);
-		_100 = false;
-		rs.cellSet(_59, b, drop$cell_LazyCell_statics_Dropped_statics_cell_closure0);
+		const _62: rs.Cell<rs.LazyCell<Dropped.Dropped>> = rs.cellIn(a);
+		_103 = false;
+		rs.cellSet(_62, b, drop$cell_LazyCell_statics_Dropped_statics_cell_closure0);
 	} else if (_20 === 5) {
 		let boxed: rs.LazyCell<Dropped.Dropped> = a;
-		_100 = false;
-		const _66: rs.LazyCell<Dropped.Dropped> = b;
-		assign$boxed_Box_cell_LazyCell_statics_Dropped_statics_cell_closure0(rs.place(() => boxed, (value) => boxed = value), _66);
+		_103 = false;
+		const _69: rs.LazyCell<Dropped.Dropped> = b;
+		assign$boxed_Box_cell_LazyCell_statics_Dropped_statics_cell_closure0(rs.place(() => boxed, (value) => boxed = value), _69);
 		a = boxed;
 	} else {
 		const held: rs.RefCell<[rs.u8, rs.LazyCell<Dropped.Dropped>]> = new rs.RefCell([0, a] as [rs.u8, rs.LazyCell<Dropped.Dropped>]);
-		const _76: rs.RefCell<[rs.u8, rs.LazyCell<Dropped.Dropped>]> = rs.refCellBorrowMut(held);
-		const _75: rs.RefCell<rs.LazyCell<Dropped.Dropped>> = rs.refMutMap(_76, rs.partPlace(((p: [rs.u8, rs.LazyCell<Dropped.Dropped>]): rs.LazyCell<Dropped.Dropped> => {
+		const _79: rs.RefCell<[rs.u8, rs.LazyCell<Dropped.Dropped>]> = rs.refCellBorrowMut(held);
+		const _78: rs.RefCell<rs.LazyCell<Dropped.Dropped>> = rs.refMutMap(_79, rs.partPlace(((p: [rs.u8, rs.LazyCell<Dropped.Dropped>]): rs.LazyCell<Dropped.Dropped> => {
 			return p[1];
-		})(_76.value)));
-		_100 = false;
-		assign$cell_LazyCell_statics_Dropped_statics_cell_closure0(_75.value, b);
-		rs.refMutRelease(_75);
+		})(_79.value)));
+		_103 = false;
+		assign$cell_LazyCell_statics_Dropped_statics_cell_closure0(_78.value, b);
+		rs.refMutRelease(_78);
 		a = held.value[1];
 	}
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(a).v));
 	rs.byteVecPush(out, a.force()._0);
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(a).v));
-	if (_100) {
+	if (_103) {
 		rs.lazyDrop(b, rs.drop);
 	}
-	_100 = false;
+	_103 = false;
 	rs.lazyDrop(a, rs.drop);
 }
 
 export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyLock<Dropped.Dropped>, out: rs.ByteVec): void {
-	let _100: boolean = false;
+	let _103: boolean = false;
 	let a: rs.LazyLock<Dropped.Dropped> = make(1);
 	let b: rs.LazyLock<Dropped.Dropped> = make(2);
-	_100 = true;
+	_103 = true;
 	if ((op & 1) !== 0) {
 		rs.byteVecPush(out, a.force()._0);
 	}
@@ -585,13 +581,13 @@ export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: 
 	};
 	const _20: rs.u8 = rs.u8Rem(op >> 2, 7);
 	if (_20 === 0) {
-		const _22: rs.LazyLock<Dropped.Dropped> = a;
-		_100 = false;
-		assign$sync_LazyLock_statics_Dropped_statics_lock_closure0(_22, b);
-	} else if (_20 === 1) {
 		const _25: rs.LazyLock<Dropped.Dropped> = a;
-		_100 = false;
-		const old: rs.LazyLock<Dropped.Dropped> = rs.replaceIn(_25, b);
+		_103 = false;
+		assign$sync_LazyLock_statics_Dropped_statics_lock_closure0(_25, b);
+	} else if (_20 === 1) {
+		const _28: rs.LazyLock<Dropped.Dropped> = a;
+		_103 = false;
+		const old: rs.LazyLock<Dropped.Dropped> = rs.replaceIn(_28, b);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(old).v));
 		rs.lazyDrop(old, rs.drop);
 	} else if (_20 === 2) {
@@ -599,39 +595,39 @@ export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: 
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(b).v));
 		rs.byteVecPush(out, b.force()._0);
 	} else if (_20 === 3) {
-		const _49: rs.Cell<rs.LazyLock<Dropped.Dropped>> = rs.cellIn(a);
-		_100 = false;
-		const old2: rs.LazyLock<Dropped.Dropped> = rs.cellReplace(_49, b);
+		const _52: rs.Cell<rs.LazyLock<Dropped.Dropped>> = rs.cellIn(a);
+		_103 = false;
+		const old2: rs.LazyLock<Dropped.Dropped> = rs.cellReplace(_52, b);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(old2).v));
 		rs.lazyDrop(old2, rs.drop);
 	} else if (_20 === 4) {
-		const _59: rs.Cell<rs.LazyLock<Dropped.Dropped>> = rs.cellIn(a);
-		_100 = false;
-		rs.cellSet(_59, b, drop$sync_LazyLock_statics_Dropped_statics_lock_closure0);
+		const _62: rs.Cell<rs.LazyLock<Dropped.Dropped>> = rs.cellIn(a);
+		_103 = false;
+		rs.cellSet(_62, b, drop$sync_LazyLock_statics_Dropped_statics_lock_closure0);
 	} else if (_20 === 5) {
 		let boxed: rs.LazyLock<Dropped.Dropped> = a;
-		_100 = false;
-		const _66: rs.LazyLock<Dropped.Dropped> = b;
-		assign$boxed_Box_sync_LazyLock_statics_Dropped_statics_lock_closure0(rs.place(() => boxed, (value) => boxed = value), _66);
+		_103 = false;
+		const _69: rs.LazyLock<Dropped.Dropped> = b;
+		assign$boxed_Box_sync_LazyLock_statics_Dropped_statics_lock_closure0(rs.place(() => boxed, (value) => boxed = value), _69);
 		a = boxed;
 	} else {
 		const held: rs.RefCell<[rs.u8, rs.LazyLock<Dropped.Dropped>]> = new rs.RefCell([0, a] as [rs.u8, rs.LazyLock<Dropped.Dropped>]);
-		const _76: rs.RefCell<[rs.u8, rs.LazyLock<Dropped.Dropped>]> = rs.refCellBorrowMut(held);
-		const _75: rs.RefCell<rs.LazyLock<Dropped.Dropped>> = rs.refMutMap(_76, rs.partPlace(((p: [rs.u8, rs.LazyLock<Dropped.Dropped>]): rs.LazyLock<Dropped.Dropped> => {
+		const _79: rs.RefCell<[rs.u8, rs.LazyLock<Dropped.Dropped>]> = rs.refCellBorrowMut(held);
+		const _78: rs.RefCell<rs.LazyLock<Dropped.Dropped>> = rs.refMutMap(_79, rs.partPlace(((p: [rs.u8, rs.LazyLock<Dropped.Dropped>]): rs.LazyLock<Dropped.Dropped> => {
 			return p[1];
-		})(_76.value)));
-		_100 = false;
-		assign$sync_LazyLock_statics_Dropped_statics_lock_closure0(_75.value, b);
-		rs.refMutRelease(_75);
+		})(_79.value)));
+		_103 = false;
+		assign$sync_LazyLock_statics_Dropped_statics_lock_closure0(_78.value, b);
+		rs.refMutRelease(_78);
 		a = held.value[1];
 	}
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(a).v));
 	rs.byteVecPush(out, a.force()._0);
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_18(a).v));
-	if (_100) {
+	if (_103) {
 		rs.lazyDrop(b, rs.drop);
 	}
-	_100 = false;
+	_103 = false;
 	rs.lazyDrop(a, rs.drop);
 }
 

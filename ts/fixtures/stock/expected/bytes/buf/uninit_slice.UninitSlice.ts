@@ -137,10 +137,10 @@ export function writeByte(self: rs.ByteSlice, index: rs.usize, byte: rs.u8): voi
  * ```
  */
 export function copyFromSlice(self: rs.ByteSlice, src: rs.ByteSlice): void {
-	const _4: rs.usize = len(self);
-	const _7: rs.usize = src.length;
-	if (!(_4 === _7)) {
-		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_4, f), (f: rs.Formatter) => rs.usizeDebug(_7, f), undefined as rs.Arguments | undefined);
+	const _5: rs.usize = len(self);
+	const _8: rs.usize = src.length;
+	if (!(_5 === _8)) {
+		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_5, f), (f: rs.Formatter) => rs.usizeDebug(_8, f), undefined as rs.Arguments | undefined);
 	} else {
 		rs.ptrCopy(rs.byteSliceAsPtr(src), asMutPtr(self), len(self));
 	}

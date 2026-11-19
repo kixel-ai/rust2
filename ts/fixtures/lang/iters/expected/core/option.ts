@@ -376,13 +376,12 @@ export function andThen$1fnqvxl(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u1
 	return f(self);
 }
 
-export function filter$0agadp5(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
+export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
-		if (!predicate(x)) {
-			return undefined;
+		if (predicate(x)) {
+			return x;
 		}
-		return x;
 	}
 	return undefined;
 }

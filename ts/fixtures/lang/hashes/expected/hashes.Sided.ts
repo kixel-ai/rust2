@@ -18,11 +18,8 @@ export function hash$Hash_hash_DefaultHasher(self: Sided, state: rs.Hasher): voi
 }
 
 export function eq$cmp_PartialEq(self: Sided, other: Sided): boolean {
-	const _4: rs.u8 = self.side;
-	const _5: rs.u8 = other.side;
-	const _6: rs.u8 = self.n;
-	call(101, _4, _5, _6);
-	return _6 === other.n;
+	call(101, self.side, other.side, self.n);
+	return self.n === other.n;
 }
 
 //# sourceMappingURL=hashes.Sided.ts.map

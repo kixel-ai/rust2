@@ -2,11 +2,6 @@
 
 import * as rs from "./rs.ts";
 import { cycles } from "./cycles.ts";
-import type * as Countdown from "./cycles.Countdown.ts";
-
-export function copy$cycles_Countdown(v: Countdown.Countdown): Countdown.Countdown {
-	return { _0: v._0 };
-}
 
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo

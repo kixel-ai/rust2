@@ -10,10 +10,10 @@ export interface Pair {
 
 export function fmt$fmt_Display(self: Pair, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self._0;
-	const _7: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg, f);
+	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg, f);
 	const arg2 = self._1;
-	const args2 = [_7, (f: rs.Formatter) => rs.u8Display(arg2, f)];
-	return rs.fmtWriteFmt(f, [args2[0], "-", args2[1]]);
+	const args3 = [_8, (f: rs.Formatter) => rs.u8Display(arg2, f)];
+	return rs.fmtWriteFmt(f, [args3[0], "-", args3[1]]);
 }
 
 //# sourceMappingURL=wrap.Pair.ts.map

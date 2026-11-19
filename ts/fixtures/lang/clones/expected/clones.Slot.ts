@@ -22,9 +22,9 @@ export function cloneFrom$Clone(self: rs.Place<Slot>, source: Slot): void {
 				break b0;
 			}
 		}
-		const _7: Slot = clone$Clone(source);
+		const _10: Slot = clone$Clone(source);
 		drop$clones_Slot(self.v);
-		self.v = _7;
+		self.v = _10;
 	}
 }
 

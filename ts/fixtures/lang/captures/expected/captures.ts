@@ -12,21 +12,15 @@ export function through$u8s(n: rs.Place<rs.u8>, b: rs.u8): rs.u8 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = Uint8Array.of(0);
-	const n: rs.usize = rs.min(data.length, 1);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.u8 = rs.u8FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.u8 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u8 = rs.u8FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.u8 = _18;
 	const buf2: Uint8Array = Uint8Array.of(0);
-	const n2: rs.usize = rs.min(data2.length, 1);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.u8 = rs.u8FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.u8 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.u8 = ([rs.u8FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u8, rs.ByteSlice])[0];
 	const put: (a0: rs.u8) => undefined = (v: rs.u8): undefined => {
 		const dst = out;
 		const word = v;
@@ -34,7 +28,7 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
-	let n3: rs.u8 = _12;
+	let n3: rs.u8 = a;
 	const part = ((): rs.u8 => {
 		n3 = rs.u8WrappingAdd(n3, b);
 		return n3;
@@ -59,7 +53,7 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u8 => {
 		n3 = rs.u8WrappingAdd(n3, captured.length & 0xff);
 		return n3;
@@ -72,18 +66,18 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.u8, rs.u8] = twice$u8_captures_u8s_closure6((): rs.u8 => {
+	const _108: [rs.u8, rs.u8] = twice$u8_captures_u8s_closure6((): rs.u8 => {
 		n3 = rs.u8WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.u8 = _97[0];
-	const y: rs.u8 = _97[1];
+	const x: rs.u8 = _108[0];
+	const y: rs.u8 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.u8 = _12;
+	let m: rs.u8 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.u8 = (): rs.u8 => {
 		captured2 = rs.u8WrappingAdd(captured2, captured3);
 		return captured2;
@@ -93,14 +87,14 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.u8, rs.u8] = [_12, _25];
+	const pair: [rs.u8, rs.u8] = [a, b];
 	const part16 = ((): rs.u8 => {
 		pair[0] = rs.u8WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$u8s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$u8s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.u8 => {
@@ -123,21 +117,15 @@ export function through$u16s(n: rs.Place<rs.u16>, b: rs.u16): rs.u16 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(2);
-	const n: rs.usize = rs.min(data.length, 2);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.u16 = rs.u16FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.u16 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u16 = rs.u16FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.u16 = _18;
 	const buf2: Uint8Array = rs.bytes(2);
-	const n2: rs.usize = rs.min(data2.length, 2);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.u16 = rs.u16FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.u16 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.u16 = ([rs.u16FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u16, rs.ByteSlice])[0];
 	const put: (a0: rs.u16) => undefined = (v: rs.u16): undefined => {
 		const dst = out;
 		const word = v;
@@ -147,7 +135,7 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
-	let n3: rs.u16 = _12;
+	let n3: rs.u16 = a;
 	const part = ((): rs.u16 => {
 		n3 = rs.u16WrappingAdd(n3, b);
 		return n3;
@@ -172,7 +160,7 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u16 => {
 		n3 = rs.u16WrappingAdd(n3, captured.length & 0xffff);
 		return n3;
@@ -185,18 +173,18 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.u16, rs.u16] = twice$u16_captures_u16s_closure6((): rs.u16 => {
+	const _108: [rs.u16, rs.u16] = twice$u16_captures_u16s_closure6((): rs.u16 => {
 		n3 = rs.u16WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.u16 = _97[0];
-	const y: rs.u16 = _97[1];
+	const x: rs.u16 = _108[0];
+	const y: rs.u16 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.u16 = _12;
+	let m: rs.u16 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.u16 = (): rs.u16 => {
 		captured2 = rs.u16WrappingAdd(captured2, captured3);
 		return captured2;
@@ -206,14 +194,14 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.u16, rs.u16] = [_12, _25];
+	const pair: [rs.u16, rs.u16] = [a, b];
 	const part16 = ((): rs.u16 => {
 		pair[0] = rs.u16WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$u16s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$u16s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.u16 => {
@@ -236,21 +224,15 @@ export function through$u32s(n: rs.Place<rs.u32>, b: rs.u32): rs.u32 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.u32 = rs.u32FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.u32 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u32 = rs.u32FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.u32 = _18;
 	const buf2: Uint8Array = rs.bytes(4);
-	const n2: rs.usize = rs.min(data2.length, 4);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.u32 = rs.u32FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.u32 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.u32 = ([rs.u32FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u32, rs.ByteSlice])[0];
 	const put: (a0: rs.u32) => undefined = (v: rs.u32): undefined => {
 		const dst = out;
 		const word = v;
@@ -262,7 +244,7 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	let n3: rs.u32 = _12;
+	let n3: rs.u32 = a;
 	const part = ((): rs.u32 => {
 		n3 = rs.u32WrappingAdd(n3, b);
 		return n3;
@@ -287,7 +269,7 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u32 => {
 		n3 = rs.u32WrappingAdd(n3, captured.length as rs.u32);
 		return n3;
@@ -300,18 +282,18 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.u32, rs.u32] = twice$u32_captures_u32s_closure6((): rs.u32 => {
+	const _108: [rs.u32, rs.u32] = twice$u32_captures_u32s_closure6((): rs.u32 => {
 		n3 = rs.u32WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.u32 = _97[0];
-	const y: rs.u32 = _97[1];
+	const x: rs.u32 = _108[0];
+	const y: rs.u32 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.u32 = _12;
+	let m: rs.u32 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.u32 = (): rs.u32 => {
 		captured2 = rs.u32WrappingAdd(captured2, captured3);
 		return captured2;
@@ -321,14 +303,14 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.u32, rs.u32] = [_12, _25];
+	const pair: [rs.u32, rs.u32] = [a, b];
 	const part16 = ((): rs.u32 => {
 		pair[0] = rs.u32WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$u32s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$u32s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.u32 => {
@@ -351,21 +333,15 @@ export function through$u64s(n: rs.Place<rs.u64>, b: rs.u64): rs.u64 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(8);
-	const n: rs.usize = rs.min(data.length, 8);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.u64 = rs.u64FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.u64 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u64 = rs.u64FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.u64 = _18;
 	const buf2: Uint8Array = rs.bytes(8);
-	const n2: rs.usize = rs.min(data2.length, 8);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.u64 = rs.u64FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.u64 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.u64 = ([rs.u64FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u64, rs.ByteSlice])[0];
 	const put: (a0: rs.u64) => undefined = (v: rs.u64): undefined => {
 		const dst = out;
 		const word = v;
@@ -383,7 +359,7 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
-	let n3: rs.u64 = _12;
+	let n3: rs.u64 = a;
 	const part = ((): rs.u64 => {
 		n3 = rs.u64WrappingAdd(n3, b);
 		return n3;
@@ -408,7 +384,7 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u64 => {
 		n3 = rs.u64WrappingAdd(n3, captured.length as rs.u64);
 		return n3;
@@ -421,18 +397,18 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.u64, rs.u64] = twice$u64_captures_u64s_closure6((): rs.u64 => {
+	const _108: [rs.u64, rs.u64] = twice$u64_captures_u64s_closure6((): rs.u64 => {
 		n3 = rs.u64WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.u64 = _97[0];
-	const y: rs.u64 = _97[1];
+	const x: rs.u64 = _108[0];
+	const y: rs.u64 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.u64 = _12;
+	let m: rs.u64 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.u64 = (): rs.u64 => {
 		captured2 = rs.u64WrappingAdd(captured2, captured3);
 		return captured2;
@@ -442,14 +418,14 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.u64, rs.u64] = [_12, _25];
+	const pair: [rs.u64, rs.u64] = [a, b];
 	const part16 = ((): rs.u64 => {
 		pair[0] = rs.u64WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$u64s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$u64s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.u64 => {
@@ -472,21 +448,15 @@ export function through$u128s(n: rs.Place<rs.u128>, b: rs.u128): rs.u128 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(16);
-	const n: rs.usize = rs.min(data.length, 16);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.u128 = rs.u128FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.u128 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.u128 = rs.u128FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.u128 = _18;
 	const buf2: Uint8Array = rs.bytes(16);
-	const n2: rs.usize = rs.min(data2.length, 16);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.u128 = rs.u128FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.u128 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.u128 = ([rs.u128FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u128, rs.ByteSlice])[0];
 	const put: (a0: rs.u128) => undefined = (v: rs.u128): undefined => {
 		const dst = out;
 		const word = v;
@@ -514,7 +484,7 @@ export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
-	let n3: rs.u128 = _12;
+	let n3: rs.u128 = a;
 	const part = ((): rs.u128 => {
 		n3 = rs.u128WrappingAdd(n3, b);
 		return n3;
@@ -539,7 +509,7 @@ export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u128 => {
 		n3 = rs.u128WrappingAdd(n3, captured.length as rs.u128);
 		return n3;
@@ -552,18 +522,18 @@ export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.u128, rs.u128] = twice$u128_captures_u128s_closure6((): rs.u128 => {
+	const _108: [rs.u128, rs.u128] = twice$u128_captures_u128s_closure6((): rs.u128 => {
 		n3 = rs.u128WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.u128 = _97[0];
-	const y: rs.u128 = _97[1];
+	const x: rs.u128 = _108[0];
+	const y: rs.u128 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.u128 = _12;
+	let m: rs.u128 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.u128 = (): rs.u128 => {
 		captured2 = rs.u128WrappingAdd(captured2, captured3);
 		return captured2;
@@ -573,14 +543,14 @@ export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.u128, rs.u128] = [_12, _25];
+	const pair: [rs.u128, rs.u128] = [a, b];
 	const part16 = ((): rs.u128 => {
 		pair[0] = rs.u128WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$u128s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$u128s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.u128 => {
@@ -603,21 +573,15 @@ export function through$usizes(n: rs.Place<rs.usize>, b: rs.usize): rs.usize {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.usize = rs.usizeFromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.usize = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.usize = rs.usizeFromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.usize = _18;
 	const buf2: Uint8Array = rs.bytes(4);
-	const n2: rs.usize = rs.min(data2.length, 4);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.usize = rs.usizeFromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.usize = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.usize = ([rs.usizeFromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.usize, rs.ByteSlice])[0];
 	const put: (a0: rs.usize) => undefined = (v: rs.usize): undefined => {
 		const dst = out;
 		const word = v;
@@ -629,7 +593,7 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	let n3: rs.usize = _12;
+	let n3: rs.usize = a;
 	const part = ((): rs.usize => {
 		n3 = rs.usizeWrappingAdd(n3, b);
 		return n3;
@@ -654,7 +618,7 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.usize => {
 		n3 = rs.usizeWrappingAdd(n3, captured.length);
 		return n3;
@@ -667,18 +631,18 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.usize, rs.usize] = twice$usize_captures_usizes_closure6((): rs.usize => {
+	const _108: [rs.usize, rs.usize] = twice$usize_captures_usizes_closure6((): rs.usize => {
 		n3 = rs.usizeWrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.usize = _97[0];
-	const y: rs.usize = _97[1];
+	const x: rs.usize = _108[0];
+	const y: rs.usize = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.usize = _12;
+	let m: rs.usize = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.usize = (): rs.usize => {
 		captured2 = rs.usizeWrappingAdd(captured2, captured3);
 		return captured2;
@@ -688,14 +652,14 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.usize, rs.usize] = [_12, _25];
+	const pair: [rs.usize, rs.usize] = [a, b];
 	const part16 = ((): rs.usize => {
 		pair[0] = rs.usizeWrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$usizes(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$usizes(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.usize => {
@@ -711,21 +675,15 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = Uint8Array.of(0);
-	const n: rs.usize = rs.min(data.length, 1);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.i8 = rs.i8FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.i8 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i8 = rs.i8FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.i8 = _18;
 	const buf2: Uint8Array = Uint8Array.of(0);
-	const n2: rs.usize = rs.min(data2.length, 1);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.i8 = rs.i8FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.i8 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.i8 = ([rs.i8FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i8, rs.ByteSlice])[0];
 	const put: (a0: rs.i8) => undefined = (v: rs.i8): undefined => {
 		const dst = out;
 		const word = v;
@@ -733,7 +691,7 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
-	let n3: rs.i8 = _12;
+	let n3: rs.i8 = a;
 	const part = ((): rs.i8 => {
 		n3 = rs.i8WrappingAdd(n3, b);
 		return n3;
@@ -758,7 +716,7 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.i8 => {
 		n3 = rs.i8WrappingAdd(n3, (captured.length << 24) >> 24);
 		return n3;
@@ -771,18 +729,18 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.i8, rs.i8] = twice$i8_captures_i8s_closure6((): rs.i8 => {
+	const _108: [rs.i8, rs.i8] = twice$i8_captures_i8s_closure6((): rs.i8 => {
 		n3 = rs.i8WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.i8 = _97[0];
-	const y: rs.i8 = _97[1];
+	const x: rs.i8 = _108[0];
+	const y: rs.i8 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.i8 = _12;
+	let m: rs.i8 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.i8 = (): rs.i8 => {
 		captured2 = rs.i8WrappingAdd(captured2, captured3);
 		return captured2;
@@ -792,14 +750,14 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.i8, rs.i8] = [_12, _25];
+	const pair: [rs.i8, rs.i8] = [a, b];
 	const part16 = ((): rs.i8 => {
 		pair[0] = rs.i8WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$i8s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$i8s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.i8 => {
@@ -822,21 +780,15 @@ export function through$i8s(n: rs.Place<rs.i8>, b: rs.i8): rs.i8 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(2);
-	const n: rs.usize = rs.min(data.length, 2);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.i16 = rs.i16FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.i16 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i16 = rs.i16FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.i16 = _18;
 	const buf2: Uint8Array = rs.bytes(2);
-	const n2: rs.usize = rs.min(data2.length, 2);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.i16 = rs.i16FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.i16 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.i16 = ([rs.i16FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i16, rs.ByteSlice])[0];
 	const put: (a0: rs.i16) => undefined = (v: rs.i16): undefined => {
 		const dst = out;
 		const word = v;
@@ -846,7 +798,7 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
-	let n3: rs.i16 = _12;
+	let n3: rs.i16 = a;
 	const part = ((): rs.i16 => {
 		n3 = rs.i16WrappingAdd(n3, b);
 		return n3;
@@ -871,7 +823,7 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.i16 => {
 		n3 = rs.i16WrappingAdd(n3, (captured.length << 16) >> 16);
 		return n3;
@@ -884,18 +836,18 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.i16, rs.i16] = twice$i16_captures_i16s_closure6((): rs.i16 => {
+	const _108: [rs.i16, rs.i16] = twice$i16_captures_i16s_closure6((): rs.i16 => {
 		n3 = rs.i16WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.i16 = _97[0];
-	const y: rs.i16 = _97[1];
+	const x: rs.i16 = _108[0];
+	const y: rs.i16 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.i16 = _12;
+	let m: rs.i16 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.i16 = (): rs.i16 => {
 		captured2 = rs.i16WrappingAdd(captured2, captured3);
 		return captured2;
@@ -905,14 +857,14 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.i16, rs.i16] = [_12, _25];
+	const pair: [rs.i16, rs.i16] = [a, b];
 	const part16 = ((): rs.i16 => {
 		pair[0] = rs.i16WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$i16s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$i16s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.i16 => {
@@ -935,21 +887,15 @@ export function through$i16s(n: rs.Place<rs.i16>, b: rs.i16): rs.i16 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.i32 = rs.i32FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.i32 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i32 = rs.i32FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.i32 = _18;
 	const buf2: Uint8Array = rs.bytes(4);
-	const n2: rs.usize = rs.min(data2.length, 4);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.i32 = rs.i32FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.i32 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.i32 = ([rs.i32FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i32, rs.ByteSlice])[0];
 	const put: (a0: rs.i32) => undefined = (v: rs.i32): undefined => {
 		const dst = out;
 		const word = v;
@@ -961,7 +907,7 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	let n3: rs.i32 = _12;
+	let n3: rs.i32 = a;
 	const part = ((): rs.i32 => {
 		n3 = rs.i32WrappingAdd(n3, b);
 		return n3;
@@ -986,7 +932,7 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.i32 => {
 		n3 = rs.i32WrappingAdd(n3, captured.length | 0);
 		return n3;
@@ -999,18 +945,18 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.i32, rs.i32] = twice$i32_captures_i32s_closure6((): rs.i32 => {
+	const _108: [rs.i32, rs.i32] = twice$i32_captures_i32s_closure6((): rs.i32 => {
 		n3 = rs.i32WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.i32 = _97[0];
-	const y: rs.i32 = _97[1];
+	const x: rs.i32 = _108[0];
+	const y: rs.i32 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.i32 = _12;
+	let m: rs.i32 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.i32 = (): rs.i32 => {
 		captured2 = rs.i32WrappingAdd(captured2, captured3);
 		return captured2;
@@ -1020,14 +966,14 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.i32, rs.i32] = [_12, _25];
+	const pair: [rs.i32, rs.i32] = [a, b];
 	const part16 = ((): rs.i32 => {
 		pair[0] = rs.i32WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$i32s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$i32s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.i32 => {
@@ -1050,21 +996,15 @@ export function through$i32s(n: rs.Place<rs.i32>, b: rs.i32): rs.i32 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(8);
-	const n: rs.usize = rs.min(data.length, 8);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.i64 = rs.i64FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.i64 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i64 = rs.i64FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.i64 = _18;
 	const buf2: Uint8Array = rs.bytes(8);
-	const n2: rs.usize = rs.min(data2.length, 8);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.i64 = rs.i64FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.i64 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.i64 = ([rs.i64FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i64, rs.ByteSlice])[0];
 	const put: (a0: rs.i64) => undefined = (v: rs.i64): undefined => {
 		const dst = out;
 		const word = v;
@@ -1082,7 +1022,7 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
-	let n3: rs.i64 = _12;
+	let n3: rs.i64 = a;
 	const part = ((): rs.i64 => {
 		n3 = rs.i64WrappingAdd(n3, b);
 		return n3;
@@ -1107,7 +1047,7 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.i64 => {
 		n3 = rs.i64WrappingAdd(n3, captured.length as rs.i64);
 		return n3;
@@ -1120,18 +1060,18 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.i64, rs.i64] = twice$i64_captures_i64s_closure6((): rs.i64 => {
+	const _108: [rs.i64, rs.i64] = twice$i64_captures_i64s_closure6((): rs.i64 => {
 		n3 = rs.i64WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.i64 = _97[0];
-	const y: rs.i64 = _97[1];
+	const x: rs.i64 = _108[0];
+	const y: rs.i64 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.i64 = _12;
+	let m: rs.i64 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.i64 = (): rs.i64 => {
 		captured2 = rs.i64WrappingAdd(captured2, captured3);
 		return captured2;
@@ -1141,14 +1081,14 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.i64, rs.i64] = [_12, _25];
+	const pair: [rs.i64, rs.i64] = [a, b];
 	const part16 = ((): rs.i64 => {
 		pair[0] = rs.i64WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$i64s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$i64s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.i64 => {
@@ -1171,21 +1111,15 @@ export function through$i64s(n: rs.Place<rs.i64>, b: rs.i64): rs.i64 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(16);
-	const n: rs.usize = rs.min(data.length, 16);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.i128 = rs.i128FromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.i128 = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.i128 = rs.i128FromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.i128 = _18;
 	const buf2: Uint8Array = rs.bytes(16);
-	const n2: rs.usize = rs.min(data2.length, 16);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.i128 = rs.i128FromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.i128 = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.i128 = ([rs.i128FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i128, rs.ByteSlice])[0];
 	const put: (a0: rs.i128) => undefined = (v: rs.i128): undefined => {
 		const dst = out;
 		const word = v;
@@ -1213,7 +1147,7 @@ export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
-	let n3: rs.i128 = _12;
+	let n3: rs.i128 = a;
 	const part = ((): rs.i128 => {
 		n3 = rs.i128WrappingAdd(n3, b);
 		return n3;
@@ -1238,7 +1172,7 @@ export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.i128 => {
 		n3 = rs.i128WrappingAdd(n3, captured.length as rs.i128);
 		return n3;
@@ -1251,18 +1185,18 @@ export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.i128, rs.i128] = twice$i128_captures_i128s_closure6((): rs.i128 => {
+	const _108: [rs.i128, rs.i128] = twice$i128_captures_i128s_closure6((): rs.i128 => {
 		n3 = rs.i128WrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.i128 = _97[0];
-	const y: rs.i128 = _97[1];
+	const x: rs.i128 = _108[0];
+	const y: rs.i128 = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.i128 = _12;
+	let m: rs.i128 = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.i128 = (): rs.i128 => {
 		captured2 = rs.i128WrappingAdd(captured2, captured3);
 		return captured2;
@@ -1272,14 +1206,14 @@ export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.i128, rs.i128] = [_12, _25];
+	const pair: [rs.i128, rs.i128] = [a, b];
 	const part16 = ((): rs.i128 => {
 		pair[0] = rs.i128WrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$i128s(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$i128s(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.i128 => {
@@ -1302,21 +1236,15 @@ export function through$i128s(n: rs.Place<rs.i128>, b: rs.i128): rs.i128 {
 /** Each way a closure writes a captured integer, from two operands taken from `data`. */
 export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _9: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _10: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_9, 0, _10.end), rs.byteSliceRange(data, 0, _10.end));
-	const _12: rs.isize = rs.isizeFromBeBytes(buf);
-	const data2: rs.ByteSlice = rs.byteSliceRange(data, n);
-	const a: rs.isize = _12;
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const _18: rs.isize = rs.isizeFromBeBytes(buf);
+	const _20: rs.ByteSlice = rs.byteSliceRange(data, n);
+	const a: rs.isize = _18;
 	const buf2: Uint8Array = rs.bytes(4);
-	const n2: rs.usize = rs.min(data2.length, 4);
-	const _22: rs.ByteSlice = rs.byteSliceFrom(buf2);
-	const _23: { end: rs.usize } = { end: n2 };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_22, 0, _23.end), rs.byteSliceRange(data2, 0, _23.end));
-	const _25: rs.isize = rs.isizeFromBeBytes(buf2);
-	rs.byteSliceRange(data2, n2);
-	const b: rs.isize = _25;
+	const n2: rs.usize = rs.min(_20.length, rs.byteSliceFrom(buf2).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
+	const b: rs.isize = ([rs.isizeFromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.isize, rs.ByteSlice])[0];
 	const put: (a0: rs.isize) => undefined = (v: rs.isize): undefined => {
 		const dst = out;
 		const word = v;
@@ -1328,7 +1256,7 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	let n3: rs.isize = _12;
+	let n3: rs.isize = a;
 	const part = ((): rs.isize => {
 		n3 = rs.isizeWrappingAdd(n3, b);
 		return n3;
@@ -1353,7 +1281,7 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})();
 	put(part6);
 	put(n3);
-	const captured = rs.byteSliceToByteVec(data2);
+	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.isize => {
 		n3 = rs.isizeWrappingAdd(n3, captured.length | 0);
 		return n3;
@@ -1366,18 +1294,18 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	put(part10);
 	put(n3);
-	const _97: [rs.isize, rs.isize] = twice$isize_captures_isizes_closure6((): rs.isize => {
+	const _108: [rs.isize, rs.isize] = twice$isize_captures_isizes_closure6((): rs.isize => {
 		n3 = rs.isizeWrappingAdd(n3, a);
 		return n3;
 	});
-	const x: rs.isize = _97[0];
-	const y: rs.isize = _97[1];
+	const x: rs.isize = _108[0];
+	const y: rs.isize = _108[1];
 	put(x);
 	put(y);
 	put(n3);
-	let m: rs.isize = _12;
+	let m: rs.isize = a;
 	let captured2 = m;
-	const captured3 = _25;
+	const captured3 = b;
 	const own: () => rs.isize = (): rs.isize => {
 		captured2 = rs.isizeWrappingAdd(captured2, captured3);
 		return captured2;
@@ -1387,14 +1315,14 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part14 = own();
 	put(part14);
 	put(m);
-	const pair: [rs.isize, rs.isize] = [_12, _25];
+	const pair: [rs.isize, rs.isize] = [a, b];
 	const part16 = ((): rs.isize => {
 		pair[0] = rs.isizeWrappingAdd(pair[0], pair[1]);
 		return pair[0];
 	})();
 	put(part16);
 	put(pair[0]);
-	const part18 = through$isizes(rs.place(() => m, (value) => m = value), _25);
+	const part18 = through$isizes(rs.place(() => m, (value) => m = value), b);
 	put(part18);
 	put(m);
 	const part20 = ((): rs.isize => {

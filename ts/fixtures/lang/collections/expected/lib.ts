@@ -3,7 +3,6 @@
 import * as rs from "./rs.ts";
 import { hashMaps, sets, btreeMaps, deques, dequeRanges, vecs, stores, optionals, setOps, unlikeEqs, ownNes, cellEqs, unlikeCompares, refOrders, extracts, btreeExtracts, btreeSearches, btreeBorrows, btreeDrops } from "./collections.ts";
 import type * as Bumped from "./collections.Bumped.ts";
-import type * as Holder from "./collections.Holder.ts";
 import type * as Logged from "./collections.Logged.ts";
 import type * as Picky from "./collections.Picky.ts";
 import type * as Quirky from "./collections.Quirky.ts";
@@ -35,10 +34,6 @@ export function copy$collections_Bumped(v: Bumped.Bumped): Bumped.Bumped {
 	return { _0: v._0 };
 }
 
-export function copy$collections_Holder(v: Holder.Holder): Holder.Holder {
-	return { pair: copy$tuple2_u8_u8(v.pair) };
-}
-
 export function copy$collections_Quirky(v: Quirky.Quirky): Quirky.Quirky {
 	return { _0: v._0, _1: v._1 };
 }
@@ -49,18 +44,6 @@ export function copy$collections_Tally(v: Tally.Tally): Tally.Tally {
 
 export function copy$collections_Wrap_u8(v: Wrap.Wrap<rs.u8>): Wrap.Wrap<rs.u8> {
 	return new Wrap.Wrap(v.value, v.count);
-}
-
-export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
-	return rs.objectCopy(v);
-}
-
-export function copy$ops_Range_u16(v: rs.Range<rs.u16>): rs.Range<rs.u16> {
-	return rs.objectCopy(v);
-}
-
-export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
-	return rs.objectCopy(v);
 }
 
 export function copy$tuple2_u8_collections_Tally(v: [rs.u8, Tally.Tally]): [rs.u8, Tally.Tally] {

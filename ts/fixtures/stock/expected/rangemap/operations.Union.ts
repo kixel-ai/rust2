@@ -15,29 +15,28 @@ export function new$ops_Range_u64_rangemap_set_Iter_u64_rangemap_set_Iter_u64(le
 
 export function next$iter_Iterator_ops_Range_u64_rangemap_set_Iter_u64_rangemap_set_Iter_u64(self: Union<rs.Range<rs.u64>, set_Iter.Iter<rs.u64>, set_Iter.Iter<rs.u64>>): rs.Range<rs.u64> | rs.Done {
 	let _4!: rs.Range<rs.u64>;
-	let _19!: rs.Range<rs.u64>;
-	const _5: rs.Range<rs.u64> | undefined = rs.peekablePeek(self.left as rs.Peekable<rs.Range<rs.u64>>);
-	const _7: rs.Range<rs.u64> | undefined = rs.peekablePeek(self.right as rs.Peekable<rs.Range<rs.u64>>);
-	if (_5 === undefined) {
-		if (_7 === undefined) {
+	let _20!: rs.Range<rs.u64>;
+	const _5: [rs.Range<rs.u64> | undefined, rs.Range<rs.u64> | undefined] = [rs.peekablePeek(self.left as rs.Peekable<rs.Range<rs.u64>>), rs.peekablePeek(self.right as rs.Peekable<rs.Range<rs.u64>>)];
+	if (_5[0] === undefined) {
+		if (_5[1] === undefined) {
 			return rs.DONE;
 		}
 		_4 = rs.optionUnwrap(rs.iterToOption((self.right as rs.Peekable<rs.Range<rs.u64>>).next()));
-	} else if (_7 === undefined) {
+	} else if (_5[1] === undefined) {
 		_4 = rs.optionUnwrap(rs.iterToOption((self.left as rs.Peekable<rs.Range<rs.u64>>).next()));
 	} else {
-		if (!(orderStart$rangemap_operations_RangeOrder_ops_Range_u64(_5, _7) < 0)) {
-			_19 = rs.optionUnwrap(rs.iterToOption((self.right as rs.Peekable<rs.Range<rs.u64>>).next()));
+		if (!(orderStart$rangemap_operations_RangeOrder_ops_Range_u64(_5[0], _5[1]) < 0)) {
+			_20 = rs.optionUnwrap(rs.iterToOption((self.right as rs.Peekable<rs.Range<rs.u64>>).next()));
 		} else {
-			_19 = rs.optionUnwrap(rs.iterToOption((self.left as rs.Peekable<rs.Range<rs.u64>>).next()));
+			_20 = rs.optionUnwrap(rs.iterToOption((self.left as rs.Peekable<rs.Range<rs.u64>>).next()));
 		}
-		_4 = _19;
+		_4 = _20;
 	}
 	const range: rs.Range<rs.u64> = _4.clone();
 	const join: (a0: rs.Peekable<rs.Range<rs.u64>>) => boolean = (iter: rs.Peekable<rs.Range<rs.u64>>): boolean => {
-		const _32: rs.Range<rs.u64> | undefined = rs.peekablePeek(iter);
-		if (_32 !== undefined) {
-			if (merge$rangemap_operations_RangeMerge_ops_Range_u64(range, _32)) {
+		const _33: rs.Range<rs.u64> | undefined = rs.peekablePeek(iter);
+		if (_33 !== undefined) {
+			if (merge$rangemap_operations_RangeMerge_ops_Range_u64(range, _33)) {
 				rs.optionUnwrap(rs.iterToOption(iter.next()));
 				return true;
 			}

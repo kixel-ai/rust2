@@ -226,12 +226,13 @@ export function tryPushStr$12(self: ArrayString, s: string): rs.Result<undefined
  * ```
  */
 export function pop$12(self: ArrayString): rs.char | undefined {
-	const _2: rs.char | undefined = rs.iterToOption(rs.iterRev(rs.strChars(deref$ops_Deref_12(self))).next());
-	if (_2 === undefined) {
+	const _2: rs.char | rs.Done = rs.iterRev(rs.strChars(deref$ops_Deref_12(self))).next();
+	if (_2 === rs.DONE) {
 		return undefined;
 	}
-	setLen$12(self, rs.usizeSub(len$12(self), rs.charLenUtf8(_2)));
-	return _2;
+	const ch: rs.char = _2;
+	setLen$12(self, rs.usizeSub(len$12(self), rs.charLenUtf8(ch)));
+	return ch;
 }
 
 /**

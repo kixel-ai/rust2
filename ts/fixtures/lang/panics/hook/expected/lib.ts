@@ -9,11 +9,10 @@ import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called
 import * as Inherits from "./located.Inherits.ts";
 import * as Own from "./located.Own.ts";
 import { wrapped, called as panics_called, awaited, raised } from "./panics.ts";
-import * as Logged from "./panics.Logged.ts";
 import type * as Point from "./panics.Point.ts";
 
-export function copy$panics_Logged(v: Logged.Logged): Logged.Logged {
-	return new Logged.Logged(v._0, v._1);
+export function copy$panics_Point(v: Point.Point): Point.Point {
+	return { x: v.x, y: v.y };
 }
 
 export function drop$Result_sync_MutexGuard_u8_sync_PoisonError_sync_MutexGuard_u8(_1: rs.Result<rs.Mutex<rs.u8>, rs.Mutex<rs.u8>>): void {

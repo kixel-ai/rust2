@@ -23,7 +23,7 @@ export class Logged {
 
 export function clone$Clone(self: Logged): Logged {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log.value);
-	rs.byteVecPush(_5.value, self.id | 128);
+	rs.byteVecPush(_5.value, 128 | self.id);
 	rs.refMutRelease(_5);
 	return new Logged(rs.u8WrappingAdd(self.id, 1), rs.arcClone(self.log));
 }

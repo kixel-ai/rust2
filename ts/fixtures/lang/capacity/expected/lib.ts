@@ -15,10 +15,6 @@ export function copy$array_usize(v: rs.usize[]): rs.usize[] {
 	return v.slice();
 }
 
-export function copy$ops_Range_u8(v: rs.Range<rs.u8>): rs.Range<rs.u8> {
-	return rs.objectCopy(v);
-}
-
 export function copy$tuple2_u64_u8(v: [rs.u64, rs.u8]): [rs.u64, rs.u8] {
 	return [v[0], v[1]];
 }

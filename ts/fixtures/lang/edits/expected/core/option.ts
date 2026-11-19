@@ -52,13 +52,12 @@ export function mapOr$1wei0sy(self: rs.u16 | undefined, default_: rs.u16, f: (a0
 	return f(self);
 }
 
-export function filter$04upm5c(self: Named.Named | undefined, predicate: (a0: Named.Named) => boolean): Named.Named | undefined {
+export function filter$184yuq2(self: Named.Named | undefined, predicate: (a0: Named.Named) => boolean): Named.Named | undefined {
 	if (self !== undefined) {
 		const x: Named.Named = self;
-		if (!predicate(x)) {
-			return undefined;
+		if (predicate(x)) {
+			return x;
 		}
-		return x;
 	}
 	return undefined;
 }

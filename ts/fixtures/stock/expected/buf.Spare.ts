@@ -100,7 +100,7 @@ export function advanceMut$bytes_BufMut(self: Spare, cnt: rs.usize): void {
 	if (!(cnt <= _4)) {
 		rs.panicFmt(["advanced ", (f: rs.Formatter) => rs.usizeDisplay(cnt, f), " past the capacity"]);
 	} else {
-		rs.byteVecSetLen(self._0, rs.usizeAdd(cnt, self._0.length));
+		rs.byteVecSetLen(self._0, rs.usizeAdd(self._0.length, cnt));
 	}
 }
 
@@ -152,8 +152,9 @@ export function advanceMut$bytes_BufMut(self: Spare, cnt: rs.usize): void {
  */
 export function chunkMut$bytes_BufMut(self: Spare): rs.ByteSlice {
 	if (!self._1) {
-		const len: rs.usize = self._0.length;
-		const cap: rs.usize = self._0.data.length;
+		const _7: [rs.usize, rs.usize] = [self._0.length, self._0.data.length];
+		const len: rs.usize = _7[0];
+		const cap: rs.usize = _7[1];
 		return UninitSlice.fromRawPartsMut(rs.ptrAdd(rs.byteVecAsPtr(self._0), len), rs.usizeSub(cap, len));
 	}
 	return UninitSlice.from$convert_From_mut_slice_mem_MaybeUninit_u8_mut(rs.byteVecSpare(self._0));
@@ -185,8 +186,7 @@ export function putSlice$bytes_BufMut(self: Spare, src: rs.ByteSlice): void {
 		while (!(src.length === 0)) {
 			const dst: rs.ByteSlice = chunkMut$bytes_BufMut(self);
 			const cnt: rs.usize = rs.min(src.length, UninitSlice.len(dst));
-			const _25: { end: rs.usize } = { end: cnt };
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, _25, { file: "bytes/source/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, _25.end));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, cnt));
 			src = rs.byteSliceRange(src, cnt);
 			advanceMut$bytes_BufMut(self, cnt);
 		}

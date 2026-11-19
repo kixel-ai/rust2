@@ -21,7 +21,7 @@ export class Numbered {
 }
 
 export function buildHasher$hash_BuildHasher(self: Numbered): Fnv.Fnv {
-	return { _0: rs.u64Xor(self._0 as rs.u64, { hi: 0xcbf29ce4, lo: 0x84222325 } as rs.u64) };
+	return { _0: rs.u64Xor({ hi: 0xcbf29ce4, lo: 0x84222325 } as rs.u64, self._0 as rs.u64) };
 }
 
 export function default$Default(): Numbered {
@@ -30,9 +30,8 @@ export function default$Default(): Numbered {
 }
 
 export function clone$Clone(self: Numbered): Numbered {
-	const _3: rs.u8 = self._0;
-	event(99, _3);
-	return new Numbered(rs.u8WrappingAdd(_3, 1));
+	event(99, self._0);
+	return new Numbered(rs.u8WrappingAdd(self._0, 1));
 }
 
 export function drop$ops_Drop(self: Numbered): void {

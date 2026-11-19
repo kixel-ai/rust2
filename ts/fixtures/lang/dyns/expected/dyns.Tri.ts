@@ -42,7 +42,7 @@ export function grow$dyns_Shape(self: rs.Place<Tri>, by: rs.u8): void {
 	} else {
 		_3 = { tag: "Tall", _0: rs.u8WrappingAdd(self.v._0, by) } as Tri;
 	}
-	self.v = _3 as Tri;
+	self.v = _3;
 }
 
 /** Provided, and overridden by one impl. */
@@ -75,8 +75,8 @@ export function apply$dyns_Scaled_String(self: Tri, f: (a0: rs.String) => rs.Str
 }
 
 export function scale$dyns_Scaled_String(self: Tri, by: rs.String): rs.String {
-	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, by.v), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
-	return rs.fmtFormat([args2[0], args2[1]]);
+	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, by.v), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
+	return rs.fmtFormat([args3[0], args3[1]]);
 }
 
 /** Writes through a `&mut` to the argument, an `rs.Place` for a number. */

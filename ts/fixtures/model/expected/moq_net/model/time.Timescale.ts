@@ -58,12 +58,12 @@ export function tryFrom$convert_TryFrom_num_NonZero_u64(unitsPerSecond: rs.u64):
 }
 
 export function fmt$fmt_Debug(self: Timescale, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	if (!(self._0 === 1)) {
-		if (!(self._0 === 1000)) {
-			if (!(self._0 === 1000000)) {
-				if (!(self._0 === 1000000000)) {
-					const n: rs.u64 = self._0;
-					return rs.fmtWriteFmt(f, ["Timescale(", (f: rs.Formatter) => rs.u64Display(n, f), ")"]);
+	if (!rs.u64Eq(1, self._0)) {
+		if (!rs.u64Eq(1000, self._0)) {
+			if (!rs.u64Eq(1000000, self._0)) {
+				if (!rs.u64Eq(1000000000, self._0)) {
+					const part = self._0;
+					return rs.fmtWriteFmt(f, ["Timescale(", (f: rs.Formatter) => rs.u64Display(part, f), ")"]);
 				}
 				return rs.fmtWriteFmt(f, ["Timescale::NANO"]);
 			}

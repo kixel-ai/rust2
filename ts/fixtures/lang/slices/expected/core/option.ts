@@ -137,13 +137,18 @@ export function or$0as8tia(self: rs.ByteSlice | undefined, optb: rs.ByteSlice | 
 	return self;
 }
 
-export function zip$1t2iyk4(self: rs.ByteSlice | undefined, other: rs.ByteSlice | undefined): [rs.ByteSlice, rs.ByteSlice] | undefined {
-	if (self !== undefined) {
-		if (other !== undefined) {
-			return [self, other] as [rs.ByteSlice, rs.ByteSlice];
+export function zip$0wdt346(self: rs.ByteSlice | undefined, other: rs.ByteSlice | undefined): [rs.ByteSlice, rs.ByteSlice] | undefined {
+	let _0!: [rs.ByteSlice, rs.ByteSlice] | undefined;
+	b0: {
+		if (self !== undefined) {
+			if (other !== undefined) {
+				_0 = [self, other] as [rs.ByteSlice, rs.ByteSlice];
+				break b0;
+			}
 		}
+		_0 = undefined;
 	}
-	return undefined;
+	return _0;
 }
 
 export function clone$1omlcob(self: Noisy.Noisy | undefined): Noisy.Noisy | undefined {

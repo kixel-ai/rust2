@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { okOr$032o4ic as option_okOr$032o4ic } from "./core/option.ts";
-import { ok$19nq1jt, inspectErr$1s1ee3d } from "./core/result.ts";
+import { ok$19nq1jt, inspectErr$0vkwi4s } from "./core/result.ts";
 
 export function clone$Clone(self: Scanner): Scanner {
 	const _2: rs.ByteSlice = new rs.ByteSlice(self.bufData, self.bufStart, self.bufLen);
@@ -30,15 +30,15 @@ export interface Scanner {
 }
 
 export function take(self: Scanner, n: rs.usize): rs.ByteSlice | undefined {
-	const _7Data: Uint8Array = self.bufData;
-	const _7Start: number = self.bufStart;
-	const _7Len: number = self.bufLen;
-	if (n <= _7Len) {
-		self.bufData = _7Data;
-		self.bufStart = _7Start + n;
-		self.bufLen = _7Len - n;
+	const _10Data: Uint8Array = self.bufData;
+	const _10Start: number = self.bufStart;
+	const _10Len: number = self.bufLen;
+	if (n <= _10Len) {
+		self.bufData = _10Data;
+		self.bufStart = _10Start + n;
+		self.bufLen = _10Len - n;
 		self.read = rs.usizeAdd(self.read, n);
-		return new rs.ByteSlice(_7Data, _7Start, n);
+		return new rs.ByteSlice(_10Data, _10Start, n);
 	}
 	return undefined;
 }
@@ -49,7 +49,7 @@ export function takeOrRewind(self: Scanner, n: rs.usize): rs.ByteSlice | undefin
 	const startStart: number = self.bufStart;
 	const startLen: number = self.bufLen;
 	if (take(self, 1) !== undefined) {
-		return ok$19nq1jt(inspectErr$1s1ee3d(option_okOr$032o4ic(take(self, n), n), (_2: rs.usize): undefined => {
+		return ok$19nq1jt(inspectErr$0vkwi4s(option_okOr$032o4ic(take(self, n), n), (_2: rs.usize): undefined => {
 			self.bufData = startData;
 			self.bufStart = startStart;
 			self.bufLen = startLen;

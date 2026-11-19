@@ -2,22 +2,22 @@
 
 import * as rs from "../../rs.ts";
 
-export function isDigit$17nqqgn(self: rs.char, radix: rs.u32): boolean {
-	return toDigit$1wtrt1r(self, radix) !== undefined;
+export function isDigit$10ivuux(self: rs.char, radix: rs.u32): boolean {
+	return toDigit$14z95r4(self, radix) !== undefined;
 }
 
-export function toDigit$1wtrt1r(self: rs.char, radix: rs.u32): rs.u32 | undefined {
+export function toDigit$14z95r4(self: rs.char, radix: rs.u32): rs.u32 | undefined {
 	let value!: rs.u32;
 	if (radix >= 2) {
 		if (radix <= 36) {
 			b1: {
 				if (self > 57) {
 					if (radix > 10) {
-						value = rs.u32Add((rs.u32WrappingSub(self as rs.u32, 65) & 4294967263) >>> 0, 10);
+						value = rs.u32Add((rs.u32WrappingSub(self as rs.u32, 65 as rs.u32) & 4294967263) >>> 0, 10);
 						break b1;
 					}
 				}
-				value = rs.u32WrappingSub(self as rs.u32, 48);
+				value = rs.u32WrappingSub(self as rs.u32, 48 as rs.u32);
 			}
 			if (!(value < radix)) {
 				return undefined;

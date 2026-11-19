@@ -25,7 +25,7 @@ export function drop$ops_Drop(self: Noted): void {
 
 export function clone$Clone(self: Noted): Noted {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self._1);
-	rs.byteVecPush(_5.value, self._0 | 128);
+	rs.byteVecPush(_5.value, 128 | self._0);
 	rs.refMutRelease(_5);
 	return new Noted(self._0, self._1);
 }

@@ -21,10 +21,6 @@ import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
 import type * as Held from "./maps.Held.ts";
 import * as Logged from "./maps.Logged.ts";
 
-export function copy$Option_ops_Range_u64(v: rs.Range<rs.u64> | undefined): rs.Range<rs.u64> | undefined {
-	return v === undefined ? v : copy$ops_Range_u64(v);
-}
-
 export function copy$array_mem_MaybeUninit_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
@@ -46,14 +42,6 @@ export function copy$mem_MaybeUninit_tuple2_u16_u32(v: [rs.u16, rs.u32]): [rs.u1
 		return v;
 	}
 	return [v[0], v[1]];
-}
-
-export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
-	return rs.objectCopy(v);
-}
-
-export function copy$ops_Range_u64(v: rs.Range<rs.u64>): rs.Range<rs.u64> {
-	return rs.objectCopy(v);
 }
 
 export function copy$tuple2_maps_Logged_maps_Logged(v: [Logged.Logged, Logged.Logged]): [Logged.Logged, Logged.Logged] {

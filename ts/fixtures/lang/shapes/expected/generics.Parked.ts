@@ -22,50 +22,46 @@ export class Parked<T> {
 }
 
 export function new$Option_u8(): Parked<rs.u8 | undefined> {
-	const _1 = rs.None as rs.u8 | undefined | rs.None;
-	return new Parked(_1 as rs.OptionOf<rs.u8 | undefined>, rs.Pending as rs.PollOf<rs.u8 | undefined>, new rs.Cell(_1) as rs.Cell<rs.OptionOf<rs.u8 | undefined>>);
+	return new Parked(rs.None as rs.OptionOf<rs.u8 | undefined>, rs.Pending as rs.PollOf<rs.u8 | undefined>, new rs.Cell(rs.None as rs.u8 | undefined | rs.None) as rs.Cell<rs.OptionOf<rs.u8 | undefined>>);
 }
 
 export function new$task_Poll_u8(): Parked<rs.Poll<rs.u8>> {
-	const _1 = undefined as rs.Poll<rs.u8> | undefined;
-	return new Parked(_1 as rs.OptionOf<rs.Poll<rs.u8>>, rs.OuterPending as rs.PollOf<rs.Poll<rs.u8>>, new rs.Cell(_1) as rs.Cell<rs.OptionOf<rs.Poll<rs.u8>>>);
+	return new Parked(undefined as rs.OptionOf<rs.Poll<rs.u8>>, rs.OuterPending as rs.PollOf<rs.Poll<rs.u8>>, new rs.Cell(undefined as rs.Poll<rs.u8> | undefined) as rs.Cell<rs.OptionOf<rs.Poll<rs.u8>>>);
 }
 
 export function new$u8(): Parked<rs.u8> {
-	const _1 = undefined as rs.u8 | undefined;
-	return new Parked(_1 as rs.OptionOf<rs.u8>, rs.Pending as rs.PollOf<rs.u8>, new rs.Cell(_1) as rs.Cell<rs.OptionOf<rs.u8>>);
+	return new Parked(undefined as rs.OptionOf<rs.u8>, rs.Pending as rs.PollOf<rs.u8>, new rs.Cell(undefined as rs.u8 | undefined) as rs.Cell<rs.OptionOf<rs.u8>>);
 }
 
 export function new$unit(): Parked<undefined> {
-	const _1 = rs.None as undefined | rs.None;
-	return new Parked(_1 as rs.OptionOf<undefined>, rs.Pending as rs.PollOf<undefined>, new rs.Cell(_1) as rs.Cell<rs.OptionOf<undefined>>);
+	return new Parked(rs.None as rs.OptionOf<undefined>, rs.Pending as rs.PollOf<undefined>, new rs.Cell(rs.None as undefined | rs.None) as rs.Cell<rs.OptionOf<undefined>>);
 }
 
 /** Parks `read`, returning whether it parked just so already. */
 export function park$Option_u8(self: Parked<rs.u8 | undefined>, read: rs.u8 | undefined): boolean {
 	const again: boolean = self.parked === read as rs.u8 | undefined | rs.None;
-	self.parked = read as rs.u8 | undefined | rs.None;
+	self.parked = read;
 	return again;
 }
 
 /** Parks `read`, returning whether it parked just so already. */
 export function park$task_Poll_u8(self: Parked<rs.Poll<rs.u8>>, read: rs.Poll<rs.u8>): boolean {
 	const again: boolean = rs.eqOption(poll_eq$1qrb1lw)(self.parked, read as rs.Poll<rs.u8> | undefined);
-	self.parked = read as rs.Poll<rs.u8> | undefined;
+	self.parked = read;
 	return again;
 }
 
 /** Parks `read`, returning whether it parked just so already. */
 export function park$u8(self: Parked<rs.u8>, read: rs.u8): boolean {
 	const again: boolean = self.parked === read;
-	self.parked = read as rs.u8 | undefined;
+	self.parked = read;
 	return again;
 }
 
 /** Parks `read`, returning whether it parked just so already. */
 export function park$unit(self: Parked<undefined>, _: undefined): boolean {
 	const again: boolean = self.parked === undefined;
-	self.parked = undefined as undefined | rs.None;
+	self.parked = undefined;
 	return again;
 }
 
@@ -131,7 +127,7 @@ export function send$unit(self: Parked<undefined>, value: undefined | rs.None): 
 
 /** Unparks it and takes what the cell holds, leaving `Pending`. */
 export function disarm$Option_u8(self: Parked<rs.u8 | undefined>): [rs.u8 | undefined | rs.None, rs.u8 | undefined | rs.None] {
-	self.ready = rs.Pending as rs.Poll<rs.u8 | undefined>;
+	self.ready = rs.Pending;
 	const taken: rs.u8 | undefined | rs.None = self.parked;
 	self.parked = rs.None;
 	const _3: rs.u8 | undefined | rs.None = taken;
@@ -143,7 +139,7 @@ export function disarm$Option_u8(self: Parked<rs.u8 | undefined>): [rs.u8 | unde
 
 /** Unparks it and takes what the cell holds, leaving `Pending`. */
 export function disarm$task_Poll_u8(self: Parked<rs.Poll<rs.u8>>): [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | undefined] {
-	self.ready = rs.OuterPending as rs.Poll<rs.u8> | rs.OuterPending;
+	self.ready = rs.OuterPending;
 	const taken = self.parked;
 	self.parked = undefined;
 	const _3: rs.Poll<rs.u8> | undefined = taken;
@@ -155,7 +151,7 @@ export function disarm$task_Poll_u8(self: Parked<rs.Poll<rs.u8>>): [rs.Poll<rs.u
 
 /** Unparks it and takes what the cell holds, leaving `Pending`. */
 export function disarm$u8(self: Parked<rs.u8>): [rs.u8 | undefined, rs.u8 | undefined] {
-	self.ready = rs.Pending as rs.Poll<rs.u8>;
+	self.ready = rs.Pending;
 	const taken = self.parked;
 	self.parked = undefined;
 	const _3: rs.u8 | undefined = taken;
@@ -167,7 +163,7 @@ export function disarm$u8(self: Parked<rs.u8>): [rs.u8 | undefined, rs.u8 | unde
 
 /** Unparks it and takes what the cell holds, leaving `Pending`. */
 export function disarm$unit(self: Parked<undefined>): [undefined | rs.None, undefined | rs.None] {
-	self.ready = rs.Pending as rs.Poll<undefined>;
+	self.ready = rs.Pending;
 	const taken: undefined | rs.None = self.parked;
 	self.parked = rs.None;
 	const _3: undefined | rs.None = taken;

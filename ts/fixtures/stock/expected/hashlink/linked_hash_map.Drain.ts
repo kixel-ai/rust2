@@ -24,7 +24,7 @@ export function next$iter_Iterator_u16_u32(self: Drain<rs.u16, rs.u32>): [rs.u16
 	if (!(self.remaining === 0)) {
 		self.remaining = rs.usizeSub(self.remaining, 1);
 		const head: Node.Node<rs.u16, rs.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.head);
-		self.head = (head.links.at0 as Node.Node<rs.u16, rs.u32>) as Node.Node<rs.u16, rs.u32> | undefined;
+		self.head = head.links.at0 as Node.Node<rs.u16, rs.u32>;
 		const entry: [rs.u16, rs.u32] = Node.takeEntry$u16_u32(head);
 		pushFree$u16_u32(self.free, head);
 		return entry;

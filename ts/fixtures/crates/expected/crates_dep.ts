@@ -7,10 +7,11 @@ import * as Item from "./harness.Item.ts";
 /** The heaviest of `items`, the first of equals. */
 export function heaviest$harness_Item(items: rs.Slice<Item.Item>): Item.Item | undefined {
 	let best = undefined as Item.Item | undefined;
-	const iter: rs.Iter<Item.Item> = rs.iterSlice(rs.sliceItems(items));
+	const iterS: Item.Item[] = rs.sliceItems(items);
+	let iterI: number = 0;
 	while (true) {
-		const _5: Item.Item | undefined = rs.iterToOption(iter.next());
-		if (_5 === undefined) {
+		const _5: Item.Item | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+		if (_5 === rs.DONE) {
 			return best;
 		}
 		if (best !== undefined) {
@@ -52,15 +53,16 @@ export function count$crates_dep_Tally_u32(self: rs.u32): rs.u32 {
 
 /** Add `by` to each of `tallies`, then sum their counts by their scales. */
 export function tally(tallies: rs.Slice<Tally.Tally>, by: rs.u8): rs.u32 {
-	let _8!: rs.usize;
+	let _9!: rs.usize;
 	let sum: rs.u32 = 0;
+	const _6: rs.usize = tallies.length;
 	let iterStart: rs.usize = 0;
-	const iterEnd: rs.usize = tallies.length;
+	const iterEnd: rs.usize = _6;
 	while (true) {
-		if (!((_8 = iterStart++) < iterEnd)) {
+		if (!((_9 = iterStart++) < iterEnd)) {
 			return sum;
 		}
-		const i: rs.usize = _8;
+		const i: rs.usize = _9;
 		rs.idx(tallies, i);
 		const t: Tally.Tally = tallies.data[tallies.start + i];
 		t.add$Tally(by);

@@ -2,14 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { holds } from "./holds.ts";
-import type * as Row from "./holds.Row.ts";
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
-}
-
-export function copy$holds_Row(v: Row.Row): Row.Row {
-	return { cells: copy$array_u8(v.cells) };
 }
 
 /**

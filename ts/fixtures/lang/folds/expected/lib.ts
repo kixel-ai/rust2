@@ -3,10 +3,6 @@
 import * as rs from "./rs.ts";
 import { folds } from "./folds.ts";
 
-export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
-	return rs.objectCopy(v);
-}
-
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.

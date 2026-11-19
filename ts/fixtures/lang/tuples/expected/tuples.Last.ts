@@ -23,7 +23,7 @@ export function extend$iter_Extend_char_Option_char(self: rs.Place<Last>, iter: 
 		} else {
 			_9 = { tag: "Seen", _0: c, _1: rs.u8Add(self.v._1, 1) } as Last;
 		}
-		self.v = _9 as Last;
+		self.v = _9;
 	}
 }
 
@@ -41,7 +41,7 @@ export function extend$iter_Extend_char_iter_Map_iter_Map_slice_Iter_u8_tuples_o
 		} else {
 			_9 = { tag: "Seen", _0: c, _1: rs.u8Add(self.v._1, 1) } as Last;
 		}
-		self.v = _9 as Last;
+		self.v = _9;
 	}
 }
 

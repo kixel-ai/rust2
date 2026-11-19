@@ -3,12 +3,21 @@
 import * as rs from "../rs.ts";
 import type * as Guard from "../model.Guard.ts";
 
-export function thenSome$0c17n7b(self: boolean, t: Guard.Guard): Guard.Guard | undefined {
+export function thenSome$0zvoczk(self: boolean, t: Guard.Guard): Guard.Guard | undefined {
+	let _0!: Guard.Guard | undefined;
+	let _4: boolean = false;
+	_4 = true;
 	if (!self) {
-		t[Symbol.dispose]();
-		return undefined;
+		_0 = undefined;
+	} else {
+		_4 = false;
+		_0 = t;
 	}
-	return t;
+	if (_4) {
+		t[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 export function thenSome$1bahm2u(self: boolean, t: rs.u32): rs.u32 | undefined {
@@ -39,20 +48,38 @@ export function then$1xpp3sz(self: boolean, f: () => Guard.Guard): Guard.Guard |
 	return f();
 }
 
-export function then$0yvcovm(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$0awnlmn(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+	let _0!: rs.u32 | undefined;
+	let _5: boolean = false;
+	_5 = true;
 	if (!self) {
-		rs.drop(f);
-		return undefined;
+		_0 = undefined;
+	} else {
+		_5 = false;
+		_0 = f();
 	}
-	return f();
+	if (_5) {
+		rs.drop(f);
+		return _0;
+	}
+	return _0;
 }
 
-export function then$12zmq2u(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$04r7us0(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+	let _0!: rs.u32 | undefined;
+	let _5: boolean = false;
+	_5 = true;
 	if (!self) {
-		rs.drop(f);
-		return undefined;
+		_0 = undefined;
+	} else {
+		_5 = false;
+		_0 = rs.callOnce(f);
 	}
-	return rs.callOnce(f);
+	if (_5) {
+		rs.drop(f);
+		return _0;
+	}
+	return _0;
 }
 
 export function then$0apfzgv(self: boolean, f: () => rs.u32): rs.u32 | undefined {

@@ -3,53 +3,49 @@
 import * as rs from "./rs.ts";
 
 export function eq$cmp_PartialEq(self: Rank, other: Rank): boolean {
-	const _4: rs.isize = { Low: 0, Mid: 1, High: 2 }[self.tag];
-	const _5: rs.isize = { Low: 0, Mid: 1, High: 2 }[other.tag];
-	if (!(_4 === _5)) {
+	if (!({ Low: 0, Mid: 1, High: 2 }[self.tag] === { Low: 0, Mid: 1, High: 2 }[other.tag])) {
 		return false;
 	}
-	if (_4 === 1) {
-		if (_5 === 1) {
-			return (self as { tag: "Mid"; _0: rs.u8 })._0 === (other as { tag: "Mid"; _0: rs.u8 })._0;
+	if (self.tag === "Mid") {
+		if (other.tag === "Mid") {
+			return self._0 === other._0;
 		}
-	} else if (_4 === 2) {
-		if (_5 === 2) {
-			if (!((self as { tag: "High"; x: rs.u8; y: rs.u8 }).x === (other as { tag: "High"; x: rs.u8; y: rs.u8 }).x)) {
+	} else if (self.tag === "High") {
+		if (other.tag === "High") {
+			if (!(self.x === other.x)) {
 				return false;
 			}
-			return (self as { tag: "High"; x: rs.u8; y: rs.u8 }).y === (other as { tag: "High"; x: rs.u8; y: rs.u8 }).y;
+			return self.y === other.y;
 		}
 	}
 	return true;
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Rank, state: rs.Hasher): void {
-	const _5: rs.isize = { Low: 0, Mid: 1, High: 2 }[self.tag];
-	rs.hashIsize(_5, state);
-	if (_5 === 1) {
-		rs.hash8((self as { tag: "Mid"; _0: rs.u8 })._0, state);
-	} else if (_5 === 2) {
-		rs.hash8((self as { tag: "High"; x: rs.u8; y: rs.u8 }).x, state);
-		rs.hash8((self as { tag: "High"; x: rs.u8; y: rs.u8 }).y, state);
+	rs.hashIsize({ Low: 0, Mid: 1, High: 2 }[self.tag], state);
+	if (self.tag === "Mid") {
+		rs.hash8(self._0, state);
+	} else if (self.tag === "High") {
+		rs.hash8(self.x, state);
+		rs.hash8(self.y, state);
 	}
 }
 
 export function cmp$cmp_Ord(self: Rank, other: Rank): rs.Ordering {
-	const _5: rs.isize = { Low: 0, Mid: 1, High: 2 }[self.tag];
-	if (_5 === 1) {
+	if (self.tag === "Mid") {
 		if (other.tag === "Mid") {
-			return rs.cmp((self as { tag: "Mid"; _0: rs.u8 })._0, other._0);
+			return rs.cmp(self._0, other._0);
 		}
-	} else if (_5 === 2) {
+	} else if (self.tag === "High") {
 		if (other.tag === "High") {
-			const cmp: rs.Ordering = rs.cmp((self as { tag: "High"; x: rs.u8; y: rs.u8 }).x, other.x);
+			const cmp: rs.Ordering = rs.cmp(self.x, other.x);
 			if (cmp === 0) {
-				return rs.cmp((self as { tag: "High"; x: rs.u8; y: rs.u8 }).y, other.y);
+				return rs.cmp(self.y, other.y);
 			}
 			return cmp;
 		}
 	}
-	return rs.cmp(_5, { Low: 0, Mid: 1, High: 2 }[other.tag]);
+	return rs.cmp({ Low: 0, Mid: 1, High: 2 }[self.tag], { Low: 0, Mid: 1, High: 2 }[other.tag]);
 }
 
 export type Rank = { tag: "Low" } | { tag: "Mid"; _0: rs.u8 } | { tag: "High"; x: rs.u8; y: rs.u8 };

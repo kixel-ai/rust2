@@ -77,7 +77,7 @@ export function depth(data: rs.ByteSlice): rs.u8 {
 	const _2: [rs.u8, rs.ByteSlice] | undefined = rs.byteSliceSplitFirst(data);
 	if (_2 !== undefined) {
 		if (_2[0] !== 0) {
-			return rs.u8Add(depth(_2[1]), 1);
+			return rs.u8Add(1, depth(_2[1]));
 		}
 	}
 	return 0;
@@ -233,20 +233,21 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, ping(data2));
 		rs.byteVecPush(out, pong(data2.data, data2.start, data2.length));
 	} else if (_4 === 7) {
-		const _97: rs.usize = rs.usizeDiv(data.length, 2);
-		if (_97 > data.length) {
+		const mid: number = rs.usizeDiv(data.length, 2);
+		if (mid > data.length) {
 			rs.panic("mid > len");
 		}
-		if (_97 > data.length) {
+		const mid2: number = rs.usizeDiv(data.length, 2);
+		if (mid2 > data.length) {
 			rs.panic("mid > len");
 		}
-		const iterS: rs.ByteSlice[] = [new rs.ByteSlice(data.data, data.start, _97), new rs.ByteSlice(data.data, data.start + _97, data.length - _97)];
-		for (const _105 of iterS) {
-			const _129: rs.ByteSlice = _105;
-			rs.byteVecPush(out, sum(_129.data, _129.start, _129.length));
-			rs.byteVecPush(out, relay(_105));
+		const halves: rs.ByteSlice[] = [new rs.ByteSlice(data.data, data.start, mid), new rs.ByteSlice(data.data, data.start + mid2, data.length - mid2)];
+		for (const _111 of halves) {
+			const _138: rs.ByteSlice = _111;
+			rs.byteVecPush(out, sum(_138.data, _138.start, _138.length));
+			rs.byteVecPush(out, relay(_111));
 		}
-		rs.byteVecPush(out, relaySum(data.data, data.start + _97, data.length - _97));
+		rs.byteVecPush(out, relaySum(halves[1].data, halves[1].start, halves[1].length));
 		rs.byteVecPush(out, sum(data.data, data.start, data.length));
 	} else {
 		rs.byteVecPush(out, weigh$args_Scale({ _0: kind }, data));

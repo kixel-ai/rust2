@@ -25,9 +25,8 @@ export function default$Default(): Tally {
 }
 
 export function finish$hash_Hasher(self: Tally): rs.u64 {
-	const _0: rs.u64 = self._0;
-	event(102, rs.u64Low(_0) & 0xff);
-	return _0;
+	event(102, rs.u64Low(self._0) & 0xff);
+	return self._0;
 }
 
 /** The methods of `hashes::Tally`'s impl, which the runtime's hashing calls. */

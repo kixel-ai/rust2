@@ -91,14 +91,6 @@ export function copy$ops_ControlFlow_unit_array2_u8(v: rs.Result<Uint8Array, und
 	return v.ok ? rs.Ok(copy$array_u8(v.value)) : rs.Err(v.error);
 }
 
-export function copy$ops_RangeFrom_u8(v: rs.RangeFrom<rs.u8>): rs.RangeFrom<rs.u8> {
-	return rs.objectCopy(v);
-}
-
-export function copy$ops_Range_i32(v: rs.Range<rs.i32>): rs.Range<rs.i32> {
-	return rs.objectCopy(v);
-}
-
 export function copy$shapes_Gauge(v: shapes_Gauge.Gauge): shapes_Gauge.Gauge {
 	return { level: v.level };
 }

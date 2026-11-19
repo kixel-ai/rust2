@@ -13,13 +13,11 @@ import type * as Item from "./harness.Item.ts";
 
 export function run(input: rs.ByteSlice): rs.ByteVec {
 	const out: rs.ByteVec = new rs.ByteVec();
-	const _3: rs.usize = input.length;
-	if (_3 >= 2) {
-		const _8: rs.i32 = input.data[input.start] as rs.i32;
-		const _10: rs.i32 = input.data[input.start + 1] as rs.i32;
-		const q: Point.Point = copy$crates_dep_Point({ x: _8, y: _10 });
+	if (input.length >= 2) {
+		const p: Point.Point = { x: input.data[input.start] as rs.i32, y: input.data[input.start + 1] as rs.i32 };
+		const q: Point.Point = copy$crates_dep_Point(p);
 		Point.shift(q, 1, -1);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_8 & 0xff, _10 & 0xff, q.x & 0xff, q.y & 0xff)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(p.x & 0xff, p.y & 0xff, q.x & 0xff, q.y & 0xff)), undefined, true);
 	}
 	const s = rs.byteSliceView(input);
 	let front = 0;
@@ -29,9 +27,9 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		const y: Item.Item = { _0: s[front++] };
 		v.items.push(y);
 	}
-	const _27: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(v.items));
-	if (_27 !== undefined) {
-		rs.byteVecPush(out, _27._0);
+	const _29: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(v.items));
+	if (_29 !== undefined) {
+		rs.byteVecPush(out, _29._0);
 	}
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	const s2 = rs.byteSliceView(input);
@@ -53,19 +51,17 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 	const _late: Guard.Guard = Guard.new(254, log);
 	held[Symbol.dispose]();
 	_late[Symbol.dispose]();
-	const _56: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-	const _52: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_56.value)));
-	rs.iterExtendBytes(out, _52, undefined, true);
-	rs.mutexUnlock(_56);
-	if (_3 >= 3) {
-		const _65: rs.u8 = input.data[input.start];
-		const item: Item.Item = { _0: _65 };
+	const _58: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+	const _54: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_58.value)));
+	rs.iterExtendBytes(out, _54, undefined, true);
+	rs.mutexUnlock(_58);
+	if (input.length >= 3) {
+		const item: Item.Item = { _0: input.data[input.start] };
 		let n: rs.u32 = input.data[input.start + 1] as rs.u32;
-		const _69: rs.u8 = input.data[input.start + 2];
-		const guard: Guard.Guard = Guard.new(_69, log);
-		const _74: Tally.Tally[] = [new of$harness_Item(item), new ofPlace$u32(rs.place(() => n, (value) => n = value)), new of$crates_dep_Guard(guard)];
-		const _83: Uint8Array = rs.u32ToBeBytes(tally(rs.sliceFrom(_74), _65)).reverse();
-		rs.iterExtendBytes(out, rs.iterSlice(_83), undefined, true);
+		const guard: Guard.Guard = Guard.new(input.data[input.start + 2], log);
+		const _77: Tally.Tally[] = [new of$harness_Item(item), new ofPlace$u32(rs.place(() => n, (value) => n = value)), new of$crates_dep_Guard(guard)];
+		const _87: Uint8Array = rs.u32ToBeBytes(tally(rs.sliceFrom(_77), input.data[input.start])).reverse();
+		rs.iterExtendBytes(out, rs.iterSlice(_87), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(item._0, n & 0xff)), undefined, true);
 		const boxed: rs.Vec<Tally.Tally> = rs.vecFrom([new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)]);
 		rs.sliceSwap(rs.sliceFrom(boxed.items), 0, 2);
@@ -74,46 +70,46 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		let iterI: number = 0;
 		const iterE: number = boxed.items.length;
 		while (iterI < iterE) {
-			const _109: number = iterI++;
-			iterS[_109].add$Tally(_69);
-			const _117: rs.u8 = iterS[_109].count$Tally() & 0xff;
-			rs.byteVecPush(out, _117);
+			const _113: number = iterI++;
+			iterS[_113].add$Tally(input.data[input.start + 2]);
+			const _122: rs.u8 = iterS[_113].count$Tally() & 0xff;
+			rs.byteVecPush(out, _122);
 		}
 		rs.dropVec(boxed);
-		const _128: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-		const _124: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_128.value)));
-		rs.iterExtendBytes(out, _124, undefined, true);
-		rs.mutexUnlock(_128);
+		const _133: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		const _129: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_133.value)));
+		rs.iterExtendBytes(out, _129, undefined, true);
+		rs.mutexUnlock(_133);
 	}
-	const iter2: Countdown.Countdown = Countdown.new(rs.min(_3, 4) & 0xff);
+	const iter2: Countdown.Countdown = Countdown.new(rs.min(input.length, 4) & 0xff);
 	while (true) {
-		const _137: rs.u8 | rs.Done = Countdown.next$iter_Iterator(iter2);
-		if (_137 === rs.DONE) {
+		const _143: rs.u8 | rs.Done = Countdown.next$iter_Iterator(iter2);
+		if (_143 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, _137);
+		rs.byteVecPush(out, _143);
 	}
-	const _145: rs.Iter<rs.u8> = rs.iterRev(rs.iterFrom(Countdown.new(rs.min(_3, 5) & 0xff), Countdown.next$iter_Iterator, undefined, { back: (it: Countdown.Countdown) => rs.iterFromOption(Countdown.nextBack$iter_DoubleEndedIterator(it)) }));
-	rs.iterExtendBytes(out, _145, "next");
-	const both: Countdown.Countdown = Countdown.new(rs.min(_3, 6) & 0xff);
+	const _151: rs.Iter<rs.u8> = rs.iterRev(rs.iterFrom(Countdown.new(rs.min(input.length, 5) & 0xff), Countdown.next$iter_Iterator, undefined, { back: (it: Countdown.Countdown) => rs.iterFromOption(Countdown.nextBack$iter_DoubleEndedIterator(it)) }));
+	rs.iterExtendBytes(out, _151, "next");
+	const both: Countdown.Countdown = Countdown.new(rs.min(input.length, 6) & 0xff);
 	while (true) {
-		const _152: rs.u8 | undefined = Countdown.nextBack$iter_DoubleEndedIterator(both);
-		if (_152 !== undefined) {
-			rs.byteVecPush(out, _152);
-			const _160: rs.u8 | undefined = rs.iterToOption(Countdown.next$iter_Iterator(both));
-			rs.iterExtendBytes(out, rs.iterOption(_160), undefined, true);
+		const _160: rs.u8 | undefined = Countdown.nextBack$iter_DoubleEndedIterator(both);
+		if (_160 !== undefined) {
+			rs.byteVecPush(out, _160);
+			const _168: rs.u8 | undefined = rs.iterToOption(Countdown.next$iter_Iterator(both));
+			rs.iterExtendBytes(out, rs.iterOption(_168), undefined, true);
 		} else {
 			break;
 		}
 	}
-	const _163: rs.i16 = (_3 << 16) >> 16;
-	const filled: rs.i16[] = copy$array_i16([_163, 7]);
-	Slots.fill(Slots.withBase(_163), rs.sliceFrom(filled));
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_163 & 0xff, 7, filled[0] & 0xff, filled[1] & 0xff)), undefined, true);
-	const _179: rs.u8 = first(input.data, input.start, input.length);
-	rs.byteVecPush(out, _179);
-	const _182: rs.u8 = last.last(input);
-	rs.byteVecPush(out, _182);
+	const kept: rs.i16[] = [(input.length << 16) >> 16, 7];
+	const filled: rs.i16[] = copy$array_i16(kept);
+	Slots.fill(Slots.withBase(kept[0]), rs.sliceFrom(filled));
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(kept[0] & 0xff, kept[1] & 0xff, filled[0] & 0xff, filled[1] & 0xff)), undefined, true);
+	const _202: rs.u8 = first(input.data, input.start, input.length);
+	rs.byteVecPush(out, _202);
+	const _205: rs.u8 = last.last(input);
+	rs.byteVecPush(out, _205);
 	log[Symbol.dispose]();
 	return out;
 }

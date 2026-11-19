@@ -19,13 +19,27 @@ export function min$094dtzd(v1: rs.u8, v2: rs.u8): rs.u8 {
 	return rs.min(v1, v2);
 }
 
-export function minBy$1df5r4m(v1: Item.Item, v2: Item.Item, compare: (a0: Item.Item, a1: Item.Item) => rs.Ordering): Item.Item {
+export function minBy$18ytev0(v1: Item.Item, v2: Item.Item, compare: (a0: Item.Item, a1: Item.Item) => rs.Ordering): Item.Item {
+	let _0!: Item.Item;
+	let _10: boolean = false;
+	let _9: boolean = false;
+	_10 = true;
+	_9 = true;
 	if (!(compare(v1, v2) <= 0)) {
-		v1[Symbol.dispose]();
-		return v2;
+		_9 = false;
+		_0 = v2;
+	} else {
+		_10 = false;
+		_0 = v1;
 	}
-	v2[Symbol.dispose]();
-	return v1;
+	if (_9) {
+		v2[Symbol.dispose]();
+	}
+	if (_10) {
+		v1[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 export function minBy$0p6yz91(v1: [rs.f64, rs.u8], v2: [rs.f64, rs.u8], compare: (a0: [rs.f64, rs.u8], a1: [rs.f64, rs.u8]) => rs.Ordering): [rs.f64, rs.u8] {
@@ -35,15 +49,29 @@ export function minBy$0p6yz91(v1: [rs.f64, rs.u8], v2: [rs.f64, rs.u8], compare:
 	return v1;
 }
 
-export function minByKey$1hyawcy(v1: Item.Item, v2: Item.Item, f: (a0: Item.Item) => rs.u8): Item.Item {
+export function minByKey$1qsvvgc(v1: Item.Item, v2: Item.Item, f: (a0: Item.Item) => rs.u8): Item.Item {
+	let _0!: Item.Item;
+	let _16: boolean = false;
+	let _15: boolean = false;
+	_16 = true;
+	_15 = true;
 	const _6: rs.u8 = f(v2);
 	const _11: rs.u8 = f(v1);
 	if (!(rs.cmpReverse(rs.cmp)(_6, _11) === -1)) {
-		v2[Symbol.dispose]();
-		return v1;
+		_16 = false;
+		_0 = v1;
+	} else {
+		_15 = false;
+		_0 = v2;
 	}
-	v1[Symbol.dispose]();
-	return v2;
+	if (_15) {
+		v2[Symbol.dispose]();
+	}
+	if (_16) {
+		v1[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 export function max$16nac37(v1: rs.String, v2: rs.String): rs.String {
@@ -70,13 +98,27 @@ export function max$0we2ghu(v1: rs.u8, v2: rs.u8): rs.u8 {
 	return rs.max(v1, v2);
 }
 
-export function maxBy$1ltklc6(v1: Item.Item, v2: Item.Item, compare: (a0: Item.Item, a1: Item.Item) => rs.Ordering): Item.Item {
+export function maxBy$1ghjx71(v1: Item.Item, v2: Item.Item, compare: (a0: Item.Item, a1: Item.Item) => rs.Ordering): Item.Item {
+	let _0!: Item.Item;
+	let _10: boolean = false;
+	let _9: boolean = false;
+	_10 = true;
+	_9 = true;
 	if (!(compare(v1, v2) > 0)) {
-		v1[Symbol.dispose]();
-		return v2;
+		_9 = false;
+		_0 = v2;
+	} else {
+		_10 = false;
+		_0 = v1;
 	}
-	v2[Symbol.dispose]();
-	return v1;
+	if (_9) {
+		v2[Symbol.dispose]();
+	}
+	if (_10) {
+		v1[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 export function maxBy$1gr65n2(v1: [rs.f64, rs.u8], v2: [rs.f64, rs.u8], compare: (a0: [rs.f64, rs.u8], a1: [rs.f64, rs.u8]) => rs.Ordering): [rs.f64, rs.u8] {
@@ -86,19 +128,33 @@ export function maxBy$1gr65n2(v1: [rs.f64, rs.u8], v2: [rs.f64, rs.u8], compare:
 	return v1;
 }
 
-export function maxByKey$10z18zs(v1: Item.Item, v2: Item.Item, f: (a0: Item.Item) => Item.Item): Item.Item {
+export function maxByKey$1a9sf4b(v1: Item.Item, v2: Item.Item, f: (a0: Item.Item) => Item.Item): Item.Item {
+	let _0!: Item.Item;
+	let _16: boolean = false;
+	let _15: boolean = false;
+	_16 = true;
+	_15 = true;
 	const _6: Item.Item = f(v2);
 	const _11: Item.Item = f(v1);
 	if (!Item.lt$cmp_PartialOrd(_6, _11)) {
 		_11[Symbol.dispose]();
 		_6[Symbol.dispose]();
-		v1[Symbol.dispose]();
-		return v2;
+		_15 = false;
+		_0 = v2;
+	} else {
+		_11[Symbol.dispose]();
+		_6[Symbol.dispose]();
+		_16 = false;
+		_0 = v1;
 	}
-	_11[Symbol.dispose]();
-	_6[Symbol.dispose]();
-	v2[Symbol.dispose]();
-	return v1;
+	if (_15) {
+		v2[Symbol.dispose]();
+	}
+	if (_16) {
+		v1[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
 }
 
 //# sourceMappingURL=cmp.ts.map

@@ -10,11 +10,10 @@ export interface Noted {
 
 export function fmt$fmt_Display(self: Noted, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const log: rs.ByteVec = new rs.ByteVec();
-	const _8: rs.u8 = self._0;
-	const _6: rs.u8 = note(log, _8);
-	const _10: boolean = _8 === note(log, 1);
-	const args2 = [(f: rs.Formatter) => rs.u8Display(_6, f), (f: rs.Formatter) => rs.fmtBool(_10, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(log), f, rs.u8Debug)];
-	return rs.fmtWriteFmt(f, [args2[0], " ", args2[1], " ", args2[2]]);
+	const _7: rs.u8 = note(log, self._0);
+	const _11: boolean = note(log, 1) === self._0;
+	const args3 = [(f: rs.Formatter) => rs.u8Display(_7, f), (f: rs.Formatter) => rs.fmtBool(_11, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(log), f, rs.u8Debug)];
+	return rs.fmtWriteFmt(f, [args3[0], " ", args3[1], " ", args3[2]]);
 }
 
 //# sourceMappingURL=fmt.Noted.ts.map

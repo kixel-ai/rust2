@@ -144,24 +144,22 @@ export function andThen$0jc4o0i(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8
 	return f(self);
 }
 
-export function filter$19n05b9(self: rs.u8 | undefined | rs.None, predicate: (a0: rs.u8 | undefined) => boolean): rs.u8 | undefined | rs.None {
+export function filter$1iofxfx(self: rs.u8 | undefined | rs.None, predicate: (a0: rs.u8 | undefined) => boolean): rs.u8 | undefined | rs.None {
 	if (self !== rs.None) {
 		const x: rs.u8 | undefined = self;
-		if (!predicate(x)) {
-			return rs.None;
+		if (predicate(x)) {
+			return x;
 		}
-		return x;
 	}
 	return rs.None;
 }
 
-export function filter$0agadp5(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
+export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
-		if (!predicate(x)) {
-			return undefined;
+		if (predicate(x)) {
+			return x;
 		}
-		return x;
 	}
 	return undefined;
 }
@@ -173,26 +171,38 @@ export function or$0farkzq(self: rs.u8 | undefined | rs.None, optb: rs.u8 | unde
 	return self;
 }
 
-export function xor$0v0kir8(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
-	if (self === rs.None) {
-		if (optb !== rs.None) {
-			return optb;
+export function xor$0ucxb2n(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+	let _0!: rs.u8 | undefined | rs.None;
+	b0: {
+		if (self === rs.None) {
+			if (optb !== rs.None) {
+				_0 = optb;
+				break b0;
+			}
+		} else if (optb === rs.None) {
+			_0 = self;
+			break b0;
 		}
-	} else if (optb === rs.None) {
-		return self;
+		_0 = rs.None;
 	}
-	return rs.None;
+	return _0;
 }
 
-export function xor$1vju3wp(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
-	if (self === undefined) {
-		if (optb !== undefined) {
-			return optb;
+export function xor$0x5qjg4(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
+	let _0!: rs.u8 | undefined;
+	b0: {
+		if (self === undefined) {
+			if (optb !== undefined) {
+				_0 = optb;
+				break b0;
+			}
+		} else if (optb === undefined) {
+			_0 = self;
+			break b0;
 		}
-	} else if (optb === undefined) {
-		return self;
+		_0 = undefined;
 	}
-	return undefined;
+	return _0;
 }
 
 export function flatten$0ux6gqw(self: rs.u8 | undefined | rs.None): rs.u8 | undefined {

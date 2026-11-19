@@ -11,10 +11,10 @@ export function fmt$fmt_Display(self: Lettered, f: rs.Formatter): rs.Result<unde
 	if (rs.fmtWriteChar(f, self._0).ok) {
 		if (rs.fmtPad(f, "xy").ok) {
 			const arg = self._0;
-			const _14: rs.Fmt = (f: rs.Formatter) => rs.fmtCharDisplay(arg, f);
+			const _16: rs.Fmt = (f: rs.Formatter) => rs.fmtCharDisplay(arg, f);
 			const arg2 = self._0;
-			const args2 = [_14, (f: rs.Formatter) => rs.fmtCharDisplay(arg2, f)];
-			return rs.fmtWriteFmt(f, [args2[0], rs.fmtSpec({ align: ">", width: 3 }, args2[1])]);
+			const args3 = [_16, (f: rs.Formatter) => rs.fmtCharDisplay(arg2, f)];
+			return rs.fmtWriteFmt(f, [args3[0], rs.fmtSpec({ align: ">", width: 3 }, args3[1])]);
 		}
 		return rs.Err(new rs.FmtError());
 	}

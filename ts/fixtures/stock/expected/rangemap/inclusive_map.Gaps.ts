@@ -31,21 +31,22 @@ export function next$iter_Iterator_u64_u32_u64(self: Gaps<rs.u64, rs.u32, rs.u64
 		if (_6 === rs.DONE) {
 			break;
 		}
-		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0]))))) {
+		const overlap: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] = _6;
+		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
 			const old = self.candidateNeedsPlusOne;
 			self.candidateNeedsPlusOne = true;
 			const candidateNeedsPlusOne: boolean = old;
-			const _17: rs.u64 = rs.rangeInclusiveEnd(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0])));
+			const _19: rs.u64 = rs.rangeInclusiveEnd(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
 			const old2 = self.candidateStart as rs.u64;
-			(self.candidateStart as rs.u64) = _17;
+			(self.candidateStart as rs.u64) = _19;
 			const curCandidateStart: rs.u64 = old2;
 			if (!candidateNeedsPlusOne) {
 				curCandidateStart2 = curCandidateStart;
 			} else {
 				curCandidateStart2 = addOne$rangemap_StepFns_u64_u64(curCandidateStart);
 			}
-			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0]))))) {
-				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0])))), rs.u64Step);
+			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])))), rs.u64Step);
 			}
 		} else {
 			break;
@@ -75,21 +76,22 @@ export function next$iter_Iterator_u64_unit_u64(self: Gaps<rs.u64, undefined, rs
 		if (_6 === rs.DONE) {
 			break;
 		}
-		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0]))))) {
+		const overlap: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] = _6;
+		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
 			const old = self.candidateNeedsPlusOne;
 			self.candidateNeedsPlusOne = true;
 			const candidateNeedsPlusOne: boolean = old;
-			const _17: rs.u64 = rs.rangeInclusiveEnd(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0])));
+			const _19: rs.u64 = rs.rangeInclusiveEnd(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
 			const old2 = self.candidateStart as rs.u64;
-			(self.candidateStart as rs.u64) = _17;
+			(self.candidateStart as rs.u64) = _19;
 			const curCandidateStart: rs.u64 = old2;
 			if (!candidateNeedsPlusOne) {
 				curCandidateStart2 = curCandidateStart;
 			} else {
 				curCandidateStart2 = addOne$rangemap_StepFns_u64_u64(curCandidateStart);
 			}
-			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0]))))) {
-				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(_6[0])))), rs.u64Step);
+			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])))), rs.u64Step);
 			}
 		} else {
 			break;

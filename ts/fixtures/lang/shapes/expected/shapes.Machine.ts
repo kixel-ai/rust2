@@ -21,7 +21,7 @@ export function step(self: Machine): void {
 	} else {
 		_3 = { tag: "Dot" } as Shape.Shape;
 	}
-	self.state = _3 as Shape.Shape;
+	self.state = _3;
 }
 
 /** Reads the state, which a shared borrow can't change. */
@@ -38,12 +38,13 @@ export function run(self: Machine, n: rs.u8): rs.u8 {
 	if (self.state.tag === "Dot") {
 		step(self);
 		if ((self.state as Shape.Shape).tag === "Line") {
-			return n ^ ((((self.state as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1.x & 0xff) ^ self.steps);
+			return (copy$shapes_Point(((self.state as Shape.Shape) as { tag: "Line"; _0: Point.Point; _1: Point.Point })._1).x & 0xff) ^ self.steps ^ n;
 		}
 		return 27;
 	}
 	if (self.state.tag === "Line") {
-		return peek(self) ^ (self.state._1.y & 0xff);
+		const seen: rs.u8 = peek(self);
+		return (self.state._1.y & 0xff) ^ seen;
 	}
 	const width: rs.u16 = self.state.width;
 	const logged: rs.u8 = log(self, self.state.height & 0xff);
@@ -51,7 +52,7 @@ export function run(self: Machine, n: rs.u8): rs.u8 {
 	if (self.state.tag === "Rect") {
 		return 30;
 	}
-	return logged ^ (width & 0xff);
+	return (width & 0xff) ^ logged;
 }
 
 //# sourceMappingURL=shapes.Machine.ts.map

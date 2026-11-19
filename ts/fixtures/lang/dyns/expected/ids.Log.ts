@@ -12,8 +12,7 @@ export interface Log {
 }
 
 export function write$hash_Hasher(self: Log, _bytesData: Uint8Array, _bytesStart: number, bytesLen: number): void {
-	const _9: rs.usize = bytesLen;
-	const _5: rs.String = rs.fmtFormat(["write ", (f: rs.Formatter) => rs.usizeDisplay(_9, f)]);
+	const _5: rs.String = rs.fmtFormat(["write ", (f: rs.Formatter) => rs.usizeDisplay(bytesLen, f)]);
 	self._0.items.push(_5);
 }
 

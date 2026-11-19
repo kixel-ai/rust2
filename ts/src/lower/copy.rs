@@ -73,9 +73,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// A library object a whole write lands in in place, which a copy copies one
 				// object deep; through a shared reference too, where it has interior
 				// mutability, which no write the crate shows records.
-				// A range, which steps in place as it iterates: the runtime writes into it,
-				// where no write of the crate's shows.
-				Some(Std::Range | Std::RangeFrom | Std::RangeInclusive) => return true,
 				Some(_) if self.write_in(ty).is_some() => {
 					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
 						|| self.addressed(ty)

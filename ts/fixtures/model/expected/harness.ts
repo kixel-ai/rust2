@@ -30,9 +30,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 export function takeU64(data: rs.ByteSlice): [rs.u64, rs.ByteSlice] {
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, 8);
-	const _7: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _8: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_7, 0, _8.end), rs.byteSliceRange(data, 0, _8.end));
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
 	return [rs.u64FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.u64, rs.ByteSlice];
 }
 
@@ -288,8 +286,8 @@ export function arithmetic(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _5: [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(data);
 	const a: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _5[0];
 	const _8: [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(_5[1]);
-	const b: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _8[0];
 	b0: {
+		const b: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _8[0];
 		const c: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = takeTimestamp(_8[1])[0];
 		if (a.ok) {
 			if (b.ok) {
@@ -302,12 +300,12 @@ export function arithmetic(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecPush(out, Timestamp.eq$cmp_PartialEq(a2, b2) ? 1 : 0);
 				rs.byteVecPush(out, Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === -1 ? 1 : 0);
 				rs.byteVecPush(out, Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === 1 ? 1 : 0);
-				const _47: Timestamp.Timestamp = rs.ordMax(a2, b2, rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd));
-				putText(out, rs.fmtFormat([(f: rs.Formatter) => Timestamp.fmt$fmt_Debug(_47, f)]));
+				const part = rs.ordMax(a2, b2, rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd));
+				putText(out, rs.fmtFormat([(f: rs.Formatter) => Timestamp.fmt$fmt_Debug(part, f)]));
 				const sorted: rs.Vec<Timestamp.Timestamp> = rs.iterToVec(rs.iterChain(rs.iterSlice([a2, b2]), rs.iterResult(c)), undefined, 16, true);
 				rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd), 16, true);
-				for (const _61 of sorted.items) {
-					putTimestamp(out, _61);
+				for (const _65 of sorted.items) {
+					putTimestamp(out, _65);
 				}
 				break b0;
 			}

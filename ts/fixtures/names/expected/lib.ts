@@ -23,16 +23,16 @@ export function run(data: rs.ByteSlice): rs.ByteVec {
 		return o & 0xff;
 	});
 	rs.byteVecPush(out, _15);
-	const _27: Wrap.Wrap<Pair.Pair> = Wrap.new$wrap_Pair(pair);
-	const _21: rs.ByteSlice = rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Wrap.fmt$fmt_Display_wrap_Pair(_27, f)]).v);
-	rs.byteVecExtendFromSlice(out, _21);
+	const part = Wrap.new$wrap_Pair(pair);
+	const _22: rs.ByteSlice = rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Wrap.fmt$fmt_Display_wrap_Pair(part, f)]).v);
+	rs.byteVecExtendFromSlice(out, _22);
 	if (!(first === 0)) {
 		shape = "Line" as shapes_Shape.Shape;
 	} else {
 		shape = "Dot" as shapes_Shape.Shape;
 	}
-	const _35: rs.u8 = shapes_Shape.sides(shape);
-	rs.byteVecPush(out, _35);
+	const _38: rs.u8 = shapes_Shape.sides(shape);
+	rs.byteVecPush(out, _38);
 	const word = tally_run(data);
 	rs.byteVecReserve(out, 4 as rs.usize);
 	const pos = out.length;
@@ -42,11 +42,11 @@ export function run(data: rs.ByteSlice): rs.ByteVec {
 	out.data[pos + 3] = word & 255;
 	out.length = out.length + 4;
 	const err: rs.u8 | undefined = read(data);
-	const part: Uint8Array = out$ref_slice_u8.pData;
-	const part2: number = out$ref_slice_u8.pStart;
-	const part3: number = out$ref_slice_u8.pLen;
-	const _45: rs.ByteSlice = result_unwrapOr$1a67ziq((err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(new rs.ByteSlice(part, part2, part3))) as rs.Result<rs.ByteSlice, rs.u8>, rs.byteSliceFrom(Uint8Array.of()));
-	rs.byteVecExtendFromSlice(out, _45);
+	const part2: Uint8Array = out$ref_slice_u8.pData;
+	const part3: number = out$ref_slice_u8.pStart;
+	const part4: number = out$ref_slice_u8.pLen;
+	const _48: rs.ByteSlice = result_unwrapOr$1a67ziq((err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(new rs.ByteSlice(part2, part3, part4))) as rs.Result<rs.ByteSlice, rs.u8>, rs.byteSliceFrom(Uint8Array.of()));
+	rs.byteVecExtendFromSlice(out, _48);
 	return out;
 }
 

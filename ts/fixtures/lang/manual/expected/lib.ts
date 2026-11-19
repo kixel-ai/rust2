@@ -4,10 +4,6 @@ import * as rs from "./rs.ts";
 import { arcs, needsDrops } from "./manual.ts";
 import { uninits, boxedUninits, boxedOne, boxedZeroed } from "./uninit.ts";
 
-export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
-	return rs.objectCopy(v);
-}
-
 export function copy$array_array2_u16(v: rs.u16[][]): rs.u16[][] {
 	return v.map(copy$array_u16);
 }

@@ -27,11 +27,10 @@ export function fmt$fmt_Debug(self: Listed, f: rs.Formatter): rs.Result<undefine
 		return new Shown.Shown(Guard.new(rs.u32Add(self._0, n as rs.u32), Log.clone$Clone(self._1)));
 	};
 	const list: rs.DebugList = rs.fmtDebugList(f);
-	const _13: rs.u8 = self._2;
-	const _11: rs.Iter<Shown.Shown> = rs.iterMap(new rs.Range(0, _13), guard);
+	const _11: rs.Iter<Shown.Shown> = rs.iterMap(new rs.Range(0, self._2), guard);
 	rs.debugListEntries(list, _11, (value: Shown.Shown, f: rs.Formatter) => Shown.fmt$fmt_Debug(value, f), rs.drop);
 	let start = 10;
-	let end = rs.u8Add(_13, 10);
+	let end = rs.u8Add(10, self._2);
 	const v: rs.Vec<Shown.Shown> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
 	while (!(start >= end)) {
 		const y: Shown.Shown = guard(start++);
@@ -39,20 +38,20 @@ export function fmt$fmt_Debug(self: Listed, f: rs.Formatter): rs.Result<undefine
 	}
 	rs.debugListEntries(list, v.items, (value: Shown.Shown, f: rs.Formatter) => Shown.fmt$fmt_Debug(value, f), rs.drop);
 	let start2 = 20;
-	let end2 = rs.u8Add(_13, 20);
+	let end2 = rs.u8Add(20, self._2);
 	const v2: rs.Vec<Shown.Shown> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 8);
 	while (!(start2 >= end2)) {
 		const y2: Shown.Shown = guard(start2++);
 		v2.items.push(y2);
 	}
-	const _23: rs.Iter<rs.u32> = rs.iterMap(rs.vecIntoIter(v2, rs.drop), (g: Shown.Shown): rs.u32 => {
+	const _24: rs.Iter<rs.u32> = rs.iterMap(rs.vecIntoIter(v2, rs.drop), (g: Shown.Shown): rs.u32 => {
 		const _03: rs.u32 = Guard.id(g._0);
 		g[Symbol.dispose]();
 		return _03;
 	});
-	rs.debugListEntries(list, _23, rs.u32Debug);
+	rs.debugListEntries(list, _24, rs.u32Debug);
 	let start3 = 30;
-	let end3 = rs.u8Add(_13, 30);
+	let end3 = rs.u8Add(30, self._2);
 	const v3: rs.Vec<Shown.Shown> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 8);
 	while (!(start3 >= end3)) {
 		const y3: Shown.Shown = guard(start3++);

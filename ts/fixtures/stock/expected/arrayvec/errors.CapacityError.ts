@@ -27,8 +27,7 @@ export function element$ref_str(self: CapacityError<string>): string {
 }
 
 export function fmt$fmt_Debug_ref_str(_self: CapacityError<string>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _7: string = "insufficient capacity";
-	return rs.fmtWriteFmt(f, ["CapacityError: ", (f: rs.Formatter) => rs.fmtPad(f, _7)]);
+	return rs.fmtWriteFmt(f, ["CapacityError: ", (f: rs.Formatter) => rs.fmtPad(f, "insufficient capacity")]);
 }
 
 //# sourceMappingURL=errors.CapacityError.ts.map

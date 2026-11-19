@@ -302,12 +302,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let ty = self.b.t.ty(c.ty(), span);
 					super::whole(value, ty).unwrap_or_else(|value| value)
 				}
-				// What isn't `Copy`, which value numbering copies out of a place read again.
-				Operand::Copy(p)
-					if !self.b.t.is_copy(p.ty(&self.mir.local_decls, self.tcx).ty) && self.reread(*p) =>
-				{
-					self.b.t.snapshot(value, p.ty(&self.mir.local_decls, self.tcx).ty, span)
-				}
 				Operand::Copy(p) | Operand::Move(p)
 					if self.moved_from(&arg.node).is_none()
 						&& self.keeps(translated, args, p.ty(&self.mir.local_decls, self.tcx).ty, result) =>

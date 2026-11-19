@@ -14,7 +14,7 @@ export interface Left {
 }
 
 export function log(self: Left, by: rs.u16): void {
-	rs.cellSet(self._1, rs.u16WrappingAdd(rs.u16WrappingMul(self._1.v, 31), by ^ self._0));
+	rs.cellSet(self._1, rs.u16WrappingAdd(rs.u16WrappingMul(self._1.v, 31), self._0 ^ by));
 }
 
 export function eq$cmp_PartialEq_collections_Right(self: Left, other: Right.Right): boolean {

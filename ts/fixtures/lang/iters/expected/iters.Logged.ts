@@ -28,7 +28,7 @@ export function next$iter_Iterator(self: Logged): rs.u8 | rs.Done {
 
 export function drop$ops_Drop(self: Logged): void {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log);
-	rs.byteVecPush(_5.value, self.left | 128);
+	rs.byteVecPush(_5.value, 128 | self.left);
 	rs.refMutRelease(_5);
 }
 

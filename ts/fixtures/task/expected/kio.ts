@@ -133,11 +133,10 @@ export class closedFuture$kio_Consumer {
 		} else if (this.#state === 1) {
 			rs.asyncFnResumed();
 		}
-		const _7: rs.Poll<undefined> = Pending.poll$Future_kio_Consumer_closed_closure0_closure0(this.#awaitee, _2);
-		if (_7 !== rs.Pending) {
+		if (Pending.poll$Future_kio_Consumer_closed_closure0_closure0(this.#awaitee, _2) !== rs.Pending) {
 			this.#awaitee[Symbol.dispose]();
 			this.#state = 1;
-			return _7;
+			return undefined;
 		}
 		this.#state = 3;
 		return rs.Pending;

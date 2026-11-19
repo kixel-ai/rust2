@@ -29,36 +29,33 @@ export function fmt$fmt_Debug_unit(self: TrySendError<undefined>, f: rs.Formatte
 }
 
 export function fmt$fmt_Display_log_Item(self: TrySendError<Item.Item>, fmt: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	let _5!: string;
+	let _6!: string;
 	if (self.tag === "Full") {
-		_5 = "no available capacity";
+		_6 = "no available capacity";
 	} else {
-		_5 = "channel closed";
+		_6 = "channel closed";
 	}
-	const _4: string = _5;
-	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _4)]);
+	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _6)]);
 }
 
 export function fmt$fmt_Display_tokio_sync_mpsc_Sender_log_Item(self: TrySendError<rs.MpscSender<Item.Item>>, fmt: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	let _5!: string;
+	let _6!: string;
 	if (self.tag === "Full") {
-		_5 = "no available capacity";
+		_6 = "no available capacity";
 	} else {
-		_5 = "channel closed";
+		_6 = "channel closed";
 	}
-	const _4: string = _5;
-	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _4)]);
+	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _6)]);
 }
 
 export function fmt$fmt_Display_unit(self: TrySendError<undefined>, fmt: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	let _5!: string;
+	let _6!: string;
 	if (self.tag === "Full") {
-		_5 = "no available capacity";
+		_6 = "no available capacity";
 	} else {
-		_5 = "channel closed";
+		_6 = "channel closed";
 	}
-	const _4: string = _5;
-	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _4)]);
+	return rs.fmtWriteFmt(fmt, [(f: rs.Formatter) => rs.fmtPad(f, _6)]);
 }
 
 //# sourceMappingURL=error.TrySendError.ts.map

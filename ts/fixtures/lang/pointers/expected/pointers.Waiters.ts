@@ -17,11 +17,11 @@ export function push(self: Waiters, waiter: Waiter.Waiter): void {
 		let head: Waiter.Waiter = rs.atomicLoad(self.head, 4);
 		while (true) {
 			rs.atomicStore(waiter.next, head, 4);
-			const _11: rs.Result<Waiter.Waiter, Waiter.Waiter> = rs.atomicCompareExchange(self.head, head, waiter, 4, 4);
-			if (_11.ok) {
+			const _14: rs.Result<Waiter.Waiter, Waiter.Waiter> = rs.atomicCompareExchange(self.head, head, waiter, 4, 4);
+			if (_14.ok) {
 				break;
 			}
-			head = _11.error;
+			head = _14.error;
 		}
 	}
 }

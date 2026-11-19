@@ -5,10 +5,10 @@ import type * as TryGetError from "./bytes.TryGetError.ts";
 
 export function panicAdvance(errorInfo: TryGetError.TryGetError): never {
 	const arg = errorInfo.available;
-	const _7: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
+	const _8: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
 	const arg2 = errorInfo.requested;
-	const args2 = [_7, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
-	rs.panicFmt(["advance out of bounds: the len is ", args2[0], " but advancing by ", args2[1]], { file: "bytes/source/lib.rs", line: 207, col: 5 });
+	const args3 = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
+	rs.panicFmt(["advance out of bounds: the len is ", args3[0], " but advancing by ", args3[1]], { file: "bytes/source/lib.rs", line: 207, col: 5 });
 }
 
 //# sourceMappingURL=bytes.ts.map

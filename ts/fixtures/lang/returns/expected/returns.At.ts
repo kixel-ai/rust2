@@ -9,16 +9,17 @@ export interface At {
 }
 
 export function split$returns_Split(self: At, dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
-	const _4: rs.usize = self._0;
-	if (!(_4 <= dataLen)) {
-		return { tag: "Short", _0: _4 } as returns_Error.Error;
+	const mid: number = self._0;
+	const _5 = { tag: "Short", _0: self._0 } as returns_Error.Error;
+	if (!(mid <= dataLen)) {
+		return _5;
 	}
 	out$tuple2_ref_slice_u8_ref_slice_u8.p_0Data = dataData;
 	out$tuple2_ref_slice_u8_ref_slice_u8.p_0Start = dataStart;
-	out$tuple2_ref_slice_u8_ref_slice_u8.p_0Len = _4;
+	out$tuple2_ref_slice_u8_ref_slice_u8.p_0Len = mid;
 	out$tuple2_ref_slice_u8_ref_slice_u8.p_1Data = dataData;
-	out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start = dataStart + _4;
-	out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len = dataLen - _4;
+	out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start = dataStart + mid;
+	out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len = dataLen - mid;
 	return undefined;
 }
 

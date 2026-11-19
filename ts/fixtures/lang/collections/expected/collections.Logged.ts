@@ -33,14 +33,14 @@ export function eq$cmp_PartialEq(self: Logged, other: Logged): boolean {
 
 export function le$cmp_PartialOrd(self: Logged, other: Logged): boolean {
 	const _6: rs.RefCell<rs.Vec<rs.u16>> = rs.refCellBorrowMut(self._1);
-	_6.value.items.push(self._0 | 16384);
+	_6.value.items.push(16384 | self._0);
 	rs.refMutRelease(_6);
 	return rs.u16Div(self._0 & 255, 2) <= rs.u16Div(other._0 & 255, 2);
 }
 
 export function lt$cmp_PartialOrd(self: Logged, other: Logged): boolean {
 	const _6: rs.RefCell<rs.Vec<rs.u16>> = rs.refCellBorrowMut(self._1);
-	_6.value.items.push(self._0 | 8192);
+	_6.value.items.push(8192 | self._0);
 	rs.refMutRelease(_6);
 	return rs.u16Div(self._0 & 255, 2) < rs.u16Div(other._0 & 255, 2);
 }

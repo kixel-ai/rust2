@@ -2491,28 +2491,27 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u8FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.u8 = take(([1] as [rs.usize])[0]);
-	const _12: rs.u8 = take(([2] as [rs.usize])[0]);
-	const a: rs.u8 = _10;
-	const b: rs.u8 = _12;
+	const _10: [rs.u8, rs.u8] = [take(1), take(1 + 1)];
+	const a: rs.u8 = _10[0];
+	const b: rs.u8 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 3)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 1), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v2: rs.u8): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v3: rs.u8): undefined => {
 			const dst = out2;
-			const word = v2 as rs.u128;
+			const word = v3 as rs.u128;
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -2537,443 +2536,444 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.u8Add(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.u8Add(a, b);
+			} else if (_32 === 1) {
 				v = two$u8_u8_u8_ops_Add_add_u8_u8((a062: rs.u8, a158: rs.u8): rs.u8 => {
 					return rs.u8Add(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.u8, a157: rs.u8): rs.u8 => {
 					return rs.u8Add(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.u8Sub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.u8Sub(a, b);
+			} else if (_35 === 1) {
 				v = two$u8_u8_u8_ops_Sub_sub_u8_u8((a060: rs.u8, a156: rs.u8): rs.u8 => {
 					return rs.u8Sub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.u8, a155: rs.u8): rs.u8 => {
 					return rs.u8Sub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.u8Mul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.u8Mul(a, b);
+			} else if (_38 === 1) {
 				v = two$u8_u8_u8_ops_Mul_mul_u8_u8((a058: rs.u8, a154: rs.u8): rs.u8 => {
 					return rs.u8Mul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.u8, a153: rs.u8): rs.u8 => {
 					return rs.u8Mul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.u8Div(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.u8Div(a, b);
+			} else if (_41 === 1) {
 				v = two$u8_u8_u8_ops_Div_div_u8_u8((a056: rs.u8, a152: rs.u8): rs.u8 => {
 					return rs.u8Div(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.u8, a151: rs.u8): rs.u8 => {
 					return rs.u8Div(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.u8Rem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.u8Rem(a, b);
+			} else if (_44 === 1) {
 				v = two$u8_u8_u8_ops_Rem_rem_u8_u8((a054: rs.u8, a150: rs.u8): rs.u8 => {
 					return rs.u8Rem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.u8, a149: rs.u8): rs.u8 => {
 					return rs.u8Rem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = _10 & _12;
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
 				v = two$u8_u8_u8_ops_BitAnd_bitand_u8_u8((a052: rs.u8, a148: rs.u8): rs.u8 => {
 					return a052 & a148;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.u8, a147: rs.u8): rs.u8 => {
 					return a051 & a147;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = _10 | _12;
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
 				v = two$u8_u8_u8_ops_BitOr_bitor_u8_u8((a050: rs.u8, a146: rs.u8): rs.u8 => {
 					return a050 | a146;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.u8, a145: rs.u8): rs.u8 => {
 					return a049 | a145;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = _10 ^ _12;
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
 				v = two$u8_u8_u8_ops_BitXor_bitxor_u8_u8((a048: rs.u8, a144: rs.u8): rs.u8 => {
 					return a048 ^ a144;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.u8, a143: rs.u8): rs.u8 => {
 					return a047 ^ a143;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.u8Shl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.u8Shl(a, n);
+			} else if (_56 === 1) {
 				v = two$u8_u32_u8_ops_Shl_shl_u8_u32((a046: rs.u8, a142: rs.u32): rs.u8 => {
 					return rs.u8Shl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.u8, a141: rs.u32): rs.u8 => {
 					return rs.u8Shl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.u8Shr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.u8Shr(a, n);
+			} else if (_59 === 1) {
 				v = two$u8_u32_u8_ops_Shr_shr_u8_u32((a044: rs.u8, a140: rs.u32): rs.u8 => {
 					return rs.u8Shr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.u8, a139: rs.u32): rs.u8 => {
 					return rs.u8Shr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.u8Shl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.u8Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$u8_i16_u8_ops_Shl_shl_u8_i16((a042: rs.u8, a138: rs.i16): rs.u8 => {
 					return rs.u8Shl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.u8, a137: rs.i16): rs.u8 => {
 					return rs.u8Shl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.u8Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.u8Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$u8_u128_u8_ops_Shr_shr_u8_u128((a040: rs.u8, a136: rs.u128): rs.u8 => {
 					return rs.u8Shr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.u8, a135: rs.u128): rs.u8 => {
 					return rs.u8Shr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = ~_10 & 0xff;
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a & 0xff;
+			} else if (_83 === 1) {
 				v = one$u8_u8_ops_Not_not_u8((a038: rs.u8): rs.u8 => {
 					return ~a038 & 0xff;
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.u8): rs.u8 => {
 					return ~a037 & 0xff;
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.u8 | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.u8 = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.u8Add(x, _12);
-				} else if (_67 === 1) {
-					two$mut_u8_u8_unit_ops_AddAssign_add_assign_u8_u8((a036: rs.Place<rs.u8>, a134: rs.u8): undefined => {
-						a036.v = rs.u8Add(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.u8>, a133: rs.u8): undefined => {
-						a035.v = rs.u8Add(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.u8 = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.u8Sub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_u8_u8_unit_ops_SubAssign_sub_assign_u8_u8((a034: rs.Place<rs.u8>, a132: rs.u8): undefined => {
-						a034.v = rs.u8Sub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.u8>, a131: rs.u8): undefined => {
-						a033.v = rs.u8Sub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.u8 = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.u8Mul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_u8_u8_unit_ops_MulAssign_mul_assign_u8_u8((a032: rs.Place<rs.u8>, a130: rs.u8): undefined => {
-						a032.v = rs.u8Mul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.u8>, a129: rs.u8): undefined => {
-						a031.v = rs.u8Mul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.u8 = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.u8Div(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_u8_u8_unit_ops_DivAssign_div_assign_u8_u8((a030: rs.Place<rs.u8>, a128: rs.u8): undefined => {
-						a030.v = rs.u8Div(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.u8>, a127: rs.u8): undefined => {
-						a029.v = rs.u8Div(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.u8 = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.u8Rem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_u8_u8_unit_ops_RemAssign_rem_assign_u8_u8((a028: rs.Place<rs.u8>, a126: rs.u8): undefined => {
-						a028.v = rs.u8Rem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.u8>, a125: rs.u8): undefined => {
-						a027.v = rs.u8Rem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.u8 = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = x6 & _12;
-				} else if (_102 === 1) {
-					two$mut_u8_u8_unit_ops_BitAndAssign_bitand_assign_u8_u8((a026: rs.Place<rs.u8>, a124: rs.u8): undefined => {
-						a026.v = a026.v & a124;
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.u8>, a123: rs.u8): undefined => {
-						a025.v = a025.v & a123;
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.u8 = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = x7 | _12;
-				} else if (_109 === 1) {
-					two$mut_u8_u8_unit_ops_BitOrAssign_bitor_assign_u8_u8((a024: rs.Place<rs.u8>, a122: rs.u8): undefined => {
-						a024.v = a024.v | a122;
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.u8>, a121: rs.u8): undefined => {
-						a023.v = a023.v | a121;
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.u8 = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = x8 ^ _12;
-				} else if (_116 === 1) {
-					two$mut_u8_u8_unit_ops_BitXorAssign_bitxor_assign_u8_u8((a022: rs.Place<rs.u8>, a120: rs.u8): undefined => {
-						a022.v = a022.v ^ a120;
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.u8>, a119: rs.u8): undefined => {
-						a021.v = a021.v ^ a119;
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.u8 = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.u8Shl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_u8_u32_unit_ops_ShlAssign_shl_assign_u8_u32((a020: rs.Place<rs.u8>, a118: rs.u32): undefined => {
-						a020.v = rs.u8Shl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.u8>, a117: rs.u32): undefined => {
-						a019.v = rs.u8Shl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.u8 = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.u8Shr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_u8_i64_unit_ops_ShrAssign_shr_assign_u8_i64((a018: rs.Place<rs.u8>, a116: rs.i64): undefined => {
-						a018.v = rs.u8Shr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.u8>, a115: rs.i64): undefined => {
-						a017.v = rs.u8Shr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.u8Add(_10, b);
-				} else if (_141 === 1) {
-					v = two$u8_ref_u8_u8_ops_Add_add_u8_ref_u8((a016: rs.u8, a114: rs.u8): rs.u8 => {
-						return rs.u8Add(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.u8, a113: rs.u8): rs.u8 => {
-						return rs.u8Add(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.u8Sub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_u8_u8_u8_ops_Sub_sub_ref_u8_u8((a014: rs.u8, a112: rs.u8): rs.u8 => {
-						return rs.u8Sub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.u8, a111: rs.u8): rs.u8 => {
-						return rs.u8Sub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.u8Mul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_u8_ref_u8_u8_ops_Mul_mul_ref_u8_ref_u8((a012: rs.u8, a110: rs.u8): rs.u8 => {
-						return rs.u8Mul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.u8, a19: rs.u8): rs.u8 => {
-						return rs.u8Mul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.u8Shl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_u8_ref_u8_u8_ops_Shl_shl_ref_u8_ref_u8((a010: rs.u8, a18: rs.u8): rs.u8 => {
-						return rs.u8Shl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.u8, a17: rs.u8): rs.u8 => {
-						return rs.u8Shl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = ~a & 0xff;
-				} else if (_170 === 1) {
-					v = one$ref_u8_u8_ops_Not_not_ref_u8((a08: rs.u8): rs.u8 => {
-						return ~a08 & 0xff;
-					}, a);
-				} else {
-					v = ((a07: rs.u8): rs.u8 => {
-						return ~a07 & 0xff;
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.u8 = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.u8Add(x11, b);
-				} else if (_177 === 1) {
-					two$mut_u8_ref_u8_unit_ops_AddAssign_add_assign_u8_ref_u8((a06: rs.Place<rs.u8>, a16: rs.u8): undefined => {
-						a06.v = rs.u8Add(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.u8>, a15: rs.u8): undefined => {
-						a05.v = rs.u8Add(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.u8 = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.u8Div(x12, b);
-				} else if (_187 === 1) {
-					two$mut_u8_ref_u8_unit_ops_DivAssign_div_assign_u8_ref_u8((a04: rs.Place<rs.u8>, a14: rs.u8): undefined => {
-						a04.v = rs.u8Div(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.u8>, a13: rs.u8): undefined => {
-						a03.v = rs.u8Div(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.u8 = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.u8Add(x, b);
+			} else if (_91 === 1) {
+				two$mut_u8_u8_unit_ops_AddAssign_add_assign_u8_u8((a036: rs.Place<rs.u8>, a134: rs.u8): undefined => {
+					a036.v = rs.u8Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.u8 = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.u8Shr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_u8_ref_u16_unit_ops_ShrAssign_shr_assign_u8_ref_u16((a02: rs.Place<rs.u8>, a12: rs.u16): undefined => {
-						a02.v = rs.u8Shr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.u8>, a1: rs.u16): undefined => {
-						a0.v = rs.u8Shr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.u8>, a133: rs.u8): undefined => {
+					a035.v = rs.u8Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.u8 = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.u8Sub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_u8_u8_unit_ops_SubAssign_sub_assign_u8_u8((a034: rs.Place<rs.u8>, a132: rs.u8): undefined => {
+					a034.v = rs.u8Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.u8>, a131: rs.u8): undefined => {
+					a033.v = rs.u8Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.u8 = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.u8Mul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_u8_u8_unit_ops_MulAssign_mul_assign_u8_u8((a032: rs.Place<rs.u8>, a130: rs.u8): undefined => {
+					a032.v = rs.u8Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.u8>, a129: rs.u8): undefined => {
+					a031.v = rs.u8Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.u8 = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.u8Div(x4, b);
+			} else if (_115 === 1) {
+				two$mut_u8_u8_unit_ops_DivAssign_div_assign_u8_u8((a030: rs.Place<rs.u8>, a128: rs.u8): undefined => {
+					a030.v = rs.u8Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.u8>, a127: rs.u8): undefined => {
+					a029.v = rs.u8Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.u8 = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.u8Rem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_u8_u8_unit_ops_RemAssign_rem_assign_u8_u8((a028: rs.Place<rs.u8>, a126: rs.u8): undefined => {
+					a028.v = rs.u8Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.u8>, a125: rs.u8): undefined => {
+					a027.v = rs.u8Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.u8 = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = x6 & b;
+			} else if (_131 === 1) {
+				two$mut_u8_u8_unit_ops_BitAndAssign_bitand_assign_u8_u8((a026: rs.Place<rs.u8>, a124: rs.u8): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.u8>, a123: rs.u8): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.u8 = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = x7 | b;
+			} else if (_139 === 1) {
+				two$mut_u8_u8_unit_ops_BitOrAssign_bitor_assign_u8_u8((a024: rs.Place<rs.u8>, a122: rs.u8): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.u8>, a121: rs.u8): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.u8 = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = x8 ^ b;
+			} else if (_147 === 1) {
+				two$mut_u8_u8_unit_ops_BitXorAssign_bitxor_assign_u8_u8((a022: rs.Place<rs.u8>, a120: rs.u8): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.u8>, a119: rs.u8): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.u8 = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.u8Shl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_u8_u32_unit_ops_ShlAssign_shl_assign_u8_u32((a020: rs.Place<rs.u8>, a118: rs.u32): undefined => {
+					a020.v = rs.u8Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.u8>, a117: rs.u32): undefined => {
+					a019.v = rs.u8Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.u8 = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.u8Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_u8_i64_unit_ops_ShrAssign_shr_assign_u8_i64((a018: rs.Place<rs.u8>, a116: rs.i64): undefined => {
+					a018.v = rs.u8Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.u8>, a115: rs.i64): undefined => {
+					a017.v = rs.u8Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.u8Add(a, b);
+			} else if (_175 === 1) {
+				v = two$u8_ref_u8_u8_ops_Add_add_u8_ref_u8((a016: rs.u8, a114: rs.u8): rs.u8 => {
+					return rs.u8Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.u8, a113: rs.u8): rs.u8 => {
+					return rs.u8Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.u8Sub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_u8_u8_u8_ops_Sub_sub_ref_u8_u8((a014: rs.u8, a112: rs.u8): rs.u8 => {
+					return rs.u8Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.u8, a111: rs.u8): rs.u8 => {
+					return rs.u8Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.u8Mul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_u8_ref_u8_u8_ops_Mul_mul_ref_u8_ref_u8((a012: rs.u8, a110: rs.u8): rs.u8 => {
+					return rs.u8Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.u8, a19: rs.u8): rs.u8 => {
+					return rs.u8Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.u8Shl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_u8_ref_u8_u8_ops_Shl_shl_ref_u8_ref_u8((a010: rs.u8, a18: rs.u8): rs.u8 => {
+					return rs.u8Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.u8, a17: rs.u8): rs.u8 => {
+					return rs.u8Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = ~a & 0xff;
+			} else if (_208 === 1) {
+				v = one$ref_u8_u8_ops_Not_not_ref_u8((a08: rs.u8): rs.u8 => {
+					return ~a08 & 0xff;
+				}, a);
+			} else {
+				v = ((a07: rs.u8): rs.u8 => {
+					return ~a07 & 0xff;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.u8 = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.u8Add(x11, b);
+			} else if (_216 === 1) {
+				two$mut_u8_ref_u8_unit_ops_AddAssign_add_assign_u8_ref_u8((a06: rs.Place<rs.u8>, a16: rs.u8): undefined => {
+					a06.v = rs.u8Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.u8>, a15: rs.u8): undefined => {
+					a05.v = rs.u8Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.u8 = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.u8Div(x12, b);
+			} else if (_227 === 1) {
+				two$mut_u8_ref_u8_unit_ops_DivAssign_div_assign_u8_ref_u8((a04: rs.Place<rs.u8>, a14: rs.u8): undefined => {
+					a04.v = rs.u8Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.u8>, a13: rs.u8): undefined => {
+					a03.v = rs.u8Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.u8 = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.u8Shr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_u8_ref_u16_unit_ops_ShrAssign_shr_assign_u8_ref_u16((a02: rs.Place<rs.u8>, a12: rs.u16): undefined => {
+					a02.v = rs.u8Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.u8>, a1: rs.u16): undefined => {
+					a0.v = rs.u8Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -2987,28 +2987,27 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u16FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.u16 = take(([1] as [rs.usize])[0]);
-	const _12: rs.u16 = take(([3] as [rs.usize])[0]);
-	const a: rs.u16 = _10;
-	const b: rs.u16 = _12;
+	const _10: [rs.u16, rs.u16] = [take(1), take(1 + 2)];
+	const a: rs.u16 = _10[0];
+	const b: rs.u16 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 5)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 2), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v2: rs.u16): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v3: rs.u16): undefined => {
 			const dst = out2;
-			const word = v2 as rs.u128;
+			const word = v3 as rs.u128;
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -3033,443 +3032,444 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.u16Add(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.u16Add(a, b);
+			} else if (_32 === 1) {
 				v = two$u16_u16_u16_ops_Add_add_u16_u16((a062: rs.u16, a158: rs.u16): rs.u16 => {
 					return rs.u16Add(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.u16, a157: rs.u16): rs.u16 => {
 					return rs.u16Add(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.u16Sub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.u16Sub(a, b);
+			} else if (_35 === 1) {
 				v = two$u16_u16_u16_ops_Sub_sub_u16_u16((a060: rs.u16, a156: rs.u16): rs.u16 => {
 					return rs.u16Sub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.u16, a155: rs.u16): rs.u16 => {
 					return rs.u16Sub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.u16Mul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.u16Mul(a, b);
+			} else if (_38 === 1) {
 				v = two$u16_u16_u16_ops_Mul_mul_u16_u16((a058: rs.u16, a154: rs.u16): rs.u16 => {
 					return rs.u16Mul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.u16, a153: rs.u16): rs.u16 => {
 					return rs.u16Mul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.u16Div(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.u16Div(a, b);
+			} else if (_41 === 1) {
 				v = two$u16_u16_u16_ops_Div_div_u16_u16((a056: rs.u16, a152: rs.u16): rs.u16 => {
 					return rs.u16Div(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.u16, a151: rs.u16): rs.u16 => {
 					return rs.u16Div(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.u16Rem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.u16Rem(a, b);
+			} else if (_44 === 1) {
 				v = two$u16_u16_u16_ops_Rem_rem_u16_u16((a054: rs.u16, a150: rs.u16): rs.u16 => {
 					return rs.u16Rem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.u16, a149: rs.u16): rs.u16 => {
 					return rs.u16Rem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = _10 & _12;
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
 				v = two$u16_u16_u16_ops_BitAnd_bitand_u16_u16((a052: rs.u16, a148: rs.u16): rs.u16 => {
 					return a052 & a148;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.u16, a147: rs.u16): rs.u16 => {
 					return a051 & a147;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = _10 | _12;
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
 				v = two$u16_u16_u16_ops_BitOr_bitor_u16_u16((a050: rs.u16, a146: rs.u16): rs.u16 => {
 					return a050 | a146;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.u16, a145: rs.u16): rs.u16 => {
 					return a049 | a145;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = _10 ^ _12;
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
 				v = two$u16_u16_u16_ops_BitXor_bitxor_u16_u16((a048: rs.u16, a144: rs.u16): rs.u16 => {
 					return a048 ^ a144;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.u16, a143: rs.u16): rs.u16 => {
 					return a047 ^ a143;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.u16Shl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.u16Shl(a, n);
+			} else if (_56 === 1) {
 				v = two$u16_u32_u16_ops_Shl_shl_u16_u32((a046: rs.u16, a142: rs.u32): rs.u16 => {
 					return rs.u16Shl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.u16, a141: rs.u32): rs.u16 => {
 					return rs.u16Shl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.u16Shr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.u16Shr(a, n);
+			} else if (_59 === 1) {
 				v = two$u16_u32_u16_ops_Shr_shr_u16_u32((a044: rs.u16, a140: rs.u32): rs.u16 => {
 					return rs.u16Shr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.u16, a139: rs.u32): rs.u16 => {
 					return rs.u16Shr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.u16Shl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.u16Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$u16_i16_u16_ops_Shl_shl_u16_i16((a042: rs.u16, a138: rs.i16): rs.u16 => {
 					return rs.u16Shl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.u16, a137: rs.i16): rs.u16 => {
 					return rs.u16Shl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.u16Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.u16Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$u16_u128_u16_ops_Shr_shr_u16_u128((a040: rs.u16, a136: rs.u128): rs.u16 => {
 					return rs.u16Shr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.u16, a135: rs.u128): rs.u16 => {
 					return rs.u16Shr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = ~_10 & 0xffff;
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a & 0xffff;
+			} else if (_83 === 1) {
 				v = one$u16_u16_ops_Not_not_u16((a038: rs.u16): rs.u16 => {
 					return ~a038 & 0xffff;
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.u16): rs.u16 => {
 					return ~a037 & 0xffff;
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.u16 | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.u16 = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.u16Add(x, _12);
-				} else if (_67 === 1) {
-					two$mut_u16_u16_unit_ops_AddAssign_add_assign_u16_u16((a036: rs.Place<rs.u16>, a134: rs.u16): undefined => {
-						a036.v = rs.u16Add(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.u16>, a133: rs.u16): undefined => {
-						a035.v = rs.u16Add(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.u16 = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.u16Sub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_u16_u16_unit_ops_SubAssign_sub_assign_u16_u16((a034: rs.Place<rs.u16>, a132: rs.u16): undefined => {
-						a034.v = rs.u16Sub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.u16>, a131: rs.u16): undefined => {
-						a033.v = rs.u16Sub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.u16 = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.u16Mul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_u16_u16_unit_ops_MulAssign_mul_assign_u16_u16((a032: rs.Place<rs.u16>, a130: rs.u16): undefined => {
-						a032.v = rs.u16Mul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.u16>, a129: rs.u16): undefined => {
-						a031.v = rs.u16Mul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.u16 = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.u16Div(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_u16_u16_unit_ops_DivAssign_div_assign_u16_u16((a030: rs.Place<rs.u16>, a128: rs.u16): undefined => {
-						a030.v = rs.u16Div(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.u16>, a127: rs.u16): undefined => {
-						a029.v = rs.u16Div(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.u16 = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.u16Rem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_u16_u16_unit_ops_RemAssign_rem_assign_u16_u16((a028: rs.Place<rs.u16>, a126: rs.u16): undefined => {
-						a028.v = rs.u16Rem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.u16>, a125: rs.u16): undefined => {
-						a027.v = rs.u16Rem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.u16 = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = x6 & _12;
-				} else if (_102 === 1) {
-					two$mut_u16_u16_unit_ops_BitAndAssign_bitand_assign_u16_u16((a026: rs.Place<rs.u16>, a124: rs.u16): undefined => {
-						a026.v = a026.v & a124;
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.u16>, a123: rs.u16): undefined => {
-						a025.v = a025.v & a123;
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.u16 = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = x7 | _12;
-				} else if (_109 === 1) {
-					two$mut_u16_u16_unit_ops_BitOrAssign_bitor_assign_u16_u16((a024: rs.Place<rs.u16>, a122: rs.u16): undefined => {
-						a024.v = a024.v | a122;
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.u16>, a121: rs.u16): undefined => {
-						a023.v = a023.v | a121;
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.u16 = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = x8 ^ _12;
-				} else if (_116 === 1) {
-					two$mut_u16_u16_unit_ops_BitXorAssign_bitxor_assign_u16_u16((a022: rs.Place<rs.u16>, a120: rs.u16): undefined => {
-						a022.v = a022.v ^ a120;
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.u16>, a119: rs.u16): undefined => {
-						a021.v = a021.v ^ a119;
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.u16 = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.u16Shl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_u16_u32_unit_ops_ShlAssign_shl_assign_u16_u32((a020: rs.Place<rs.u16>, a118: rs.u32): undefined => {
-						a020.v = rs.u16Shl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.u16>, a117: rs.u32): undefined => {
-						a019.v = rs.u16Shl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.u16 = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.u16Shr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_u16_i64_unit_ops_ShrAssign_shr_assign_u16_i64((a018: rs.Place<rs.u16>, a116: rs.i64): undefined => {
-						a018.v = rs.u16Shr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.u16>, a115: rs.i64): undefined => {
-						a017.v = rs.u16Shr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.u16Add(_10, b);
-				} else if (_141 === 1) {
-					v = two$u16_ref_u16_u16_ops_Add_add_u16_ref_u16((a016: rs.u16, a114: rs.u16): rs.u16 => {
-						return rs.u16Add(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.u16, a113: rs.u16): rs.u16 => {
-						return rs.u16Add(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.u16Sub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_u16_u16_u16_ops_Sub_sub_ref_u16_u16((a014: rs.u16, a112: rs.u16): rs.u16 => {
-						return rs.u16Sub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.u16, a111: rs.u16): rs.u16 => {
-						return rs.u16Sub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.u16Mul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_u16_ref_u16_u16_ops_Mul_mul_ref_u16_ref_u16((a012: rs.u16, a110: rs.u16): rs.u16 => {
-						return rs.u16Mul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.u16, a19: rs.u16): rs.u16 => {
-						return rs.u16Mul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.u16Shl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_u16_ref_u8_u16_ops_Shl_shl_ref_u16_ref_u8((a010: rs.u16, a18: rs.u8): rs.u16 => {
-						return rs.u16Shl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.u16, a17: rs.u8): rs.u16 => {
-						return rs.u16Shl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = ~a & 0xffff;
-				} else if (_170 === 1) {
-					v = one$ref_u16_u16_ops_Not_not_ref_u16((a08: rs.u16): rs.u16 => {
-						return ~a08 & 0xffff;
-					}, a);
-				} else {
-					v = ((a07: rs.u16): rs.u16 => {
-						return ~a07 & 0xffff;
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.u16 = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.u16Add(x11, b);
-				} else if (_177 === 1) {
-					two$mut_u16_ref_u16_unit_ops_AddAssign_add_assign_u16_ref_u16((a06: rs.Place<rs.u16>, a16: rs.u16): undefined => {
-						a06.v = rs.u16Add(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.u16>, a15: rs.u16): undefined => {
-						a05.v = rs.u16Add(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.u16 = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.u16Div(x12, b);
-				} else if (_187 === 1) {
-					two$mut_u16_ref_u16_unit_ops_DivAssign_div_assign_u16_ref_u16((a04: rs.Place<rs.u16>, a14: rs.u16): undefined => {
-						a04.v = rs.u16Div(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.u16>, a13: rs.u16): undefined => {
-						a03.v = rs.u16Div(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.u16 = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.u16Add(x, b);
+			} else if (_91 === 1) {
+				two$mut_u16_u16_unit_ops_AddAssign_add_assign_u16_u16((a036: rs.Place<rs.u16>, a134: rs.u16): undefined => {
+					a036.v = rs.u16Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.u16 = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.u16Shr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_u16_ref_u16_unit_ops_ShrAssign_shr_assign_u16_ref_u16((a02: rs.Place<rs.u16>, a12: rs.u16): undefined => {
-						a02.v = rs.u16Shr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.u16>, a1: rs.u16): undefined => {
-						a0.v = rs.u16Shr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.u16>, a133: rs.u16): undefined => {
+					a035.v = rs.u16Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.u16 = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.u16Sub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_u16_u16_unit_ops_SubAssign_sub_assign_u16_u16((a034: rs.Place<rs.u16>, a132: rs.u16): undefined => {
+					a034.v = rs.u16Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.u16>, a131: rs.u16): undefined => {
+					a033.v = rs.u16Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.u16 = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.u16Mul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_u16_u16_unit_ops_MulAssign_mul_assign_u16_u16((a032: rs.Place<rs.u16>, a130: rs.u16): undefined => {
+					a032.v = rs.u16Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.u16>, a129: rs.u16): undefined => {
+					a031.v = rs.u16Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.u16 = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.u16Div(x4, b);
+			} else if (_115 === 1) {
+				two$mut_u16_u16_unit_ops_DivAssign_div_assign_u16_u16((a030: rs.Place<rs.u16>, a128: rs.u16): undefined => {
+					a030.v = rs.u16Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.u16>, a127: rs.u16): undefined => {
+					a029.v = rs.u16Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.u16 = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.u16Rem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_u16_u16_unit_ops_RemAssign_rem_assign_u16_u16((a028: rs.Place<rs.u16>, a126: rs.u16): undefined => {
+					a028.v = rs.u16Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.u16>, a125: rs.u16): undefined => {
+					a027.v = rs.u16Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.u16 = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = x6 & b;
+			} else if (_131 === 1) {
+				two$mut_u16_u16_unit_ops_BitAndAssign_bitand_assign_u16_u16((a026: rs.Place<rs.u16>, a124: rs.u16): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.u16>, a123: rs.u16): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.u16 = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = x7 | b;
+			} else if (_139 === 1) {
+				two$mut_u16_u16_unit_ops_BitOrAssign_bitor_assign_u16_u16((a024: rs.Place<rs.u16>, a122: rs.u16): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.u16>, a121: rs.u16): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.u16 = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = x8 ^ b;
+			} else if (_147 === 1) {
+				two$mut_u16_u16_unit_ops_BitXorAssign_bitxor_assign_u16_u16((a022: rs.Place<rs.u16>, a120: rs.u16): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.u16>, a119: rs.u16): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.u16 = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.u16Shl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_u16_u32_unit_ops_ShlAssign_shl_assign_u16_u32((a020: rs.Place<rs.u16>, a118: rs.u32): undefined => {
+					a020.v = rs.u16Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.u16>, a117: rs.u32): undefined => {
+					a019.v = rs.u16Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.u16 = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.u16Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_u16_i64_unit_ops_ShrAssign_shr_assign_u16_i64((a018: rs.Place<rs.u16>, a116: rs.i64): undefined => {
+					a018.v = rs.u16Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.u16>, a115: rs.i64): undefined => {
+					a017.v = rs.u16Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.u16Add(a, b);
+			} else if (_175 === 1) {
+				v = two$u16_ref_u16_u16_ops_Add_add_u16_ref_u16((a016: rs.u16, a114: rs.u16): rs.u16 => {
+					return rs.u16Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.u16, a113: rs.u16): rs.u16 => {
+					return rs.u16Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.u16Sub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_u16_u16_u16_ops_Sub_sub_ref_u16_u16((a014: rs.u16, a112: rs.u16): rs.u16 => {
+					return rs.u16Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.u16, a111: rs.u16): rs.u16 => {
+					return rs.u16Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.u16Mul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_u16_ref_u16_u16_ops_Mul_mul_ref_u16_ref_u16((a012: rs.u16, a110: rs.u16): rs.u16 => {
+					return rs.u16Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.u16, a19: rs.u16): rs.u16 => {
+					return rs.u16Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.u16Shl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_u16_ref_u8_u16_ops_Shl_shl_ref_u16_ref_u8((a010: rs.u16, a18: rs.u8): rs.u16 => {
+					return rs.u16Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.u16, a17: rs.u8): rs.u16 => {
+					return rs.u16Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = ~a & 0xffff;
+			} else if (_208 === 1) {
+				v = one$ref_u16_u16_ops_Not_not_ref_u16((a08: rs.u16): rs.u16 => {
+					return ~a08 & 0xffff;
+				}, a);
+			} else {
+				v = ((a07: rs.u16): rs.u16 => {
+					return ~a07 & 0xffff;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.u16 = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.u16Add(x11, b);
+			} else if (_216 === 1) {
+				two$mut_u16_ref_u16_unit_ops_AddAssign_add_assign_u16_ref_u16((a06: rs.Place<rs.u16>, a16: rs.u16): undefined => {
+					a06.v = rs.u16Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.u16>, a15: rs.u16): undefined => {
+					a05.v = rs.u16Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.u16 = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.u16Div(x12, b);
+			} else if (_227 === 1) {
+				two$mut_u16_ref_u16_unit_ops_DivAssign_div_assign_u16_ref_u16((a04: rs.Place<rs.u16>, a14: rs.u16): undefined => {
+					a04.v = rs.u16Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.u16>, a13: rs.u16): undefined => {
+					a03.v = rs.u16Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.u16 = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.u16Shr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_u16_ref_u16_unit_ops_ShrAssign_shr_assign_u16_ref_u16((a02: rs.Place<rs.u16>, a12: rs.u16): undefined => {
+					a02.v = rs.u16Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.u16>, a1: rs.u16): undefined => {
+					a0.v = rs.u16Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -3483,28 +3483,27 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u32FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.u32 = take(([1] as [rs.usize])[0]);
-	const _12: rs.u32 = take(([5] as [rs.usize])[0]);
-	const a: rs.u32 = _10;
-	const b: rs.u32 = _12;
+	const _10: [rs.u32, rs.u32] = [take(1), take(1 + 4)];
+	const a: rs.u32 = _10[0];
+	const b: rs.u32 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 9)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 4), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v2: rs.u32): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v3: rs.u32): undefined => {
 			const dst = out2;
-			const word = v2 as rs.u128;
+			const word = v3 as rs.u128;
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -3529,443 +3528,444 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.u32Add(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.u32Add(a, b);
+			} else if (_32 === 1) {
 				v = two$u32_u32_u32_ops_Add_add_u32_u32((a062: rs.u32, a158: rs.u32): rs.u32 => {
 					return rs.u32Add(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.u32, a157: rs.u32): rs.u32 => {
 					return rs.u32Add(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.u32Sub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.u32Sub(a, b);
+			} else if (_35 === 1) {
 				v = two$u32_u32_u32_ops_Sub_sub_u32_u32((a060: rs.u32, a156: rs.u32): rs.u32 => {
 					return rs.u32Sub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.u32, a155: rs.u32): rs.u32 => {
 					return rs.u32Sub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.u32Mul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.u32Mul(a, b);
+			} else if (_38 === 1) {
 				v = two$u32_u32_u32_ops_Mul_mul_u32_u32((a058: rs.u32, a154: rs.u32): rs.u32 => {
 					return rs.u32Mul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.u32, a153: rs.u32): rs.u32 => {
 					return rs.u32Mul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.u32Div(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.u32Div(a, b);
+			} else if (_41 === 1) {
 				v = two$u32_u32_u32_ops_Div_div_u32_u32((a056: rs.u32, a152: rs.u32): rs.u32 => {
 					return rs.u32Div(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.u32, a151: rs.u32): rs.u32 => {
 					return rs.u32Div(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.u32Rem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.u32Rem(a, b);
+			} else if (_44 === 1) {
 				v = two$u32_u32_u32_ops_Rem_rem_u32_u32((a054: rs.u32, a150: rs.u32): rs.u32 => {
 					return rs.u32Rem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.u32, a149: rs.u32): rs.u32 => {
 					return rs.u32Rem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = (_10 & _12) >>> 0;
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = (a & b) >>> 0;
+			} else if (_47 === 1) {
 				v = two$u32_u32_u32_ops_BitAnd_bitand_u32_u32((a052: rs.u32, a148: rs.u32): rs.u32 => {
 					return (a052 & a148) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.u32, a147: rs.u32): rs.u32 => {
 					return (a051 & a147) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = (_10 | _12) >>> 0;
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = (a | b) >>> 0;
+			} else if (_50 === 1) {
 				v = two$u32_u32_u32_ops_BitOr_bitor_u32_u32((a050: rs.u32, a146: rs.u32): rs.u32 => {
 					return (a050 | a146) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.u32, a145: rs.u32): rs.u32 => {
 					return (a049 | a145) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = (_10 ^ _12) >>> 0;
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = (a ^ b) >>> 0;
+			} else if (_53 === 1) {
 				v = two$u32_u32_u32_ops_BitXor_bitxor_u32_u32((a048: rs.u32, a144: rs.u32): rs.u32 => {
 					return (a048 ^ a144) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.u32, a143: rs.u32): rs.u32 => {
 					return (a047 ^ a143) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.u32Shl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.u32Shl(a, n);
+			} else if (_56 === 1) {
 				v = two$u32_u32_u32_ops_Shl_shl_u32_u32((a046: rs.u32, a142: rs.u32): rs.u32 => {
 					return rs.u32Shl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.u32, a141: rs.u32): rs.u32 => {
 					return rs.u32Shl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.u32Shr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.u32Shr(a, n);
+			} else if (_59 === 1) {
 				v = two$u32_u32_u32_ops_Shr_shr_u32_u32((a044: rs.u32, a140: rs.u32): rs.u32 => {
 					return rs.u32Shr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.u32, a139: rs.u32): rs.u32 => {
 					return rs.u32Shr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.u32Shl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.u32Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$u32_i16_u32_ops_Shl_shl_u32_i16((a042: rs.u32, a138: rs.i16): rs.u32 => {
 					return rs.u32Shl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.u32, a137: rs.i16): rs.u32 => {
 					return rs.u32Shl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.u32Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.u32Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$u32_u128_u32_ops_Shr_shr_u32_u128((a040: rs.u32, a136: rs.u128): rs.u32 => {
 					return rs.u32Shr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.u32, a135: rs.u128): rs.u32 => {
 					return rs.u32Shr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = ~_10 >>> 0;
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a >>> 0;
+			} else if (_83 === 1) {
 				v = one$u32_u32_ops_Not_not_u32((a038: rs.u32): rs.u32 => {
 					return ~a038 >>> 0;
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.u32): rs.u32 => {
 					return ~a037 >>> 0;
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.u32 | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.u32 = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.u32Add(x, _12);
-				} else if (_67 === 1) {
-					two$mut_u32_u32_unit_ops_AddAssign_add_assign_u32_u32((a036: rs.Place<rs.u32>, a134: rs.u32): undefined => {
-						a036.v = rs.u32Add(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.u32>, a133: rs.u32): undefined => {
-						a035.v = rs.u32Add(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.u32 = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.u32Sub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_u32_u32_unit_ops_SubAssign_sub_assign_u32_u32((a034: rs.Place<rs.u32>, a132: rs.u32): undefined => {
-						a034.v = rs.u32Sub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.u32>, a131: rs.u32): undefined => {
-						a033.v = rs.u32Sub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.u32 = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.u32Mul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_u32_u32_unit_ops_MulAssign_mul_assign_u32_u32((a032: rs.Place<rs.u32>, a130: rs.u32): undefined => {
-						a032.v = rs.u32Mul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.u32>, a129: rs.u32): undefined => {
-						a031.v = rs.u32Mul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.u32 = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.u32Div(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_u32_u32_unit_ops_DivAssign_div_assign_u32_u32((a030: rs.Place<rs.u32>, a128: rs.u32): undefined => {
-						a030.v = rs.u32Div(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.u32>, a127: rs.u32): undefined => {
-						a029.v = rs.u32Div(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.u32 = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.u32Rem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_u32_u32_unit_ops_RemAssign_rem_assign_u32_u32((a028: rs.Place<rs.u32>, a126: rs.u32): undefined => {
-						a028.v = rs.u32Rem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.u32>, a125: rs.u32): undefined => {
-						a027.v = rs.u32Rem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.u32 = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = (x6 & _12) >>> 0;
-				} else if (_102 === 1) {
-					two$mut_u32_u32_unit_ops_BitAndAssign_bitand_assign_u32_u32((a026: rs.Place<rs.u32>, a124: rs.u32): undefined => {
-						a026.v = (a026.v & a124) >>> 0;
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.u32>, a123: rs.u32): undefined => {
-						a025.v = (a025.v & a123) >>> 0;
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.u32 = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = (x7 | _12) >>> 0;
-				} else if (_109 === 1) {
-					two$mut_u32_u32_unit_ops_BitOrAssign_bitor_assign_u32_u32((a024: rs.Place<rs.u32>, a122: rs.u32): undefined => {
-						a024.v = (a024.v | a122) >>> 0;
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.u32>, a121: rs.u32): undefined => {
-						a023.v = (a023.v | a121) >>> 0;
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.u32 = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = (x8 ^ _12) >>> 0;
-				} else if (_116 === 1) {
-					two$mut_u32_u32_unit_ops_BitXorAssign_bitxor_assign_u32_u32((a022: rs.Place<rs.u32>, a120: rs.u32): undefined => {
-						a022.v = (a022.v ^ a120) >>> 0;
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.u32>, a119: rs.u32): undefined => {
-						a021.v = (a021.v ^ a119) >>> 0;
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.u32 = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.u32Shl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_u32_u32_unit_ops_ShlAssign_shl_assign_u32_u32((a020: rs.Place<rs.u32>, a118: rs.u32): undefined => {
-						a020.v = rs.u32Shl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.u32>, a117: rs.u32): undefined => {
-						a019.v = rs.u32Shl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.u32 = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.u32Shr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_u32_i64_unit_ops_ShrAssign_shr_assign_u32_i64((a018: rs.Place<rs.u32>, a116: rs.i64): undefined => {
-						a018.v = rs.u32Shr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.u32>, a115: rs.i64): undefined => {
-						a017.v = rs.u32Shr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.u32Add(_10, b);
-				} else if (_141 === 1) {
-					v = two$u32_ref_u32_u32_ops_Add_add_u32_ref_u32((a016: rs.u32, a114: rs.u32): rs.u32 => {
-						return rs.u32Add(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.u32, a113: rs.u32): rs.u32 => {
-						return rs.u32Add(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.u32Sub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_u32_u32_u32_ops_Sub_sub_ref_u32_u32((a014: rs.u32, a112: rs.u32): rs.u32 => {
-						return rs.u32Sub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.u32, a111: rs.u32): rs.u32 => {
-						return rs.u32Sub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.u32Mul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_u32_ref_u32_u32_ops_Mul_mul_ref_u32_ref_u32((a012: rs.u32, a110: rs.u32): rs.u32 => {
-						return rs.u32Mul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.u32, a19: rs.u32): rs.u32 => {
-						return rs.u32Mul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.u32Shl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_u32_ref_u8_u32_ops_Shl_shl_ref_u32_ref_u8((a010: rs.u32, a18: rs.u8): rs.u32 => {
-						return rs.u32Shl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.u32, a17: rs.u8): rs.u32 => {
-						return rs.u32Shl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = ~a >>> 0;
-				} else if (_170 === 1) {
-					v = one$ref_u32_u32_ops_Not_not_ref_u32((a08: rs.u32): rs.u32 => {
-						return ~a08 >>> 0;
-					}, a);
-				} else {
-					v = ((a07: rs.u32): rs.u32 => {
-						return ~a07 >>> 0;
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.u32 = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.u32Add(x11, b);
-				} else if (_177 === 1) {
-					two$mut_u32_ref_u32_unit_ops_AddAssign_add_assign_u32_ref_u32((a06: rs.Place<rs.u32>, a16: rs.u32): undefined => {
-						a06.v = rs.u32Add(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.u32>, a15: rs.u32): undefined => {
-						a05.v = rs.u32Add(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.u32 = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.u32Div(x12, b);
-				} else if (_187 === 1) {
-					two$mut_u32_ref_u32_unit_ops_DivAssign_div_assign_u32_ref_u32((a04: rs.Place<rs.u32>, a14: rs.u32): undefined => {
-						a04.v = rs.u32Div(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.u32>, a13: rs.u32): undefined => {
-						a03.v = rs.u32Div(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.u32 = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.u32Add(x, b);
+			} else if (_91 === 1) {
+				two$mut_u32_u32_unit_ops_AddAssign_add_assign_u32_u32((a036: rs.Place<rs.u32>, a134: rs.u32): undefined => {
+					a036.v = rs.u32Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.u32 = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.u32Shr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_u32_ref_u16_unit_ops_ShrAssign_shr_assign_u32_ref_u16((a02: rs.Place<rs.u32>, a12: rs.u16): undefined => {
-						a02.v = rs.u32Shr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.u32>, a1: rs.u16): undefined => {
-						a0.v = rs.u32Shr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.u32>, a133: rs.u32): undefined => {
+					a035.v = rs.u32Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.u32 = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.u32Sub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_u32_u32_unit_ops_SubAssign_sub_assign_u32_u32((a034: rs.Place<rs.u32>, a132: rs.u32): undefined => {
+					a034.v = rs.u32Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.u32>, a131: rs.u32): undefined => {
+					a033.v = rs.u32Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.u32 = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.u32Mul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_u32_u32_unit_ops_MulAssign_mul_assign_u32_u32((a032: rs.Place<rs.u32>, a130: rs.u32): undefined => {
+					a032.v = rs.u32Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.u32>, a129: rs.u32): undefined => {
+					a031.v = rs.u32Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.u32 = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.u32Div(x4, b);
+			} else if (_115 === 1) {
+				two$mut_u32_u32_unit_ops_DivAssign_div_assign_u32_u32((a030: rs.Place<rs.u32>, a128: rs.u32): undefined => {
+					a030.v = rs.u32Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.u32>, a127: rs.u32): undefined => {
+					a029.v = rs.u32Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.u32 = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.u32Rem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_u32_u32_unit_ops_RemAssign_rem_assign_u32_u32((a028: rs.Place<rs.u32>, a126: rs.u32): undefined => {
+					a028.v = rs.u32Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.u32>, a125: rs.u32): undefined => {
+					a027.v = rs.u32Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.u32 = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = (x6 & b) >>> 0;
+			} else if (_131 === 1) {
+				two$mut_u32_u32_unit_ops_BitAndAssign_bitand_assign_u32_u32((a026: rs.Place<rs.u32>, a124: rs.u32): undefined => {
+					a026.v = (a026.v & a124) >>> 0;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.u32>, a123: rs.u32): undefined => {
+					a025.v = (a025.v & a123) >>> 0;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.u32 = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = (x7 | b) >>> 0;
+			} else if (_139 === 1) {
+				two$mut_u32_u32_unit_ops_BitOrAssign_bitor_assign_u32_u32((a024: rs.Place<rs.u32>, a122: rs.u32): undefined => {
+					a024.v = (a024.v | a122) >>> 0;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.u32>, a121: rs.u32): undefined => {
+					a023.v = (a023.v | a121) >>> 0;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.u32 = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = (x8 ^ b) >>> 0;
+			} else if (_147 === 1) {
+				two$mut_u32_u32_unit_ops_BitXorAssign_bitxor_assign_u32_u32((a022: rs.Place<rs.u32>, a120: rs.u32): undefined => {
+					a022.v = (a022.v ^ a120) >>> 0;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.u32>, a119: rs.u32): undefined => {
+					a021.v = (a021.v ^ a119) >>> 0;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.u32 = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.u32Shl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_u32_u32_unit_ops_ShlAssign_shl_assign_u32_u32((a020: rs.Place<rs.u32>, a118: rs.u32): undefined => {
+					a020.v = rs.u32Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.u32>, a117: rs.u32): undefined => {
+					a019.v = rs.u32Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.u32 = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.u32Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_u32_i64_unit_ops_ShrAssign_shr_assign_u32_i64((a018: rs.Place<rs.u32>, a116: rs.i64): undefined => {
+					a018.v = rs.u32Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.u32>, a115: rs.i64): undefined => {
+					a017.v = rs.u32Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.u32Add(a, b);
+			} else if (_175 === 1) {
+				v = two$u32_ref_u32_u32_ops_Add_add_u32_ref_u32((a016: rs.u32, a114: rs.u32): rs.u32 => {
+					return rs.u32Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.u32, a113: rs.u32): rs.u32 => {
+					return rs.u32Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.u32Sub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_u32_u32_u32_ops_Sub_sub_ref_u32_u32((a014: rs.u32, a112: rs.u32): rs.u32 => {
+					return rs.u32Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.u32, a111: rs.u32): rs.u32 => {
+					return rs.u32Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.u32Mul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_u32_ref_u32_u32_ops_Mul_mul_ref_u32_ref_u32((a012: rs.u32, a110: rs.u32): rs.u32 => {
+					return rs.u32Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.u32, a19: rs.u32): rs.u32 => {
+					return rs.u32Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.u32Shl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_u32_ref_u8_u32_ops_Shl_shl_ref_u32_ref_u8((a010: rs.u32, a18: rs.u8): rs.u32 => {
+					return rs.u32Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.u32, a17: rs.u8): rs.u32 => {
+					return rs.u32Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = ~a >>> 0;
+			} else if (_208 === 1) {
+				v = one$ref_u32_u32_ops_Not_not_ref_u32((a08: rs.u32): rs.u32 => {
+					return ~a08 >>> 0;
+				}, a);
+			} else {
+				v = ((a07: rs.u32): rs.u32 => {
+					return ~a07 >>> 0;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.u32 = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.u32Add(x11, b);
+			} else if (_216 === 1) {
+				two$mut_u32_ref_u32_unit_ops_AddAssign_add_assign_u32_ref_u32((a06: rs.Place<rs.u32>, a16: rs.u32): undefined => {
+					a06.v = rs.u32Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.u32>, a15: rs.u32): undefined => {
+					a05.v = rs.u32Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.u32 = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.u32Div(x12, b);
+			} else if (_227 === 1) {
+				two$mut_u32_ref_u32_unit_ops_DivAssign_div_assign_u32_ref_u32((a04: rs.Place<rs.u32>, a14: rs.u32): undefined => {
+					a04.v = rs.u32Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.u32>, a13: rs.u32): undefined => {
+					a03.v = rs.u32Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.u32 = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.u32Shr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_u32_ref_u16_unit_ops_ShrAssign_shr_assign_u32_ref_u16((a02: rs.Place<rs.u32>, a12: rs.u16): undefined => {
+					a02.v = rs.u32Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.u32>, a1: rs.u16): undefined => {
+					a0.v = rs.u32Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -3979,28 +3979,27 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u64FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.u64 = take(([1] as [rs.usize])[0]);
-	const _12: rs.u64 = take(([9] as [rs.usize])[0]);
-	const a: rs.u64 = _10;
-	const b: rs.u64 = _12;
+	const _10: [rs.u64, rs.u64] = [take(1), take(1 + 8)];
+	const a: rs.u64 = _10[0];
+	const b: rs.u64 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 17)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 8), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v2: rs.u64): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v3: rs.u64): undefined => {
 			const dst = out2;
-			const word = rs.u128Cast(v2);
+			const word = rs.u128Cast(v3);
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -4025,443 +4024,444 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.u64Add(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.u64Add(a, b);
+			} else if (_32 === 1) {
 				v = two$u64_u64_u64_ops_Add_add_u64_u64((a062: rs.u64, a158: rs.u64): rs.u64 => {
 					return rs.u64Add(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.u64, a157: rs.u64): rs.u64 => {
 					return rs.u64Add(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.u64Sub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.u64Sub(a, b);
+			} else if (_35 === 1) {
 				v = two$u64_u64_u64_ops_Sub_sub_u64_u64((a060: rs.u64, a156: rs.u64): rs.u64 => {
 					return rs.u64Sub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.u64, a155: rs.u64): rs.u64 => {
 					return rs.u64Sub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.u64Mul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.u64Mul(a, b);
+			} else if (_38 === 1) {
 				v = two$u64_u64_u64_ops_Mul_mul_u64_u64((a058: rs.u64, a154: rs.u64): rs.u64 => {
 					return rs.u64Mul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.u64, a153: rs.u64): rs.u64 => {
 					return rs.u64Mul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.u64Div(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.u64Div(a, b);
+			} else if (_41 === 1) {
 				v = two$u64_u64_u64_ops_Div_div_u64_u64((a056: rs.u64, a152: rs.u64): rs.u64 => {
 					return rs.u64Div(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.u64, a151: rs.u64): rs.u64 => {
 					return rs.u64Div(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.u64Rem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.u64Rem(a, b);
+			} else if (_44 === 1) {
 				v = two$u64_u64_u64_ops_Rem_rem_u64_u64((a054: rs.u64, a150: rs.u64): rs.u64 => {
 					return rs.u64Rem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.u64, a149: rs.u64): rs.u64 => {
 					return rs.u64Rem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = rs.u64And(_10, _12);
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = rs.u64And(a, b);
+			} else if (_47 === 1) {
 				v = two$u64_u64_u64_ops_BitAnd_bitand_u64_u64((a052: rs.u64, a148: rs.u64): rs.u64 => {
 					return rs.u64And(a052, a148);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.u64, a147: rs.u64): rs.u64 => {
 					return rs.u64And(a051, a147);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = rs.u64Or(_10, _12);
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = rs.u64Or(a, b);
+			} else if (_50 === 1) {
 				v = two$u64_u64_u64_ops_BitOr_bitor_u64_u64((a050: rs.u64, a146: rs.u64): rs.u64 => {
 					return rs.u64Or(a050, a146);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.u64, a145: rs.u64): rs.u64 => {
 					return rs.u64Or(a049, a145);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = rs.u64Xor(_10, _12);
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = rs.u64Xor(a, b);
+			} else if (_53 === 1) {
 				v = two$u64_u64_u64_ops_BitXor_bitxor_u64_u64((a048: rs.u64, a144: rs.u64): rs.u64 => {
 					return rs.u64Xor(a048, a144);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.u64, a143: rs.u64): rs.u64 => {
 					return rs.u64Xor(a047, a143);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.u64Shl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.u64Shl(a, n);
+			} else if (_56 === 1) {
 				v = two$u64_u32_u64_ops_Shl_shl_u64_u32((a046: rs.u64, a142: rs.u32): rs.u64 => {
 					return rs.u64Shl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.u64, a141: rs.u32): rs.u64 => {
 					return rs.u64Shl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.u64Shr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.u64Shr(a, n);
+			} else if (_59 === 1) {
 				v = two$u64_u32_u64_ops_Shr_shr_u64_u32((a044: rs.u64, a140: rs.u32): rs.u64 => {
 					return rs.u64Shr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.u64, a139: rs.u32): rs.u64 => {
 					return rs.u64Shr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.u64Shl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.u64Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$u64_i16_u64_ops_Shl_shl_u64_i16((a042: rs.u64, a138: rs.i16): rs.u64 => {
 					return rs.u64Shl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.u64, a137: rs.i16): rs.u64 => {
 					return rs.u64Shl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.u64Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.u64Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$u64_u128_u64_ops_Shr_shr_u64_u128((a040: rs.u64, a136: rs.u128): rs.u64 => {
 					return rs.u64Shr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.u64, a135: rs.u128): rs.u64 => {
 					return rs.u64Shr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = rs.u64Not(_10);
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = rs.u64Not(a);
+			} else if (_83 === 1) {
 				v = one$u64_u64_ops_Not_not_u64((a038: rs.u64): rs.u64 => {
 					return rs.u64Not(a038);
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.u64): rs.u64 => {
 					return rs.u64Not(a037);
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.u64 | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.u64 = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.u64Add(x, _12);
-				} else if (_67 === 1) {
-					two$mut_u64_u64_unit_ops_AddAssign_add_assign_u64_u64((a036: rs.Place<rs.u64>, a134: rs.u64): undefined => {
-						a036.v = rs.u64Add(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.u64>, a133: rs.u64): undefined => {
-						a035.v = rs.u64Add(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.u64 = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.u64Sub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_u64_u64_unit_ops_SubAssign_sub_assign_u64_u64((a034: rs.Place<rs.u64>, a132: rs.u64): undefined => {
-						a034.v = rs.u64Sub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.u64>, a131: rs.u64): undefined => {
-						a033.v = rs.u64Sub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.u64 = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.u64Mul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_u64_u64_unit_ops_MulAssign_mul_assign_u64_u64((a032: rs.Place<rs.u64>, a130: rs.u64): undefined => {
-						a032.v = rs.u64Mul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.u64>, a129: rs.u64): undefined => {
-						a031.v = rs.u64Mul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.u64 = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.u64Div(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_u64_u64_unit_ops_DivAssign_div_assign_u64_u64((a030: rs.Place<rs.u64>, a128: rs.u64): undefined => {
-						a030.v = rs.u64Div(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.u64>, a127: rs.u64): undefined => {
-						a029.v = rs.u64Div(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.u64 = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.u64Rem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_u64_u64_unit_ops_RemAssign_rem_assign_u64_u64((a028: rs.Place<rs.u64>, a126: rs.u64): undefined => {
-						a028.v = rs.u64Rem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.u64>, a125: rs.u64): undefined => {
-						a027.v = rs.u64Rem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.u64 = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = rs.u64And(x6, _12);
-				} else if (_102 === 1) {
-					two$mut_u64_u64_unit_ops_BitAndAssign_bitand_assign_u64_u64((a026: rs.Place<rs.u64>, a124: rs.u64): undefined => {
-						a026.v = rs.u64And(a026.v, a124);
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.u64>, a123: rs.u64): undefined => {
-						a025.v = rs.u64And(a025.v, a123);
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.u64 = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = rs.u64Or(x7, _12);
-				} else if (_109 === 1) {
-					two$mut_u64_u64_unit_ops_BitOrAssign_bitor_assign_u64_u64((a024: rs.Place<rs.u64>, a122: rs.u64): undefined => {
-						a024.v = rs.u64Or(a024.v, a122);
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.u64>, a121: rs.u64): undefined => {
-						a023.v = rs.u64Or(a023.v, a121);
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.u64 = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = rs.u64Xor(x8, _12);
-				} else if (_116 === 1) {
-					two$mut_u64_u64_unit_ops_BitXorAssign_bitxor_assign_u64_u64((a022: rs.Place<rs.u64>, a120: rs.u64): undefined => {
-						a022.v = rs.u64Xor(a022.v, a120);
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.u64>, a119: rs.u64): undefined => {
-						a021.v = rs.u64Xor(a021.v, a119);
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.u64 = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.u64Shl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_u64_u32_unit_ops_ShlAssign_shl_assign_u64_u32((a020: rs.Place<rs.u64>, a118: rs.u32): undefined => {
-						a020.v = rs.u64Shl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.u64>, a117: rs.u32): undefined => {
-						a019.v = rs.u64Shl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.u64 = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.u64Shr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_u64_i64_unit_ops_ShrAssign_shr_assign_u64_i64((a018: rs.Place<rs.u64>, a116: rs.i64): undefined => {
-						a018.v = rs.u64Shr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.u64>, a115: rs.i64): undefined => {
-						a017.v = rs.u64Shr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.u64Add(_10, b);
-				} else if (_141 === 1) {
-					v = two$u64_ref_u64_u64_ops_Add_add_u64_ref_u64((a016: rs.u64, a114: rs.u64): rs.u64 => {
-						return rs.u64Add(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.u64, a113: rs.u64): rs.u64 => {
-						return rs.u64Add(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.u64Sub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_u64_u64_u64_ops_Sub_sub_ref_u64_u64((a014: rs.u64, a112: rs.u64): rs.u64 => {
-						return rs.u64Sub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.u64, a111: rs.u64): rs.u64 => {
-						return rs.u64Sub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.u64Mul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_u64_ref_u64_u64_ops_Mul_mul_ref_u64_ref_u64((a012: rs.u64, a110: rs.u64): rs.u64 => {
-						return rs.u64Mul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.u64, a19: rs.u64): rs.u64 => {
-						return rs.u64Mul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.u64Shl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_u64_ref_u8_u64_ops_Shl_shl_ref_u64_ref_u8((a010: rs.u64, a18: rs.u8): rs.u64 => {
-						return rs.u64Shl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.u64, a17: rs.u8): rs.u64 => {
-						return rs.u64Shl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = rs.u64Not(a);
-				} else if (_170 === 1) {
-					v = one$ref_u64_u64_ops_Not_not_ref_u64((a08: rs.u64): rs.u64 => {
-						return rs.u64Not(a08);
-					}, a);
-				} else {
-					v = ((a07: rs.u64): rs.u64 => {
-						return rs.u64Not(a07);
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.u64 = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.u64Add(x11, b);
-				} else if (_177 === 1) {
-					two$mut_u64_ref_u64_unit_ops_AddAssign_add_assign_u64_ref_u64((a06: rs.Place<rs.u64>, a16: rs.u64): undefined => {
-						a06.v = rs.u64Add(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.u64>, a15: rs.u64): undefined => {
-						a05.v = rs.u64Add(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.u64 = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.u64Div(x12, b);
-				} else if (_187 === 1) {
-					two$mut_u64_ref_u64_unit_ops_DivAssign_div_assign_u64_ref_u64((a04: rs.Place<rs.u64>, a14: rs.u64): undefined => {
-						a04.v = rs.u64Div(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.u64>, a13: rs.u64): undefined => {
-						a03.v = rs.u64Div(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.u64 = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.u64Add(x, b);
+			} else if (_91 === 1) {
+				two$mut_u64_u64_unit_ops_AddAssign_add_assign_u64_u64((a036: rs.Place<rs.u64>, a134: rs.u64): undefined => {
+					a036.v = rs.u64Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.u64 = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.u64Shr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_u64_ref_u16_unit_ops_ShrAssign_shr_assign_u64_ref_u16((a02: rs.Place<rs.u64>, a12: rs.u16): undefined => {
-						a02.v = rs.u64Shr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.u64>, a1: rs.u16): undefined => {
-						a0.v = rs.u64Shr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.u64>, a133: rs.u64): undefined => {
+					a035.v = rs.u64Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.u64 = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.u64Sub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_u64_u64_unit_ops_SubAssign_sub_assign_u64_u64((a034: rs.Place<rs.u64>, a132: rs.u64): undefined => {
+					a034.v = rs.u64Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.u64>, a131: rs.u64): undefined => {
+					a033.v = rs.u64Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.u64 = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.u64Mul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_u64_u64_unit_ops_MulAssign_mul_assign_u64_u64((a032: rs.Place<rs.u64>, a130: rs.u64): undefined => {
+					a032.v = rs.u64Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.u64>, a129: rs.u64): undefined => {
+					a031.v = rs.u64Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.u64 = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.u64Div(x4, b);
+			} else if (_115 === 1) {
+				two$mut_u64_u64_unit_ops_DivAssign_div_assign_u64_u64((a030: rs.Place<rs.u64>, a128: rs.u64): undefined => {
+					a030.v = rs.u64Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.u64>, a127: rs.u64): undefined => {
+					a029.v = rs.u64Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.u64 = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.u64Rem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_u64_u64_unit_ops_RemAssign_rem_assign_u64_u64((a028: rs.Place<rs.u64>, a126: rs.u64): undefined => {
+					a028.v = rs.u64Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.u64>, a125: rs.u64): undefined => {
+					a027.v = rs.u64Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.u64 = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = rs.u64And(x6, b);
+			} else if (_131 === 1) {
+				two$mut_u64_u64_unit_ops_BitAndAssign_bitand_assign_u64_u64((a026: rs.Place<rs.u64>, a124: rs.u64): undefined => {
+					a026.v = rs.u64And(a026.v, a124);
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.u64>, a123: rs.u64): undefined => {
+					a025.v = rs.u64And(a025.v, a123);
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.u64 = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = rs.u64Or(x7, b);
+			} else if (_139 === 1) {
+				two$mut_u64_u64_unit_ops_BitOrAssign_bitor_assign_u64_u64((a024: rs.Place<rs.u64>, a122: rs.u64): undefined => {
+					a024.v = rs.u64Or(a024.v, a122);
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.u64>, a121: rs.u64): undefined => {
+					a023.v = rs.u64Or(a023.v, a121);
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.u64 = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = rs.u64Xor(x8, b);
+			} else if (_147 === 1) {
+				two$mut_u64_u64_unit_ops_BitXorAssign_bitxor_assign_u64_u64((a022: rs.Place<rs.u64>, a120: rs.u64): undefined => {
+					a022.v = rs.u64Xor(a022.v, a120);
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.u64>, a119: rs.u64): undefined => {
+					a021.v = rs.u64Xor(a021.v, a119);
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.u64 = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.u64Shl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_u64_u32_unit_ops_ShlAssign_shl_assign_u64_u32((a020: rs.Place<rs.u64>, a118: rs.u32): undefined => {
+					a020.v = rs.u64Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.u64>, a117: rs.u32): undefined => {
+					a019.v = rs.u64Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.u64 = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.u64Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_u64_i64_unit_ops_ShrAssign_shr_assign_u64_i64((a018: rs.Place<rs.u64>, a116: rs.i64): undefined => {
+					a018.v = rs.u64Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.u64>, a115: rs.i64): undefined => {
+					a017.v = rs.u64Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.u64Add(a, b);
+			} else if (_175 === 1) {
+				v = two$u64_ref_u64_u64_ops_Add_add_u64_ref_u64((a016: rs.u64, a114: rs.u64): rs.u64 => {
+					return rs.u64Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.u64, a113: rs.u64): rs.u64 => {
+					return rs.u64Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.u64Sub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_u64_u64_u64_ops_Sub_sub_ref_u64_u64((a014: rs.u64, a112: rs.u64): rs.u64 => {
+					return rs.u64Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.u64, a111: rs.u64): rs.u64 => {
+					return rs.u64Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.u64Mul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_u64_ref_u64_u64_ops_Mul_mul_ref_u64_ref_u64((a012: rs.u64, a110: rs.u64): rs.u64 => {
+					return rs.u64Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.u64, a19: rs.u64): rs.u64 => {
+					return rs.u64Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.u64Shl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_u64_ref_u8_u64_ops_Shl_shl_ref_u64_ref_u8((a010: rs.u64, a18: rs.u8): rs.u64 => {
+					return rs.u64Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.u64, a17: rs.u8): rs.u64 => {
+					return rs.u64Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = rs.u64Not(a);
+			} else if (_208 === 1) {
+				v = one$ref_u64_u64_ops_Not_not_ref_u64((a08: rs.u64): rs.u64 => {
+					return rs.u64Not(a08);
+				}, a);
+			} else {
+				v = ((a07: rs.u64): rs.u64 => {
+					return rs.u64Not(a07);
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.u64 = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.u64Add(x11, b);
+			} else if (_216 === 1) {
+				two$mut_u64_ref_u64_unit_ops_AddAssign_add_assign_u64_ref_u64((a06: rs.Place<rs.u64>, a16: rs.u64): undefined => {
+					a06.v = rs.u64Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.u64>, a15: rs.u64): undefined => {
+					a05.v = rs.u64Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.u64 = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.u64Div(x12, b);
+			} else if (_227 === 1) {
+				two$mut_u64_ref_u64_unit_ops_DivAssign_div_assign_u64_ref_u64((a04: rs.Place<rs.u64>, a14: rs.u64): undefined => {
+					a04.v = rs.u64Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.u64>, a13: rs.u64): undefined => {
+					a03.v = rs.u64Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.u64 = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.u64Shr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_u64_ref_u16_unit_ops_ShrAssign_shr_assign_u64_ref_u16((a02: rs.Place<rs.u64>, a12: rs.u16): undefined => {
+					a02.v = rs.u64Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.u64>, a1: rs.u16): undefined => {
+					a0.v = rs.u64Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -4475,28 +4475,27 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u128FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.u128 = take(([1] as [rs.usize])[0]);
-	const _12: rs.u128 = take(([17] as [rs.usize])[0]);
-	const a: rs.u128 = _10;
-	const b: rs.u128 = _12;
+	const _10: [rs.u128, rs.u128] = [take(1), take(1 + 16)];
+	const a: rs.u128 = _10[0];
+	const b: rs.u128 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 33)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 16), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v2: rs.u128): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v3: rs.u128): undefined => {
 			const dst = out2;
-			const word = v2;
+			const word = v3;
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -4521,443 +4520,444 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.u128Add(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.u128Add(a, b);
+			} else if (_32 === 1) {
 				v = two$u128_u128_u128_ops_Add_add_u128_u128((a062: rs.u128, a158: rs.u128): rs.u128 => {
 					return rs.u128Add(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.u128, a157: rs.u128): rs.u128 => {
 					return rs.u128Add(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.u128Sub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.u128Sub(a, b);
+			} else if (_35 === 1) {
 				v = two$u128_u128_u128_ops_Sub_sub_u128_u128((a060: rs.u128, a156: rs.u128): rs.u128 => {
 					return rs.u128Sub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.u128, a155: rs.u128): rs.u128 => {
 					return rs.u128Sub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.u128Mul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.u128Mul(a, b);
+			} else if (_38 === 1) {
 				v = two$u128_u128_u128_ops_Mul_mul_u128_u128((a058: rs.u128, a154: rs.u128): rs.u128 => {
 					return rs.u128Mul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.u128, a153: rs.u128): rs.u128 => {
 					return rs.u128Mul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.u128Div(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.u128Div(a, b);
+			} else if (_41 === 1) {
 				v = two$u128_u128_u128_ops_Div_div_u128_u128((a056: rs.u128, a152: rs.u128): rs.u128 => {
 					return rs.u128Div(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.u128, a151: rs.u128): rs.u128 => {
 					return rs.u128Div(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.u128Rem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.u128Rem(a, b);
+			} else if (_44 === 1) {
 				v = two$u128_u128_u128_ops_Rem_rem_u128_u128((a054: rs.u128, a150: rs.u128): rs.u128 => {
 					return rs.u128Rem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.u128, a149: rs.u128): rs.u128 => {
 					return rs.u128Rem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = rs.u128And(_10, _12);
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = rs.u128And(a, b);
+			} else if (_47 === 1) {
 				v = two$u128_u128_u128_ops_BitAnd_bitand_u128_u128((a052: rs.u128, a148: rs.u128): rs.u128 => {
 					return rs.u128And(a052, a148);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.u128, a147: rs.u128): rs.u128 => {
 					return rs.u128And(a051, a147);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = rs.u128Or(_10, _12);
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = rs.u128Or(a, b);
+			} else if (_50 === 1) {
 				v = two$u128_u128_u128_ops_BitOr_bitor_u128_u128((a050: rs.u128, a146: rs.u128): rs.u128 => {
 					return rs.u128Or(a050, a146);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.u128, a145: rs.u128): rs.u128 => {
 					return rs.u128Or(a049, a145);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = rs.u128Xor(_10, _12);
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = rs.u128Xor(a, b);
+			} else if (_53 === 1) {
 				v = two$u128_u128_u128_ops_BitXor_bitxor_u128_u128((a048: rs.u128, a144: rs.u128): rs.u128 => {
 					return rs.u128Xor(a048, a144);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.u128, a143: rs.u128): rs.u128 => {
 					return rs.u128Xor(a047, a143);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.u128Shl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.u128Shl(a, n);
+			} else if (_56 === 1) {
 				v = two$u128_u32_u128_ops_Shl_shl_u128_u32((a046: rs.u128, a142: rs.u32): rs.u128 => {
 					return rs.u128Shl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.u128, a141: rs.u32): rs.u128 => {
 					return rs.u128Shl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.u128Shr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.u128Shr(a, n);
+			} else if (_59 === 1) {
 				v = two$u128_u32_u128_ops_Shr_shr_u128_u32((a044: rs.u128, a140: rs.u32): rs.u128 => {
 					return rs.u128Shr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.u128, a139: rs.u32): rs.u128 => {
 					return rs.u128Shr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.u128Shl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.u128Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$u128_i16_u128_ops_Shl_shl_u128_i16((a042: rs.u128, a138: rs.i16): rs.u128 => {
 					return rs.u128Shl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.u128, a137: rs.i16): rs.u128 => {
 					return rs.u128Shl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.u128Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.u128Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$u128_u128_u128_ops_Shr_shr_u128_u128((a040: rs.u128, a136: rs.u128): rs.u128 => {
 					return rs.u128Shr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.u128, a135: rs.u128): rs.u128 => {
 					return rs.u128Shr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = rs.u128Not(_10);
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = rs.u128Not(a);
+			} else if (_83 === 1) {
 				v = one$u128_u128_ops_Not_not_u128((a038: rs.u128): rs.u128 => {
 					return rs.u128Not(a038);
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.u128): rs.u128 => {
 					return rs.u128Not(a037);
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.u128 | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.u128 = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.u128Add(x, _12);
-				} else if (_67 === 1) {
-					two$mut_u128_u128_unit_ops_AddAssign_add_assign_u128_u128((a036: rs.Place<rs.u128>, a134: rs.u128): undefined => {
-						a036.v = rs.u128Add(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.u128>, a133: rs.u128): undefined => {
-						a035.v = rs.u128Add(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.u128 = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.u128Sub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_u128_u128_unit_ops_SubAssign_sub_assign_u128_u128((a034: rs.Place<rs.u128>, a132: rs.u128): undefined => {
-						a034.v = rs.u128Sub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.u128>, a131: rs.u128): undefined => {
-						a033.v = rs.u128Sub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.u128 = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.u128Mul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_u128_u128_unit_ops_MulAssign_mul_assign_u128_u128((a032: rs.Place<rs.u128>, a130: rs.u128): undefined => {
-						a032.v = rs.u128Mul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.u128>, a129: rs.u128): undefined => {
-						a031.v = rs.u128Mul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.u128 = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.u128Div(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_u128_u128_unit_ops_DivAssign_div_assign_u128_u128((a030: rs.Place<rs.u128>, a128: rs.u128): undefined => {
-						a030.v = rs.u128Div(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.u128>, a127: rs.u128): undefined => {
-						a029.v = rs.u128Div(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.u128 = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.u128Rem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_u128_u128_unit_ops_RemAssign_rem_assign_u128_u128((a028: rs.Place<rs.u128>, a126: rs.u128): undefined => {
-						a028.v = rs.u128Rem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.u128>, a125: rs.u128): undefined => {
-						a027.v = rs.u128Rem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.u128 = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = rs.u128And(x6, _12);
-				} else if (_102 === 1) {
-					two$mut_u128_u128_unit_ops_BitAndAssign_bitand_assign_u128_u128((a026: rs.Place<rs.u128>, a124: rs.u128): undefined => {
-						a026.v = rs.u128And(a026.v, a124);
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.u128>, a123: rs.u128): undefined => {
-						a025.v = rs.u128And(a025.v, a123);
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.u128 = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = rs.u128Or(x7, _12);
-				} else if (_109 === 1) {
-					two$mut_u128_u128_unit_ops_BitOrAssign_bitor_assign_u128_u128((a024: rs.Place<rs.u128>, a122: rs.u128): undefined => {
-						a024.v = rs.u128Or(a024.v, a122);
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.u128>, a121: rs.u128): undefined => {
-						a023.v = rs.u128Or(a023.v, a121);
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.u128 = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = rs.u128Xor(x8, _12);
-				} else if (_116 === 1) {
-					two$mut_u128_u128_unit_ops_BitXorAssign_bitxor_assign_u128_u128((a022: rs.Place<rs.u128>, a120: rs.u128): undefined => {
-						a022.v = rs.u128Xor(a022.v, a120);
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.u128>, a119: rs.u128): undefined => {
-						a021.v = rs.u128Xor(a021.v, a119);
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.u128 = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.u128Shl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_u128_u32_unit_ops_ShlAssign_shl_assign_u128_u32((a020: rs.Place<rs.u128>, a118: rs.u32): undefined => {
-						a020.v = rs.u128Shl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.u128>, a117: rs.u32): undefined => {
-						a019.v = rs.u128Shl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.u128 = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.u128Shr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_u128_i64_unit_ops_ShrAssign_shr_assign_u128_i64((a018: rs.Place<rs.u128>, a116: rs.i64): undefined => {
-						a018.v = rs.u128Shr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.u128>, a115: rs.i64): undefined => {
-						a017.v = rs.u128Shr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.u128Add(_10, b);
-				} else if (_141 === 1) {
-					v = two$u128_ref_u128_u128_ops_Add_add_u128_ref_u128((a016: rs.u128, a114: rs.u128): rs.u128 => {
-						return rs.u128Add(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.u128, a113: rs.u128): rs.u128 => {
-						return rs.u128Add(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.u128Sub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_u128_u128_u128_ops_Sub_sub_ref_u128_u128((a014: rs.u128, a112: rs.u128): rs.u128 => {
-						return rs.u128Sub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.u128, a111: rs.u128): rs.u128 => {
-						return rs.u128Sub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.u128Mul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_u128_ref_u128_u128_ops_Mul_mul_ref_u128_ref_u128((a012: rs.u128, a110: rs.u128): rs.u128 => {
-						return rs.u128Mul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.u128, a19: rs.u128): rs.u128 => {
-						return rs.u128Mul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.u128Shl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_u128_ref_u8_u128_ops_Shl_shl_ref_u128_ref_u8((a010: rs.u128, a18: rs.u8): rs.u128 => {
-						return rs.u128Shl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.u128, a17: rs.u8): rs.u128 => {
-						return rs.u128Shl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = rs.u128Not(a);
-				} else if (_170 === 1) {
-					v = one$ref_u128_u128_ops_Not_not_ref_u128((a08: rs.u128): rs.u128 => {
-						return rs.u128Not(a08);
-					}, a);
-				} else {
-					v = ((a07: rs.u128): rs.u128 => {
-						return rs.u128Not(a07);
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.u128 = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.u128Add(x11, b);
-				} else if (_177 === 1) {
-					two$mut_u128_ref_u128_unit_ops_AddAssign_add_assign_u128_ref_u128((a06: rs.Place<rs.u128>, a16: rs.u128): undefined => {
-						a06.v = rs.u128Add(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.u128>, a15: rs.u128): undefined => {
-						a05.v = rs.u128Add(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.u128 = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.u128Div(x12, b);
-				} else if (_187 === 1) {
-					two$mut_u128_ref_u128_unit_ops_DivAssign_div_assign_u128_ref_u128((a04: rs.Place<rs.u128>, a14: rs.u128): undefined => {
-						a04.v = rs.u128Div(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.u128>, a13: rs.u128): undefined => {
-						a03.v = rs.u128Div(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.u128 = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.u128Add(x, b);
+			} else if (_91 === 1) {
+				two$mut_u128_u128_unit_ops_AddAssign_add_assign_u128_u128((a036: rs.Place<rs.u128>, a134: rs.u128): undefined => {
+					a036.v = rs.u128Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.u128 = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.u128Shr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_u128_ref_u16_unit_ops_ShrAssign_shr_assign_u128_ref_u16((a02: rs.Place<rs.u128>, a12: rs.u16): undefined => {
-						a02.v = rs.u128Shr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.u128>, a1: rs.u16): undefined => {
-						a0.v = rs.u128Shr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.u128>, a133: rs.u128): undefined => {
+					a035.v = rs.u128Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.u128 = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.u128Sub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_u128_u128_unit_ops_SubAssign_sub_assign_u128_u128((a034: rs.Place<rs.u128>, a132: rs.u128): undefined => {
+					a034.v = rs.u128Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.u128>, a131: rs.u128): undefined => {
+					a033.v = rs.u128Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.u128 = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.u128Mul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_u128_u128_unit_ops_MulAssign_mul_assign_u128_u128((a032: rs.Place<rs.u128>, a130: rs.u128): undefined => {
+					a032.v = rs.u128Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.u128>, a129: rs.u128): undefined => {
+					a031.v = rs.u128Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.u128 = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.u128Div(x4, b);
+			} else if (_115 === 1) {
+				two$mut_u128_u128_unit_ops_DivAssign_div_assign_u128_u128((a030: rs.Place<rs.u128>, a128: rs.u128): undefined => {
+					a030.v = rs.u128Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.u128>, a127: rs.u128): undefined => {
+					a029.v = rs.u128Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.u128 = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.u128Rem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_u128_u128_unit_ops_RemAssign_rem_assign_u128_u128((a028: rs.Place<rs.u128>, a126: rs.u128): undefined => {
+					a028.v = rs.u128Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.u128>, a125: rs.u128): undefined => {
+					a027.v = rs.u128Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.u128 = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = rs.u128And(x6, b);
+			} else if (_131 === 1) {
+				two$mut_u128_u128_unit_ops_BitAndAssign_bitand_assign_u128_u128((a026: rs.Place<rs.u128>, a124: rs.u128): undefined => {
+					a026.v = rs.u128And(a026.v, a124);
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.u128>, a123: rs.u128): undefined => {
+					a025.v = rs.u128And(a025.v, a123);
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.u128 = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = rs.u128Or(x7, b);
+			} else if (_139 === 1) {
+				two$mut_u128_u128_unit_ops_BitOrAssign_bitor_assign_u128_u128((a024: rs.Place<rs.u128>, a122: rs.u128): undefined => {
+					a024.v = rs.u128Or(a024.v, a122);
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.u128>, a121: rs.u128): undefined => {
+					a023.v = rs.u128Or(a023.v, a121);
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.u128 = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = rs.u128Xor(x8, b);
+			} else if (_147 === 1) {
+				two$mut_u128_u128_unit_ops_BitXorAssign_bitxor_assign_u128_u128((a022: rs.Place<rs.u128>, a120: rs.u128): undefined => {
+					a022.v = rs.u128Xor(a022.v, a120);
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.u128>, a119: rs.u128): undefined => {
+					a021.v = rs.u128Xor(a021.v, a119);
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.u128 = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.u128Shl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_u128_u32_unit_ops_ShlAssign_shl_assign_u128_u32((a020: rs.Place<rs.u128>, a118: rs.u32): undefined => {
+					a020.v = rs.u128Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.u128>, a117: rs.u32): undefined => {
+					a019.v = rs.u128Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.u128 = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.u128Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_u128_i64_unit_ops_ShrAssign_shr_assign_u128_i64((a018: rs.Place<rs.u128>, a116: rs.i64): undefined => {
+					a018.v = rs.u128Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.u128>, a115: rs.i64): undefined => {
+					a017.v = rs.u128Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.u128Add(a, b);
+			} else if (_175 === 1) {
+				v = two$u128_ref_u128_u128_ops_Add_add_u128_ref_u128((a016: rs.u128, a114: rs.u128): rs.u128 => {
+					return rs.u128Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.u128, a113: rs.u128): rs.u128 => {
+					return rs.u128Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.u128Sub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_u128_u128_u128_ops_Sub_sub_ref_u128_u128((a014: rs.u128, a112: rs.u128): rs.u128 => {
+					return rs.u128Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.u128, a111: rs.u128): rs.u128 => {
+					return rs.u128Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.u128Mul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_u128_ref_u128_u128_ops_Mul_mul_ref_u128_ref_u128((a012: rs.u128, a110: rs.u128): rs.u128 => {
+					return rs.u128Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.u128, a19: rs.u128): rs.u128 => {
+					return rs.u128Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.u128Shl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_u128_ref_u8_u128_ops_Shl_shl_ref_u128_ref_u8((a010: rs.u128, a18: rs.u8): rs.u128 => {
+					return rs.u128Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.u128, a17: rs.u8): rs.u128 => {
+					return rs.u128Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = rs.u128Not(a);
+			} else if (_208 === 1) {
+				v = one$ref_u128_u128_ops_Not_not_ref_u128((a08: rs.u128): rs.u128 => {
+					return rs.u128Not(a08);
+				}, a);
+			} else {
+				v = ((a07: rs.u128): rs.u128 => {
+					return rs.u128Not(a07);
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.u128 = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.u128Add(x11, b);
+			} else if (_216 === 1) {
+				two$mut_u128_ref_u128_unit_ops_AddAssign_add_assign_u128_ref_u128((a06: rs.Place<rs.u128>, a16: rs.u128): undefined => {
+					a06.v = rs.u128Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.u128>, a15: rs.u128): undefined => {
+					a05.v = rs.u128Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.u128 = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.u128Div(x12, b);
+			} else if (_227 === 1) {
+				two$mut_u128_ref_u128_unit_ops_DivAssign_div_assign_u128_ref_u128((a04: rs.Place<rs.u128>, a14: rs.u128): undefined => {
+					a04.v = rs.u128Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.u128>, a13: rs.u128): undefined => {
+					a03.v = rs.u128Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.u128 = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.u128Shr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_u128_ref_u16_unit_ops_ShrAssign_shr_assign_u128_ref_u16((a02: rs.Place<rs.u128>, a12: rs.u16): undefined => {
+					a02.v = rs.u128Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.u128>, a1: rs.u16): undefined => {
+					a0.v = rs.u128Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -4971,28 +4971,27 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_103 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.usizeFromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.usize = take(([1] as [rs.usize])[0]);
-	const _12: rs.usize = take(([5] as [rs.usize])[0]);
-	const a: rs.usize = _10;
-	const b: rs.usize = _12;
+	const _10: [rs.usize, rs.usize] = [take(1), take(1 + 4)];
+	const a: rs.usize = _10[0];
+	const b: rs.usize = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 9)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 4), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
 	b0: {
-		const _23: rs.u8 = rs.u8Rem(kind, 32);
-		const _21: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v2: rs.usize): undefined => {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v3: rs.usize): undefined => {
 			const dst = out2;
-			const word = v2 as rs.u128;
+			const word = v3 as rs.u128;
 			const word2 = rs.intWord(word, 0);
 			const word3 = rs.intWord(word, 32);
 			const word4 = rs.intWord(word, 64);
@@ -5017,443 +5016,444 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 15] = word2 & 255;
 			dst.length = dst.length + 16;
 		};
-		if (_23 === 0) {
-			const _24: rs.u8 = rs.u8Rem(form, 3);
-			if (_24 === 0) {
-				v = rs.usizeAdd(_10, _12);
-			} else if (_24 === 1) {
+		if (_30 === 0) {
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.usizeAdd(a, b);
+			} else if (_32 === 1) {
 				v = two$usize_usize_usize_ops_Add_add_usize_usize((a062: rs.usize, a158: rs.usize): rs.usize => {
 					return rs.usizeAdd(a062, a158);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a061: rs.usize, a157: rs.usize): rs.usize => {
 					return rs.usizeAdd(a061, a157);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 1) {
-			const _26: rs.u8 = rs.u8Rem(form, 3);
-			if (_26 === 0) {
-				v = rs.usizeSub(_10, _12);
-			} else if (_26 === 1) {
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.usizeSub(a, b);
+			} else if (_35 === 1) {
 				v = two$usize_usize_usize_ops_Sub_sub_usize_usize((a060: rs.usize, a156: rs.usize): rs.usize => {
 					return rs.usizeSub(a060, a156);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a059: rs.usize, a155: rs.usize): rs.usize => {
 					return rs.usizeSub(a059, a155);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 2) {
-			const _28: rs.u8 = rs.u8Rem(form, 3);
-			if (_28 === 0) {
-				v = rs.usizeMul(_10, _12);
-			} else if (_28 === 1) {
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.usizeMul(a, b);
+			} else if (_38 === 1) {
 				v = two$usize_usize_usize_ops_Mul_mul_usize_usize((a058: rs.usize, a154: rs.usize): rs.usize => {
 					return rs.usizeMul(a058, a154);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a057: rs.usize, a153: rs.usize): rs.usize => {
 					return rs.usizeMul(a057, a153);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 3) {
-			const _30: rs.u8 = rs.u8Rem(form, 3);
-			if (_30 === 0) {
-				v = rs.usizeDiv(_10, _12);
-			} else if (_30 === 1) {
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.usizeDiv(a, b);
+			} else if (_41 === 1) {
 				v = two$usize_usize_usize_ops_Div_div_usize_usize((a056: rs.usize, a152: rs.usize): rs.usize => {
 					return rs.usizeDiv(a056, a152);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a055: rs.usize, a151: rs.usize): rs.usize => {
 					return rs.usizeDiv(a055, a151);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 4) {
-			const _32: rs.u8 = rs.u8Rem(form, 3);
-			if (_32 === 0) {
-				v = rs.usizeRem(_10, _12);
-			} else if (_32 === 1) {
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.usizeRem(a, b);
+			} else if (_44 === 1) {
 				v = two$usize_usize_usize_ops_Rem_rem_usize_usize((a054: rs.usize, a150: rs.usize): rs.usize => {
 					return rs.usizeRem(a054, a150);
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a053: rs.usize, a149: rs.usize): rs.usize => {
 					return rs.usizeRem(a053, a149);
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 5) {
-			const _34: rs.u8 = rs.u8Rem(form, 3);
-			if (_34 === 0) {
-				v = (_10 & _12) >>> 0;
-			} else if (_34 === 1) {
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = (a & b) >>> 0;
+			} else if (_47 === 1) {
 				v = two$usize_usize_usize_ops_BitAnd_bitand_usize_usize((a052: rs.usize, a148: rs.usize): rs.usize => {
 					return (a052 & a148) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a051: rs.usize, a147: rs.usize): rs.usize => {
 					return (a051 & a147) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 6) {
-			const _36: rs.u8 = rs.u8Rem(form, 3);
-			if (_36 === 0) {
-				v = (_10 | _12) >>> 0;
-			} else if (_36 === 1) {
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = (a | b) >>> 0;
+			} else if (_50 === 1) {
 				v = two$usize_usize_usize_ops_BitOr_bitor_usize_usize((a050: rs.usize, a146: rs.usize): rs.usize => {
 					return (a050 | a146) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a049: rs.usize, a145: rs.usize): rs.usize => {
 					return (a049 | a145) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 7) {
-			const _38: rs.u8 = rs.u8Rem(form, 3);
-			if (_38 === 0) {
-				v = (_10 ^ _12) >>> 0;
-			} else if (_38 === 1) {
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = (a ^ b) >>> 0;
+			} else if (_53 === 1) {
 				v = two$usize_usize_usize_ops_BitXor_bitxor_usize_usize((a048: rs.usize, a144: rs.usize): rs.usize => {
 					return (a048 ^ a144) >>> 0;
-				}, _10, _12);
+				}, a, b);
 			} else {
 				v = ((a047: rs.usize, a143: rs.usize): rs.usize => {
 					return (a047 ^ a143) >>> 0;
-				})(_10, _12);
+				})(a, b);
 			}
-		} else if (_23 === 8) {
-			const _40: rs.u8 = rs.u8Rem(form, 3);
-			if (_40 === 0) {
-				v = rs.usizeShl(_10, n);
-			} else if (_40 === 1) {
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.usizeShl(a, n);
+			} else if (_56 === 1) {
 				v = two$usize_u32_usize_ops_Shl_shl_usize_u32((a046: rs.usize, a142: rs.u32): rs.usize => {
 					return rs.usizeShl(a046, a142);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a045: rs.usize, a141: rs.u32): rs.usize => {
 					return rs.usizeShl(a045, a141);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 9) {
-			const _42: rs.u8 = rs.u8Rem(form, 3);
-			if (_42 === 0) {
-				v = rs.usizeShr(_10, n);
-			} else if (_42 === 1) {
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.usizeShr(a, n);
+			} else if (_59 === 1) {
 				v = two$usize_u32_usize_ops_Shr_shr_usize_u32((a044: rs.usize, a140: rs.u32): rs.usize => {
 					return rs.usizeShr(a044, a140);
-				}, _10, n);
+				}, a, n);
 			} else {
 				v = ((a043: rs.usize, a139: rs.u32): rs.usize => {
 					return rs.usizeShr(a043, a139);
-				})(_10, n);
+				})(a, n);
 			}
-		} else if (_23 === 10) {
-			const _44: rs.u8 = rs.u8Rem(form, 3);
-			if (_44 === 0) {
-				v = rs.usizeShl(_10, (n << 16) >> 16);
-			} else if (_44 === 1) {
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.usizeShl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
 				v = two$usize_i16_usize_ops_Shl_shl_usize_i16((a042: rs.usize, a138: rs.i16): rs.usize => {
 					return rs.usizeShl(a042, a138);
-				}, _10, (n << 16) >> 16);
+				}, a, (n << 16) >> 16);
 			} else {
 				v = ((a041: rs.usize, a137: rs.i16): rs.usize => {
 					return rs.usizeShl(a041, a137);
-				})(_10, (n << 16) >> 16);
+				})(a, (n << 16) >> 16);
 			}
-		} else if (_23 === 11) {
-			const _49: rs.u8 = rs.u8Rem(form, 3);
-			if (_49 === 0) {
-				v = rs.usizeShr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-			} else if (_49 === 1) {
-				const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.usizeShr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
 				v = two$usize_u128_usize_ops_Shr_shr_usize_u128((a040: rs.usize, a136: rs.u128): rs.usize => {
 					return rs.usizeShr(a040, a136);
-				}, _10, _54);
+				}, a, _74);
 			} else {
 				v = ((a039: rs.usize, a135: rs.u128): rs.usize => {
 					return rs.usizeShr(a039, a135);
-				})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
 			}
-		} else if (_23 === 12) {
-			const _63: rs.u8 = rs.u8Rem(form, 3);
-			if (_63 === 0) {
-				v = ~_10 >>> 0;
-			} else if (_63 === 1) {
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a >>> 0;
+			} else if (_83 === 1) {
 				v = one$usize_usize_ops_Not_not_usize((a038: rs.usize): rs.usize => {
 					return ~a038 >>> 0;
-				}, _10);
+				}, a);
 			} else {
 				v = ((a037: rs.usize): rs.usize => {
 					return ~a037 >>> 0;
-				})(_10);
+				})(a);
 			}
-		} else {
-			if (_23 === 13) {
+		} else if (_30 === 13) {
+			const _86 = undefined as rs.usize | undefined;
+			if (_86 === undefined) {
 				break b0;
 			}
-			if (_23 === 14) {
-				let x: rs.usize = _10;
-				const _67: rs.u8 = rs.u8Rem(form, 3);
-				if (_67 === 0) {
-					x = rs.usizeAdd(x, _12);
-				} else if (_67 === 1) {
-					two$mut_usize_usize_unit_ops_AddAssign_add_assign_usize_usize((a036: rs.Place<rs.usize>, a134: rs.usize): undefined => {
-						a036.v = rs.usizeAdd(a036.v, a134);
-					}, rs.place(() => x, (value26) => x = value26), _12);
-				} else {
-					((a035: rs.Place<rs.usize>, a133: rs.usize): undefined => {
-						a035.v = rs.usizeAdd(a035.v, a133);
-					})(rs.place(() => x, (value25) => x = value25), _12);
-				}
-				v = x;
-			} else if (_23 === 15) {
-				let x2: rs.usize = _10;
-				const _74: rs.u8 = rs.u8Rem(form, 3);
-				if (_74 === 0) {
-					x2 = rs.usizeSub(x2, _12);
-				} else if (_74 === 1) {
-					two$mut_usize_usize_unit_ops_SubAssign_sub_assign_usize_usize((a034: rs.Place<rs.usize>, a132: rs.usize): undefined => {
-						a034.v = rs.usizeSub(a034.v, a132);
-					}, rs.place(() => x2, (value24) => x2 = value24), _12);
-				} else {
-					((a033: rs.Place<rs.usize>, a131: rs.usize): undefined => {
-						a033.v = rs.usizeSub(a033.v, a131);
-					})(rs.place(() => x2, (value23) => x2 = value23), _12);
-				}
-				v = x2;
-			} else if (_23 === 16) {
-				let x3: rs.usize = _10;
-				const _81: rs.u8 = rs.u8Rem(form, 3);
-				if (_81 === 0) {
-					x3 = rs.usizeMul(x3, _12);
-				} else if (_81 === 1) {
-					two$mut_usize_usize_unit_ops_MulAssign_mul_assign_usize_usize((a032: rs.Place<rs.usize>, a130: rs.usize): undefined => {
-						a032.v = rs.usizeMul(a032.v, a130);
-					}, rs.place(() => x3, (value22) => x3 = value22), _12);
-				} else {
-					((a031: rs.Place<rs.usize>, a129: rs.usize): undefined => {
-						a031.v = rs.usizeMul(a031.v, a129);
-					})(rs.place(() => x3, (value21) => x3 = value21), _12);
-				}
-				v = x3;
-			} else if (_23 === 17) {
-				let x4: rs.usize = _10;
-				const _88: rs.u8 = rs.u8Rem(form, 3);
-				if (_88 === 0) {
-					x4 = rs.usizeDiv(x4, _12);
-				} else if (_88 === 1) {
-					two$mut_usize_usize_unit_ops_DivAssign_div_assign_usize_usize((a030: rs.Place<rs.usize>, a128: rs.usize): undefined => {
-						a030.v = rs.usizeDiv(a030.v, a128);
-					}, rs.place(() => x4, (value20) => x4 = value20), _12);
-				} else {
-					((a029: rs.Place<rs.usize>, a127: rs.usize): undefined => {
-						a029.v = rs.usizeDiv(a029.v, a127);
-					})(rs.place(() => x4, (value19) => x4 = value19), _12);
-				}
-				v = x4;
-			} else if (_23 === 18) {
-				let x5: rs.usize = _10;
-				const _95: rs.u8 = rs.u8Rem(form, 3);
-				if (_95 === 0) {
-					x5 = rs.usizeRem(x5, _12);
-				} else if (_95 === 1) {
-					two$mut_usize_usize_unit_ops_RemAssign_rem_assign_usize_usize((a028: rs.Place<rs.usize>, a126: rs.usize): undefined => {
-						a028.v = rs.usizeRem(a028.v, a126);
-					}, rs.place(() => x5, (value18) => x5 = value18), _12);
-				} else {
-					((a027: rs.Place<rs.usize>, a125: rs.usize): undefined => {
-						a027.v = rs.usizeRem(a027.v, a125);
-					})(rs.place(() => x5, (value17) => x5 = value17), _12);
-				}
-				v = x5;
-			} else if (_23 === 19) {
-				let x6: rs.usize = _10;
-				const _102: rs.u8 = rs.u8Rem(form, 3);
-				if (_102 === 0) {
-					x6 = (x6 & _12) >>> 0;
-				} else if (_102 === 1) {
-					two$mut_usize_usize_unit_ops_BitAndAssign_bitand_assign_usize_usize((a026: rs.Place<rs.usize>, a124: rs.usize): undefined => {
-						a026.v = (a026.v & a124) >>> 0;
-					}, rs.place(() => x6, (value16) => x6 = value16), _12);
-				} else {
-					((a025: rs.Place<rs.usize>, a123: rs.usize): undefined => {
-						a025.v = (a025.v & a123) >>> 0;
-					})(rs.place(() => x6, (value15) => x6 = value15), _12);
-				}
-				v = x6;
-			} else if (_23 === 20) {
-				let x7: rs.usize = _10;
-				const _109: rs.u8 = rs.u8Rem(form, 3);
-				if (_109 === 0) {
-					x7 = (x7 | _12) >>> 0;
-				} else if (_109 === 1) {
-					two$mut_usize_usize_unit_ops_BitOrAssign_bitor_assign_usize_usize((a024: rs.Place<rs.usize>, a122: rs.usize): undefined => {
-						a024.v = (a024.v | a122) >>> 0;
-					}, rs.place(() => x7, (value14) => x7 = value14), _12);
-				} else {
-					((a023: rs.Place<rs.usize>, a121: rs.usize): undefined => {
-						a023.v = (a023.v | a121) >>> 0;
-					})(rs.place(() => x7, (value13) => x7 = value13), _12);
-				}
-				v = x7;
-			} else if (_23 === 21) {
-				let x8: rs.usize = _10;
-				const _116: rs.u8 = rs.u8Rem(form, 3);
-				if (_116 === 0) {
-					x8 = (x8 ^ _12) >>> 0;
-				} else if (_116 === 1) {
-					two$mut_usize_usize_unit_ops_BitXorAssign_bitxor_assign_usize_usize((a022: rs.Place<rs.usize>, a120: rs.usize): undefined => {
-						a022.v = (a022.v ^ a120) >>> 0;
-					}, rs.place(() => x8, (value12) => x8 = value12), _12);
-				} else {
-					((a021: rs.Place<rs.usize>, a119: rs.usize): undefined => {
-						a021.v = (a021.v ^ a119) >>> 0;
-					})(rs.place(() => x8, (value11) => x8 = value11), _12);
-				}
-				v = x8;
-			} else if (_23 === 22) {
-				let x9: rs.usize = _10;
-				const _123: rs.u8 = rs.u8Rem(form, 3);
-				if (_123 === 0) {
-					x9 = rs.usizeShl(x9, n);
-				} else if (_123 === 1) {
-					two$mut_usize_u32_unit_ops_ShlAssign_shl_assign_usize_u32((a020: rs.Place<rs.usize>, a118: rs.u32): undefined => {
-						a020.v = rs.usizeShl(a020.v, a118);
-					}, rs.place(() => x9, (value10) => x9 = value10), n);
-				} else {
-					((a019: rs.Place<rs.usize>, a117: rs.u32): undefined => {
-						a019.v = rs.usizeShl(a019.v, a117);
-					})(rs.place(() => x9, (value9) => x9 = value9), n);
-				}
-				v = x9;
-			} else if (_23 === 23) {
-				let x10: rs.usize = _10;
-				const _130: rs.u8 = rs.u8Rem(form, 3);
-				if (_130 === 0) {
-					x10 = rs.usizeShr(x10, (n << 16) >> 16 as rs.i64);
-				} else if (_130 === 1) {
-					two$mut_usize_i64_unit_ops_ShrAssign_shr_assign_usize_i64((a018: rs.Place<rs.usize>, a116: rs.i64): undefined => {
-						a018.v = rs.usizeShr(a018.v, a116);
-					}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-				} else {
-					((a017: rs.Place<rs.usize>, a115: rs.i64): undefined => {
-						a017.v = rs.usizeShr(a017.v, a115);
-					})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-				}
-				v = x10;
-			} else if (_23 === 24) {
-				const _141: rs.u8 = rs.u8Rem(form, 3);
-				if (_141 === 0) {
-					v = rs.usizeAdd(_10, b);
-				} else if (_141 === 1) {
-					v = two$usize_ref_usize_usize_ops_Add_add_usize_ref_usize((a016: rs.usize, a114: rs.usize): rs.usize => {
-						return rs.usizeAdd(a016, a114);
-					}, _10, b);
-				} else {
-					v = ((a015: rs.usize, a113: rs.usize): rs.usize => {
-						return rs.usizeAdd(a015, a113);
-					})(_10, b);
-				}
-			} else if (_23 === 25) {
-				const _146: rs.u8 = rs.u8Rem(form, 3);
-				if (_146 === 0) {
-					v = rs.usizeSub(a, _12);
-				} else if (_146 === 1) {
-					v = two$ref_usize_usize_usize_ops_Sub_sub_ref_usize_usize((a014: rs.usize, a112: rs.usize): rs.usize => {
-						return rs.usizeSub(a014, a112);
-					}, a, _12);
-				} else {
-					v = ((a013: rs.usize, a111: rs.usize): rs.usize => {
-						return rs.usizeSub(a013, a111);
-					})(a, _12);
-				}
-			} else if (_23 === 26) {
-				const _151: rs.u8 = rs.u8Rem(form, 3);
-				if (_151 === 0) {
-					v = rs.usizeMul(a, b);
-				} else if (_151 === 1) {
-					v = two$ref_usize_ref_usize_usize_ops_Mul_mul_ref_usize_ref_usize((a012: rs.usize, a110: rs.usize): rs.usize => {
-						return rs.usizeMul(a012, a110);
-					}, a, b);
-				} else {
-					v = ((a011: rs.usize, a19: rs.usize): rs.usize => {
-						return rs.usizeMul(a011, a19);
-					})(a, b);
-				}
-			} else if (_23 === 27) {
-				const _159: rs.u8 = rs.u8Rem(form, 3);
-				if (_159 === 0) {
-					v = rs.usizeShl(a, n & 0xff);
-				} else if (_159 === 1) {
-					v = two$ref_usize_ref_u8_usize_ops_Shl_shl_ref_usize_ref_u8((a010: rs.usize, a18: rs.u8): rs.usize => {
-						return rs.usizeShl(a010, a18);
-					}, a, n & 0xff);
-				} else {
-					v = ((a09: rs.usize, a17: rs.u8): rs.usize => {
-						return rs.usizeShl(a09, a17);
-					})(a, n & 0xff);
-				}
-			} else if (_23 === 28) {
-				const _170: rs.u8 = rs.u8Rem(form, 3);
-				if (_170 === 0) {
-					v = ~a >>> 0;
-				} else if (_170 === 1) {
-					v = one$ref_usize_usize_ops_Not_not_ref_usize((a08: rs.usize): rs.usize => {
-						return ~a08 >>> 0;
-					}, a);
-				} else {
-					v = ((a07: rs.usize): rs.usize => {
-						return ~a07 >>> 0;
-					})(a);
-				}
-			} else if (_23 === 29) {
-				let x11: rs.usize = _10;
-				const _177: rs.u8 = rs.u8Rem(form, 3);
-				if (_177 === 0) {
-					x11 = rs.usizeAdd(x11, b);
-				} else if (_177 === 1) {
-					two$mut_usize_ref_usize_unit_ops_AddAssign_add_assign_usize_ref_usize((a06: rs.Place<rs.usize>, a16: rs.usize): undefined => {
-						a06.v = rs.usizeAdd(a06.v, a16);
-					}, rs.place(() => x11, (value6) => x11 = value6), b);
-				} else {
-					((a05: rs.Place<rs.usize>, a15: rs.usize): undefined => {
-						a05.v = rs.usizeAdd(a05.v, a15);
-					})(rs.place(() => x11, (value5) => x11 = value5), b);
-				}
-				v = x11;
-			} else if (_23 === 30) {
-				let x12: rs.usize = _10;
-				const _187: rs.u8 = rs.u8Rem(form, 3);
-				if (_187 === 0) {
-					x12 = rs.usizeDiv(x12, b);
-				} else if (_187 === 1) {
-					two$mut_usize_ref_usize_unit_ops_DivAssign_div_assign_usize_ref_usize((a04: rs.Place<rs.usize>, a14: rs.usize): undefined => {
-						a04.v = rs.usizeDiv(a04.v, a14);
-					}, rs.place(() => x12, (value4) => x12 = value4), b);
-				} else {
-					((a03: rs.Place<rs.usize>, a13: rs.usize): undefined => {
-						a03.v = rs.usizeDiv(a03.v, a13);
-					})(rs.place(() => x12, (value3) => x12 = value3), b);
-				}
-				v = x12;
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.usize = a;
+			const _91: rs.u8 = rs.u8Rem(form, 3);
+			if (_91 === 0) {
+				x = rs.usizeAdd(x, b);
+			} else if (_91 === 1) {
+				two$mut_usize_usize_unit_ops_AddAssign_add_assign_usize_usize((a036: rs.Place<rs.usize>, a134: rs.usize): undefined => {
+					a036.v = rs.usizeAdd(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
-				let x13: rs.usize = _10;
-				const _197: rs.u8 = rs.u8Rem(form, 3);
-				if (_197 === 0) {
-					x13 = rs.usizeShr(x13, n & 0xffff);
-				} else if (_197 === 1) {
-					two$mut_usize_ref_u16_unit_ops_ShrAssign_shr_assign_usize_ref_u16((a02: rs.Place<rs.usize>, a12: rs.u16): undefined => {
-						a02.v = rs.usizeShr(a02.v, a12);
-					}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-				} else {
-					((a0: rs.Place<rs.usize>, a1: rs.u16): undefined => {
-						a0.v = rs.usizeShr(a0.v, a1);
-					})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-				}
-				v = x13;
+				((a035: rs.Place<rs.usize>, a133: rs.usize): undefined => {
+					a035.v = rs.usizeAdd(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
 			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.usize = a;
+			const _99: rs.u8 = rs.u8Rem(form, 3);
+			if (_99 === 0) {
+				x2 = rs.usizeSub(x2, b);
+			} else if (_99 === 1) {
+				two$mut_usize_usize_unit_ops_SubAssign_sub_assign_usize_usize((a034: rs.Place<rs.usize>, a132: rs.usize): undefined => {
+					a034.v = rs.usizeSub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.usize>, a131: rs.usize): undefined => {
+					a033.v = rs.usizeSub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.usize = a;
+			const _107: rs.u8 = rs.u8Rem(form, 3);
+			if (_107 === 0) {
+				x3 = rs.usizeMul(x3, b);
+			} else if (_107 === 1) {
+				two$mut_usize_usize_unit_ops_MulAssign_mul_assign_usize_usize((a032: rs.Place<rs.usize>, a130: rs.usize): undefined => {
+					a032.v = rs.usizeMul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.usize>, a129: rs.usize): undefined => {
+					a031.v = rs.usizeMul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.usize = a;
+			const _115: rs.u8 = rs.u8Rem(form, 3);
+			if (_115 === 0) {
+				x4 = rs.usizeDiv(x4, b);
+			} else if (_115 === 1) {
+				two$mut_usize_usize_unit_ops_DivAssign_div_assign_usize_usize((a030: rs.Place<rs.usize>, a128: rs.usize): undefined => {
+					a030.v = rs.usizeDiv(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.usize>, a127: rs.usize): undefined => {
+					a029.v = rs.usizeDiv(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.usize = a;
+			const _123: rs.u8 = rs.u8Rem(form, 3);
+			if (_123 === 0) {
+				x5 = rs.usizeRem(x5, b);
+			} else if (_123 === 1) {
+				two$mut_usize_usize_unit_ops_RemAssign_rem_assign_usize_usize((a028: rs.Place<rs.usize>, a126: rs.usize): undefined => {
+					a028.v = rs.usizeRem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.usize>, a125: rs.usize): undefined => {
+					a027.v = rs.usizeRem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.usize = a;
+			const _131: rs.u8 = rs.u8Rem(form, 3);
+			if (_131 === 0) {
+				x6 = (x6 & b) >>> 0;
+			} else if (_131 === 1) {
+				two$mut_usize_usize_unit_ops_BitAndAssign_bitand_assign_usize_usize((a026: rs.Place<rs.usize>, a124: rs.usize): undefined => {
+					a026.v = (a026.v & a124) >>> 0;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.usize>, a123: rs.usize): undefined => {
+					a025.v = (a025.v & a123) >>> 0;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.usize = a;
+			const _139: rs.u8 = rs.u8Rem(form, 3);
+			if (_139 === 0) {
+				x7 = (x7 | b) >>> 0;
+			} else if (_139 === 1) {
+				two$mut_usize_usize_unit_ops_BitOrAssign_bitor_assign_usize_usize((a024: rs.Place<rs.usize>, a122: rs.usize): undefined => {
+					a024.v = (a024.v | a122) >>> 0;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.usize>, a121: rs.usize): undefined => {
+					a023.v = (a023.v | a121) >>> 0;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.usize = a;
+			const _147: rs.u8 = rs.u8Rem(form, 3);
+			if (_147 === 0) {
+				x8 = (x8 ^ b) >>> 0;
+			} else if (_147 === 1) {
+				two$mut_usize_usize_unit_ops_BitXorAssign_bitxor_assign_usize_usize((a022: rs.Place<rs.usize>, a120: rs.usize): undefined => {
+					a022.v = (a022.v ^ a120) >>> 0;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.usize>, a119: rs.usize): undefined => {
+					a021.v = (a021.v ^ a119) >>> 0;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.usize = a;
+			const _155: rs.u8 = rs.u8Rem(form, 3);
+			if (_155 === 0) {
+				x9 = rs.usizeShl(x9, n);
+			} else if (_155 === 1) {
+				two$mut_usize_u32_unit_ops_ShlAssign_shl_assign_usize_u32((a020: rs.Place<rs.usize>, a118: rs.u32): undefined => {
+					a020.v = rs.usizeShl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.usize>, a117: rs.u32): undefined => {
+					a019.v = rs.usizeShl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.usize = a;
+			const _163: rs.u8 = rs.u8Rem(form, 3);
+			if (_163 === 0) {
+				x10 = rs.usizeShr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_163 === 1) {
+				two$mut_usize_i64_unit_ops_ShrAssign_shr_assign_usize_i64((a018: rs.Place<rs.usize>, a116: rs.i64): undefined => {
+					a018.v = rs.usizeShr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.usize>, a115: rs.i64): undefined => {
+					a017.v = rs.usizeShr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _175: rs.u8 = rs.u8Rem(form, 3);
+			if (_175 === 0) {
+				v = rs.usizeAdd(a, b);
+			} else if (_175 === 1) {
+				v = two$usize_ref_usize_usize_ops_Add_add_usize_ref_usize((a016: rs.usize, a114: rs.usize): rs.usize => {
+					return rs.usizeAdd(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.usize, a113: rs.usize): rs.usize => {
+					return rs.usizeAdd(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _181: rs.u8 = rs.u8Rem(form, 3);
+			if (_181 === 0) {
+				v = rs.usizeSub(a, b);
+			} else if (_181 === 1) {
+				v = two$ref_usize_usize_usize_ops_Sub_sub_ref_usize_usize((a014: rs.usize, a112: rs.usize): rs.usize => {
+					return rs.usizeSub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.usize, a111: rs.usize): rs.usize => {
+					return rs.usizeSub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _187: rs.u8 = rs.u8Rem(form, 3);
+			if (_187 === 0) {
+				v = rs.usizeMul(a, b);
+			} else if (_187 === 1) {
+				v = two$ref_usize_ref_usize_usize_ops_Mul_mul_ref_usize_ref_usize((a012: rs.usize, a110: rs.usize): rs.usize => {
+					return rs.usizeMul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.usize, a19: rs.usize): rs.usize => {
+					return rs.usizeMul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _196: rs.u8 = rs.u8Rem(form, 3);
+			if (_196 === 0) {
+				v = rs.usizeShl(a, n & 0xff);
+			} else if (_196 === 1) {
+				v = two$ref_usize_ref_u8_usize_ops_Shl_shl_ref_usize_ref_u8((a010: rs.usize, a18: rs.u8): rs.usize => {
+					return rs.usizeShl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.usize, a17: rs.u8): rs.usize => {
+					return rs.usizeShl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _208: rs.u8 = rs.u8Rem(form, 3);
+			if (_208 === 0) {
+				v = ~a >>> 0;
+			} else if (_208 === 1) {
+				v = one$ref_usize_usize_ops_Not_not_ref_usize((a08: rs.usize): rs.usize => {
+					return ~a08 >>> 0;
+				}, a);
+			} else {
+				v = ((a07: rs.usize): rs.usize => {
+					return ~a07 >>> 0;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.usize = a;
+			const _216: rs.u8 = rs.u8Rem(form, 3);
+			if (_216 === 0) {
+				x11 = rs.usizeAdd(x11, b);
+			} else if (_216 === 1) {
+				two$mut_usize_ref_usize_unit_ops_AddAssign_add_assign_usize_ref_usize((a06: rs.Place<rs.usize>, a16: rs.usize): undefined => {
+					a06.v = rs.usizeAdd(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.usize>, a15: rs.usize): undefined => {
+					a05.v = rs.usizeAdd(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.usize = a;
+			const _227: rs.u8 = rs.u8Rem(form, 3);
+			if (_227 === 0) {
+				x12 = rs.usizeDiv(x12, b);
+			} else if (_227 === 1) {
+				two$mut_usize_ref_usize_unit_ops_DivAssign_div_assign_usize_ref_usize((a04: rs.Place<rs.usize>, a14: rs.usize): undefined => {
+					a04.v = rs.usizeDiv(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.usize>, a13: rs.usize): undefined => {
+					a03.v = rs.usizeDiv(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
+		} else {
+			let x13: rs.usize = a;
+			const _238: rs.u8 = rs.u8Rem(form, 3);
+			if (_238 === 0) {
+				x13 = rs.usizeShr(x13, n & 0xffff);
+			} else if (_238 === 1) {
+				two$mut_usize_ref_u16_unit_ops_ShrAssign_shr_assign_usize_ref_u16((a02: rs.Place<rs.usize>, a12: rs.u16): undefined => {
+					a02.v = rs.usizeShr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.usize>, a1: rs.u16): undefined => {
+					a0.v = rs.usizeShr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		_21(out, v);
+		_28(out, v);
 	}
 }
 
@@ -5463,7 +5463,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.i8;
-	let _66!: rs.i8;
+	let _87!: rs.i8;
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -5477,503 +5477,508 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.i8FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.i8 = take(([1] as [rs.usize])[0]);
-	const _12: rs.i8 = take(([2] as [rs.usize])[0]);
-	const a: rs.i8 = _10;
-	const b: rs.i8 = _12;
+	const _10: [rs.i8, rs.i8] = [take(1), take(1 + 1)];
+	const a: rs.i8 = _10[0];
+	const b: rs.i8 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 3)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 1), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
-		const dst = out2;
-		const word = v3 as rs.i128;
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.i8Add(_10, _12);
-		} else if (_24 === 1) {
-			v = two$i8_i8_i8_ops_Add_add_i8_i8((a066: rs.i8, a158: rs.i8): rs.i8 => {
-				return rs.i8Add(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.i8, a157: rs.i8): rs.i8 => {
-				return rs.i8Add(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.i8Sub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$i8_i8_i8_ops_Sub_sub_i8_i8((a064: rs.i8, a156: rs.i8): rs.i8 => {
-				return rs.i8Sub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.i8, a155: rs.i8): rs.i8 => {
-				return rs.i8Sub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.i8Mul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$i8_i8_i8_ops_Mul_mul_i8_i8((a062: rs.i8, a154: rs.i8): rs.i8 => {
-				return rs.i8Mul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.i8, a153: rs.i8): rs.i8 => {
-				return rs.i8Mul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
+			const dst = out2;
+			const word = v3 as rs.i128;
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.i8Div(_10, _12);
-		} else if (_30 === 1) {
-			v = two$i8_i8_i8_ops_Div_div_i8_i8((a060: rs.i8, a152: rs.i8): rs.i8 => {
-				return rs.i8Div(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.i8, a151: rs.i8): rs.i8 => {
-				return rs.i8Div(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.i8Rem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$i8_i8_i8_ops_Rem_rem_i8_i8((a058: rs.i8, a150: rs.i8): rs.i8 => {
-				return rs.i8Rem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.i8, a149: rs.i8): rs.i8 => {
-				return rs.i8Rem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = _10 & _12;
-		} else if (_34 === 1) {
-			v = two$i8_i8_i8_ops_BitAnd_bitand_i8_i8((a056: rs.i8, a148: rs.i8): rs.i8 => {
-				return a056 & a148;
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.i8, a147: rs.i8): rs.i8 => {
-				return a055 & a147;
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = _10 | _12;
-		} else if (_36 === 1) {
-			v = two$i8_i8_i8_ops_BitOr_bitor_i8_i8((a054: rs.i8, a146: rs.i8): rs.i8 => {
-				return a054 | a146;
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.i8, a145: rs.i8): rs.i8 => {
-				return a053 | a145;
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = _10 ^ _12;
-		} else if (_38 === 1) {
-			v = two$i8_i8_i8_ops_BitXor_bitxor_i8_i8((a052: rs.i8, a144: rs.i8): rs.i8 => {
-				return a052 ^ a144;
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.i8, a143: rs.i8): rs.i8 => {
-				return a051 ^ a143;
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.i8Shl(_10, n);
-		} else if (_40 === 1) {
-			v = two$i8_u32_i8_ops_Shl_shl_i8_u32((a050: rs.i8, a142: rs.u32): rs.i8 => {
-				return rs.i8Shl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.i8, a141: rs.u32): rs.i8 => {
-				return rs.i8Shl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.i8Shr(_10, n);
-		} else if (_42 === 1) {
-			v = two$i8_u32_i8_ops_Shr_shr_i8_u32((a048: rs.i8, a140: rs.u32): rs.i8 => {
-				return rs.i8Shr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.i8, a139: rs.u32): rs.i8 => {
-				return rs.i8Shr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.i8Shl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$i8_i16_i8_ops_Shl_shl_i8_i16((a046: rs.i8, a138: rs.i16): rs.i8 => {
-				return rs.i8Shl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.i8, a137: rs.i16): rs.i8 => {
-				return rs.i8Shl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.i8Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$i8_u128_i8_ops_Shr_shr_i8_u128((a044: rs.i8, a136: rs.u128): rs.i8 => {
-				return rs.i8Shr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.i8, a135: rs.u128): rs.i8 => {
-				return rs.i8Shr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = ~_10;
-		} else if (_63 === 1) {
-			v = one$i8_i8_ops_Not_not_i8((a042: rs.i8): rs.i8 => {
-				return ~a042;
-			}, _10);
-		} else {
-			v = ((a041: rs.i8): rs.i8 => {
-				return ~a041;
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.i8Neg(_10);
-			} else if (_69 === 1) {
-				_66 = one$i8_i8_ops_Neg_neg_i8((a040: rs.i8): rs.i8 => {
-					return rs.i8Neg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.i8Add(a, b);
+			} else if (_32 === 1) {
+				v = two$i8_i8_i8_ops_Add_add_i8_i8((a066: rs.i8, a158: rs.i8): rs.i8 => {
+					return rs.i8Add(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.i8): rs.i8 => {
-					return rs.i8Neg(a039);
-				})(_10);
+				v = ((a065: rs.i8, a157: rs.i8): rs.i8 => {
+					return rs.i8Add(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.i8Neg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_i8_i8_ops_Neg_neg_ref_i8((a038: rs.i8): rs.i8 => {
-					return rs.i8Neg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.i8Sub(a, b);
+			} else if (_35 === 1) {
+				v = two$i8_i8_i8_ops_Sub_sub_i8_i8((a064: rs.i8, a156: rs.i8): rs.i8 => {
+					return rs.i8Sub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.i8, a155: rs.i8): rs.i8 => {
+					return rs.i8Sub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.i8Mul(a, b);
+			} else if (_38 === 1) {
+				v = two$i8_i8_i8_ops_Mul_mul_i8_i8((a062: rs.i8, a154: rs.i8): rs.i8 => {
+					return rs.i8Mul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.i8, a153: rs.i8): rs.i8 => {
+					return rs.i8Mul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.i8Div(a, b);
+			} else if (_41 === 1) {
+				v = two$i8_i8_i8_ops_Div_div_i8_i8((a060: rs.i8, a152: rs.i8): rs.i8 => {
+					return rs.i8Div(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.i8, a151: rs.i8): rs.i8 => {
+					return rs.i8Div(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.i8Rem(a, b);
+			} else if (_44 === 1) {
+				v = two$i8_i8_i8_ops_Rem_rem_i8_i8((a058: rs.i8, a150: rs.i8): rs.i8 => {
+					return rs.i8Rem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.i8, a149: rs.i8): rs.i8 => {
+					return rs.i8Rem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
+				v = two$i8_i8_i8_ops_BitAnd_bitand_i8_i8((a056: rs.i8, a148: rs.i8): rs.i8 => {
+					return a056 & a148;
+				}, a, b);
+			} else {
+				v = ((a055: rs.i8, a147: rs.i8): rs.i8 => {
+					return a055 & a147;
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
+				v = two$i8_i8_i8_ops_BitOr_bitor_i8_i8((a054: rs.i8, a146: rs.i8): rs.i8 => {
+					return a054 | a146;
+				}, a, b);
+			} else {
+				v = ((a053: rs.i8, a145: rs.i8): rs.i8 => {
+					return a053 | a145;
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
+				v = two$i8_i8_i8_ops_BitXor_bitxor_i8_i8((a052: rs.i8, a144: rs.i8): rs.i8 => {
+					return a052 ^ a144;
+				}, a, b);
+			} else {
+				v = ((a051: rs.i8, a143: rs.i8): rs.i8 => {
+					return a051 ^ a143;
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.i8Shl(a, n);
+			} else if (_56 === 1) {
+				v = two$i8_u32_i8_ops_Shl_shl_i8_u32((a050: rs.i8, a142: rs.u32): rs.i8 => {
+					return rs.i8Shl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.i8, a141: rs.u32): rs.i8 => {
+					return rs.i8Shl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.i8Shr(a, n);
+			} else if (_59 === 1) {
+				v = two$i8_u32_i8_ops_Shr_shr_i8_u32((a048: rs.i8, a140: rs.u32): rs.i8 => {
+					return rs.i8Shr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.i8, a139: rs.u32): rs.i8 => {
+					return rs.i8Shr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.i8Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$i8_i16_i8_ops_Shl_shl_i8_i16((a046: rs.i8, a138: rs.i16): rs.i8 => {
+					return rs.i8Shl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.i8, a137: rs.i16): rs.i8 => {
+					return rs.i8Shl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.i8Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$i8_u128_i8_ops_Shr_shr_i8_u128((a044: rs.i8, a136: rs.u128): rs.i8 => {
+					return rs.i8Shr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.i8, a135: rs.u128): rs.i8 => {
+					return rs.i8Shr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a;
+			} else if (_83 === 1) {
+				v = one$i8_i8_ops_Not_not_i8((a042: rs.i8): rs.i8 => {
+					return ~a042;
 				}, a);
 			} else {
-				_66 = ((a037: rs.i8): rs.i8 => {
-					return rs.i8Neg(a037);
+				v = ((a041: rs.i8): rs.i8 => {
+					return ~a041;
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.i8 = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.i8Add(x, _12);
-		} else if (_79 === 1) {
-			two$mut_i8_i8_unit_ops_AddAssign_add_assign_i8_i8((a036: rs.Place<rs.i8>, a134: rs.i8): undefined => {
-				a036.v = rs.i8Add(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.i8Neg(a);
+				} else if (_92 === 1) {
+					_87 = one$i8_i8_ops_Neg_neg_i8((a040: rs.i8): rs.i8 => {
+						return rs.i8Neg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.i8): rs.i8 => {
+						return rs.i8Neg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.i8Neg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_i8_i8_ops_Neg_neg_ref_i8((a038: rs.i8): rs.i8 => {
+						return rs.i8Neg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.i8): rs.i8 => {
+						return rs.i8Neg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.i8 | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.i8 = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.i8Add(x, b);
+			} else if (_105 === 1) {
+				two$mut_i8_i8_unit_ops_AddAssign_add_assign_i8_i8((a036: rs.Place<rs.i8>, a134: rs.i8): undefined => {
+					a036.v = rs.i8Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.i8>, a133: rs.i8): undefined => {
+					a035.v = rs.i8Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.i8 = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.i8Sub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_i8_i8_unit_ops_SubAssign_sub_assign_i8_i8((a034: rs.Place<rs.i8>, a132: rs.i8): undefined => {
+					a034.v = rs.i8Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.i8>, a131: rs.i8): undefined => {
+					a033.v = rs.i8Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.i8 = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.i8Mul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_i8_i8_unit_ops_MulAssign_mul_assign_i8_i8((a032: rs.Place<rs.i8>, a130: rs.i8): undefined => {
+					a032.v = rs.i8Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.i8>, a129: rs.i8): undefined => {
+					a031.v = rs.i8Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.i8 = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.i8Div(x4, b);
+			} else if (_129 === 1) {
+				two$mut_i8_i8_unit_ops_DivAssign_div_assign_i8_i8((a030: rs.Place<rs.i8>, a128: rs.i8): undefined => {
+					a030.v = rs.i8Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.i8>, a127: rs.i8): undefined => {
+					a029.v = rs.i8Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.i8 = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.i8Rem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_i8_i8_unit_ops_RemAssign_rem_assign_i8_i8((a028: rs.Place<rs.i8>, a126: rs.i8): undefined => {
+					a028.v = rs.i8Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.i8>, a125: rs.i8): undefined => {
+					a027.v = rs.i8Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.i8 = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = x6 & b;
+			} else if (_145 === 1) {
+				two$mut_i8_i8_unit_ops_BitAndAssign_bitand_assign_i8_i8((a026: rs.Place<rs.i8>, a124: rs.i8): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.i8>, a123: rs.i8): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.i8 = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = x7 | b;
+			} else if (_153 === 1) {
+				two$mut_i8_i8_unit_ops_BitOrAssign_bitor_assign_i8_i8((a024: rs.Place<rs.i8>, a122: rs.i8): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.i8>, a121: rs.i8): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.i8 = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = x8 ^ b;
+			} else if (_161 === 1) {
+				two$mut_i8_i8_unit_ops_BitXorAssign_bitxor_assign_i8_i8((a022: rs.Place<rs.i8>, a120: rs.i8): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.i8>, a119: rs.i8): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.i8 = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.i8Shl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_i8_u32_unit_ops_ShlAssign_shl_assign_i8_u32((a020: rs.Place<rs.i8>, a118: rs.u32): undefined => {
+					a020.v = rs.i8Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.i8>, a117: rs.u32): undefined => {
+					a019.v = rs.i8Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.i8 = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.i8Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_i8_i64_unit_ops_ShrAssign_shr_assign_i8_i64((a018: rs.Place<rs.i8>, a116: rs.i64): undefined => {
+					a018.v = rs.i8Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.i8>, a115: rs.i64): undefined => {
+					a017.v = rs.i8Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.i8Add(a, b);
+			} else if (_189 === 1) {
+				v = two$i8_ref_i8_i8_ops_Add_add_i8_ref_i8((a016: rs.i8, a114: rs.i8): rs.i8 => {
+					return rs.i8Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.i8, a113: rs.i8): rs.i8 => {
+					return rs.i8Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.i8Sub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_i8_i8_i8_ops_Sub_sub_ref_i8_i8((a014: rs.i8, a112: rs.i8): rs.i8 => {
+					return rs.i8Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.i8, a111: rs.i8): rs.i8 => {
+					return rs.i8Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.i8Mul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_i8_ref_i8_i8_ops_Mul_mul_ref_i8_ref_i8((a012: rs.i8, a110: rs.i8): rs.i8 => {
+					return rs.i8Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.i8, a19: rs.i8): rs.i8 => {
+					return rs.i8Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.i8Shl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_i8_ref_u8_i8_ops_Shl_shl_ref_i8_ref_u8((a010: rs.i8, a18: rs.u8): rs.i8 => {
+					return rs.i8Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.i8, a17: rs.u8): rs.i8 => {
+					return rs.i8Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = ~a;
+			} else if (_222 === 1) {
+				v = one$ref_i8_i8_ops_Not_not_ref_i8((a08: rs.i8): rs.i8 => {
+					return ~a08;
+				}, a);
+			} else {
+				v = ((a07: rs.i8): rs.i8 => {
+					return ~a07;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.i8 = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.i8Add(x11, b);
+			} else if (_230 === 1) {
+				two$mut_i8_ref_i8_unit_ops_AddAssign_add_assign_i8_ref_i8((a06: rs.Place<rs.i8>, a16: rs.i8): undefined => {
+					a06.v = rs.i8Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.i8>, a15: rs.i8): undefined => {
+					a05.v = rs.i8Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.i8 = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.i8Div(x12, b);
+			} else if (_241 === 1) {
+				two$mut_i8_ref_i8_unit_ops_DivAssign_div_assign_i8_ref_i8((a04: rs.Place<rs.i8>, a14: rs.i8): undefined => {
+					a04.v = rs.i8Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.i8>, a13: rs.i8): undefined => {
+					a03.v = rs.i8Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.i8>, a133: rs.i8): undefined => {
-				a035.v = rs.i8Add(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.i8 = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.i8Shr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_i8_ref_u16_unit_ops_ShrAssign_shr_assign_i8_ref_u16((a02: rs.Place<rs.i8>, a12: rs.u16): undefined => {
+					a02.v = rs.i8Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.i8>, a1: rs.u16): undefined => {
+					a0.v = rs.i8Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.i8 = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.i8Sub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_i8_i8_unit_ops_SubAssign_sub_assign_i8_i8((a034: rs.Place<rs.i8>, a132: rs.i8): undefined => {
-				a034.v = rs.i8Sub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.i8>, a131: rs.i8): undefined => {
-				a033.v = rs.i8Sub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.i8 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.i8Mul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_i8_i8_unit_ops_MulAssign_mul_assign_i8_i8((a032: rs.Place<rs.i8>, a130: rs.i8): undefined => {
-				a032.v = rs.i8Mul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.i8>, a129: rs.i8): undefined => {
-				a031.v = rs.i8Mul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.i8 = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.i8Div(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_i8_i8_unit_ops_DivAssign_div_assign_i8_i8((a030: rs.Place<rs.i8>, a128: rs.i8): undefined => {
-				a030.v = rs.i8Div(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.i8>, a127: rs.i8): undefined => {
-				a029.v = rs.i8Div(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.i8 = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.i8Rem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_i8_i8_unit_ops_RemAssign_rem_assign_i8_i8((a028: rs.Place<rs.i8>, a126: rs.i8): undefined => {
-				a028.v = rs.i8Rem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.i8>, a125: rs.i8): undefined => {
-				a027.v = rs.i8Rem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.i8 = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = x6 & _12;
-		} else if (_114 === 1) {
-			two$mut_i8_i8_unit_ops_BitAndAssign_bitand_assign_i8_i8((a026: rs.Place<rs.i8>, a124: rs.i8): undefined => {
-				a026.v = a026.v & a124;
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.i8>, a123: rs.i8): undefined => {
-				a025.v = a025.v & a123;
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.i8 = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = x7 | _12;
-		} else if (_121 === 1) {
-			two$mut_i8_i8_unit_ops_BitOrAssign_bitor_assign_i8_i8((a024: rs.Place<rs.i8>, a122: rs.i8): undefined => {
-				a024.v = a024.v | a122;
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.i8>, a121: rs.i8): undefined => {
-				a023.v = a023.v | a121;
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.i8 = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = x8 ^ _12;
-		} else if (_128 === 1) {
-			two$mut_i8_i8_unit_ops_BitXorAssign_bitxor_assign_i8_i8((a022: rs.Place<rs.i8>, a120: rs.i8): undefined => {
-				a022.v = a022.v ^ a120;
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.i8>, a119: rs.i8): undefined => {
-				a021.v = a021.v ^ a119;
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.i8 = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.i8Shl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_i8_u32_unit_ops_ShlAssign_shl_assign_i8_u32((a020: rs.Place<rs.i8>, a118: rs.u32): undefined => {
-				a020.v = rs.i8Shl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.i8>, a117: rs.u32): undefined => {
-				a019.v = rs.i8Shl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.i8 = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.i8Shr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_i8_i64_unit_ops_ShrAssign_shr_assign_i8_i64((a018: rs.Place<rs.i8>, a116: rs.i64): undefined => {
-				a018.v = rs.i8Shr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.i8>, a115: rs.i64): undefined => {
-				a017.v = rs.i8Shr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.i8Add(_10, b);
-		} else if (_153 === 1) {
-			v = two$i8_ref_i8_i8_ops_Add_add_i8_ref_i8((a016: rs.i8, a114: rs.i8): rs.i8 => {
-				return rs.i8Add(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.i8, a113: rs.i8): rs.i8 => {
-				return rs.i8Add(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.i8Sub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_i8_i8_i8_ops_Sub_sub_ref_i8_i8((a014: rs.i8, a112: rs.i8): rs.i8 => {
-				return rs.i8Sub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.i8, a111: rs.i8): rs.i8 => {
-				return rs.i8Sub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.i8Mul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_i8_ref_i8_i8_ops_Mul_mul_ref_i8_ref_i8((a012: rs.i8, a110: rs.i8): rs.i8 => {
-				return rs.i8Mul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.i8, a19: rs.i8): rs.i8 => {
-				return rs.i8Mul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.i8Shl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_i8_ref_u8_i8_ops_Shl_shl_ref_i8_ref_u8((a010: rs.i8, a18: rs.u8): rs.i8 => {
-				return rs.i8Shl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.i8, a17: rs.u8): rs.i8 => {
-				return rs.i8Shl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = ~a;
-		} else if (_182 === 1) {
-			v = one$ref_i8_i8_ops_Not_not_ref_i8((a08: rs.i8): rs.i8 => {
-				return ~a08;
-			}, a);
-		} else {
-			v = ((a07: rs.i8): rs.i8 => {
-				return ~a07;
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.i8 = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.i8Add(x11, b);
-		} else if (_189 === 1) {
-			two$mut_i8_ref_i8_unit_ops_AddAssign_add_assign_i8_ref_i8((a06: rs.Place<rs.i8>, a16: rs.i8): undefined => {
-				a06.v = rs.i8Add(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.i8>, a15: rs.i8): undefined => {
-				a05.v = rs.i8Add(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.i8 = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.i8Div(x12, b);
-		} else if (_199 === 1) {
-			two$mut_i8_ref_i8_unit_ops_DivAssign_div_assign_i8_ref_i8((a04: rs.Place<rs.i8>, a14: rs.i8): undefined => {
-				a04.v = rs.i8Div(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.i8>, a13: rs.i8): undefined => {
-				a03.v = rs.i8Div(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.i8 = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.i8Shr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_i8_ref_u16_unit_ops_ShrAssign_shr_assign_i8_ref_u16((a02: rs.Place<rs.i8>, a12: rs.u16): undefined => {
-				a02.v = rs.i8Shr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.i8>, a1: rs.u16): undefined => {
-				a0.v = rs.i8Shr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -5982,7 +5987,7 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.i16;
-	let _66!: rs.i16;
+	let _87!: rs.i16;
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -5996,503 +6001,508 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.i16FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.i16 = take(([1] as [rs.usize])[0]);
-	const _12: rs.i16 = take(([3] as [rs.usize])[0]);
-	const a: rs.i16 = _10;
-	const b: rs.i16 = _12;
+	const _10: [rs.i16, rs.i16] = [take(1), take(1 + 2)];
+	const a: rs.i16 = _10[0];
+	const b: rs.i16 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 5)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 2), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
-		const dst = out2;
-		const word = v3 as rs.i128;
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.i16Add(_10, _12);
-		} else if (_24 === 1) {
-			v = two$i16_i16_i16_ops_Add_add_i16_i16((a066: rs.i16, a158: rs.i16): rs.i16 => {
-				return rs.i16Add(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.i16, a157: rs.i16): rs.i16 => {
-				return rs.i16Add(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.i16Sub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$i16_i16_i16_ops_Sub_sub_i16_i16((a064: rs.i16, a156: rs.i16): rs.i16 => {
-				return rs.i16Sub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.i16, a155: rs.i16): rs.i16 => {
-				return rs.i16Sub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.i16Mul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$i16_i16_i16_ops_Mul_mul_i16_i16((a062: rs.i16, a154: rs.i16): rs.i16 => {
-				return rs.i16Mul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.i16, a153: rs.i16): rs.i16 => {
-				return rs.i16Mul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
+			const dst = out2;
+			const word = v3 as rs.i128;
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.i16Div(_10, _12);
-		} else if (_30 === 1) {
-			v = two$i16_i16_i16_ops_Div_div_i16_i16((a060: rs.i16, a152: rs.i16): rs.i16 => {
-				return rs.i16Div(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.i16, a151: rs.i16): rs.i16 => {
-				return rs.i16Div(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.i16Rem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$i16_i16_i16_ops_Rem_rem_i16_i16((a058: rs.i16, a150: rs.i16): rs.i16 => {
-				return rs.i16Rem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.i16, a149: rs.i16): rs.i16 => {
-				return rs.i16Rem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = _10 & _12;
-		} else if (_34 === 1) {
-			v = two$i16_i16_i16_ops_BitAnd_bitand_i16_i16((a056: rs.i16, a148: rs.i16): rs.i16 => {
-				return a056 & a148;
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.i16, a147: rs.i16): rs.i16 => {
-				return a055 & a147;
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = _10 | _12;
-		} else if (_36 === 1) {
-			v = two$i16_i16_i16_ops_BitOr_bitor_i16_i16((a054: rs.i16, a146: rs.i16): rs.i16 => {
-				return a054 | a146;
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.i16, a145: rs.i16): rs.i16 => {
-				return a053 | a145;
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = _10 ^ _12;
-		} else if (_38 === 1) {
-			v = two$i16_i16_i16_ops_BitXor_bitxor_i16_i16((a052: rs.i16, a144: rs.i16): rs.i16 => {
-				return a052 ^ a144;
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.i16, a143: rs.i16): rs.i16 => {
-				return a051 ^ a143;
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.i16Shl(_10, n);
-		} else if (_40 === 1) {
-			v = two$i16_u32_i16_ops_Shl_shl_i16_u32((a050: rs.i16, a142: rs.u32): rs.i16 => {
-				return rs.i16Shl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.i16, a141: rs.u32): rs.i16 => {
-				return rs.i16Shl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.i16Shr(_10, n);
-		} else if (_42 === 1) {
-			v = two$i16_u32_i16_ops_Shr_shr_i16_u32((a048: rs.i16, a140: rs.u32): rs.i16 => {
-				return rs.i16Shr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.i16, a139: rs.u32): rs.i16 => {
-				return rs.i16Shr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.i16Shl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$i16_i16_i16_ops_Shl_shl_i16_i16((a046: rs.i16, a138: rs.i16): rs.i16 => {
-				return rs.i16Shl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.i16, a137: rs.i16): rs.i16 => {
-				return rs.i16Shl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.i16Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$i16_u128_i16_ops_Shr_shr_i16_u128((a044: rs.i16, a136: rs.u128): rs.i16 => {
-				return rs.i16Shr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.i16, a135: rs.u128): rs.i16 => {
-				return rs.i16Shr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = ~_10;
-		} else if (_63 === 1) {
-			v = one$i16_i16_ops_Not_not_i16((a042: rs.i16): rs.i16 => {
-				return ~a042;
-			}, _10);
-		} else {
-			v = ((a041: rs.i16): rs.i16 => {
-				return ~a041;
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.i16Neg(_10);
-			} else if (_69 === 1) {
-				_66 = one$i16_i16_ops_Neg_neg_i16((a040: rs.i16): rs.i16 => {
-					return rs.i16Neg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.i16Add(a, b);
+			} else if (_32 === 1) {
+				v = two$i16_i16_i16_ops_Add_add_i16_i16((a066: rs.i16, a158: rs.i16): rs.i16 => {
+					return rs.i16Add(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.i16): rs.i16 => {
-					return rs.i16Neg(a039);
-				})(_10);
+				v = ((a065: rs.i16, a157: rs.i16): rs.i16 => {
+					return rs.i16Add(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.i16Neg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_i16_i16_ops_Neg_neg_ref_i16((a038: rs.i16): rs.i16 => {
-					return rs.i16Neg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.i16Sub(a, b);
+			} else if (_35 === 1) {
+				v = two$i16_i16_i16_ops_Sub_sub_i16_i16((a064: rs.i16, a156: rs.i16): rs.i16 => {
+					return rs.i16Sub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.i16, a155: rs.i16): rs.i16 => {
+					return rs.i16Sub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.i16Mul(a, b);
+			} else if (_38 === 1) {
+				v = two$i16_i16_i16_ops_Mul_mul_i16_i16((a062: rs.i16, a154: rs.i16): rs.i16 => {
+					return rs.i16Mul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.i16, a153: rs.i16): rs.i16 => {
+					return rs.i16Mul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.i16Div(a, b);
+			} else if (_41 === 1) {
+				v = two$i16_i16_i16_ops_Div_div_i16_i16((a060: rs.i16, a152: rs.i16): rs.i16 => {
+					return rs.i16Div(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.i16, a151: rs.i16): rs.i16 => {
+					return rs.i16Div(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.i16Rem(a, b);
+			} else if (_44 === 1) {
+				v = two$i16_i16_i16_ops_Rem_rem_i16_i16((a058: rs.i16, a150: rs.i16): rs.i16 => {
+					return rs.i16Rem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.i16, a149: rs.i16): rs.i16 => {
+					return rs.i16Rem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
+				v = two$i16_i16_i16_ops_BitAnd_bitand_i16_i16((a056: rs.i16, a148: rs.i16): rs.i16 => {
+					return a056 & a148;
+				}, a, b);
+			} else {
+				v = ((a055: rs.i16, a147: rs.i16): rs.i16 => {
+					return a055 & a147;
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
+				v = two$i16_i16_i16_ops_BitOr_bitor_i16_i16((a054: rs.i16, a146: rs.i16): rs.i16 => {
+					return a054 | a146;
+				}, a, b);
+			} else {
+				v = ((a053: rs.i16, a145: rs.i16): rs.i16 => {
+					return a053 | a145;
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
+				v = two$i16_i16_i16_ops_BitXor_bitxor_i16_i16((a052: rs.i16, a144: rs.i16): rs.i16 => {
+					return a052 ^ a144;
+				}, a, b);
+			} else {
+				v = ((a051: rs.i16, a143: rs.i16): rs.i16 => {
+					return a051 ^ a143;
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.i16Shl(a, n);
+			} else if (_56 === 1) {
+				v = two$i16_u32_i16_ops_Shl_shl_i16_u32((a050: rs.i16, a142: rs.u32): rs.i16 => {
+					return rs.i16Shl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.i16, a141: rs.u32): rs.i16 => {
+					return rs.i16Shl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.i16Shr(a, n);
+			} else if (_59 === 1) {
+				v = two$i16_u32_i16_ops_Shr_shr_i16_u32((a048: rs.i16, a140: rs.u32): rs.i16 => {
+					return rs.i16Shr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.i16, a139: rs.u32): rs.i16 => {
+					return rs.i16Shr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.i16Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$i16_i16_i16_ops_Shl_shl_i16_i16((a046: rs.i16, a138: rs.i16): rs.i16 => {
+					return rs.i16Shl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.i16, a137: rs.i16): rs.i16 => {
+					return rs.i16Shl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.i16Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$i16_u128_i16_ops_Shr_shr_i16_u128((a044: rs.i16, a136: rs.u128): rs.i16 => {
+					return rs.i16Shr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.i16, a135: rs.u128): rs.i16 => {
+					return rs.i16Shr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a;
+			} else if (_83 === 1) {
+				v = one$i16_i16_ops_Not_not_i16((a042: rs.i16): rs.i16 => {
+					return ~a042;
 				}, a);
 			} else {
-				_66 = ((a037: rs.i16): rs.i16 => {
-					return rs.i16Neg(a037);
+				v = ((a041: rs.i16): rs.i16 => {
+					return ~a041;
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.i16 = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.i16Add(x, _12);
-		} else if (_79 === 1) {
-			two$mut_i16_i16_unit_ops_AddAssign_add_assign_i16_i16((a036: rs.Place<rs.i16>, a134: rs.i16): undefined => {
-				a036.v = rs.i16Add(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.i16Neg(a);
+				} else if (_92 === 1) {
+					_87 = one$i16_i16_ops_Neg_neg_i16((a040: rs.i16): rs.i16 => {
+						return rs.i16Neg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.i16): rs.i16 => {
+						return rs.i16Neg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.i16Neg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_i16_i16_ops_Neg_neg_ref_i16((a038: rs.i16): rs.i16 => {
+						return rs.i16Neg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.i16): rs.i16 => {
+						return rs.i16Neg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.i16 | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.i16 = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.i16Add(x, b);
+			} else if (_105 === 1) {
+				two$mut_i16_i16_unit_ops_AddAssign_add_assign_i16_i16((a036: rs.Place<rs.i16>, a134: rs.i16): undefined => {
+					a036.v = rs.i16Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.i16>, a133: rs.i16): undefined => {
+					a035.v = rs.i16Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.i16 = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.i16Sub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_i16_i16_unit_ops_SubAssign_sub_assign_i16_i16((a034: rs.Place<rs.i16>, a132: rs.i16): undefined => {
+					a034.v = rs.i16Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.i16>, a131: rs.i16): undefined => {
+					a033.v = rs.i16Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.i16 = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.i16Mul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_i16_i16_unit_ops_MulAssign_mul_assign_i16_i16((a032: rs.Place<rs.i16>, a130: rs.i16): undefined => {
+					a032.v = rs.i16Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.i16>, a129: rs.i16): undefined => {
+					a031.v = rs.i16Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.i16 = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.i16Div(x4, b);
+			} else if (_129 === 1) {
+				two$mut_i16_i16_unit_ops_DivAssign_div_assign_i16_i16((a030: rs.Place<rs.i16>, a128: rs.i16): undefined => {
+					a030.v = rs.i16Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.i16>, a127: rs.i16): undefined => {
+					a029.v = rs.i16Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.i16 = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.i16Rem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_i16_i16_unit_ops_RemAssign_rem_assign_i16_i16((a028: rs.Place<rs.i16>, a126: rs.i16): undefined => {
+					a028.v = rs.i16Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.i16>, a125: rs.i16): undefined => {
+					a027.v = rs.i16Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.i16 = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = x6 & b;
+			} else if (_145 === 1) {
+				two$mut_i16_i16_unit_ops_BitAndAssign_bitand_assign_i16_i16((a026: rs.Place<rs.i16>, a124: rs.i16): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.i16>, a123: rs.i16): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.i16 = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = x7 | b;
+			} else if (_153 === 1) {
+				two$mut_i16_i16_unit_ops_BitOrAssign_bitor_assign_i16_i16((a024: rs.Place<rs.i16>, a122: rs.i16): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.i16>, a121: rs.i16): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.i16 = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = x8 ^ b;
+			} else if (_161 === 1) {
+				two$mut_i16_i16_unit_ops_BitXorAssign_bitxor_assign_i16_i16((a022: rs.Place<rs.i16>, a120: rs.i16): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.i16>, a119: rs.i16): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.i16 = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.i16Shl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_i16_u32_unit_ops_ShlAssign_shl_assign_i16_u32((a020: rs.Place<rs.i16>, a118: rs.u32): undefined => {
+					a020.v = rs.i16Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.i16>, a117: rs.u32): undefined => {
+					a019.v = rs.i16Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.i16 = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.i16Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_i16_i64_unit_ops_ShrAssign_shr_assign_i16_i64((a018: rs.Place<rs.i16>, a116: rs.i64): undefined => {
+					a018.v = rs.i16Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.i16>, a115: rs.i64): undefined => {
+					a017.v = rs.i16Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.i16Add(a, b);
+			} else if (_189 === 1) {
+				v = two$i16_ref_i16_i16_ops_Add_add_i16_ref_i16((a016: rs.i16, a114: rs.i16): rs.i16 => {
+					return rs.i16Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.i16, a113: rs.i16): rs.i16 => {
+					return rs.i16Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.i16Sub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_i16_i16_i16_ops_Sub_sub_ref_i16_i16((a014: rs.i16, a112: rs.i16): rs.i16 => {
+					return rs.i16Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.i16, a111: rs.i16): rs.i16 => {
+					return rs.i16Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.i16Mul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_i16_ref_i16_i16_ops_Mul_mul_ref_i16_ref_i16((a012: rs.i16, a110: rs.i16): rs.i16 => {
+					return rs.i16Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.i16, a19: rs.i16): rs.i16 => {
+					return rs.i16Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.i16Shl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_i16_ref_u8_i16_ops_Shl_shl_ref_i16_ref_u8((a010: rs.i16, a18: rs.u8): rs.i16 => {
+					return rs.i16Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.i16, a17: rs.u8): rs.i16 => {
+					return rs.i16Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = ~a;
+			} else if (_222 === 1) {
+				v = one$ref_i16_i16_ops_Not_not_ref_i16((a08: rs.i16): rs.i16 => {
+					return ~a08;
+				}, a);
+			} else {
+				v = ((a07: rs.i16): rs.i16 => {
+					return ~a07;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.i16 = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.i16Add(x11, b);
+			} else if (_230 === 1) {
+				two$mut_i16_ref_i16_unit_ops_AddAssign_add_assign_i16_ref_i16((a06: rs.Place<rs.i16>, a16: rs.i16): undefined => {
+					a06.v = rs.i16Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.i16>, a15: rs.i16): undefined => {
+					a05.v = rs.i16Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.i16 = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.i16Div(x12, b);
+			} else if (_241 === 1) {
+				two$mut_i16_ref_i16_unit_ops_DivAssign_div_assign_i16_ref_i16((a04: rs.Place<rs.i16>, a14: rs.i16): undefined => {
+					a04.v = rs.i16Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.i16>, a13: rs.i16): undefined => {
+					a03.v = rs.i16Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.i16>, a133: rs.i16): undefined => {
-				a035.v = rs.i16Add(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.i16 = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.i16Shr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_i16_ref_u16_unit_ops_ShrAssign_shr_assign_i16_ref_u16((a02: rs.Place<rs.i16>, a12: rs.u16): undefined => {
+					a02.v = rs.i16Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.i16>, a1: rs.u16): undefined => {
+					a0.v = rs.i16Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.i16 = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.i16Sub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_i16_i16_unit_ops_SubAssign_sub_assign_i16_i16((a034: rs.Place<rs.i16>, a132: rs.i16): undefined => {
-				a034.v = rs.i16Sub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.i16>, a131: rs.i16): undefined => {
-				a033.v = rs.i16Sub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.i16 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.i16Mul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_i16_i16_unit_ops_MulAssign_mul_assign_i16_i16((a032: rs.Place<rs.i16>, a130: rs.i16): undefined => {
-				a032.v = rs.i16Mul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.i16>, a129: rs.i16): undefined => {
-				a031.v = rs.i16Mul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.i16 = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.i16Div(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_i16_i16_unit_ops_DivAssign_div_assign_i16_i16((a030: rs.Place<rs.i16>, a128: rs.i16): undefined => {
-				a030.v = rs.i16Div(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.i16>, a127: rs.i16): undefined => {
-				a029.v = rs.i16Div(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.i16 = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.i16Rem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_i16_i16_unit_ops_RemAssign_rem_assign_i16_i16((a028: rs.Place<rs.i16>, a126: rs.i16): undefined => {
-				a028.v = rs.i16Rem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.i16>, a125: rs.i16): undefined => {
-				a027.v = rs.i16Rem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.i16 = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = x6 & _12;
-		} else if (_114 === 1) {
-			two$mut_i16_i16_unit_ops_BitAndAssign_bitand_assign_i16_i16((a026: rs.Place<rs.i16>, a124: rs.i16): undefined => {
-				a026.v = a026.v & a124;
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.i16>, a123: rs.i16): undefined => {
-				a025.v = a025.v & a123;
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.i16 = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = x7 | _12;
-		} else if (_121 === 1) {
-			two$mut_i16_i16_unit_ops_BitOrAssign_bitor_assign_i16_i16((a024: rs.Place<rs.i16>, a122: rs.i16): undefined => {
-				a024.v = a024.v | a122;
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.i16>, a121: rs.i16): undefined => {
-				a023.v = a023.v | a121;
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.i16 = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = x8 ^ _12;
-		} else if (_128 === 1) {
-			two$mut_i16_i16_unit_ops_BitXorAssign_bitxor_assign_i16_i16((a022: rs.Place<rs.i16>, a120: rs.i16): undefined => {
-				a022.v = a022.v ^ a120;
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.i16>, a119: rs.i16): undefined => {
-				a021.v = a021.v ^ a119;
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.i16 = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.i16Shl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_i16_u32_unit_ops_ShlAssign_shl_assign_i16_u32((a020: rs.Place<rs.i16>, a118: rs.u32): undefined => {
-				a020.v = rs.i16Shl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.i16>, a117: rs.u32): undefined => {
-				a019.v = rs.i16Shl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.i16 = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.i16Shr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_i16_i64_unit_ops_ShrAssign_shr_assign_i16_i64((a018: rs.Place<rs.i16>, a116: rs.i64): undefined => {
-				a018.v = rs.i16Shr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.i16>, a115: rs.i64): undefined => {
-				a017.v = rs.i16Shr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.i16Add(_10, b);
-		} else if (_153 === 1) {
-			v = two$i16_ref_i16_i16_ops_Add_add_i16_ref_i16((a016: rs.i16, a114: rs.i16): rs.i16 => {
-				return rs.i16Add(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.i16, a113: rs.i16): rs.i16 => {
-				return rs.i16Add(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.i16Sub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_i16_i16_i16_ops_Sub_sub_ref_i16_i16((a014: rs.i16, a112: rs.i16): rs.i16 => {
-				return rs.i16Sub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.i16, a111: rs.i16): rs.i16 => {
-				return rs.i16Sub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.i16Mul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_i16_ref_i16_i16_ops_Mul_mul_ref_i16_ref_i16((a012: rs.i16, a110: rs.i16): rs.i16 => {
-				return rs.i16Mul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.i16, a19: rs.i16): rs.i16 => {
-				return rs.i16Mul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.i16Shl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_i16_ref_u8_i16_ops_Shl_shl_ref_i16_ref_u8((a010: rs.i16, a18: rs.u8): rs.i16 => {
-				return rs.i16Shl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.i16, a17: rs.u8): rs.i16 => {
-				return rs.i16Shl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = ~a;
-		} else if (_182 === 1) {
-			v = one$ref_i16_i16_ops_Not_not_ref_i16((a08: rs.i16): rs.i16 => {
-				return ~a08;
-			}, a);
-		} else {
-			v = ((a07: rs.i16): rs.i16 => {
-				return ~a07;
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.i16 = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.i16Add(x11, b);
-		} else if (_189 === 1) {
-			two$mut_i16_ref_i16_unit_ops_AddAssign_add_assign_i16_ref_i16((a06: rs.Place<rs.i16>, a16: rs.i16): undefined => {
-				a06.v = rs.i16Add(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.i16>, a15: rs.i16): undefined => {
-				a05.v = rs.i16Add(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.i16 = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.i16Div(x12, b);
-		} else if (_199 === 1) {
-			two$mut_i16_ref_i16_unit_ops_DivAssign_div_assign_i16_ref_i16((a04: rs.Place<rs.i16>, a14: rs.i16): undefined => {
-				a04.v = rs.i16Div(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.i16>, a13: rs.i16): undefined => {
-				a03.v = rs.i16Div(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.i16 = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.i16Shr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_i16_ref_u16_unit_ops_ShrAssign_shr_assign_i16_ref_u16((a02: rs.Place<rs.i16>, a12: rs.u16): undefined => {
-				a02.v = rs.i16Shr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.i16>, a1: rs.u16): undefined => {
-				a0.v = rs.i16Shr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -6501,7 +6511,7 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.i32;
-	let _66!: rs.i32;
+	let _87!: rs.i32;
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -6515,503 +6525,508 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.i32FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.i32 = take(([1] as [rs.usize])[0]);
-	const _12: rs.i32 = take(([5] as [rs.usize])[0]);
-	const a: rs.i32 = _10;
-	const b: rs.i32 = _12;
+	const _10: [rs.i32, rs.i32] = [take(1), take(1 + 4)];
+	const a: rs.i32 = _10[0];
+	const b: rs.i32 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 9)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 4), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
-		const dst = out2;
-		const word = v3 as rs.i128;
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.i32Add(_10, _12);
-		} else if (_24 === 1) {
-			v = two$i32_i32_i32_ops_Add_add_i32_i32((a066: rs.i32, a158: rs.i32): rs.i32 => {
-				return rs.i32Add(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.i32, a157: rs.i32): rs.i32 => {
-				return rs.i32Add(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.i32Sub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$i32_i32_i32_ops_Sub_sub_i32_i32((a064: rs.i32, a156: rs.i32): rs.i32 => {
-				return rs.i32Sub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.i32, a155: rs.i32): rs.i32 => {
-				return rs.i32Sub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.i32Mul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$i32_i32_i32_ops_Mul_mul_i32_i32((a062: rs.i32, a154: rs.i32): rs.i32 => {
-				return rs.i32Mul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.i32, a153: rs.i32): rs.i32 => {
-				return rs.i32Mul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
+			const dst = out2;
+			const word = v3 as rs.i128;
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.i32Div(_10, _12);
-		} else if (_30 === 1) {
-			v = two$i32_i32_i32_ops_Div_div_i32_i32((a060: rs.i32, a152: rs.i32): rs.i32 => {
-				return rs.i32Div(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.i32, a151: rs.i32): rs.i32 => {
-				return rs.i32Div(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.i32Rem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$i32_i32_i32_ops_Rem_rem_i32_i32((a058: rs.i32, a150: rs.i32): rs.i32 => {
-				return rs.i32Rem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.i32, a149: rs.i32): rs.i32 => {
-				return rs.i32Rem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = _10 & _12;
-		} else if (_34 === 1) {
-			v = two$i32_i32_i32_ops_BitAnd_bitand_i32_i32((a056: rs.i32, a148: rs.i32): rs.i32 => {
-				return a056 & a148;
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.i32, a147: rs.i32): rs.i32 => {
-				return a055 & a147;
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = _10 | _12;
-		} else if (_36 === 1) {
-			v = two$i32_i32_i32_ops_BitOr_bitor_i32_i32((a054: rs.i32, a146: rs.i32): rs.i32 => {
-				return a054 | a146;
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.i32, a145: rs.i32): rs.i32 => {
-				return a053 | a145;
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = _10 ^ _12;
-		} else if (_38 === 1) {
-			v = two$i32_i32_i32_ops_BitXor_bitxor_i32_i32((a052: rs.i32, a144: rs.i32): rs.i32 => {
-				return a052 ^ a144;
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.i32, a143: rs.i32): rs.i32 => {
-				return a051 ^ a143;
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.i32Shl(_10, n);
-		} else if (_40 === 1) {
-			v = two$i32_u32_i32_ops_Shl_shl_i32_u32((a050: rs.i32, a142: rs.u32): rs.i32 => {
-				return rs.i32Shl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.i32, a141: rs.u32): rs.i32 => {
-				return rs.i32Shl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.i32Shr(_10, n);
-		} else if (_42 === 1) {
-			v = two$i32_u32_i32_ops_Shr_shr_i32_u32((a048: rs.i32, a140: rs.u32): rs.i32 => {
-				return rs.i32Shr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.i32, a139: rs.u32): rs.i32 => {
-				return rs.i32Shr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.i32Shl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$i32_i16_i32_ops_Shl_shl_i32_i16((a046: rs.i32, a138: rs.i16): rs.i32 => {
-				return rs.i32Shl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.i32, a137: rs.i16): rs.i32 => {
-				return rs.i32Shl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.i32Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$i32_u128_i32_ops_Shr_shr_i32_u128((a044: rs.i32, a136: rs.u128): rs.i32 => {
-				return rs.i32Shr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.i32, a135: rs.u128): rs.i32 => {
-				return rs.i32Shr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = ~_10;
-		} else if (_63 === 1) {
-			v = one$i32_i32_ops_Not_not_i32((a042: rs.i32): rs.i32 => {
-				return ~a042;
-			}, _10);
-		} else {
-			v = ((a041: rs.i32): rs.i32 => {
-				return ~a041;
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.i32Neg(_10);
-			} else if (_69 === 1) {
-				_66 = one$i32_i32_ops_Neg_neg_i32((a040: rs.i32): rs.i32 => {
-					return rs.i32Neg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.i32Add(a, b);
+			} else if (_32 === 1) {
+				v = two$i32_i32_i32_ops_Add_add_i32_i32((a066: rs.i32, a158: rs.i32): rs.i32 => {
+					return rs.i32Add(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.i32): rs.i32 => {
-					return rs.i32Neg(a039);
-				})(_10);
+				v = ((a065: rs.i32, a157: rs.i32): rs.i32 => {
+					return rs.i32Add(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.i32Neg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_i32_i32_ops_Neg_neg_ref_i32((a038: rs.i32): rs.i32 => {
-					return rs.i32Neg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.i32Sub(a, b);
+			} else if (_35 === 1) {
+				v = two$i32_i32_i32_ops_Sub_sub_i32_i32((a064: rs.i32, a156: rs.i32): rs.i32 => {
+					return rs.i32Sub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.i32, a155: rs.i32): rs.i32 => {
+					return rs.i32Sub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.i32Mul(a, b);
+			} else if (_38 === 1) {
+				v = two$i32_i32_i32_ops_Mul_mul_i32_i32((a062: rs.i32, a154: rs.i32): rs.i32 => {
+					return rs.i32Mul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.i32, a153: rs.i32): rs.i32 => {
+					return rs.i32Mul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.i32Div(a, b);
+			} else if (_41 === 1) {
+				v = two$i32_i32_i32_ops_Div_div_i32_i32((a060: rs.i32, a152: rs.i32): rs.i32 => {
+					return rs.i32Div(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.i32, a151: rs.i32): rs.i32 => {
+					return rs.i32Div(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.i32Rem(a, b);
+			} else if (_44 === 1) {
+				v = two$i32_i32_i32_ops_Rem_rem_i32_i32((a058: rs.i32, a150: rs.i32): rs.i32 => {
+					return rs.i32Rem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.i32, a149: rs.i32): rs.i32 => {
+					return rs.i32Rem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
+				v = two$i32_i32_i32_ops_BitAnd_bitand_i32_i32((a056: rs.i32, a148: rs.i32): rs.i32 => {
+					return a056 & a148;
+				}, a, b);
+			} else {
+				v = ((a055: rs.i32, a147: rs.i32): rs.i32 => {
+					return a055 & a147;
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
+				v = two$i32_i32_i32_ops_BitOr_bitor_i32_i32((a054: rs.i32, a146: rs.i32): rs.i32 => {
+					return a054 | a146;
+				}, a, b);
+			} else {
+				v = ((a053: rs.i32, a145: rs.i32): rs.i32 => {
+					return a053 | a145;
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
+				v = two$i32_i32_i32_ops_BitXor_bitxor_i32_i32((a052: rs.i32, a144: rs.i32): rs.i32 => {
+					return a052 ^ a144;
+				}, a, b);
+			} else {
+				v = ((a051: rs.i32, a143: rs.i32): rs.i32 => {
+					return a051 ^ a143;
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.i32Shl(a, n);
+			} else if (_56 === 1) {
+				v = two$i32_u32_i32_ops_Shl_shl_i32_u32((a050: rs.i32, a142: rs.u32): rs.i32 => {
+					return rs.i32Shl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.i32, a141: rs.u32): rs.i32 => {
+					return rs.i32Shl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.i32Shr(a, n);
+			} else if (_59 === 1) {
+				v = two$i32_u32_i32_ops_Shr_shr_i32_u32((a048: rs.i32, a140: rs.u32): rs.i32 => {
+					return rs.i32Shr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.i32, a139: rs.u32): rs.i32 => {
+					return rs.i32Shr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.i32Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$i32_i16_i32_ops_Shl_shl_i32_i16((a046: rs.i32, a138: rs.i16): rs.i32 => {
+					return rs.i32Shl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.i32, a137: rs.i16): rs.i32 => {
+					return rs.i32Shl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.i32Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$i32_u128_i32_ops_Shr_shr_i32_u128((a044: rs.i32, a136: rs.u128): rs.i32 => {
+					return rs.i32Shr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.i32, a135: rs.u128): rs.i32 => {
+					return rs.i32Shr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a;
+			} else if (_83 === 1) {
+				v = one$i32_i32_ops_Not_not_i32((a042: rs.i32): rs.i32 => {
+					return ~a042;
 				}, a);
 			} else {
-				_66 = ((a037: rs.i32): rs.i32 => {
-					return rs.i32Neg(a037);
+				v = ((a041: rs.i32): rs.i32 => {
+					return ~a041;
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.i32 = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.i32Add(x, _12);
-		} else if (_79 === 1) {
-			two$mut_i32_i32_unit_ops_AddAssign_add_assign_i32_i32((a036: rs.Place<rs.i32>, a134: rs.i32): undefined => {
-				a036.v = rs.i32Add(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.i32Neg(a);
+				} else if (_92 === 1) {
+					_87 = one$i32_i32_ops_Neg_neg_i32((a040: rs.i32): rs.i32 => {
+						return rs.i32Neg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.i32): rs.i32 => {
+						return rs.i32Neg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.i32Neg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_i32_i32_ops_Neg_neg_ref_i32((a038: rs.i32): rs.i32 => {
+						return rs.i32Neg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.i32): rs.i32 => {
+						return rs.i32Neg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.i32 | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.i32 = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.i32Add(x, b);
+			} else if (_105 === 1) {
+				two$mut_i32_i32_unit_ops_AddAssign_add_assign_i32_i32((a036: rs.Place<rs.i32>, a134: rs.i32): undefined => {
+					a036.v = rs.i32Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.i32>, a133: rs.i32): undefined => {
+					a035.v = rs.i32Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.i32 = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.i32Sub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_i32_i32_unit_ops_SubAssign_sub_assign_i32_i32((a034: rs.Place<rs.i32>, a132: rs.i32): undefined => {
+					a034.v = rs.i32Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.i32>, a131: rs.i32): undefined => {
+					a033.v = rs.i32Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.i32 = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.i32Mul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_i32_i32_unit_ops_MulAssign_mul_assign_i32_i32((a032: rs.Place<rs.i32>, a130: rs.i32): undefined => {
+					a032.v = rs.i32Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.i32>, a129: rs.i32): undefined => {
+					a031.v = rs.i32Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.i32 = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.i32Div(x4, b);
+			} else if (_129 === 1) {
+				two$mut_i32_i32_unit_ops_DivAssign_div_assign_i32_i32((a030: rs.Place<rs.i32>, a128: rs.i32): undefined => {
+					a030.v = rs.i32Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.i32>, a127: rs.i32): undefined => {
+					a029.v = rs.i32Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.i32 = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.i32Rem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_i32_i32_unit_ops_RemAssign_rem_assign_i32_i32((a028: rs.Place<rs.i32>, a126: rs.i32): undefined => {
+					a028.v = rs.i32Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.i32>, a125: rs.i32): undefined => {
+					a027.v = rs.i32Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.i32 = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = x6 & b;
+			} else if (_145 === 1) {
+				two$mut_i32_i32_unit_ops_BitAndAssign_bitand_assign_i32_i32((a026: rs.Place<rs.i32>, a124: rs.i32): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.i32>, a123: rs.i32): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.i32 = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = x7 | b;
+			} else if (_153 === 1) {
+				two$mut_i32_i32_unit_ops_BitOrAssign_bitor_assign_i32_i32((a024: rs.Place<rs.i32>, a122: rs.i32): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.i32>, a121: rs.i32): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.i32 = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = x8 ^ b;
+			} else if (_161 === 1) {
+				two$mut_i32_i32_unit_ops_BitXorAssign_bitxor_assign_i32_i32((a022: rs.Place<rs.i32>, a120: rs.i32): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.i32>, a119: rs.i32): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.i32 = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.i32Shl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_i32_u32_unit_ops_ShlAssign_shl_assign_i32_u32((a020: rs.Place<rs.i32>, a118: rs.u32): undefined => {
+					a020.v = rs.i32Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.i32>, a117: rs.u32): undefined => {
+					a019.v = rs.i32Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.i32 = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.i32Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_i32_i64_unit_ops_ShrAssign_shr_assign_i32_i64((a018: rs.Place<rs.i32>, a116: rs.i64): undefined => {
+					a018.v = rs.i32Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.i32>, a115: rs.i64): undefined => {
+					a017.v = rs.i32Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.i32Add(a, b);
+			} else if (_189 === 1) {
+				v = two$i32_ref_i32_i32_ops_Add_add_i32_ref_i32((a016: rs.i32, a114: rs.i32): rs.i32 => {
+					return rs.i32Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.i32, a113: rs.i32): rs.i32 => {
+					return rs.i32Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.i32Sub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_i32_i32_i32_ops_Sub_sub_ref_i32_i32((a014: rs.i32, a112: rs.i32): rs.i32 => {
+					return rs.i32Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.i32, a111: rs.i32): rs.i32 => {
+					return rs.i32Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.i32Mul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_i32_ref_i32_i32_ops_Mul_mul_ref_i32_ref_i32((a012: rs.i32, a110: rs.i32): rs.i32 => {
+					return rs.i32Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.i32, a19: rs.i32): rs.i32 => {
+					return rs.i32Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.i32Shl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_i32_ref_u8_i32_ops_Shl_shl_ref_i32_ref_u8((a010: rs.i32, a18: rs.u8): rs.i32 => {
+					return rs.i32Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.i32, a17: rs.u8): rs.i32 => {
+					return rs.i32Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = ~a;
+			} else if (_222 === 1) {
+				v = one$ref_i32_i32_ops_Not_not_ref_i32((a08: rs.i32): rs.i32 => {
+					return ~a08;
+				}, a);
+			} else {
+				v = ((a07: rs.i32): rs.i32 => {
+					return ~a07;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.i32 = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.i32Add(x11, b);
+			} else if (_230 === 1) {
+				two$mut_i32_ref_i32_unit_ops_AddAssign_add_assign_i32_ref_i32((a06: rs.Place<rs.i32>, a16: rs.i32): undefined => {
+					a06.v = rs.i32Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.i32>, a15: rs.i32): undefined => {
+					a05.v = rs.i32Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.i32 = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.i32Div(x12, b);
+			} else if (_241 === 1) {
+				two$mut_i32_ref_i32_unit_ops_DivAssign_div_assign_i32_ref_i32((a04: rs.Place<rs.i32>, a14: rs.i32): undefined => {
+					a04.v = rs.i32Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.i32>, a13: rs.i32): undefined => {
+					a03.v = rs.i32Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.i32>, a133: rs.i32): undefined => {
-				a035.v = rs.i32Add(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.i32 = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.i32Shr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_i32_ref_u16_unit_ops_ShrAssign_shr_assign_i32_ref_u16((a02: rs.Place<rs.i32>, a12: rs.u16): undefined => {
+					a02.v = rs.i32Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.i32>, a1: rs.u16): undefined => {
+					a0.v = rs.i32Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.i32 = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.i32Sub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_i32_i32_unit_ops_SubAssign_sub_assign_i32_i32((a034: rs.Place<rs.i32>, a132: rs.i32): undefined => {
-				a034.v = rs.i32Sub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.i32>, a131: rs.i32): undefined => {
-				a033.v = rs.i32Sub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.i32 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.i32Mul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_i32_i32_unit_ops_MulAssign_mul_assign_i32_i32((a032: rs.Place<rs.i32>, a130: rs.i32): undefined => {
-				a032.v = rs.i32Mul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.i32>, a129: rs.i32): undefined => {
-				a031.v = rs.i32Mul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.i32 = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.i32Div(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_i32_i32_unit_ops_DivAssign_div_assign_i32_i32((a030: rs.Place<rs.i32>, a128: rs.i32): undefined => {
-				a030.v = rs.i32Div(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.i32>, a127: rs.i32): undefined => {
-				a029.v = rs.i32Div(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.i32 = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.i32Rem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_i32_i32_unit_ops_RemAssign_rem_assign_i32_i32((a028: rs.Place<rs.i32>, a126: rs.i32): undefined => {
-				a028.v = rs.i32Rem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.i32>, a125: rs.i32): undefined => {
-				a027.v = rs.i32Rem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.i32 = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = x6 & _12;
-		} else if (_114 === 1) {
-			two$mut_i32_i32_unit_ops_BitAndAssign_bitand_assign_i32_i32((a026: rs.Place<rs.i32>, a124: rs.i32): undefined => {
-				a026.v = a026.v & a124;
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.i32>, a123: rs.i32): undefined => {
-				a025.v = a025.v & a123;
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.i32 = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = x7 | _12;
-		} else if (_121 === 1) {
-			two$mut_i32_i32_unit_ops_BitOrAssign_bitor_assign_i32_i32((a024: rs.Place<rs.i32>, a122: rs.i32): undefined => {
-				a024.v = a024.v | a122;
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.i32>, a121: rs.i32): undefined => {
-				a023.v = a023.v | a121;
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.i32 = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = x8 ^ _12;
-		} else if (_128 === 1) {
-			two$mut_i32_i32_unit_ops_BitXorAssign_bitxor_assign_i32_i32((a022: rs.Place<rs.i32>, a120: rs.i32): undefined => {
-				a022.v = a022.v ^ a120;
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.i32>, a119: rs.i32): undefined => {
-				a021.v = a021.v ^ a119;
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.i32 = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.i32Shl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_i32_u32_unit_ops_ShlAssign_shl_assign_i32_u32((a020: rs.Place<rs.i32>, a118: rs.u32): undefined => {
-				a020.v = rs.i32Shl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.i32>, a117: rs.u32): undefined => {
-				a019.v = rs.i32Shl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.i32 = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.i32Shr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_i32_i64_unit_ops_ShrAssign_shr_assign_i32_i64((a018: rs.Place<rs.i32>, a116: rs.i64): undefined => {
-				a018.v = rs.i32Shr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.i32>, a115: rs.i64): undefined => {
-				a017.v = rs.i32Shr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.i32Add(_10, b);
-		} else if (_153 === 1) {
-			v = two$i32_ref_i32_i32_ops_Add_add_i32_ref_i32((a016: rs.i32, a114: rs.i32): rs.i32 => {
-				return rs.i32Add(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.i32, a113: rs.i32): rs.i32 => {
-				return rs.i32Add(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.i32Sub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_i32_i32_i32_ops_Sub_sub_ref_i32_i32((a014: rs.i32, a112: rs.i32): rs.i32 => {
-				return rs.i32Sub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.i32, a111: rs.i32): rs.i32 => {
-				return rs.i32Sub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.i32Mul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_i32_ref_i32_i32_ops_Mul_mul_ref_i32_ref_i32((a012: rs.i32, a110: rs.i32): rs.i32 => {
-				return rs.i32Mul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.i32, a19: rs.i32): rs.i32 => {
-				return rs.i32Mul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.i32Shl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_i32_ref_u8_i32_ops_Shl_shl_ref_i32_ref_u8((a010: rs.i32, a18: rs.u8): rs.i32 => {
-				return rs.i32Shl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.i32, a17: rs.u8): rs.i32 => {
-				return rs.i32Shl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = ~a;
-		} else if (_182 === 1) {
-			v = one$ref_i32_i32_ops_Not_not_ref_i32((a08: rs.i32): rs.i32 => {
-				return ~a08;
-			}, a);
-		} else {
-			v = ((a07: rs.i32): rs.i32 => {
-				return ~a07;
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.i32 = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.i32Add(x11, b);
-		} else if (_189 === 1) {
-			two$mut_i32_ref_i32_unit_ops_AddAssign_add_assign_i32_ref_i32((a06: rs.Place<rs.i32>, a16: rs.i32): undefined => {
-				a06.v = rs.i32Add(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.i32>, a15: rs.i32): undefined => {
-				a05.v = rs.i32Add(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.i32 = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.i32Div(x12, b);
-		} else if (_199 === 1) {
-			two$mut_i32_ref_i32_unit_ops_DivAssign_div_assign_i32_ref_i32((a04: rs.Place<rs.i32>, a14: rs.i32): undefined => {
-				a04.v = rs.i32Div(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.i32>, a13: rs.i32): undefined => {
-				a03.v = rs.i32Div(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.i32 = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.i32Shr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_i32_ref_u16_unit_ops_ShrAssign_shr_assign_i32_ref_u16((a02: rs.Place<rs.i32>, a12: rs.u16): undefined => {
-				a02.v = rs.i32Shr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.i32>, a1: rs.u16): undefined => {
-				a0.v = rs.i32Shr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -7020,7 +7035,7 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.i64;
-	let _66!: rs.i64;
+	let _87!: rs.i64;
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -7034,503 +7049,508 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.i64FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.i64 = take(([1] as [rs.usize])[0]);
-	const _12: rs.i64 = take(([9] as [rs.usize])[0]);
-	const a: rs.i64 = _10;
-	const b: rs.i64 = _12;
+	const _10: [rs.i64, rs.i64] = [take(1), take(1 + 8)];
+	const a: rs.i64 = _10[0];
+	const b: rs.i64 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 17)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 8), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
-		const dst = out2;
-		const word = rs.i128Cast(v3);
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.i64Add(_10, _12);
-		} else if (_24 === 1) {
-			v = two$i64_i64_i64_ops_Add_add_i64_i64((a066: rs.i64, a158: rs.i64): rs.i64 => {
-				return rs.i64Add(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.i64, a157: rs.i64): rs.i64 => {
-				return rs.i64Add(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.i64Sub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$i64_i64_i64_ops_Sub_sub_i64_i64((a064: rs.i64, a156: rs.i64): rs.i64 => {
-				return rs.i64Sub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.i64, a155: rs.i64): rs.i64 => {
-				return rs.i64Sub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.i64Mul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$i64_i64_i64_ops_Mul_mul_i64_i64((a062: rs.i64, a154: rs.i64): rs.i64 => {
-				return rs.i64Mul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.i64, a153: rs.i64): rs.i64 => {
-				return rs.i64Mul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
+			const dst = out2;
+			const word = rs.i128Cast(v3);
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.i64Div(_10, _12);
-		} else if (_30 === 1) {
-			v = two$i64_i64_i64_ops_Div_div_i64_i64((a060: rs.i64, a152: rs.i64): rs.i64 => {
-				return rs.i64Div(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.i64, a151: rs.i64): rs.i64 => {
-				return rs.i64Div(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.i64Rem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$i64_i64_i64_ops_Rem_rem_i64_i64((a058: rs.i64, a150: rs.i64): rs.i64 => {
-				return rs.i64Rem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.i64, a149: rs.i64): rs.i64 => {
-				return rs.i64Rem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = rs.i64And(_10, _12);
-		} else if (_34 === 1) {
-			v = two$i64_i64_i64_ops_BitAnd_bitand_i64_i64((a056: rs.i64, a148: rs.i64): rs.i64 => {
-				return rs.i64And(a056, a148);
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.i64, a147: rs.i64): rs.i64 => {
-				return rs.i64And(a055, a147);
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = rs.i64Or(_10, _12);
-		} else if (_36 === 1) {
-			v = two$i64_i64_i64_ops_BitOr_bitor_i64_i64((a054: rs.i64, a146: rs.i64): rs.i64 => {
-				return rs.i64Or(a054, a146);
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.i64, a145: rs.i64): rs.i64 => {
-				return rs.i64Or(a053, a145);
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = rs.i64Xor(_10, _12);
-		} else if (_38 === 1) {
-			v = two$i64_i64_i64_ops_BitXor_bitxor_i64_i64((a052: rs.i64, a144: rs.i64): rs.i64 => {
-				return rs.i64Xor(a052, a144);
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.i64, a143: rs.i64): rs.i64 => {
-				return rs.i64Xor(a051, a143);
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.i64Shl(_10, n);
-		} else if (_40 === 1) {
-			v = two$i64_u32_i64_ops_Shl_shl_i64_u32((a050: rs.i64, a142: rs.u32): rs.i64 => {
-				return rs.i64Shl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.i64, a141: rs.u32): rs.i64 => {
-				return rs.i64Shl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.i64Shr(_10, n);
-		} else if (_42 === 1) {
-			v = two$i64_u32_i64_ops_Shr_shr_i64_u32((a048: rs.i64, a140: rs.u32): rs.i64 => {
-				return rs.i64Shr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.i64, a139: rs.u32): rs.i64 => {
-				return rs.i64Shr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.i64Shl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$i64_i16_i64_ops_Shl_shl_i64_i16((a046: rs.i64, a138: rs.i16): rs.i64 => {
-				return rs.i64Shl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.i64, a137: rs.i16): rs.i64 => {
-				return rs.i64Shl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.i64Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$i64_u128_i64_ops_Shr_shr_i64_u128((a044: rs.i64, a136: rs.u128): rs.i64 => {
-				return rs.i64Shr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.i64, a135: rs.u128): rs.i64 => {
-				return rs.i64Shr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = rs.i64Not(_10);
-		} else if (_63 === 1) {
-			v = one$i64_i64_ops_Not_not_i64((a042: rs.i64): rs.i64 => {
-				return rs.i64Not(a042);
-			}, _10);
-		} else {
-			v = ((a041: rs.i64): rs.i64 => {
-				return rs.i64Not(a041);
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.i64Neg(_10);
-			} else if (_69 === 1) {
-				_66 = one$i64_i64_ops_Neg_neg_i64((a040: rs.i64): rs.i64 => {
-					return rs.i64Neg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.i64Add(a, b);
+			} else if (_32 === 1) {
+				v = two$i64_i64_i64_ops_Add_add_i64_i64((a066: rs.i64, a158: rs.i64): rs.i64 => {
+					return rs.i64Add(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.i64): rs.i64 => {
-					return rs.i64Neg(a039);
-				})(_10);
+				v = ((a065: rs.i64, a157: rs.i64): rs.i64 => {
+					return rs.i64Add(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.i64Neg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_i64_i64_ops_Neg_neg_ref_i64((a038: rs.i64): rs.i64 => {
-					return rs.i64Neg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.i64Sub(a, b);
+			} else if (_35 === 1) {
+				v = two$i64_i64_i64_ops_Sub_sub_i64_i64((a064: rs.i64, a156: rs.i64): rs.i64 => {
+					return rs.i64Sub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.i64, a155: rs.i64): rs.i64 => {
+					return rs.i64Sub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.i64Mul(a, b);
+			} else if (_38 === 1) {
+				v = two$i64_i64_i64_ops_Mul_mul_i64_i64((a062: rs.i64, a154: rs.i64): rs.i64 => {
+					return rs.i64Mul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.i64, a153: rs.i64): rs.i64 => {
+					return rs.i64Mul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.i64Div(a, b);
+			} else if (_41 === 1) {
+				v = two$i64_i64_i64_ops_Div_div_i64_i64((a060: rs.i64, a152: rs.i64): rs.i64 => {
+					return rs.i64Div(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.i64, a151: rs.i64): rs.i64 => {
+					return rs.i64Div(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.i64Rem(a, b);
+			} else if (_44 === 1) {
+				v = two$i64_i64_i64_ops_Rem_rem_i64_i64((a058: rs.i64, a150: rs.i64): rs.i64 => {
+					return rs.i64Rem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.i64, a149: rs.i64): rs.i64 => {
+					return rs.i64Rem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = rs.i64And(a, b);
+			} else if (_47 === 1) {
+				v = two$i64_i64_i64_ops_BitAnd_bitand_i64_i64((a056: rs.i64, a148: rs.i64): rs.i64 => {
+					return rs.i64And(a056, a148);
+				}, a, b);
+			} else {
+				v = ((a055: rs.i64, a147: rs.i64): rs.i64 => {
+					return rs.i64And(a055, a147);
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = rs.i64Or(a, b);
+			} else if (_50 === 1) {
+				v = two$i64_i64_i64_ops_BitOr_bitor_i64_i64((a054: rs.i64, a146: rs.i64): rs.i64 => {
+					return rs.i64Or(a054, a146);
+				}, a, b);
+			} else {
+				v = ((a053: rs.i64, a145: rs.i64): rs.i64 => {
+					return rs.i64Or(a053, a145);
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = rs.i64Xor(a, b);
+			} else if (_53 === 1) {
+				v = two$i64_i64_i64_ops_BitXor_bitxor_i64_i64((a052: rs.i64, a144: rs.i64): rs.i64 => {
+					return rs.i64Xor(a052, a144);
+				}, a, b);
+			} else {
+				v = ((a051: rs.i64, a143: rs.i64): rs.i64 => {
+					return rs.i64Xor(a051, a143);
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.i64Shl(a, n);
+			} else if (_56 === 1) {
+				v = two$i64_u32_i64_ops_Shl_shl_i64_u32((a050: rs.i64, a142: rs.u32): rs.i64 => {
+					return rs.i64Shl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.i64, a141: rs.u32): rs.i64 => {
+					return rs.i64Shl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.i64Shr(a, n);
+			} else if (_59 === 1) {
+				v = two$i64_u32_i64_ops_Shr_shr_i64_u32((a048: rs.i64, a140: rs.u32): rs.i64 => {
+					return rs.i64Shr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.i64, a139: rs.u32): rs.i64 => {
+					return rs.i64Shr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.i64Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$i64_i16_i64_ops_Shl_shl_i64_i16((a046: rs.i64, a138: rs.i16): rs.i64 => {
+					return rs.i64Shl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.i64, a137: rs.i16): rs.i64 => {
+					return rs.i64Shl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.i64Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$i64_u128_i64_ops_Shr_shr_i64_u128((a044: rs.i64, a136: rs.u128): rs.i64 => {
+					return rs.i64Shr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.i64, a135: rs.u128): rs.i64 => {
+					return rs.i64Shr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = rs.i64Not(a);
+			} else if (_83 === 1) {
+				v = one$i64_i64_ops_Not_not_i64((a042: rs.i64): rs.i64 => {
+					return rs.i64Not(a042);
 				}, a);
 			} else {
-				_66 = ((a037: rs.i64): rs.i64 => {
-					return rs.i64Neg(a037);
+				v = ((a041: rs.i64): rs.i64 => {
+					return rs.i64Not(a041);
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.i64 = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.i64Add(x, _12);
-		} else if (_79 === 1) {
-			two$mut_i64_i64_unit_ops_AddAssign_add_assign_i64_i64((a036: rs.Place<rs.i64>, a134: rs.i64): undefined => {
-				a036.v = rs.i64Add(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.i64Neg(a);
+				} else if (_92 === 1) {
+					_87 = one$i64_i64_ops_Neg_neg_i64((a040: rs.i64): rs.i64 => {
+						return rs.i64Neg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.i64): rs.i64 => {
+						return rs.i64Neg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.i64Neg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_i64_i64_ops_Neg_neg_ref_i64((a038: rs.i64): rs.i64 => {
+						return rs.i64Neg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.i64): rs.i64 => {
+						return rs.i64Neg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.i64 | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.i64 = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.i64Add(x, b);
+			} else if (_105 === 1) {
+				two$mut_i64_i64_unit_ops_AddAssign_add_assign_i64_i64((a036: rs.Place<rs.i64>, a134: rs.i64): undefined => {
+					a036.v = rs.i64Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.i64>, a133: rs.i64): undefined => {
+					a035.v = rs.i64Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.i64 = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.i64Sub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_i64_i64_unit_ops_SubAssign_sub_assign_i64_i64((a034: rs.Place<rs.i64>, a132: rs.i64): undefined => {
+					a034.v = rs.i64Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.i64>, a131: rs.i64): undefined => {
+					a033.v = rs.i64Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.i64 = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.i64Mul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_i64_i64_unit_ops_MulAssign_mul_assign_i64_i64((a032: rs.Place<rs.i64>, a130: rs.i64): undefined => {
+					a032.v = rs.i64Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.i64>, a129: rs.i64): undefined => {
+					a031.v = rs.i64Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.i64 = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.i64Div(x4, b);
+			} else if (_129 === 1) {
+				two$mut_i64_i64_unit_ops_DivAssign_div_assign_i64_i64((a030: rs.Place<rs.i64>, a128: rs.i64): undefined => {
+					a030.v = rs.i64Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.i64>, a127: rs.i64): undefined => {
+					a029.v = rs.i64Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.i64 = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.i64Rem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_i64_i64_unit_ops_RemAssign_rem_assign_i64_i64((a028: rs.Place<rs.i64>, a126: rs.i64): undefined => {
+					a028.v = rs.i64Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.i64>, a125: rs.i64): undefined => {
+					a027.v = rs.i64Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.i64 = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = rs.i64And(x6, b);
+			} else if (_145 === 1) {
+				two$mut_i64_i64_unit_ops_BitAndAssign_bitand_assign_i64_i64((a026: rs.Place<rs.i64>, a124: rs.i64): undefined => {
+					a026.v = rs.i64And(a026.v, a124);
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.i64>, a123: rs.i64): undefined => {
+					a025.v = rs.i64And(a025.v, a123);
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.i64 = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = rs.i64Or(x7, b);
+			} else if (_153 === 1) {
+				two$mut_i64_i64_unit_ops_BitOrAssign_bitor_assign_i64_i64((a024: rs.Place<rs.i64>, a122: rs.i64): undefined => {
+					a024.v = rs.i64Or(a024.v, a122);
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.i64>, a121: rs.i64): undefined => {
+					a023.v = rs.i64Or(a023.v, a121);
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.i64 = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = rs.i64Xor(x8, b);
+			} else if (_161 === 1) {
+				two$mut_i64_i64_unit_ops_BitXorAssign_bitxor_assign_i64_i64((a022: rs.Place<rs.i64>, a120: rs.i64): undefined => {
+					a022.v = rs.i64Xor(a022.v, a120);
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.i64>, a119: rs.i64): undefined => {
+					a021.v = rs.i64Xor(a021.v, a119);
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.i64 = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.i64Shl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_i64_u32_unit_ops_ShlAssign_shl_assign_i64_u32((a020: rs.Place<rs.i64>, a118: rs.u32): undefined => {
+					a020.v = rs.i64Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.i64>, a117: rs.u32): undefined => {
+					a019.v = rs.i64Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.i64 = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.i64Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_i64_i64_unit_ops_ShrAssign_shr_assign_i64_i64((a018: rs.Place<rs.i64>, a116: rs.i64): undefined => {
+					a018.v = rs.i64Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.i64>, a115: rs.i64): undefined => {
+					a017.v = rs.i64Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.i64Add(a, b);
+			} else if (_189 === 1) {
+				v = two$i64_ref_i64_i64_ops_Add_add_i64_ref_i64((a016: rs.i64, a114: rs.i64): rs.i64 => {
+					return rs.i64Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.i64, a113: rs.i64): rs.i64 => {
+					return rs.i64Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.i64Sub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_i64_i64_i64_ops_Sub_sub_ref_i64_i64((a014: rs.i64, a112: rs.i64): rs.i64 => {
+					return rs.i64Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.i64, a111: rs.i64): rs.i64 => {
+					return rs.i64Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.i64Mul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_i64_ref_i64_i64_ops_Mul_mul_ref_i64_ref_i64((a012: rs.i64, a110: rs.i64): rs.i64 => {
+					return rs.i64Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.i64, a19: rs.i64): rs.i64 => {
+					return rs.i64Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.i64Shl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_i64_ref_u8_i64_ops_Shl_shl_ref_i64_ref_u8((a010: rs.i64, a18: rs.u8): rs.i64 => {
+					return rs.i64Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.i64, a17: rs.u8): rs.i64 => {
+					return rs.i64Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = rs.i64Not(a);
+			} else if (_222 === 1) {
+				v = one$ref_i64_i64_ops_Not_not_ref_i64((a08: rs.i64): rs.i64 => {
+					return rs.i64Not(a08);
+				}, a);
+			} else {
+				v = ((a07: rs.i64): rs.i64 => {
+					return rs.i64Not(a07);
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.i64 = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.i64Add(x11, b);
+			} else if (_230 === 1) {
+				two$mut_i64_ref_i64_unit_ops_AddAssign_add_assign_i64_ref_i64((a06: rs.Place<rs.i64>, a16: rs.i64): undefined => {
+					a06.v = rs.i64Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.i64>, a15: rs.i64): undefined => {
+					a05.v = rs.i64Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.i64 = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.i64Div(x12, b);
+			} else if (_241 === 1) {
+				two$mut_i64_ref_i64_unit_ops_DivAssign_div_assign_i64_ref_i64((a04: rs.Place<rs.i64>, a14: rs.i64): undefined => {
+					a04.v = rs.i64Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.i64>, a13: rs.i64): undefined => {
+					a03.v = rs.i64Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.i64>, a133: rs.i64): undefined => {
-				a035.v = rs.i64Add(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.i64 = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.i64Shr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_i64_ref_u16_unit_ops_ShrAssign_shr_assign_i64_ref_u16((a02: rs.Place<rs.i64>, a12: rs.u16): undefined => {
+					a02.v = rs.i64Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.i64>, a1: rs.u16): undefined => {
+					a0.v = rs.i64Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.i64 = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.i64Sub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_i64_i64_unit_ops_SubAssign_sub_assign_i64_i64((a034: rs.Place<rs.i64>, a132: rs.i64): undefined => {
-				a034.v = rs.i64Sub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.i64>, a131: rs.i64): undefined => {
-				a033.v = rs.i64Sub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.i64 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.i64Mul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_i64_i64_unit_ops_MulAssign_mul_assign_i64_i64((a032: rs.Place<rs.i64>, a130: rs.i64): undefined => {
-				a032.v = rs.i64Mul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.i64>, a129: rs.i64): undefined => {
-				a031.v = rs.i64Mul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.i64 = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.i64Div(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_i64_i64_unit_ops_DivAssign_div_assign_i64_i64((a030: rs.Place<rs.i64>, a128: rs.i64): undefined => {
-				a030.v = rs.i64Div(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.i64>, a127: rs.i64): undefined => {
-				a029.v = rs.i64Div(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.i64 = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.i64Rem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_i64_i64_unit_ops_RemAssign_rem_assign_i64_i64((a028: rs.Place<rs.i64>, a126: rs.i64): undefined => {
-				a028.v = rs.i64Rem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.i64>, a125: rs.i64): undefined => {
-				a027.v = rs.i64Rem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.i64 = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = rs.i64And(x6, _12);
-		} else if (_114 === 1) {
-			two$mut_i64_i64_unit_ops_BitAndAssign_bitand_assign_i64_i64((a026: rs.Place<rs.i64>, a124: rs.i64): undefined => {
-				a026.v = rs.i64And(a026.v, a124);
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.i64>, a123: rs.i64): undefined => {
-				a025.v = rs.i64And(a025.v, a123);
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.i64 = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = rs.i64Or(x7, _12);
-		} else if (_121 === 1) {
-			two$mut_i64_i64_unit_ops_BitOrAssign_bitor_assign_i64_i64((a024: rs.Place<rs.i64>, a122: rs.i64): undefined => {
-				a024.v = rs.i64Or(a024.v, a122);
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.i64>, a121: rs.i64): undefined => {
-				a023.v = rs.i64Or(a023.v, a121);
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.i64 = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = rs.i64Xor(x8, _12);
-		} else if (_128 === 1) {
-			two$mut_i64_i64_unit_ops_BitXorAssign_bitxor_assign_i64_i64((a022: rs.Place<rs.i64>, a120: rs.i64): undefined => {
-				a022.v = rs.i64Xor(a022.v, a120);
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.i64>, a119: rs.i64): undefined => {
-				a021.v = rs.i64Xor(a021.v, a119);
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.i64 = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.i64Shl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_i64_u32_unit_ops_ShlAssign_shl_assign_i64_u32((a020: rs.Place<rs.i64>, a118: rs.u32): undefined => {
-				a020.v = rs.i64Shl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.i64>, a117: rs.u32): undefined => {
-				a019.v = rs.i64Shl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.i64 = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.i64Shr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_i64_i64_unit_ops_ShrAssign_shr_assign_i64_i64((a018: rs.Place<rs.i64>, a116: rs.i64): undefined => {
-				a018.v = rs.i64Shr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.i64>, a115: rs.i64): undefined => {
-				a017.v = rs.i64Shr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.i64Add(_10, b);
-		} else if (_153 === 1) {
-			v = two$i64_ref_i64_i64_ops_Add_add_i64_ref_i64((a016: rs.i64, a114: rs.i64): rs.i64 => {
-				return rs.i64Add(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.i64, a113: rs.i64): rs.i64 => {
-				return rs.i64Add(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.i64Sub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_i64_i64_i64_ops_Sub_sub_ref_i64_i64((a014: rs.i64, a112: rs.i64): rs.i64 => {
-				return rs.i64Sub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.i64, a111: rs.i64): rs.i64 => {
-				return rs.i64Sub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.i64Mul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_i64_ref_i64_i64_ops_Mul_mul_ref_i64_ref_i64((a012: rs.i64, a110: rs.i64): rs.i64 => {
-				return rs.i64Mul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.i64, a19: rs.i64): rs.i64 => {
-				return rs.i64Mul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.i64Shl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_i64_ref_u8_i64_ops_Shl_shl_ref_i64_ref_u8((a010: rs.i64, a18: rs.u8): rs.i64 => {
-				return rs.i64Shl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.i64, a17: rs.u8): rs.i64 => {
-				return rs.i64Shl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = rs.i64Not(a);
-		} else if (_182 === 1) {
-			v = one$ref_i64_i64_ops_Not_not_ref_i64((a08: rs.i64): rs.i64 => {
-				return rs.i64Not(a08);
-			}, a);
-		} else {
-			v = ((a07: rs.i64): rs.i64 => {
-				return rs.i64Not(a07);
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.i64 = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.i64Add(x11, b);
-		} else if (_189 === 1) {
-			two$mut_i64_ref_i64_unit_ops_AddAssign_add_assign_i64_ref_i64((a06: rs.Place<rs.i64>, a16: rs.i64): undefined => {
-				a06.v = rs.i64Add(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.i64>, a15: rs.i64): undefined => {
-				a05.v = rs.i64Add(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.i64 = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.i64Div(x12, b);
-		} else if (_199 === 1) {
-			two$mut_i64_ref_i64_unit_ops_DivAssign_div_assign_i64_ref_i64((a04: rs.Place<rs.i64>, a14: rs.i64): undefined => {
-				a04.v = rs.i64Div(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.i64>, a13: rs.i64): undefined => {
-				a03.v = rs.i64Div(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.i64 = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.i64Shr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_i64_ref_u16_unit_ops_ShrAssign_shr_assign_i64_ref_u16((a02: rs.Place<rs.i64>, a12: rs.u16): undefined => {
-				a02.v = rs.i64Shr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.i64>, a1: rs.u16): undefined => {
-				a0.v = rs.i64Shr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -7539,7 +7559,7 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.i128;
-	let _66!: rs.i128;
+	let _87!: rs.i128;
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -7553,503 +7573,508 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.i128FromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.i128 = take(([1] as [rs.usize])[0]);
-	const _12: rs.i128 = take(([17] as [rs.usize])[0]);
-	const a: rs.i128 = _10;
-	const b: rs.i128 = _12;
+	const _10: [rs.i128, rs.i128] = [take(1), take(1 + 16)];
+	const a: rs.i128 = _10[0];
+	const b: rs.i128 = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 33)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 16), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
-		const dst = out2;
-		const word = v3;
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.i128Add(_10, _12);
-		} else if (_24 === 1) {
-			v = two$i128_i128_i128_ops_Add_add_i128_i128((a066: rs.i128, a158: rs.i128): rs.i128 => {
-				return rs.i128Add(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.i128, a157: rs.i128): rs.i128 => {
-				return rs.i128Add(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.i128Sub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$i128_i128_i128_ops_Sub_sub_i128_i128((a064: rs.i128, a156: rs.i128): rs.i128 => {
-				return rs.i128Sub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.i128, a155: rs.i128): rs.i128 => {
-				return rs.i128Sub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.i128Mul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$i128_i128_i128_ops_Mul_mul_i128_i128((a062: rs.i128, a154: rs.i128): rs.i128 => {
-				return rs.i128Mul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.i128, a153: rs.i128): rs.i128 => {
-				return rs.i128Mul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
+			const dst = out2;
+			const word = v3;
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.i128Div(_10, _12);
-		} else if (_30 === 1) {
-			v = two$i128_i128_i128_ops_Div_div_i128_i128((a060: rs.i128, a152: rs.i128): rs.i128 => {
-				return rs.i128Div(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.i128, a151: rs.i128): rs.i128 => {
-				return rs.i128Div(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.i128Rem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$i128_i128_i128_ops_Rem_rem_i128_i128((a058: rs.i128, a150: rs.i128): rs.i128 => {
-				return rs.i128Rem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.i128, a149: rs.i128): rs.i128 => {
-				return rs.i128Rem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = rs.i128And(_10, _12);
-		} else if (_34 === 1) {
-			v = two$i128_i128_i128_ops_BitAnd_bitand_i128_i128((a056: rs.i128, a148: rs.i128): rs.i128 => {
-				return rs.i128And(a056, a148);
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.i128, a147: rs.i128): rs.i128 => {
-				return rs.i128And(a055, a147);
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = rs.i128Or(_10, _12);
-		} else if (_36 === 1) {
-			v = two$i128_i128_i128_ops_BitOr_bitor_i128_i128((a054: rs.i128, a146: rs.i128): rs.i128 => {
-				return rs.i128Or(a054, a146);
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.i128, a145: rs.i128): rs.i128 => {
-				return rs.i128Or(a053, a145);
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = rs.i128Xor(_10, _12);
-		} else if (_38 === 1) {
-			v = two$i128_i128_i128_ops_BitXor_bitxor_i128_i128((a052: rs.i128, a144: rs.i128): rs.i128 => {
-				return rs.i128Xor(a052, a144);
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.i128, a143: rs.i128): rs.i128 => {
-				return rs.i128Xor(a051, a143);
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.i128Shl(_10, n);
-		} else if (_40 === 1) {
-			v = two$i128_u32_i128_ops_Shl_shl_i128_u32((a050: rs.i128, a142: rs.u32): rs.i128 => {
-				return rs.i128Shl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.i128, a141: rs.u32): rs.i128 => {
-				return rs.i128Shl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.i128Shr(_10, n);
-		} else if (_42 === 1) {
-			v = two$i128_u32_i128_ops_Shr_shr_i128_u32((a048: rs.i128, a140: rs.u32): rs.i128 => {
-				return rs.i128Shr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.i128, a139: rs.u32): rs.i128 => {
-				return rs.i128Shr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.i128Shl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$i128_i16_i128_ops_Shl_shl_i128_i16((a046: rs.i128, a138: rs.i16): rs.i128 => {
-				return rs.i128Shl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.i128, a137: rs.i16): rs.i128 => {
-				return rs.i128Shl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.i128Shr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$i128_u128_i128_ops_Shr_shr_i128_u128((a044: rs.i128, a136: rs.u128): rs.i128 => {
-				return rs.i128Shr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.i128, a135: rs.u128): rs.i128 => {
-				return rs.i128Shr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = rs.i128Not(_10);
-		} else if (_63 === 1) {
-			v = one$i128_i128_ops_Not_not_i128((a042: rs.i128): rs.i128 => {
-				return rs.i128Not(a042);
-			}, _10);
-		} else {
-			v = ((a041: rs.i128): rs.i128 => {
-				return rs.i128Not(a041);
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.i128Neg(_10);
-			} else if (_69 === 1) {
-				_66 = one$i128_i128_ops_Neg_neg_i128((a040: rs.i128): rs.i128 => {
-					return rs.i128Neg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.i128Add(a, b);
+			} else if (_32 === 1) {
+				v = two$i128_i128_i128_ops_Add_add_i128_i128((a066: rs.i128, a158: rs.i128): rs.i128 => {
+					return rs.i128Add(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.i128): rs.i128 => {
-					return rs.i128Neg(a039);
-				})(_10);
+				v = ((a065: rs.i128, a157: rs.i128): rs.i128 => {
+					return rs.i128Add(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.i128Neg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_i128_i128_ops_Neg_neg_ref_i128((a038: rs.i128): rs.i128 => {
-					return rs.i128Neg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.i128Sub(a, b);
+			} else if (_35 === 1) {
+				v = two$i128_i128_i128_ops_Sub_sub_i128_i128((a064: rs.i128, a156: rs.i128): rs.i128 => {
+					return rs.i128Sub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.i128, a155: rs.i128): rs.i128 => {
+					return rs.i128Sub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.i128Mul(a, b);
+			} else if (_38 === 1) {
+				v = two$i128_i128_i128_ops_Mul_mul_i128_i128((a062: rs.i128, a154: rs.i128): rs.i128 => {
+					return rs.i128Mul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.i128, a153: rs.i128): rs.i128 => {
+					return rs.i128Mul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.i128Div(a, b);
+			} else if (_41 === 1) {
+				v = two$i128_i128_i128_ops_Div_div_i128_i128((a060: rs.i128, a152: rs.i128): rs.i128 => {
+					return rs.i128Div(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.i128, a151: rs.i128): rs.i128 => {
+					return rs.i128Div(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.i128Rem(a, b);
+			} else if (_44 === 1) {
+				v = two$i128_i128_i128_ops_Rem_rem_i128_i128((a058: rs.i128, a150: rs.i128): rs.i128 => {
+					return rs.i128Rem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.i128, a149: rs.i128): rs.i128 => {
+					return rs.i128Rem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = rs.i128And(a, b);
+			} else if (_47 === 1) {
+				v = two$i128_i128_i128_ops_BitAnd_bitand_i128_i128((a056: rs.i128, a148: rs.i128): rs.i128 => {
+					return rs.i128And(a056, a148);
+				}, a, b);
+			} else {
+				v = ((a055: rs.i128, a147: rs.i128): rs.i128 => {
+					return rs.i128And(a055, a147);
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = rs.i128Or(a, b);
+			} else if (_50 === 1) {
+				v = two$i128_i128_i128_ops_BitOr_bitor_i128_i128((a054: rs.i128, a146: rs.i128): rs.i128 => {
+					return rs.i128Or(a054, a146);
+				}, a, b);
+			} else {
+				v = ((a053: rs.i128, a145: rs.i128): rs.i128 => {
+					return rs.i128Or(a053, a145);
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = rs.i128Xor(a, b);
+			} else if (_53 === 1) {
+				v = two$i128_i128_i128_ops_BitXor_bitxor_i128_i128((a052: rs.i128, a144: rs.i128): rs.i128 => {
+					return rs.i128Xor(a052, a144);
+				}, a, b);
+			} else {
+				v = ((a051: rs.i128, a143: rs.i128): rs.i128 => {
+					return rs.i128Xor(a051, a143);
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.i128Shl(a, n);
+			} else if (_56 === 1) {
+				v = two$i128_u32_i128_ops_Shl_shl_i128_u32((a050: rs.i128, a142: rs.u32): rs.i128 => {
+					return rs.i128Shl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.i128, a141: rs.u32): rs.i128 => {
+					return rs.i128Shl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.i128Shr(a, n);
+			} else if (_59 === 1) {
+				v = two$i128_u32_i128_ops_Shr_shr_i128_u32((a048: rs.i128, a140: rs.u32): rs.i128 => {
+					return rs.i128Shr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.i128, a139: rs.u32): rs.i128 => {
+					return rs.i128Shr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.i128Shl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$i128_i16_i128_ops_Shl_shl_i128_i16((a046: rs.i128, a138: rs.i16): rs.i128 => {
+					return rs.i128Shl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.i128, a137: rs.i16): rs.i128 => {
+					return rs.i128Shl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.i128Shr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$i128_u128_i128_ops_Shr_shr_i128_u128((a044: rs.i128, a136: rs.u128): rs.i128 => {
+					return rs.i128Shr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.i128, a135: rs.u128): rs.i128 => {
+					return rs.i128Shr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = rs.i128Not(a);
+			} else if (_83 === 1) {
+				v = one$i128_i128_ops_Not_not_i128((a042: rs.i128): rs.i128 => {
+					return rs.i128Not(a042);
 				}, a);
 			} else {
-				_66 = ((a037: rs.i128): rs.i128 => {
-					return rs.i128Neg(a037);
+				v = ((a041: rs.i128): rs.i128 => {
+					return rs.i128Not(a041);
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.i128 = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.i128Add(x, _12);
-		} else if (_79 === 1) {
-			two$mut_i128_i128_unit_ops_AddAssign_add_assign_i128_i128((a036: rs.Place<rs.i128>, a134: rs.i128): undefined => {
-				a036.v = rs.i128Add(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.i128Neg(a);
+				} else if (_92 === 1) {
+					_87 = one$i128_i128_ops_Neg_neg_i128((a040: rs.i128): rs.i128 => {
+						return rs.i128Neg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.i128): rs.i128 => {
+						return rs.i128Neg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.i128Neg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_i128_i128_ops_Neg_neg_ref_i128((a038: rs.i128): rs.i128 => {
+						return rs.i128Neg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.i128): rs.i128 => {
+						return rs.i128Neg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.i128 | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.i128 = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.i128Add(x, b);
+			} else if (_105 === 1) {
+				two$mut_i128_i128_unit_ops_AddAssign_add_assign_i128_i128((a036: rs.Place<rs.i128>, a134: rs.i128): undefined => {
+					a036.v = rs.i128Add(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.i128>, a133: rs.i128): undefined => {
+					a035.v = rs.i128Add(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.i128 = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.i128Sub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_i128_i128_unit_ops_SubAssign_sub_assign_i128_i128((a034: rs.Place<rs.i128>, a132: rs.i128): undefined => {
+					a034.v = rs.i128Sub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.i128>, a131: rs.i128): undefined => {
+					a033.v = rs.i128Sub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.i128 = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.i128Mul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_i128_i128_unit_ops_MulAssign_mul_assign_i128_i128((a032: rs.Place<rs.i128>, a130: rs.i128): undefined => {
+					a032.v = rs.i128Mul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.i128>, a129: rs.i128): undefined => {
+					a031.v = rs.i128Mul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.i128 = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.i128Div(x4, b);
+			} else if (_129 === 1) {
+				two$mut_i128_i128_unit_ops_DivAssign_div_assign_i128_i128((a030: rs.Place<rs.i128>, a128: rs.i128): undefined => {
+					a030.v = rs.i128Div(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.i128>, a127: rs.i128): undefined => {
+					a029.v = rs.i128Div(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.i128 = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.i128Rem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_i128_i128_unit_ops_RemAssign_rem_assign_i128_i128((a028: rs.Place<rs.i128>, a126: rs.i128): undefined => {
+					a028.v = rs.i128Rem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.i128>, a125: rs.i128): undefined => {
+					a027.v = rs.i128Rem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.i128 = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = rs.i128And(x6, b);
+			} else if (_145 === 1) {
+				two$mut_i128_i128_unit_ops_BitAndAssign_bitand_assign_i128_i128((a026: rs.Place<rs.i128>, a124: rs.i128): undefined => {
+					a026.v = rs.i128And(a026.v, a124);
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.i128>, a123: rs.i128): undefined => {
+					a025.v = rs.i128And(a025.v, a123);
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.i128 = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = rs.i128Or(x7, b);
+			} else if (_153 === 1) {
+				two$mut_i128_i128_unit_ops_BitOrAssign_bitor_assign_i128_i128((a024: rs.Place<rs.i128>, a122: rs.i128): undefined => {
+					a024.v = rs.i128Or(a024.v, a122);
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.i128>, a121: rs.i128): undefined => {
+					a023.v = rs.i128Or(a023.v, a121);
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.i128 = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = rs.i128Xor(x8, b);
+			} else if (_161 === 1) {
+				two$mut_i128_i128_unit_ops_BitXorAssign_bitxor_assign_i128_i128((a022: rs.Place<rs.i128>, a120: rs.i128): undefined => {
+					a022.v = rs.i128Xor(a022.v, a120);
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.i128>, a119: rs.i128): undefined => {
+					a021.v = rs.i128Xor(a021.v, a119);
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.i128 = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.i128Shl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_i128_u32_unit_ops_ShlAssign_shl_assign_i128_u32((a020: rs.Place<rs.i128>, a118: rs.u32): undefined => {
+					a020.v = rs.i128Shl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.i128>, a117: rs.u32): undefined => {
+					a019.v = rs.i128Shl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.i128 = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.i128Shr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_i128_i64_unit_ops_ShrAssign_shr_assign_i128_i64((a018: rs.Place<rs.i128>, a116: rs.i64): undefined => {
+					a018.v = rs.i128Shr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.i128>, a115: rs.i64): undefined => {
+					a017.v = rs.i128Shr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.i128Add(a, b);
+			} else if (_189 === 1) {
+				v = two$i128_ref_i128_i128_ops_Add_add_i128_ref_i128((a016: rs.i128, a114: rs.i128): rs.i128 => {
+					return rs.i128Add(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.i128, a113: rs.i128): rs.i128 => {
+					return rs.i128Add(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.i128Sub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_i128_i128_i128_ops_Sub_sub_ref_i128_i128((a014: rs.i128, a112: rs.i128): rs.i128 => {
+					return rs.i128Sub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.i128, a111: rs.i128): rs.i128 => {
+					return rs.i128Sub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.i128Mul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_i128_ref_i128_i128_ops_Mul_mul_ref_i128_ref_i128((a012: rs.i128, a110: rs.i128): rs.i128 => {
+					return rs.i128Mul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.i128, a19: rs.i128): rs.i128 => {
+					return rs.i128Mul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.i128Shl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_i128_ref_u8_i128_ops_Shl_shl_ref_i128_ref_u8((a010: rs.i128, a18: rs.u8): rs.i128 => {
+					return rs.i128Shl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.i128, a17: rs.u8): rs.i128 => {
+					return rs.i128Shl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = rs.i128Not(a);
+			} else if (_222 === 1) {
+				v = one$ref_i128_i128_ops_Not_not_ref_i128((a08: rs.i128): rs.i128 => {
+					return rs.i128Not(a08);
+				}, a);
+			} else {
+				v = ((a07: rs.i128): rs.i128 => {
+					return rs.i128Not(a07);
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.i128 = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.i128Add(x11, b);
+			} else if (_230 === 1) {
+				two$mut_i128_ref_i128_unit_ops_AddAssign_add_assign_i128_ref_i128((a06: rs.Place<rs.i128>, a16: rs.i128): undefined => {
+					a06.v = rs.i128Add(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.i128>, a15: rs.i128): undefined => {
+					a05.v = rs.i128Add(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.i128 = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.i128Div(x12, b);
+			} else if (_241 === 1) {
+				two$mut_i128_ref_i128_unit_ops_DivAssign_div_assign_i128_ref_i128((a04: rs.Place<rs.i128>, a14: rs.i128): undefined => {
+					a04.v = rs.i128Div(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.i128>, a13: rs.i128): undefined => {
+					a03.v = rs.i128Div(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.i128>, a133: rs.i128): undefined => {
-				a035.v = rs.i128Add(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.i128 = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.i128Shr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_i128_ref_u16_unit_ops_ShrAssign_shr_assign_i128_ref_u16((a02: rs.Place<rs.i128>, a12: rs.u16): undefined => {
+					a02.v = rs.i128Shr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.i128>, a1: rs.u16): undefined => {
+					a0.v = rs.i128Shr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.i128 = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.i128Sub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_i128_i128_unit_ops_SubAssign_sub_assign_i128_i128((a034: rs.Place<rs.i128>, a132: rs.i128): undefined => {
-				a034.v = rs.i128Sub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.i128>, a131: rs.i128): undefined => {
-				a033.v = rs.i128Sub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.i128 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.i128Mul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_i128_i128_unit_ops_MulAssign_mul_assign_i128_i128((a032: rs.Place<rs.i128>, a130: rs.i128): undefined => {
-				a032.v = rs.i128Mul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.i128>, a129: rs.i128): undefined => {
-				a031.v = rs.i128Mul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.i128 = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.i128Div(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_i128_i128_unit_ops_DivAssign_div_assign_i128_i128((a030: rs.Place<rs.i128>, a128: rs.i128): undefined => {
-				a030.v = rs.i128Div(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.i128>, a127: rs.i128): undefined => {
-				a029.v = rs.i128Div(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.i128 = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.i128Rem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_i128_i128_unit_ops_RemAssign_rem_assign_i128_i128((a028: rs.Place<rs.i128>, a126: rs.i128): undefined => {
-				a028.v = rs.i128Rem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.i128>, a125: rs.i128): undefined => {
-				a027.v = rs.i128Rem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.i128 = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = rs.i128And(x6, _12);
-		} else if (_114 === 1) {
-			two$mut_i128_i128_unit_ops_BitAndAssign_bitand_assign_i128_i128((a026: rs.Place<rs.i128>, a124: rs.i128): undefined => {
-				a026.v = rs.i128And(a026.v, a124);
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.i128>, a123: rs.i128): undefined => {
-				a025.v = rs.i128And(a025.v, a123);
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.i128 = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = rs.i128Or(x7, _12);
-		} else if (_121 === 1) {
-			two$mut_i128_i128_unit_ops_BitOrAssign_bitor_assign_i128_i128((a024: rs.Place<rs.i128>, a122: rs.i128): undefined => {
-				a024.v = rs.i128Or(a024.v, a122);
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.i128>, a121: rs.i128): undefined => {
-				a023.v = rs.i128Or(a023.v, a121);
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.i128 = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = rs.i128Xor(x8, _12);
-		} else if (_128 === 1) {
-			two$mut_i128_i128_unit_ops_BitXorAssign_bitxor_assign_i128_i128((a022: rs.Place<rs.i128>, a120: rs.i128): undefined => {
-				a022.v = rs.i128Xor(a022.v, a120);
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.i128>, a119: rs.i128): undefined => {
-				a021.v = rs.i128Xor(a021.v, a119);
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.i128 = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.i128Shl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_i128_u32_unit_ops_ShlAssign_shl_assign_i128_u32((a020: rs.Place<rs.i128>, a118: rs.u32): undefined => {
-				a020.v = rs.i128Shl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.i128>, a117: rs.u32): undefined => {
-				a019.v = rs.i128Shl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.i128 = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.i128Shr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_i128_i64_unit_ops_ShrAssign_shr_assign_i128_i64((a018: rs.Place<rs.i128>, a116: rs.i64): undefined => {
-				a018.v = rs.i128Shr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.i128>, a115: rs.i64): undefined => {
-				a017.v = rs.i128Shr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.i128Add(_10, b);
-		} else if (_153 === 1) {
-			v = two$i128_ref_i128_i128_ops_Add_add_i128_ref_i128((a016: rs.i128, a114: rs.i128): rs.i128 => {
-				return rs.i128Add(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.i128, a113: rs.i128): rs.i128 => {
-				return rs.i128Add(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.i128Sub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_i128_i128_i128_ops_Sub_sub_ref_i128_i128((a014: rs.i128, a112: rs.i128): rs.i128 => {
-				return rs.i128Sub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.i128, a111: rs.i128): rs.i128 => {
-				return rs.i128Sub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.i128Mul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_i128_ref_i128_i128_ops_Mul_mul_ref_i128_ref_i128((a012: rs.i128, a110: rs.i128): rs.i128 => {
-				return rs.i128Mul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.i128, a19: rs.i128): rs.i128 => {
-				return rs.i128Mul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.i128Shl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_i128_ref_u8_i128_ops_Shl_shl_ref_i128_ref_u8((a010: rs.i128, a18: rs.u8): rs.i128 => {
-				return rs.i128Shl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.i128, a17: rs.u8): rs.i128 => {
-				return rs.i128Shl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = rs.i128Not(a);
-		} else if (_182 === 1) {
-			v = one$ref_i128_i128_ops_Not_not_ref_i128((a08: rs.i128): rs.i128 => {
-				return rs.i128Not(a08);
-			}, a);
-		} else {
-			v = ((a07: rs.i128): rs.i128 => {
-				return rs.i128Not(a07);
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.i128 = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.i128Add(x11, b);
-		} else if (_189 === 1) {
-			two$mut_i128_ref_i128_unit_ops_AddAssign_add_assign_i128_ref_i128((a06: rs.Place<rs.i128>, a16: rs.i128): undefined => {
-				a06.v = rs.i128Add(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.i128>, a15: rs.i128): undefined => {
-				a05.v = rs.i128Add(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.i128 = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.i128Div(x12, b);
-		} else if (_199 === 1) {
-			two$mut_i128_ref_i128_unit_ops_DivAssign_div_assign_i128_ref_i128((a04: rs.Place<rs.i128>, a14: rs.i128): undefined => {
-				a04.v = rs.i128Div(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.i128>, a13: rs.i128): undefined => {
-				a03.v = rs.i128Div(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.i128 = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.i128Shr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_i128_ref_u16_unit_ops_ShrAssign_shr_assign_i128_ref_u16((a02: rs.Place<rs.i128>, a12: rs.u16): undefined => {
-				a02.v = rs.i128Shr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.i128>, a1: rs.u16): undefined => {
-				a0.v = rs.i128Shr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -8058,7 +8083,7 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: rs.isize;
-	let _66!: rs.isize;
+	let _87!: rs.isize;
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -8072,503 +8097,508 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.isizeFromBeBytes(buf);
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.isize = take(([1] as [rs.usize])[0]);
-	const _12: rs.isize = take(([5] as [rs.usize])[0]);
-	const a: rs.isize = _10;
-	const b: rs.isize = _12;
+	const _10: [rs.isize, rs.isize] = [take(1), take(1 + 4)];
+	const a: rs.isize = _10[0];
+	const b: rs.isize = _10[1];
 	const byte: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(i2, 9)), 0);
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeAdd(1, 2 * 4), i2)), 0);
 	};
-	const n: rs.u32 = ((byte(([1] as [rs.usize])[0]) << 24) | byte(([0] as [rs.usize])[0])) >>> 0;
-	const _23: rs.u8 = rs.u8Rem(kind, 32);
-	const _21: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
-		const dst = out2;
-		const word = v3 as rs.i128;
-		const word2 = rs.intWord(word, 0);
-		const word3 = rs.intWord(word, 32);
-		const word4 = rs.intWord(word, 64);
-		const word5 = rs.intWord(word, 96);
-		rs.byteVecReserve(dst, 16 as rs.usize);
-		const pos = dst.length;
-		dst.data[pos + 0] = (word5 >>> 24) & 255;
-		dst.data[pos + 1] = (word5 >>> 16) & 255;
-		dst.data[pos + 2] = (word5 >>> 8) & 255;
-		dst.data[pos + 3] = word5 & 255;
-		dst.data[pos + 4] = (word4 >>> 24) & 255;
-		dst.data[pos + 5] = (word4 >>> 16) & 255;
-		dst.data[pos + 6] = (word4 >>> 8) & 255;
-		dst.data[pos + 7] = word4 & 255;
-		dst.data[pos + 8] = (word3 >>> 24) & 255;
-		dst.data[pos + 9] = (word3 >>> 16) & 255;
-		dst.data[pos + 10] = (word3 >>> 8) & 255;
-		dst.data[pos + 11] = word3 & 255;
-		dst.data[pos + 12] = (word2 >>> 24) & 255;
-		dst.data[pos + 13] = (word2 >>> 16) & 255;
-		dst.data[pos + 14] = (word2 >>> 8) & 255;
-		dst.data[pos + 15] = word2 & 255;
-		dst.length = dst.length + 16;
-	};
-	if (_23 === 0) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = rs.isizeAdd(_10, _12);
-		} else if (_24 === 1) {
-			v = two$isize_isize_isize_ops_Add_add_isize_isize((a066: rs.isize, a158: rs.isize): rs.isize => {
-				return rs.isizeAdd(a066, a158);
-			}, _10, _12);
-		} else {
-			v = ((a065: rs.isize, a157: rs.isize): rs.isize => {
-				return rs.isizeAdd(a065, a157);
-			})(_10, _12);
-		}
-	} else if (_23 === 1) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = rs.isizeSub(_10, _12);
-		} else if (_26 === 1) {
-			v = two$isize_isize_isize_ops_Sub_sub_isize_isize((a064: rs.isize, a156: rs.isize): rs.isize => {
-				return rs.isizeSub(a064, a156);
-			}, _10, _12);
-		} else {
-			v = ((a063: rs.isize, a155: rs.isize): rs.isize => {
-				return rs.isizeSub(a063, a155);
-			})(_10, _12);
-		}
-	} else if (_23 === 2) {
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			v = rs.isizeMul(_10, _12);
-		} else if (_28 === 1) {
-			v = two$isize_isize_isize_ops_Mul_mul_isize_isize((a062: rs.isize, a154: rs.isize): rs.isize => {
-				return rs.isizeMul(a062, a154);
-			}, _10, _12);
-		} else {
-			v = ((a061: rs.isize, a153: rs.isize): rs.isize => {
-				return rs.isizeMul(a061, a153);
-			})(_10, _12);
-		}
-	} else if (_23 === 3) {
-		const _30: rs.u8 = rs.u8Rem(form, 3);
+	const n: rs.u32 = ((byte(1) << 24) | byte(0)) >>> 0;
+	b0: {
+		const _30: rs.u8 = rs.u8Rem(kind, 32);
+		const _28: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
+			const dst = out2;
+			const word = v3 as rs.i128;
+			const word2 = rs.intWord(word, 0);
+			const word3 = rs.intWord(word, 32);
+			const word4 = rs.intWord(word, 64);
+			const word5 = rs.intWord(word, 96);
+			rs.byteVecReserve(dst, 16 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word5 >>> 24) & 255;
+			dst.data[pos + 1] = (word5 >>> 16) & 255;
+			dst.data[pos + 2] = (word5 >>> 8) & 255;
+			dst.data[pos + 3] = word5 & 255;
+			dst.data[pos + 4] = (word4 >>> 24) & 255;
+			dst.data[pos + 5] = (word4 >>> 16) & 255;
+			dst.data[pos + 6] = (word4 >>> 8) & 255;
+			dst.data[pos + 7] = word4 & 255;
+			dst.data[pos + 8] = (word3 >>> 24) & 255;
+			dst.data[pos + 9] = (word3 >>> 16) & 255;
+			dst.data[pos + 10] = (word3 >>> 8) & 255;
+			dst.data[pos + 11] = word3 & 255;
+			dst.data[pos + 12] = (word2 >>> 24) & 255;
+			dst.data[pos + 13] = (word2 >>> 16) & 255;
+			dst.data[pos + 14] = (word2 >>> 8) & 255;
+			dst.data[pos + 15] = word2 & 255;
+			dst.length = dst.length + 16;
+		};
 		if (_30 === 0) {
-			v = rs.isizeDiv(_10, _12);
-		} else if (_30 === 1) {
-			v = two$isize_isize_isize_ops_Div_div_isize_isize((a060: rs.isize, a152: rs.isize): rs.isize => {
-				return rs.isizeDiv(a060, a152);
-			}, _10, _12);
-		} else {
-			v = ((a059: rs.isize, a151: rs.isize): rs.isize => {
-				return rs.isizeDiv(a059, a151);
-			})(_10, _12);
-		}
-	} else if (_23 === 4) {
-		const _32: rs.u8 = rs.u8Rem(form, 3);
-		if (_32 === 0) {
-			v = rs.isizeRem(_10, _12);
-		} else if (_32 === 1) {
-			v = two$isize_isize_isize_ops_Rem_rem_isize_isize((a058: rs.isize, a150: rs.isize): rs.isize => {
-				return rs.isizeRem(a058, a150);
-			}, _10, _12);
-		} else {
-			v = ((a057: rs.isize, a149: rs.isize): rs.isize => {
-				return rs.isizeRem(a057, a149);
-			})(_10, _12);
-		}
-	} else if (_23 === 5) {
-		const _34: rs.u8 = rs.u8Rem(form, 3);
-		if (_34 === 0) {
-			v = _10 & _12;
-		} else if (_34 === 1) {
-			v = two$isize_isize_isize_ops_BitAnd_bitand_isize_isize((a056: rs.isize, a148: rs.isize): rs.isize => {
-				return a056 & a148;
-			}, _10, _12);
-		} else {
-			v = ((a055: rs.isize, a147: rs.isize): rs.isize => {
-				return a055 & a147;
-			})(_10, _12);
-		}
-	} else if (_23 === 6) {
-		const _36: rs.u8 = rs.u8Rem(form, 3);
-		if (_36 === 0) {
-			v = _10 | _12;
-		} else if (_36 === 1) {
-			v = two$isize_isize_isize_ops_BitOr_bitor_isize_isize((a054: rs.isize, a146: rs.isize): rs.isize => {
-				return a054 | a146;
-			}, _10, _12);
-		} else {
-			v = ((a053: rs.isize, a145: rs.isize): rs.isize => {
-				return a053 | a145;
-			})(_10, _12);
-		}
-	} else if (_23 === 7) {
-		const _38: rs.u8 = rs.u8Rem(form, 3);
-		if (_38 === 0) {
-			v = _10 ^ _12;
-		} else if (_38 === 1) {
-			v = two$isize_isize_isize_ops_BitXor_bitxor_isize_isize((a052: rs.isize, a144: rs.isize): rs.isize => {
-				return a052 ^ a144;
-			}, _10, _12);
-		} else {
-			v = ((a051: rs.isize, a143: rs.isize): rs.isize => {
-				return a051 ^ a143;
-			})(_10, _12);
-		}
-	} else if (_23 === 8) {
-		const _40: rs.u8 = rs.u8Rem(form, 3);
-		if (_40 === 0) {
-			v = rs.isizeShl(_10, n);
-		} else if (_40 === 1) {
-			v = two$isize_u32_isize_ops_Shl_shl_isize_u32((a050: rs.isize, a142: rs.u32): rs.isize => {
-				return rs.isizeShl(a050, a142);
-			}, _10, n);
-		} else {
-			v = ((a049: rs.isize, a141: rs.u32): rs.isize => {
-				return rs.isizeShl(a049, a141);
-			})(_10, n);
-		}
-	} else if (_23 === 9) {
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			v = rs.isizeShr(_10, n);
-		} else if (_42 === 1) {
-			v = two$isize_u32_isize_ops_Shr_shr_isize_u32((a048: rs.isize, a140: rs.u32): rs.isize => {
-				return rs.isizeShr(a048, a140);
-			}, _10, n);
-		} else {
-			v = ((a047: rs.isize, a139: rs.u32): rs.isize => {
-				return rs.isizeShr(a047, a139);
-			})(_10, n);
-		}
-	} else if (_23 === 10) {
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			v = rs.isizeShl(_10, (n << 16) >> 16);
-		} else if (_44 === 1) {
-			v = two$isize_i16_isize_ops_Shl_shl_isize_i16((a046: rs.isize, a138: rs.i16): rs.isize => {
-				return rs.isizeShl(a046, a138);
-			}, _10, (n << 16) >> 16);
-		} else {
-			v = ((a045: rs.isize, a137: rs.i16): rs.isize => {
-				return rs.isizeShl(a045, a137);
-			})(_10, (n << 16) >> 16);
-		}
-	} else if (_23 === 11) {
-		const _49: rs.u8 = rs.u8Rem(form, 3);
-		if (_49 === 0) {
-			v = rs.isizeShr(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		} else if (_49 === 1) {
-			const _54: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
-			v = two$isize_u128_isize_ops_Shr_shr_isize_u128((a044: rs.isize, a136: rs.u128): rs.isize => {
-				return rs.isizeShr(a044, a136);
-			}, _10, _54);
-		} else {
-			v = ((a043: rs.isize, a135: rs.u128): rs.isize => {
-				return rs.isizeShr(a043, a135);
-			})(_10, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
-		}
-	} else if (_23 === 12) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
-			v = ~_10;
-		} else if (_63 === 1) {
-			v = one$isize_isize_ops_Not_not_isize((a042: rs.isize): rs.isize => {
-				return ~a042;
-			}, _10);
-		} else {
-			v = ((a041: rs.isize): rs.isize => {
-				return ~a041;
-			})(_10);
-		}
-	} else if (_23 === 13) {
-		if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
-			const _69: rs.u8 = rs.u8Rem(form, 3);
-			if (_69 === 0) {
-				_66 = rs.isizeNeg(_10);
-			} else if (_69 === 1) {
-				_66 = one$isize_isize_ops_Neg_neg_isize((a040: rs.isize): rs.isize => {
-					return rs.isizeNeg(a040);
-				}, _10);
+			const _32: rs.u8 = rs.u8Rem(form, 3);
+			if (_32 === 0) {
+				v = rs.isizeAdd(a, b);
+			} else if (_32 === 1) {
+				v = two$isize_isize_isize_ops_Add_add_isize_isize((a066: rs.isize, a158: rs.isize): rs.isize => {
+					return rs.isizeAdd(a066, a158);
+				}, a, b);
 			} else {
-				_66 = ((a039: rs.isize): rs.isize => {
-					return rs.isizeNeg(a039);
-				})(_10);
+				v = ((a065: rs.isize, a157: rs.isize): rs.isize => {
+					return rs.isizeAdd(a065, a157);
+				})(a, b);
 			}
-		} else {
-			const _71: rs.u8 = rs.u8Rem(form, 3);
-			if (_71 === 0) {
-				_66 = rs.isizeNeg(a);
-			} else if (_71 === 1) {
-				_66 = one$ref_isize_isize_ops_Neg_neg_ref_isize((a038: rs.isize): rs.isize => {
-					return rs.isizeNeg(a038);
+		} else if (_30 === 1) {
+			const _35: rs.u8 = rs.u8Rem(form, 3);
+			if (_35 === 0) {
+				v = rs.isizeSub(a, b);
+			} else if (_35 === 1) {
+				v = two$isize_isize_isize_ops_Sub_sub_isize_isize((a064: rs.isize, a156: rs.isize): rs.isize => {
+					return rs.isizeSub(a064, a156);
+				}, a, b);
+			} else {
+				v = ((a063: rs.isize, a155: rs.isize): rs.isize => {
+					return rs.isizeSub(a063, a155);
+				})(a, b);
+			}
+		} else if (_30 === 2) {
+			const _38: rs.u8 = rs.u8Rem(form, 3);
+			if (_38 === 0) {
+				v = rs.isizeMul(a, b);
+			} else if (_38 === 1) {
+				v = two$isize_isize_isize_ops_Mul_mul_isize_isize((a062: rs.isize, a154: rs.isize): rs.isize => {
+					return rs.isizeMul(a062, a154);
+				}, a, b);
+			} else {
+				v = ((a061: rs.isize, a153: rs.isize): rs.isize => {
+					return rs.isizeMul(a061, a153);
+				})(a, b);
+			}
+		} else if (_30 === 3) {
+			const _41: rs.u8 = rs.u8Rem(form, 3);
+			if (_41 === 0) {
+				v = rs.isizeDiv(a, b);
+			} else if (_41 === 1) {
+				v = two$isize_isize_isize_ops_Div_div_isize_isize((a060: rs.isize, a152: rs.isize): rs.isize => {
+					return rs.isizeDiv(a060, a152);
+				}, a, b);
+			} else {
+				v = ((a059: rs.isize, a151: rs.isize): rs.isize => {
+					return rs.isizeDiv(a059, a151);
+				})(a, b);
+			}
+		} else if (_30 === 4) {
+			const _44: rs.u8 = rs.u8Rem(form, 3);
+			if (_44 === 0) {
+				v = rs.isizeRem(a, b);
+			} else if (_44 === 1) {
+				v = two$isize_isize_isize_ops_Rem_rem_isize_isize((a058: rs.isize, a150: rs.isize): rs.isize => {
+					return rs.isizeRem(a058, a150);
+				}, a, b);
+			} else {
+				v = ((a057: rs.isize, a149: rs.isize): rs.isize => {
+					return rs.isizeRem(a057, a149);
+				})(a, b);
+			}
+		} else if (_30 === 5) {
+			const _47: rs.u8 = rs.u8Rem(form, 3);
+			if (_47 === 0) {
+				v = a & b;
+			} else if (_47 === 1) {
+				v = two$isize_isize_isize_ops_BitAnd_bitand_isize_isize((a056: rs.isize, a148: rs.isize): rs.isize => {
+					return a056 & a148;
+				}, a, b);
+			} else {
+				v = ((a055: rs.isize, a147: rs.isize): rs.isize => {
+					return a055 & a147;
+				})(a, b);
+			}
+		} else if (_30 === 6) {
+			const _50: rs.u8 = rs.u8Rem(form, 3);
+			if (_50 === 0) {
+				v = a | b;
+			} else if (_50 === 1) {
+				v = two$isize_isize_isize_ops_BitOr_bitor_isize_isize((a054: rs.isize, a146: rs.isize): rs.isize => {
+					return a054 | a146;
+				}, a, b);
+			} else {
+				v = ((a053: rs.isize, a145: rs.isize): rs.isize => {
+					return a053 | a145;
+				})(a, b);
+			}
+		} else if (_30 === 7) {
+			const _53: rs.u8 = rs.u8Rem(form, 3);
+			if (_53 === 0) {
+				v = a ^ b;
+			} else if (_53 === 1) {
+				v = two$isize_isize_isize_ops_BitXor_bitxor_isize_isize((a052: rs.isize, a144: rs.isize): rs.isize => {
+					return a052 ^ a144;
+				}, a, b);
+			} else {
+				v = ((a051: rs.isize, a143: rs.isize): rs.isize => {
+					return a051 ^ a143;
+				})(a, b);
+			}
+		} else if (_30 === 8) {
+			const _56: rs.u8 = rs.u8Rem(form, 3);
+			if (_56 === 0) {
+				v = rs.isizeShl(a, n);
+			} else if (_56 === 1) {
+				v = two$isize_u32_isize_ops_Shl_shl_isize_u32((a050: rs.isize, a142: rs.u32): rs.isize => {
+					return rs.isizeShl(a050, a142);
+				}, a, n);
+			} else {
+				v = ((a049: rs.isize, a141: rs.u32): rs.isize => {
+					return rs.isizeShl(a049, a141);
+				})(a, n);
+			}
+		} else if (_30 === 9) {
+			const _59: rs.u8 = rs.u8Rem(form, 3);
+			if (_59 === 0) {
+				v = rs.isizeShr(a, n);
+			} else if (_59 === 1) {
+				v = two$isize_u32_isize_ops_Shr_shr_isize_u32((a048: rs.isize, a140: rs.u32): rs.isize => {
+					return rs.isizeShr(a048, a140);
+				}, a, n);
+			} else {
+				v = ((a047: rs.isize, a139: rs.u32): rs.isize => {
+					return rs.isizeShr(a047, a139);
+				})(a, n);
+			}
+		} else if (_30 === 10) {
+			const _62: rs.u8 = rs.u8Rem(form, 3);
+			if (_62 === 0) {
+				v = rs.isizeShl(a, (n << 16) >> 16);
+			} else if (_62 === 1) {
+				v = two$isize_i16_isize_ops_Shl_shl_isize_i16((a046: rs.isize, a138: rs.i16): rs.isize => {
+					return rs.isizeShl(a046, a138);
+				}, a, (n << 16) >> 16);
+			} else {
+				v = ((a045: rs.isize, a137: rs.i16): rs.isize => {
+					return rs.isizeShl(a045, a137);
+				})(a, (n << 16) >> 16);
+			}
+		} else if (_30 === 11) {
+			const _68: rs.u8 = rs.u8Rem(form, 3);
+			if (_68 === 0) {
+				v = rs.isizeShr(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			} else if (_68 === 1) {
+				const _74: rs.u128 = rs.u128Shl(n as rs.u128, (n & 64) >>> 0);
+				v = two$isize_u128_isize_ops_Shr_shr_isize_u128((a044: rs.isize, a136: rs.u128): rs.isize => {
+					return rs.isizeShr(a044, a136);
+				}, a, _74);
+			} else {
+				v = ((a043: rs.isize, a135: rs.u128): rs.isize => {
+					return rs.isizeShr(a043, a135);
+				})(a, rs.u128Shl(n as rs.u128, (n & 64) >>> 0));
+			}
+		} else if (_30 === 12) {
+			const _83: rs.u8 = rs.u8Rem(form, 3);
+			if (_83 === 0) {
+				v = ~a;
+			} else if (_83 === 1) {
+				v = one$isize_isize_ops_Not_not_isize((a042: rs.isize): rs.isize => {
+					return ~a042;
 				}, a);
 			} else {
-				_66 = ((a037: rs.isize): rs.isize => {
-					return rs.isizeNeg(a037);
+				v = ((a041: rs.isize): rs.isize => {
+					return ~a041;
 				})(a);
 			}
-		}
-		v = _66;
-	} else if (_23 === 14) {
-		let x: rs.isize = _10;
-		const _79: rs.u8 = rs.u8Rem(form, 3);
-		if (_79 === 0) {
-			x = rs.isizeAdd(x, _12);
-		} else if (_79 === 1) {
-			two$mut_isize_isize_unit_ops_AddAssign_add_assign_isize_isize((a036: rs.Place<rs.isize>, a134: rs.isize): undefined => {
-				a036.v = rs.isizeAdd(a036.v, a134);
-			}, rs.place(() => x, (value26) => x = value26), _12);
+		} else if (_30 === 13) {
+			if (rs.u8Rem(rs.u8Div(form, 3), 2) === 0) {
+				const _92: rs.u8 = rs.u8Rem(form, 3);
+				if (_92 === 0) {
+					_87 = rs.isizeNeg(a);
+				} else if (_92 === 1) {
+					_87 = one$isize_isize_ops_Neg_neg_isize((a040: rs.isize): rs.isize => {
+						return rs.isizeNeg(a040);
+					}, a);
+				} else {
+					_87 = ((a039: rs.isize): rs.isize => {
+						return rs.isizeNeg(a039);
+					})(a);
+				}
+			} else {
+				const _95: rs.u8 = rs.u8Rem(form, 3);
+				if (_95 === 0) {
+					_87 = rs.isizeNeg(a);
+				} else if (_95 === 1) {
+					_87 = one$ref_isize_isize_ops_Neg_neg_ref_isize((a038: rs.isize): rs.isize => {
+						return rs.isizeNeg(a038);
+					}, a);
+				} else {
+					_87 = ((a037: rs.isize): rs.isize => {
+						return rs.isizeNeg(a037);
+					})(a);
+				}
+			}
+			const _86: rs.isize | undefined = _87;
+			if (_86 === undefined) {
+				break b0;
+			}
+			v = _86;
+		} else if (_30 === 14) {
+			let x: rs.isize = a;
+			const _105: rs.u8 = rs.u8Rem(form, 3);
+			if (_105 === 0) {
+				x = rs.isizeAdd(x, b);
+			} else if (_105 === 1) {
+				two$mut_isize_isize_unit_ops_AddAssign_add_assign_isize_isize((a036: rs.Place<rs.isize>, a134: rs.isize): undefined => {
+					a036.v = rs.isizeAdd(a036.v, a134);
+				}, rs.place(() => x, (value26) => x = value26), b);
+			} else {
+				((a035: rs.Place<rs.isize>, a133: rs.isize): undefined => {
+					a035.v = rs.isizeAdd(a035.v, a133);
+				})(rs.place(() => x, (value25) => x = value25), b);
+			}
+			v = x;
+		} else if (_30 === 15) {
+			let x2: rs.isize = a;
+			const _113: rs.u8 = rs.u8Rem(form, 3);
+			if (_113 === 0) {
+				x2 = rs.isizeSub(x2, b);
+			} else if (_113 === 1) {
+				two$mut_isize_isize_unit_ops_SubAssign_sub_assign_isize_isize((a034: rs.Place<rs.isize>, a132: rs.isize): undefined => {
+					a034.v = rs.isizeSub(a034.v, a132);
+				}, rs.place(() => x2, (value24) => x2 = value24), b);
+			} else {
+				((a033: rs.Place<rs.isize>, a131: rs.isize): undefined => {
+					a033.v = rs.isizeSub(a033.v, a131);
+				})(rs.place(() => x2, (value23) => x2 = value23), b);
+			}
+			v = x2;
+		} else if (_30 === 16) {
+			let x3: rs.isize = a;
+			const _121: rs.u8 = rs.u8Rem(form, 3);
+			if (_121 === 0) {
+				x3 = rs.isizeMul(x3, b);
+			} else if (_121 === 1) {
+				two$mut_isize_isize_unit_ops_MulAssign_mul_assign_isize_isize((a032: rs.Place<rs.isize>, a130: rs.isize): undefined => {
+					a032.v = rs.isizeMul(a032.v, a130);
+				}, rs.place(() => x3, (value22) => x3 = value22), b);
+			} else {
+				((a031: rs.Place<rs.isize>, a129: rs.isize): undefined => {
+					a031.v = rs.isizeMul(a031.v, a129);
+				})(rs.place(() => x3, (value21) => x3 = value21), b);
+			}
+			v = x3;
+		} else if (_30 === 17) {
+			let x4: rs.isize = a;
+			const _129: rs.u8 = rs.u8Rem(form, 3);
+			if (_129 === 0) {
+				x4 = rs.isizeDiv(x4, b);
+			} else if (_129 === 1) {
+				two$mut_isize_isize_unit_ops_DivAssign_div_assign_isize_isize((a030: rs.Place<rs.isize>, a128: rs.isize): undefined => {
+					a030.v = rs.isizeDiv(a030.v, a128);
+				}, rs.place(() => x4, (value20) => x4 = value20), b);
+			} else {
+				((a029: rs.Place<rs.isize>, a127: rs.isize): undefined => {
+					a029.v = rs.isizeDiv(a029.v, a127);
+				})(rs.place(() => x4, (value19) => x4 = value19), b);
+			}
+			v = x4;
+		} else if (_30 === 18) {
+			let x5: rs.isize = a;
+			const _137: rs.u8 = rs.u8Rem(form, 3);
+			if (_137 === 0) {
+				x5 = rs.isizeRem(x5, b);
+			} else if (_137 === 1) {
+				two$mut_isize_isize_unit_ops_RemAssign_rem_assign_isize_isize((a028: rs.Place<rs.isize>, a126: rs.isize): undefined => {
+					a028.v = rs.isizeRem(a028.v, a126);
+				}, rs.place(() => x5, (value18) => x5 = value18), b);
+			} else {
+				((a027: rs.Place<rs.isize>, a125: rs.isize): undefined => {
+					a027.v = rs.isizeRem(a027.v, a125);
+				})(rs.place(() => x5, (value17) => x5 = value17), b);
+			}
+			v = x5;
+		} else if (_30 === 19) {
+			let x6: rs.isize = a;
+			const _145: rs.u8 = rs.u8Rem(form, 3);
+			if (_145 === 0) {
+				x6 = x6 & b;
+			} else if (_145 === 1) {
+				two$mut_isize_isize_unit_ops_BitAndAssign_bitand_assign_isize_isize((a026: rs.Place<rs.isize>, a124: rs.isize): undefined => {
+					a026.v = a026.v & a124;
+				}, rs.place(() => x6, (value16) => x6 = value16), b);
+			} else {
+				((a025: rs.Place<rs.isize>, a123: rs.isize): undefined => {
+					a025.v = a025.v & a123;
+				})(rs.place(() => x6, (value15) => x6 = value15), b);
+			}
+			v = x6;
+		} else if (_30 === 20) {
+			let x7: rs.isize = a;
+			const _153: rs.u8 = rs.u8Rem(form, 3);
+			if (_153 === 0) {
+				x7 = x7 | b;
+			} else if (_153 === 1) {
+				two$mut_isize_isize_unit_ops_BitOrAssign_bitor_assign_isize_isize((a024: rs.Place<rs.isize>, a122: rs.isize): undefined => {
+					a024.v = a024.v | a122;
+				}, rs.place(() => x7, (value14) => x7 = value14), b);
+			} else {
+				((a023: rs.Place<rs.isize>, a121: rs.isize): undefined => {
+					a023.v = a023.v | a121;
+				})(rs.place(() => x7, (value13) => x7 = value13), b);
+			}
+			v = x7;
+		} else if (_30 === 21) {
+			let x8: rs.isize = a;
+			const _161: rs.u8 = rs.u8Rem(form, 3);
+			if (_161 === 0) {
+				x8 = x8 ^ b;
+			} else if (_161 === 1) {
+				two$mut_isize_isize_unit_ops_BitXorAssign_bitxor_assign_isize_isize((a022: rs.Place<rs.isize>, a120: rs.isize): undefined => {
+					a022.v = a022.v ^ a120;
+				}, rs.place(() => x8, (value12) => x8 = value12), b);
+			} else {
+				((a021: rs.Place<rs.isize>, a119: rs.isize): undefined => {
+					a021.v = a021.v ^ a119;
+				})(rs.place(() => x8, (value11) => x8 = value11), b);
+			}
+			v = x8;
+		} else if (_30 === 22) {
+			let x9: rs.isize = a;
+			const _169: rs.u8 = rs.u8Rem(form, 3);
+			if (_169 === 0) {
+				x9 = rs.isizeShl(x9, n);
+			} else if (_169 === 1) {
+				two$mut_isize_u32_unit_ops_ShlAssign_shl_assign_isize_u32((a020: rs.Place<rs.isize>, a118: rs.u32): undefined => {
+					a020.v = rs.isizeShl(a020.v, a118);
+				}, rs.place(() => x9, (value10) => x9 = value10), n);
+			} else {
+				((a019: rs.Place<rs.isize>, a117: rs.u32): undefined => {
+					a019.v = rs.isizeShl(a019.v, a117);
+				})(rs.place(() => x9, (value9) => x9 = value9), n);
+			}
+			v = x9;
+		} else if (_30 === 23) {
+			let x10: rs.isize = a;
+			const _177: rs.u8 = rs.u8Rem(form, 3);
+			if (_177 === 0) {
+				x10 = rs.isizeShr(x10, (n << 16) >> 16 as rs.i64);
+			} else if (_177 === 1) {
+				two$mut_isize_i64_unit_ops_ShrAssign_shr_assign_isize_i64((a018: rs.Place<rs.isize>, a116: rs.i64): undefined => {
+					a018.v = rs.isizeShr(a018.v, a116);
+				}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
+			} else {
+				((a017: rs.Place<rs.isize>, a115: rs.i64): undefined => {
+					a017.v = rs.isizeShr(a017.v, a115);
+				})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
+			}
+			v = x10;
+		} else if (_30 === 24) {
+			const _189: rs.u8 = rs.u8Rem(form, 3);
+			if (_189 === 0) {
+				v = rs.isizeAdd(a, b);
+			} else if (_189 === 1) {
+				v = two$isize_ref_isize_isize_ops_Add_add_isize_ref_isize((a016: rs.isize, a114: rs.isize): rs.isize => {
+					return rs.isizeAdd(a016, a114);
+				}, a, b);
+			} else {
+				v = ((a015: rs.isize, a113: rs.isize): rs.isize => {
+					return rs.isizeAdd(a015, a113);
+				})(a, b);
+			}
+		} else if (_30 === 25) {
+			const _195: rs.u8 = rs.u8Rem(form, 3);
+			if (_195 === 0) {
+				v = rs.isizeSub(a, b);
+			} else if (_195 === 1) {
+				v = two$ref_isize_isize_isize_ops_Sub_sub_ref_isize_isize((a014: rs.isize, a112: rs.isize): rs.isize => {
+					return rs.isizeSub(a014, a112);
+				}, a, b);
+			} else {
+				v = ((a013: rs.isize, a111: rs.isize): rs.isize => {
+					return rs.isizeSub(a013, a111);
+				})(a, b);
+			}
+		} else if (_30 === 26) {
+			const _201: rs.u8 = rs.u8Rem(form, 3);
+			if (_201 === 0) {
+				v = rs.isizeMul(a, b);
+			} else if (_201 === 1) {
+				v = two$ref_isize_ref_isize_isize_ops_Mul_mul_ref_isize_ref_isize((a012: rs.isize, a110: rs.isize): rs.isize => {
+					return rs.isizeMul(a012, a110);
+				}, a, b);
+			} else {
+				v = ((a011: rs.isize, a19: rs.isize): rs.isize => {
+					return rs.isizeMul(a011, a19);
+				})(a, b);
+			}
+		} else if (_30 === 27) {
+			const _210: rs.u8 = rs.u8Rem(form, 3);
+			if (_210 === 0) {
+				v = rs.isizeShl(a, n & 0xff);
+			} else if (_210 === 1) {
+				v = two$ref_isize_ref_u8_isize_ops_Shl_shl_ref_isize_ref_u8((a010: rs.isize, a18: rs.u8): rs.isize => {
+					return rs.isizeShl(a010, a18);
+				}, a, n & 0xff);
+			} else {
+				v = ((a09: rs.isize, a17: rs.u8): rs.isize => {
+					return rs.isizeShl(a09, a17);
+				})(a, n & 0xff);
+			}
+		} else if (_30 === 28) {
+			const _222: rs.u8 = rs.u8Rem(form, 3);
+			if (_222 === 0) {
+				v = ~a;
+			} else if (_222 === 1) {
+				v = one$ref_isize_isize_ops_Not_not_ref_isize((a08: rs.isize): rs.isize => {
+					return ~a08;
+				}, a);
+			} else {
+				v = ((a07: rs.isize): rs.isize => {
+					return ~a07;
+				})(a);
+			}
+		} else if (_30 === 29) {
+			let x11: rs.isize = a;
+			const _230: rs.u8 = rs.u8Rem(form, 3);
+			if (_230 === 0) {
+				x11 = rs.isizeAdd(x11, b);
+			} else if (_230 === 1) {
+				two$mut_isize_ref_isize_unit_ops_AddAssign_add_assign_isize_ref_isize((a06: rs.Place<rs.isize>, a16: rs.isize): undefined => {
+					a06.v = rs.isizeAdd(a06.v, a16);
+				}, rs.place(() => x11, (value6) => x11 = value6), b);
+			} else {
+				((a05: rs.Place<rs.isize>, a15: rs.isize): undefined => {
+					a05.v = rs.isizeAdd(a05.v, a15);
+				})(rs.place(() => x11, (value5) => x11 = value5), b);
+			}
+			v = x11;
+		} else if (_30 === 30) {
+			let x12: rs.isize = a;
+			const _241: rs.u8 = rs.u8Rem(form, 3);
+			if (_241 === 0) {
+				x12 = rs.isizeDiv(x12, b);
+			} else if (_241 === 1) {
+				two$mut_isize_ref_isize_unit_ops_DivAssign_div_assign_isize_ref_isize((a04: rs.Place<rs.isize>, a14: rs.isize): undefined => {
+					a04.v = rs.isizeDiv(a04.v, a14);
+				}, rs.place(() => x12, (value4) => x12 = value4), b);
+			} else {
+				((a03: rs.Place<rs.isize>, a13: rs.isize): undefined => {
+					a03.v = rs.isizeDiv(a03.v, a13);
+				})(rs.place(() => x12, (value3) => x12 = value3), b);
+			}
+			v = x12;
 		} else {
-			((a035: rs.Place<rs.isize>, a133: rs.isize): undefined => {
-				a035.v = rs.isizeAdd(a035.v, a133);
-			})(rs.place(() => x, (value25) => x = value25), _12);
+			let x13: rs.isize = a;
+			const _252: rs.u8 = rs.u8Rem(form, 3);
+			if (_252 === 0) {
+				x13 = rs.isizeShr(x13, n & 0xffff);
+			} else if (_252 === 1) {
+				two$mut_isize_ref_u16_unit_ops_ShrAssign_shr_assign_isize_ref_u16((a02: rs.Place<rs.isize>, a12: rs.u16): undefined => {
+					a02.v = rs.isizeShr(a02.v, a12);
+				}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
+			} else {
+				((a0: rs.Place<rs.isize>, a1: rs.u16): undefined => {
+					a0.v = rs.isizeShr(a0.v, a1);
+				})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
+			}
+			v = x13;
 		}
-		v = x;
-	} else if (_23 === 15) {
-		let x2: rs.isize = _10;
-		const _86: rs.u8 = rs.u8Rem(form, 3);
-		if (_86 === 0) {
-			x2 = rs.isizeSub(x2, _12);
-		} else if (_86 === 1) {
-			two$mut_isize_isize_unit_ops_SubAssign_sub_assign_isize_isize((a034: rs.Place<rs.isize>, a132: rs.isize): undefined => {
-				a034.v = rs.isizeSub(a034.v, a132);
-			}, rs.place(() => x2, (value24) => x2 = value24), _12);
-		} else {
-			((a033: rs.Place<rs.isize>, a131: rs.isize): undefined => {
-				a033.v = rs.isizeSub(a033.v, a131);
-			})(rs.place(() => x2, (value23) => x2 = value23), _12);
-		}
-		v = x2;
-	} else if (_23 === 16) {
-		let x3: rs.isize = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
-			x3 = rs.isizeMul(x3, _12);
-		} else if (_93 === 1) {
-			two$mut_isize_isize_unit_ops_MulAssign_mul_assign_isize_isize((a032: rs.Place<rs.isize>, a130: rs.isize): undefined => {
-				a032.v = rs.isizeMul(a032.v, a130);
-			}, rs.place(() => x3, (value22) => x3 = value22), _12);
-		} else {
-			((a031: rs.Place<rs.isize>, a129: rs.isize): undefined => {
-				a031.v = rs.isizeMul(a031.v, a129);
-			})(rs.place(() => x3, (value21) => x3 = value21), _12);
-		}
-		v = x3;
-	} else if (_23 === 17) {
-		let x4: rs.isize = _10;
-		const _100: rs.u8 = rs.u8Rem(form, 3);
-		if (_100 === 0) {
-			x4 = rs.isizeDiv(x4, _12);
-		} else if (_100 === 1) {
-			two$mut_isize_isize_unit_ops_DivAssign_div_assign_isize_isize((a030: rs.Place<rs.isize>, a128: rs.isize): undefined => {
-				a030.v = rs.isizeDiv(a030.v, a128);
-			}, rs.place(() => x4, (value20) => x4 = value20), _12);
-		} else {
-			((a029: rs.Place<rs.isize>, a127: rs.isize): undefined => {
-				a029.v = rs.isizeDiv(a029.v, a127);
-			})(rs.place(() => x4, (value19) => x4 = value19), _12);
-		}
-		v = x4;
-	} else if (_23 === 18) {
-		let x5: rs.isize = _10;
-		const _107: rs.u8 = rs.u8Rem(form, 3);
-		if (_107 === 0) {
-			x5 = rs.isizeRem(x5, _12);
-		} else if (_107 === 1) {
-			two$mut_isize_isize_unit_ops_RemAssign_rem_assign_isize_isize((a028: rs.Place<rs.isize>, a126: rs.isize): undefined => {
-				a028.v = rs.isizeRem(a028.v, a126);
-			}, rs.place(() => x5, (value18) => x5 = value18), _12);
-		} else {
-			((a027: rs.Place<rs.isize>, a125: rs.isize): undefined => {
-				a027.v = rs.isizeRem(a027.v, a125);
-			})(rs.place(() => x5, (value17) => x5 = value17), _12);
-		}
-		v = x5;
-	} else if (_23 === 19) {
-		let x6: rs.isize = _10;
-		const _114: rs.u8 = rs.u8Rem(form, 3);
-		if (_114 === 0) {
-			x6 = x6 & _12;
-		} else if (_114 === 1) {
-			two$mut_isize_isize_unit_ops_BitAndAssign_bitand_assign_isize_isize((a026: rs.Place<rs.isize>, a124: rs.isize): undefined => {
-				a026.v = a026.v & a124;
-			}, rs.place(() => x6, (value16) => x6 = value16), _12);
-		} else {
-			((a025: rs.Place<rs.isize>, a123: rs.isize): undefined => {
-				a025.v = a025.v & a123;
-			})(rs.place(() => x6, (value15) => x6 = value15), _12);
-		}
-		v = x6;
-	} else if (_23 === 20) {
-		let x7: rs.isize = _10;
-		const _121: rs.u8 = rs.u8Rem(form, 3);
-		if (_121 === 0) {
-			x7 = x7 | _12;
-		} else if (_121 === 1) {
-			two$mut_isize_isize_unit_ops_BitOrAssign_bitor_assign_isize_isize((a024: rs.Place<rs.isize>, a122: rs.isize): undefined => {
-				a024.v = a024.v | a122;
-			}, rs.place(() => x7, (value14) => x7 = value14), _12);
-		} else {
-			((a023: rs.Place<rs.isize>, a121: rs.isize): undefined => {
-				a023.v = a023.v | a121;
-			})(rs.place(() => x7, (value13) => x7 = value13), _12);
-		}
-		v = x7;
-	} else if (_23 === 21) {
-		let x8: rs.isize = _10;
-		const _128: rs.u8 = rs.u8Rem(form, 3);
-		if (_128 === 0) {
-			x8 = x8 ^ _12;
-		} else if (_128 === 1) {
-			two$mut_isize_isize_unit_ops_BitXorAssign_bitxor_assign_isize_isize((a022: rs.Place<rs.isize>, a120: rs.isize): undefined => {
-				a022.v = a022.v ^ a120;
-			}, rs.place(() => x8, (value12) => x8 = value12), _12);
-		} else {
-			((a021: rs.Place<rs.isize>, a119: rs.isize): undefined => {
-				a021.v = a021.v ^ a119;
-			})(rs.place(() => x8, (value11) => x8 = value11), _12);
-		}
-		v = x8;
-	} else if (_23 === 22) {
-		let x9: rs.isize = _10;
-		const _135: rs.u8 = rs.u8Rem(form, 3);
-		if (_135 === 0) {
-			x9 = rs.isizeShl(x9, n);
-		} else if (_135 === 1) {
-			two$mut_isize_u32_unit_ops_ShlAssign_shl_assign_isize_u32((a020: rs.Place<rs.isize>, a118: rs.u32): undefined => {
-				a020.v = rs.isizeShl(a020.v, a118);
-			}, rs.place(() => x9, (value10) => x9 = value10), n);
-		} else {
-			((a019: rs.Place<rs.isize>, a117: rs.u32): undefined => {
-				a019.v = rs.isizeShl(a019.v, a117);
-			})(rs.place(() => x9, (value9) => x9 = value9), n);
-		}
-		v = x9;
-	} else if (_23 === 23) {
-		let x10: rs.isize = _10;
-		const _142: rs.u8 = rs.u8Rem(form, 3);
-		if (_142 === 0) {
-			x10 = rs.isizeShr(x10, (n << 16) >> 16 as rs.i64);
-		} else if (_142 === 1) {
-			two$mut_isize_i64_unit_ops_ShrAssign_shr_assign_isize_i64((a018: rs.Place<rs.isize>, a116: rs.i64): undefined => {
-				a018.v = rs.isizeShr(a018.v, a116);
-			}, rs.place(() => x10, (value8) => x10 = value8), (n << 16) >> 16 as rs.i64);
-		} else {
-			((a017: rs.Place<rs.isize>, a115: rs.i64): undefined => {
-				a017.v = rs.isizeShr(a017.v, a115);
-			})(rs.place(() => x10, (value7) => x10 = value7), (n << 16) >> 16 as rs.i64);
-		}
-		v = x10;
-	} else if (_23 === 24) {
-		const _153: rs.u8 = rs.u8Rem(form, 3);
-		if (_153 === 0) {
-			v = rs.isizeAdd(_10, b);
-		} else if (_153 === 1) {
-			v = two$isize_ref_isize_isize_ops_Add_add_isize_ref_isize((a016: rs.isize, a114: rs.isize): rs.isize => {
-				return rs.isizeAdd(a016, a114);
-			}, _10, b);
-		} else {
-			v = ((a015: rs.isize, a113: rs.isize): rs.isize => {
-				return rs.isizeAdd(a015, a113);
-			})(_10, b);
-		}
-	} else if (_23 === 25) {
-		const _158: rs.u8 = rs.u8Rem(form, 3);
-		if (_158 === 0) {
-			v = rs.isizeSub(a, _12);
-		} else if (_158 === 1) {
-			v = two$ref_isize_isize_isize_ops_Sub_sub_ref_isize_isize((a014: rs.isize, a112: rs.isize): rs.isize => {
-				return rs.isizeSub(a014, a112);
-			}, a, _12);
-		} else {
-			v = ((a013: rs.isize, a111: rs.isize): rs.isize => {
-				return rs.isizeSub(a013, a111);
-			})(a, _12);
-		}
-	} else if (_23 === 26) {
-		const _163: rs.u8 = rs.u8Rem(form, 3);
-		if (_163 === 0) {
-			v = rs.isizeMul(a, b);
-		} else if (_163 === 1) {
-			v = two$ref_isize_ref_isize_isize_ops_Mul_mul_ref_isize_ref_isize((a012: rs.isize, a110: rs.isize): rs.isize => {
-				return rs.isizeMul(a012, a110);
-			}, a, b);
-		} else {
-			v = ((a011: rs.isize, a19: rs.isize): rs.isize => {
-				return rs.isizeMul(a011, a19);
-			})(a, b);
-		}
-	} else if (_23 === 27) {
-		const _171: rs.u8 = rs.u8Rem(form, 3);
-		if (_171 === 0) {
-			v = rs.isizeShl(a, n & 0xff);
-		} else if (_171 === 1) {
-			v = two$ref_isize_ref_u8_isize_ops_Shl_shl_ref_isize_ref_u8((a010: rs.isize, a18: rs.u8): rs.isize => {
-				return rs.isizeShl(a010, a18);
-			}, a, n & 0xff);
-		} else {
-			v = ((a09: rs.isize, a17: rs.u8): rs.isize => {
-				return rs.isizeShl(a09, a17);
-			})(a, n & 0xff);
-		}
-	} else if (_23 === 28) {
-		const _182: rs.u8 = rs.u8Rem(form, 3);
-		if (_182 === 0) {
-			v = ~a;
-		} else if (_182 === 1) {
-			v = one$ref_isize_isize_ops_Not_not_ref_isize((a08: rs.isize): rs.isize => {
-				return ~a08;
-			}, a);
-		} else {
-			v = ((a07: rs.isize): rs.isize => {
-				return ~a07;
-			})(a);
-		}
-	} else if (_23 === 29) {
-		let x11: rs.isize = _10;
-		const _189: rs.u8 = rs.u8Rem(form, 3);
-		if (_189 === 0) {
-			x11 = rs.isizeAdd(x11, b);
-		} else if (_189 === 1) {
-			two$mut_isize_ref_isize_unit_ops_AddAssign_add_assign_isize_ref_isize((a06: rs.Place<rs.isize>, a16: rs.isize): undefined => {
-				a06.v = rs.isizeAdd(a06.v, a16);
-			}, rs.place(() => x11, (value6) => x11 = value6), b);
-		} else {
-			((a05: rs.Place<rs.isize>, a15: rs.isize): undefined => {
-				a05.v = rs.isizeAdd(a05.v, a15);
-			})(rs.place(() => x11, (value5) => x11 = value5), b);
-		}
-		v = x11;
-	} else if (_23 === 30) {
-		let x12: rs.isize = _10;
-		const _199: rs.u8 = rs.u8Rem(form, 3);
-		if (_199 === 0) {
-			x12 = rs.isizeDiv(x12, b);
-		} else if (_199 === 1) {
-			two$mut_isize_ref_isize_unit_ops_DivAssign_div_assign_isize_ref_isize((a04: rs.Place<rs.isize>, a14: rs.isize): undefined => {
-				a04.v = rs.isizeDiv(a04.v, a14);
-			}, rs.place(() => x12, (value4) => x12 = value4), b);
-		} else {
-			((a03: rs.Place<rs.isize>, a13: rs.isize): undefined => {
-				a03.v = rs.isizeDiv(a03.v, a13);
-			})(rs.place(() => x12, (value3) => x12 = value3), b);
-		}
-		v = x12;
-	} else {
-		let x13: rs.isize = _10;
-		const _209: rs.u8 = rs.u8Rem(form, 3);
-		if (_209 === 0) {
-			x13 = rs.isizeShr(x13, n & 0xffff);
-		} else if (_209 === 1) {
-			two$mut_isize_ref_u16_unit_ops_ShrAssign_shr_assign_isize_ref_u16((a02: rs.Place<rs.isize>, a12: rs.u16): undefined => {
-				a02.v = rs.isizeShr(a02.v, a12);
-			}, rs.place(() => x13, (value2) => x13 = value2), n & 0xffff);
-		} else {
-			((a0: rs.Place<rs.isize>, a1: rs.u16): undefined => {
-				a0.v = rs.isizeShr(a0.v, a1);
-			})(rs.place(() => x13, (value) => x13 = value), n & 0xffff);
-		}
-		v = x13;
+		_28(out, v);
 	}
-	_21(out, v);
 }
 
 /**
@@ -8582,178 +8612,177 @@ export function f64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _104: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_104 === rs.DONE) {
+			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_103 === rs.DONE) {
 				break;
 			}
-			_104[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _104[0])), 0);
+			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
 		}
 		return rs.f64FromBits(rs.u64FromBeBytes(buf));
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.f64 = take(([1] as [rs.usize])[0]);
-	const _12: rs.f64 = take(([9] as [rs.usize])[0]);
-	const a: rs.f64 = _10;
-	const b: rs.f64 = _12;
-	const _15: rs.u8 = rs.u8Rem(kind, 16);
-	if (_15 === 0) {
-		const _16: rs.u8 = rs.u8Rem(form, 3);
-		if (_16 === 0) {
-			v = _10 + _12;
-		} else if (_16 === 1) {
+	const _10: [rs.f64, rs.f64] = [take(1), take(9)];
+	const a: rs.f64 = _10[0];
+	const b: rs.f64 = _10[1];
+	const _18: rs.u8 = rs.u8Rem(kind, 16);
+	if (_18 === 0) {
+		const _20: rs.u8 = rs.u8Rem(form, 3);
+		if (_20 === 0) {
+			v = a + b;
+		} else if (_20 === 1) {
 			v = two$f64_f64_f64_ops_Add_add_f64_f64((a032: rs.f64, a128: rs.f64): rs.f64 => {
 				return a032 + a128;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a031: rs.f64, a127: rs.f64): rs.f64 => {
 				return a031 + a127;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 1) {
-		const _18: rs.u8 = rs.u8Rem(form, 3);
-		if (_18 === 0) {
-			v = _10 - _12;
-		} else if (_18 === 1) {
+	} else if (_18 === 1) {
+		const _23: rs.u8 = rs.u8Rem(form, 3);
+		if (_23 === 0) {
+			v = a - b;
+		} else if (_23 === 1) {
 			v = two$f64_f64_f64_ops_Sub_sub_f64_f64((a030: rs.f64, a126: rs.f64): rs.f64 => {
 				return a030 - a126;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a029: rs.f64, a125: rs.f64): rs.f64 => {
 				return a029 - a125;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 2) {
-		const _20: rs.u8 = rs.u8Rem(form, 3);
-		if (_20 === 0) {
-			v = _10 * _12;
-		} else if (_20 === 1) {
+	} else if (_18 === 2) {
+		const _26: rs.u8 = rs.u8Rem(form, 3);
+		if (_26 === 0) {
+			v = a * b;
+		} else if (_26 === 1) {
 			v = two$f64_f64_f64_ops_Mul_mul_f64_f64((a028: rs.f64, a124: rs.f64): rs.f64 => {
 				return a028 * a124;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a027: rs.f64, a123: rs.f64): rs.f64 => {
 				return a027 * a123;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 3) {
-		const _22: rs.u8 = rs.u8Rem(form, 3);
-		if (_22 === 0) {
-			v = _10 / _12;
-		} else if (_22 === 1) {
+	} else if (_18 === 3) {
+		const _29: rs.u8 = rs.u8Rem(form, 3);
+		if (_29 === 0) {
+			v = a / b;
+		} else if (_29 === 1) {
 			v = two$f64_f64_f64_ops_Div_div_f64_f64((a026: rs.f64, a122: rs.f64): rs.f64 => {
 				return a026 / a122;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a025: rs.f64, a121: rs.f64): rs.f64 => {
 				return a025 / a121;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 4) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = _10 % _12;
-		} else if (_24 === 1) {
+	} else if (_18 === 4) {
+		const _32: rs.u8 = rs.u8Rem(form, 3);
+		if (_32 === 0) {
+			v = a % b;
+		} else if (_32 === 1) {
 			v = two$f64_f64_f64_ops_Rem_rem_f64_f64((a024: rs.f64, a120: rs.f64): rs.f64 => {
 				return a024 % a120;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a023: rs.f64, a119: rs.f64): rs.f64 => {
 				return a023 % a119;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 5) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = -_10;
-		} else if (_26 === 1) {
+	} else if (_18 === 5) {
+		const _35: rs.u8 = rs.u8Rem(form, 3);
+		if (_35 === 0) {
+			v = -a;
+		} else if (_35 === 1) {
 			v = one$f64_f64_ops_Neg_neg_f64((a022: rs.f64): rs.f64 => {
 				return -a022;
-			}, _10);
+			}, a);
 		} else {
 			v = ((a021: rs.f64): rs.f64 => {
 				return -a021;
-			})(_10);
+			})(a);
 		}
-	} else if (_15 === 6) {
-		let x: rs.f64 = _10;
-		const _30: rs.u8 = rs.u8Rem(form, 3);
-		if (_30 === 0) {
-			x = x + _12;
-		} else if (_30 === 1) {
+	} else if (_18 === 6) {
+		let x: rs.f64 = a;
+		const _40: rs.u8 = rs.u8Rem(form, 3);
+		if (_40 === 0) {
+			x = x + b;
+		} else if (_40 === 1) {
 			two$mut_f64_f64_unit_ops_AddAssign_add_assign_f64_f64((a020: rs.Place<rs.f64>, a118: rs.f64): undefined => {
 				a020.v = a020.v + a118;
-			}, rs.place(() => x, (value14) => x = value14), _12);
+			}, rs.place(() => x, (value14) => x = value14), b);
 		} else {
 			((a019: rs.Place<rs.f64>, a117: rs.f64): undefined => {
 				a019.v = a019.v + a117;
-			})(rs.place(() => x, (value13) => x = value13), _12);
+			})(rs.place(() => x, (value13) => x = value13), b);
 		}
 		v = x;
-	} else if (_15 === 7) {
-		let x2: rs.f64 = _10;
-		const _37: rs.u8 = rs.u8Rem(form, 3);
-		if (_37 === 0) {
-			x2 = x2 - _12;
-		} else if (_37 === 1) {
+	} else if (_18 === 7) {
+		let x2: rs.f64 = a;
+		const _48: rs.u8 = rs.u8Rem(form, 3);
+		if (_48 === 0) {
+			x2 = x2 - b;
+		} else if (_48 === 1) {
 			two$mut_f64_f64_unit_ops_SubAssign_sub_assign_f64_f64((a018: rs.Place<rs.f64>, a116: rs.f64): undefined => {
 				a018.v = a018.v - a116;
-			}, rs.place(() => x2, (value12) => x2 = value12), _12);
+			}, rs.place(() => x2, (value12) => x2 = value12), b);
 		} else {
 			((a017: rs.Place<rs.f64>, a115: rs.f64): undefined => {
 				a017.v = a017.v - a115;
-			})(rs.place(() => x2, (value11) => x2 = value11), _12);
+			})(rs.place(() => x2, (value11) => x2 = value11), b);
 		}
 		v = x2;
-	} else if (_15 === 8) {
-		let x3: rs.f64 = _10;
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			x3 = x3 * _12;
-		} else if (_44 === 1) {
+	} else if (_18 === 8) {
+		let x3: rs.f64 = a;
+		const _56: rs.u8 = rs.u8Rem(form, 3);
+		if (_56 === 0) {
+			x3 = x3 * b;
+		} else if (_56 === 1) {
 			two$mut_f64_f64_unit_ops_MulAssign_mul_assign_f64_f64((a016: rs.Place<rs.f64>, a114: rs.f64): undefined => {
 				a016.v = a016.v * a114;
-			}, rs.place(() => x3, (value10) => x3 = value10), _12);
+			}, rs.place(() => x3, (value10) => x3 = value10), b);
 		} else {
 			((a015: rs.Place<rs.f64>, a113: rs.f64): undefined => {
 				a015.v = a015.v * a113;
-			})(rs.place(() => x3, (value9) => x3 = value9), _12);
+			})(rs.place(() => x3, (value9) => x3 = value9), b);
 		}
 		v = x3;
-	} else if (_15 === 9) {
-		let x4: rs.f64 = _10;
-		const _51: rs.u8 = rs.u8Rem(form, 3);
-		if (_51 === 0) {
-			x4 = x4 / _12;
-		} else if (_51 === 1) {
+	} else if (_18 === 9) {
+		let x4: rs.f64 = a;
+		const _64: rs.u8 = rs.u8Rem(form, 3);
+		if (_64 === 0) {
+			x4 = x4 / b;
+		} else if (_64 === 1) {
 			two$mut_f64_f64_unit_ops_DivAssign_div_assign_f64_f64((a014: rs.Place<rs.f64>, a112: rs.f64): undefined => {
 				a014.v = a014.v / a112;
-			}, rs.place(() => x4, (value8) => x4 = value8), _12);
+			}, rs.place(() => x4, (value8) => x4 = value8), b);
 		} else {
 			((a013: rs.Place<rs.f64>, a111: rs.f64): undefined => {
 				a013.v = a013.v / a111;
-			})(rs.place(() => x4, (value7) => x4 = value7), _12);
+			})(rs.place(() => x4, (value7) => x4 = value7), b);
 		}
 		v = x4;
-	} else if (_15 === 10) {
-		let x5: rs.f64 = _10;
-		const _58: rs.u8 = rs.u8Rem(form, 3);
-		if (_58 === 0) {
-			x5 = x5 % _12;
-		} else if (_58 === 1) {
+	} else if (_18 === 10) {
+		let x5: rs.f64 = a;
+		const _72: rs.u8 = rs.u8Rem(form, 3);
+		if (_72 === 0) {
+			x5 = x5 % b;
+		} else if (_72 === 1) {
 			two$mut_f64_f64_unit_ops_RemAssign_rem_assign_f64_f64((a012: rs.Place<rs.f64>, a110: rs.f64): undefined => {
 				a012.v = a012.v % a110;
-			}, rs.place(() => x5, (value6) => x5 = value6), _12);
+			}, rs.place(() => x5, (value6) => x5 = value6), b);
 		} else {
 			((a011: rs.Place<rs.f64>, a19: rs.f64): undefined => {
 				a011.v = a011.v % a19;
-			})(rs.place(() => x5, (value5) => x5 = value5), _12);
+			})(rs.place(() => x5, (value5) => x5 = value5), b);
 		}
 		v = x5;
-	} else if (_15 === 11) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
+	} else if (_18 === 11) {
+		const _78: rs.u8 = rs.u8Rem(form, 3);
+		if (_78 === 0) {
 			v = a + b;
-		} else if (_63 === 1) {
+		} else if (_78 === 1) {
 			v = two$ref_f64_ref_f64_f64_ops_Add_add_ref_f64_ref_f64((a010: rs.f64, a18: rs.f64): rs.f64 => {
 				return a010 + a18;
 			}, a, b);
@@ -8762,24 +8791,24 @@ export function f64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return a09 + a17;
 			})(a, b);
 		}
-	} else if (_15 === 12) {
-		const _71: rs.u8 = rs.u8Rem(form, 3);
-		if (_71 === 0) {
-			v = _10 % b;
-		} else if (_71 === 1) {
+	} else if (_18 === 12) {
+		const _87: rs.u8 = rs.u8Rem(form, 3);
+		if (_87 === 0) {
+			v = a % b;
+		} else if (_87 === 1) {
 			v = two$f64_ref_f64_f64_ops_Rem_rem_f64_ref_f64((a08: rs.f64, a16: rs.f64): rs.f64 => {
 				return a08 % a16;
-			}, _10, b);
+			}, a, b);
 		} else {
 			v = ((a07: rs.f64, a15: rs.f64): rs.f64 => {
 				return a07 % a15;
-			})(_10, b);
+			})(a, b);
 		}
-	} else if (_15 === 13) {
-		const _76: rs.u8 = rs.u8Rem(form, 3);
-		if (_76 === 0) {
+	} else if (_18 === 13) {
+		const _93: rs.u8 = rs.u8Rem(form, 3);
+		if (_93 === 0) {
 			v = -a;
-		} else if (_76 === 1) {
+		} else if (_93 === 1) {
 			v = one$ref_f64_f64_ops_Neg_neg_ref_f64((a06: rs.f64): rs.f64 => {
 				return -a06;
 			}, a);
@@ -8788,12 +8817,12 @@ export function f64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return -a05;
 			})(a);
 		}
-	} else if (_15 === 14) {
-		let x6: rs.f64 = _10;
-		const _83: rs.u8 = rs.u8Rem(form, 3);
-		if (_83 === 0) {
+	} else if (_18 === 14) {
+		let x6: rs.f64 = a;
+		const _101: rs.u8 = rs.u8Rem(form, 3);
+		if (_101 === 0) {
 			x6 = x6 * b;
-		} else if (_83 === 1) {
+		} else if (_101 === 1) {
 			two$mut_f64_ref_f64_unit_ops_MulAssign_mul_assign_f64_ref_f64((a04: rs.Place<rs.f64>, a14: rs.f64): undefined => {
 				a04.v = a04.v * a14;
 			}, rs.place(() => x6, (value4) => x6 = value4), b);
@@ -8804,11 +8833,11 @@ export function f64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		v = x6;
 	} else {
-		let x7: rs.f64 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
+		let x7: rs.f64 = a;
+		const _112: rs.u8 = rs.u8Rem(form, 3);
+		if (_112 === 0) {
 			x7 = x7 % b;
-		} else if (_93 === 1) {
+		} else if (_112 === 1) {
 			two$mut_f64_ref_f64_unit_ops_RemAssign_rem_assign_f64_ref_f64((a02: rs.Place<rs.f64>, a12: rs.f64): undefined => {
 				a02.v = a02.v % a12;
 			}, rs.place(() => x7, (value2) => x7 = value2), b);
@@ -8852,178 +8881,177 @@ export function f32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _104: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
-			if (_104 === rs.DONE) {
+			const _103: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
+			if (_103 === rs.DONE) {
 				break;
 			}
-			_104[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _104[0])), 0);
+			_103[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _103[0])), 0);
 		}
 		return Math.fround(rs.f64FromBits(rs.u64FromBeBytes(buf)));
 	};
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const _10: rs.f32 = take(([1] as [rs.usize])[0]);
-	const _12: rs.f32 = take(([9] as [rs.usize])[0]);
-	const a: rs.f32 = _10;
-	const b: rs.f32 = _12;
-	const _15: rs.u8 = rs.u8Rem(kind, 16);
-	if (_15 === 0) {
-		const _16: rs.u8 = rs.u8Rem(form, 3);
-		if (_16 === 0) {
-			v = Math.fround(_10 + _12);
-		} else if (_16 === 1) {
+	const _10: [rs.f32, rs.f32] = [take(1), take(9)];
+	const a: rs.f32 = _10[0];
+	const b: rs.f32 = _10[1];
+	const _18: rs.u8 = rs.u8Rem(kind, 16);
+	if (_18 === 0) {
+		const _20: rs.u8 = rs.u8Rem(form, 3);
+		if (_20 === 0) {
+			v = Math.fround(a + b);
+		} else if (_20 === 1) {
 			v = two$f32_f32_f32_ops_Add_add_f32_f32((a032: rs.f32, a128: rs.f32): rs.f32 => {
 				return Math.fround(a032 + a128);
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a031: rs.f32, a127: rs.f32): rs.f32 => {
 				return Math.fround(a031 + a127);
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 1) {
-		const _18: rs.u8 = rs.u8Rem(form, 3);
-		if (_18 === 0) {
-			v = Math.fround(_10 - _12);
-		} else if (_18 === 1) {
+	} else if (_18 === 1) {
+		const _23: rs.u8 = rs.u8Rem(form, 3);
+		if (_23 === 0) {
+			v = Math.fround(a - b);
+		} else if (_23 === 1) {
 			v = two$f32_f32_f32_ops_Sub_sub_f32_f32((a030: rs.f32, a126: rs.f32): rs.f32 => {
 				return Math.fround(a030 - a126);
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a029: rs.f32, a125: rs.f32): rs.f32 => {
 				return Math.fround(a029 - a125);
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 2) {
-		const _20: rs.u8 = rs.u8Rem(form, 3);
-		if (_20 === 0) {
-			v = Math.fround(_10 * _12);
-		} else if (_20 === 1) {
+	} else if (_18 === 2) {
+		const _26: rs.u8 = rs.u8Rem(form, 3);
+		if (_26 === 0) {
+			v = Math.fround(a * b);
+		} else if (_26 === 1) {
 			v = two$f32_f32_f32_ops_Mul_mul_f32_f32((a028: rs.f32, a124: rs.f32): rs.f32 => {
 				return Math.fround(a028 * a124);
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a027: rs.f32, a123: rs.f32): rs.f32 => {
 				return Math.fround(a027 * a123);
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 3) {
-		const _22: rs.u8 = rs.u8Rem(form, 3);
-		if (_22 === 0) {
-			v = Math.fround(_10 / _12);
-		} else if (_22 === 1) {
+	} else if (_18 === 3) {
+		const _29: rs.u8 = rs.u8Rem(form, 3);
+		if (_29 === 0) {
+			v = Math.fround(a / b);
+		} else if (_29 === 1) {
 			v = two$f32_f32_f32_ops_Div_div_f32_f32((a026: rs.f32, a122: rs.f32): rs.f32 => {
 				return Math.fround(a026 / a122);
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a025: rs.f32, a121: rs.f32): rs.f32 => {
 				return Math.fround(a025 / a121);
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 4) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = _10 % _12;
-		} else if (_24 === 1) {
+	} else if (_18 === 4) {
+		const _32: rs.u8 = rs.u8Rem(form, 3);
+		if (_32 === 0) {
+			v = a % b;
+		} else if (_32 === 1) {
 			v = two$f32_f32_f32_ops_Rem_rem_f32_f32((a024: rs.f32, a120: rs.f32): rs.f32 => {
 				return a024 % a120;
-			}, _10, _12);
+			}, a, b);
 		} else {
 			v = ((a023: rs.f32, a119: rs.f32): rs.f32 => {
 				return a023 % a119;
-			})(_10, _12);
+			})(a, b);
 		}
-	} else if (_15 === 5) {
-		const _26: rs.u8 = rs.u8Rem(form, 3);
-		if (_26 === 0) {
-			v = -_10;
-		} else if (_26 === 1) {
+	} else if (_18 === 5) {
+		const _35: rs.u8 = rs.u8Rem(form, 3);
+		if (_35 === 0) {
+			v = -a;
+		} else if (_35 === 1) {
 			v = one$f32_f32_ops_Neg_neg_f32((a022: rs.f32): rs.f32 => {
 				return -a022;
-			}, _10);
+			}, a);
 		} else {
 			v = ((a021: rs.f32): rs.f32 => {
 				return -a021;
-			})(_10);
+			})(a);
 		}
-	} else if (_15 === 6) {
-		let x: rs.f32 = _10;
-		const _30: rs.u8 = rs.u8Rem(form, 3);
-		if (_30 === 0) {
-			x = Math.fround(x + _12);
-		} else if (_30 === 1) {
+	} else if (_18 === 6) {
+		let x: rs.f32 = a;
+		const _40: rs.u8 = rs.u8Rem(form, 3);
+		if (_40 === 0) {
+			x = Math.fround(x + b);
+		} else if (_40 === 1) {
 			two$mut_f32_f32_unit_ops_AddAssign_add_assign_f32_f32((a020: rs.Place<rs.f32>, a118: rs.f32): undefined => {
 				a020.v = Math.fround(a020.v + a118);
-			}, rs.place(() => x, (value14) => x = value14), _12);
+			}, rs.place(() => x, (value14) => x = value14), b);
 		} else {
 			((a019: rs.Place<rs.f32>, a117: rs.f32): undefined => {
 				a019.v = Math.fround(a019.v + a117);
-			})(rs.place(() => x, (value13) => x = value13), _12);
+			})(rs.place(() => x, (value13) => x = value13), b);
 		}
 		v = x;
-	} else if (_15 === 7) {
-		let x2: rs.f32 = _10;
-		const _37: rs.u8 = rs.u8Rem(form, 3);
-		if (_37 === 0) {
-			x2 = Math.fround(x2 - _12);
-		} else if (_37 === 1) {
+	} else if (_18 === 7) {
+		let x2: rs.f32 = a;
+		const _48: rs.u8 = rs.u8Rem(form, 3);
+		if (_48 === 0) {
+			x2 = Math.fround(x2 - b);
+		} else if (_48 === 1) {
 			two$mut_f32_f32_unit_ops_SubAssign_sub_assign_f32_f32((a018: rs.Place<rs.f32>, a116: rs.f32): undefined => {
 				a018.v = Math.fround(a018.v - a116);
-			}, rs.place(() => x2, (value12) => x2 = value12), _12);
+			}, rs.place(() => x2, (value12) => x2 = value12), b);
 		} else {
 			((a017: rs.Place<rs.f32>, a115: rs.f32): undefined => {
 				a017.v = Math.fround(a017.v - a115);
-			})(rs.place(() => x2, (value11) => x2 = value11), _12);
+			})(rs.place(() => x2, (value11) => x2 = value11), b);
 		}
 		v = x2;
-	} else if (_15 === 8) {
-		let x3: rs.f32 = _10;
-		const _44: rs.u8 = rs.u8Rem(form, 3);
-		if (_44 === 0) {
-			x3 = Math.fround(x3 * _12);
-		} else if (_44 === 1) {
+	} else if (_18 === 8) {
+		let x3: rs.f32 = a;
+		const _56: rs.u8 = rs.u8Rem(form, 3);
+		if (_56 === 0) {
+			x3 = Math.fround(x3 * b);
+		} else if (_56 === 1) {
 			two$mut_f32_f32_unit_ops_MulAssign_mul_assign_f32_f32((a016: rs.Place<rs.f32>, a114: rs.f32): undefined => {
 				a016.v = Math.fround(a016.v * a114);
-			}, rs.place(() => x3, (value10) => x3 = value10), _12);
+			}, rs.place(() => x3, (value10) => x3 = value10), b);
 		} else {
 			((a015: rs.Place<rs.f32>, a113: rs.f32): undefined => {
 				a015.v = Math.fround(a015.v * a113);
-			})(rs.place(() => x3, (value9) => x3 = value9), _12);
+			})(rs.place(() => x3, (value9) => x3 = value9), b);
 		}
 		v = x3;
-	} else if (_15 === 9) {
-		let x4: rs.f32 = _10;
-		const _51: rs.u8 = rs.u8Rem(form, 3);
-		if (_51 === 0) {
-			x4 = Math.fround(x4 / _12);
-		} else if (_51 === 1) {
+	} else if (_18 === 9) {
+		let x4: rs.f32 = a;
+		const _64: rs.u8 = rs.u8Rem(form, 3);
+		if (_64 === 0) {
+			x4 = Math.fround(x4 / b);
+		} else if (_64 === 1) {
 			two$mut_f32_f32_unit_ops_DivAssign_div_assign_f32_f32((a014: rs.Place<rs.f32>, a112: rs.f32): undefined => {
 				a014.v = Math.fround(a014.v / a112);
-			}, rs.place(() => x4, (value8) => x4 = value8), _12);
+			}, rs.place(() => x4, (value8) => x4 = value8), b);
 		} else {
 			((a013: rs.Place<rs.f32>, a111: rs.f32): undefined => {
 				a013.v = Math.fround(a013.v / a111);
-			})(rs.place(() => x4, (value7) => x4 = value7), _12);
+			})(rs.place(() => x4, (value7) => x4 = value7), b);
 		}
 		v = x4;
-	} else if (_15 === 10) {
-		let x5: rs.f32 = _10;
-		const _58: rs.u8 = rs.u8Rem(form, 3);
-		if (_58 === 0) {
-			x5 = x5 % _12;
-		} else if (_58 === 1) {
+	} else if (_18 === 10) {
+		let x5: rs.f32 = a;
+		const _72: rs.u8 = rs.u8Rem(form, 3);
+		if (_72 === 0) {
+			x5 = x5 % b;
+		} else if (_72 === 1) {
 			two$mut_f32_f32_unit_ops_RemAssign_rem_assign_f32_f32((a012: rs.Place<rs.f32>, a110: rs.f32): undefined => {
 				a012.v = a012.v % a110;
-			}, rs.place(() => x5, (value6) => x5 = value6), _12);
+			}, rs.place(() => x5, (value6) => x5 = value6), b);
 		} else {
 			((a011: rs.Place<rs.f32>, a19: rs.f32): undefined => {
 				a011.v = a011.v % a19;
-			})(rs.place(() => x5, (value5) => x5 = value5), _12);
+			})(rs.place(() => x5, (value5) => x5 = value5), b);
 		}
 		v = x5;
-	} else if (_15 === 11) {
-		const _63: rs.u8 = rs.u8Rem(form, 3);
-		if (_63 === 0) {
+	} else if (_18 === 11) {
+		const _78: rs.u8 = rs.u8Rem(form, 3);
+		if (_78 === 0) {
 			v = Math.fround(a + b);
-		} else if (_63 === 1) {
+		} else if (_78 === 1) {
 			v = two$ref_f32_ref_f32_f32_ops_Add_add_ref_f32_ref_f32((a010: rs.f32, a18: rs.f32): rs.f32 => {
 				return Math.fround(a010 + a18);
 			}, a, b);
@@ -9032,24 +9060,24 @@ export function f32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return Math.fround(a09 + a17);
 			})(a, b);
 		}
-	} else if (_15 === 12) {
-		const _71: rs.u8 = rs.u8Rem(form, 3);
-		if (_71 === 0) {
-			v = _10 % b;
-		} else if (_71 === 1) {
+	} else if (_18 === 12) {
+		const _87: rs.u8 = rs.u8Rem(form, 3);
+		if (_87 === 0) {
+			v = a % b;
+		} else if (_87 === 1) {
 			v = two$f32_ref_f32_f32_ops_Rem_rem_f32_ref_f32((a08: rs.f32, a16: rs.f32): rs.f32 => {
 				return a08 % a16;
-			}, _10, b);
+			}, a, b);
 		} else {
 			v = ((a07: rs.f32, a15: rs.f32): rs.f32 => {
 				return a07 % a15;
-			})(_10, b);
+			})(a, b);
 		}
-	} else if (_15 === 13) {
-		const _76: rs.u8 = rs.u8Rem(form, 3);
-		if (_76 === 0) {
+	} else if (_18 === 13) {
+		const _93: rs.u8 = rs.u8Rem(form, 3);
+		if (_93 === 0) {
 			v = -a;
-		} else if (_76 === 1) {
+		} else if (_93 === 1) {
 			v = one$ref_f32_f32_ops_Neg_neg_ref_f32((a06: rs.f32): rs.f32 => {
 				return -a06;
 			}, a);
@@ -9058,12 +9086,12 @@ export function f32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return -a05;
 			})(a);
 		}
-	} else if (_15 === 14) {
-		let x6: rs.f32 = _10;
-		const _83: rs.u8 = rs.u8Rem(form, 3);
-		if (_83 === 0) {
+	} else if (_18 === 14) {
+		let x6: rs.f32 = a;
+		const _101: rs.u8 = rs.u8Rem(form, 3);
+		if (_101 === 0) {
 			x6 = Math.fround(x6 * b);
-		} else if (_83 === 1) {
+		} else if (_101 === 1) {
 			two$mut_f32_ref_f32_unit_ops_MulAssign_mul_assign_f32_ref_f32((a04: rs.Place<rs.f32>, a14: rs.f32): undefined => {
 				a04.v = Math.fround(a04.v * a14);
 			}, rs.place(() => x6, (value4) => x6 = value4), b);
@@ -9074,11 +9102,11 @@ export function f32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		v = x6;
 	} else {
-		let x7: rs.f32 = _10;
-		const _93: rs.u8 = rs.u8Rem(form, 3);
-		if (_93 === 0) {
+		let x7: rs.f32 = a;
+		const _112: rs.u8 = rs.u8Rem(form, 3);
+		if (_112 === 0) {
 			x7 = x7 % b;
-		} else if (_93 === 1) {
+		} else if (_112 === 1) {
 			two$mut_f32_ref_f32_unit_ops_RemAssign_rem_assign_f32_ref_f32((a02: rs.Place<rs.f32>, a12: rs.f32): undefined => {
 				a02.v = a02.v % a12;
 			}, rs.place(() => x7, (value2) => x7 = value2), b);
@@ -9113,113 +9141,112 @@ export function bools(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let v!: boolean;
 	const form: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const bits: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0);
-	const _12: boolean = (bits & 1) === 1;
-	const _14: boolean = (bits & 2) === 2;
-	const a: boolean = _12;
-	const b: boolean = _14;
-	const _17: rs.u8 = rs.u8Rem(kind, 10);
-	if (_17 === 0) {
-		const _18: rs.u8 = rs.u8Rem(form, 3);
-		if (_18 === 0) {
-			v = _12 && _14;
-		} else if (_18 === 1) {
+	const _12: [boolean, boolean] = [(bits & 1) === 1, (bits & 2) === 2];
+	const a: boolean = _12[0];
+	const b: boolean = _12[1];
+	const _18: rs.u8 = rs.u8Rem(kind, 10);
+	if (_18 === 0) {
+		const _20: rs.u8 = rs.u8Rem(form, 3);
+		if (_20 === 0) {
+			v = a && b;
+		} else if (_20 === 1) {
 			v = two$bool_bool_bool_ops_BitAnd_bitand_bool_bool((a020: boolean, a116: boolean): boolean => {
 				return a020 && a116;
-			}, _12, _14);
+			}, a, b);
 		} else {
 			v = ((a019: boolean, a115: boolean): boolean => {
 				return a019 && a115;
-			})(_12, _14);
+			})(a, b);
 		}
-	} else if (_17 === 1) {
-		const _20: rs.u8 = rs.u8Rem(form, 3);
-		if (_20 === 0) {
-			v = _12 || _14;
-		} else if (_20 === 1) {
+	} else if (_18 === 1) {
+		const _23: rs.u8 = rs.u8Rem(form, 3);
+		if (_23 === 0) {
+			v = a || b;
+		} else if (_23 === 1) {
 			v = two$bool_bool_bool_ops_BitOr_bitor_bool_bool((a018: boolean, a114: boolean): boolean => {
 				return a018 || a114;
-			}, _12, _14);
+			}, a, b);
 		} else {
 			v = ((a017: boolean, a113: boolean): boolean => {
 				return a017 || a113;
-			})(_12, _14);
+			})(a, b);
 		}
-	} else if (_17 === 2) {
-		const _22: rs.u8 = rs.u8Rem(form, 3);
-		if (_22 === 0) {
-			v = _12 !== _14;
-		} else if (_22 === 1) {
+	} else if (_18 === 2) {
+		const _26: rs.u8 = rs.u8Rem(form, 3);
+		if (_26 === 0) {
+			v = a !== b;
+		} else if (_26 === 1) {
 			v = two$bool_bool_bool_ops_BitXor_bitxor_bool_bool((a016: boolean, a112: boolean): boolean => {
 				return a016 !== a112;
-			}, _12, _14);
+			}, a, b);
 		} else {
 			v = ((a015: boolean, a111: boolean): boolean => {
 				return a015 !== a111;
-			})(_12, _14);
+			})(a, b);
 		}
-	} else if (_17 === 3) {
-		const _24: rs.u8 = rs.u8Rem(form, 3);
-		if (_24 === 0) {
-			v = !_12;
-		} else if (_24 === 1) {
+	} else if (_18 === 3) {
+		const _29: rs.u8 = rs.u8Rem(form, 3);
+		if (_29 === 0) {
+			v = !a;
+		} else if (_29 === 1) {
 			v = one$bool_bool_ops_Not_not_bool((a014: boolean): boolean => {
 				return !a014;
-			}, _12);
+			}, a);
 		} else {
 			v = ((a013: boolean): boolean => {
 				return !a013;
-			})(_12);
+			})(a);
 		}
-	} else if (_17 === 4) {
-		let x: boolean = _12;
-		const _28: rs.u8 = rs.u8Rem(form, 3);
-		if (_28 === 0) {
-			x = x && _14;
-		} else if (_28 === 1) {
+	} else if (_18 === 4) {
+		let x: boolean = a;
+		const _34: rs.u8 = rs.u8Rem(form, 3);
+		if (_34 === 0) {
+			x = x && b;
+		} else if (_34 === 1) {
 			two$mut_bool_bool_unit_ops_BitAndAssign_bitand_assign_bool_bool((a012: rs.Place<boolean>, a110: boolean): undefined => {
 				a012.v = a012.v && a110;
-			}, rs.place(() => x, (value8) => x = value8), _14);
+			}, rs.place(() => x, (value8) => x = value8), b);
 		} else {
 			((a011: rs.Place<boolean>, a19: boolean): undefined => {
 				a011.v = a011.v && a19;
-			})(rs.place(() => x, (value7) => x = value7), _14);
+			})(rs.place(() => x, (value7) => x = value7), b);
 		}
 		v = x;
-	} else if (_17 === 5) {
-		let x2: boolean = _12;
-		const _35: rs.u8 = rs.u8Rem(form, 3);
-		if (_35 === 0) {
-			x2 = x2 || _14;
-		} else if (_35 === 1) {
+	} else if (_18 === 5) {
+		let x2: boolean = a;
+		const _42: rs.u8 = rs.u8Rem(form, 3);
+		if (_42 === 0) {
+			x2 = x2 || b;
+		} else if (_42 === 1) {
 			two$mut_bool_bool_unit_ops_BitOrAssign_bitor_assign_bool_bool((a010: rs.Place<boolean>, a18: boolean): undefined => {
 				a010.v = a010.v || a18;
-			}, rs.place(() => x2, (value6) => x2 = value6), _14);
+			}, rs.place(() => x2, (value6) => x2 = value6), b);
 		} else {
 			((a09: rs.Place<boolean>, a17: boolean): undefined => {
 				a09.v = a09.v || a17;
-			})(rs.place(() => x2, (value5) => x2 = value5), _14);
+			})(rs.place(() => x2, (value5) => x2 = value5), b);
 		}
 		v = x2;
-	} else if (_17 === 6) {
-		let x3: boolean = _12;
-		const _42: rs.u8 = rs.u8Rem(form, 3);
-		if (_42 === 0) {
-			x3 = x3 !== _14;
-		} else if (_42 === 1) {
+	} else if (_18 === 6) {
+		let x3: boolean = a;
+		const _50: rs.u8 = rs.u8Rem(form, 3);
+		if (_50 === 0) {
+			x3 = x3 !== b;
+		} else if (_50 === 1) {
 			two$mut_bool_bool_unit_ops_BitXorAssign_bitxor_assign_bool_bool((a08: rs.Place<boolean>, a16: boolean): undefined => {
 				a08.v = a08.v !== a16;
-			}, rs.place(() => x3, (value4) => x3 = value4), _14);
+			}, rs.place(() => x3, (value4) => x3 = value4), b);
 		} else {
 			((a07: rs.Place<boolean>, a15: boolean): undefined => {
 				a07.v = a07.v !== a15;
-			})(rs.place(() => x3, (value3) => x3 = value3), _14);
+			})(rs.place(() => x3, (value3) => x3 = value3), b);
 		}
 		v = x3;
-	} else if (_17 === 7) {
-		const _47: rs.u8 = rs.u8Rem(form, 3);
-		if (_47 === 0) {
+	} else if (_18 === 7) {
+		const _56: rs.u8 = rs.u8Rem(form, 3);
+		if (_56 === 0) {
 			v = a && b;
-		} else if (_47 === 1) {
+		} else if (_56 === 1) {
 			v = two$ref_bool_ref_bool_bool_ops_BitAnd_bitand_ref_bool_ref_bool((a06: boolean, a14: boolean): boolean => {
 				return a06 && a14;
 			}, a, b);
@@ -9228,11 +9255,11 @@ export function bools(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return a05 && a13;
 			})(a, b);
 		}
-	} else if (_17 === 8) {
-		const _55: rs.u8 = rs.u8Rem(form, 3);
-		if (_55 === 0) {
+	} else if (_18 === 8) {
+		const _65: rs.u8 = rs.u8Rem(form, 3);
+		if (_65 === 0) {
 			v = !a;
-		} else if (_55 === 1) {
+		} else if (_65 === 1) {
 			v = one$ref_bool_bool_ops_Not_not_ref_bool((a04: boolean): boolean => {
 				return !a04;
 			}, a);
@@ -9242,11 +9269,11 @@ export function bools(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			})(a);
 		}
 	} else {
-		let x4: boolean = _12;
-		const _62: rs.u8 = rs.u8Rem(form, 3);
-		if (_62 === 0) {
+		let x4: boolean = a;
+		const _73: rs.u8 = rs.u8Rem(form, 3);
+		if (_73 === 0) {
 			x4 = x4 || b;
-		} else if (_62 === 1) {
+		} else if (_73 === 1) {
 			two$mut_bool_ref_bool_unit_ops_BitOrAssign_bitor_assign_bool_ref_bool((a02: rs.Place<boolean>, a12: boolean): undefined => {
 				a02.v = a02.v || a12;
 			}, rs.place(() => x4, (value2) => x4 = value2), b);

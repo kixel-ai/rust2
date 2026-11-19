@@ -27,15 +27,15 @@ export function next$iter_Iterator_u64_u64(self: Gaps<rs.u64, rs.u64>): rs.Range
 		if (_6 === rs.DONE) {
 			break;
 		}
-		const _10: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
-		if (!rs.u64Le(self.queryEnd as rs.u64, _10.range.start)) {
+		const _11: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
+		if (!rs.u64Le(self.queryEnd as rs.u64, _11.range.start)) {
 			const old = self.candidateStart as rs.u64;
-			(self.candidateStart as rs.u64) = _10.range.end;
+			(self.candidateStart as rs.u64) = _11.range.end;
 			const originalStart: rs.u64 = old;
-			if (!rs.u64Lt(originalStart, _10.range.start)) {
-				(self.candidateStart as rs.u64) = _10.range.end;
+			if (!rs.u64Lt(originalStart, _11.range.start)) {
+				(self.candidateStart as rs.u64) = _11.range.end;
 			} else {
-				return new rs.Range(originalStart, _10.range.start, rs.u64Step);
+				return new rs.Range(originalStart, _11.range.start, rs.u64Step);
 			}
 		} else {
 			break;
@@ -56,15 +56,15 @@ export function next$iter_Iterator_u64_unit(self: Gaps<rs.u64, undefined>): rs.R
 		if (_6 === rs.DONE) {
 			break;
 		}
-		const _10: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
-		if (!rs.u64Le(self.queryEnd as rs.u64, _10.range.start)) {
+		const _11: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
+		if (!rs.u64Le(self.queryEnd as rs.u64, _11.range.start)) {
 			const old = self.candidateStart as rs.u64;
-			(self.candidateStart as rs.u64) = _10.range.end;
+			(self.candidateStart as rs.u64) = _11.range.end;
 			const originalStart: rs.u64 = old;
-			if (!rs.u64Lt(originalStart, _10.range.start)) {
-				(self.candidateStart as rs.u64) = _10.range.end;
+			if (!rs.u64Lt(originalStart, _11.range.start)) {
+				(self.candidateStart as rs.u64) = _11.range.end;
 			} else {
-				return new rs.Range(originalStart, _10.range.start, rs.u64Step);
+				return new rs.Range(originalStart, _11.range.start, rs.u64Step);
 			}
 		} else {
 			break;

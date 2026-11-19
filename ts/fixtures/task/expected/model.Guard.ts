@@ -45,8 +45,8 @@ export function log(self: Guard): Log.Log {
 /** Log `event` as this guard's. */
 export function note(self: Guard, event: string): void {
 	const arg = self.id;
-	const args2 = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtPad(f, event)];
-	const _5: rs.String = rs.fmtFormat(["g", args2[0], " ", args2[1]]);
+	const args3 = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtPad(f, event)];
+	const _5: rs.String = rs.fmtFormat(["g", args3[0], " ", args3[1]]);
 	Log.note(self.log, _5);
 }
 

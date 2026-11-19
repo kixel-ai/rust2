@@ -23,11 +23,11 @@ export function partialCmp$cmp_PartialOrd(self: Part, other: Part): rs.Ordering 
 	log(Uint8Array.of(112, self.tag, other.tag));
 	if (!(self.key === 7)) {
 		_7 = other.key === 7;
-		if (!_7) {
-			return rs.cmp(self.key, other.key);
-		}
 	} else {
 		_7 = true;
+	}
+	if (!_7) {
+		return rs.cmp(self.key, other.key);
 	}
 	return undefined;
 }

@@ -9,10 +9,8 @@ import * as Reading from "./singles.Reading.ts";
 /** The bits of an `f32` from the front of `data`, big-endian and zero-padded. */
 export function takeBits(data: rs.ByteSlice): [rs.u32, rs.ByteSlice] {
 	const buf: Uint8Array = rs.bytes(4);
-	const n: rs.usize = rs.min(data.length, 4);
-	const _7: rs.ByteSlice = rs.byteSliceFrom(buf);
-	const _8: { end: rs.usize } = { end: n };
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_7, 0, _8.end), rs.byteSliceRange(data, 0, _8.end));
+	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
 	return [rs.u32FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.u32, rs.ByteSlice];
 }
 
@@ -99,8 +97,8 @@ export function putSecs(out: rs.ByteVec, d: rs.Result<rs.Duration, rs.TryFromFlo
 		putDuration(out, d.value);
 	} else {
 		const e: rs.TryFromFloatSecsError = d.error;
-		const args2 = [(f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDebug(e, f)];
-		put(out, rs.fmtFormat([args2[0], "|", args2[1]]).v);
+		const args3 = [(f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDebug(e, f)];
+		put(out, rs.fmtFormat([args3[0], "|", args3[1]]).v);
 	}
 }
 
@@ -111,40 +109,37 @@ export function raise(level: rs.Place<rs.f32>, by: rs.f32): void {
 
 export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let zeros!: boolean;
-	let _269!: rs.f32;
+	let _300!: rs.f32;
 	const _6: [rs.f32, rs.ByteSlice] = take(data);
 	const a: rs.f32 = _6[0];
 	const _9: [rs.f32, rs.ByteSlice] = take(_6[1]);
 	const b: rs.f32 = _9[0];
 	const _10: rs.u8 = rs.u8Rem(kind, 10);
 	if (_10 === 0) {
-		const _13: rs.f32 = Math.fround(a + b);
-		const _14: rs.f32 = Math.fround(a - b);
-		const _15: rs.f32 = Math.fround(a * b);
-		const iter: rs.Iter<rs.f32> = rs.iterSlice([_13, _14, _15, Math.fround(a / b), a % b, -a, Math.fround(a + 1.5), Math.fround(0.10000000149011612 * a), Math.fround(_15 + a), Math.fround(_14 / _13)]);
+		const iter: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(a + b), Math.fround(a - b), Math.fround(a * b), Math.fround(a / b), a % b, -a, Math.fround(a + 1.5), Math.fround(0.10000000149011612 * a), Math.fround(Math.fround(a * b) + a), Math.fround(Math.fround(a - b) / Math.fround(a + b))]);
 		while (true) {
-			const _24: rs.f32 | rs.Done = iter.next();
-			if (_24 === rs.DONE) {
+			const _28: rs.f32 | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
 				break;
 			}
-			putF32(out, _24);
+			putF32(out, _28);
 		}
-		const _31: boolean = a === b;
-		const _32: boolean = a !== b;
-		const _33: boolean = a < b;
-		const _34: boolean = a <= b;
-		const _35: boolean = a > b;
-		const _36: boolean = a >= b;
-		const _37: boolean = a === 0.0;
-		const _38: boolean = rs.f32PartialCmp(a, b) === -1;
+		const _35: boolean = a === b;
+		const _36: boolean = a !== b;
+		const _37: boolean = a < b;
+		const _38: boolean = a <= b;
+		const _39: boolean = a > b;
+		const _40: boolean = a >= b;
+		const _41: boolean = a === 0.0;
+		const _42: boolean = rs.f32PartialCmp(a, b) === -1;
 		const order = rs.f32PartialCmp(a, b);
-		const iter2: rs.Iter<boolean> = rs.iterSlice([_31, _32, _33, _34, _35, _36, _37, _38, order !== undefined && order >= 0]);
+		const iter2: rs.Iter<boolean> = rs.iterSlice([_35, _36, _37, _38, _39, _40, _41, _42, order !== undefined && order >= 0]);
 		while (true) {
-			const _45: boolean | rs.Done = iter2.next();
-			if (_45 === rs.DONE) {
+			const _50: boolean | rs.Done = iter2.next();
+			if (_50 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _45 ? 1 : 0);
+			rs.byteVecPush(out, _50 ? 1 : 0);
 		}
 		let c: rs.f32 = a;
 		c = Math.fround(c + b);
@@ -153,26 +148,24 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		c = Math.fround(c / 3.0);
 		c = c % a;
 		putF32(out, c);
-		const wa: rs.f64 = a as rs.f64;
-		const wb: rs.f64 = b as rs.f64;
-		const _58: rs.f64 = wa * wb;
-		const _59: rs.f64 = wa / wb;
-		const _60: rs.f64 = wa + 1e-30;
-		const iter3: rs.Iter<rs.f64> = rs.iterSlice([wa, _58, _59, _60]);
+		const _61: [rs.f64, rs.f64] = [a as rs.f64, b as rs.f64];
+		const wa: rs.f64 = _61[0];
+		const wb: rs.f64 = _61[1];
+		const iter3: rs.Iter<rs.f64> = rs.iterSlice([wa, wa * wb, wa / wb, wa + 1e-30]);
 		while (true) {
-			const _62: rs.f64 | rs.Done = iter3.next();
-			if (_62 === rs.DONE) {
+			const _70: rs.f64 | rs.Done = iter3.next();
+			if (_70 === rs.DONE) {
 				break;
 			}
-			putF64(out, _62);
+			putF64(out, _70);
 		}
-		const iter4: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(_58), Math.fround(_59), Math.fround(_60), Math.fround(wa + wb)]);
+		const iter4: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(wa * wb), Math.fround(wa / wb), Math.fround(wa + 1e-30), Math.fround(wa + wb)]);
 		while (true) {
-			const _75: rs.f32 | rs.Done = iter4.next();
-			if (_75 === rs.DONE) {
+			const _86: rs.f32 | rs.Done = iter4.next();
+			if (_86 === rs.DONE) {
 				break;
 			}
-			putF32(out, _75);
+			putF32(out, _86);
 		}
 	} else if (_10 === 1) {
 		const dst = out;
@@ -318,29 +311,19 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	} else if (_10 === 2) {
 		const wide: Uint8Array = rs.bytes(16);
 		const n: rs.usize = rs.min(data.length, 16);
-		const _145: rs.ByteSlice = rs.byteSliceFrom(wide);
-		const _146: { end: rs.usize } = { end: n };
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_145, 0, _146.end), rs.byteSliceRange(data, 0, _146.end));
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(wide), 0, n), rs.byteSliceRange(data, 0, n));
 		const v: rs.u128 = rs.u128FromBeBytes(wide);
-		const _151: rs.u64 = rs.u64Cast(v);
-		const w: rs.f64 = rs.f64FromBits(_151);
-		const _155: rs.u8 = rs.u128Low(v) & 0xff;
-		const _157: rs.u16 = rs.u128Low(v) & 0xffff;
-		const _158: rs.f32 = Math.fround(rs.u128Low(v));
-		const _160: rs.f32 = rs.u64ToF32(_151);
-		const _167: rs.i16 = (rs.u128Low(v) << 16) >> 16;
-		const _172: rs.f32 = rs.i128ToF32(rs.i128Cast(v));
-		const _178: rs.u128 = rs.u128Shr(v, 64);
-		const iter5: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(_155), Math.fround(_157), _158, _160, rs.u128ToF32(v), Math.fround(rs.u128Low(v)), Math.fround((rs.u128Low(v) << 24) >> 24), Math.fround(_167), Math.fround(rs.u128Low(v) | 0), rs.i64ToF32(rs.i64Cast(v)), _172, Math.fround(rs.u128Low(v) | 0), rs.u64ToF32(rs.u64Cast(_178)), rs.i64ToF32(rs.i64Cast(_178)), Math.fround(_157), Math.fround(_167), rs.u128And(v, 1) === 1 ? 1.0 : 0.0, Math.fround(_155), Math.fround(w), 1.8446744073709552e19, -9.223372036854776e18, Infinity, 2147483648.0]);
+		const w: rs.f64 = rs.f64FromBits(rs.u64Cast(v));
+		const iter5: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(rs.u128Low(v) & 0xff), Math.fround(rs.u128Low(v) & 0xffff), Math.fround(rs.u128Low(v)), rs.u64ToF32(rs.u64Cast(v)), rs.u128ToF32(v), Math.fround(rs.u128Low(v)), Math.fround((rs.u128Low(v) << 24) >> 24), Math.fround((rs.u128Low(v) << 16) >> 16), Math.fround(rs.u128Low(v) | 0), rs.i64ToF32(rs.i64Cast(v)), rs.i128ToF32(rs.i128Cast(v)), Math.fround(rs.u128Low(v) | 0), rs.u64ToF32(rs.u64Cast(rs.u128Shr(v, 64))), rs.i64ToF32(rs.i64Cast(rs.u128Shr(v, 64))), Math.fround(rs.u128Low(v) & 0xffff), Math.fround((rs.u128Low(v) << 16) >> 16), rs.u128And(v, 1) === 1 ? 1.0 : 0.0, Math.fround(rs.u128Low(v) & 0xff), Math.fround(w), 1.8446744073709552e19, -9.223372036854776e18, Infinity, 2147483648.0]);
 		while (true) {
-			const _189: rs.f32 | rs.Done = iter5.next();
-			if (_189 === rs.DONE) {
+			const _214: rs.f32 | rs.Done = iter5.next();
+			if (_214 === rs.DONE) {
 				break;
 			}
-			putF32(out, _189);
+			putF32(out, _214);
 		}
 		const dst13 = out;
-		const word25 = rs.u64FromF64(_160 as rs.f64);
+		const word25 = rs.u64FromF64(rs.u64ToF32(rs.u64Cast(v)) as rs.f64);
 		const word26 = rs.intWord(word25, 0);
 		const word27 = rs.intWord(word25, 32);
 		rs.byteVecReserve(dst13, 8 as rs.usize);
@@ -355,7 +338,7 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst13.data[pos13 + 7] = word26 & 255;
 		dst13.length = dst13.length + 8;
 		const dst14 = out;
-		const word28 = rs.i128FromF64(_172 as rs.f64);
+		const word28 = rs.i128FromF64(rs.i128ToF32(rs.i128Cast(v)) as rs.f64);
 		const word29 = rs.intWord(word28, 0);
 		const word30 = rs.intWord(word28, 32);
 		const word31 = rs.intWord(word28, 64);
@@ -380,7 +363,7 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst14.data[pos14 + 15] = word29 & 255;
 		dst14.length = dst14.length + 16;
 		const dst15 = out;
-		const word33 = rs.u32FromF64(_158 as rs.f64);
+		const word33 = rs.u32FromF64(Math.fround(rs.u128Low(v)) as rs.f64);
 		rs.byteVecReserve(dst15, 4 as rs.usize);
 		const pos15 = dst15.length;
 		dst15.data[pos15 + 0] = (word33 >>> 24) & 255;
@@ -391,28 +374,28 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	} else if (_10 === 3) {
 		const iter6: rs.Iter<rs.f32> = rs.iterSlice([Math.floor(a), Math.ceil(a), Math.trunc(a), rs.f32Round(a), rs.f32RoundTiesEven(a), rs.f32Fract(a), Math.abs(a), rs.f32Signum(a), Math.fround(Math.sqrt(a)), Math.fround(1 / a), Math.fround(a * 57.295780181884766), Math.fround(a * 0.01745329238474369)]);
 		while (true) {
-			const _224: rs.f32 | rs.Done = iter6.next();
-			if (_224 === rs.DONE) {
+			const _255: rs.f32 | rs.Done = iter6.next();
+			if (_255 === rs.DONE) {
 				break;
 			}
-			putF32(out, _224);
+			putF32(out, _255);
 		}
 	} else if (_10 === 4) {
 		const iter7: rs.Iter<boolean> = rs.iterSlice([Number.isNaN(a), Number.isFinite(a), rs.f32IsInfinite(a), rs.f32IsNormal(a), rs.f32IsSubnormal(a), rs.f32IsSignPositive(a), rs.f32IsSignNegative(a)]);
 		while (true) {
-			const _239: boolean | rs.Done = iter7.next();
-			if (_239 === rs.DONE) {
+			const _270: boolean | rs.Done = iter7.next();
+			if (_270 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _239 ? 1 : 0);
+			rs.byteVecPush(out, _270 ? 1 : 0);
 		}
 		const iter8: rs.Iter<rs.f32> = rs.iterSlice([rs.f32Copysign(a, b), rs.f32Copysign(1.5, a), rs.f32NextUp(a), rs.f32NextDown(a)]);
 		while (true) {
-			const _252: rs.f32 | rs.Done = iter8.next();
-			if (_252 === rs.DONE) {
+			const _283: rs.f32 | rs.Done = iter8.next();
+			if (_283 === rs.DONE) {
 				break;
 			}
-			putF32(out, _252);
+			putF32(out, _283);
 		}
 	} else if (_10 === 5) {
 		if (!(a === 0.0)) {
@@ -422,29 +405,29 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 		const iter9: rs.Iter<rs.f32> = rs.iterSlice([rs.f32Max(a, b), rs.f32Min(a, b)]);
 		while (true) {
-			const _264: rs.f32 | rs.Done = iter9.next();
-			if (_264 === rs.DONE) {
+			const _295: rs.f32 | rs.Done = iter9.next();
+			if (_295 === rs.DONE) {
 				break;
 			}
-			const x7: rs.f32 = _264;
+			const x7: rs.f32 = _295;
 			if (!zeros) {
-				_269 = x7;
+				_300 = x7;
 			} else {
-				_269 = 0.0;
+				_300 = 0.0;
 			}
-			putF32(out, _269);
+			putF32(out, _300);
 		}
-		const _273: rs.f32 = rs.f32Midpoint(a, b);
-		const _274: rs.f32 = rs.f32DivEuclid(a, b);
-		const _275: rs.f32 = rs.f32RemEuclid(a, b);
-		const _277: rs.i32 = rs.i32Rem(rs.f32ToBits(b) | 0, 300);
-		const iter10: rs.Iter<rs.f32> = rs.iterSlice([_273, _274, _275, rs.f32Powi(a, _277)]);
+		const _304: rs.f32 = rs.f32Midpoint(a, b);
+		const _305: rs.f32 = rs.f32DivEuclid(a, b);
+		const _306: rs.f32 = rs.f32RemEuclid(a, b);
+		const _308: rs.i32 = rs.i32Rem(rs.f32ToBits(b) | 0, 300);
+		const iter10: rs.Iter<rs.f32> = rs.iterSlice([_304, _305, _306, rs.f32Powi(a, _308)]);
 		while (true) {
-			const _281: rs.f32 | rs.Done = iter10.next();
-			if (_281 === rs.DONE) {
+			const _316: rs.f32 | rs.Done = iter10.next();
+			if (_316 === rs.DONE) {
 				break;
 			}
-			putF32(out, _281);
+			putF32(out, _316);
 		}
 		rs.byteVecPush(out, rs.f32TotalCmp(a, b) & 0xff);
 		rs.byteVecPush(out, option_mapOr$14runhi(rs.f32PartialCmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
@@ -529,16 +512,16 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 		putF32(out, rs.f32FromBits((rs.f32ToBits(a) ^ 1) >>> 0));
 	} else if (_10 === 7) {
-		const _358: [rs.f32, rs.f32] = rs.f32SinCos(a);
-		const s: rs.f32 = _358[0];
-		const c2: rs.f32 = _358[1];
+		const _393: [rs.f32, rs.f32] = rs.f32SinCos(a);
+		const s: rs.f32 = _393[0];
+		const c2: rs.f32 = _393[1];
 		const iter11: rs.Iter<rs.f32> = rs.iterSlice([Math.fround(Math.sin(a)), Math.fround(Math.cos(a)), Math.fround(Math.tan(a)), Math.fround(Math.asin(a)), Math.fround(Math.acos(a)), Math.fround(Math.atan(a)), Math.fround(Math.atan2(a, b)), Math.fround(Math.sinh(a)), Math.fround(Math.cosh(a)), Math.fround(Math.tanh(a)), Math.fround(Math.asinh(a)), Math.fround(Math.acosh(a)), rs.f32Atanh(a), Math.fround(Math.exp(a)), Math.fround(Math.pow(2, a)), Math.fround(Math.expm1(a)), Math.fround(Math.log(a)), Math.fround(Math.fround(Math.log(a)) / Math.fround(Math.log(b))), Math.fround(Math.log2(a)), Math.fround(Math.log10(a)), Math.fround(Math.log1p(a)), rs.f32Powf(a, b), Math.fround(Math.cbrt(a)), Math.fround(Math.hypot(a, b)), s, c2]);
 		while (true) {
-			const _386: rs.f32 | rs.Done = iter11.next();
-			if (_386 === rs.DONE) {
+			const _421: rs.f32 | rs.Done = iter11.next();
+			if (_421 === rs.DONE) {
 				break;
 			}
-			putF32(out, _386);
+			putF32(out, _421);
 		}
 	} else if (_10 === 8) {
 		const d: rs.Duration = rs.durationNew(rs.u64Shl(option_mapOr$1imzf9s(rs.byteSliceFirst(_9[1]), 0, (_2: rs.u8): rs.u64 => {
@@ -546,18 +529,18 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}), 20), 123456789);
 		putF32(out, rs.durationAsSecsF32(d));
 		putF32(out, rs.durationAsSecsF32(rs.durationNew(rs.f32ToBits(b) as rs.u64, rs.u32Rem(rs.f32ToBits(a), 1000000000))));
-		const _408: rs.Duration = rs.durationFromMillis(1500);
-		putF32(out, rs.durationDivDurationF32(d, _408));
+		const _446: rs.Duration = rs.durationFromMillis(1500);
+		putF32(out, rs.durationDivDurationF32(d, _446));
 		putF32(out, rs.durationDivDurationF32({ secs: 0, nanos: 0 }, { secs: 0, nanos: 0 }));
 		putSecs(out, rs.durationTryFromSecsF32(a));
 		putSecs(out, rs.durationTryFromSecsF32(Math.abs(a)));
 		putSecs(out, rs.durationTryFromSecsF32(Math.fround(Math.abs(a) * 9.999999717180685e-10)));
-		const _420: rs.u8 = rs.u8Rem(rs.u8Div(kind, 10), 4);
-		if (_420 === 0) {
+		const _458: rs.u8 = rs.u8Rem(rs.u8Div(kind, 10), 4);
+		if (_458 === 0) {
 			putDuration(out, rs.durationFromSecsF32(a));
-		} else if (_420 === 1) {
+		} else if (_458 === 1) {
 			putDuration(out, rs.durationMulF32(d, a));
-		} else if (_420 === 2) {
+		} else if (_458 === 2) {
 			putDuration(out, rs.durationDivF32(d, a));
 		} else {
 			putDuration(out, rs.durationMulF32({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, b));
@@ -565,11 +548,11 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	} else {
 		const iter12: rs.Iter<rs.f32> = rs.iterSlice([3.4028234663852886e38, -3.4028234663852886e38, 1.1754943508222875e-38, 1.1920928955078125e-7, Infinity, -Infinity, NaN, -0.0, 3.1415927410125732, 6.2831854820251465, 2.7182817459106445, 1.4142135381698608, 0.7071067690849304, 0.6931471824645996, 2.3025851249694824, 1.4426950216293335, 0.4342944920063019, 0.31830987334251404, 9.99994610111476e-41, 0.10000000149011612, 16777216.0]);
 		while (true) {
-			const _428: rs.f32 | rs.Done = iter12.next();
-			if (_428 === rs.DONE) {
+			const _468: rs.f32 | rs.Done = iter12.next();
+			if (_468 === rs.DONE) {
 				break;
 			}
-			putF32(out, _428);
+			putF32(out, _468);
 		}
 		const dst24 = out;
 		const word42 = rs.f32ToBits(rs.f32FromBits(4290773283));
@@ -624,18 +607,17 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 		putF32(out, acc4);
 		putF32(out, 0.0);
-		const _466: rs.f32 | undefined = b;
-		const g: Gauge.Gauge = { level: a, peak: _466 };
+		const g: Gauge.Gauge = { level: a, peak: b };
 		raise(rs.place(() => g.level, (value) => g.level = value), b);
 		if (g.peak !== undefined) {
-			const _472: rs.f32 = rs.f32Max(g.peak, g.level);
-			g.peak = _472;
+			const _513: rs.f32 = rs.f32Max(g.peak, g.level);
+			g.peak = _513;
 		}
 		putF32(out, g.level);
 		putF32(out, option_unwrapOr$15mrooo(g.peak, -1.0));
-		const _485: Gauge.Gauge = Gauge.default$Default();
-		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq(g, _485) ? 1 : 0);
-		rs.byteVecPush(out, g.peak === _466 as rs.f32 | undefined ? 1 : 0);
+		const _526: Gauge.Gauge = Gauge.default$Default();
+		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq(g, _526) ? 1 : 0);
+		rs.byteVecPush(out, g.peak === b ? 1 : 0);
 		let local: rs.f32 = a;
 		raise(rs.place(() => local, (value2) => local = value2), 0.10000000149011612);
 		putF32(out, local);
@@ -649,107 +631,65 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
  * `f32::MAX` that the sum brings back, and half the product's last place.
  */
 export function mulAdds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _83!: rs.f32;
-	let _130!: rs.f32;
-	let _131!: rs.f32;
-	let _132!: rs.f32;
+	let _53!: [rs.f32, rs.f32, rs.f32];
+	let _95!: rs.f32;
 	if (!(rs.u8Rem(kind, 2) === 0)) {
 		let state: rs.u32 = (takeBits(data)[0] | 1) >>> 0;
-		const iter: rs.Range<rs.i32> = new rs.Range(0, 32);
-		while (true) {
-			const _21Some: boolean = iter.start < iter.end;
-			if (_21Some) {
-				iter.start++;
-			}
-			if (!_21Some) {
-				break;
-			}
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 32;
+		while (iterStart++ < iterEnd) {
 			const r: rs.u32 = step(rs.place(() => state, (value) => state = value));
 			const pick: (a0: rs.u32, a1: rs.u32) => rs.i32 = (shift: rs.u32, n: rs.u32): rs.i32 => {
 				return rs.u32Rem(rs.u32Shr(r, shift), n) | 0;
 			};
-			const args = [4, 32] as [rs.u32, rs.u32];
-			const ea: rs.i32 = rs.i32Sub(pick(args[0], args[1]), 16);
-			const args2 = [9, 32] as [rs.u32, rs.u32];
-			const e: rs.i32 = rs.i32Sub(pick(args2[0], args2[1]), 16);
+			const ea: rs.i32 = rs.i32Sub(pick(4, 32), 16);
+			const e: rs.i32 = rs.i32Sub(pick(9, 32), 16);
 			const a2: rs.f32 = near(step(rs.place(() => state, (value2) => state = value2)), ea);
 			const b2: rs.f32 = near(step(rs.place(() => state, (value3) => state = value3)), rs.i32Sub(e, ea));
 			const c2: rs.u32 = step(rs.place(() => state, (value4) => state = value4));
-			const _49: rs.u32 = rs.u32Rem(r, 6);
-			if (_49 === 0) {
-				const _50: rs.f32 = rs.f32FromBits(r);
-				const _51: rs.f32 = rs.f32FromBits(step(rs.place(() => state, (value5) => state = value5)));
-				const _54: rs.f32 = rs.f32FromBits(c2);
-				_130 = _50;
-				_131 = _51;
-				_132 = _54;
-			} else if (_49 === 1) {
-				const _55: rs.f32 = -Math.fround(a2 * b2);
-				_130 = a2;
-				_131 = b2;
-				_132 = _55;
-			} else if (_49 === 2) {
-				const _57: (a0: rs.f32) => rs.f32 = (x: rs.f32): rs.f32 => {
+			const _54: rs.u32 = rs.u32Rem(r, 6);
+			if (_54 === 0) {
+				_53 = [rs.f32FromBits(r), rs.f32FromBits(step(rs.place(() => state, (value5) => state = value5))), rs.f32FromBits(c2)] as [rs.f32, rs.f32, rs.f32];
+			} else if (_54 === 1) {
+				_53 = [a2, b2, -Math.fround(a2 * b2)] as [rs.f32, rs.f32, rs.f32];
+			} else if (_54 === 2) {
+				const _63: (a0: rs.f32) => rs.f32 = (x: rs.f32): rs.f32 => {
 					return rs.f32FromBits((((rs.f32ToBits(x) & 4294963200) >>> 0) | 2048) >>> 0);
 				};
-				const _58: rs.f32 = _57(a2);
-				const _61: rs.f32 = _57(b2);
-				const _66: rs.i32 = rs.i32Sub(e, 26);
-				const args10 = [14, 100] as [rs.u32, rs.u32];
-				const _64: rs.f32 = near(c2, rs.i32Sub(_66, pick(args10[0], args10[1])));
-				_130 = _58;
-				_131 = _61;
-				_132 = _64;
-			} else if (_49 === 3) {
-				const args7 = [14, 120] as [rs.u32, rs.u32];
-				const ea2: rs.i32 = rs.i32Sub(pick(args7[0], args7[1]), 60);
-				const args8 = [21, 30] as [rs.u32, rs.u32];
-				const e2: rs.i32 = rs.i32Sub(-130, pick(args8[0], args8[1]));
-				const a4: rs.f32 = near(r, ea2);
-				const b4: rs.f32 = near(c2, rs.i32Sub(e2, ea2));
+				_53 = [_63(a2), _63(b2), near(c2, rs.i32Sub(rs.i32Sub(e, 26), pick(14, 100)))] as [rs.f32, rs.f32, rs.f32];
+			} else if (_54 === 3) {
+				const ea2: rs.i32 = rs.i32Sub(pick(14, 120), 60);
+				const e2: rs.i32 = rs.i32Sub(-130, pick(21, 30));
+				const _90: [rs.f32, rs.f32] = [near(r, ea2), near(c2, rs.i32Sub(e2, ea2))];
+				const a4: rs.f32 = _90[0];
+				const b4: rs.f32 = _90[1];
 				if (!((r >>> 31) === 0)) {
-					const _87: rs.u32 = c2 >>> 1;
-					const args9 = [26, 30] as [rs.u32, rs.u32];
-					_83 = near(_87, rs.i32Sub(rs.i32Add(e2, pick(args9[0], args9[1])), 15));
+					_95 = near(c2 >>> 1, rs.i32Sub(rs.i32Add(e2, pick(26, 30)), 15));
 				} else {
-					_83 = -Math.fround(a4 * b4);
+					_95 = -Math.fround(a4 * b4);
 				}
-				_130 = a4;
-				_131 = b4;
-				_132 = _83;
-			} else if (_49 === 4) {
-				const args4 = [14, 27] as [rs.u32, rs.u32];
-				const ea3: rs.i32 = rs.i32Add(pick(args4[0], args4[1]), 100);
+				_53 = [a4, b4, _95] as [rs.f32, rs.f32, rs.f32];
+			} else if (_54 === 4) {
+				const ea3: rs.i32 = rs.i32Add(100, pick(14, 27));
 				const a5: rs.f32 = near(r, ea3);
-				const _102: rs.i32 = rs.i32Sub(127, ea3);
-				const args5 = [21, 4] as [rs.u32, rs.u32];
-				const b5: rs.f32 = near(c2, rs.i32Sub(rs.i32Add(_102, pick(args5[0], args5[1])), 1));
-				const _110: rs.u32 = c2 >>> 1;
-				const args6 = [26, 4] as [rs.u32, rs.u32];
-				const _108: rs.f32 = rs.f32Copysign(near(_110, rs.i32Add(pick(args6[0], args6[1]), 124)), -Math.fround(a5 * b5));
-				_130 = a5;
-				_131 = b5;
-				_132 = _108;
+				const b5: rs.f32 = near(c2, rs.i32Sub(rs.i32Add(rs.i32Sub(127, ea3), pick(21, 4)), 1));
+				_53 = [a5, b5, rs.f32Copysign(near(c2 >>> 1, rs.i32Add(124, pick(26, 4))), -Math.fround(a5 * b5))] as [rs.f32, rs.f32, rs.f32];
 			} else {
 				const p: rs.f32 = Math.abs(Math.fround(a2 * b2));
-				const args3 = [14, 5] as [rs.u32, rs.u32];
-				const _121: rs.usize = pick(args3[0], args3[1]) >>> 0;
-				if (!(_121 < 5)) {
-					rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _121);
+				const _143: rs.usize = pick(14, 5) >>> 0;
+				if (!(_143 < 5)) {
+					rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _143);
 				}
-				const half: rs.f32 = [0.5, -0.5, 0.25, -0.75, 1.5][_121];
-				const _125: rs.f32 = Math.fround(Math.fround(rs.f32NextUp(p) - p) * half);
-				_130 = a2;
-				_131 = b2;
-				_132 = _125;
+				const half: rs.f32 = [0.5, -0.5, 0.25, -0.75, 1.5][_143];
+				_53 = [a2, b2, Math.fround(Math.fround(rs.f32NextUp(p) - p) * half)] as [rs.f32, rs.f32, rs.f32];
 			}
-			putF32(out, rs.f32MulAdd(_130, _131, _132));
+			putF32(out, rs.f32MulAdd(_53[0], _53[1], _53[2]));
 		}
 	} else {
-		const _8: [rs.f32, rs.ByteSlice] = take(data);
-		const a: rs.f32 = _8[0];
-		const _11: [rs.f32, rs.ByteSlice] = take(_8[1]);
-		putF32(out, rs.f32MulAdd(a, _11[0], take(_11[1])[0]));
+		const _9: [rs.f32, rs.ByteSlice] = take(data);
+		const a: rs.f32 = _9[0];
+		const _12: [rs.f32, rs.ByteSlice] = take(_9[1]);
+		putF32(out, rs.f32MulAdd(a, _12[0], take(_12[1])[0]));
 	}
 }
 
@@ -775,54 +715,42 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const a: rs.f32 = _6[0];
 	const p: rs.usize = option_unwrapOr$1fr498u(rs.byteSliceFirst(_6[1]), 0) as rs.usize;
 	const w: rs.usize = rs.usizeDiv(p, 4);
-	const _12: rs.u8 = rs.u8Rem(kind, 5);
-	if (_12 === 0) {
-		const args11 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32Debug(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32UpperExp(a, f), rs.fmtCount(p)];
-		put(out, rs.fmtFormat([args11[0], " ", args11[1], " ", args11[2], " ", args11[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args11[4]) }, args11[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args11[4]) }, args11[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args11[4]) }, args11[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args11[4]) }, args11[3]), " ", rs.fmtSpec({ plus: true }, args11[0]), " ", rs.fmtSpec({ plus: true }, args11[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args11[4]) }, args11[2])]).v);
-		const args12 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32Debug(a, f), (f: rs.Formatter) => rs.f32UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
-		put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args12[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args12[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args12[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args12[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args12[0]), "|", rs.fmtSpec({ alternate: true }, args12[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args12[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args12[0]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args12[4]), precision: rs.fmtCountOf(args12[5]) }, args12[0])]).v);
+	const _13: rs.u8 = rs.u8Rem(kind, 5);
+	if (_13 === 0) {
+		const args17 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32Debug(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32UpperExp(a, f), rs.fmtCount(p)];
+		put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[3]), " ", rs.fmtSpec({ plus: true }, args17[0]), " ", rs.fmtSpec({ plus: true }, args17[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args17[4]) }, args17[2])]).v);
+		const args18 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32Debug(a, f), (f: rs.Formatter) => rs.f32UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args18[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args18[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args18[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args18[0]), "|", rs.fmtSpec({ alternate: true }, args18[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args18[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args18[0]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args18[4]), precision: rs.fmtCountOf(args18[5]) }, args18[0])]).v);
 		put(out, rs.fmtToString((f: rs.Formatter) => rs.f32Display(a, f)).v);
-	} else if (_12 === 1) {
-		const args10 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32Debug(a, f)];
-		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 160 }, args10[0]), " ", rs.fmtSpec({ precision: 120 }, args10[1]), " ", rs.fmtSpec({ precision: 160 }, args10[2])]).v);
-	} else if (_12 === 2) {
-		const _64: [rs.f32, rs.ByteSlice] = take(_6[1]);
-		const b: rs.f32 = _64[0];
-		const c: rs.f32 = take(_64[1])[0];
+	} else if (_13 === 1) {
+		const args16 = [(f: rs.Formatter) => rs.f32Display(a, f), (f: rs.Formatter) => rs.f32LowerExp(a, f), (f: rs.Formatter) => rs.f32Debug(a, f)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 160 }, args16[0]), " ", rs.fmtSpec({ precision: 120 }, args16[1]), " ", rs.fmtSpec({ precision: 160 }, args16[2])]).v);
+	} else if (_13 === 2) {
+		const _72: [rs.f32, rs.ByteSlice] = take(_6[1]);
+		const b: rs.f32 = _72[0];
+		const c: rs.f32 = take(_72[1])[0];
 		putF32(out, rs.f32Clamp(a, b, c));
-	} else if (_12 === 3) {
-		const _70: rs.Vec<rs.f32> = rs.vecFrom([Math.fround(a * 0.5), -0.0, 9.999999747378752e-5, 1.0000000272564224e16, NaN]);
-		const r: Reading.Reading = { level: a, history: _70 };
-		const args9 = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(r, f)];
-		put(out, rs.fmtFormat([args9[0], "|", rs.fmtSpec({ precision: 2 }, args9[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args9[0])]).v);
+	} else if (_13 === 3) {
+		const _78: rs.Vec<rs.f32> = rs.vecFrom([Math.fround(a * 0.5), -0.0, 9.999999747378752e-5, 1.0000000272564224e16, NaN]);
+		const part = { level: a, history: _78 };
+		const args15 = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(part, f)];
+		put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ precision: 2 }, args15[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args15[0])]).v);
 	} else {
 		let state: rs.u32 = (takeBits(data)[0] | 1) >>> 0;
-		const iter: rs.Range<rs.i32> = new rs.Range(0, 64);
-		while (true) {
-			const _88Some: boolean = iter.start < iter.end;
-			if (_88Some) {
-				iter.start++;
-			}
-			if (!_88Some) {
-				break;
-			}
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 64;
+		while (iterStart++ < iterEnd) {
 			const x: rs.f32 = rs.f32FromBits(step(rs.place(() => state, (value) => state = value)));
-			const args7 = [(f: rs.Formatter) => rs.f32Display(x, f), (f: rs.Formatter) => rs.f32Debug(x, f), (f: rs.Formatter) => rs.f32LowerExp(x, f)];
-			put(out, rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]]).v);
+			const args13 = [(f: rs.Formatter) => rs.f32Display(x, f), (f: rs.Formatter) => rs.f32Debug(x, f), (f: rs.Formatter) => rs.f32LowerExp(x, f)];
+			put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2]]).v);
 		}
-		const iter2: rs.Range<rs.i32> = new rs.Range(0, 64);
-		while (true) {
-			const _108Some: boolean = iter2.start < iter2.end;
-			if (_108Some) {
-				iter2.start++;
-			}
-			if (!_108Some) {
-				break;
-			}
+		let iterStart2: rs.i32 = 0;
+		const iterEnd2: rs.i32 = 64;
+		while (iterStart2++ < iterEnd2) {
 			const r2: rs.u32 = step(rs.place(() => state, (value2) => state = value2));
 			const x2: rs.f32 = Math.fround(Math.fround(r2 >>> 8) / Math.fround(rs.u32Shl(1, rs.u32Add(rs.u32Rem(r2, 16), 1))));
-			const args8 = [(f: rs.Formatter) => rs.f32Debug(x2, f), (f: rs.Formatter) => rs.f32LowerExp(x2, f)];
-			put(out, rs.fmtFormat([args8[0], " ", args8[1]]).v);
+			const args14 = [(f: rs.Formatter) => rs.f32Debug(x2, f), (f: rs.Formatter) => rs.f32LowerExp(x2, f)];
+			put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
 		}
 	}
 }
@@ -832,67 +760,53 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
  * grammar's alphabet, or of decimals made from a seed.
  */
 export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _93!: rs.usize;
+	let _108!: rs.usize;
 	const _4: rs.u8 = rs.u8Rem(kind, 3);
 	if (_4 === 0) {
-		const _5: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(data);
-		if (_5.ok) {
-			one(_5.value, out);
+		const _6: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(data);
+		if (_6.ok) {
+			one(_6.value, out);
 		}
 	} else if (_4 === 1) {
 		const s: rs.String = rs.stringNew();
-		for (const _12 of rs.byteSliceView(data)) {
-			const _21: rs.usize = rs.usizeRem(_12 as rs.usize, 49);
-			if (!(_21 < 49)) {
-				rs.panic("index out of bounds: the len is " + 49 + " but the index is " + _21);
-			}
-			const _20: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32));
-			rs.stringPush(s, _20.data[_20.start + _21] as rs.char);
+		for (const b of rs.byteSliceView(data)) {
+			const _21: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32));
+			const _22: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32)).length);
+			rs.idx(_21, _22);
+			rs.stringPush(s, _21.data[_21.start + _22] as rs.char);
 		}
 		one(s.v, out);
 	} else {
 		let state: rs.u32 = (takeBits(data)[0] | 1) >>> 0;
-		const iter2: rs.Range<rs.i32> = new rs.Range(0, 16);
-		while (true) {
-			const _32Some: boolean = iter2.start < iter2.end;
-			if (_32Some) {
-				iter2.start++;
-			}
-			if (!_32Some) {
-				break;
-			}
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 16;
+		while (iterStart++ < iterEnd) {
 			const x: rs.f32 = rs.f32FromBits((step(rs.place(() => state, (value) => state = value)) & 2147483647) >>> 0);
 			const half: rs.f64 = ((x as rs.f64) + (rs.f32NextUp(x) as rs.f64)) / 2.0;
 			const p: rs.usize = rs.u32Add(rs.u32Rem(step(rs.place(() => state, (value2) => state = value2)), 30), 8) as rs.usize;
-			const args4 = [(f: rs.Formatter) => rs.f64LowerExp(half, f), rs.fmtCount(p)];
-			one(rs.fmtFormat([rs.fmtSpec({ precision: rs.fmtCountOf(args4[1]) }, args4[0])]).v, out);
+			const args7 = [(f: rs.Formatter) => rs.f64LowerExp(half, f), rs.fmtCount(p)];
+			one(rs.fmtFormat([rs.fmtSpec({ precision: rs.fmtCountOf(args7[1]) }, args7[0])]).v, out);
 			one(rs.fmtFormat([(f: rs.Formatter) => rs.f64LowerExp(half, f)]).v, out);
 		}
-		const iter3: rs.Range<rs.i32> = new rs.Range(0, 16);
-		while (true) {
-			const _74Some: boolean = iter3.start < iter3.end;
-			if (_74Some) {
-				iter3.start++;
-			}
-			if (!_74Some) {
-				break;
-			}
+		let iterStart2: rs.i32 = 0;
+		const iterEnd2: rs.i32 = 16;
+		while (iterStart2++ < iterEnd2) {
 			const r: rs.u32 = step(rs.place(() => state, (value3) => state = value3));
 			const len: rs.usize = rs.u32Add(rs.u32Rem(r, 20), 1) as rs.usize;
 			const point: rs.usize = rs.usizeRem(r >>> 8 as rs.usize, rs.usizeAdd(len, 1));
 			const s2: rs.String = rs.stringNew();
-			let iterStart: rs.usize = 0;
-			const iterEnd: rs.usize = len;
-			while ((_93 = iterStart++) < iterEnd) {
-				if (point === _93) {
+			let iterStart3: rs.usize = 0;
+			const iterEnd3: rs.usize = len;
+			while ((_108 = iterStart3++) < iterEnd3) {
+				if (_108 === point) {
 					rs.stringPush(s2, 46);
 				}
-				const _102: rs.char = rs.u8Add(rs.u32Rem(step(rs.place(() => state, (value4) => state = value4)), 10) & 0xff, 48) as rs.char;
-				rs.stringPush(s2, _102);
+				const _117: rs.char = rs.u8Add(48, rs.u32Rem(step(rs.place(() => state, (value4) => state = value4)), 10) & 0xff) as rs.char;
+				rs.stringPush(s2, _117);
 			}
-			const _116: rs.i64 = rs.i64Sub(rs.u32Rem(r >>> 16, 100) as rs.i64, 50);
-			const args6 = [(f: rs.Formatter) => rs.fmtPad(f, s2.v), (f: rs.Formatter) => rs.i64Display(_116, f)];
-			one(rs.fmtFormat([args6[0], "e", args6[1]]).v, out);
+			const _133: rs.i64 = rs.i64Sub(rs.u32Rem(r >>> 16, 100) as rs.i64, 50);
+			const args9 = [(f: rs.Formatter) => rs.fmtPad(f, s2.v), (f: rs.Formatter) => rs.i64Display(_133, f)];
+			one(rs.fmtFormat([args9[0], "e", args9[1]]).v, out);
 		}
 	}
 }
@@ -906,8 +820,8 @@ export function one(s: string, out: rs.ByteVec): void {
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.f32Debug(v, f)]).v);
 	} else {
 		const e: rs.ParseFloatError = _4.error;
-		const args3 = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];
-		put(out, rs.fmtFormat([args3[0], "|", args3[1]]).v);
+		const args5 = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];
+		put(out, rs.fmtFormat([args5[0], "|", args5[1]]).v);
 	}
 	rs.byteVecPush(out, rs.f32FromStr(s).ok ? 1 : 0);
 }

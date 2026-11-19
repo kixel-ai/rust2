@@ -9,10 +9,9 @@ export function ok$19nq1jt(self: rs.Result<rs.ByteSlice, rs.usize>): rs.ByteSlic
 	return undefined;
 }
 
-export function inspectErr$1s1ee3d(self: rs.Result<rs.ByteSlice, rs.usize>, f: (a0: rs.usize) => undefined): rs.Result<rs.ByteSlice, rs.usize> {
+export function inspectErr$0vkwi4s(self: rs.Result<rs.ByteSlice, rs.usize>, f: (a0: rs.usize) => undefined): rs.Result<rs.ByteSlice, rs.usize> {
 	if (!self.ok) {
 		f(self.error);
-		return self;
 	}
 	return self;
 }

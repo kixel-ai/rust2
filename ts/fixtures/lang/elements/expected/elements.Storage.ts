@@ -23,11 +23,10 @@ function new_(capacity: rs.usize): Storage {
 }
 
 export function write(self: Storage, offset: rs.usize, src: rs.ByteSlice): void {
-	const _6: rs.usize = src.length;
-	if (!(rs.usizeAdd(offset, _6) <= self.capacity)) {
+	if (!(rs.usizeAdd(offset, src.length) <= self.capacity)) {
 		rs.panic("assertion failed: offset + src.len() <= self.capacity");
 	} else {
-		rs.ptrCopy(rs.byteSliceAsPtr(src), rs.ptrAdd(self.data, offset), _6);
+		rs.ptrCopy(rs.byteSliceAsPtr(src), rs.ptrAdd(self.data, offset), src.length);
 	}
 }
 
