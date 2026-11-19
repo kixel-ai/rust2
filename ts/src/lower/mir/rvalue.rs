@@ -601,6 +601,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return cast;
 				}
 				let p = self.operand(op, span, out);
+				// Null or dangling, through a `*const ()`, as value numbering folds
+				// `p as *const () as *const U` into one cast: no read goes through it.
+				if crate::lower::pointer::reinterprets(self.b, a, b) && self.nowhere(op) {
+					let unit = self.tcx.types.unit;
+					let erased = crate::lower::pointer::cast(self.b, p, a, unit, span);
+					return crate::lower::pointer::cast(self.b, erased, unit, b, span);
+				}
 				crate::lower::pointer::cast(self.b, p, a, b, span)
 			}
 			CastKind::PtrToPtr => self.err(
@@ -965,7 +972,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::RangeTo | Std::RangeToInclusive, _) => {
 					crate::lower::library::range_to(values.pop().unwrap(), std == Std::RangeToInclusive)
 				}
-				(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
+				(
+					Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating | Std::NonZero,
+					_,
+				) => values.pop().unwrap(),
 				(Std::Bound | Std::TryLockError, _) => {
 					let ts_ty = self.b.t.ty(ty, span);
 					crate::lower::library::tagged(def.name.as_str(), values.pop(), ts_ty)
@@ -1083,7 +1093,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// future of a call, borrowing what it captured, and one that owns what drops and that
 	/// `Fn` or `FnMut` call also carries what makes the future of a call that consumes it,
 	/// which owns what it captured, as rustc's by-move body does.
-	fn closure(
+	pub(super) fn closure(
 		&mut self,
 		ty: Ty<'tcx>,
 		ops: &IndexVec<FieldIdx, Operand<'tcx>>,

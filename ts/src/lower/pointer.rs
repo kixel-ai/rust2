@@ -1320,6 +1320,22 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 	}
 }
 
+/// Whether [`cast`] refuses a pointer to `from` as one to `to`, which reads the bytes of
+/// one type as another.
+pub(crate) fn reinterprets<'tcx>(b: &Body<'_, '_, 'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {
+	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
+	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if super::byte(*e));
+	let slice_as_array = matches!((inner.kind(), into.kind()), (ty::Slice(from_elem), ty::Array(elem, _))
+		if from_elem == elem || super::byte(*from_elem) && super::byte(*elem));
+	let first = matches!(inner.kind(), ty::Array(elem, _) | ty::Slice(elem) if b.t.uninit_inner(*elem) == into);
+	!(inner == into
+		|| byte_slice(inner) && byte_slice(into)
+		|| b.t.identity_pointee(into)
+		|| b.t.identity_pointee(inner)
+		|| slice_as_array
+		|| first)
+}
+
 /// The pointer `p` to `from`, as one to `to`: the same pointer, as one to what a
 /// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, the pointer
 /// to the first element of the array or slice it points at, or one to a slice as one to an

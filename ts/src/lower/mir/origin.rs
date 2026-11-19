@@ -815,7 +815,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether the body shows the raw pointer `op` is null or dangling, at no memory.
-	fn nowhere(&self, op: &Operand<'tcx>) -> bool {
+	pub(super) fn nowhere(&self, op: &Operand<'tcx>) -> bool {
 		// A constant pointer of no allocation, an integer: null, or another, which a
 		// constant's lowering refuses.
 		if let Operand::Constant(c) = op {

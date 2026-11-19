@@ -1680,9 +1680,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `T = undefined`.
 	fn widen(&mut self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>, value: Expr, span: Span) -> Expr {
 		let ty = place.ty(&self.mir.local_decls, self.tcx).ty;
-		// What is made here, rather than read from a place declared with its type.
-		let made = matches!(rvalue, Rvalue::Aggregate(..) | Rvalue::Use(Operand::Constant(_), _));
-		if !made || !self.tested[place.local] || !self.b.t.narrows(ty) {
+		if !self.made_here(rvalue) || !self.tested[place.local] || !self.b.t.narrows(ty) {
 			return value;
 		}
 		// `Some` narrows to its payload's type, which only a test for `None` refutes, and
@@ -1712,6 +1710,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.widened.insert(name.clone());
 		}
 		value
+	}
+
+	/// Whether `rvalue` is made here, rather than read from a place declared with its type:
+	/// an aggregate, a constant, or a copy of a local assigned one once, as value numbering
+	/// leaves, which may fold into the read.
+	pub(super) fn made_here(&self, rvalue: &Rvalue<'tcx>) -> bool {
+		let mut rvalue = rvalue;
+		// A copy of a copy, at most once each, as copies in a loop may read each other.
+		for _ in 0..self.mir.local_decls.len() {
+			match rvalue {
+				Rvalue::Aggregate(..) | Rvalue::Use(Operand::Constant(_), _) => return true,
+				Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _)
+					if let Some(r) = p.as_local().and_then(|local| self.def_rvalue(local)) =>
+				{
+					rvalue = r
+				}
+				_ => return false,
+			}
+		}
+		false
 	}
 
 	/// The whole type of the place whose discriminant `discr` holds.
@@ -1761,24 +1779,27 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Whether every read of `local` is a `switchInt` on it, after its one assignment of a
-	/// discriminant.
+	/// discriminant. Several switches, as value numbering leaves one read for a match and
+	/// its drop, each read the place again, so it must hold the same variant throughout.
 	fn discr_only(&self, local: Local) -> bool {
-		if self.defs[local] != 1 || self.uses[local] != 1 {
+		let Some(Rvalue::Discriminant(place)) = self.def_rvalue(local) else {
+			return false;
+		};
+		if self.defs[local] != 1 || self.uses[local] == 0 {
 			return false;
 		}
-		let assigned = matches!(self.def_rvalue(local), Some(Rvalue::Discriminant(_)));
-		let mut switched = false;
-		for data in self.mir.basic_blocks.iter() {
-			if let TerminatorKind::SwitchInt {
-				discr: Operand::Move(p) | Operand::Copy(p),
-				..
-			} = &data.terminator().kind
-				&& p.as_local() == Some(local)
-			{
-				switched = true;
-			}
-		}
-		assigned && switched
+		let switches = (self.mir.basic_blocks.iter())
+			.filter(|data| {
+				matches!(
+					&data.terminator().kind,
+					TerminatorKind::SwitchInt { discr: Operand::Move(p) | Operand::Copy(p), .. }
+						if p.as_local() == Some(local)
+				)
+			})
+			.count() as u32;
+		switches == self.uses[local]
+			&& (switches == 1
+				|| self.stable(*place) && !self.mutated[place.local] && !self.borrowed[place.local])
 	}
 
 	/// Whether the switch on the discriminant `local` tests it, rather than going the one

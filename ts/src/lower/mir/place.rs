@@ -249,6 +249,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Index(index) => {
 					let i = self.local_expr(index, span);
+					// An array made here, as value numbering leaves one read once, which may
+					// fold into its index, where TypeScript would infer narrower elements.
+					if read == 0
+						&& let ty::Array(elem, _) = ty.kind()
+						&& self.b.t.narrows(*elem)
+						&& let Some(mir::Rvalue::Aggregate(..)) = self.def_rvalue(place.local)
+					{
+						e = Expr::As(Box::new(e), self.b.t.ty(ty, span));
+					}
 					e = match in_slice {
 						true => {
 							let base = self.slice_path(e, out);
@@ -802,6 +811,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					true => value,
 					false => self.b.t.copied(value, ty, span),
 				}
+			}
+			// A closure whose captures value numbering knows, made of them as one is.
+			Operand::Constant(c)
+				if let mir::Const::Val(val, ty) = c.const_
+					&& let ty::Closure(..) = ty.kind()
+					&& !matches!(val, ConstValue::ZeroSized) =>
+			{
+				self.closure_const(val, ty, span, out)
 			}
 			Operand::Constant(c) => self.constant(c, span),
 			Operand::RuntimeChecks(_) => Expr::lit("false"),
@@ -1802,6 +1819,56 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// The value of a constant `val` of type `ty`: a fresh one at each use, as Rust copies a
 	/// constant there.
+	/// The JS value of the reserved slot of wasm-bindgen's heap that the `JsValue` within
+	/// the constant `val` of type `ty`, its first field all the way down, holds the index of.
+	fn js_const(&self, mut val: ConstValue, mut ty: Ty<'tcx>) -> Option<Expr> {
+		while let ty::Adt(..) = ty.kind() {
+			let d = self.tcx.try_destructure_mir_constant_for_user_output(val, ty)?;
+			(val, ty) = *d.fields.first()?;
+		}
+		match val {
+			ConstValue::Scalar(Scalar::Int(idx)) => crate::lower::bindgen::constant(idx.to_u32()),
+			_ => None,
+		}
+	}
+
+	/// The closure constant `val` of type `ty`, made of its captures: rustc takes apart no
+	/// closure, so they are read as the tuple of their types, which lays them out alike.
+	fn closure_const(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+		let tcx = self.tcx;
+		let ty::Closure(_, args) = ty.kind() else {
+			unreachable!("a closure")
+		};
+		let tuple = Ty::new_tup(tcx, args.as_closure().upvar_tys());
+		let env = ty::TypingEnv::fully_monomorphized();
+		let alike = match (tcx.layout_of(env.as_query_input(ty)), tcx.layout_of(env.as_query_input(tuple))) {
+			(Ok(closure), Ok(tuple)) => {
+				closure.size == tuple.size
+					&& closure.backend_repr == tuple.backend_repr
+					&& closure.fields.count() == tuple.fields.count()
+					&& (0..closure.fields.count()).all(|i| closure.fields.offset(i) == tuple.fields.offset(i))
+			}
+			_ => false,
+		};
+		let fields = match alike {
+			true => tcx.try_destructure_mir_constant_for_user_output(val, tuple),
+			false => None,
+		};
+		let Some(fields) = fields else {
+			return self.err(span, format!("a constant closure `{ty}` whose captures can't be taken apart"));
+		};
+		let ops = (fields.fields.iter())
+			.map(|&(val, ty)| {
+				Operand::Constant(Box::new(mir::ConstOperand {
+					span,
+					user_ty: None,
+					const_: mir::Const::Val(val, ty),
+				}))
+			})
+			.collect();
+		self.closure(ty, &ops, span, out)
+	}
+
 	pub(super) fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.tcx;
 		if let Some(value) = self.cell_value(val, ty, span) {
@@ -1812,6 +1879,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(of) => self.b.t.type_id(of),
 				None => self.err(span, format!("a constant of type `{ty}` that names no type")),
 			};
+		}
+		// A slot of wasm-bindgen's heap it reserves, as a constant `JsValue` holds one.
+		if self.b.t.std_of(ty) == Some(Std::Js) {
+			return match self.js_const(val, ty) {
+				Some(value) => value,
+				None => self.err(span, format!("a constant `{ty}` of wasm-bindgen's heap, which only WASM has")),
+			};
+		}
+		// One within another constant, which no statement before it can make.
+		if let ty::Closure(..) = ty.kind()
+			&& !matches!(val, ConstValue::ZeroSized)
+		{
+			return self.err(span, format!("a constant closure `{ty}` within another constant"));
 		}
 		// An aggregate, field by field.
 		if let ty::Adt(..) | ty::Tuple(_) | ty::Array(..) = ty.kind()
