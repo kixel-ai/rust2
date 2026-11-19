@@ -613,7 +613,7 @@ def cps(info, files, natives):
 def exported(shared, lib, target):
     """The C ABI's symbols, `<lib>_*`, that the shared library exports, as the object format spells them."""
     if "apple" in target:
-        names = output("nm", "-gUj", shared).split()
+        names = output("nm", "--no-llvm-bc", "-gUj", shared).split()
         want = f"_{lib}_"
     else:
         names = [line.split()[-1] for line in output("nm", "-D", "--defined-only", shared).splitlines() if line.strip()]
@@ -622,6 +622,12 @@ def exported(shared, lib, target):
     if not found:
         raise SystemExit(f"{shared} exports no {want}* symbol")
     return found
+
+
+def undefined(path, kind):
+    """The undefined symbols of an ELF object or archive that nm marks `kind`: `U` strong, `w` weak."""
+    lines = output("nm", "--undefined-only", path).splitlines()
+    return {line.split()[1] for line in lines if line.split()[:1] == [kind] and len(line.split()) == 2}
 
 
 def hide(static, shared, lib, target, work):
@@ -640,16 +646,28 @@ def hide(static, shared, lib, target, work):
         run("cc", "-r", "-nostdlib", "-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}",
             *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}", static, "-o", hidden)
         run("libtool", "-static", "-o", archive, hidden)
-        found = output("nm", "-gUj", hidden).split()
+        # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
+        found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
     else:
         # Only the members the C ABI reaches, without the sections it never references.
         run("ld", "-r", "--gc-sections", *roots, static, "-o", merged)
+        # What std looks up only if the system has it, such as a newer glibc's
+        # `posix_spawn_file_actions_addchdir`, stays weak: binutils 2.42's `ld -r
+        # --gc-sections` makes it local, which objcopy makes strong, failing a link on an
+        # older glibc.
+        weak = undefined(static, "w") - undefined(static, "U")
+        weaken = work / "weak.txt"
+        weaken.write_text("".join(f"{name}\n" for name in sorted(weak)), encoding="utf-8")
         # A COMDAT group would still merge with another library's copy, such as std's
         # `DW.ref.rust_eh_personality`, whose symbol here is now local: as plain sections,
         # each library keeps its own.
-        run("objcopy", "--remove-section=.group", f"--keep-global-symbols={names}", merged, hidden)
+        run("objcopy", "--remove-section=.group", f"--keep-global-symbols={names}", f"--weaken-symbols={weaken}",
+            merged, hidden)
         if "There are no section groups" not in output("readelf", "-g", hidden):
             raise SystemExit(f"the prelinked {static.name} still holds section groups")
+        strong = sorted(undefined(hidden, "U") & weak)
+        if strong:
+            raise SystemExit(f"the prelinked {static.name} needs what Rust's archive only looks up, such as {strong[:5]}")
         run("ar", "rcsD", archive, hidden)
         found = [line.split()[-1] for line in output("nm", "-g", "--defined-only", hidden).splitlines() if line.strip()]
     if sorted(set(found)) != keep:
