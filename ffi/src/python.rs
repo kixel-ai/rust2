@@ -27,7 +27,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -1381,10 +1381,10 @@ impl<'a> Gen<'a> {
 			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
-					method
-						.params
-						.iter()
-						.map(|p| format!("{}: {}", param_name(&p.name), self.py_lent(&p.ty))),
+					param_names(&method.params)
+						.into_iter()
+						.zip(&method.params)
+						.map(|(name, p)| format!("{name}: {}", self.py_lent(&p.ty))),
 				)
 				.collect();
 			body.push(format!(
@@ -1717,9 +1717,8 @@ impl<'a> Gen<'a> {
 		let mut closures = Vec::new();
 		// Each parameter Rust writes back, by its argument's index, and what it holds.
 		let mut written: Vec<(usize, Type)> = Vec::new();
-		for param in &function.params {
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			let name = param_name(&param.name);
 			let annotation = match &param.ty {
 				Type::Ref(_, inner) if param.ty.written() => format!("Mut[{}]", self.py_ty(inner)),
 				ty => self.py_param(ty),
@@ -1847,8 +1846,7 @@ impl<'a> Gen<'a> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			if let Type::Closure(closure_) = &param.ty {
 				let lent = &closure_.params;
 				match closure_.kept {
@@ -1883,7 +1881,7 @@ impl<'a> Gen<'a> {
 		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
 		match direct {
 			true => {
-				let names: Vec<String> = function.params.iter().map(|p| param_name(&p.name)).collect();
+				let names = param_names(&function.params);
 				let d = Direct {
 					member: &member,
 					place,
@@ -2091,13 +2089,28 @@ fn field_name(name: &str) -> String {
 	}
 }
 
-/// A parameter's Python name, apart from the runtime's names a body reads.
+/// A parameter's Python name, apart from the runtime's names a body reads: not `_any`, which
+/// only `_load` reads, and it has no parameter.
 fn param_name(name: &str) -> String {
 	let name = kw(&abi::snake(name));
-	match TAKEN.contains(&name.as_str()) || name == "self" {
+	match (TAKEN.contains(&name.as_str()) && name != "_any") || name == "self" {
 		true => format!("{name}_"),
 		false => name,
 	}
+}
+
+/// The Python names of `params`, each apart from the others: one that an earlier parameter's
+/// rename took, such as `_all_` after `_all`, gets another `_`.
+fn param_names<'a>(params: impl IntoIterator<Item = &'a Param>) -> Vec<String> {
+	let mut out: Vec<String> = Vec::new();
+	for param in params {
+		let mut name = param_name(&param.name);
+		while out.contains(&name) {
+			name.push('_');
+		}
+		out.push(name);
+	}
+	out
 }
 
 /// The name a member's code declares, for [`Gen::distinct`].
@@ -2176,7 +2189,29 @@ fn ieee_eq(class: &str, fields: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::member;
+	use super::{member, param_name, param_names};
+	use crate::ir::{Param, Type};
+
+	#[test]
+	fn params_keep_apart() {
+		let params = |names: &[&str]| {
+			let params: Vec<Param> = names
+				.iter()
+				.map(|n| Param {
+					name: n.to_string(),
+					ty: Type::Bool,
+					interned: false,
+				})
+				.collect();
+			param_names(&params)
+		};
+		// `_any` is read only by `_load`, which has no parameter, so it keeps its name.
+		assert_eq!(param_name("_any"), "_any");
+		assert_eq!(param_name("_all"), "_all_");
+		assert_eq!(params(&["_all", "_all_"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["_all_", "_all"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["a", "b"]), ["a", "b"]);
+	}
 
 	#[test]
 	fn member_keeps_clear_of_the_runtime_aliases() {
