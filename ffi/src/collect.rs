@@ -472,6 +472,7 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 				crates: Vec::new(),
 				reached: Vec::new(),
 				targets: vec![target(tcx)],
+				links: [(target(tcx), links(tcx))].into(),
 			},
 		};
 		c.walk();
@@ -6521,6 +6522,55 @@ fn opaque<'tcx>(
 /// The target the export is collected for.
 fn target(tcx: TyCtxt<'_>) -> String {
 	tcx.sess.opts.target_triple.tuple().to_string()
+}
+
+/// The system libraries a static library of the facade links beside it on this target, as
+/// rustc's `--print native-static-libs` prints them for one: what each linked crate's
+/// `#[link]` and build script name that the archive does not bundle, the leaves last.
+/// rustc lists only at a link, so this follows its `link_staticlib` over the checked crates.
+fn links(tcx: TyCtxt<'_>) -> Vec<String> {
+	use rustc_attr_parsing::eval_config_entry;
+	use rustc_structures::NativeLibKind;
+	let sess = tcx.sess;
+	// A dependent before what it depends on, `compiler_builtins` last; the facade, which the
+	// glue's build links as any other crate, depends on the rest.
+	let mut crates: Vec<CrateNum> = (tcx.postorder_cnums(()).iter().rev().copied())
+		.filter(|&krate| !tcx.crate_dep_kind(krate).macros_only())
+		.collect();
+	crates.sort_by_key(|&krate| tcx.is_compiler_builtins(krate));
+	crates.insert(0, LOCAL_CRATE);
+	let mut out: Vec<String> = Vec::new();
+	let libs = crates.into_iter().flat_map(|krate| tcx.native_libraries(krate));
+	for lib in libs.filter(|lib| (lib.cfg.as_ref()).is_none_or(|cfg| eval_config_entry(sess, cfg).as_bool())) {
+		let name = lib.name;
+		let verbatim = lib.verbatim.unwrap_or(false);
+		let arg = match lib.kind {
+			NativeLibKind::Static {
+				bundle: Some(false), ..
+			}
+			| NativeLibKind::Dylib { .. }
+			| NativeLibKind::Unspecified => {
+				if sess.target.is_like_msvc {
+					let (prefix, suffix) = sess.staticlib_components(verbatim);
+					format!("{prefix}{name}{suffix}")
+				} else if sess.target.linker_flavor.is_gnu() {
+					format!("-l{}{name}", if verbatim { ":" } else { "" })
+				} else {
+					format!("-l{name}")
+				}
+			}
+			NativeLibKind::Framework { .. } => format!("-framework {name}"),
+			NativeLibKind::Static { .. }
+			| NativeLibKind::LinkArg
+			| NativeLibKind::WasmImportModule
+			| NativeLibKind::RawDylib { .. } => continue,
+		};
+		// rustc drops a library repeated right after itself, and only then.
+		if out.last() != Some(&arg) {
+			out.push(arg);
+		}
+	}
+	out
 }
 
 /// Whether every byte of `ty` is initialized, whatever its value and whatever layout a
