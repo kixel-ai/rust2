@@ -1690,6 +1690,9 @@ def leaf():
 	# A derived equality over a field whose own is written by hand.
 	check(api.Hooked.new(1) == api.Hooked.new(1), "a hooked equality")
 	check(len(hooked) == 1 and hooked[0] != threading.get_ident(), "a hooked equality releases the GIL")
+	# A hand-written equality that claims to be derived.
+	check(api.Forged.new(1) == api.Forged.new(1), "a forged equality")
+	check(len(hooked) == 2 and hooked[1] != threading.get_ident(), "a forged equality releases the GIL")
 	# A getter of a value kept on its thread, after another thread freed one of its values:
 	# the getter first drops that one, whose drop runs the hook.
 	pinned = api.Pinned.new(5)
@@ -1697,8 +1700,8 @@ def leaf():
 	thread = threading.Thread(target=freed.clear)
 	thread.start()
 	thread.join()
-	check(len(hooked) == 1, "a value freed elsewhere waits for its thread")
-	check(pinned.value_get == 5 and len(hooked) == 2, "a getter that drains releases the GIL")
+	check(len(hooked) == 2, "a value freed elsewhere waits for its thread")
+	check(pinned.value_get == 5 and len(hooked) == 3, "a getter that drains releases the GIL")
 	api.unhook()
 	del pinned
 	print("leaf ok")

@@ -1757,11 +1757,14 @@ Future<void> leaf() async {
   // A derived equality over a field whose own is written by hand.
   check(api.Hooked(api.U64(1)) == api.Hooked(api.U64(1)), 'a hooked equality');
   check(hooked == 1, 'a hooked equality serves the isolate');
+  // A hand-written equality that claims to be derived.
+  check(api.Forged(api.U64(1)) == api.Forged(api.U64(1)), 'a forged equality');
+  check(hooked == 2, 'a forged equality serves the isolate');
   // A value kept on its thread lives on a home, whose getter and drop run there.
   final pinned = api.Pinned(api.U64(5));
   check(pinned.valueGet == api.U64(5), 'a getter of a value kept on its thread');
   pinned.close();
-  check(hooked == 2, 'a drop on a home serves the isolate');
+  check(hooked == 3, 'a drop on a home serves the isolate');
   api.unhook();
   print('leaf ok');
 }

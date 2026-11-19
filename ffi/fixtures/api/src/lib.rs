@@ -2476,13 +2476,13 @@ pub fn locals_dropped() -> u32 {
 	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// What [`Hooked`]'s `PartialEq` and [`Pinned`]'s drop run, on another thread they wait
+/// What [`Hooked`]'s and [`Forged`]'s `PartialEq` and [`Pinned`]'s drop run, on another thread they wait
 /// for: a call reaching either deadlocks if its binding kept its lock or its thread across
 /// it, as one taken for a leaf call would.
 #[cfg(not(target_arch = "wasm32"))]
 static HOOK: std::sync::Mutex<Option<Box<dyn Fn() + Send>>> = std::sync::Mutex::new(None);
 
-/// Have each [`Hooked`] compared and each [`Pinned`] dropped call `f` from another thread.
+/// Have each [`Hooked`] or [`Forged`] compared and each [`Pinned`] dropped call `f` from another thread.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn hook(f: impl Fn() + Send + 'static) {
 	let old = HOOK.lock().unwrap().replace(Box::new(f));
@@ -2540,6 +2540,31 @@ pub struct Hooked {
 impl Hooked {
 	pub fn new(n: u64) -> Self {
 		Self { n, gated: Gated(n) }
+	}
+}
+
+/// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
+/// macro's may: what claims it proves nothing, so a comparison is no leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+pub struct Forged {
+	pub n: u64,
+	pinned: u8,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[automatically_derived]
+impl PartialEq for Forged {
+	fn eq(&self, other: &Self) -> bool {
+		run_hook();
+		self.n == other.n && self.pinned == other.pinned
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Forged {
+	pub fn new(n: u64) -> Self {
+		Self { n, pinned: 0 }
 	}
 }
 

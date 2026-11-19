@@ -3014,7 +3014,7 @@ impl<'tcx> Collector<'tcx> {
 				else {
 					return false;
 				};
-				if tcx.is_automatically_derived(imp.impl_def_id) {
+				if builtin_derived(tcx, imp.impl_def_id) {
 					return adt
 						.all_fields()
 						.all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen));
@@ -6834,4 +6834,18 @@ fn statics<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId) -> ty::GenericArgs<'tcx> {
 /// A type's path without generic arguments.
 fn strip_args(tcx: TyCtxt<'_>, did: DefId) -> String {
 	tcx.def_path_str(did)
+}
+
+/// Whether `imp` is the expansion of one of core's built-in derives. The
+/// `#[automatically_derived]` it carries proves nothing alone: a procedural macro or a
+/// hand-written impl may carry it too. rustc's own check of this answers for a local impl
+/// alone; a span of another crate's keeps its expansion all the same.
+fn builtin_derived(tcx: TyCtxt<'_>, imp: DefId) -> bool {
+	use rustc_span::hygiene::{ExpnKind, MacroKind};
+	if !tcx.is_automatically_derived(imp) {
+		return false;
+	}
+	let outer = tcx.def_span(imp).ctxt().outer_expn_data();
+	matches!(outer.kind, ExpnKind::Macro(MacroKind::Derive, _))
+		&& outer.macro_def_id.is_some_and(|m| tcx.crate_name(m.krate) == sym::core)
 }

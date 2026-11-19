@@ -1595,7 +1595,7 @@ fn api_dart() {
 		"a leaf is a leaf call"
 	);
 	assert!(
-		!leaf("api_Hooked_eq") && !leaf("api_Pinned_value_get"),
+		!leaf("api_Hooked_eq") && !leaf("api_Forged_eq") && !leaf("api_Pinned_value_get"),
 		"a call reaching user code is no leaf call"
 	);
 	let lib = api.lib.join(PYTHON_LIB);
