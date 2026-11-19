@@ -362,7 +362,7 @@ impl Crate<'_> {
 		// Only Kotlin passes a JNI value, so every other language exports the rest.
 		let rest = self.abi.api.without_jni();
 		let rest = self.abi.without_jni(&rest);
-		let (header, contract) = crate::c::header(&rest, &self.packages());
+		let (header, contract, c) = crate::c::header(&rest, &self.packages());
 		let cpp = crate::cpp::headers(&rest, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(&rest, &self.packages(), contract)?;
@@ -372,6 +372,7 @@ impl Crate<'_> {
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, &self.packages(), contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
+			("C", c),
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
 			("Python", python.names),

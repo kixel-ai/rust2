@@ -11,6 +11,7 @@
 //! as its futures, or prints a value no binding shapes alike, such as `hex`. Anything else
 //! fails, naming its line.
 
+pub(crate) mod c;
 pub(crate) mod ir;
 mod parse;
 pub(crate) mod python;
@@ -25,6 +26,9 @@ pub(crate) struct Transcript {
 	pub(crate) api: ir::Api,
 	names: BTreeMap<String, BTreeMap<String, String>>,
 	pub(crate) steps: Vec<Step>,
+	/// The parameters' types of each function `transcript.rs` defines that the script calls,
+	/// by its name.
+	pub(crate) locals: BTreeMap<String, Vec<Type>>,
 }
 
 /// A statement of the script.
@@ -239,8 +243,11 @@ impl Transcript {
 			api: lock.api,
 			names: lock.names,
 			steps: Vec::new(),
+			locals: BTreeMap::new(),
 		};
-		transcript.steps = parse::main(&transcript, &std::fs::read_to_string(source).unwrap());
+		let (steps, locals) = parse::main(&transcript, &std::fs::read_to_string(source).unwrap());
+		transcript.steps = steps;
+		transcript.locals = locals;
 		transcript
 	}
 
@@ -341,6 +348,11 @@ impl Transcript {
 	/// `language`'s name for the type `ty`.
 	pub(crate) fn type_name(&self, language: &str, ty: &Type) -> &str {
 		self.named(language, &format!("type {}", self.rust(ty)))
+	}
+
+	/// `language`'s name for the item `key` names, if it names one.
+	pub(crate) fn find(&self, language: &str, key: &str) -> Option<&str> {
+		self.names[language].get(key).map(String::as_str)
 	}
 
 	/// `language`'s name for the item `key` names, such as `const api::LIMIT`.
