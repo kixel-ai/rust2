@@ -1178,7 +1178,7 @@ function quotient(a: Wide, b: Wide, bits: number, signed: boolean, remainder: bo
 	if (typeof a === "number") return remainder ? a : 0;
 	if (typeof b === "number" && b < TWO32 && b > -TWO32) return divideWords(a, b, bits, signed, remainder, at);
 	const n = exact(a);
-	const d = exact(limbs(b, bits, signed));
+	const d = typeof b === "number" ? BigInt(b) : exact(b);
 	if (remainder) return one(box(n % d, bits, signed));
 	return one(bigChecked(n / d, bits, signed, "divide", at));
 }
