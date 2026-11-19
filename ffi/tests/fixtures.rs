@@ -1388,6 +1388,12 @@ fn web() -> &'static Web {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("web"), &dir.join("web"));
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+		let scripts = generated(
+			"typescript",
+			"transcript.ts",
+			&transcript::typescript::emit(transcript()),
+		);
+		step::copy(&scripts.join("transcript.ts"), &dir.join("transcript.ts"));
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
 		Web {
@@ -1417,7 +1423,7 @@ impl From<Output> for Ran {
 
 /// The cases of `tests/api.ts` that must pass, after its transcript: `owned` and `bytes`
 /// check what the garbage collector frees, so only a runtime exposing it runs them.
-const WEB_CASES: [&str; 6] = ["futures", "owned", "closed", "bytes", "bounds", "grown"];
+const WEB_CASES: [&str; 7] = ["futures", "owned", "closed", "bytes", "bounds", "grown", "checks"];
 
 /// The cases of `tests/api.ts` that break a contract, each failing with its message.
 const WEB_BROKEN: [(&str, &str); 9] = [
@@ -1602,7 +1608,7 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "web/*.ts"]
+	"include": ["api.ts", "transcript.ts", "web/*.ts"]
 }
 "#;
 
