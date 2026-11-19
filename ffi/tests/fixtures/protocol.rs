@@ -85,36 +85,41 @@ pub fn check(dir: &Path, scripts: &[Script], driver: impl Fn(&Path) -> Command) 
 	}
 }
 
-/// Run every script through one `driver` process, which takes each script's path as an
-/// argument and writes its outcomes to that path with `.out` added, as a driver whose
-/// startup costs more than a script does: the model's transcript must match each.
-pub fn check_all(dir: &Path, scripts: &[Script], driver: Command) {
-	let mut driver = driver;
+/// Scripts per process of [`check_all`]'s driver, so its arguments stay well within any
+/// platform's limit.
+const BATCH: usize = 500;
+
+/// Run every script through processes of `driver`, a batch each, which take each script's
+/// path as an argument and write its outcomes to that path with `.out` added, as a driver
+/// whose startup costs more than a script does: the model's transcript must match each.
+pub fn check_all(dir: &Path, scripts: &[Script], driver: impl Fn() -> Command) {
 	std::fs::create_dir_all(dir).unwrap();
-	let paths: Vec<_> = scripts
-		.iter()
-		.map(|script| {
-			let path = dir.join(format!("script-{}.txt", script.seed));
-			std::fs::write(&path, script.text()).unwrap();
-			let _ = std::fs::remove_file(out(&path));
-			path
-		})
-		.collect();
-	let output = driver.args(&paths).output().unwrap();
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	for (script, path) in scripts.iter().zip(&paths) {
-		let got = std::fs::read_to_string(out(path)).unwrap_or_default();
-		if got == script.transcript() {
-			continue;
+	for batch in scripts.chunks(BATCH) {
+		let paths: Vec<_> = batch
+			.iter()
+			.map(|script| {
+				let path = dir.join(format!("script-{}.txt", script.seed));
+				std::fs::write(&path, script.text()).unwrap();
+				let _ = std::fs::remove_file(out(&path));
+				path
+			})
+			.collect();
+		let output = driver().args(&paths).output().unwrap();
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		for (script, path) in batch.iter().zip(&paths) {
+			let got = std::fs::read_to_string(out(path)).unwrap_or_default();
+			if got == script.transcript() {
+				continue;
+			}
+			panic!(
+				"script {} ({}) differs from the model{}\nstderr:\n{stderr}",
+				script.seed,
+				path.display(),
+				difference(script, &got),
+			);
 		}
-		panic!(
-			"script {} ({}) differs from the model{}\nstderr:\n{stderr}",
-			script.seed,
-			path.display(),
-			difference(script, &got),
-		);
+		assert!(output.status.success(), "the driver failed:\n{stderr}");
 	}
-	assert!(output.status.success(), "the driver failed:\n{stderr}");
 }
 
 /// Where [`check_all`]'s driver writes a script's outcomes.

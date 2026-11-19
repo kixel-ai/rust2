@@ -835,7 +835,7 @@ fn api_kotlin() {
 	protocol::check_all(
 		&scratch().join("api").join("protocol").join("kotlin"),
 		&protocol::scripts(0, KOTLIN_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::KOTLIN),
-		protocol_kotlin(api, &classes),
+		|| protocol_kotlin(api, &classes),
 	);
 
 	let native_returns = run(cargo()
@@ -1012,7 +1012,7 @@ fn api_kotlin_protocol_nightly() {
 	protocol::check_all(
 		&scratch().join("api").join("protocol").join("kotlin-nightly"),
 		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::KOTLIN),
-		protocol_kotlin(api, &classes),
+		|| protocol_kotlin(api, &classes),
 	);
 }
 
@@ -1498,15 +1498,21 @@ fn swift_api(api: &Api) -> SwiftApi {
 		reads: &[&module, &include, &built],
 		writes: &[&swiftmodule, &lib],
 	};
-	step.run(
-		swiftc(&module, 13)
-			.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
-			.args(["-emit-module", "-emit-module-path"])
-			.arg(&swiftmodule)
-			.args(["-emit-library", "-static", "-o"])
-			.arg(&lib)
-			.arg(&source),
-	);
+	// Once per process: the Swift tests share its outputs, which a second build running
+	// beside the first would remove.
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		std::fs::create_dir_all(&dir).unwrap();
+		step.run(
+			swiftc(&module, 13)
+				.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+				.args(["-emit-module", "-emit-module-path"])
+				.arg(&swiftmodule)
+				.args(["-emit-library", "-static", "-o"])
+				.arg(&lib)
+				.arg(&source),
+		);
+	});
 	SwiftApi {
 		dir,
 		module,
@@ -1770,20 +1776,23 @@ fn api_web_protocol_nightly() {
 fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
 	let web = web();
 	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
-	let mut cmd = Command::new(runtime);
-	match runtime {
-		"deno" => cmd
-			.args(["run", "--allow-read", "--allow-write", "--allow-env"])
-			.env("DENO_DIR", scratch().join("deno"))
-			.env("DENO_NO_UPDATE_CHECK", "1")
-			.env("NO_COLOR", "1"),
-		_ => cmd.arg("--no-warnings"),
+	let driver = || {
+		let mut cmd = Command::new(runtime);
+		match runtime {
+			"deno" => cmd
+				.args(["run", "--allow-read", "--allow-write", "--allow-env"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1"),
+			_ => cmd.arg("--no-warnings"),
+		};
+		cmd.arg("protocol.ts")
+			.current_dir(&web.dir)
+			.env("RUST2_WASM", &web.wasm);
+		cmd
 	};
-	cmd.arg("protocol.ts")
-		.current_dir(&web.dir)
-		.env("RUST2_WASM", &web.wasm);
 	let dir = scratch().join("api").join("web-protocol").join(runtime).join(name);
-	protocol::check_all(&dir, &scripts, cmd);
+	protocol::check_all(&dir, &scripts, driver);
 }
 
 /// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
@@ -1935,7 +1944,7 @@ fn api_dart() {
 	protocol::check_all(
 		&scratch().join("api").join("protocol").join("dart"),
 		&protocol::scripts(0, DART_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::DART),
-		dart_run(&protocol, &[]),
+		|| dart_run(&protocol, &[]),
 	);
 	for (case, message) in [
 		("moved", "Bad state: api_Counter_get: a handle's value was moved out"),
@@ -2016,7 +2025,7 @@ fn api_dart_protocol_nightly() {
 	protocol::check_all(
 		&scratch().join("api").join("protocol").join("dart-nightly"),
 		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::DART),
-		dart_run(&protocol, &[]),
+		|| dart_run(&protocol, &[]),
 	);
 }
 
