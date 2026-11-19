@@ -1705,31 +1705,100 @@ fn c(built: &Built, calls: &[Call]) -> String {
 	)
 }
 
-/// The C++ driver, over the header's own types and futures.
+/// The C++ driver, over the header's own types and futures: each call a statement of its
+/// own, since some declare what they print.
 fn cpp(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
+	let header = std::fs::read_to_string(built.out.join("include").join(&name).join(format!("{name}.hpp"))).unwrap();
+	let mut sinks = String::new();
 	let mut body = String::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
-		let value = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
-			Kind::Echo => format!("{name}::digest_{n}({name}::echo_{n}({name}::make_{n}({seed}u)))"),
-			Kind::Lent => {
-				format!("{name}::lent_{n}({seed}u, [](auto v) {{ return {name}::digest_{n}(std::move(v)); }})")
+		let other = call.other();
+		let label = call.label();
+		let make = |seed: u64| format!("{name}::make_{n}({seed}u)");
+		let digest = |v: &str| format!("{name}::digest_{n}({v})");
+		let print = |value: String| format!("\tstd::cout << \"{label} \" << {value} << '\\n';");
+		let line = match call.kind {
+			Kind::Echo => print(digest(&format!("{name}::echo_{n}({})", make(seed)))),
+			Kind::Lent => print(format!(
+				"{name}::lent_{n}({seed}u, [](auto v) {{ return {}; }})",
+				digest("std::move(v)")
+			)),
+			Kind::Peek => print(format!("{name}::peek_{n}({seed}u, [](auto &&v) {{ return {}; }})", digest("v"))),
+			Kind::Made => print(format!(
+				"{name}::made_{n}({seed}u, [](std::uint64_t s) {{ return {name}::make_{n}(s); }})"
+			)),
+			Kind::Later => print(digest(&format!("{name}::later_{n}({}).get()", make(seed)))),
+			Kind::Try => format!(
+				"\t{{\n\t\tauto r = {name}::try_{n}({seed}u);\n\
+				\t\tif (r) std::cout << \"{label} ok \" << {} << '\\n';\n\
+				\t\telse std::cout << \"{label} err \" << {} << '\\n';\n\t}}",
+				digest("std::move(r.value())"),
+				digest("std::move(r.error())")
+			),
+			Kind::Swap => format!(
+				"\t{{\n\t\tauto v = {};\n\t\tauto d = {name}::swap_{n}(v, {other}u);\n\
+				\t\tstd::cout << \"{label} \" << d << ' ' << {} << '\\n';\n\t}}",
+				make(seed),
+				digest("std::move(v)")
+			),
+			Kind::Pair => print(format!("{name}::pair_{n}({}, {seed}u, {})", make(seed), make(other))),
+			Kind::Maybe => {
+				// An object's option is a pointer to it; anything else's an optional.
+				let pointer = declaration(&header, &format!("maybe_{n}(")).contains(" *v)");
+				match (seed % 2, pointer) {
+					(0, true) => print(format!("{name}::maybe_{n}(nullptr)")),
+					(0, false) => print(format!("{name}::maybe_{n}(std::nullopt)")),
+					(_, true) => format!(
+						"\t{{\n\t\tauto v = {};\n\t\tstd::cout << \"{label} \" << {name}::maybe_{n}(&v) << '\\n';\n\t}}",
+						make(seed)
+					),
+					(_, false) => print(format!("{name}::maybe_{n}({})", make(seed))),
+				}
 			}
-			Kind::Peek => {
-				format!("{name}::peek_{n}({seed}u, [](auto &&v) {{ return {name}::digest_{n}(v); }})")
+			Kind::Held => format!(
+				"\t{{\n\t\tauto h = {name}::Holder{n}::new_({});\n\t\tauto old = h.swap({});\n\
+				\t\tauto d = h.digest();\n\t\tauto c = std::move(h).into_inner();\n\
+				\t\tstd::cout << \"{label} \" << {} << ' ' << d << ' ' << {} << '\\n';\n\t}}",
+				make(seed),
+				make(other),
+				digest("std::move(old)"),
+				digest("std::move(c)")
+			),
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let class = header
+						.split(&format!("\nclass Sink{n} {{"))
+						.nth(1)
+						.expect("the header declares the sink");
+					let echo = class.lines().find(|l| l.contains(" echo(")).unwrap().trim();
+					let echo = echo.strip_prefix("virtual ").unwrap().strip_suffix(" = 0;").unwrap();
+					let _ = writeln!(
+						sinks,
+						"struct Echo{n} final : {name}::Sink{n} {{\n\t{echo} override {{\n\t\treturn v;\n\t}}\n}};\n"
+					);
+				}
+				print(format!("{name}::sink_{n}({seed}u, std::make_unique<Echo{n}>())"))
 			}
-			Kind::Made => {
-				format!("{name}::made_{n}({seed}u, [](std::uint64_t s) {{ return {name}::make_{n}(s); }})")
-			}
-			Kind::Later => format!("{name}::digest_{n}({name}::later_{n}({name}::make_{n}({seed}u)).get())"),
 		};
-		let _ = writeln!(body, "\tstd::cout << \"{} \" << {value} << '\\n';", call.label());
+		let _ = writeln!(body, "{line}");
 	}
 	format!(
-		"#include <cstdint>\n#include <iostream>\n#include <utility>\n\n#include \"{name}.hpp\"\n\nint main() {{\n{body}}}\n"
+		"#include <cstdint>\n#include <iostream>\n#include <memory>\n#include <optional>\n#include <utility>\n\n\
+		#include \"{name}.hpp\"\n\n{sinks}int main() {{\n{body}}}\n"
 	)
+}
+
+/// The line of `source` that declares `function`, a prefix of its name and `(`.
+fn declaration<'a>(source: &'a str, function: &str) -> &'a str {
+	let at = source
+		.match_indices(function)
+		.map(|(at, _)| at)
+		.find(|&at| (at == 0 || source[..at].ends_with(['\n', ' ', ':'])))
+		.unwrap_or_else(|| panic!("the source declares {function}"));
+	let start = source[..at].rfind('\n').map_or(0, |i| i + 1);
+	source[start..].lines().next().unwrap()
 }
 
 /// Each shape's calls in a function of its own, so no function grows past a compiler's
@@ -1748,15 +1817,59 @@ fn by_shape(calls: &[Call], line: impl Fn(Call) -> String) -> Vec<(usize, String
 
 /// The Kotlin driver, on the JVM with kotlinx-coroutines.
 fn kotlin(built: &Built, calls: &[Call]) -> String {
+	let name = built.name();
+	let source = std::fs::read_to_string(built.out.join("kotlin").join(format!("{name}.kt"))).unwrap();
+	// Each exception a `Result`'s error is thrown as, by the type of its `error`.
+	let thrown: std::collections::HashMap<&str, &str> = (source.lines())
+		.filter_map(|line| {
+			let rest = line.strip_prefix("class ")?;
+			let (class, rest) = rest.split_once("(val error: ")?;
+			Some((rest.strip_suffix(") : Exception() {")?, class))
+		})
+		.collect();
 	let shapes = by_shape(calls, |call| {
 		let Call { n, seed, .. } = call;
+		let other = call.other();
 		let value = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
 			Kind::Echo => format!("digest{n}(echo{n}(make{n}({seed}uL)))"),
 			Kind::Lent => format!("lent{n}({seed}uL) {{ digest{n}(it) }}"),
 			Kind::Peek => format!("peek{n}({seed}uL) {{ digest{n}(it) }}"),
 			Kind::Made => format!("made{n}({seed}uL) {{ make{n}(it) }}"),
 			Kind::Later => format!("digest{n}(later{n}(make{n}({seed}uL)))"),
+			Kind::Try => {
+				let declared = declaration(&source, &format!("fun try{n}("));
+				let ty = declared.split_once("): ").unwrap().1.split_once(" = ").unwrap().0;
+				let class = thrown.get(ty).unwrap_or_else(|| panic!("no exception holds a {ty}"));
+				format!(
+					"try {{ \"ok ${{digest{n}(try{n}({seed}uL))}}\" }} catch (e: {class}) {{ \"err ${{digest{n}(e.error)}}\" }}"
+				)
+			}
+			// A value is passed in a `Mut`, which Rust writes back; an object's handle is borrowed.
+			Kind::Swap => match declaration(&source, &format!("fun swap{n}(")).contains("v: _Mut<") {
+				true => format!(
+					"run {{ val v = Mut(make{n}({seed}uL)); val d = swap{n}(v, {other}uL); \"$d ${{digest{n}(v.value)}}\" }}"
+				),
+				false => format!(
+					"run {{ val v = make{n}({seed}uL); val d = swap{n}(v, {other}uL); \"$d ${{digest{n}(v)}}\" }}"
+				),
+			},
+			Kind::Pair => format!("pair{n}(make{n}({seed}uL), {seed}uL, make{n}({other}uL))"),
+			Kind::Maybe => match seed % 2 {
+				0 => format!("maybe{n}(null)"),
+				_ => format!("maybe{n}(make{n}({seed}uL))"),
+			},
+			Kind::Held => format!(
+				"Holder{n}.new(make{n}({seed}uL)).use {{ h -> val old = h.swap(make{n}({other}uL)); val d = h.digest(); \
+				\"${{digest{n}(old)}} $d ${{digest{n}(h.intoInner())}}\" }}"
+			),
+			Kind::Sink => {
+				let interface = source
+					.split(&format!("\ninterface Sink{n} {{\n"))
+					.nth(1)
+					.expect("the Kotlin declares the sink");
+				let echo = interface.lines().next().unwrap().trim();
+				format!("sink{n}({seed}uL, object : Sink{n} {{ override {echo} = v }})")
+			}
 		};
 		format!("\tprintln(\"{} ${{{value}}}\")", call.label())
 	});
