@@ -41,6 +41,10 @@ test *args:
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
 
+# Run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does; the gate runs fewer.
+protocol:
+    cargo test --locked --test fixtures protocol_nightly -- --ignored
+
 # Run the api fixture's web test in headless Chromium and Firefox, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
