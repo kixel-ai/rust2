@@ -112,38 +112,58 @@ fn difference(script: &Script, stdout: &str) -> String {
 	": the driver printed more".to_string()
 }
 
-/// Each profile's scripts keep to it: no worker steps, failed checks, frees, polls, or
-/// awaits where it has none, and locals on a home where it says.
+/// Each profile's scripts keep to it: no worker steps, failed checks, frees, polls, awaits,
+/// or drains where it has none, locals on a home where it says, no more futures pending
+/// than it allows, and each one awaited at once where it allows none.
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome};
-	for bits in 0..64u8 {
-		let on = |bit: u8| bits & 1 << bit != 0;
-		let profile = Profile {
-			threads: on(0),
-			homes: on(1),
-			homed: on(2),
-			frees: on(3),
-			polls: on(4),
-			failures: on(5),
-		};
-		for script in scripts(0, 20, 100, profile) {
-			for step in &script.steps {
-				let line = step.line();
-				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
-				assert!(
-					profile.failures || !matches!(step.expect, Outcome::Failed(_)),
-					"{profile:?}: {line}"
-				);
-				match step.op {
-					Op::Free(_) => assert!(profile.frees, "{profile:?}: {line}"),
-					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
-					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
-					Op::LocalNew(_, homed) => assert!(
-						if profile.homed { homed } else { profile.homes || !homed },
+	for bits in 0..256u16 {
+		let on = |bit: u16| bits & 1 << bit != 0;
+		for pending in [0, 1, usize::MAX] {
+			let profile = Profile {
+				threads: on(0),
+				homes: on(1),
+				homed: on(2),
+				frees: on(3),
+				polls: on(4),
+				failures: on(5),
+				drain: on(6),
+				pending,
+				closed_first: on(7),
+			};
+			// A future run to its end in its call is awaited, not polled.
+			if pending == 0 && profile.polls {
+				continue;
+			}
+			for script in scripts(0, 5, 100, profile) {
+				let mut made = None;
+				for step in &script.steps {
+					let line = step.line();
+					assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
+					assert!(
+						profile.failures || !matches!(step.expect, Outcome::Failed(_)),
 						"{profile:?}: {line}"
-					),
-					_ => {}
+					);
+					if let Some(f) = made.take() {
+						assert_eq!(step.op, Op::Await(f), "{profile:?}: {line}");
+					}
+					match step.op {
+						Op::Free(_) => assert!(profile.frees, "{profile:?}: {line}"),
+						Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
+						Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
+						Op::Drain => assert!(profile.drain, "{profile:?}: {line}"),
+						Op::LocalNew(_, homed) => assert!(
+							if profile.homed { homed } else { profile.homes || !homed },
+							"{profile:?}: {line}"
+						),
+						Op::PlusLater(f, ..) | Op::BumpLater(f, _) | Op::LocalLater(f, _)
+							if pending == 0 && !matches!(step.expect, Outcome::Failed(_)) =>
+						{
+							made = Some(f);
+						}
+						_ => {}
+					}
 				}
 			}
 		}

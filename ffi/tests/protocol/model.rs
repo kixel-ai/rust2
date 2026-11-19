@@ -36,6 +36,17 @@ pub struct Profile {
 	pub polls: bool,
 	/// Steps whose check fails, which a surface that aborts on one never runs.
 	pub failures: bool,
+	/// `<prefix>_thread_drain`, which a binding that drains only at a thread's next check
+	/// or its exit never calls.
+	pub drain: bool,
+	/// The most futures pending at once. A binding whose await drives every pending future,
+	/// as Dart's event loop does, keeps one, so no other ends early; one whose call runs a
+	/// future that wakes itself to its end in place, as a Kotlin `suspend fun` does, keeps
+	/// none: each future is awaited in the step after the one that made it.
+	pub pending: usize,
+	/// A binding's own check that every handle a call names is open, before Rust's: a
+	/// closed one, as a moved-out one is, fails as moved whatever Rust would refuse first.
+	pub closed_first: bool,
 }
 
 impl Profile {
@@ -47,12 +58,42 @@ impl Profile {
 		frees: true,
 		polls: true,
 		failures: true,
+		drain: true,
+		pending: usize::MAX,
+		closed_first: false,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
-	pub const MIRI: Self = Self {
+	pub const MIRI: Self = Self { homes: false, ..Self::C };
+
+	/// Kotlin's on the JVM: a second thread, no homes but a future's, which the step after
+	/// its call awaits; no frees amid the steps, as the GC frees in its own time, and no
+	/// drain, as a value freed elsewhere drops at its thread's next check.
+	pub const KOTLIN: Self = Self {
+		threads: true,
 		homes: false,
-		..Self::C
+		homed: false,
+		frees: false,
+		polls: false,
+		failures: true,
+		drain: false,
+		pending: 0,
+		closed_first: true,
+	};
+
+	/// Dart's: one isolate, whose thread may change, so every value that is not `Send` is
+	/// on a home and a second thread has no meaning; the event loop polls every pending
+	/// future as one is awaited, so one pends at a time.
+	pub const DART: Self = Self {
+		threads: false,
+		homes: true,
+		homed: true,
+		frees: false,
+		polls: false,
+		failures: true,
+		drain: false,
+		pending: 1,
+		closed_first: true,
 	};
 }
 
@@ -205,6 +246,59 @@ pub enum Op {
 	Await(usize),
 	/// `<prefix>_thread_drain`: run what other threads queued for this one.
 	Drain,
+}
+
+impl Op {
+	/// The future slot a call fills, if it makes one.
+	fn future(self) -> Option<usize> {
+		match self {
+			Op::PlusLater(f, ..) | Op::BumpLater(f, _) | Op::LocalLater(f, _) => Some(f),
+			_ => None,
+		}
+	}
+
+	/// The objects a call names, not the slot it fills: what a binding checks are open.
+	fn handles(self) -> Vec<usize> {
+		match self {
+			Op::CounterGet(h)
+			| Op::CounterAdd(h, _)
+			| Op::CounterIntoSum(h, _)
+			| Op::CounterClone(_, h)
+			| Op::LedgerEdit(_, h)
+			| Op::LedgerPublished(h)
+			| Op::LedgerSeal(h)
+			| Op::LedgerReceipt(_, h)
+			| Op::DraftWrite(h)
+			| Op::DraftLines(h)
+			| Op::DraftCommit(h)
+			| Op::ReceiptCount(h)
+			| Op::ReceiptClone(_, h)
+			| Op::TallyBump(h)
+			| Op::BumpLater(_, h)
+			| Op::LocalBump(h)
+			| Op::LocalShare(_, h)
+			| Op::LocalLater(_, h)
+			| Op::MetersFirst(_, h)
+			| Op::MetersClear(h)
+			| Op::MeterAdd(h, _)
+			| Op::MeterReset(h) => vec![h],
+			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) | Op::PlusLater(_, h, o) => {
+				[Some(h), o].into_iter().flatten().collect()
+			}
+			// A close of a closed handle does nothing, and a future is never closed.
+			Op::CounterNew(..)
+			| Op::LedgerNew(_)
+			| Op::TallyNew(_)
+			| Op::LocalNew(..)
+			| Op::MetersNew(_)
+			| Op::MeterNew(_)
+			| Op::Drop(_)
+			| Op::Free(_)
+			| Op::Poll(_)
+			| Op::Await(_)
+			| Op::Drain => Vec::new(),
+		}
+	}
 }
 
 /// One step: a call on a thread, and what it must return.
@@ -421,8 +515,8 @@ impl Slot {
 /// The model's state as a script runs.
 #[derive(Clone)]
 struct Model {
-	/// Whether every value that is not `Send` is made on a home.
-	homed: bool,
+	/// What the surface runs, which decides where values stay and what a binding checks.
+	profile: Profile,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -433,9 +527,9 @@ struct Model {
 }
 
 impl Model {
-	fn new(homed: bool) -> Self {
+	fn new(profile: Profile) -> Self {
 		Self {
-			homed,
+			profile,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -569,6 +663,9 @@ impl Model {
 
 	/// Run `op` on `thread`: what it returns.
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
+		if self.profile.closed_first && op.handles().iter().any(|&h| self.slots[h].gone) {
+			return Outcome::Failed(Status::Moved);
+		}
 		match self.run(thread, op) {
 			Ok(outcome) => outcome,
 			Err(status) => Outcome::Failed(status),
@@ -577,7 +674,7 @@ impl Model {
 
 	fn run(&mut self, thread: usize, op: Op) -> Result<Outcome, Status> {
 		// Where a value that is not `Send` a call makes stays.
-		let here = match self.homed {
+		let here = match self.profile.homed {
 			true => Owner::Home,
 			false => Owner::Thread(thread),
 		};
@@ -755,7 +852,7 @@ impl Model {
 			}
 			Op::LocalNew(h, homed) => {
 				let mut slot = Slot::new(Kind::Local, if homed { Owner::Home } else { here });
-				assert!(homed || !self.homed, "a homed profile makes every local on a home");
+				assert!(homed || !self.profile.homed, "a homed profile makes every local on a home");
 				self.groups.push(0);
 				slot.n = (self.groups.len() - 1) as u64;
 				assert_eq!(self.add(slot), h);
@@ -937,7 +1034,7 @@ const LIVE: usize = 8;
 /// a drain of each thread, so nothing is left for a thread's exit to drop.
 pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 	let mut rng = Rng(seed);
-	let mut model = Model::new(profile.homed);
+	let mut model = Model::new(profile);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
 		let expect = model.step(thread, op);
@@ -953,6 +1050,13 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 			continue;
 		}
 		push(&mut model, &mut steps, thread, op);
+		// A surface that runs a future to its end in the call that makes it awaits it next.
+		if profile.pending == 0
+			&& let Some(f) = op.future()
+			&& steps.last().is_some_and(|step| !matches!(step.expect, Outcome::Failed(_)))
+		{
+			push(&mut model, &mut steps, thread, Op::Await(f));
+		}
 	}
 	let live = |model: &Model, kinds: &[Kind]| -> Vec<usize> {
 		(0..model.slots.len())
@@ -999,10 +1103,13 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 			model.slots[h].freed = true;
 		}
 	}
-	for thread in 0..if profile.threads { THREADS } else { 1 } {
-		push(&mut model, &mut steps, thread, Op::Drain);
+	// Without a drain, what is left queued drops as each thread exits, which no step sees.
+	if profile.drain {
+		for thread in 0..if profile.threads { THREADS } else { 1 } {
+			push(&mut model, &mut steps, thread, Op::Drain);
+		}
+		assert!(model.queued.iter().all(Vec::is_empty), "a drop is left queued");
 	}
-	assert!(model.queued.iter().all(Vec::is_empty), "a drop is left queued");
 	Script {
 		seed,
 		profile,
@@ -1039,6 +1146,9 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 		.filter(|&h| model.slots[h].kind.future() && !model.slots[h].done)
 		.collect();
 	let making = live.len() < LIVE;
+	// A future is made only while fewer than the profile allows pend, one where it awaits
+	// each at once.
+	let future = making && futures.len() < profile.pending.max(1);
 	Some(match rng.below(14) {
 		0 if making => match rng.below(6) {
 			0 => Op::CounterNew(next, rng.next() % 100),
@@ -1057,7 +1167,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 				3 => Op::CounterPlus(h, some(rng, &counters)),
 				4 => Op::CounterAddTo(h, some(rng, &counters)),
 				5 if making => Op::CounterClone(next, h),
-				_ if making => Op::PlusLater(next, h, some(rng, &counters)),
+				_ if future => Op::PlusLater(next, h, some(rng, &counters)),
 				_ => Op::CounterGet(h),
 			}
 		}
@@ -1088,7 +1198,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 		5 => {
 			let h = rng.pick(&of(&[Kind::Tally]))?;
 			match rng.below(2) {
-				0 if making => Op::BumpLater(next, h),
+				0 if future => Op::BumpLater(next, h),
 				_ => Op::TallyBump(h),
 			}
 		}
@@ -1098,7 +1208,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 				0 if making => Op::LocalShare(next, h),
 				// A home's future would drop on the home in its own time, after its waker's
 				// last count is read: only a thread's locals make one for the script's waker.
-				1 if making && (model.slots[h].owner != Owner::Home || !profile.polls) => Op::LocalLater(next, h),
+				1 if future && (model.slots[h].owner != Owner::Home || !profile.polls) => Op::LocalLater(next, h),
 				_ => Op::LocalBump(h),
 			}
 		}
@@ -1131,6 +1241,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 			}
 			Op::Free(h)
 		}
-		_ => Op::Drain,
+		_ if profile.drain => Op::Drain,
+		_ => return None,
 	})
 }
