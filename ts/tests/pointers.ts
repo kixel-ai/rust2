@@ -176,3 +176,12 @@ unsure(() => new rs.RawSlice(text, 3).derefBytes(false));
 rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), text, 0);
 assert.equal(rs.ptrByteSlice(text, 0, false).length, 0);
 unsure(() => rs.ptrOffsetFrom(rs.strAsPtr("aé"), text));
+
+// Byte storage the runtime's shared buffer holds side by side: each `Vec<u8>`, and each
+// `as_bytes` of one string, is an allocation of its own, though its neighbor is a byte
+// offset away. A view where one ends is still in it.
+const [first, second] = [new rs.ByteVec(8), new rs.ByteVec(8)];
+unsure(() => rs.ptrOffsetFrom(rs.byteVecAsPtr(second), rs.byteVecAsPtr(first)));
+unsure(() => rs.ptrOffsetFrom(rs.byteSliceAsPtr(rs.stringAsBytes("path")), rs.byteSliceAsPtr(rs.stringAsBytes("path"))));
+const atEnd = rs.byteSliceAsPtr(new rs.ByteSlice(first.data.subarray(8), 0, 0));
+assert.equal(rs.ptrOffsetFrom(atEnd, rs.byteVecAsPtr(first)), 8);

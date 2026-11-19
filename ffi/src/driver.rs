@@ -150,6 +150,28 @@ impl Export {
 }
 
 impl Callbacks for Export {
+	/// Load std, unnamed, into a `no_std` facade too: the glue links it whatever the facade
+	/// does, so the check that lists the system libraries a static library needs must see it.
+	fn after_crate_root_parsing(&mut self, compiler: &Compiler, krate: &mut ast::Crate) -> Compilation {
+		let source = "extern crate std as _;";
+		let item = rustc_parse::new_parser_from_source_str(
+			&compiler.sess.psess,
+			FileName::anon_source_code(source),
+			source.to_string(),
+			StripTokens::Nothing,
+		)
+		.ok()
+		.and_then(|mut parser| {
+			parser
+				.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter)
+				.ok()
+		})
+		.flatten()
+		.expect("an extern crate parses");
+		krate.items.insert(0, item);
+		Compilation::Continue
+	}
+
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
 		if tcx.dcx().has_errors().is_some() {
 			return Compilation::Stop;

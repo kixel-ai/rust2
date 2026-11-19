@@ -68,7 +68,8 @@ def local(loop):
 	recv = loop.create_task(subscriber.recv_group())
 	step(loop)
 	expect(not recv.done(), "a receive waits for a group")
-	writer = track.append_group()
+	# The track is untimed, so its group's start is a bare key.
+	writer = track.append_group(moq.Timestamp.unscaled(0))
 	expect(not recv.done(), "a receive never resumes inside the wake")
 	first = loop.run_until_complete(asyncio.wait_for(recv, 5))
 	expect(first.index() == 0, "the first group is 0")
@@ -77,27 +78,27 @@ def local(loop):
 	read = loop.create_task(first.read_frame())
 	step(loop)
 	expect(not read.done(), "a read waits for a frame")
-	writer.write_frame(None, b"hello")
+	writer.write_frame(moq.Timestamp.unscaled(0), b"hello")
 	hello = loop.run_until_complete(asyncio.wait_for(read, 5))
 	expect(text(hello.payload_get) == "hello", "a frame has its payload")
-	expect(hello.timestamp_get is None, "an untimed frame has no timestamp")
+	expect(hello.timestamp_get.scale() is None, "an untimed frame's timestamp has no scale")
 	# When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(moq.clock_now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
 
-	# A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-	# untimed, so a timestamped frame is refused.
+	# A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
+	# so a timed frame is refused.
 	at = moq.Timestamp.from_millis(1500)
 	expect(at.as_secs() == 1, "1500 ms is 1 s")
 	try:
 		writer.write_frame(at, b"late")
-		expect(False, "a timestamped frame on an untimed track is an error")
+		expect(False, "a timed frame on an untimed track is an error")
 	except moq.ErrorException as e:
 		expect(str(e) == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(at.as_secs() == 1, "a copied timestamp stays usable")
+	expect(at.as_secs() == 1, "a lent timestamp stays usable")
 
 	# The last frame, bytes that are not UTF-8, then the group's end, which reads as None.
 	world = b"\xffworld"
-	writer.write_frame(None, world)
+	writer.write_frame(moq.Timestamp.unscaled(0), world)
 	writer.finish()
 	last = loop.run_until_complete(first.read_frame())
 	expect(last is not None and bytes(last.payload_get) == world, "the last frame reads")
@@ -122,8 +123,8 @@ def origin(loop):
 	consumer = scoped.consume()
 	expect(consumer.absolute("bob").as_str() == "room/bob", "a scope's consumer shares its root")
 
-	# A broadcast the origin creates is stamped with its path, which its info lends.
-	publication = origin.create_broadcast("room/alice")
+	# A broadcast the origin routes is stamped with its path, which its info lends.
+	publication = origin.route("room/alice", moq.OriginRouteOptions.default())
 	path = publication.broadcast().info().path_get
 	expect(path.as_str() == "room/alice", "a broadcast has its path")
 
@@ -176,12 +177,11 @@ def catalog(loop):
 		expect(str(e) != "", "a truncated head's error has a message")
 
 	# A subscription's ranges, from any iterable of them: a list.
-	b = moq.Bound
-	groups = moq.TrackRange.groups(moq.BoundsU64(moq.BoundU64(b.INCLUDED, 2), moq.BoundU64(b.EXCLUDED, 6)))
-	ranged = moq.TrackSubscription.default().with_ranges([moq.TrackRange.live(), groups]).ranges_get
-	expect(ranged == [moq.TrackRange.live(), groups], "a subscription keeps its ranges")
-	expect(groups.start == moq.TrackAnchor.Absolute(2), "groups start at their first")
-	expect(groups.end == moq.TrackAnchor.Absolute(6), "groups end before their end")
+	times = moq.TrackRange(moq.TrackAnchor.Time(2), moq.TrackAnchor.Time(6))
+	ranged = moq.TrackSubscription.default().with_ranges([moq.TrackRange.live(), times]).ranges_get
+	expect(ranged == [moq.TrackRange.live(), times], "a subscription keeps its ranges")
+	expect(len(ranged) == 2 and ranged[1].start == moq.TrackAnchor.Time(2), "a range starts at its time")
+	expect(len(ranged) == 2 and ranged[1].end == moq.TrackAnchor.Time(6), "a range ends at its time")
 
 	# A catalog at moq-mux's untyped extension, from the config Python builds, whose generic
 	# `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -223,7 +223,7 @@ def catalog(loop):
 	expect(producer.is_claimed_json_config("status"), "the JSON snapshot claims its name")
 	# A value Python parses is published as the track's latest, which a subscriber reads
 	# back as JSON text.
-	status.update(moq.Json.parse('{"on": true}'), moq.Timestamp.now())
+	status.update(moq.Json.parse('{"on": true}'), moq.Timestamp.from_millis(1))
 
 	async def latest():
 		group = await status.consume().recv_group()
@@ -281,8 +281,9 @@ def config():
 	expect(connect.tls_get.fingerprint_get == ["ab:cd"], "a TLS config keeps its fingerprints")
 	url = connect.url_get
 	versions = moq.Versions.default()
-	dialed = moq.AuthTokens.new([]).dial(url, versions).url_get
-	expect(dialed == url, "a dial keeps its URL")
+	# A URL crosses into a client and back.
+	dialed = moq.Client.new().with_url(url.clone()).url()
+	expect(dialed == url, "a client keeps its URL")
 	expect(str(dialed) == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	# A `Vec<String>`, as a list.
 	expect(len(moq.ALPNS) > 0, "a constant slice crosses as a list")
@@ -310,11 +311,10 @@ async def session():
 	reads a frame back, each await resuming once moq-tokio's fallback runtime wakes it from
 	its threads."""
 	served = moq.tokio_origin_spawn()
-	live = served.create_broadcast("live")
-	live.announce(moq.OriginRoute.default())
+	live = served.route("live", moq.OriginRouteOptions.default())
 	live_track = live.broadcast().create_track("video", None)
-	live_group = live_track.append_group()
-	live_group.write_frame(None, b"hello")
+	live_group = live_track.append_group(moq.Timestamp.unscaled(0))
+	live_group.write_frame(moq.Timestamp.unscaled(0), b"hello")
 	live_group.finish()
 
 	server_config = moq.TokioServerConfig.default()

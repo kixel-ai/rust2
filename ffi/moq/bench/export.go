@@ -94,14 +94,16 @@ var sink int
 
 // throughput writes groups of 100 frames of size bytes, reading each back and touching its
 // payload's first byte, in about 64 MiB and at least 300 frames: megabytes a wall and a
-// CPU second.
-func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.TrackSubscriber, at *net.Timestamp, size int) span {
+// CPU second. Each group starts at the next of micros, which stamps its frames.
+func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.TrackSubscriber, micros *uint64, size int) span {
 	count := min(max((64<<20)/(size*frames), 3), 2000)
 	frame := rt.NewBytes(make([]byte, size))
 	name := fmt.Sprintf("throughput[%d]", size)
 	start := begin()
 	for range count {
-		group := must(track.AppendGroup())
+		at := must(net.TimestampFromMicros(*micros))
+		*micros++
+		group := must(track.AppendGroup(at))
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
 			check(group.WriteFrame(at, frame))
@@ -110,8 +112,8 @@ func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.T
 			read.Close()
 		}
 		reader.Close()
-		check(group.Finish())
-		group.Close()
+		must(group.Finish()).Close()
+		at.Close()
 	}
 	ns := end(start, name, count*frames*size)
 	return span{1e3 / ns.wall, 1e3 / ns.cpu}
@@ -183,11 +185,17 @@ func round(measured bool) []result {
 	}
 	out = append(out, result{"call", end(start, "call", n)})
 
-	demanded := must(track.AppendGroup())
+	// Groups are keyed by their start, which must rise, so each starts at the next of
+	// micros, the time its frames are stamped at.
+	var micros uint64
+	demandedAt := must(net.TimestampFromMicros(micros))
+	micros++
+	demanded := must(track.AppendGroup(demandedAt))
+	demandedAt.Close()
 	demand := must(demanded.Demand())
 	start = begin()
 	for range n {
-		sink += int(must(demand.Sequence()))
+		sink += int(must(demand.Start()))
 	}
 	out = append(out, result{"getter", end(start, "getter", n)})
 
@@ -204,7 +212,7 @@ func round(measured bool) []result {
 			}
 		}
 		sequence := func(d *net.GroupDemand) func() int {
-			return func() int { return int(must(d.Sequence())) }
+			return func() int { return int(must(d.Start())) }
 		}
 		var sharedCalls, ownCalls, sharedGetters, ownGetters []func() int
 		var clones []io.Closer
@@ -226,8 +234,7 @@ func round(measured bool) []result {
 		}
 	}
 	demand.Close()
-	check(demanded.Finish())
-	demanded.Close()
+	must(demanded.Finish()).Close()
 
 	start = begin()
 	for range n {
@@ -244,29 +251,31 @@ func round(measured bool) []result {
 	out = append(out, result{"object", end(start, "object", n)})
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
-	var micros uint64
 	start = begin()
 	for range groups {
-		group := must(track.AppendGroup())
+		groupAt := must(net.TimestampFromMicros(micros))
+		group := must(track.AppendGroup(groupAt))
+		groupAt.Close()
 		for range frames {
 			at := must(net.TimestampFromMicros(micros))
 			micros++
-			check(group.WriteFrame(&at, frame))
+			check(group.WriteFrame(at, frame))
+			at.Close()
 		}
-		check(group.Finish())
-		group.Close()
+		must(group.Finish()).Close()
 	}
 	out = append(out, result{"stamped", end(start, "stamped", n)})
 
-	at := must(net.TimestampFromMicros(micros))
 	start = begin()
 	for range groups {
-		group := must(track.AppendGroup())
+		at := must(net.TimestampFromMicros(micros))
+		micros++
+		group := must(track.AppendGroup(at))
 		for range frames {
-			check(group.WriteFrame(&at, frame))
+			check(group.WriteFrame(at, frame))
 		}
-		check(group.Finish())
-		group.Close()
+		must(group.Finish()).Close()
+		at.Close()
 	}
 	out = append(out, result{"write", end(start, "write", n)})
 
@@ -280,18 +289,20 @@ func round(measured bool) []result {
 	var last *net.FrameFrame
 	start = begin()
 	for range groups {
-		group := must(track.AppendGroup())
+		at := must(net.TimestampFromMicros(micros))
+		micros++
+		group := must(track.AppendGroup(at))
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
-			check(group.WriteFrame(&at, frame))
+			check(group.WriteFrame(at, frame))
 			if last != nil {
 				last.Close()
 			}
 			last = must(reader.ReadFrame(ctx))
 		}
 		reader.Close()
-		check(group.Finish())
-		group.Close()
+		must(group.Finish()).Close()
+		at.Close()
 	}
 	out = append(out, result{"ready", end(start, "ready", n)})
 
@@ -300,17 +311,19 @@ func round(measured bool) []result {
 	start = begin()
 	read := make(chan *net.FrameFrame)
 	for range groups {
-		group := must(track.AppendGroup())
+		at := must(net.TimestampFromMicros(micros))
+		micros++
+		group := must(track.AppendGroup(at))
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
 			go func() { read <- must(reader.ReadFrame(ctx)) }()
 			runtime.Gosched()
-			check(group.WriteFrame(&at, frame))
+			check(group.WriteFrame(at, frame))
 			(<-read).Close()
 		}
 		reader.Close()
-		check(group.Finish())
-		group.Close()
+		must(group.Finish()).Close()
+		at.Close()
 	}
 	out = append(out, result{"woken", end(start, "woken", n)})
 
@@ -323,14 +336,16 @@ func round(measured bool) []result {
 	go func() {
 		defer close(done)
 		for range groups {
-			group := must(track.AppendGroup())
+			at := must(net.TimestampFromMicros(micros))
+			micros++
+			group := must(track.AppendGroup(at))
 			for range frames {
 				<-permits
-				check(group.WriteFrame(&at, frame))
+				check(group.WriteFrame(at, frame))
 			}
 			<-permits // Keep this group until its reader has consumed every frame.
-			check(group.Finish())
-			group.Close()
+			must(group.Finish()).Close()
+			at.Close()
 		}
 	}()
 	for range groups {
@@ -348,7 +363,7 @@ func round(measured bool) []result {
 	out = append(out, result{"loop", end(start, "loop", n)})
 
 	for _, size := range sizes {
-		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, &at, size)})
+		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, &micros, size)})
 	}
 	subscriber.Close()
 

@@ -106,14 +106,16 @@ fn ready<F: Future>(future: F) -> F::Output {
 
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscriber, at: moq::Timestamp, size: usize) -> (f64, f64) {
+fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscriber, micros: &mut u64, size: usize) -> (f64, f64) {
 	let groups = ((64 << 20) / (size as u64 * FRAMES)).clamp(3, 2000);
 	let frame = vec![0u8; size];
 	let name = std::ffi::CString::new(format!("throughput[{size}]")).unwrap();
 	let mut sum = 0u64;
 	let start = begin();
 	for _ in 0..groups {
-		let mut group = track.append_group().unwrap();
+		let at = moq::Timestamp::from_micros(*micros).unwrap();
+		*micros += 1;
+		let mut group = track.append_group(at).unwrap();
 		let mut reader = ready(subscriber.recv_group()).unwrap().unwrap();
 		for _ in 0..FRAMES {
 			group.write_frame(at, frame.as_slice()).unwrap();
@@ -143,10 +145,14 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	}
 	out.push(("call".into(), end(start, n, c"call")));
 
-	let demand = track.append_group().unwrap().demand();
+	// Groups are keyed by their start, which only moves forward on a track: each group starts
+	// at its first frame's time, the next microsecond.
+	let mut micros = 0;
+	let demand = track.append_group(moq::Timestamp::from_micros(micros).unwrap()).unwrap().demand();
+	micros += 1;
 	let start = begin();
 	for _ in 0..n {
-		black_box(black_box(&demand).sequence());
+		black_box(black_box(&demand).start());
 	}
 	out.push(("getter".into(), end(start, n, c"getter")));
 
@@ -158,7 +164,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 			black_box(track.is_closed());
 		};
 		let sequence = |demand: &moq::group::Demand| {
-			black_box(demand.sequence());
+			black_box(demand.start());
 		};
 		let tracks: Vec<_> = (0..THREADS).map(|_| track.clone()).collect();
 		let demands: Vec<_> = (0..THREADS).map(|_| demand.clone()).collect();
@@ -181,10 +187,9 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	}
 	out.push(("object".into(), end(start, n, c"object")));
 
-	let mut micros = 0;
 	let start = begin();
 	for _ in 0..groups {
-		let mut group = track.append_group().unwrap();
+		let mut group = track.append_group(moq::Timestamp::from_micros(micros).unwrap()).unwrap();
 		for _ in 0..FRAMES {
 			let at = moq::Timestamp::from_micros(micros).unwrap();
 			micros += 1;
@@ -194,10 +199,12 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	}
 	out.push(("stamped".into(), end(start, n, c"stamped")));
 
-	let at = moq::Timestamp::from_micros(micros).unwrap();
+	// One timestamp per group, every frame of it stamped alike.
 	let start = begin();
 	for _ in 0..groups {
-		let mut group = track.append_group().unwrap();
+		let at = moq::Timestamp::from_micros(micros).unwrap();
+		micros += 1;
+		let mut group = track.append_group(at).unwrap();
 		for _ in 0..FRAMES {
 			group.write_frame(at, frame.as_slice()).unwrap();
 		}
@@ -209,7 +216,9 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	let mut last = None;
 	let start = begin();
 	for _ in 0..groups {
-		let mut group = track.append_group().unwrap();
+		let at = moq::Timestamp::from_micros(micros).unwrap();
+		micros += 1;
+		let mut group = track.append_group(at).unwrap();
 		let mut reader = ready(subscriber.recv_group()).unwrap().unwrap();
 		for _ in 0..FRAMES {
 			group.write_frame(at, frame.as_slice()).unwrap();
@@ -221,7 +230,9 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 
 	let start = begin();
 	for _ in 0..groups {
-		let mut group = track.append_group().unwrap();
+		let at = moq::Timestamp::from_micros(micros).unwrap();
+		micros += 1;
+		let mut group = track.append_group(at).unwrap();
 		let mut reader = ready(subscriber.recv_group()).unwrap().unwrap();
 		for _ in 0..FRAMES {
 			let mut reading = pin!(reader.read_frame());
@@ -244,7 +255,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	out.push(("payload".into(), end(start, n, c"payload")));
 
 	for size in SIZES {
-		out.push((format!("mbps:{size}"), throughput(&track, &mut subscriber, at, size)));
+		out.push((format!("mbps:{size}"), throughput(&track, &mut subscriber, &mut micros, size)));
 	}
 	out
 }

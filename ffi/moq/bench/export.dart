@@ -89,15 +89,24 @@ ffi.Pointer<ffi.Char> _cString(String s) {
 /// What the loops sum, kept so the compiler cannot drop the calls.
 var sink = 0;
 
+/// The round's clock in microseconds on its timed track, where each group starts at its
+/// first frame's time, so the starts a track's groups are appended at strictly increase.
+var micros = 0;
+
+/// A new group's start, at which each of its frames is stamped: one conversion a group, so
+/// a frame costs what it did with one timestamp for all.
+moq.Timestamp groupStart() => moq.Timestamp.fromMicros(moq.U64(micros++));
+
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber, moq.Timestamp at, int size) async {
+Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber, int size) async {
   final count = ((64 << 20) ~/ (size * frames)).clamp(3, 2000);
   final frame = Uint8List(size);
   final name = 'throughput[$size]';
   final start = begin();
   for (var g = 0; g < count; g++) {
-    final group = track.appendGroup();
+    final at = groupStart();
+    final group = track.appendGroup(at);
     final reader = (await subscriber.recvGroup())!;
     for (var f = 0; f < frames; f++) {
       group.writeFrame(at, frame);
@@ -106,8 +115,9 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
       read.close();
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   final ns = end(start, name, count * frames * size);
   return Span(1e3 / ns.wall, 1e3 / ns.cpu);
@@ -118,6 +128,7 @@ Future<Map<String, Span>> round() async {
   final broadcast = moq.BroadcastInfo().produce();
   final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.MICRO));
   final frame = Uint8List(100);
+  micros = 0;
 
   var start = begin();
   for (var i = 0; i < n; i++) {
@@ -125,15 +136,17 @@ Future<Map<String, Span>> round() async {
   }
   out['call'] = end(start, 'call');
 
-  final demanded = track.appendGroup();
+  final demandedAt = groupStart();
+  final demanded = track.appendGroup(demandedAt);
+  demandedAt.close();
   final demand = demanded.demand();
   start = begin();
   for (var i = 0; i < n; i++) {
-    sink += demand.sequence().bits;
+    sink += demand.start().bits;
   }
   out['getter'] = end(start, 'getter');
   demand.close();
-  demanded.finish();
+  demanded.finish().close();
   demanded.close();
 
   start = begin();
@@ -149,27 +162,31 @@ Future<Map<String, Span>> round() async {
   out['object'] = end(start, 'object');
 
   // Each frame stamped through a fresh timestamp, as a caller holding an int must.
-  var micros = 0;
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final group = track.appendGroup();
+    final first = moq.Timestamp.fromMicros(moq.U64(micros));
+    final group = track.appendGroup(first);
+    first.close();
     for (var f = 0; f < frames; f++) {
-      group.writeFrame(moq.Timestamp.fromMicros(moq.U64(micros++)), frame);
+      final at = moq.Timestamp.fromMicros(moq.U64(micros++));
+      group.writeFrame(at, frame);
+      at.close();
     }
-    group.finish();
+    group.finish().close();
     group.close();
   }
   out['stamped'] = end(start, 'stamped');
 
-  final at = moq.Timestamp.fromMicros(moq.U64(micros));
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final group = track.appendGroup();
+    final at = groupStart();
+    final group = track.appendGroup(at);
     for (var f = 0; f < frames; f++) {
       group.writeFrame(at, frame);
     }
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['write'] = end(start, 'write');
 
@@ -182,7 +199,8 @@ Future<Map<String, Span>> round() async {
   moq.FrameFrame? last;
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final group = track.appendGroup();
+    final at = groupStart();
+    final group = track.appendGroup(at);
     final reader = (await subscriber.recvGroup())!;
     for (var f = 0; f < frames; f++) {
       group.writeFrame(at, frame);
@@ -190,8 +208,9 @@ Future<Map<String, Span>> round() async {
       last = (await reader.readFrame())!;
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['ready'] = end(start, 'ready');
 
@@ -199,7 +218,8 @@ Future<Map<String, Span>> round() async {
   // reaches the isolate's port, whose event loop polls it again.
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final group = track.appendGroup();
+    final at = groupStart();
+    final group = track.appendGroup(at);
     final reader = (await subscriber.recvGroup())!;
     for (var f = 0; f < frames; f++) {
       final pending = reader.readFrame();
@@ -207,8 +227,9 @@ Future<Map<String, Span>> round() async {
       (await pending)!.close();
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['woken'] = end(start, 'woken');
 
@@ -218,14 +239,16 @@ Future<Map<String, Span>> round() async {
   Future<void> writeLoop() async {
     final next = StreamIterator<void>(permits.stream);
     for (var g = 0; g < groups; g++) {
-      final group = track.appendGroup();
+      final at = groupStart();
+      final group = track.appendGroup(at);
       for (var f = 0; f < frames; f++) {
         if (!await next.moveNext()) throw StateError('missing permit');
         group.writeFrame(at, frame);
       }
       if (!await next.moveNext()) throw StateError('missing group acknowledgement');
-      group.finish();
+      group.finish().close();
       group.close();
+      at.close();
     }
     await next.cancel();
   }
@@ -245,7 +268,7 @@ Future<Map<String, Span>> round() async {
   out['loop'] = end(start, 'loop');
 
   for (final size in sizes) {
-    out['mbps:$size'] = await throughput(track, subscriber, at, size);
+    out['mbps:$size'] = await throughput(track, subscriber, size);
   }
   subscriber.close();
 
