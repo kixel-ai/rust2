@@ -4017,7 +4017,17 @@ fn transcript_loop_scope() {
 fn transcript_refusals() {
 	let lock = api().out.join("api.json");
 	let source = scratch().join("api").join("refusals.rs");
+	// A function `transcript.rs` defines, as each language's hook.
+	let hooks = "fn set(n: &mut u32) -> u32 { *n = 1; 1 } fn gap(a: u32, b: u32) -> u32 { b - a }";
 	for (body, refusal) in [
+		(
+			"let mut n = 0u32; println!(\"{}\", api::reach(n, (), set(&mut n)));",
+			"one changes n, which another reads",
+		),
+		(
+			"let t = api::Tally::new(); let x: u32 = gap(t.bump(), t.bump()); println!(\"{x}\");",
+			"two have an effect",
+		),
 		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
 		(
 			"for n in [1u8] { let x = n; println!(\"{x}\"); }",
@@ -4067,7 +4077,7 @@ fn transcript_refusals() {
 			"an element reading a local its body changes",
 		),
 	] {
-		std::fs::write(&source, format!("fn main() {{ {body} }}")).unwrap();
+		std::fs::write(&source, format!("{hooks} fn main() {{ {body} }}")).unwrap();
 		let panic = std::panic::catch_unwind(|| transcript::Transcript::load(&lock, &source))
 			.err()
 			.unwrap_or_else(|| panic!("{body} parsed"));

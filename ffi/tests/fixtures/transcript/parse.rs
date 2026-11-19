@@ -298,6 +298,16 @@ impl Scope<'_> {
 	/// The locals `expr` changes in place, as [`Scope::changed`] reads them.
 	fn changed_in(&self, expr: &Expr, out: &mut Vec<String>) {
 		walk(expr, &mut |e| {
+			// A function `transcript.rs` defines changes what it takes `&mut`.
+			if let Kind::Local(name, args) = &e.kind
+				&& let Some(params) = self.params.get(name)
+			{
+				for (arg, ty) in args.iter().zip(params) {
+					if let (Some(name), Type::Ref(Mutability::Mut, _)) = (root(arg), ty) {
+						out.push(name.to_string());
+					}
+				}
+			}
 			let Kind::Call(id, receiver, args) = &e.kind else {
 				return;
 			};
@@ -798,7 +808,8 @@ impl Scope<'_> {
 					&& self.locals.contains_key(&name.to_string())
 				{
 					self.local_params(&name.to_string());
-					let args = call.args.iter().map(|a| self.infer(a)).collect();
+					let args: Vec<Expr> = call.args.iter().map(|a| self.infer(a)).collect();
+					self.ordered(call, args.iter().collect());
 					return Expr::new(Kind::Local(name.to_string(), args), ty.clone());
 				}
 				if let Some(bound) = self.bound(call, &base) {
