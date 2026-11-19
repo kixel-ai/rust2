@@ -1,11 +1,11 @@
 //! `transcript.rs` read into steps: each expression typed against the API, bidirectionally,
 //! so a literal takes the type of the parameter it is passed to.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use syn::spanned::Spanned;
 
-use super::ir::{Access, Collection, Family, Function, Int, Literal, Mutability, Type};
+use super::ir::{Access, Collection, Family, Function, Int, Literal, Mutability, Receiver, Type};
 use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, unref};
 
 /// The steps of `source`'s `main`, and the parameters' types of each function it defines
@@ -19,7 +19,8 @@ pub(super) fn main(t: &Transcript, source: &str) -> (Vec<Step>, BTreeMap<String,
 		locals: BTreeMap::new(),
 		params: BTreeMap::new(),
 		uses: BTreeMap::new(),
-		taken: BTreeMap::new(),
+		taken: BTreeSet::new(),
+		whole: None,
 	};
 	let mut main = None;
 	for item in &file.items {
@@ -91,8 +92,12 @@ struct Scope<'t> {
 	params: BTreeMap<String, Vec<Type>>,
 	/// What each name a `use` brings in stands for.
 	uses: BTreeMap<String, Vec<String>>,
-	/// How many locals took each name, so each binding gets its own.
-	taken: BTreeMap<String, usize>,
+	/// The names locals took, so each binding gets its own.
+	taken: BTreeSet<String>,
+	/// The method call a statement's value is, alone where a value's `&mut self` method may
+	/// be called: a binding hands back the receiver it changed beside what Rust returns,
+	/// which only a statement can store back.
+	whole: Option<*const syn::ExprMethodCall>,
 }
 
 /// Conversions that leave a value as the binding has it.
@@ -167,6 +172,7 @@ impl Scope<'_> {
 				if init.diverge.is_some() {
 					fail(local, "a let-else");
 				}
+				self.whole = whole(&init.expr);
 				let value = match &local.pat {
 					syn::Pat::Type(typed) => {
 						let ty = self.ty(&typed.ty);
@@ -186,8 +192,13 @@ impl Scope<'_> {
 	fn expr_stmt(&mut self, expr: &syn::Expr, steps: &mut Vec<Step>) {
 		match expr {
 			syn::Expr::Macro(m) => steps.push(Step::Print(self.print(&m.mac))),
-			syn::Expr::Block(b) => steps.extend(self.block(&b.block.stmts)),
+			// Its locals drop as it ends, a scope the steps do not keep.
+			syn::Expr::Block(b) => fail(b, "a block of its own"),
 			syn::Expr::ForLoop(f) => {
+				// Each pass's locals drop as it ends, a scope the unrolled steps do not keep.
+				if let Some(stmt) = f.body.stmts.iter().find(|s| matches!(s, syn::Stmt::Local(_))) {
+					fail(stmt, "a let in a for loop's body");
+				}
 				let syn::Expr::Array(items) = &*f.expr else {
 					fail(&f.expr, "a for loop over anything but an array literal")
 				};
@@ -223,7 +234,10 @@ impl Scope<'_> {
 				};
 				steps.push(Step::Drop(unique.clone()));
 			}
-			expr => steps.push(Step::Do(self.infer(expr))),
+			expr => {
+				self.whole = whole(expr);
+				steps.push(Step::Do(self.infer(expr)))
+			}
 		}
 	}
 
@@ -246,14 +260,18 @@ impl Scope<'_> {
 		Expr::new(Kind::Call(id, Some(Box::new(receiver)), vec![value]), Type::Unit)
 	}
 
-	/// A unique name for a local named `name`.
+	/// A unique name for a local named `name`: itself, or with a number after it, which
+	/// leaves it of [`local_name`]'s form.
 	fn unique(&mut self, name: &str) -> String {
-		let n = self.taken.entry(name.to_string()).or_insert(0);
-		*n += 1;
-		match *n {
-			1 => name.to_string(),
-			n => format!("{name}_{n}"),
-		}
+		let unique = (1..)
+			.map(|n| match n {
+				1 => name.to_string(),
+				n => format!("{name}{n}"),
+			})
+			.find(|n| !self.taken.contains(n))
+			.unwrap();
+		self.taken.insert(unique.clone());
+		unique
 	}
 
 	/// A pattern, binding its names to the parts of `ty`.
@@ -262,6 +280,12 @@ impl Scope<'_> {
 			syn::Pat::Type(typed) => self.bind(&typed.pat, ty),
 			syn::Pat::Ident(ident) => {
 				let name = ident.ident.to_string();
+				if !local_name(&name) {
+					fail(
+						ident,
+						"a local named other than in lowercase words, each joined by one `_`",
+					);
+				}
 				let unique = self.unique(&name);
 				self.vars.push(Var::Typed(name, unique.clone(), ty.clone()));
 				Pat::Name(unique, ty.clone())
@@ -790,7 +814,17 @@ impl Scope<'_> {
 						Type::Int(int) | Type::NonZero(int) => (int.bits(), int.signed()),
 						_ => (128, false),
 					};
-					const_int(expr, Some(width)).map(Kind::Int)
+					let n = const_int(expr, Some(width))?;
+					if let Type::Int(int @ (Int::Usize | Int::Isize)) | Type::NonZero(int @ (Int::Usize | Int::Isize)) =
+						ty
+						&& !wasm32_holds(n, *int)
+						&& !["usize::MAX", "isize::MAX", "isize::MIN"]
+							.iter()
+							.any(|p| path_is(expr, p))
+					{
+						fail(expr, "a pointer-sized value past 32 bits, which wasm32 folds otherwise");
+					}
+					Some(Kind::Int(n))
 				}
 			},
 			Type::F32 | Type::F64 => const_float(expr).map(Kind::Float),
@@ -1455,6 +1489,8 @@ impl Scope<'_> {
 	}
 
 	fn method(&mut self, m: &syn::ExprMethodCall, expected: Option<&Type>) -> Expr {
+		// Taken before the receiver and arguments, whose closures' statements are their own.
+		let whole = self.whole == Some(m as *const syn::ExprMethodCall);
 		let name = m.method.to_string();
 		let args: Vec<syn::Expr> = m.args.iter().cloned().collect();
 		match name.as_str() {
@@ -1552,6 +1588,13 @@ impl Scope<'_> {
 		let id = self
 			.pick(api, &with_receiver, expected, &turbofish)
 			.unwrap_or_else(|| fail(m, format!("no instance of {name} on {} fits", self.describe(&rty))));
+		let f = self.t.function(id);
+		if f.receiver == Some(Receiver::Mut) && matches!(id.owner, Owner::Record(_)) && !whole {
+			fail(
+				m,
+				"a value's &mut self method called other than as a statement or a let's value",
+			);
+		}
 		self.apply(m, id, Some(receiver), &args)
 	}
 
@@ -1657,6 +1700,35 @@ impl Scope<'_> {
 }
 
 /// Whether `expr` is `()`, an argument the IR drops.
+/// The method call `expr` is, if it is one.
+fn whole(expr: &syn::Expr) -> Option<*const syn::ExprMethodCall> {
+	match expr {
+		syn::Expr::MethodCall(m) => Some(m),
+		_ => None,
+	}
+}
+
+/// Whether `name` is lowercase words joined by single `_`s, each beginning with a letter:
+/// a form each language's spelling of a local, such as camel case, keeps apart, and
+/// no reserved word's escape or script helper has.
+fn local_name(name: &str) -> bool {
+	name.split('_').all(|word| {
+		word.starts_with(|c: char| c.is_ascii_lowercase())
+			&& word.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+	})
+}
+
+/// Whether a pointer-sized `n` folds alike on wasm32, whose pointer is 32 bits.
+fn wasm32_holds(n: Num, int: Int) -> bool {
+	match int.signed() {
+		true => match n.negative {
+			true => n.magnitude <= 1 << 31,
+			false => n.magnitude < 1 << 31,
+		},
+		false => !n.negative && n.magnitude <= u128::from(u32::MAX),
+	}
+}
+
 fn is_unit(expr: &syn::Expr) -> bool {
 	matches!(expr, syn::Expr::Tuple(t) if t.elems.is_empty())
 }

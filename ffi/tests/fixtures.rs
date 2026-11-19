@@ -3976,12 +3976,16 @@ fn transcript_loop_scope() {
 	let source = scratch().join("api").join("loop-scope.rs");
 	std::fs::write(
 		&source,
-		"fn main() { let x = 1u8; for n in [x] { let x = 2u8; println!(\"{n} {x}\"); } }",
+		"fn main() { let x = 1u8; for n in [x] { match api::divide(7, 2) { \
+		 Ok((x, _)) => println!(\"{n} {x}\"), Err(e) => println!(\"{e}\") } } }",
 	)
 	.unwrap();
 	let t = transcript::Transcript::load(&lock, &source);
-	let Some(transcript::Step::Print(pieces)) = t.steps.last() else {
-		panic!("the loop's body prints last")
+	let Some(transcript::Step::Match { ok, .. }) = t.steps.last() else {
+		panic!("the loop's body matches last")
+	};
+	let Some(transcript::Step::Print(pieces)) = ok.steps.last() else {
+		panic!("the arm prints")
 	};
 	let names: Vec<&str> = (pieces.iter())
 		.filter_map(|p| match p {
@@ -3995,7 +3999,7 @@ fn transcript_loop_scope() {
 			_ => None,
 		})
 		.collect();
-	assert_eq!(names, ["x", "x_2"]);
+	assert_eq!(names, ["x", "x2"]);
 
 	// An element naming the loop's own binding, and a constant naming a later one, resolve
 	// as Rust resolves them when an overload is picked.
@@ -4006,4 +4010,37 @@ fn transcript_loop_scope() {
 	)
 	.unwrap();
 	transcript::Transcript::load(&lock, &source);
+}
+
+/// What no binding's script could say as Rust does fails to parse, naming its line.
+#[test]
+fn transcript_refusals() {
+	let lock = api().out.join("api.json");
+	let source = scratch().join("api").join("refusals.rs");
+	for (body, refusal) in [
+		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
+		(
+			"for n in [1u8] { let x = n; println!(\"{x}\"); }",
+			"a let in a for loop's body",
+		),
+		("let api_ = 1u8; println!(\"{api_}\");", "a local named other than"),
+		(
+			"let n: usize = usize::MAX - 1; println!(\"{n}\");",
+			"a pointer-sized value past 32 bits",
+		),
+		(
+			"let mut s = api::Score::of(2); println!(\"{} {}\", s.take(), s.count());",
+			"a value's &mut self method",
+		),
+	] {
+		std::fs::write(&source, format!("fn main() {{ {body} }}")).unwrap();
+		let panic = std::panic::catch_unwind(|| transcript::Transcript::load(&lock, &source))
+			.err()
+			.unwrap_or_else(|| panic!("{body} parsed"));
+		let message = panic.downcast_ref::<String>().unwrap();
+		assert!(
+			message.starts_with("transcript.rs:1:") && message.contains(refusal),
+			"{body}: {message}"
+		);
+	}
 }

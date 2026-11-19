@@ -57,6 +57,16 @@ export function _option<T>(value: T | undefined, show: (value: T) => string): st
 	return value === undefined ? "None" : `Some(${show(value)})`;
 }
 
+/** An option whose `None` is `rt.None`, shown as Debug does. */
+export function _optionN<T>(value: T | rt.None, show: (value: T) => string): string {
+	return value === rt.None ? "None" : `Some(${show(value as T)})`;
+}
+
+/** `show` of `value`, which it reads more than once, evaluated once. */
+export function _with<T>(value: T, show: (value: T) => string): string {
+	return show(value);
+}
+
 export function _bound<T>(
 	b: { readonly tag: "Included"; readonly _0: T } | { readonly tag: "Excluded"; readonly _0: T } | { readonly tag: "Unbounded" },
 	show: (value: T) => string,
@@ -100,8 +110,18 @@ export function _some<T>(value: T | undefined): T {
 	return value;
 }
 
+/** The value of an option whose `None` is `rt.None`, which must be `Some`. */
+export function _someN<T>(value: T | rt.None): T {
+	if (value === rt.None) throw new Error("an unwrap of None");
+	return value as T;
+}
+
 export function _mapOr<T, U>(value: T | undefined, none: U, some: (value: T) => U): U {
 	return value === undefined ? none : some(value);
+}
+
+export function _mapOrN<T, U>(value: T | rt.None, none: U, some: (value: T) => U): U {
+	return value === rt.None ? none : some(value as T);
 }
 
 /** Its elements as a tuple, not an array. */
@@ -123,6 +143,15 @@ export function _f64(bits: bigint): number {
 	return _f64s([bits])[0]!;
 }
 
+/** The bits of `value`, a float the script holds, which a block of them is built from. */
+export function _f64Bits(value: number): bigint {
+	return new BigUint64Array(new Float64Array([value]).buffer)[0]!;
+}
+
+export function _f32Bits(value: number): number {
+	return new Uint32Array(new Float32Array([value]).buffer)[0]!;
+}
+
 /** The objects a statement made and lent, which Rust drops as the statement ends. */
 const _temps: Disposable[] = [];
 
@@ -132,9 +161,15 @@ export function _tmp<T extends Disposable>(value: T): T {
 	return value;
 }
 
-/** Dispose the statement's temporaries, the last made first, as Rust drops them. */
-export function _free(): void {
-	for (let value = _temps.pop(); value !== undefined; value = _temps.pop()) value[Symbol.dispose]();
+/** How many temporaries are held: a match's arms free only those made after its scrutinee's. */
+export function _held(): number {
+	return _temps.length;
+}
+
+/** Dispose the statement's temporaries past the first `kept`, the last made first, as Rust
+ * drops them. */
+export function _free(kept = 0): void {
+	while (_temps.length > kept) _temps.pop()![Symbol.dispose]();
 }
 "#;
 
@@ -149,6 +184,8 @@ pub(crate) fn emit(t: &Transcript) -> String {
 		modules: BTreeSet::new(),
 		vars: BTreeMap::new(),
 		temps: false,
+		marks: Vec::new(),
+		places: Vec::new(),
 	};
 	mutated(&t.steps, t, &mut e.mutated);
 	let body = e.steps(&t.steps);
@@ -264,6 +301,12 @@ struct Emitter<'t> {
 	vars: BTreeMap<String, Type>,
 	/// Whether the statement being written made a temporary to dispose as it ends.
 	temps: bool,
+	/// For each match being written whose scrutinee made temporaries, the local holding how
+	/// many were held after it, which its arms' statements leave to the match's end.
+	marks: Vec<(String, bool)>,
+	/// The names a pattern being written binds as places: each element's fresh name, the
+	/// local's, and its type.
+	places: Vec<(String, String, Type)>,
 }
 
 /// JavaScript's reserved words, and what the script itself names, which no local may be.
@@ -399,7 +442,14 @@ impl Emitter<'_> {
 			// A closure's statements leave theirs to the statement that called it, whose own
 			// the closure may still lend.
 			if self.temps && self.closures == 0 {
-				self.line(&mut out, "_free();");
+				let free = match self.marks.last_mut() {
+					Some((mark, used)) => {
+						*used = true;
+						format!("_free({mark});")
+					}
+					None => "_free();".to_string(),
+				};
+				self.line(&mut out, &free);
 				self.temps = false;
 			}
 		}
@@ -524,13 +574,43 @@ impl Emitter<'_> {
 			pat => {
 				let target = self.pat(pat, ty);
 				self.line(out, &format!("let {target} = {v};"));
+				for (element, name, ty) in std::mem::take(&mut self.places) {
+					let ty = self.ts(&ty);
+					self.line(
+						out,
+						&format!("let {}: rt.Place<{ty}> = {{ v: {element} }};", ident(&name)),
+					);
+				}
 			}
 		}
+	}
+
+	/// A pattern binding a closure's parameters, of which none is a place.
+	fn param(&mut self, pat: &Pat, ty: &Type) -> String {
+		let target = match pat {
+			// Kept in a parameter list, as an unused name.
+			Pat::Ignore(_) => {
+				self.fresh += 1;
+				format!("_{}", self.fresh)
+			}
+			pat => self.pat(pat, ty),
+		};
+		if let Some((_, name, _)) = self.places.first() {
+			panic!("a closure's parameter {name} passed &mut");
+		}
+		target
 	}
 
 	/// A pattern binding a value of `ty`: a `Bounds`'s by its start and end.
 	fn pat(&mut self, pat: &Pat, ty: &Type) -> String {
 		match pat {
+			// A place, bound once the pattern has its element.
+			Pat::Name(name, ty) if self.mutated.contains(name) => {
+				self.vars.insert(name.clone(), ty.clone());
+				let element = self.fresh("e");
+				self.places.push((element.clone(), name.clone(), ty.clone()));
+				element
+			}
 			Pat::Name(name, ty) => {
 				self.vars.insert(name.clone(), ty.clone());
 				ident(name)
@@ -557,15 +637,14 @@ impl Emitter<'_> {
 
 	fn matched(&mut self, value: &Expr, ok: &Arm, err: &Arm, out: &mut String) {
 		let v = self.expr(value);
+		// The scrutinee's temporaries live to the match's end, past its arms' statements.
+		let held = std::mem::take(&mut self.temps);
 		let (test, ok_value, ok_ty, err_value, err_ty) = match &value.ty {
 			Type::Option(inner) => {
-				if undefinable(inner) {
-					panic!("a match on an Option of {inner:?}, whose None is rt.None");
-				}
 				let o = self.fresh("o");
 				self.line(out, &format!("const {o} = {v};"));
 				(
-					format!("{o} !== undefined"),
+					format!("{o} !== {}", none(&value.ty)),
 					o,
 					(**inner).clone(),
 					String::new(),
@@ -585,6 +664,11 @@ impl Emitter<'_> {
 			}
 			ty => panic!("a match on {ty:?}"),
 		};
+		let at = out.len();
+		if held {
+			let mark = self.fresh("m");
+			self.marks.push((mark, false));
+		}
 		self.line(out, &format!("if ({test}) {{"));
 		self.depth += 1;
 		if let Some(pat) = &ok.pat {
@@ -602,6 +686,13 @@ impl Emitter<'_> {
 		out.push_str(&body);
 		self.depth -= 1;
 		self.line(out, "}");
+		if held {
+			if let Some((mark, true)) = self.marks.pop() {
+				let held = format!("{}const {mark} = _held();\n", self.indent());
+				out.insert_str(at, &held);
+			}
+			self.temps = true;
+		}
 	}
 
 	/// The TypeScript type of a value of `ty`, as a literal of it takes it.
@@ -751,12 +842,14 @@ impl Emitter<'_> {
 			Type::Int(_) | Type::NonZero(_) => format!("`${{{v}}}`"),
 			Type::String | Type::Str => format!("_quoted({v})"),
 			Type::Option(inner) => {
-				if undefinable(inner) {
-					panic!("Debug of an Option of {inner:?}, whose None is rt.None");
-				}
+				// Typed, as TypeScript infers no `T` of `T | rt.None` apart from the symbol.
+				let helper = match undefinable(inner) {
+					true => format!("_optionN<{}>", self.ts(inner)),
+					false => "_option".to_string(),
+				};
 				let x = self.fresh("x");
 				let show = self.debug(&x, inner);
-				format!("_option({v}, ({x}) => {show})")
+				format!("{helper}({v}, ({x}) => {show})")
 			}
 			Type::Vec | Type::Slice | Type::Bytes | Type::Array(_) => format!("_list({v}, (x) => `${{x}}`)"),
 			Type::List(_, item) => {
@@ -764,13 +857,15 @@ impl Emitter<'_> {
 				let show = self.debug(&x, item);
 				format!("_list({v}, ({x}) => {show})")
 			}
+			// Each element read from the tuple, evaluated once.
 			Type::Tuple(elements) => {
+				let x = self.fresh("x");
 				let parts: Vec<String> = (elements.iter().enumerate())
-					.map(|(i, e)| self.debug(&format!("{v}[{i}]"), e))
+					.map(|(i, e)| self.debug(&format!("{x}[{i}]"), e))
 					.collect();
 				let parts: Vec<String> = parts.iter().map(|p| format!("${{{p}}}")).collect();
 				let tail = if parts.len() == 1 { ",)" } else { ")" };
-				format!("`({}{tail}`", parts.join(", "))
+				format!("_with({v}, ({x}) => `({}{tail}`)", parts.join(", "))
 			}
 			Type::Bound(int) => {
 				let x = self.fresh("x");
@@ -960,15 +1055,19 @@ impl Emitter<'_> {
 			}
 			Kind::Unwrap(inner) => {
 				let v = self.expr(inner);
-				match &inner.ty {
+				match unref(&inner.ty).base() {
 					Type::Result(..) => format!("_ok({v})"),
+					Type::Option(some) if undefinable(some) => {
+						let some = (**some).clone();
+						format!("_someN<{}>({v})", self.ts(&some))
+					}
 					_ => format!("_some({v})"),
 				}
 			}
 			Kind::UnwrapErr(inner) => format!("_err({})", self.expr(inner)),
 			Kind::IsErr(inner) => format!("!{}.ok", self.expr(inner)),
-			Kind::IsSome(inner) => format!("({} !== undefined)", self.expr(inner)),
-			Kind::IsNone(inner) => format!("({} === undefined)", self.expr(inner)),
+			Kind::IsSome(inner) => format!("({} !== {})", self.expr(inner), none(&inner.ty)),
+			Kind::IsNone(inner) => format!("({} === {})", self.expr(inner), none(&inner.ty)),
 			Kind::Binary(op, a, b) => self.binary(*op, a, b),
 			Kind::Closure(params, steps, value) => {
 				let Type::Closure(closure) = unref(&e.ty).base() else {
@@ -991,8 +1090,13 @@ impl Emitter<'_> {
 					panic!("a join over {:?}", items.ty)
 				};
 				let item = (**item).clone();
-				let items = self.expr(items);
-				let target = self.pat(pat, &item);
+				let block = block(unref(&items.ty).base()).is_some();
+				let mut items = self.expr(items);
+				// A block's wide items are `bigint`s, which the body takes as the binding's form.
+				if let (true, Some(wide)) = (block, wide(&item)) {
+					items = format!("Array.from({items}, (v) => rt.{wide}FromBig(v))");
+				}
+				let target = self.param(pat, &item);
 				self.closures += 1;
 				let body = self.expr(body);
 				self.closures -= 1;
@@ -1010,11 +1114,15 @@ impl Emitter<'_> {
 				let inner = (**inner).clone();
 				let option = self.expr(option);
 				let none = self.expr(none);
-				let target = self.pat(pat, &inner);
+				let target = self.param(pat, &inner);
 				self.closures += 1;
 				let some = self.expr(some);
 				self.closures -= 1;
-				format!("_mapOr({option}, {none}, ({target}) => {some})")
+				let helper = match undefinable(&inner) {
+					true => format!("_mapOrN<{}, {}>", self.ts(&inner), self.ts(&e.ty)),
+					false => "_mapOr".to_string(),
+				};
+				format!("{helper}({option}, {none}, ({target}) => {some})")
 			}
 			Kind::Utf8(inner) => format!("_text({})", self.expr(inner)),
 			Kind::Len(inner) => {
@@ -1109,32 +1217,46 @@ impl Emitter<'_> {
 			let parts: Vec<String> = items.iter().map(|e| self.value(e, &item)).collect();
 			return format!("[{}]", parts.join(", "));
 		};
-		// A block's items: integers past 32 bits as `bigint`s, and floats as their bits.
-		let each = |f: &dyn Fn(&Kind) -> Option<String>| -> Vec<String> {
+		// A block's items: integers past 32 bits as `bigint`s, and floats as their bits, a
+		// literal's spelled, another's read from the value the script holds.
+		let mut each = |f: &dyn Fn(&Kind) -> Option<String>, convert: &str| -> Vec<String> {
 			(items.iter())
-				.map(|e| f(&e.kind).unwrap_or_else(|| panic!("an item of a block of {element:?} other than a literal")))
+				.map(|e| match f(&e.kind) {
+					Some(literal) => literal,
+					None => format!("{convert}({})", self.value(e, &item)),
+				})
 				.collect()
 		};
 		match element {
 			Type::Int(int @ (Int::U64 | Int::I64)) => {
-				let parts = each(&|k| match k {
-					Kind::Int(n) => Some(format!("{n}n")),
-					_ => None,
-				});
+				let convert = format!("rt.{}ToBig", wide(element).unwrap());
+				let parts = each(
+					&|k| match k {
+						Kind::Int(n) => Some(format!("{n}n")),
+						_ => None,
+					},
+					&convert,
+				);
 				format!("new {}([{}])", typed_array(&Type::Int(*int)), parts.join(", "))
 			}
 			Type::F64 => {
-				let parts = each(&|k| match k {
-					Kind::Float(f) => Some(format!("{:#x}n", f.to_bits())),
-					_ => None,
-				});
+				let parts = each(
+					&|k| match k {
+						Kind::Float(f) => Some(format!("{:#x}n", f.to_bits())),
+						_ => None,
+					},
+					"_f64Bits",
+				);
 				format!("_f64s([{}])", parts.join(", "))
 			}
 			Type::F32 => {
-				let parts = each(&|k| match k {
-					Kind::Float(f) => Some(format!("{:#x}", (*f as f32).to_bits())),
-					_ => None,
-				});
+				let parts = each(
+					&|k| match k {
+						Kind::Float(f) => Some(format!("{:#x}", (*f as f32).to_bits())),
+						_ => None,
+					},
+					"_f32Bits",
+				);
 				format!("_f32s([{}])", parts.join(", "))
 			}
 			element => {
@@ -1146,7 +1268,7 @@ impl Emitter<'_> {
 
 	/// An arrow function: its parameters, of `types`, the steps it runs, and what it returns.
 	fn closure(&mut self, params: &[Pat], types: &[Type], steps: &[Step], value: &Expr) -> String {
-		let params: Vec<String> = params.iter().zip(types).map(|(p, ty)| self.pat(p, ty)).collect();
+		let params: Vec<String> = params.iter().zip(types).map(|(p, ty)| self.param(p, ty)).collect();
 		let params = params.join(", ");
 		self.closures += 1;
 		let arrow = match steps.is_empty() {
@@ -1207,6 +1329,14 @@ impl Emitter<'_> {
 /// Whether a value of `ty` can be `undefined`, so its `Option` keeps `None` apart as `rt.None`.
 fn undefinable(ty: &Type) -> bool {
 	matches!(ty.base(), Type::Unit | Type::Option(_))
+}
+
+/// The `None` of the option `ty`: `rt.None` where its `Some` may be `undefined`.
+fn none(ty: &Type) -> &'static str {
+	match unref(ty).base() {
+		Type::Option(inner) if undefinable(inner) => "rt.None",
+		_ => "undefined",
+	}
 }
 
 /// The typed array holding a block's elements exactly.
