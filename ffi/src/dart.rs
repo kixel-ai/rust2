@@ -272,9 +272,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			Some(rest) => format!("{}{rest}", g.space),
 			None => format!("{p}_{name}"),
 		};
+		// What returns a constant runs no other code: a leaf call.
+		let leaf = match name {
+			"contract" | "target" | "status_message" => ", isLeaf: true",
+			_ => "",
+		};
 		let _ = write!(
 			dart,
-			"@ffi.Native<{ret} Function({params})>(symbol: '{symbol}')\nexternal {dart_ret} {local}({dart_params});\n\n"
+			"@ffi.Native<{ret} Function({params})>(symbol: '{symbol}'{leaf})\nexternal {dart_ret} {local}({dart_params});\n\n"
 		);
 	}
 	dart.push_str(RUNTIME);
@@ -773,21 +778,28 @@ impl<'a> Gen<'a> {
 
 	/// The `@Native` binding of a C function, declared once, as Dart calls it.
 	fn native(&mut self, sig: &Sig) -> String {
-		let local = format!("_{}", sig.name);
-		if !self.natives.contains_key(&sig.name) {
+		self.declare(&sig.name, sig, false)
+	}
+
+	/// The `@Native` binding of `sig`'s C function as the Dart function `_<name>`, declared
+	/// once, as a leaf call if `leaf`.
+	fn declare(&mut self, name: &str, sig: &Sig, leaf: bool) -> String {
+		let local = format!("_{name}");
+		if !self.natives.contains_key(name) {
 			let natives: Vec<String> = sig.params.iter().map(|(_, ty)| self.nt(ty)).collect();
 			let darts: Vec<String> = (sig.params.iter().enumerate())
 				.map(|(k, (_, ty))| format!("{} p{k}", self.ct(ty)))
 				.collect();
 			let decl = format!(
-				"@ffi.Native<{} Function({})>(symbol: '{}')\nexternal {} {local}({});\n\n",
+				"@ffi.Native<{} Function({})>(symbol: '{}'{})\nexternal {} {local}({});\n\n",
 				self.nt(&sig.ret),
 				natives.join(", "),
 				sig.name,
+				if leaf { ", isLeaf: true" } else { "" },
 				self.ct(&sig.ret),
 				darts.join(", ")
 			);
-			self.natives.insert(sig.name.clone(), decl);
+			self.natives.insert(name.to_string(), decl);
 		}
 		local
 	}
@@ -835,6 +847,20 @@ impl<'a> Gen<'a> {
 			rs(&call.ret),
 		);
 		let native = self.native_fn(&name, params, call.ret.clone());
+		self.checked_on(&name, native, call.params.len() + 1, &call.name)
+	}
+
+	/// The Dart function making `call`, a leaf as [`Abi::leaf`] proves, as a leaf call: to
+	/// the C function itself, on the isolate's thread, which no call it makes back waits on.
+	fn leaf(&mut self, call: &Sig) -> String {
+		let name = format!("{}_leaf_{}", self.space, self.bare(&call.name));
+		let native = self.declare(&name, call, true);
+		self.checked_on(&name, native, call.params.len(), &call.name)
+	}
+
+	/// `native`, declared under `name` with `params` parameters, or on a target its item,
+	/// the C function `what`, is not on, a function throwing before it calls in.
+	fn checked_on(&mut self, name: &str, native: String, params: usize, what: &str) -> String {
 		let api = self.abi.api;
 		if api.everywhere(self.on) {
 			return native;
@@ -842,8 +868,8 @@ impl<'a> Gen<'a> {
 		// On a target its item is not on, the call throws before it calls in.
 		let checked = format!("{native}_on");
 		if !self.natives.contains_key(&checked) {
-			let decl = self.natives[&name].replacen(&format!("{native}("), &format!("{checked}("), 1);
-			let params: Vec<String> = (0..=call.params.len()).map(|n| format!("p{n}")).collect();
+			let decl = self.natives[name].replacen(&format!("{native}("), &format!("{checked}("), 1);
+			let params: Vec<String> = (0..params).map(|n| format!("p{n}")).collect();
 			let declared = &decl[decl.find("external ").expect("a native") + "external ".len()..];
 			let ret = &declared[..declared.find(' ').expect("a native's return")];
 			let typed =
@@ -851,10 +877,10 @@ impl<'a> Gen<'a> {
 			let wrapper = format!(
 				"{ret} {native}{typed}) {{\n\t_on(0x{:x}, '{}');\n\treturn {checked}({});\n}}\n\n",
 				self.on.0 & api.all().0,
-				call.name,
+				what,
 				params.join(", ")
 			);
-			self.natives.insert(name.clone(), decl);
+			self.natives.insert(name.to_string(), decl);
 			self.natives.insert(checked, wrapper);
 		}
 		native
@@ -1515,10 +1541,20 @@ impl<'a> Gen<'a> {
 		let call = |f: &str, args: &str, what: &str, lift: &dyn Fn(&str) -> String| -> String {
 			match status {
 				true => format!(
-					"final s_ = _n.status;\n\t\t\tfinal r_ = {f}(_n.home, {args}, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t\treturn {};",
+					"final s_ = _n.status;\n\t\t\tfinal r_ = {f}({args}, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t\treturn {};",
 					lift("r_")
 				),
-				false => format!("return {};", lift(&format!("{f}(_n.home, {args})"))),
+				false => format!("return {};", lift(&format!("{f}({args})"))),
+			}
+		};
+		// A call in the arena `a_`, which a leaf call of an object's needs none of.
+		let arena = |leaf: bool, code: String| match (leaf && object, held_only(&code)) {
+			(true, _) => code.replace("\n\t\t\t", "\n\t\t"),
+			(false, Some(code)) => {
+				format!("final h_ = _hold();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\t_release();\n\t\t}}")
+			}
+			(false, None) => {
+				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
 		if t.display {
@@ -1526,28 +1562,41 @@ impl<'a> Gen<'a> {
 			let what = format!("{c}_to_string");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
-			let call = call(&f, &arg, &what, &|r| format!("_n.string({r})"));
-			body.push(format!(
-				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
-			));
+			let call = arena(
+				false,
+				format!(
+					"{pre}{}",
+					call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"))
+				),
+			);
+			body.push(format!("\t@override\n\tString toString() {{\n\t\t{call}\n\t}}\n"));
 		}
 		if t.debug {
 			members.push("debug".to_string());
 			let what = format!("{c}_debug");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
-			let call = call(&f, &arg, &what, &|r| format!("_n.string({r})"));
+			let call = arena(
+				false,
+				format!(
+					"{pre}{}",
+					call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"))
+				),
+			);
 			body.push(format!(
-				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\t{call}\n\t}}\n"
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
 			let what = format!("{c}_clone");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
-			let call = call(&f, "a_.hold(this)", &what, &|r| format!("{name}._({r})"));
+			let call = arena(
+				false,
+				call(&f, "_n.home, a_.hold(this)", &what, &|r| format!("{name}._({r})")),
+			);
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\t{call}\n\t}}\n"
 			));
 		}
 		// A Dart enum compares by identity, as a plain Rust enum does, and may not override `==`.
@@ -1555,21 +1604,65 @@ impl<'a> Gen<'a> {
 		if t.eq && !plain {
 			members.push("hashCode".to_string());
 			let what = format!("{c}_eq");
-			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Bool);
-			let (pa, a) = this(self, "this");
-			let (pb, b) = this(self, "other");
-			let eq = call(&f, &format!("{a}, {b}"), &what, &|r| r.to_string());
+			let sig = Sig {
+				name: what.clone(),
+				params: params(vec![recv.clone(), recv.clone()])
+					.into_iter()
+					.map(|ty| (String::new(), ty))
+					.collect(),
+				ret: Ty::Bool,
+			};
+			// A leaf call, as `Abi::leaf_trait` proves, takes no home and holds no handle. It
+			// stalls the isolate group's GC until it returns, so it walks no length the caller
+			// picks.
+			let leaf = self.abi.leaf_trait(ty, false) && t.leaf_sized;
+			let (f, (pa, a), (pb, b)) = match (leaf, object) {
+				// `other` bound to its own type, since Dart keeps a value alive to the end of
+				// its scope only for a variable declared `Finalizable`, which a promoted
+				// `Object` is not: the `_on` check before the native may run a GC.
+				(true, true) => (
+					self.leaf(&sig),
+					(String::new(), "_live".to_string()),
+					(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
+				),
+				(true, false) => (self.leaf(&sig), this(self, "this"), this(self, "other")),
+				(false, _) => (self.served(&sig), this(self, "this"), this(self, "other")),
+			};
+			let home = if leaf { "" } else { "_n.home, " };
+			let eq = arena(
+				leaf,
+				format!(
+					"{pa}{pb}{}",
+					call(&f, &format!("{home}{a}, {b}"), &what, &|r| r.to_string())
+				),
+			);
 			body.push(format!(
-				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}{eq}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\t{eq}\n\t}}\n"
 			));
 			// Equal values hash alike only by Rust's own `Hash`, which a type without one lacks.
 			if t.hash {
 				let what = format!("{c}_hash");
-				let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Int(Int::U64));
-				let (pre, arg) = this(self, "this");
-				let hash = call(&f, &arg, &what, &|r| r.to_string());
+				let sig = Sig {
+					name: what.clone(),
+					params: params(vec![recv.clone()])
+						.into_iter()
+						.map(|ty| (String::new(), ty))
+						.collect(),
+					ret: Ty::Int(Int::U64),
+				};
+				let leaf = self.abi.leaf_trait(ty, true) && t.leaf_sized;
+				let (f, (pre, arg)) = match (leaf, object) {
+					(true, true) => (self.leaf(&sig), (String::new(), "_live".to_string())),
+					(true, false) => (self.leaf(&sig), this(self, "this")),
+					(false, _) => (self.served(&sig), this(self, "this")),
+				};
+				let home = if leaf { "" } else { "_n.home, " };
+				let hash = arena(
+					leaf,
+					format!("{pre}{}", call(&f, &format!("{home}{arg}"), &what, &|r| r.to_string())),
+				);
 				body.push(format!(
-					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{hash}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\t{hash}\n\t}}\n"
 				));
 			} else {
 				body.push(format!(
@@ -2160,6 +2253,10 @@ impl<'a> Gen<'a> {
 		};
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
+		// A leaf call runs on the isolate's thread, with no thread hop, as nothing in it
+		// calls back: see `Abi::leaf`. Nor does Dart run meanwhile, so it holds no handle
+		// against a close, and takes only scalars, so it needs no arena.
+		let leaf = abi.leaf(function, owner_ty);
 		let mut pre = Vec::new();
 		let mut args: Vec<String> = Vec::new();
 		let mut c_params = export.call.params.iter();
@@ -2167,6 +2264,7 @@ impl<'a> Gen<'a> {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			match c {
+				Ty::Handle { .. } if leaf => args.push("_live".to_string()),
 				Ty::Handle { .. } => {
 					args.push("a_.hold(this)".to_string());
 				}
@@ -2290,8 +2388,13 @@ impl<'a> Gen<'a> {
 		};
 
 		// Each call, and each poll and free of its future, serves the isolate while it waits.
-		args.insert(0, "_n.home".to_string());
-		let call_fn = self.served(&export.call);
+		let call_fn = match leaf {
+			true => self.leaf(&export.call),
+			false => {
+				args.insert(0, "_n.home".to_string());
+				self.served(&export.call)
+			}
+		};
 
 		let mut body = Vec::new();
 		let ret_type;
@@ -2443,10 +2546,18 @@ impl<'a> Gen<'a> {
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}
 			}
-			body.push(format!(
-				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
-				indent(&inner.join("\n"))
-			));
+			let code = inner.join("\n");
+			match (leaf, held_only(&code)) {
+				(true, _) => body.extend(inner),
+				(false, Some(code)) => body.push(format!(
+					"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
+					indent(&code)
+				)),
+				(false, None) => body.push(format!(
+					"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
+					indent(&code)
+				)),
+			}
 		}
 
 		let mut text = function.docs.clone();
@@ -2782,6 +2893,16 @@ fn docs(docs: &str, indent: &str) -> String {
 }
 
 /// Code indented by one tab more, but for blank lines.
+/// `code`, a call's statements in the arena `a_`, without it if all it asks of the arena is
+/// to hold `this` for the call: then holding `this` itself, as `h_`, costs less.
+fn held_only(code: &str) -> Option<String> {
+	let uses = code
+		.match_indices("a_")
+		.filter(|(at, _)| !code[..*at].ends_with(|c: char| c.is_alphanumeric() || c == '_'))
+		.count();
+	(uses == 1 && code.contains("a_.hold(this)")).then(|| code.replace("a_.hold(this)", "h_"))
+}
+
 fn indent(code: &str) -> String {
 	let mut out: String = code
 		.lines()

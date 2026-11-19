@@ -41,6 +41,8 @@ pub(crate) struct Package {
 	pub(crate) name: String,
 	/// Its library's crate name, Cargo's `[lib] name`: the prefix of every C name.
 	pub(crate) lib: String,
+	/// Its Cargo version, which the web binding's `package.json` takes.
+	pub(crate) version: String,
 	pub(crate) dir: PathBuf,
 	/// The features rustc compiles it with, which the generated crate enables in it.
 	pub(crate) features: Vec<String>,
@@ -55,15 +57,16 @@ impl Package {
 
 	/// [`env::PACKAGE`]'s value.
 	pub(crate) fn line(&self) -> String {
-		format!("{}\t{}\t{}", self.name, self.lib, self.dir.display())
+		format!("{}\t{}\t{}\t{}", self.name, self.lib, self.version, self.dir.display())
 	}
 
 	/// The package [`env::PACKAGE`] holds, without its features.
 	pub(crate) fn parse(line: &str) -> Result<Self, String> {
 		match line.split('\t').collect::<Vec<_>>()[..] {
-			[name, lib, dir] => Ok(Self {
+			[name, lib, version, dir] => Ok(Self {
 				name: name.to_string(),
 				lib: lib.to_string(),
+				version: version.to_string(),
 				dir: PathBuf::from(dir),
 				features: Vec::new(),
 			}),

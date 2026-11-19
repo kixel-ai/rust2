@@ -300,6 +300,15 @@ static void round_(int print) {
 	}
 	span object = end(start, N, "object");
 
+	/* A primitive pub field read, which reaches no user code. */
+	moq_track_Info *read = moq_track_Producer_info(track, NULL);
+	start = begin();
+	for (int i = 0; i < N; i++) {
+		sum += (unsigned)moq_track_Info_priority_get(read, NULL);
+	}
+	span field = end(start, N, "field");
+	moq_track_Info_free(read);
+
 	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must, and each
 	 * group started at its first frame's. */
 	start = begin();
@@ -404,8 +413,8 @@ static void round_(int print) {
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {
-		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, stamped, write, ready, woken, payload_};
+		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "field", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, field, stamped, write, ready, woken, payload_};
 		for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) {
 			printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}

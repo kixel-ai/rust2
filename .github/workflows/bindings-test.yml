@@ -1,7 +1,7 @@
 name: Binding packages test
 
-# bindings.yml on the api fixture, whose Python and C++ consumers must print native Rust's transcript
-# byte for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
+# bindings.yml on the api fixture, whose Python, C++, and web consumers must print native Rust's
+# transcript byte for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
 # Read-only: nothing here publishes.
 on:
   workflow_call:
@@ -20,6 +20,9 @@ jobs:
       python-check: ffi/tests/api.py
       # api.cpp rather than api.c, whose broken cases name items only wasm32 has.
       c-check: ffi/tests/api.cpp
+      web-manifest-path: ffi/fixtures/api/Cargo.toml
+      scope: kixel-ai
+      web-check: ffi/tests/api.ts
       # A module path a proxy could serve. No go-check, as no swift-check: api.go needs the
       # wasm32 items this export lacks, so the consumer only loads the runtime.
       go-module: example.com/api
@@ -34,5 +37,8 @@ jobs:
       python-check: ffi/moq/moq.py
       swift-check: ffi/moq/moq.swift
       c-check: ffi/moq/moq.cpp
+      # moq's wasm32 stand-in, which leaves moq-tokio out, as no wasm32 target builds it.
+      web-manifest-path: ffi/target/moq-ffi-web/Cargo.toml
+      scope: kixel-ai
       # Under the export's own module, `moq`, which moq.go imports.
       go-check: ffi/moq/moq.go

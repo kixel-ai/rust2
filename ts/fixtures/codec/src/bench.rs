@@ -9,7 +9,8 @@
 //! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, op 17
 //! writes through the mutable parts of a slice of integers, op 18 splits frames' `Bytes`
 //! off a group's, ops 19 and 20 code strings as moq-net codes a path, op 21 joins and
-//! strips paths, and op 22 keeps a `HashMap` keyed by `String`.
+//! strips paths, op 22 keeps a `HashMap` keyed by `String`, and op 23 runs 64-bit hash
+//! arithmetic on full-width values.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
@@ -54,6 +55,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		20 => decoded(decode_strings(data, &mut out), &mut out),
 		21 => join(selector, data, &mut out),
 		22 => keyed(selector, data, &mut out),
+		23 => mixed(selector, data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -586,6 +588,37 @@ fn iterate(chain: u8, data: &[u8], out: &mut Vec<u8>) {
 			put_usize(out, last);
 		}
 	}
+}
+
+/// splitmix64's constants, and a multiplicative hash's: a generator's and a hash's, as consts.
+const GOLDEN: u64 = 0x9e37_79b9_7f4a_7c15;
+const MIX_1: u64 = 0xbf58_476d_1ce4_e5b9;
+const MIX_2: u64 = 0x94d0_49bb_1331_11eb;
+const BUCKETS: u64 = 0x1_0000_0001;
+const PRIME: u64 = 0xffff_ffff_ffff_ffc5;
+
+/// `count` rounds of 64-bit arithmetic on values that stay past 2^53, as a hash or a
+/// generator makes them: splitmix64's steps, or a multiplicative hash (`selector` 1)
+/// reduced by a divisor and a modulus past 2^32. The xor of the results.
+fn mixed(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, data) = take_u64(data);
+	let (seed, _) = take_u64(data);
+	let (mut h, mut sum) = (seed, 0u64);
+	for i in 0..count as usize {
+		match selector {
+			0 => {
+				h = h.wrapping_add(GOLDEN);
+				let mut z = (h ^ (h >> 30)).wrapping_mul(MIX_1);
+				z = (z ^ (z >> 27)).wrapping_mul(MIX_2);
+				sum ^= z ^ (z >> 31);
+			}
+			_ => {
+				h = h.wrapping_mul(GOLDEN).wrapping_add(i as u64);
+				sum ^= (h / BUCKETS).wrapping_add(h % PRIME);
+			}
+		}
+	}
+	put_u64(out, sum);
 }
 
 /// Timestamps from one timescale to another, products past 2^53: moq-net's
