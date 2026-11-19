@@ -1525,7 +1525,6 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		let tail2: rs.Slice<rs.u32> = rs.sliceFrom(v.items);
 		while (tail2.length >= 1) {
-			const slice2: rs.Slice<rs.u32> = tail2;
 			const dst = out;
 			const word = tail2.data[tail2.start];
 			rs.byteVecReserve(dst, 4 as rs.usize);
@@ -1535,7 +1534,7 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst.data[pos + 2] = (word >>> 8) & 255;
 			dst.data[pos + 3] = word & 255;
 			dst.length = dst.length + 4;
-			tail2 = new rs.Slice(slice2.data, slice2.start + 1, slice2.length - 1);
+			tail2 = rs.sliceRange(tail2, 1);
 		}
 		const text: rs.String = rs.stringNew();
 		for (const _59 of rs.byteSliceView(rs.byteSliceRange(data, 1))) {

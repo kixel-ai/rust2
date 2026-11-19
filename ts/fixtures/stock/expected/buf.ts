@@ -6095,10 +6095,8 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _86.length & 0xff);
 			rs.byteVecExtendFromSlice(out, _86);
 		}
-		const to: number = n;
-		rs.rangeCheck(dst2.length, 0, to);
-		const arg = new rs.Slice(dst2.data, dst2.start, to);
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg), f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))]).v));
+		const part2 = rs.sliceRange(dst2, 0, n);
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part2), f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))]).v));
 		const s = rs.sliceItems(rs.sliceRange(dst2, 0, n));
 		let front = 0;
 		let back = s.length;

@@ -684,8 +684,8 @@ export function peekedOthers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.eqSlice(rs.same)(a016, a110);
 	})(a, rs.sliceFrom(b)));
 	rs.byteVecPush(out, _158(part15));
-	const slice: rs.Slice<rs.u16> = rs.sliceFrom([]);
-	const part16 = rs.peekableNextIfEq(it7, slice, (a017: rs.Vec<rs.u16>, a111: rs.Slice<rs.u16>): boolean => {
+	const _188: rs.Slice<rs.u16> = rs.sliceFrom([]);
+	const part16 = rs.peekableNextIfEq(it7, _188, (a017: rs.Vec<rs.u16>, a111: rs.Slice<rs.u16>): boolean => {
 		return rs.eqSlice(rs.same)(a017, a111);
 	});
 	rs.byteVecPush(out, _158(part16));

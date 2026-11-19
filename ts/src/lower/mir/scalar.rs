@@ -66,6 +66,16 @@ impl<'tcx> Shape<'tcx> {
 		}
 	}
 
+	/// Whether it has a slice of elements other than bytes.
+	fn other_slice(&self) -> bool {
+		match self {
+			Shape::Slice(elem) => !crate::lower::byte(*elem),
+			Shape::Unit | Shape::Leaf(_) => false,
+			Shape::Tuple(_, fields) => fields.iter().any(Shape::other_slice),
+			Shape::Enum(_, variants) => variants.iter().flatten().flatten().any(Shape::other_slice),
+		}
+	}
+
 	/// Whether its JS value is an object of its own, which making it from its parts makes
 	/// again: a tuple, a `Result` or `ControlFlow`, or an `Option` of one.
 	fn boxed(&self) -> bool {
@@ -1407,9 +1417,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		};
 		reads.visit_body(mir);
 		bad.extend(reads.bad);
-		// A slice of a `Vec` that every read makes whole is made once by its call, as
-		// before, where what reads it may read the `Vec`'s items in place.
-		bad.extend(sourced.into_iter().filter(|l| !reads.apart.contains(l)));
+		// One that every read makes whole saves nothing, and a slice of a `Vec` is then
+		// made once by its call, as before, where what reads it may read the `Vec`'s items
+		// in place. That of byte slices stays as measured.
+		bad.extend(
+			shapes
+				.iter()
+				.filter(|&(l, shape)| sourced.contains(l) || shape.other_slice())
+				.map(|(&l, _)| l)
+				.filter(|l| !reads.apart.contains(l) && *l != mir::RETURN_PLACE && !self.parted.contains(l)),
+		);
 		// Each part's origins: the parts whose assignment made what it may hold, through
 		// copies, each made again only where its local is assigned.
 		let mut origins: FxHashMap<(Local, usize), FxHashSet<(Local, usize)>> = FxHashMap::default();

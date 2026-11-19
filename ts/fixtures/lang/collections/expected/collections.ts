@@ -3814,10 +3814,10 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return !Left.ne$cmp_PartialEq_collections_Right(a3, b8);
 	})(_32, _34), log, out);
 	putEq(rs.eqSeq(Right.eq$cmp_PartialEq_collections_Left)(rights_, mine), log, out);
-	const items: Left.Left[] = mine.items;
+	const _46: rs.Slice<Left.Left> = rs.sliceFrom(mine.items);
 	putEq(rs.eqSeq((a4: Left.Left, b9: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a4, b9);
-	})(new rs.Slice(items, 0, items.length), rights_), log, out);
+	})(_46, rights_), log, out);
 	const _53: rs.Slice<Right.Right> = rs.sliceFrom(pair());
 	putEq(rs.eqSeq((a5: Left.Left, b10: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a5, b10);
@@ -3960,10 +3960,10 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	putEq(!rs.eqSeq((a20: Left.Left, b26: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a20, b26);
 	})(q, _264), log, out);
-	const items2: Right.Right[] = rights_.items;
+	const _272: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a21: Left.Left, b27: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a21, b27);
-	})(q, new rs.Slice(items2, 0, items2.length)), log, out);
+	})(q, _272), log, out);
 	const _278: rs.Slice<Right.Right> = rs.sliceFrom(pair());
 	putEq(rs.eqSeq((a22: Left.Left, b28: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a22, b28);
@@ -4360,11 +4360,11 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(rs.eqSlice((a4: Picky.Picky, b4: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a4, b4);
 	})(_50, _52), log, out);
-	const items: Picky.Picky[] = a.items;
-	const items2: Picky.Picky[] = b.items;
+	const _59: rs.Slice<Picky.Picky> = rs.sliceFrom(a.items);
+	const _63: rs.Slice<Picky.Picky> = rs.sliceFrom(b.items);
 	putEq(!rs.eqSlice((a5: Picky.Picky, b5: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a5, b5);
-	})(new rs.Slice(items, 0, items.length), new rs.Slice(items2, 0, items2.length)), log, out);
+	})(_59, _63), log, out);
 	const _69: rs.Vec<Picky.Picky> = new rs.Vec();
 	const _71: rs.Vec<Picky.Picky> = new rs.Vec();
 	putEq(rs.eqSlice((a6: Picky.Picky, b6: Picky.Picky): boolean => {
@@ -4374,18 +4374,14 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(!rs.eqSlice((a7: Picky.Picky, b7: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a7, b7);
 	})(_76, b), log, out);
-	const items3: Picky.Picky[] = a.items;
-	const args = [new rs.Slice(items3, 0, items3.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _83: Picky.Picky = one(args[0], args[1]);
-	const items4: Picky.Picky[] = a.items;
-	const args2 = [new rs.Slice(items4, 0, items4.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _82: Picky.Picky[] = [_83, one(args2[0], args2[1])];
-	const items5: Picky.Picky[] = b.items;
-	const args3 = [new rs.Slice(items5, 0, items5.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _94: Picky.Picky = one(args3[0], args3[1]);
-	const items6: Picky.Picky[] = b.items;
-	const args4 = [new rs.Slice(items6, 0, items6.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _81: [Picky.Picky[], Picky.Picky[]] = [_82, [_94, one(args4[0], args4[1])]];
+	const part = rs.sliceFrom(a.items);
+	const _83: Picky.Picky = one(part, 0);
+	const part2 = rs.sliceFrom(a.items);
+	const _82: Picky.Picky[] = [_83, one(part2, 1)];
+	const part3 = rs.sliceFrom(b.items);
+	const _94: Picky.Picky = one(part3, 0);
+	const part4 = rs.sliceFrom(b.items);
+	const _81: [Picky.Picky[], Picky.Picky[]] = [_82, [_94, one(part4, 1)]];
 	const pa: Picky.Picky[] = _82;
 	const pb: Picky.Picky[] = _81[1];
 	const _106: rs.Slice<Picky.Picky> = rs.sliceFrom(pa);
@@ -4416,30 +4412,24 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const tuple: (a0: rs.Slice<Picky.Picky>) => [Picky.Picky, rs.u8, Picky.Picky] = (v5: rs.Slice<Picky.Picky>): [Picky.Picky, rs.u8, Picky.Picky] => {
 		return [one(v5, 0), _34(v5, 2) & 0xff, one(v5, 1)] as [Picky.Picky, rs.u8, Picky.Picky];
 	};
-	const items7: Picky.Picky[] = a.items;
-	const args5 = [new rs.Slice(items7, 0, items7.length)] as [rs.Slice<Picky.Picky>];
-	const _158: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args5[0]);
-	const items8: Picky.Picky[] = b.items;
-	const args6 = [new rs.Slice(items8, 0, items8.length)] as [rs.Slice<Picky.Picky>];
-	const _164: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args6[0]);
+	const part5 = rs.sliceFrom(a.items);
+	const _158: [Picky.Picky, rs.u8, Picky.Picky] = tuple(part5);
+	const part6 = rs.sliceFrom(b.items);
+	const _164: [Picky.Picky, rs.u8, Picky.Picky] = tuple(part6);
 	putEq(!rs.eqTuple([(a13: Picky.Picky, b13: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a13, b13);
 	}, rs.same, (a14: Picky.Picky, b14: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a14, b14);
 	}])(_158, _164), log, out);
-	const items9: Picky.Picky[] = a.items;
-	const args7 = [new rs.Slice(items9, 0, items9.length)] as [rs.Slice<Picky.Picky>];
-	const _173: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args7[0]);
-	const items10: Picky.Picky[] = b.items;
-	const args8 = [new rs.Slice(items10, 0, items10.length)] as [rs.Slice<Picky.Picky>];
-	const _179: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args8[0]);
+	const part7 = rs.sliceFrom(a.items);
+	const _173: [Picky.Picky, rs.u8, Picky.Picky] = tuple(part7);
+	const part8 = rs.sliceFrom(b.items);
+	const _179: [Picky.Picky, rs.u8, Picky.Picky] = tuple(part8);
 	putEq(rs.eqTuple([Picky.eq$cmp_PartialEq, rs.same, Picky.eq$cmp_PartialEq])(_173, _179), log, out);
-	const items11: Picky.Picky[] = a.items;
-	const args9 = [new rs.Slice(items11, 0, items11.length)] as [rs.Slice<Picky.Picky>];
-	const _188: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(args9[0]), 1];
-	const items12: Picky.Picky[] = b.items;
-	const args10 = [new rs.Slice(items12, 0, items12.length)] as [rs.Slice<Picky.Picky>];
-	const _195: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(args10[0]), 1];
+	const part9 = rs.sliceFrom(a.items);
+	const _188: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(part9), 1];
+	const part10 = rs.sliceFrom(b.items);
+	const _195: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(part10), 1];
 	putEq(!rs.eqTuple([rs.eqTuple([(a15: Picky.Picky, b15: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a15, b15);
 	}, rs.same, (a16: Picky.Picky, b16: Picky.Picky): boolean => {
@@ -4454,44 +4444,36 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(rs.eqSlice(rs.eqTuple([(a17: Picky.Picky, b17: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a17, b17);
 	}, rs.same]))(_205, _209), log, out);
-	const items13: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure8(rs.sliceFrom(a.items), (p4: Picky.Picky): [Picky.Picky, rs.u8] => {
+	const _217: rs.Slice<[Picky.Picky, rs.u8]> = rs.sliceFrom(each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure8(rs.sliceFrom(a.items), (p4: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p4), p4._0 & 0xff] as [Picky.Picky, rs.u8];
-	}).items;
-	const items14: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure9(rs.sliceFrom(b.items), (p5: Picky.Picky): [Picky.Picky, rs.u8] => {
+	}).items);
+	const _224: rs.Slice<[Picky.Picky, rs.u8]> = rs.sliceFrom(each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure9(rs.sliceFrom(b.items), (p5: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p5), p5._0 & 0xff] as [Picky.Picky, rs.u8];
-	}).items;
+	}).items);
 	putEq(!rs.eqSlice(rs.eqTuple([(a18: Picky.Picky, b18: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a18, b18);
-	}, rs.same]))(new rs.Slice(items13, 0, items13.length), new rs.Slice(items14, 0, items14.length)), log, out);
-	const items15: Picky.Picky[] = a.items;
-	const args11 = [new rs.Slice(items15, 0, items15.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _233: [Picky.Picky | undefined] = [one(args11[0], args11[1])];
-	const items16: Picky.Picky[] = b.items;
-	const args12 = [new rs.Slice(items16, 0, items16.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _241: [Picky.Picky | undefined] = [one(args12[0], args12[1])];
+	}, rs.same]))(_217, _224), log, out);
+	const part11 = rs.sliceFrom(a.items);
+	const _233: [Picky.Picky | undefined] = [one(part11, 0)];
+	const part12 = rs.sliceFrom(b.items);
+	const _241: [Picky.Picky | undefined] = [one(part12, 0)];
 	putEq(!rs.eqTuple([rs.eqOption(Picky.eq$cmp_PartialEq)])(_233, _241), log, out);
-	const items17: Picky.Picky[] = a.items;
-	const args13 = [new rs.Slice(items17, 0, items17.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _252: [Picky.Picky] = [one(args13[0], args13[1])];
-	const items18: Picky.Picky[] = b.items;
-	const args14 = [new rs.Slice(items18, 0, items18.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _260: [Picky.Picky] = [one(args14[0], args14[1])];
+	const part13 = rs.sliceFrom(a.items);
+	const _252: [Picky.Picky] = [one(part13, 0)];
+	const part14 = rs.sliceFrom(b.items);
+	const _260: [Picky.Picky] = [one(part14, 0)];
 	putEq(!rs.eqTuple([Picky.eq$cmp_PartialEq])(_252, _260), log, out);
-	const items19: Picky.Picky[] = a.items;
-	const args15 = [new rs.Slice(items19, 0, items19.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _271: [Picky.Picky] = [one(args15[0], args15[1])];
-	const items20: Picky.Picky[] = b.items;
-	const args16 = [new rs.Slice(items20, 0, items20.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _279: [Picky.Picky] = [one(args16[0], args16[1])];
+	const part15 = rs.sliceFrom(a.items);
+	const _271: [Picky.Picky] = [one(part15, 0)];
+	const part16 = rs.sliceFrom(b.items);
+	const _279: [Picky.Picky] = [one(part16, 0)];
 	putEq(!rs.eqTuple([(a19: Picky.Picky, b19: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a19, b19);
 	}])(_271, _279), log, out);
-	const items21: Picky.Picky[] = a.items;
-	const args17 = [new rs.Slice(items21, 0, items21.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _290: [Picky.Picky] = [one(args17[0], args17[1])];
-	const items22: Picky.Picky[] = b.items;
-	const args18 = [new rs.Slice(items22, 0, items22.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _298: [Picky.Picky] = [one(args18[0], args18[1])];
+	const part17 = rs.sliceFrom(a.items);
+	const _290: [Picky.Picky] = [one(part17, 0)];
+	const part18 = rs.sliceFrom(b.items);
+	const _298: [Picky.Picky] = [one(part18, 0)];
 	putEq(!rs.eqTuple([(a20: Picky.Picky, b20: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a20, b20);
 	}])(_290, _298), log, out);
@@ -4518,9 +4500,8 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(rs.eqSlice((a21: Picky.Picky, b21: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a21, b21);
 	})(_331, _335), log, out);
-	const items23: Picky.Picky[] = a.items;
-	const args19 = [new rs.Slice(items23, 0, items23.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const arc: rs.Arc<Picky.Picky> = new rs.Arc(one(args19[0], args19[1]));
+	const part19 = rs.sliceFrom(a.items);
+	const arc: rs.Arc<Picky.Picky> = new rs.Arc(one(part19, 0));
 	const _349: rs.Arc<Picky.Picky> = rs.arcClone(arc);
 	putEq(!rs.eqArc((a22: Picky.Picky, b22: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a22, b22);
@@ -4529,38 +4510,32 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _356: rs.Arc<Picky.Picky> = rs.arcClone(arc);
 	putEq(rs.eqArc(Picky.eq$cmp_PartialEq, true)(arc, _356), log, out);
 	_356[Symbol.dispose]();
-	const items24: Picky.Picky[] = a.items;
-	const args20 = [new rs.Slice(items24, 0, items24.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _362: rs.Arc<Picky.Picky> = new rs.Arc(one(args20[0], args20[1]));
-	const items25: Picky.Picky[] = b.items;
-	const args21 = [new rs.Slice(items25, 0, items25.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _369: rs.Arc<Picky.Picky> = new rs.Arc(one(args21[0], args21[1]));
+	const part20 = rs.sliceFrom(a.items);
+	const _362: rs.Arc<Picky.Picky> = new rs.Arc(one(part20, 0));
+	const part21 = rs.sliceFrom(b.items);
+	const _369: rs.Arc<Picky.Picky> = new rs.Arc(one(part21, 0));
 	putEq(!rs.eqArc((a23: Picky.Picky, b23: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a23, b23);
 	}, true)(_362, _369), log, out);
 	_369[Symbol.dispose]();
 	_362[Symbol.dispose]();
-	const items26: Picky.Picky[] = a.items;
-	const args22 = [new rs.Slice(items26, 0, items26.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const floated: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(args22[0], args22[1]), 0.5] as [Picky.Picky, rs.f32]);
+	const part22 = rs.sliceFrom(a.items);
+	const floated: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(part22, 0), 0.5] as [Picky.Picky, rs.f32]);
 	const _387: rs.Arc<[Picky.Picky, rs.f32]> = rs.arcClone(floated);
 	putEq(!rs.eqArc(rs.eqTuple([(a24: Picky.Picky, b24: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a24, b24);
 	}, rs.same]))(floated, _387), log, out);
 	_387[Symbol.dispose]();
-	const items27: Picky.Picky[] = b.items;
-	const args23 = [new rs.Slice(items27, 0, items27.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _394: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(args23[0], args23[1]), 0.5] as [Picky.Picky, rs.f32]);
+	const part23 = rs.sliceFrom(b.items);
+	const _394: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(part23, 0), 0.5] as [Picky.Picky, rs.f32]);
 	putEq(!rs.eqArc(rs.eqTuple([(a25: Picky.Picky, b25: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a25, b25);
 	}, rs.same]))(floated, _394), log, out);
 	_394[Symbol.dispose]();
-	const items28: Picky.Picky[] = a.items;
-	const args24 = [new rs.Slice(items28, 0, items28.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _405: rs.Arc<Picky.Picky> = new rs.Arc(one(args24[0], args24[1]));
-	const items29: Picky.Picky[] = b.items;
-	const args25 = [new rs.Slice(items29, 0, items29.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _412: rs.Arc<Picky.Picky> = new rs.Arc(one(args25[0], args25[1]));
+	const part24 = rs.sliceFrom(a.items);
+	const _405: rs.Arc<Picky.Picky> = new rs.Arc(one(part24, 1));
+	const part25 = rs.sliceFrom(b.items);
+	const _412: rs.Arc<Picky.Picky> = new rs.Arc(one(part25, 1));
 	putEq(!rs.eqArc((a26: Picky.Picky, b26: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a26, b26);
 	}, true)(_405, _412), log, out);
@@ -4584,9 +4559,8 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}, true))(shared, _433), log, out);
 	rs.dropVec(_433);
 	const _440: [rs.Arc<Picky.Picky>, rs.u8] = [rs.arcClone(arc), 0];
-	const items30: Picky.Picky[] = b.items;
-	const args26 = [new rs.Slice(items30, 0, items30.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _444: [rs.Arc<Picky.Picky>, rs.u8] = [new rs.Arc(one(args26[0], args26[1])), 0];
+	const part26 = rs.sliceFrom(b.items);
+	const _444: [rs.Arc<Picky.Picky>, rs.u8] = [new rs.Arc(one(part26, 0)), 0];
 	putEq(!rs.eqTuple([rs.eqArc((a29: Picky.Picky, b29: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a29, b29);
 	}, true), rs.same])(_440, _444), log, out);
@@ -4607,23 +4581,19 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return !Picky.ne$cmp_PartialEq(a32, b32);
 	})(_477, b), log, out);
 	const _485: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(a.items));
-	const items31: Picky.Picky[] = b.items;
+	const _490: rs.Slice<Picky.Picky> = rs.sliceFrom(b.items);
 	putEq(rs.eqSeq((a33: Picky.Picky, b33: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a33, b33);
-	})(_485, new rs.Slice(items31, 0, items31.length)), log, out);
-	const items32: Picky.Picky[] = a.items;
-	const args27 = [new rs.Slice(items32, 0, items32.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _496: [Picky.Picky] = [one(args27[0], args27[1])];
-	const items33: Picky.Picky[] = b.items;
-	const args28 = [new rs.Slice(items33, 0, items33.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _504: [Picky.Picky] = [one(args28[0], args28[1])];
+	})(_485, _490), log, out);
+	const part27 = rs.sliceFrom(a.items);
+	const _496: [Picky.Picky] = [one(part27, 0)];
+	const part28 = rs.sliceFrom(b.items);
+	const _504: [Picky.Picky] = [one(part28, 0)];
 	putEq(!rs.eqTuple([Picky.eq$cmp_PartialEq])(_496, _504), log, out);
-	const items34: Picky.Picky[] = a.items;
-	const args29 = [new rs.Slice(items34, 0, items34.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	const _515: Picky.Picky = one(args29[0], args29[1]);
-	const items35: Picky.Picky[] = b.items;
-	const args30 = [new rs.Slice(items35, 0, items35.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
-	putEq(Picky.eq$cmp_PartialEq(_515, one(args30[0], args30[1])), log, out);
+	const part29 = rs.sliceFrom(a.items);
+	const _515: Picky.Picky = one(part29, 1);
+	const part30 = rs.sliceFrom(b.items);
+	putEq(Picky.eq$cmp_PartialEq(_515, one(part30, 1)), log, out);
 	const _531: [rs.Cow<Picky.Picky>, rs.Cow<Picky.Picky>] = [new rs.Borrowed(rs.sliceFrom(a.items)), rs.vecFrom(b.items.map(Picky.clone$Clone))];
 	const ca: rs.Cow<Picky.Picky> = _531[0];
 	const cb: rs.Cow<Picky.Picky> = _531[1];
@@ -4633,20 +4603,20 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(!rs.eqSlice((a35: Picky.Picky, b35: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a35, b35);
 	})(rs.cowSlice(ca), rs.cowSlice(cb)), log, out);
-	const items36: Picky.Picky[] = b.items;
+	const _553: rs.Slice<Picky.Picky> = rs.sliceFrom(b.items);
 	putEq(rs.eqSlice((a36: Picky.Picky, b36: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a36, b36);
-	})(rs.cowSlice(ca), new rs.Slice(items36, 0, items36.length)), log, out);
+	})(rs.cowSlice(ca), _553), log, out);
 	putEq(!rs.eqSlice((a37: Picky.Picky, b37: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a37, b37);
 	})(rs.cowSlice(cb), a), log, out);
 	putEq(rs.eqSlice((a38: Picky.Picky, b38: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a38, b38);
 	})(b, rs.cowSlice(ca)), log, out);
-	const items37: Picky.Picky[] = a.items;
+	const _570: rs.Slice<Picky.Picky> = rs.sliceFrom(a.items);
 	putEq(!rs.eqSlice((a39: Picky.Picky, b39: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a39, b39);
-	})(new rs.Slice(items37, 0, items37.length), rs.cowSlice(cb)), log, out);
+	})(_570, rs.cowSlice(cb)), log, out);
 	const _576: rs.Slice<Picky.Picky> = rs.cowSlice(cb);
 	const _578: rs.Slice<Picky.Picky> = rs.sliceFrom(pa);
 	putEq(rs.eqSlice((a40: Picky.Picky, b40: Picky.Picky): boolean => {

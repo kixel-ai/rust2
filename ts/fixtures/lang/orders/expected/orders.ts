@@ -1282,14 +1282,10 @@ export function btrees(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _124: [rs.BTreeSet<Torn.Torn>, rs.BTreeSet<Torn.Torn>] = [rs.btreeNew(Torn.cmp$cmp_Ord) as rs.BTreeSet<Torn.Torn>, rs.btreeNew(Torn.cmp$cmp_Ord) as rs.BTreeSet<Torn.Torn>];
 		const left: rs.BTreeSet<Torn.Torn> = _124[0];
 		const right: rs.BTreeSet<Torn.Torn> = _124[1];
-		const items2: Torn.Torn[] = keys2.items;
-		const mid: number = rs.usizeDiv(keys2.items.length, 2);
-		if (mid > items2.length) {
-			rs.panic("mid > len");
-		}
-		const _138: rs.Iter<Torn.Torn> = rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, mid)));
+		const _129: [rs.Slice<Torn.Torn>, rs.Slice<Torn.Torn>] = rs.sliceSplitAt(rs.sliceFrom(keys2.items), rs.usizeDiv(keys2.items.length, 2));
+		const _138: rs.Iter<Torn.Torn> = rs.iterSlice(rs.sliceItems(_129[0]));
 		rs.btreeExtendKeys(left, _138);
-		const _142: rs.Iter<Torn.Torn> = rs.iterSlice(rs.sliceItems(new rs.Slice(items2, mid, items2.length - mid)));
+		const _142: rs.Iter<Torn.Torn> = rs.iterSlice(rs.sliceItems(_129[1]));
 		rs.btreeExtendKeys(right, _142);
 		rs.localKeyWithBorrowMut(LOG, (a02: rs.ByteVec): undefined => {
 			rs.byteVecClear(a02);

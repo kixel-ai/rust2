@@ -1373,17 +1373,15 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.vecRetain(v, (k6: Key.Key): boolean => {
 			return rs.u32Rem(rs.u32Sub(k6.id, id), 2) === 1;
 		}, rs.drop);
-		const items9: Key.Key[] = v.items;
-		const args58 = [new rs.Slice(items9, 0, items9.length)] as [rs.Slice<Key.Key>];
-		const part16 = ids(args58[0]);
-		Log.note(log, rs.fmtFormat(["retained ", (f: rs.Formatter) => rs.fmtPad(f, part16.v)]));
+		const part24 = rs.sliceFrom(v.items);
+		const part25 = ids(part24);
+		Log.note(log, rs.fmtFormat(["retained ", (f: rs.Formatter) => rs.fmtPad(f, part25.v)]));
 		rs.vecRetain(v, (k7: Key.Key): boolean => {
 			return k7.id !== rs.u32Add(id, 3);
 		}, rs.drop);
-		const items10: Key.Key[] = v.items;
-		const args60 = [new rs.Slice(items10, 0, items10.length)] as [rs.Slice<Key.Key>];
-		const part17 = ids(args60[0]);
-		Log.note(log, rs.fmtFormat(["retained ", (f: rs.Formatter) => rs.fmtPad(f, part17.v)]));
+		const part26 = rs.sliceFrom(v.items);
+		const part27 = ids(part26);
+		Log.note(log, rs.fmtFormat(["retained ", (f: rs.Formatter) => rs.fmtPad(f, part27.v)]));
 		rs.dropVec(v);
 	} else if (_8 === 1) {
 		const v4: rs.Vec<Key.Key> = new rs.Vec();
@@ -1399,24 +1397,21 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v4.items.push(_94);
 		const v3: rs.Vec<Key.Key> = v4;
 		rs.vecDedupBy(v3, Key.eq$cmp_PartialEq, rs.drop);
-		const items6: Key.Key[] = v3.items;
-		const args52 = [new rs.Slice(items6, 0, items6.length)] as [rs.Slice<Key.Key>];
-		const part13 = ids(args52[0]);
-		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part13.v)]));
+		const part18 = rs.sliceFrom(v3.items);
+		const part19 = ids(part18);
+		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part19.v)]));
 		rs.vecDedupByKey(v3, (k5: Key.Key): rs.u32 => {
 			return rs.u32Div(k5.id, 2);
 		}, rs.same, rs.drop);
-		const items7: Key.Key[] = v3.items;
-		const args54 = [new rs.Slice(items7, 0, items7.length)] as [rs.Slice<Key.Key>];
-		const part14 = ids(args54[0]);
-		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part14.v)]));
+		const part20 = rs.sliceFrom(v3.items);
+		const part21 = ids(part20);
+		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part21.v)]));
 		rs.vecDedupBy(v3, (a: Key.Key, b: Key.Key): boolean => {
 			return a.id > b.id;
 		}, rs.drop);
-		const items8: Key.Key[] = v3.items;
-		const args56 = [new rs.Slice(items8, 0, items8.length)] as [rs.Slice<Key.Key>];
-		const part15 = ids(args56[0]);
-		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part15.v)]));
+		const part22 = rs.sliceFrom(v3.items);
+		const part23 = ids(part22);
+		Log.note(log, rs.fmtFormat(["deduped ", (f: rs.Formatter) => rs.fmtPad(f, part23.v)]));
 		rs.dropVec(v3);
 	} else if (_8 === 2) {
 		const v6: rs.Vec<Key.Key> = new rs.Vec();
@@ -1428,10 +1423,9 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v6.items.push(_162);
 		const v5: rs.Vec<Key.Key> = v6;
 		rs.vecSwapRemove(v5, 0)[Symbol.dispose]();
-		const items5: Key.Key[] = v5.items;
-		const args50 = [new rs.Slice(items5, 0, items5.length)] as [rs.Slice<Key.Key>];
-		const part12 = ids(args50[0]);
-		Log.note(log, rs.fmtFormat(["swapped ", (f: rs.Formatter) => rs.fmtPad(f, part12.v)]));
+		const part16 = rs.sliceFrom(v5.items);
+		const part17 = ids(part16);
+		Log.note(log, rs.fmtFormat(["swapped ", (f: rs.Formatter) => rs.fmtPad(f, part17.v)]));
 		rs.vecSwapRemove(v5, 3)[Symbol.dispose]();
 		rs.dropVec(v5);
 	} else if (_8 === 3) {
@@ -1442,10 +1436,9 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v8.items.push(_195);
 		const v7: rs.Vec<Key.Key> = v8;
 		const _209: rs.Vec<Key.Key> = rs.vecFrom(v7.items.map(Key.clone$Clone));
-		const items4: Key.Key[] = _209.items;
-		const args48 = [new rs.Slice(items4, 0, items4.length)] as [rs.Slice<Key.Key>];
-		const part11 = ids(args48[0]);
-		const _200: rs.String = rs.fmtFormat(["cloned ", (f: rs.Formatter) => rs.fmtPad(f, part11.v)]);
+		const part14 = rs.sliceFrom(_209.items);
+		const part15 = ids(part14);
+		const _200: rs.String = rs.fmtFormat(["cloned ", (f: rs.Formatter) => rs.fmtPad(f, part15.v)]);
 		rs.dropVec(_209);
 		Log.note(log, _200);
 		rs.dropVec(v7);
@@ -1464,20 +1457,17 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const v9: rs.Vec<Key.Key> = v10;
 		const _244: Key.Key = key(4);
 		rs.vecInsert(v9, 1, _244);
-		const items: Key.Key[] = v9.items;
-		const args42 = [new rs.Slice(items, 0, items.length)] as [rs.Slice<Key.Key>];
-		const part8 = ids(args42[0]);
-		Log.note(log, rs.fmtFormat(["inserted ", (f: rs.Formatter) => rs.fmtPad(f, part8.v)]));
+		const part8 = rs.sliceFrom(v9.items);
+		const part9 = ids(part8);
+		Log.note(log, rs.fmtFormat(["inserted ", (f: rs.Formatter) => rs.fmtPad(f, part9.v)]));
 		rs.vecRemove(v9, 0)[Symbol.dispose]();
-		const items2: Key.Key[] = v9.items;
-		const args44 = [new rs.Slice(items2, 0, items2.length)] as [rs.Slice<Key.Key>];
-		const part9 = ids(args44[0]);
-		Log.note(log, rs.fmtFormat(["removed ", (f: rs.Formatter) => rs.fmtPad(f, part9.v)]));
+		const part10 = rs.sliceFrom(v9.items);
+		const part11 = ids(part10);
+		Log.note(log, rs.fmtFormat(["removed ", (f: rs.Formatter) => rs.fmtPad(f, part11.v)]));
 		rs.vecTruncate(v9, 1, rs.drop);
-		const items3: Key.Key[] = v9.items;
-		const args46 = [new rs.Slice(items3, 0, items3.length)] as [rs.Slice<Key.Key>];
-		const part10 = ids(args46[0]);
-		Log.note(log, rs.fmtFormat(["truncated ", (f: rs.Formatter) => rs.fmtPad(f, part10.v)]));
+		const part12 = rs.sliceFrom(v9.items);
+		const part13 = ids(part12);
+		Log.note(log, rs.fmtFormat(["truncated ", (f: rs.Formatter) => rs.fmtPad(f, part13.v)]));
 		rs.vecTruncate(v9, 0, rs.drop);
 		rs.dropVec(v9);
 	} else if (_8 === 6) {

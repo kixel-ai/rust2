@@ -6220,9 +6220,7 @@ export function referenced$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void
 	const array: Array<rs.u16 | undefined> = [make$conversions_Value_Option_u16(data, 13), make$conversions_Value_Option_u16(data, 14), make$conversions_Value_Option_u16(data, 15)];
 	const list: rs.Vec<rs.u16 | undefined> = rs.vecFrom([make$conversions_Value_Option_u16(data, 16), make$conversions_Value_Option_u16(data, 17)]);
 	readAs$Option_u16_ref_slice_Option_u16(rs.sliceFrom(array), out);
-	const slice: rs.Slice<rs.u16 | undefined> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$Option_u16_ref_ref_slice_Option_u16(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$Option_u16_ref_ref_slice_Option_u16(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$Option_u16_ref_array3_Option_u16(rs.sliceFrom(array), out);
 	readAs$Option_u16_ref_Vec_Option_u16(list, out);
 	readAs$Option_u16_mut_Vec_Option_u16(list, out);
@@ -6281,9 +6279,7 @@ export function referenced$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const array: rs.String[] = [make$conversions_Value_String(data, 13), make$conversions_Value_String(data, 14), make$conversions_Value_String(data, 15)];
 	const list: rs.Vec<rs.String> = rs.vecFrom([make$conversions_Value_String(data, 16), make$conversions_Value_String(data, 17)]);
 	readAs$String_ref_slice_String(rs.sliceFrom(array), out);
-	const slice: rs.Slice<rs.String> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$String_ref_ref_slice_String(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$String_ref_ref_slice_String(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$String_ref_array3_String(rs.sliceFrom(array), out);
 	readAs$String_ref_Vec_String(list, out);
 	readAs$String_mut_Vec_String(list, out);
@@ -6341,9 +6337,7 @@ export function referenced$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const array: rs.ByteVec[] = [make$conversions_Value_Vec_u8(data, 13), make$conversions_Value_Vec_u8(data, 14), make$conversions_Value_Vec_u8(data, 15)];
 	const list: rs.Vec<rs.ByteVec> = rs.vecFrom([make$conversions_Value_Vec_u8(data, 16), make$conversions_Value_Vec_u8(data, 17)]);
 	readAs$Vec_u8_ref_slice_Vec_u8(rs.sliceFrom(array), out);
-	const slice: rs.Slice<rs.ByteVec> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$Vec_u8_ref_ref_slice_Vec_u8(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$Vec_u8_ref_ref_slice_Vec_u8(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$Vec_u8_ref_array3_Vec_u8(rs.sliceFrom(array), out);
 	readAs$Vec_u8_ref_Vec_Vec_u8(list, out);
 	readAs$Vec_u8_mut_Vec_Vec_u8(list, out);
@@ -6455,9 +6449,7 @@ export function referenced$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVe
 	const array: Logged.Logged[] = [Logged.make$conversions_Value(data, 13), Logged.make$conversions_Value(data, 14), Logged.make$conversions_Value(data, 15)];
 	const list: rs.Vec<Logged.Logged> = rs.vecFrom([Logged.make$conversions_Value(data, 16), Logged.make$conversions_Value(data, 17)]);
 	readAs$conversions_Logged_ref_slice_conversions_Logged(rs.sliceFrom(array), out);
-	const slice: rs.Slice<Logged.Logged> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$conversions_Logged_ref_ref_slice_conversions_Logged(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$conversions_Logged_ref_ref_slice_conversions_Logged(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$conversions_Logged_ref_array3_conversions_Logged(rs.sliceFrom(array), out);
 	readAs$conversions_Logged_ref_Vec_conversions_Logged(list, out);
 	readAs$conversions_Logged_mut_Vec_conversions_Logged(list, out);
@@ -6523,9 +6515,7 @@ export function referenced$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec
 	const array: Named.Named[] = [Named.make$conversions_Value(data, 13), Named.make$conversions_Value(data, 14), Named.make$conversions_Value(data, 15)];
 	const list: rs.Vec<Named.Named> = rs.vecFrom([Named.make$conversions_Value(data, 16), Named.make$conversions_Value(data, 17)]);
 	readAs$conversions_Named_ref_slice_conversions_Named(rs.sliceFrom(array), out);
-	const slice: rs.Slice<Named.Named> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$conversions_Named_ref_ref_slice_conversions_Named(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$conversions_Named_ref_ref_slice_conversions_Named(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$conversions_Named_ref_array3_conversions_Named(rs.sliceFrom(array), out);
 	readAs$conversions_Named_ref_Vec_conversions_Named(list, out);
 	readAs$conversions_Named_mut_Vec_conversions_Named(list, out);
@@ -6583,9 +6573,7 @@ export function referenced$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const array: rs.u32[] = [make$conversions_Value_u32(data, 13), make$conversions_Value_u32(data, 14), make$conversions_Value_u32(data, 15)];
 	const list: rs.Vec<rs.u32> = rs.vecFrom([make$conversions_Value_u32(data, 16), make$conversions_Value_u32(data, 17)]);
 	readAs$u32_ref_slice_u32(rs.sliceFrom(array), out);
-	const slice: rs.Slice<rs.u32> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$u32_ref_ref_slice_u32(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$u32_ref_ref_slice_u32(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$u32_ref_array3_u32(rs.sliceFrom(array), out);
 	readAs$u32_ref_Vec_u32(list, out);
 	readAs$u32_mut_Vec_u32(list, out);
@@ -6644,9 +6632,7 @@ export function referenced$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const array: rs.u64[] = [make$conversions_Value_u64(data, 13), make$conversions_Value_u64(data, 14), make$conversions_Value_u64(data, 15)];
 	const list: rs.Vec<rs.u64> = rs.vecFrom([make$conversions_Value_u64(data, 16), make$conversions_Value_u64(data, 17)]);
 	readAs$u64_ref_slice_u64(rs.sliceFrom(array), out);
-	const slice: rs.Slice<rs.u64> = rs.sliceFrom(array);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	readAs$u64_ref_ref_slice_u64(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), out);
+	readAs$u64_ref_ref_slice_u64(rs.sliceRange(rs.sliceFrom(array), 1), out);
 	readAs$u64_ref_array3_u64(rs.sliceFrom(array), out);
 	readAs$u64_ref_Vec_u64(list, out);
 	readAs$u64_mut_Vec_u64(list, out);

@@ -119,8 +119,8 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		for (const _76 of names.items) {
 			put(out, _76.v);
 		}
-		const part6 = rs.usizeSaturatingSub(data.length, 1);
-		const stop: rs.u16 = rs.u16Mul(at(part6) as rs.u16, 3);
+		const part8 = rs.usizeSaturatingSub(data.length, 1);
+		const stop: rs.u16 = rs.u16Mul(at(part8) as rs.u16, 3);
 		if ((kind & 128) !== 0) {
 			rs.vecRetain(v2, (_240: rs.u16): boolean => {
 				const x23: rs.u16 = _240;
@@ -347,8 +347,8 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.eqSlice(Named.eq$cmp_PartialEq)(changed, named2) ? 1 : 0);
 		rs.byteVecPush(out, !rs.eqSlice(Named.eq$cmp_PartialEq)(changed, named2) ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(changed, named2) === -1 ? 1 : 0);
-		const part5 = rs.usizeDiv(named2.items.length, 2);
-		const _435: rs.Slice<Named.Named> = rs.sliceRange(rs.sliceFrom(named2.items), 0, part5);
+		const part7 = rs.usizeDiv(named2.items.length, 2);
+		const _435: rs.Slice<Named.Named> = rs.sliceRange(rs.sliceFrom(named2.items), 0, part7);
 		rs.vecExtendFromSlice(changed, _435, 16, Named.clone$Clone);
 		rs.byteVecPush(out, changed.items.length & 0xff);
 		const s7 = rs.byteSliceView(data);
@@ -453,18 +453,16 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _615: rs.usize = rs.usizeRem(at(0) as rs.usize, 8);
 		const _621: Named.Named = _604(511);
 		rs.vecInsert(v7, _615, _621);
-		const items: Named.Named[] = v7.items;
-		const args3 = [new rs.Slice(items, 0, items.length)] as [rs.Slice<Named.Named>];
-		putU16s(out, rs.sliceFrom(_605(args3[0]).items));
+		const part = rs.sliceFrom(v7.items);
+		putU16s(out, rs.sliceFrom(_605(part).items));
 		const _634: rs.usize = rs.usizeRem(at(1) as rs.usize, 8);
 		const removed: Named.Named = rs.vecRemove(v7, _634);
 		putU16s(out, rs.sliceFrom([removed.id]));
 		const kept: rs.Vec<Named.Named> = rs.vecFrom(v7.items.map(Named.clone$Clone));
 		const _649: rs.usize = rs.usizeRem(at(2) as rs.usize, 4);
 		rs.vecTruncate(v7, _649);
-		const items2: Named.Named[] = v7.items;
-		const args4 = [new rs.Slice(items2, 0, items2.length)] as [rs.Slice<Named.Named>];
-		putU16s(out, rs.sliceFrom(_605(args4[0]).items));
+		const part2 = rs.sliceFrom(v7.items);
+		putU16s(out, rs.sliceFrom(_605(part2).items));
 		rs.vecTruncate(v7, 0);
 		rs.byteVecPush(out, v7.items.length === 0 ? 1 : 0);
 		const boxed: Named.Named = removed;
@@ -489,21 +487,21 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _720: Named.Named | undefined = optional$edits_Named(_604(5));
 		const _725: Named.Named | undefined = optional$Option_edits_Named(undefined);
 		rs.byteVecPush(out, rs.eqOption(Named.eq$cmp_PartialEq)(_720, _725) ? 1 : 0);
-		const part = at(4) as rs.u16;
-		rs.byteVecPush(out, option_mapOr$1ifckq6(optional$edits_Named(_604(part)), 65535, (n2: Named.Named): rs.u16 => {
+		const part3 = at(4) as rs.u16;
+		rs.byteVecPush(out, option_mapOr$1ifckq6(optional$edits_Named(_604(part3)), 65535, (n2: Named.Named): rs.u16 => {
 			return n2.id;
 		}) & 0xff);
-		const part2 = option_unwrapOr$1fms76t(option_map$1o3cool(rs.sliceFirst(rs.sliceFrom(kept.items)), (a0: Named.Named): rs.Slice<Named.Named> => {
+		const part4 = option_unwrapOr$1fms76t(option_map$1o3cool(rs.sliceFirst(rs.sliceFrom(kept.items)), (a0: Named.Named): rs.Slice<Named.Named> => {
 			return rs.sliceFrom([a0]);
 		}), rs.sliceFrom(kept.items));
-		putU16s(out, rs.sliceFrom(_605(part2).items));
-		const part3 = rs.sliceFrom([_604(7)]);
-		putU16s(out, rs.sliceFrom(_605(part3).items));
+		putU16s(out, rs.sliceFrom(_605(part4).items));
+		const part5 = rs.sliceFrom([_604(7)]);
+		putU16s(out, rs.sliceFrom(_605(part5).items));
 		const _764: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(at(5)));
 		rs.idx(_764, 0);
 		rs.byteVecPush(out, _764.data[_764.start]);
-		const part4 = rs.fromUtf8ErrorClone(rs.resultUnwrapErr(rs.stringFromUtf8(rs.byteVecFrom(Uint8Array.of(97, 255, at(6)))), (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)));
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(part4, f)]).v);
+		const part6 = rs.fromUtf8ErrorClone(rs.resultUnwrapErr(rs.stringFromUtf8(rs.byteVecFrom(Uint8Array.of(97, 255, at(6)))), (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(part6, f)]).v);
 		rs.byteVecPush(out, 16 & 0xff);
 		rs.byteVecPush(out, 16 & 0xff);
 		rs.byteVecPush(out, 4 & 0xff);
@@ -1215,9 +1213,8 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const _28: Tracked.Tracked = tracked(160);
 		rs.vecResize(v, _22, _28, 8, Tracked.clone$Clone, rs.drop);
 		mark(240);
-		const items2: Tracked.Tracked[] = v.items;
-		const args2 = [new rs.Slice(items2, 0, items2.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args2[0])), undefined, true);
+		const part2 = rs.sliceFrom(v.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part2)), undefined, true);
 		const owned: Tracked.Tracked = tracked(224);
 		const _45: rs.usize = rs.u8Rem(at(1), 10) as rs.usize;
 		let captured3: rs.u8 = 0;
@@ -1230,23 +1227,20 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		});
 		rs.dropAfter(_51, () => rs.vecResizeWith(v, _45, _51, 8, rs.drop));
 		mark(241);
-		const items3: Tracked.Tracked[] = v.items;
-		const args3 = [new rs.Slice(items3, 0, items3.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args3[0])), undefined, true);
+		const part3 = rs.sliceFrom(v.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part3)), undefined, true);
 		const _63: rs.usize = rs.usizeRem(at(2) as rs.usize, rs.usizeAdd(v.items.length, 1));
 		const tail: rs.Vec<Tracked.Tracked> = rs.vecSplitOff(v, _63);
 		mark(242);
-		const items4: Tracked.Tracked[] = tail.items;
-		const args4 = [new rs.Slice(items4, 0, items4.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args4[0])), undefined, true);
+		const part4 = rs.sliceFrom(tail.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part4)), undefined, true);
 		const _84: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.min(picked(at(3), at(4), v.items.length).start, v.items.length), rs.usizeStep);
 		rs.vecExtendFromWithin(v, _84, 8, Tracked.clone$Clone);
 		mark(243);
 		rs.vecAppend(v, tail, 8);
 		rs.byteVecPush(out, tail.items.length & 0xff);
-		const items5: Tracked.Tracked[] = v.items;
-		const args5 = [new rs.Slice(items5, 0, items5.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args5[0])), undefined, true);
+		const part5 = rs.sliceFrom(v.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part5)), undefined, true);
 		mark(244);
 		rs.dropVec(tail);
 		rs.dropVec(v);
@@ -1499,9 +1493,8 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		mark(243);
 		const v6: rs.Vec<Tracked.Tracked> = rs.dequeToVec(q);
-		const items: Tracked.Tracked[] = v6.items;
-		const args = [new rs.Slice(items, 0, items.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args[0])), undefined, true);
+		const part = rs.sliceFrom(v6.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part)), undefined, true);
 		mark(244);
 		rs.dropVec(v6);
 		rs.dequeDrop(tail3, rs.drop);
@@ -1846,9 +1839,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		rs.drop(it);
 		mark(241);
-		const items4: Tracked.Tracked[] = v.items;
-		const args28 = [new rs.Slice(items4, 0, items4.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args28[0])), undefined, true);
+		const part9 = rs.sliceFrom(v.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part9)), undefined, true);
 		rs.dropVec(v);
 		const _67: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_67.value));
@@ -1914,8 +1906,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return rs.u8Rem(b13.v, 3) === 0;
 		});
 		const first: rs.u8 | undefined = rs.iterToOption(it3.next());
-		const args30 = [(f: rs.Formatter) => rs.fmtVecExtractIf(it3, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(first, f, rs.u8Debug)];
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args30[0], args30[1]]).v))), undefined, true);
+		const args27 = [(f: rs.Formatter) => rs.fmtVecExtractIf(it3, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(first, f, rs.u8Debug)];
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args27[0], args27[1]]).v))), undefined, true);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(it3, "next")));
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes));
 		rs.vecExtractIfMut(w, undefined, (x10: rs.Place<rs.u16>): boolean => {
@@ -2004,9 +1996,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _301: Held.Held = new Held.Held(start, tracked(113));
 		const _305: rs.Result<Tracked.Tracked, Tracked.Tracked> = rs.Err(tracked(119));
 		rs.drop(rs.spliceFrom(rs.dropAfter(_301, (range) => rs.vecSplice(v2, rs.boundsOf(range, Held.startBound$ops_RangeBounds_usize, Held.endBound$ops_RangeBounds_usize), 8, rs.drop), rs.drop), rs.iterResult(_305, rs.drop, rs.drop), true, true));
-		const items3: Tracked.Tracked[] = v2.items;
-		const args24 = [new rs.Slice(items3, 0, items3.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args24[0])), undefined, true);
+		const part8 = rs.sliceFrom(v2.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part8)), undefined, true);
 		rs.dropVec(v2);
 		const _319: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_319.value));
@@ -2034,8 +2025,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		});
 		const s: rs.Iter<rs.u16[]> = rs.spliceFrom(rs.vecSplice(pairs, r4, 4), _337, true);
 		const first3: rs.u16[] | undefined = rs.iterToOption(s.next());
-		const args25 = [(f: rs.Formatter) => rs.fmtVecSplice(s, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), (value: rs.Iter<rs.u16[]>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Map", (value: rs.Range<rs.u8>, f: rs.Formatter) => rs.fmtRange(value, f, rs.u8Debug))), (f: rs.Formatter) => rs.fmtOption(first3, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug))];
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args25[0], args25[1]]).v))), undefined, true);
+		const args23 = [(f: rs.Formatter) => rs.fmtVecSplice(s, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), (value: rs.Iter<rs.u16[]>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Map", (value: rs.Range<rs.u8>, f: rs.Formatter) => rs.fmtRange(value, f, rs.u8Debug))), (f: rs.Formatter) => rs.fmtOption(first3, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug))];
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args23[0], args23[1]]).v))), undefined, true);
 		const removed: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterChain(rs.iterOption(copy$Option_array2_u16(first3)), s), "next", 4);
 		const iter5: rs.Iter<[rs.usize, rs.Slice<rs.u16>]> = rs.iterEnumerate(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.sliceFrom)));
 		while (true) {
@@ -2100,9 +2091,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _536: rs.usize = rs.u8Rem(at(0), 4) as rs.usize;
 		rs.vecTruncate(flat, _536, rs.drop);
 		mark(241);
-		const items2: Tracked.Tracked[] = flat.items;
-		const args23 = [new rs.Slice(items2, 0, items2.length)] as [rs.Slice<Tracked.Tracked>];
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(args23[0])), undefined, true);
+		const part6 = rs.sliceFrom(flat.items);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(_11(part6)), undefined, true);
 		const leaked: rs.Slice<Tracked.Tracked> = rs.sliceFrom(flat.items);
 		const _553: Tracked.Tracked | undefined = rs.sliceFirst(leaked);
 		if (_553 !== undefined) {

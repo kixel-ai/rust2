@@ -465,16 +465,12 @@ export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const null_: (a0: rs.Place<rs.u16>) => rs.u8 = (p2: rs.Place<rs.u16>): rs.u8 => {
 			return rs.ptrWrappingAdd(p2, -back, 2, 2) === rs.NULL ? 1 : 0;
 		};
-		const slice: rs.Slice<rs.u16> = _23[0];
-		if (0 > slice.length) {
-			rs.panic("mid > len");
-		}
-		const part = rs.sliceAsPtr(new rs.Slice(slice.data, slice.start, 0));
+		const _32: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(_23[0], 0);
+		const part = rs.sliceAsPtr(_32[0]);
 		const _35: rs.u8 = null_(part);
-		const part2 = rs.sliceAsPtr(slice);
+		const part2 = rs.sliceAsPtr(_32[1]);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_35, null_(part2))), undefined, true);
-		const slice2: rs.Slice<rs.u16> = _23[0];
-		const _45: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.optionUnwrap((0 <= slice2.length ? [new rs.Slice(slice2.data, slice2.start, 0), slice2] as [rs.Slice<rs.u16>, rs.Slice<rs.u16>] : undefined) as [rs.Slice<rs.u16>, rs.Slice<rs.u16>] | undefined);
+		const _45: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.optionUnwrap(rs.sliceSplitAtChecked(_23[0], 0));
 		const part3 = rs.sliceAsPtr(_45[0]);
 		const _49: rs.u8 = null_(part3);
 		const part4 = rs.sliceAsPtr(_45[1]);
@@ -506,8 +502,7 @@ export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, null_(part15));
 		const part16 = rs.sliceAsPtr(rs.sliceRange(_23[0], 0, 0));
 		rs.byteVecPush(out, null_(part16));
-		const slice4: rs.Slice<rs.u16> = _23[0];
-		rs.byteVecPush(out, ((slice4.length !== 0 ? [slice4.data[slice4.start], new rs.Slice(slice4.data, slice4.start + 1, slice4.length - 1)] as [rs.u16, rs.Slice<rs.u16>] : undefined) as [rs.u16, rs.Slice<rs.u16>] | undefined) === undefined ? 1 : 0);
+		rs.byteVecPush(out, rs.sliceSplitFirst(_23[0]) === undefined ? 1 : 0);
 		rs.byteVecPush(out, rs.iterCount(rs.sliceChunks(_23[0], 2)) & 0xff);
 	}
 	const byte: rs.Place<rs.u8> = rs.DANGLING;

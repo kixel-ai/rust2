@@ -359,10 +359,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _412_1: rs.usize = w2.log.items.length;
 		const digits: rs.Slice<rs.String> = new rs.Slice(items, 2, to - 2);
 		const n2: rs.usize = _412_1;
-		const items2: rs.String[] = w2.log.items;
-		rs.rangeCheck(items2.length, 0, 2);
+		const _431: rs.Slice<rs.String> = rs.sliceRange(rs.sliceFrom(w2.log.items), 0, 2);
 		const _435: rs.String | undefined = rs.sliceLast(rs.sliceFrom(w2.log.items));
-		const _429: rs.Slice<rs.String> = new rs.Slice(items2, 0, 2);
 		if (!(n2 === rs.usizeAdd(4, zeros))) {
 			_439 = false;
 		} else {
@@ -380,7 +378,7 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		}
 		const _438: boolean = _439;
 		const _448: boolean = rs.eqStr(rs.strsJoin(rs.sliceItems(digits), ""), rs.strSlice(debug.v, 9, 41));
-		const args50 = [(f: rs.Formatter) => rs.fmtResult(result2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_429), f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtOption(_435, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtBool(_438, f), (f: rs.Formatter) => rs.fmtBool(_448, f)];
+		const args50 = [(f: rs.Formatter) => rs.fmtResult(result2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_431), f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtOption(_435, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtBool(_438, f), (f: rs.Formatter) => rs.fmtBool(_448, f)];
 		put(out, rs.fmtFormat([args50[0], " ", args50[1], " ", args50[2], " ", args50[3], " ", args50[4], " "]).v);
 		const _465: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, rs.usizeSub(debug.len, 1));
 		const result3: rs.Result<undefined, rs.FmtError> = _465[0];

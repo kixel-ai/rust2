@@ -2939,8 +2939,7 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const p: rs.Slice<rs.u32> = rs.sliceFrom(a);
 		const first: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2));
 		const again: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 0, 3), 0, 2));
-		const slice: rs.Slice<rs.u32> = rs.sliceFrom(a);
-		const middle: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap((slice.length >= 1 ? [new rs.Slice(slice.data, slice.start, 1), new rs.Slice(slice.data, slice.start + 1, slice.length - 1)] as [rs.Slice<rs.u32>, rs.Slice<rs.u32>] : undefined) as [rs.Slice<rs.u32>, rs.Slice<rs.u32>] | undefined)[1], 0, 2));
+		const middle: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceFrom(a), 1))[1], 0, 2));
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceSame(p, rs.sliceFrom(a)) ? 1 : 0, rs.sliceSame(p, rs.sliceFrom(b)) ? 1 : 0, rs.sliceSame(first, again) ? 1 : 0, rs.sliceSame(first, middle) ? 1 : 0, rs.sliceSame(p, rs.NULL) ? 1 : 0)), undefined, true);
 		const chunk: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2));
 		chunk.data[chunk.start + 1] = (chunk.data[chunk.start + 1] ^ 32768) >>> 0;
@@ -3010,11 +3009,7 @@ export function lent(n: rs.u8): rs.ByteVec {
 	rs.byteVecPush(o, _122);
 	const _140: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.iterToOption(rs.sliceChunksExact(rs.sliceFrom(a), 2).next())), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
 	rs.byteVecPush(o, _140);
-	const slice4: rs.Slice<rs.u32> = rs.sliceFrom(a);
-	if (2 > slice4.length) {
-		rs.panic("mid > len");
-	}
-	const _162: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(new rs.Slice(slice4.data, slice4.start, 2), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
+	const _162: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceSplitAt(rs.sliceFrom(a), 2)[0], 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
 	rs.byteVecPush(o, _162);
 	const pairs: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([[w, 1], [2, 3]]).map(copy$array_u32));
 	const _178: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterToOption(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.sliceFrom)).next())), rs.optionUnwrap(rs.arraySliceFirst(rs.arraySliceFrom(pairs.items, rs.sliceFrom)))) ? 1 : 0;
