@@ -74,11 +74,12 @@ of each C and C++ header. A `c-check` is C or C++ by its extension.
    find them, each naming the native libraries the static library needs, from rustc's
    `--print native-static-libs`:
    - `lib/cmake/<lib>/<lib>-config.cmake`, whose `find_package(<lib>)` gives `<lib>::<lib>`,
-     the static library, and `<lib>::shared`;
+     the static library, and `<lib>::<lib>_shared`;
    - `lib/cps/<lib>.cps`, the [Common Package Specification](https://cps-org.github.io/cps/)
      of the same two components, which CMake 4.3 and newer prefers;
-   - `lib/pkgconfig/<lib>.pc`, the shared library by default and the static one with
-     `--static`; none on Windows, whose MSVC has no pkg-config convention.
+   - `lib/pkgconfig/<lib>.pc`, which links the shared library, as the linker prefers it to
+     the static one beside it; `--static` adds the native libraries, for a prefix that holds
+     only the static library. None on Windows, whose MSVC has no pkg-config convention.
 
    The shared library's SONAME, or `@rpath` install name on macOS, holds the whole version,
    `lib<lib>.so.0.4.12` or `lib<lib>.0.4.12.dylib`: every binding checks at load that the

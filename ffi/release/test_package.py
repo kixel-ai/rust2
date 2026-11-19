@@ -207,6 +207,7 @@ class CArchive(unittest.TestCase):
         self.assertIn("Description: Media over QUIC, bindings\n", pc)
         config = package.cmake_config(info("/src"), "aarch64-apple-darwin", files, natives)
         self.assertIn("add_library(moq::moq STATIC IMPORTED)", config)
+        self.assertIn("add_library(moq::moq_shared SHARED IMPORTED)", config)
         self.assertIn('IMPORTED_LOCATION "${_moq_prefix}/lib/libmoq.0.4.12.dylib"', config)
         self.assertIn("INTERFACE_LINK_LIBRARIES [==[-framework Security;iconv]==]", config)
         self.assertEqual(config.count('INTERFACE_COMPILE_FEATURES "c_std_11;cxx_std_17"'), 2)
@@ -215,7 +216,7 @@ class CArchive(unittest.TestCase):
         self.assertEqual((cps["name"], cps["version"], cps["compat_version"]), ("moq", "0.4.12", "0.4.0"))
         self.assertEqual(cps["default_components"], ["moq"])
         self.assertEqual(cps["components"]["moq"]["link_libraries"], ["-framework Security", "iconv"])
-        self.assertEqual(cps["components"]["shared"]["location"], "@prefix@/lib/libmoq.0.4.12.dylib")
+        self.assertEqual(cps["components"]["moq_shared"]["location"], "@prefix@/lib/libmoq.0.4.12.dylib")
         self.assertEqual(cps["website"], "https://github.com/moq-dev/moq")
         self.assertEqual(cps["version_schema"], "simple")
         prerelease = info("/src", version="2.0.0-rc.1")
@@ -225,7 +226,7 @@ class CArchive(unittest.TestCase):
         windows = package.cps(info("/src"), package.c_files("moq", "x86_64-pc-windows-msvc", "0.4.12"),
                               [("lib", "ntdll"), ("flag", "/defaultlib:msvcrt")])
         windows = json.loads(windows)["components"]
-        self.assertEqual(windows["shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
+        self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
         self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
 
     def test_commons_are_defined_unless_a_member_defines_them(self):
