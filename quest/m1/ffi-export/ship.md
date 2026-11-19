@@ -20,7 +20,6 @@ then see change. A sibling planned later adds itself to `Required` here.
 ## Required
 
 - [Refusals](/quest/m1/ffi-refusals/README.md) - the census lists no refusals at the moq pin, and `ffi.toml` is gone
-- [API surface lock](/quest/m1/ffi-export/api-surface.md) - each language's rendered API is checked before moq adopts it
 - [C and C++ idioms](/quest/m1/ffi-export/cpp-idioms.md) - numeric slice views and must-use returns change the C++ API
 - [Swift spans](/quest/m1/ffi-export/swift-span.md) - lent bytes and slices change the Swift API
 - [Kotlin idioms](/quest/m1/ffi-export/kotlin-idioms.md) - direct buffers and Java annotations change the Kotlin API
