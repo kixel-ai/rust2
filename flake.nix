@@ -307,7 +307,7 @@
               pkgs.firefox
               pkgs.binaryen
             ];
-            # `just ffi bench` builds moq's rs/moq-c, whose VAAPI bindings run bindgen.
+            # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
             # ... and its programs over instrument-hooks, for CodSpeed.
             CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";

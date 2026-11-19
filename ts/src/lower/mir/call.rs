@@ -2414,7 +2414,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The start and optional end of a range: `a..b`, `..b`, `a..`, or `..`.
-	fn range_bounds(
+	pub(super) fn range_bounds(
 		&mut self,
 		op: &Operand<'tcx>,
 		ty: Ty<'tcx>,

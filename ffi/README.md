@@ -94,7 +94,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
+| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
 | any other type | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value; one that is not `Send`, such as kio's `clock::Entered`, stays on the thread that made it, as [the C ABI](#the-c-abi)'s threads say |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -880,7 +880,9 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   any executor awaits it.
 - **Checks**: a borrow or move Rust's rules refuse at run time, such as a borrow of a value
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
-  the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
+  the rule, before any Rust code runs, so the call changed nothing, but that a call
+  consuming an object took it, as its parameter consumes it whether or not the value moves,
+  and frees it as a scope's end would. So every function whose objects can fail a check `throws`, and a
   field read stays a property whose getter throws, except one of a noncopyable value,
   whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
   checks can fail, or a record or enum holding one, `description` and `debugDescription`
@@ -1441,6 +1443,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
@@ -1501,6 +1504,34 @@ the nightly does. `KNOWN` lists what a binding still gets wrong, each with the q
 fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
 on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
 until the sampler covers it.
+The protocol tests run random sequences of borrows, exclusive lends, moves, drops, frees,
+polls, and cancels over the api fixture's checked types, on the thread that made a value
+and another, against `tests/protocol/model.rs`: an executable model of what this README
+says each step returns, the status a check fails with included. A seed makes a script of
+steps and the model's transcript of their outcomes, shaped by what a driver's surface can
+run, and each driver runs the script through its surface and prints the outcomes back, which
+must match line for line, with the counts of the script's waker where it polls with one.
+`tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
+`just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
+its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, and
+`.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+where its collector frees or a failed check where it aborts, and adds what the binding does
+its own way, such as a close that refuses before Rust's check, a future made only as it is
+awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its
+scripts to it. The gate runs 500 scripts of 100 steps through the C ABI, failing unless
+they meet every status and make every kind of handle, and 40 to 500 through each binding;
+`just ffi protocol`, run nightly, runs 20,000 of 400 steps through the C ABI and 1,000 to
+5,000 through each binding.
+`tests/borrow.rs` and `tests/hold.rs` model the borrow check and the bindings' hold counts
+under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futures and
+threads, each mounting the runtime's own source over loom's primitives. The futures' model
+races a wake from another thread against a poll, a change of waker, a start, and a free:
+each C waker drops once and is never woken after, a pending poll is always woken, and a
+future that is not `Send` refuses a poll elsewhere and drops on its own thread. The threads'
+model races a free elsewhere against its thread's check, wake, drain, and exit, and lends
+calls to homes that call each other: each value drops once on its own thread, or leaks once
+that thread exited, and each home goes idle once no value or call holds it. Each explores
+every interleaving, or for homes those within a preemption bound, in the gate.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
@@ -1513,8 +1544,9 @@ their output to the native transcript; it runs `tests/api.c` and `tests/api.cpp`
 uninstrumented library under Valgrind's memcheck, `tests/api.go` under Go's race detector
 and cgocheck2, and `tests/api.py`'s checks on a debug build of the newest CPython, then its
 `leaks` case, which loops them and fails unless the interpreter's references and memory
-blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` under Miri
-with strict provenance.
+blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` and the
+protocol scripts from `tests/miri/protocol.rs` under Miri with strict provenance. The
+protocol scripts' C driver runs under each sanitizer too.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
