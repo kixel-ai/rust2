@@ -880,7 +880,9 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   any executor awaits it.
 - **Checks**: a borrow or move Rust's rules refuse at run time, such as a borrow of a value
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
-  the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
+  the rule, before any Rust code runs, so the call changed nothing, but that a call
+  consuming an object took it, as its parameter consumes it whether or not the value moves,
+  and frees it as a scope's end would. So every function whose objects can fail a check `throws`, and a
   field read stays a property whose getter throws, except one of a noncopyable value,
   whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
   checks can fail, or a record or enum holding one, `description` and `debugDescription`

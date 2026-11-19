@@ -152,11 +152,14 @@ fn difference(script: &Script, stdout: &str) -> String {
 }
 
 /// Each profile's scripts keep to it: no worker steps, failed checks, frees, drops, polls,
-/// or awaits where it has none, and locals on a home where it says.
+/// or awaits where it has none, and locals on a home where it says. Of the profiles its
+/// flags make, a fixed sample, each with a script of its own seed.
 #[test]
 fn protocol_profiles() {
-	use model::{Op, Outcome};
-	for bits in 0..4096u16 {
+	use model::{Op, Outcome, Status};
+	for seed in 0..4096u64 {
+		// Fibonacci hashing spreads consecutive seeds over the flags' bits.
+		let bits = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 48;
 		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
@@ -171,16 +174,28 @@ fn protocol_profiles() {
 			drops: on(9),
 			closes: on(10),
 			moves_close: on(11),
+			borrowck: on(12),
+			held: on(13),
+			consumes: on(14),
+			pooled: on(15),
 		};
-		if (profile.lazy && profile.polls) || !(profile.frees || profile.drops) {
+		if (profile.lazy && profile.polls)
+			|| !(profile.frees || profile.drops)
+			|| (profile.polls && !profile.held)
+			|| (profile.lazy && !(profile.borrowck && profile.failures))
+		{
 			continue;
 		}
-		for script in scripts(u64::from(bits), 1, 100, profile) {
-			for step in &script.steps {
+		for script in scripts(seed, 1, 100, profile) {
+			for (i, step) in script.steps.iter().enumerate() {
 				let line = format!("script {}: {} -> {}", script.seed, step.line(), step.expect.line());
 				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
 				assert!(
 					profile.failures || !matches!(step.expect, Outcome::Failed(_)),
+					"{profile:?}: {line}"
+				);
+				assert!(
+					profile.borrowck || step.expect != Outcome::Failed(Status::Moved),
 					"{profile:?}: {line}"
 				);
 				match step.op {
@@ -196,6 +211,18 @@ fn protocol_profiles() {
 						"{profile:?}: {line}"
 					),
 					_ => {}
+				}
+				// A future not held is awaited in the next step, on its thread.
+				if let Some(f) = step.op.made()
+					&& script.kinds.get(f).is_some_and(|kind| kind.future())
+					&& step.expect == Outcome::Ok
+					&& !profile.held
+				{
+					let next = &script.steps[i + 1];
+					assert!(
+						next.op == Op::Await(f) && next.thread == step.thread,
+						"{profile:?}: {line}"
+					);
 				}
 			}
 		}

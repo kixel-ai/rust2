@@ -47,7 +47,8 @@ pub struct Profile {
 	/// them: a step making one only names its arguments, and its await makes it there,
 	/// checks and borrows included, then runs it to its end. Never with `polls`.
 	pub lazy: bool,
-	/// `_drop` amid the steps, which a binding with no `close()` cannot make.
+	/// `_drop` amid the steps, which a surface with no `close()`, or one that frees only by
+	/// letting go of a value, cannot make.
 	pub drops: bool,
 	/// A drop closes the binding's object: a later call naming it fails as moved in the
 	/// binding, before any check of Rust's, of it or of any other argument, and a later
@@ -55,6 +56,20 @@ pub struct Profile {
 	pub closes: bool,
 	/// A move out closes the binding's object too, as a drop does with `closes`.
 	pub moves_close: bool,
+	/// Steps Rust's borrow checker refuses at compile time, which a surface whose compiler
+	/// tracks moves and borrows as Rust's does cannot write: one naming a value moved out
+	/// or dropped, but for a free of it, which then frees nothing, and one passing a value
+	/// exclusively beside another borrow of it.
+	pub borrowck: bool,
+	/// A future that is not `Send` made from no value that is not `Send` lives on a home,
+	/// through its `_homed` twin, as a binding whose futures any executor polls makes it.
+	pub pooled: bool,
+	/// A call moving a value out frees its handle even when a check refuses it, as a
+	/// surface's consuming parameter does, which takes the value whether or not it moves.
+	pub consumes: bool,
+	/// Futures held between steps; else each is awaited, on its thread, in the step after
+	/// the one that makes it, as a surface whose futures are its own async calls runs it.
+	pub held: bool,
 }
 
 impl Profile {
@@ -72,6 +87,10 @@ impl Profile {
 		drops: true,
 		closes: false,
 		moves_close: false,
+		borrowck: true,
+		pooled: false,
+		consumes: false,
+		held: true,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
@@ -97,6 +116,10 @@ impl Profile {
 		drops: true,
 		closes: true,
 		moves_close: false,
+		borrowck: true,
+		pooled: false,
+		consumes: false,
+		held: true,
 	};
 
 	/// Python's: an object frees once its last reference goes, as `del` lets go of it
@@ -116,6 +139,10 @@ impl Profile {
 		drops: false,
 		closes: false,
 		moves_close: false,
+		borrowck: true,
+		pooled: false,
+		consumes: false,
+		held: true,
 	};
 
 	/// Go's: a goroutine moves between threads, so every value that is not `Send` is made
@@ -134,6 +161,35 @@ impl Profile {
 		drops: true,
 		closes: true,
 		moves_close: true,
+		borrowck: true,
+		pooled: false,
+		consumes: false,
+		held: true,
+	};
+
+	/// C++'s: a failed check aborts, an object frees as it is destroyed, with no `_drop`,
+	/// and nothing is made on a home, which only a binding whose threads move asks for.
+	pub const CPP: Self = Self {
+		homes: false,
+		failures: false,
+		drops: false,
+		..Self::C
+	};
+
+	/// Swift's: noncopyable objects free in `deinit`, with no `_drop`, and its compiler
+	/// checks moves and borrows as Rust's does; a future is an `async` call, awaited as it
+	/// is made, whose own waker the script cannot count, on a home if made from nothing
+	/// that is not `Send`; a call that consumes an object frees it whether or not its check
+	/// passes.
+	pub const SWIFT: Self = Self {
+		homes: false,
+		drops: false,
+		borrowck: false,
+		pooled: true,
+		consumes: true,
+		polls: false,
+		held: false,
+		..Self::C
 	};
 }
 
@@ -373,6 +429,45 @@ impl Op {
 			| Op::Drain => Vec::new(),
 		}
 	}
+
+	/// The slot a step making a handle fills.
+	pub fn made(self) -> Option<usize> {
+		match self {
+			Op::CounterNew(h, _)
+			| Op::LedgerNew(h)
+			| Op::TallyNew(h)
+			| Op::LocalNew(h, _)
+			| Op::MetersNew(h)
+			| Op::MeterNew(h)
+			| Op::CounterClone(h, _)
+			| Op::PlusLater(h, _, _)
+			| Op::LedgerEdit(h, _)
+			| Op::LedgerReceipt(h, _)
+			| Op::ReceiptClone(h, _)
+			| Op::BumpLater(h, _)
+			| Op::LocalShare(h, _)
+			| Op::LocalLater(h, _)
+			| Op::MetersFirst(h, _) => Some(h),
+			_ => None,
+		}
+	}
+
+	/// The handle a step moves the value out of.
+	pub fn moved(self) -> Option<usize> {
+		match self {
+			Op::CounterIntoSum(h, _) | Op::DraftCommit(h) | Op::Tallied(h) | Op::Stored(h) => Some(h),
+			_ => None,
+		}
+	}
+
+	/// Every handle a step passes: the objects it names, and the future it frees, polls,
+	/// or awaits.
+	pub fn named(self) -> Vec<usize> {
+		match self {
+			Op::Free(h) | Op::Poll(h) | Op::Await(h) => vec![h],
+			op => op.handles(),
+		}
+	}
 }
 
 impl Step {
@@ -575,6 +670,10 @@ struct Model {
 	/// Whether a future is made only as it is awaited, and whether this step is that await.
 	lazy: bool,
 	making: bool,
+	/// Whether a future that is not `Send` made from no such value lives on a home.
+	pooled: bool,
+	/// Whether a call moving a value out frees its handle even when a check refuses it.
+	consumes: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -593,6 +692,8 @@ impl Model {
 			moves_close: profile.moves_close,
 			lazy: profile.lazy,
 			making: false,
+			pooled: profile.pooled,
+			consumes: profile.consumes,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -752,6 +853,12 @@ impl Model {
 		self.slots[f].done = true;
 	}
 
+	/// Whether Rust's borrow checker would refuse `op` at compile time.
+	fn refused(&self, op: Op) -> bool {
+		let aliased = matches!(op, Op::CounterAddTo(h, Some(o)) if h == o);
+		aliased || (!matches!(op, Op::Free(_)) && op.named().iter().any(|&h| self.slots[h].gone))
+	}
+
 	/// Run `op` on `thread`: what it returns.
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
 		if self.closes {
@@ -773,7 +880,14 @@ impl Model {
 		}
 		match outcome {
 			Ok(outcome) => outcome,
-			Err(status) => Outcome::Failed(status),
+			Err(status) => {
+				if self.consumes
+					&& let Some(h) = op.moved()
+				{
+					self.run(thread, Op::Free(h)).expect("a free never fails");
+				}
+				Outcome::Failed(status)
+			}
 		}
 	}
 
@@ -967,7 +1081,8 @@ impl Model {
 			Op::BumpLater(to, h) => {
 				self.exclusive(h, thread)?;
 				self.slots[h].exclusive += 1;
-				let mut slot = Slot::new(Kind::BumpLater, here);
+				// A tally is `Send`, so its future is made from nothing that is not.
+				let mut slot = Slot::new(Kind::BumpLater, if self.pooled { Owner::Home } else { here });
 				slot.holds_exclusive = Some(h);
 				self.place(to, slot);
 				Outcome::Ok
@@ -1179,9 +1294,25 @@ const LIVE: usize = 8;
 /// nothing amid the steps, then each object freed or dropped, each on its own thread, and
 /// a drain of each thread, so nothing is left for a thread's exit to drop.
 pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
+	assert!(
+		profile.frees || profile.drops,
+		"a profile ends each value by a free or a drop"
+	);
+	assert!(
+		profile.held || !profile.polls,
+		"a future awaited as it is made is never polled"
+	);
 	let mut rng = Rng(seed);
 	assert!(!(profile.lazy && profile.polls), "a lazy future is only awaited");
 	assert!(profile.frees || profile.drops, "the cleanup frees or drops each object");
+	// A lazy future checks its arguments only at its await, which a step of a surface
+	// whose compiler checks moves could not reach with one moved out.
+	assert!(
+		profile.borrowck || !profile.lazy,
+		"a lazy future's await may meet a value moved out"
+	);
+	// Nor does a step making one know whether its await will fail.
+	assert!(profile.failures || !profile.lazy, "a lazy future's await may fail");
 	let mut model = Model::new(profile);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
@@ -1197,7 +1328,16 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 		if !profile.failures && matches!(model.clone().step(thread, op), Outcome::Failed(_)) {
 			continue;
 		}
+		if !profile.borrowck && model.refused(op) {
+			continue;
+		}
 		push(&mut model, &mut steps, thread, op);
+		if let Some(f) = op
+			.made()
+			.filter(|&f| !profile.held && f < model.slots.len() && model.slots[f].kind.future())
+		{
+			push(&mut model, &mut steps, thread, Op::Await(f));
+		}
 	}
 	let live = |model: &Model, kinds: &[Kind]| -> Vec<usize> {
 		(0..model.slots.len())
