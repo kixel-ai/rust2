@@ -2748,6 +2748,23 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	// A baseline from before an exception was known by its native type too, whose key alone
+	// names one class of those an addition gives it.
+	let mut legacy: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for names in legacy["names"].as_object_mut().unwrap().values_mut() {
+		names.as_object_mut().unwrap().retain(|key, _| !key.contains(" / as "));
+	}
+	let path = dir.join("legacy.json");
+	std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let output = exporter("lock", &dir.join("legacy"), &targets, &args, &["--features", "added"])
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"an addition broke a baseline without native exception keys:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
 	let names = locked("names");
 	assert!(!names.status.success(), "binding renames passed the lock");
 	let stderr = String::from_utf8_lossy(&names.stderr);

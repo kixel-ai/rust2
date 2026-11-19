@@ -262,7 +262,9 @@ item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
 public names. A clash that renames a kept class, function, or member reports its language
-and old and new names at the item's span. Staged `--api` files have no binding names; a
+and old and new names at the item's span. An error type's exception class is known by its
+error type and the type the language holds it as, since Kotlin's `UShortArray` and
+`List<UShort>` may share one error type: one added beside another adds a class. Staged `--api` files have no binding names; a
 baseline must be a complete export. An older baseline without name tables still has its
 structure checked, reporting each break before the error that it lacks names, so its
 re-export with this version accepts no break that check would have caught. A binding
