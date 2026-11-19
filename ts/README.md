@@ -1017,7 +1017,7 @@ they need.
   `BigInt.asUintN(64, ...)`, which V8 lowers to 64-bit machine operations, measured
   against limbs in Node, Bun, Chrome, and Firefox: it ties or loses on a product past 2^53
   divided back down (0.3-0.7x in Node and Chrome, 1.1-1.3x in Firefox) and on comparing
-  two such products (0.4-0.5x), and wins only where every value stays past 2^53, 3-5x on a
+  two such products (0.4-0.5x, 0.9x in Firefox), and wins only where every value stays past 2^53, 3-5x on a
   wrapping product and on division by a divisor past 2^32. Limbs took that win without
   the representation: a wrapping product from the halves, and the `DataView` for the
   division, made the hash workload `int/` 2.5-5x faster in all four engines, at the
