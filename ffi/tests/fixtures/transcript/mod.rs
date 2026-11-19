@@ -17,6 +17,7 @@ mod parse;
 pub(crate) mod go;
 pub(crate) mod kotlin;
 pub(crate) mod python;
+pub(crate) mod swift;
 
 use std::collections::BTreeMap;
 use std::path::Path;
