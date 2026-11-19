@@ -433,7 +433,11 @@ fn sanitized(sanitizer: &str) {
 		run(Command::new(compiler)
 			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
 			.arg(api.out.join("include"))
-			.args(scripts.iter().flat_map(|dir| [std::ffi::OsStr::new("-I"), dir.as_os_str()]))
+			.args(
+				scripts
+					.iter()
+					.flat_map(|dir| [std::ffi::OsStr::new("-I"), dir.as_os_str()]),
+			)
 			.arg(tests.join(src))
 			.arg(&lib)
 			.args(&native)
