@@ -547,6 +547,7 @@ fn update() {
 	});
 	// What does not build as it is, needing a feature or a system library, is no test
 	// of the exporter.
+	prune(&crates);
 	write_workspace(&crates, &resolve(&crates));
 	crates.retain(|k| {
 		let output = super::output(
@@ -573,10 +574,15 @@ fn update() {
 		let _ = writeln!(text, "{} {}", krate.name, krate.version);
 	}
 	std::fs::write(corpus_dir().join("crates.txt"), text).unwrap();
-	// Cargo drops what only a dropped crate locked, and moves nothing else.
-	write_workspace(&crates, &BTreeMap::new());
+	prune(&crates);
+	std::fs::copy(&lock, corpus_dir().join("Cargo.lock")).unwrap();
+}
+
+/// Write the workspace of `crates` and drop from its lockfile what only a crate no longer
+/// among them locked, which a `--locked` command refuses; Cargo moves nothing else.
+fn prune(crates: &[Krate]) {
+	write_workspace(crates, &BTreeMap::new());
 	run(cargo()
 		.args(["metadata", "--format-version", "1", "--offline"])
 		.current_dir(workspace()));
-	std::fs::copy(&lock, corpus_dir().join("Cargo.lock")).unwrap();
 }
