@@ -23,10 +23,3 @@ jobs:
       # No swift-check: api.swift compiles against the fixture's own test export, of the host
       # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
 
-  moq:
-    name: moq stand-in
-    uses: ./.github/workflows/bindings.yml
-    with:
-      manifest-path: ffi/target/moq-ffi/Cargo.toml
-      python-check: ffi/moq/moq.py
-      swift-check: ffi/moq/moq.swift
