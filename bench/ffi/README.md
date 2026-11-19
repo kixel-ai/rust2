@@ -9,7 +9,7 @@ nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build bui
 ```
 
 `ffi/moq/bench/export.*` time the same cases in each language, `export.rs` the floor
-on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/moq-c, which
+on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, which
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
 ([TypeScript](#typescript)). Each program runs its cases twice and prints the second,
@@ -27,12 +27,12 @@ single-threaded case on every push to main and on each PR that can move one.
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
 | handle call | `track.is_closed()`: one borrowed handle, a bool back, and moq's own read lock | `noop()` |
-| u64 getter | `demand.sequence()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
+| u64 getter | `demand.start()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
 | shared call, own call | the handle call on 4 threads at once, on one handle they share, then on a clone each | none |
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
-| write | `group.write_frame(at, frame)` with one `Timestamp` and 100 B, copied into Rust | `write_frame` |
+| write | `group.write_frame(at, frame)` with one `Timestamp` a group and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
@@ -451,12 +451,13 @@ From the CPU tables of 2026-11-10, measured at rust2 `7383790d` at a load averag
 29 and since replaced by the tables above, read against the code each call runs. In order of what it costs moq's
 frame path:
 
-1. **A call per frame timestamp.** `Timestamp` is `Copy` with private fields, so it
-   crosses as its 16 bytes, and a stamped frame allocates and frees nothing in Rust. As
-   a handle, it cost 21 ns in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go,
-   and 245 in Dart (stamped write minus write, in the tables above); as a value, see
-   [Copy values](#copy-values): what remains is each language's call and, in Kotlin and
-   Python, an object of its own.
+1. **A call per frame timestamp.** At moq `ffcb7cd9`, `Timestamp` was `Copy` with private
+   fields, so it crossed as its 16 bytes, and a stamped frame allocated and freed nothing in
+   Rust; at `1aa86d5e6` it is a handle again until
+   [niche values](/quest/m1/ffi-export/niche-values.md) lands. As a handle, it cost 21 ns
+   in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go, and 245 in Dart (stamped
+   write minus write, in the tables above); as a value, see [Copy values](#copy-values):
+   what remains is each language's call and, in Kotlin and Python, an object of its own.
 2. **Ownership of a returned object.** An object return costs C 25 ns, but Go 263 and
    Dart 242, ten times C, and most of the difference is each runtime's per-object
    registration with its collector. Profiled 2026-11-14 on **nixos** with `perf`, for an
@@ -578,9 +579,10 @@ measure them at the load beside them.
 
 ### Copy values
 
-A `Copy` type with private fields, such as `Timestamp`, crosses by value: a struct of its
-bytes in C, C++, Swift, Go, and Dart, a class of a `Long` per word in Kotlin (a word value
-class when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
+A `Copy` type with private fields whose every value fills its bytes crosses by value, as
+`Timestamp` did at moq `ffcb7cd9`: a struct of its bytes in C, C++, Swift, Go, and Dart, a
+class of a `Long` per word in Kotlin (a word value class when it fits one), and a class of
+the runtime's `Value` holding its bytes in Python.
 Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
 Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
 

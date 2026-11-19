@@ -12,7 +12,7 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { car
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
-moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
+moq_rev := "1aa86d5e6d091848cb1848c702a911099706b1a4"
 
 # swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
@@ -40,6 +40,10 @@ test *args:
 # Round-trip every sampled type shape in every language, as the nightly does; the gate runs a subset.
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
+
+# Run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does; the gate runs fewer.
+protocol:
+    cargo test --locked --test fixtures protocol_nightly -- --ignored
 
 # Run the api fixture's web test in headless Chromium and Firefox, in the bench shell, which carries them: nix develop .#bench.
 browsers:
@@ -92,7 +96,7 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/moq-c.
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
@@ -110,16 +114,16 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program cod
     cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     # The hooks' search path goes to the program alone, so moq builds as bench-run's export does.
     cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- -L "native=$hooks"
-    # moq-c's header is written to its build script's output directory.
-    moqc=$(cd "$src" && cargo build --locked --quiet --release --package moq-c --message-format=json \
-        | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("moq-c#"))) | .out_dir')
+    # libmoq's header is written to its build script's output directory.
+    moqc=$(cd "$src" && cargo build --locked --quiet --release --package libmoq --message-format=json \
+        | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("libmoq#"))) | .out_dir')
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.c "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" -I "$hooks" moq/bench/moq-c.c "$src/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-moq-c
     c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-cpp
     {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
-    read -ra native < target/moq-native
-    # The include path goes in CGO_CPPFLAGS, so cgo keeps its default -O2 -g in CGO_CFLAGS.
-    export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a $hooks/libcodspeed.a ${native[*]}" GOFLAGS=-buildvcs=false
+    # The include path goes in CGO_CPPFLAGS, so cgo keeps its default -O2 -g in CGO_CFLAGS;
+    # the runtime's #cgo line links moq.
+    export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$hooks/libcodspeed.a" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
@@ -278,9 +282,9 @@ moq checkout="": (moq-cpp checkout)
     mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
     pyright -p tests/pyright.json "$out/python/moq.py"
     {{ quote(just_executable()) }} moq-swift-run
-    # The Go, through cgo, linking the library and what it needs besides.
+    # The Go, through cgo, whose runtime's #cgo line links the library and what it needs besides.
     {{ quote(just_executable()) }} go-module moq-go moq/moq.go
-    export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
+    export GOFLAGS=-buildvcs=false
     (cd target/moq-go/export && go vet ./...)
     (cd target/moq-go && go vet ./... && go run .)
     # The Dart, through the shared library the dart feature builds.
@@ -362,7 +366,7 @@ swift-target macos:
     #!/usr/bin/env bash
     if [ "{{ os() }}" = macos ]; then echo "-target $(uname -m)-apple-macos{{ macos }}"; fi
 
-# Lay out target/<dir> as a Go module whose main package is <main>, requiring the export's module of a package per crate in export/, beside the header it includes, linking the library through cgo.
+# Lay out target/<dir> as a Go module whose main package is <main>, requiring the export's module of a package per crate in export/, with the library its runtime's #cgo line links, less the LLVM bitcode the go command refuses there.
 [private]
 go-module dir main:
     #!/usr/bin/env bash
@@ -370,9 +374,13 @@ go-module dir main:
     out=target/export/moq
     dir=target/{{ dir }}
     rm -rf "$dir"
-    mkdir -p "$dir/include"
+    mkdir -p "$dir"
     cp -r "$out/go" "$dir/export"
-    cp "$out/include/moq.h" "$dir/include/"
+    lib=libmoq_$(go env GOOS)_$(go env GOARCH).a
+    grep -qF "LDFLAGS: \${SRCDIR}/$lib" "$dir/export/rt/rt.go" || { echo "the export's Go links no $lib" >&2; exit 1; }
+    "$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-objcopy" \
+        --remove-section=.llvmbc --remove-section=.llvmcmd --remove-section=__LLVM,__bitcode --remove-section=__LLVM,__cmdline \
+        "$out/target/release/libmoq.a" "$dir/export/rt/$lib"
     cp {{ main }} "$dir/main.go"
     printf 'module moqtest\n\ngo 1.24\n\nrequire moq v0.0.0\n\nreplace moq => ./export\n' > "$dir/go.mod"
 

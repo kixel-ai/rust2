@@ -28,6 +28,7 @@ import {
 import type { LinkedList } from "./collections.ts";
 import type { String as RsString } from "./str.ts";
 import type { Arc } from "./task.ts";
+import { utf8Encode } from "./utf8.ts";
 
 /** What `Hash` writes into, by `Hasher`'s methods: `DefaultHasher`, a hash collection's own, or the crate's. */
 export interface Hasher {
@@ -485,7 +486,7 @@ export class OwnHasher<H> implements Hasher {
 
 	str(str: string): void {
 		if (this.m.str) return this.m.str(this.h, str);
-		const bytes = encoder.encode(str);
+		const bytes = utf8Encode(str);
 		this.write(bytes, 0, bytes.length);
 		this.u8(0xff);
 	}
@@ -508,7 +509,6 @@ export class OwnHasher<H> implements Hasher {
 	}
 }
 
-const encoder = /* @__PURE__ */ new TextEncoder();
 
 /** Put the little-endian bytes of `value`, an integer `size` bytes wide, into `bytes` at `at`. */
 function le(bytes: Uint8Array, at: number, value: number | Limbs, size: 1 | 2 | 4 | 8 | 16): void {
