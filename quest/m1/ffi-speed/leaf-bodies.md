@@ -12,6 +12,8 @@ with the export's added time and memory measured beside it.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#887](https://github.com/kixel-ai/rust2/pull/887): ✅ keep it, and measure what `-Zalways-encode-mir` on dependencies costs the export's build first, choosing between it and per-crate facts recorded in the driver by that measurement (rejected: either route chosen outright; dropping the quest).
+
 Found by the [crossings](https://github.com/kixel-ai/rust2/pull/887) work. A leaf is now
 only a primitive `pub` field read or written directly, or a `PartialEq` or `Hash` derived
 down to primitives, since a native export reads no MIR. Most accessors are methods: the
