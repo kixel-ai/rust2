@@ -470,7 +470,8 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
+  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter

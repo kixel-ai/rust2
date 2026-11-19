@@ -2129,6 +2129,10 @@ pub(crate) fn escape(name: &str) -> String {
 		"while",
 		"xor",
 		"xor_eq",
+		// Macros GNU dialects predefine, as CMake's default `-std=gnu++17` does.
+		"i386",
+		"linux",
+		"unix",
 		// What the generated code names unqualified.
 		"std",
 		"self",

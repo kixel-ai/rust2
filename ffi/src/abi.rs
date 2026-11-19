@@ -2022,6 +2022,10 @@ pub(crate) fn escape(name: &str) -> String {
 		"wchar_t",
 		"xor",
 		"xor_eq",
+		// Macros GNU dialects predefine, as CMake's default `-std=gnu11` and `-std=gnu++17` do.
+		"i386",
+		"linux",
+		"unix",
 	];
 	// `out0`, `out1`, ... are a returned tuple's.
 	let out = name
