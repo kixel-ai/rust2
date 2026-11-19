@@ -828,6 +828,12 @@ abstract base class _Object implements ffi.Finalizable {
     return _raw;
   }
 
+  /// The handle for a leaf call, which needs no hold: no Dart runs to close it meanwhile.
+  ffi.Pointer<ffi.Void> get _live {
+    if (_closed) throw StateError('$_type is closed');
+    return _raw;
+  }
+
   void _release() {
     if (--_holds == 0 && _owned) {
       _leave();

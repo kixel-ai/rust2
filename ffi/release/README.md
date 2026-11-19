@@ -1,7 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
-and a Go module. Two halves, split where Cargo's knowledge ends:
+a Go module, and a web package on npm and JSR. Two halves, split where Cargo's knowledge
+ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -9,20 +10,22 @@ and a Go module. Two halves, split where Cargo's knowledge ends:
   exporter gives the crate's library. It builds, repairs, and checks the packages in clean
   consumers, and publishes nothing.
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
-  It holds what Cargo cannot establish: who may publish to PyPI, where the XCFramework is
-  hosted, which repository SwiftPM resolves the package from, the Go module's path, and
-  which tag releases.
+  It holds what Cargo cannot establish: who may publish to PyPI, npm, and JSR, the scope
+  the web package is named under, where the XCFramework is hosted, which repository
+  SwiftPM resolves the package from, the Go module's path, and which tag releases.
 
 ## Adopting it
 
 From a rust2 checkout at the commit to pin, in the repository holding the crate:
 
 ```sh
-python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --go-module moq.dev/moq-ffi
+python3 <rust2>/ffi/release/package.py init --manifest-path rs/moq-ffi/Cargo.toml --swift-mirror moq-dev/moq-swift-ffi --go-module moq.dev/moq-ffi --scope moq
 ```
 
 It writes `.github/workflows/release-<crate>.yml`, calling the builder at that commit, and
-refuses to overwrite a different file. Then, outside the repository:
+refuses to overwrite a different file. `--scope` ships the crate's web package as
+`@<scope>/<crate>`; without it, the lines that would are written commented out. Then,
+outside the repository:
 
 - register the workflow and the `pypi` environment as the PyPI project's trusted publisher;
 - create the mirror repository, install a GitHub App on it with contents write, and put its
@@ -33,6 +36,13 @@ refuses to overwrite a different file. Then, outside the repository:
   resolves a `github.com` path by git alone, so its consumers set `GOPROXY` to the proxy. No
   job publishes it: a git mirror holds no library over GitHub's 100 MiB, and a proxy is the
   caller's to run.
+- for the web package, publish its first version by hand, as npm configures a trusted
+  publisher only for a package it holds, then register the workflow and the `npm`
+  environment as its trusted publisher; and create the package in the JSR scope and link
+  it to the repository, which JSR's publishing from GitHub Actions trusts. Make `npm` and
+  `jsr` environments that only release tags may deploy to. npm's provenance needs Cargo's
+  `repository` to be the publishing repository, which the release checks before any
+  registry takes it.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
@@ -47,7 +57,13 @@ The builder takes the crate's `Cargo.toml`, the `go-module` path, which without 
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
 `python-check`, `swift-check`, and `go-check` programs that must print it through the
-installed packages. Without a check, a consumer only imports the module.
+installed packages. Without a check, a consumer only imports the module. The web package
+takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
+which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
+TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
+whose imports the consumer rewrites to the package's name. Its crate's version must be
+the release's. `features` and `example` apply to it when it is the crate's own; a web
+crate apart from it takes `web-features` and `web-example` instead.
 
 ## What the builder does
 
@@ -96,24 +112,37 @@ installed packages. Without a check, a consumer only imports the module.
    and the Go module, unpacked from its zip into a new module that requires it, vetted,
    built with the newest Go and no `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and
    Windows. With an `example`, each must print native Rust's stdout byte for byte.
+8. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
+   TypeScript, its JavaScript and declarations, and a `package.json`
+   ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
+   `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
+   it. The npm package is the JavaScript, declarations, and module, named
+   `@<scope>/<crate>` with Cargo's description, license, and URLs, packed by `npm pack`;
+   the JSR package is the TypeScript and module with a `jsr.json` exporting each module by
+   name, refused past JSR's 20 MiB. The example runs for `wasm32-wasip1` under Node's WASI,
+   native Rust on the binding's target. A new npm project installs the tarball, as an
+   app would, and the `web-check`, or else a `load()`, runs on Node, Deno, and Bun, and
+   bundled by Vite and by webpack into a browser's script that Node runs, each finding the
+   module where `load` looks by default; and `deno publish --dry-run` checks the JSR
+   package, its types against Deno's included.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels must print its native transcript, and on moq's stand-in facade at the exporter's moq
-pin, through `moq/moq.py`, `moq/moq.swift`, and `moq/moq.go`.
+wheels and web package must print its native transcript, and on moq's stand-in facade at
+the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`, and `moq/moq.go`, with its
+wasm32 stand-in as the web package.
 
 ## Other registries
 
 The same boundary holds for each destination: the builder makes and checks the artifact
 from Cargo facts, the caller's workflow names the identity and credential. A language whose
-generator rust2-ffi lacks, such as Node or C#, is unsupported, not a package without its
+generator rust2-ffi lacks, such as C#, is unsupported, not a package without its
 binding.
 
 | Destination | Builder work | What only the caller can say |
 | --- | --- | --- |
 | Maven Central | An AAR with classes.jar, JNI libraries per Android ABI and the generated R8 rules; POM, sources and javadoc jars | The verified groupId namespace, publisher authorization, and signing key |
 | pub.dev | The generated Dart library with a native-assets build hook and per-platform archives, pubspec, and license | Publisher authorization and the archives' download host |
-| npm | Needs a Node generator first: platform packages and a JS loader | Scope ownership and trusted-publisher registration |
 | NuGet | Needs a C# generator first: the managed assembly and RID-specific native assets | Package ID ownership, credentials, and target frameworks |
 
 Cargo's `repository` can suggest a Go module path or a Maven namespace but cannot prove

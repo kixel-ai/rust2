@@ -1,7 +1,8 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
 // native Rust does on wasm32-wasip1, through the generated TypeScript on Node or Deno, from
 // beside the binding's `web` directory, or in a browser, through tests/browser.ts's
-// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature.
+// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature;
+// without it, the script loads the module its package holds, as `load` does by default.
 // tests/fixtures.rs compares the transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what disposing and the
@@ -1969,13 +1970,16 @@ async function broken(which: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+	// Without RUST2_WASM, the module beside the binding, as its package holds it, which
+	// `load` takes by default.
 	const path = process.env["RUST2_WASM"];
-	check(path !== undefined, "RUST2_WASM names the module");
-	const module = await WebAssembly.compile(process.getBuiltinModule("node:fs").readFileSync(path!));
+	const module = path === undefined ? undefined : await WebAssembly.compile(process.getBuiltinModule("node:fs").readFileSync(path));
 	// A load that fails leaves the next free to succeed, and a load while one runs is refused.
 	const glue = { prefix: "api", space: "api_web", file: "stale.ts", contract: 1n, target: 0, imports: g.imports };
 	const message = (p: Promise<void>) => p.then(() => "", (e: unknown) => (e instanceof Error ? e.message : String(e)));
-	check((await message(rt.load(module, glue))) === "stale.ts and the module are from different builds", "a stale load");
+	if (module !== undefined) {
+		check((await message(rt.load(module, glue))) === "stale.ts and the module are from different builds", "a stale load");
+	}
 	const first = api.load(module);
 	check((await message(api.load(module))) === "index.ts: the module is loaded already", "a load meanwhile");
 	await first;

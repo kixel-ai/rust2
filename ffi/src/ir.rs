@@ -415,6 +415,17 @@ pub(crate) struct Traits {
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
 	pub(crate) default: bool,
+	/// Whether its `PartialEq` runs only derived impls and std's over primitives, so a call
+	/// of it is a leaf, as [`crate::abi::Abi::leaf`] says. A baseline written before it has none.
+	#[serde(default)]
+	pub(crate) leaf_eq: bool,
+	/// The same of its `Hash`, through the glue's hasher.
+	#[serde(default)]
+	pub(crate) leaf_hash: bool,
+	/// Whether each of those leaves walks a size fixed by the type, no string, slice, `Vec`,
+	/// or type holding itself, whose length the caller picks.
+	#[serde(default)]
+	pub(crate) leaf_sized: bool,
 }
 
 /// A function or method.

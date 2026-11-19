@@ -385,7 +385,7 @@ impl Crate<'_> {
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
-		let web = crate::web::generate(&rest, &self.packages(), contract)?;
+		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
