@@ -16,7 +16,8 @@ fixture from copies at different paths differ in the version's hash and in every
 hash; the same path with another export directory is byte for byte equal on Linux and for the wheels.
 The Go module's Windows GNU library is not: `dlltool` names its `kernel32` import members'
 symbols (`_head_D__a_rust2_..._export_target_go_...`) after the path of the target
-directory, which `--remap-path-prefix` does not reach, so `reproduce` rebuilds from a new
+directory, which `--remap-path-prefix` does not reach (and a random rustc temporary directory in it,
+which the builder zeroes), so `reproduce` rebuilds from a new
 export at the same path. Find a target directory path that is the same everywhere (or a
 rustc that remaps it) so the CI rebuild can move the export again.
 

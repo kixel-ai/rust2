@@ -825,6 +825,17 @@ def llvm_tool(manifest, name):
     return Path(sysroot) / "lib" / "rustlib" / host / "bin" / f"{name}{exe}"
 
 
+# The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_)")
+
+
+def fix_import_names(path):
+    """Replace the random part of those symbol names, in members and symbol table alike at the same length, so the archive is the same on every build."""
+    data = Path(path).read_bytes()
+    Path(path).write_bytes(RUSTC_TEMP.sub(b"000000", data))
+
+
 def go_library(args, export_dir, lib, target, library, native, out):
     """The Go module's copy of `target`'s library: checked against the export's #cgo line,
     without debug info, which only bloats the module, or the bitcode the go command refuses."""
@@ -835,6 +846,8 @@ def go_library(args, export_dir, lib, target, library, native, out):
     dest = out / "go" / f"lib{lib}_{GO_TARGETS[target]}.a"
     dest.parent.mkdir(parents=True, exist_ok=True)
     run(objcopy, "--strip-debug", *(f"--remove-section={s}" for s in LTO_SECTIONS), library, dest)
+    if "windows-gnu" in target:
+        fix_import_names(dest)
 
 
 def build(args):

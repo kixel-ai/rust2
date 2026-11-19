@@ -385,6 +385,15 @@ class Archive(unittest.TestCase):
             self.assertIn("b.o", lines[0])
 
 
+class ImportNames(unittest.TestCase):
+    def test_the_random_temporary_directory_is_fixed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.a"
+            path.write_bytes(b"_head_D__a_x_out_rustc4TX99l_kernel32_dll_imports_lib\x00_rustcAbCdEf_other")
+            package.fix_import_names(path)
+            self.assertEqual(path.read_bytes(), b"_head_D__a_x_out_rustc000000_kernel32_dll_imports_lib\x00_rustcAbCdEf_other")
+
+
 class Purl(unittest.TestCase):
     def test_each_registry_is_its_own_package(self):
         def purl(source):

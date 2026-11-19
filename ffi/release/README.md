@@ -126,7 +126,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   same path, as a rerun does
   ([planned](/quest/m1/ffi-packaging/relocatable.md)). So must the export directory of a
   Windows GNU library, which is the Go module's: dlltool names the import library's symbols
-  after the path of the target directory, which no `--remap-path-prefix` reaches.
+  after the path of the target directory, which no `--remap-path-prefix` reaches. rustc's
+  random temporary directory in that name is replaced by zeros.
 
 **Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
 the crates the binding links (normal dependencies, platform-neutral, with each registry
