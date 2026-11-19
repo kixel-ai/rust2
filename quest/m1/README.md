@@ -21,3 +21,11 @@ baseline and nightly jobs. Rejected: keeping it until moq switches; keeping it a
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ exporter work that
 changes no generated API is its own epic, so it does not
 hold moq's pin open; the epic retired on 2026-11-16 once its children landed. Rejected: keeping it in the exporter's epic.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit of the exporter's
+bindings and the translators: ✅ its findings join m1 where moq's switch uses them. Breaking
+changes are children of [the exporter epic](/quest/m1/ffi-export/README.md) and land as
+soon as possible; the rest are the [proofs](/quest/m1/ffi-proofs/README.md),
+[speed](/quest/m1/ffi-speed/README.md), [rule cost](/quest/m1/ffi-rules/README.md), and
+[packaging](/quest/m1/ffi-packaging/README.md) epics, and the fixes and additions at this
+milestone's top. Rejected: packaging in m2.

@@ -87,10 +87,29 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   numeric slices ([kixel-ai/rust2#743](https://github.com/kixel-ai/rust2/pull/743)). Work that changes no generated API is
   its own epic, which did not hold the pin and was retired on 2026-11-16 once its children
   landed.
-- Not planned: one walker emitting lift and lower instructions every generator
-  implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,
-  but it would collide with the four `[L]` children that each rewrite every generator.
-  Spike it on Go once they land.
+- Not planned then: one walker emitting lift and lower instructions every generator
+  implements, as wit-bindgen's `Bindgen` does, until the four `[L]` children that each
+  rewrite every generator landed. They have; [the rule-cost epic](/quest/m1/ffi-rules/README.md)
+  now plans its spike.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit:
+
+- ✅ Breaking changes to a generated API that the audit found are children here, and land
+  as soon as possible: "You're allowed to break the API absolutely. Do it sooner." They
+  are [the API surface lock](/quest/m1/ffi-export/api-surface.md), which lands first,
+  [C and C++](/quest/m1/ffi-export/cpp-idioms.md), [Swift](/quest/m1/ffi-export/swift-span.md),
+  [Kotlin](/quest/m1/ffi-export/kotlin-idioms.md), [Python](/quest/m1/ffi-export/python-idioms.md),
+  [Dart](/quest/m1/ffi-export/dart-analyze.md), and [docs](/quest/m1/ffi-export/docs.md).
+  Rejected: only the surface lock holding the pin; all of them after the pin.
+- ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as
+  decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),
+  [speed](/quest/m1/ffi-speed/README.md), [rule cost](/quest/m1/ffi-rules/README.md),
+  [packaging](/quest/m1/ffi-packaging/README.md), [ordering](/quest/m1/ffi-ord.md), and
+  [stream adapters](/quest/m1/ffi-streams.md).
+- Dropped: a per-function contract in place of the whole-header hash, since moq links
+  statically and the strict check is what fails loud; C layout `_Static_assert`s, since
+  mainstream ABIs agree and the API lock catches layout changes; and Kotlin Multiplatform,
+  since Kotlin's Swift export is Alpha in 2.4 and moq ships native Swift.
 
 Decided with the maintainer on 2026-11-02
 ([kixel-ai/rust2#460](https://github.com/kixel-ai/rust2/pull/460)): the RSS glibc's per-thread
