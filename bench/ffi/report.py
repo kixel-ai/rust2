@@ -36,7 +36,7 @@ TS = ["ts-node", "ts-chromium", "ts-firefox"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
-	("getter", "`demand.sequence()`, a u64 getter"),
+	("getter", "`demand.start()`, a u64 getter"),
 	("shared:call", "the handle call on 4 threads, one shared handle"),
 	("own:call", "the same, a handle per thread"),
 	("shared:getter", "the u64 getter on 4 threads, one shared handle"),
@@ -44,6 +44,9 @@ CALLS = [
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
 	("objects", "the same from 4 threads at once, Kotlin only"),
+	("field", "`info.priority`, a primitive `pub` field: a leaf"),
+	("hop:call", "Dart only: the handle call while Rust holds a closure, on a worker"),
+	("hop:field", "Dart only: the field then, a leaf call on the isolate's thread"),
 	("write", "`group.write_frame(at, frame)`, 100 B"),
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),

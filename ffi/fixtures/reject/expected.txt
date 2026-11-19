@@ -65,6 +65,14 @@ fixtures/reject/src/lib.rs:1431:2: rust2-ffi: cannot export method `Slot<u8>::ta
 fixtures/reject/src/lib.rs:1436:2: rust2-ffi: cannot export method `Slot<u8>::lens`: returned object that borrows `SlotLens<'_>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1441:2: rust2-ffi: cannot export method `Slot<u8>::peer`: returned object that borrows `SlotPeer<'_>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:145:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1477:1: rust2-ffi: cannot export fn `unit_error`: unit error `std::result::Result<(), ()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1482:1: rust2-ffi: cannot export fn `unit_error_later`: unit error `std::result::Result<u8, ()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1513:1: rust2-ffi: cannot export fn `race`: instance holding a foreign future `reject::Either<((), std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>), ((), std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>)>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1521:1: rust2-ffi: cannot export fn `park`: instance holding a foreign future `reject::Parked<std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1527:1: rust2-ffi: cannot export instance `Bits<u32>`: union; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1533:1: rust2-ffi: cannot export fn `bits`: refused type `reject::Bits<u32>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1539:1: rust2-ffi: cannot export instance `Tail<u8>`: unsized type; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1542:1: rust2-ffi: cannot export fn `tail`: 'static borrow `&'static Tail<u8>`; refused type `reject::Tail<u8>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`; exclude it in the config to leave it out

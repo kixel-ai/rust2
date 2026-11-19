@@ -23,6 +23,7 @@ use crate::ir::{
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
+const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
@@ -76,7 +77,21 @@ fn foreign_path(path: &[String]) -> String {
 		"std" => "std".to_string(),
 		krate => foreign(krate),
 	};
-	format!("::{krate}") + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
+	format!("::{krate}") + &path[1..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
+}
+
+/// A Rust name as the glue writes it: a keyword raw, as socket2's `Socket::type` needs.
+fn ident(name: &str) -> String {
+	const KEYWORDS: &[&str] = &[
+		"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+		"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod",
+		"move", "mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type",
+		"typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+	];
+	match KEYWORDS.contains(&name) {
+		true => format!("r#{name}"),
+		false => name.to_string(),
+	}
 }
 
 /// The Rust path of a collection, without its arguments.
@@ -416,6 +431,7 @@ impl Crate<'_> {
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("src/rt/thread.rs"), THREAD);
+		output.file(&out.join("src/rt/future.rs"), FUTURE);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		for (path, header) in &cpp.files {
 			output.file(&out.join("include").join(path), header);
@@ -461,6 +477,8 @@ impl Crate<'_> {
 		for (path, text) in go.files {
 			output.file(&go_dir.join(path), &text);
 		}
+		// The header the packages include, inside their module, as a module's zip holds it.
+		output.file(&go_dir.join("rt").join(format!("{}.h", self.abi.prefix)), &header);
 		// Cargo names a path package's units by its name, version, and path in its
 		// workspace, the same for every export of one facade, and judges them fresh by
 		// mtimes, which an unchanged file keeps. So two exports in one target directory
@@ -504,7 +522,7 @@ fn module_path(path: &Path) -> Result<String, String> {
 		.output()
 		.map_err(|err| match err.kind() {
 			std::io::ErrorKind::NotFound => format!(
-				"the go command is not on PATH: the export reads the module of {}, above --out, with `go mod edit -json`",
+				"the go command is not on PATH: the export reads the module of {} with `go mod edit -json`",
 				path.display()
 			),
 			_ => format!("running go mod edit -json {}: {err}", path.display()),
@@ -545,10 +563,30 @@ fn resolve(path: &Path) -> Result<PathBuf, String> {
 	Ok(out)
 }
 
-/// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
-/// module `prefix`, with the `go.mod` declaring it there.
+/// The import path of `<out>/go`, from the `go.mod` of the module it is in, as Go finds it:
+/// its own, which the export keeps as it is, or one above it; or else the module `prefix`,
+/// with the `go.mod` declaring it there. The `go.mod` to write in `go/` comes with it.
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
 	let out = resolve(out)?;
+	let default = format!("module {prefix}\n\ngo 1.24\n");
+	let own = out.join("go").join("go.mod");
+	if own.is_file() {
+		let text = std::fs::read_to_string(&own).map_err(|err| format!("reading {}: {err}", own.display()))?;
+		// One in the form the export writes, as the release builder writes it too, needs no
+		// go command to read.
+		let plain = (text.strip_prefix("module "))
+			.and_then(|rest| rest.strip_suffix("\n\ngo 1.24\n"))
+			.filter(|path| {
+				!path.is_empty()
+					&& !path.contains("//")
+					&& path.chars().all(|c| c.is_ascii_alphanumeric() || "._~/-".contains(c))
+			});
+		let module = match plain {
+			Some(path) => path.to_string(),
+			None => module_path(&own)?,
+		};
+		return Ok((module, Some(text)));
+	}
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {
@@ -563,7 +601,7 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 			.collect();
 		return Ok((format!("{module}/{}", rest.join("/")), None));
 	}
-	Ok((prefix.to_string(), Some(format!("module {prefix}\n\ngo 1.24\n"))))
+	Ok((prefix.to_string(), Some(default)))
 }
 
 struct Gen<'a> {
@@ -642,9 +680,13 @@ impl Gen<'_> {
 	fn path(&self, path: &[String]) -> String {
 		match self.abi.api.reached.iter().find(|r| path.get(1) == Some(&r.krate)) {
 			Some(r) => {
-				format!("::{}", reached(&r.krate)) + &path[2..].iter().map(|s| format!("::{s}")).collect::<String>()
+				format!("::{}", reached(&r.krate))
+					+ &path[2..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
 			}
-			None => format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>(),
+			None => {
+				format!("::{}", self.dependency)
+					+ &path[1..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
+			}
 		}
 	}
 
@@ -867,6 +909,11 @@ impl Gen<'_> {
 				_ => format!("{}<{}>", collection(*c), self.rust(inner)),
 			},
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
+			// A trailing comma keeps a tuple of one element a tuple.
+			Type::Tuple(elements) => format!(
+				"({},)",
+				elements.iter().map(|ty| self.rust(ty)).collect::<Vec<_>>().join(", ")
+			),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
 			Type::Record(i) => match &api.records[*i].opaque {
@@ -1294,7 +1341,10 @@ impl Gen<'_> {
 		self.line("#![allow(unused_unsafe, reason = \"every conversion is in its own block\")]");
 		self.line("#![allow(unused_parens, reason = \"each element is lifted from `(*c)`\")]");
 		self.line("#![allow(clippy::all, reason = \"generated\")]");
-		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]\n");
+		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]");
+		self.line("#![allow(deprecated, reason = \"a deprecated item is still the API's\")]");
+		self.line("#![allow(unused_mut, reason = \"a borrow is declared alike for every method\")]");
+		self.line("#![allow(unreachable_code, reason = \"a call returning an uninhabited type never returns\")]\n");
 		self.line("mod rt;\n");
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
@@ -1637,7 +1687,7 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.zip(&lifted)
-					.map(|(f, l)| format!("{}: {l}", f.name))
+					.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
 			}
@@ -1664,7 +1714,7 @@ impl Gen<'_> {
 					// the lint would ask for.
 					.map(|(f, b)| match f.name == *b {
 						true => b.clone(),
-						false => format!("{}: {b}", f.name),
+						false => format!("{}: {b}", ident(&f.name)),
 					})
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
@@ -1714,7 +1764,7 @@ impl Gen<'_> {
 				true => format!("{path}({})", lifted.join(", ")),
 				false => {
 					let fields: Vec<String> = (record.fields.iter().zip(&lifted))
-						.map(|(f, l)| format!("{}: {l}", f.name))
+						.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 						.collect();
 					format!("{path} {{ {} }}", fields.join(", "))
 				}
@@ -1782,10 +1832,12 @@ impl Gen<'_> {
 			true => "",
 			false => "\n\t\t_ => unreachable!(\"a variant this export does not know\"),",
 		};
-		// A foreign enum's variants are its type's constants.
+		// A foreign enum's variants are its type's constants. A variant without fields is
+		// named with its braces, which a unit, tuple, or struct one takes alike, as a tuple
+		// one whose fields a `cfg` leaves out needs: icu_collections' `StringListNotSorted()`.
 		let variant = |v: &crate::ir::Variant| match e.foreign {
 			true => abi::snake(&v.name).to_uppercase(),
-			false => v.name.clone(),
+			false => format!("{} {{}}", v.name),
 		};
 		if e.plain() {
 			let lift: Vec<String> = (e.variants.iter())
@@ -1849,7 +1901,7 @@ impl Gen<'_> {
 							.fields
 							.iter()
 							.zip(&bindings)
-							.map(|(f, b)| format!("{}: {b}", f.name))
+							.map(|(f, b)| format!("{}: {b}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -1889,7 +1941,7 @@ impl Gen<'_> {
 							.fields
 							.iter()
 							.zip(&lifted)
-							.map(|(f, l)| format!("{}: {l}", f.name))
+							.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -1968,7 +2020,7 @@ impl Gen<'_> {
 					(false, true) => format!("{path}::{}({})", variant.name, lifted.join(", ")),
 					(false, false) => {
 						let fields: Vec<String> = (variant.fields.iter().zip(lifted))
-							.map(|(f, l)| format!("{}: {l}", f.name))
+							.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -2681,7 +2733,7 @@ impl Gen<'_> {
 			})
 			.collect::<String>();
 		let mut callee = match &owner {
-			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
+			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), ident(function.name())),
 			None => self.path(&function.path),
 		};
 		let mut turbofish = String::new();
@@ -2696,11 +2748,16 @@ impl Gen<'_> {
 			// A method of the type the receiver derefs to, which the glue need not name: its
 			// receiver is that type's already, whose inherent method a call finds first.
 			Access::Call if function.derefs > 0 => {
-				format!("({}).{}{turbofish}({})", args[0], function.name(), args[1..].join(", "))
+				format!(
+					"({}).{}{turbofish}({})",
+					args[0],
+					ident(function.name()),
+					args[1..].join(", ")
+				)
 			}
 			Access::Call => format!("{callee}({})", args.join(", ")),
-			Access::Field { set: false, .. } => format!("&({}).{}", args[0], function.name()),
-			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], function.name(), args[1]),
+			Access::Field { set: false, .. } => format!("&({}).{}", args[0], ident(function.name())),
+			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], ident(function.name()), args[1]),
 			Access::Const => callee,
 			Access::Parse => format!(
 				"<{} as ::std::str::FromStr>::from_str({}).map_err(|e| ::std::string::ToString::to_string(&e))",

@@ -1009,10 +1009,20 @@ they need.
   2-6x faster. Limbs for every value allocate an object each, which costs what a
   `bigint` does in V8, so they lost decode; unboxed halves would lower every value to
   two. Past 2^53 an operation allocates limbs, computed on their 32-bit words: sums,
-  differences, comparisons, casts, products of 64-bit values or of two numbers, and
-  division by a divisor below 2^32, with the rest of 128-bit arithmetic through `bigint`
-  inside the runtime. A literal past 2^53 is written out as limbs, which cost what a
-  hoisted constant does. Converting timestamps between timescales as moq-net does,
+  differences, comparisons, casts, products of 64-bit values or of two numbers, wrapping
+  products, and division by a divisor below 2^32. The rest of 128-bit arithmetic and the
+  division of 64-bit values by a larger divisor go through `bigint` inside the runtime,
+  which limbs and `bigint`s trade through one `DataView`: a store of each limb and a load,
+  not a shift and an add per limb. A `u64` kept as a number or a `bigint` wrapped by
+  `BigInt.asUintN(64, ...)`, which V8 lowers to 64-bit machine operations, measured
+  against limbs in Node, Bun, Chrome, and Firefox: it ties or loses on a product past 2^53
+  divided back down (0.3-0.7x in Node and Chrome, 1.1-1.3x in Firefox) and on comparing
+  two such products (0.4-0.5x, 0.9x in Firefox), and wins only where every value stays past 2^53, 3-5x on a
+  wrapping product and on division by a divisor past 2^32. Limbs took that win without
+  the representation: a wrapping product from the halves, and the `DataView` for the
+  division, made the hash workload `int/` 2.5-5x faster in all four engines, at the
+  hand-written `bigint` route's time. A literal past 2^53 is written out as limbs, which
+  cost what a hoisted constant does. Converting timestamps between timescales as moq-net does,
   products past 2^53 divided back down, takes 0.8-1.0x the hand-written `bigint` route's
   time in Chrome in `u64`, and 1.2-1.5x in `u128`. `u128` and `i128` as
   native `bigint`s measured 1.4-1.8x slower than limbs on that in Chrome and 1.2-1.5x in
@@ -1122,6 +1132,17 @@ they need.
   where it meets a slot below, and its object, such as an `rs.Ok`, counts as made at each
   read that makes it. An `Option` of a number is one part, that or `undefined`, as its JS
   value is. A return is still a `ByteSlice` but for the `Result`s below.
+- A local of slices of other elements, each an `rs.Slice`, shared or `&mut`, is held as
+  parts the same way, written through them where its object would be, and also when
+  `deref`, `as_slice`, or a range index of a `Vec`, a slice, or an array assigns it, its
+  range checked as std's `Index` checks it, so `split_at_mut` and `&mut v[..k]` make no
+  tuple or slice per step. Only one some read takes apart is held so: one every read makes
+  whole saves nothing, and the call that makes it reads the `Vec`'s items in place. Byte
+  slices keep the rules above. `just ts bench` measured `parts/heap-sift` at 0.24, 0.18,
+  and 0.49 times `main`'s time in Chrome from 16 to 4096 items, 0.26, 0.18, and 0.41 in
+  Firefox, 0.30, 0.29, and 0.51 in Node, and 0.76 in Bun at 4096, with smaller sizes
+  within its noise, and `parts/prefix-writes` at 0.61-0.78 in Chrome, 0.66-0.83 in Node,
+  and 0.71-1.0 in Firefox, with the A/A route within 0.10 at the median workload.
 - A function only translated code calls takes each `&[u8]` or `&[u8; N]` parameter as
   three, its `data`, `start`, and `length`, which its body holds as that local's parts:
   not a root, which the outside calls, a closure, or an `async fn`. One whose object the
@@ -1246,6 +1267,14 @@ they need.
   without which Node ran the codec 1.31x slower. Against the runtime functions, the codec
   and async handoff bundles are within 25 bytes gzipped, and `just ts bench` measures
   them within the A/A route's spread in Node, Bun, Chrome, and Firefox.
+- A `&str`'s UTF-8 is a loop's in `rs/utf8.ts` up to 64 code units, into the runtime's
+  shared byte buffer, and its decode a loop's up to 32 bytes; longer ones take
+  `TextEncoder` and `TextDecoder`. V8's `TextEncoder.encode` costs 450-950 ns at any
+  length, and a slice of a fresh array of its own costs V8 another 500 ns to give it a
+  buffer, which the shared one already has. `just ts bench` measured string encode in
+  Chrome at 121-129 ns against 767-778, and decode at 178-207 against 226-270; Firefox's
+  native codecs beat the loops, which take 1.4x their time to encode and 1.4-1.9x to
+  decode, but Chrome decides.
 
 ## Not yet
 
@@ -1433,7 +1462,7 @@ frame headers decoded as they arrive a few bytes at a time, which prices a decod
 comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 256, and
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
-whose cross products do too, integers sorted, searched for their greatest and least,
+whose cross products do too, 64-bit hash arithmetic that stays past 2^53, integers sorted, searched for their greatest and least,
 and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
 numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
 group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs seven ways: natively; as wasm32 at the
@@ -1445,7 +1474,7 @@ API is `bench::run` alone (`fixtures/codec/web`), built at `wasm-checked` for
 `wasm32-wasip1` and called through its generated TypeScript; hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
+timescales, `bigint` wrapped to 64 bits in `bench/mixed.ts`, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
 `Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`); and translated. Every route's output must match
 native Rust's first. The four routes the translation is compared with run the same checks,
 so rust2-wasm against `wasm checked` is the generated binding's cost, `wasm2js` against it

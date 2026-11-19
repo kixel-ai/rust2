@@ -12,7 +12,9 @@ use std::path::{Path, PathBuf};
 use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
-use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Type, Variant};
+use crate::ir::{
+	Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Traits, Type, Variant,
+};
 
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -209,6 +211,7 @@ pub(crate) fn bare_record(r: &Record) -> Record {
 			opaque.dense = true;
 		}
 		r.sizes.clear();
+		unleaf(&mut r.traits);
 	})
 }
 
@@ -219,6 +222,7 @@ pub(crate) fn bare_enum(e: &Enum) -> Enum {
 		e.on = On::ALL;
 		e.methods.clear();
 		e.variants.clear();
+		unleaf(&mut e.traits);
 	})
 }
 
@@ -237,7 +241,23 @@ pub(crate) fn bare_object(o: &Object) -> Object {
 		o.docs.clear();
 		o.on = On::ALL;
 		o.methods.clear();
+		unleaf(&mut o.traits);
 	})
+}
+
+/// `traits` without whether each is a leaf, which merges apart: a leaf on every target is
+/// one, as a binding calls it the same on each.
+fn unleaf(traits: &mut Traits) {
+	traits.leaf_eq = false;
+	traits.leaf_hash = false;
+	traits.leaf_sized = false;
+}
+
+/// Merge into `ours` whether `theirs`, another target's, are leaves.
+fn leaves(ours: &mut Traits, theirs: Traits) {
+	ours.leaf_eq &= theirs.leaf_eq;
+	ours.leaf_hash &= theirs.leaf_hash;
+	ours.leaf_sized &= theirs.leaf_sized;
 }
 
 pub(crate) fn bare_callback(c: &Callback) -> Callback {
@@ -360,6 +380,7 @@ impl Merged {
 
 	/// Add `api`'s items, of one target, to the merged API's.
 	fn add(&mut self, mut api: Api) {
+		self.api.links.append(&mut api.links);
 		let maps = Maps {
 			records: Maps::of(&api.records, self.api.records.len(), |r| {
 				(self.api.records.iter()).position(|m| m.shown == r.shown)
@@ -423,6 +444,7 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
 			self.api.records[at].on.0 |= record.on.0;
+			leaves(&mut self.api.records[at].traits, record.traits);
 			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
 				ours.size = ours.size.max(theirs.size);
 				ours.align = ours.align.max(theirs.align);
@@ -443,6 +465,7 @@ impl Merged {
 			}
 			self.variants(at, &e, what);
 			self.api.enums[at].on.0 |= e.on.0;
+			leaves(&mut self.api.enums[at].traits, e.traits);
 			let methods = std::mem::take(&mut self.api.enums[at].methods);
 			self.api.enums[at].methods = self.functions(methods, e.methods);
 		}
@@ -456,6 +479,7 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (object.on, object.span));
 			}
 			self.api.objects[at].on.0 |= object.on.0;
+			leaves(&mut self.api.objects[at].traits, object.traits);
 			let methods = std::mem::take(&mut self.api.objects[at].methods);
 			self.api.objects[at].methods = self.functions(methods, object.methods);
 		}
@@ -821,6 +845,7 @@ mod tests {
 			crates: ["a", "c"].map(String::from).to_vec(),
 			reached: Vec::new(),
 			targets: ["x", "y"].map(String::from).to_vec(),
+			links: Default::default(),
 		};
 		let Err(cycle) = order_crates(&api) else {
 			panic!("a cycle")
@@ -853,6 +878,7 @@ mod tests {
 			.into_iter()
 			.collect(),
 			targets: vec![target.into()],
+			links: Default::default(),
 		};
 		let (_, differs) = super::merge(vec![api("x", true), api("y", false)]);
 		assert_eq!(differs.len(), 1);

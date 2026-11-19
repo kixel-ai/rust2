@@ -150,6 +150,28 @@ impl Export {
 }
 
 impl Callbacks for Export {
+	/// Load std, unnamed, into a `no_std` facade too: the glue links it whatever the facade
+	/// does, so the check that lists the system libraries a static library needs must see it.
+	fn after_crate_root_parsing(&mut self, compiler: &Compiler, krate: &mut ast::Crate) -> Compilation {
+		let source = "extern crate std as _;";
+		let item = rustc_parse::new_parser_from_source_str(
+			&compiler.sess.psess,
+			FileName::anon_source_code(source),
+			source.to_string(),
+			StripTokens::Nothing,
+		)
+		.ok()
+		.and_then(|mut parser| {
+			parser
+				.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter)
+				.ok()
+		})
+		.flatten()
+		.expect("an extern crate parses");
+		krate.items.insert(0, item);
+		Compilation::Continue
+	}
+
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
 		if tcx.dcx().has_errors().is_some() {
 			return Compilation::Stop;
@@ -181,7 +203,10 @@ impl Callbacks for Export {
 				.map(|(f, _)| f.shown.clone())
 				.collect();
 			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
+			let config = census_config(tcx, &facade, &self.facade.lib, report, &swift);
+			let text = census::render(&collected.api, report, &config, &exporting, &abi.clashes, &|span| {
+				at(tcx, span)
+			});
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -233,6 +258,71 @@ impl Callbacks for Export {
 			tcx.dcx().err(format!("rust2-ffi: {err}"));
 		}
 		stop_on_errors(tcx)
+	}
+}
+
+/// The `exclude` that exports what maps: each item collection or Swift refuses, checked by
+/// collecting again with it. One naming only an instance a refused item alone named names
+/// nothing once that item is left out, and the export would fail on it, so it is dropped;
+/// what that collection refuses besides is added, until the config holds.
+fn census_config(
+	tcx: TyCtxt<'_>,
+	facade: &collect::Facade,
+	lib: &str,
+	report: &collect::Report,
+	swift: &FxHashSet<ir::Path>,
+) -> Vec<String> {
+	let refused = |report: &collect::Report, swift: &FxHashSet<ir::Path>| -> Vec<String> {
+		(report.refusals.iter().map(|r| r.path.clone()))
+			.chain(swift.iter().map(|path| path[1..].join("::")))
+			.collect()
+	};
+	let mut config = refused(report, swift);
+	let mut seen = Vec::new();
+	loop {
+		config.sort();
+		config.dedup();
+		// A config the last round checked and left as it was holds.
+		if config.is_empty() || seen.last() == Some(&config) {
+			return config;
+		}
+		// A round drops a dead exclude as well as adding a refusal, so rounds may cycle,
+		// which no config ends: a bug of the collector's, as a refusal must not come and go.
+		if let Some(earlier) = seen.iter().find(|earlier| **earlier == config) {
+			let last = seen.last().expect("a repeat follows a round");
+			let moving: Vec<&String> = (earlier.iter().filter(|p| !last.contains(p)))
+				.chain(last.iter().filter(|p| !earlier.contains(p)))
+				.collect();
+			tcx.dcx().err(format!(
+				"rust2-ffi: the census's exclude never settles, as rounds of it cycle on {}",
+				moving.iter().map(|p| format!("`{p}`")).collect::<Vec<_>>().join(", ")
+			));
+			return config;
+		}
+		seen.push(config.clone());
+		let checked = collect::collect(
+			tcx,
+			&collect::Facade {
+				root: facade.root.clone(),
+				package: facade.package,
+				exclude: &config,
+				crates: facade.crates,
+				audit: &[],
+			},
+		);
+		let abi = Abi::new(&checked.api, lib);
+		let rest = checked.api.without_jni();
+		let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
+			.into_iter()
+			.map(|(f, _)| f.shown.clone())
+			.collect();
+		let more = refused(&checked.report, &swift);
+		let dead: Vec<&String> = (checked.report.excluded.iter())
+			.filter(|(path, count)| *count == 0 && !configured_out(tcx, path))
+			.map(|(path, _)| path)
+			.collect();
+		config.retain(|path| !dead.contains(&path));
+		config.extend(more);
 	}
 }
 

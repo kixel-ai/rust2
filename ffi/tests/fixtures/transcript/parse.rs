@@ -502,13 +502,13 @@ impl Scope<'_> {
 					"Ipv6Addr" => Type::IpAddr(Family::V6),
 					"Option" => {
 						// Each `None` but the innermost is the same value in a binding that
-						// marks one level apart, as the web's `rt.None` does, which no `Box`
-						// or reference between them keeps apart.
+						// marks one level apart, as the web's `rt.None` does for an option
+						// of an option or of `()`, which no `Box` or reference keeps apart.
 						let inner = arg();
 						if let Type::Option(middle) = inner.base()
-							&& matches!(middle.base(), Type::Option(_))
+							&& matches!(middle.base(), Type::Option(_) | Type::Unit)
 						{
-							fail(ty, "an option of an option of an option")
+							fail(ty, "an option of an option of an option or of ()")
 						}
 						Type::Option(Box::new(inner))
 					}
