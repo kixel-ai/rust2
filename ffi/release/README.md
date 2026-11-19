@@ -29,8 +29,10 @@ refuses to overwrite a different file. Then, outside the repository:
   `APP_CLIENT_ID` and `APP_PRIVATE_KEY` in a `swift-mirror` environment that only release
   tags may deploy to;
 - serve the build's `<crate>-go` artifact, the module laid out as a GOPROXY serves it, from a
-  module proxy the module path's `go-import` tag names. No job publishes it: a git mirror
-  holds no library over GitHub's 100 MiB, and a proxy is the caller's to run.
+  module proxy: on a host you control, a `go-import` tag of type `mod` names it, but Go
+  resolves a `github.com` path by git alone, so its consumers set `GOPROXY` to the proxy. No
+  job publishes it: a git mirror holds no library over GitHub's 100 MiB, and a proxy is the
+  caller's to run.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
@@ -75,7 +77,8 @@ installed packages. Without a check, a consumer only imports the module.
 6. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
-   glibc 2.28), `darwin/arm64` (the Swift package's macOS library), and `windows/amd64` (an
+   glibc 2.28), `darwin/arm64` and `ios/arm64` (the Swift package's macOS and iOS device
+   libraries; no consumer here runs iOS), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
    them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's

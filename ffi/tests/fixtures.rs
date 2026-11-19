@@ -2240,7 +2240,8 @@ fn go_library(lib: &Path, export: &Path) {
 	let (Some(name), None) = (names.next(), names.next()) else {
 		panic!("the Go links no one library for the host: {rt}");
 	};
-	let stripped = lib.with_extension("go.a");
+	// Beside the module, so layouts that tests build at once strip apart.
+	let stripped = export.parent().unwrap().with_extension("a");
 	let objcopy = llvm_objcopy();
 	Step {
 		stamp: &step::stamp(&stripped),

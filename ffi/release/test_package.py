@@ -34,8 +34,9 @@ def export(root, floor="311"):
     (root / "Cargo.toml").write_text(f'pyo3-ffi = {{ features = ["abi3-py{floor}", "extension-module"] }}\n')
     (root / "go/rt").mkdir(parents=True)
     (root / "go/go.mod").write_text("module moq.dev/moq-ffi\n\ngo 1.24\n")
-    (root / "go/rt/rt.go").write_text(
-        "package rt\n\n/*\n#cgo linux,!android,amd64 LDFLAGS: ${SRCDIR}/libmoq_linux_amd64.a -lgcc_s -lc\n*/\nimport \"C\"\n")
+    lines = "".join(f"#cgo {p.replace('_', ',')} LDFLAGS: ${{SRCDIR}}/libmoq_{p}.a -lgcc_s -lc\n"
+                    for p in package.GO_TARGETS.values())
+    (root / "go/rt/rt.go").write_text(f"package rt\n\n/*\n{lines}*/\nimport \"C\"\n")
     return root
 
 
@@ -194,8 +195,9 @@ class Go(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             root = export(Path(root))
             self.assertEqual(package.go_links(root, "moq", "x86_64-unknown-linux-gnu"), "-lgcc_s -lc")
+            (root / "go/rt/rt.go").write_text("package rt\n")
             with self.assertRaises(SystemExit):
-                package.go_links(root, "moq", "aarch64-unknown-linux-gnu")
+                package.go_links(root, "moq", "x86_64-unknown-linux-gnu")
 
     def test_module_as_a_proxy_serves_it(self):
         with tempfile.TemporaryDirectory() as root:
@@ -210,12 +212,17 @@ class Go(unittest.TestCase):
             self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
             with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
                 self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
-                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_linux_amd64.a",
-                    "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
-            # The module ships every Go target's library, and nothing else.
+                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
+                    "rt/libmoq_linux_amd64.a", "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
+            # The module ships exactly the libraries the runtime links.
             (root / "libs/libmoq_linux_arm64.a").unlink()
             with self.assertRaises(SystemExit):
                 package.go_module(info(root), built, root / "libs", root / "other")
+            (root / "libs/libmoq_linux_arm64.a").write_bytes(b"!<arch>\n")
+            rt = built / "go/rt/rt.go"
+            rt.write_text(rt.read_text().replace("#cgo ios,arm64", "// none"))
+            with self.assertRaises(SystemExit):
+                package.go_module(info(root), built, root / "libs", root / "third")
 
     def test_refuses_names_a_case_folds_together(self):
         with tempfile.TemporaryDirectory() as root:
@@ -223,6 +230,8 @@ class Go(unittest.TestCase):
             built = export(root / "export")
             (built / "go/RT.go").write_text("package rt\n")
             (built / "go/rt.go").write_text("package rt\n")
+            if len(list((built / "go").glob("[Rr][Tt].go"))) != 2:
+                self.skipTest("a case-insensitive file system holds one of the two names")
             with self.assertRaises(SystemExit):
                 package.go_files(info(root), built, go_libs(root))
 

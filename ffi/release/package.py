@@ -49,6 +49,7 @@ GO_TARGETS = {
     "x86_64-unknown-linux-gnu": "linux_amd64",
     "aarch64-unknown-linux-gnu": "linux_arm64",
     "aarch64-apple-darwin": "darwin_arm64",
+    "aarch64-apple-ios": "ios_arm64",
     "x86_64-pc-windows-gnu": "windows_amd64",
 }
 # What the go command refuses to extract: a module zip, or its files, over 500 MiB, and a
@@ -638,12 +639,15 @@ def escape(module):
 
 
 def go_files(info, export, libs):
-    """The module's files by path: the export's Go, every Go target's library from the
-    directory `libs` beside the runtime, and the license files, at the root where
+    """The module's files by path: the export's Go, each library its runtime links from the
+    directory `libs` beside it, and the license files, at the root where
     pkg.go.dev looks for them."""
     root = Path(export) / "go"
     files = {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
-    want = {f"lib{info['lib']}_{platform}.a" for platform in GO_TARGETS.values()}
+    # Exactly the libraries the runtime's #cgo lines name.
+    want = set(re.findall(r"^#cgo \S+ LDFLAGS: \$\{SRCDIR\}/(\S+\.a)", files["rt/rt.go"].decode(), re.M))
+    if want != {f"lib{info['lib']}_{platform}.a" for platform in GO_TARGETS.values()}:
+        raise SystemExit(f"the export's Go links {sorted(want)}, not each of {sorted(GO_TARGETS)}")
     found = {p.name for p in Path(libs).iterdir()}
     if found != want:
         raise SystemExit(f"the Go module links {sorted(want)}, given {sorted(found)}")

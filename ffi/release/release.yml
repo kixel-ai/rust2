@@ -12,8 +12,10 @@ name: Release @NAME@ bindings
 #   the `swift-mirror` environment.
 #
 # The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, .zip, and list laid
-# out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy that
-# @GO_MODULE@'s go-import tag names: a git mirror holds no library over GitHub's 100 MiB.
+# out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy: on a
+# host you control, a go-import tag of type `mod` names it, but Go resolves a github.com path
+# by git alone, so its consumers set GOPROXY to the proxy. A git mirror holds no library
+# over GitHub's 100 MiB.
 #
 # To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
 # from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
