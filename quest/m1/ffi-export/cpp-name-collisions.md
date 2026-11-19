@@ -9,6 +9,8 @@ values, record fields, methods, and parameters.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#873](https://github.com/kixel-ai/rust2/pull/873): ✅ kept (rejected: dropping it).
+
 Found by the review of [kixel-ai/rust2#873](https://github.com/kixel-ai/rust2/pull/873).
 That PR escapes the macros GNU dialects predefine (`unix`, `linux`, `i386`) so that the
 whole family stays apart: `unix_` becomes `unix__`. Keywords keep their older single
