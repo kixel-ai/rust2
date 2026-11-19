@@ -978,7 +978,10 @@ check of each target reads from its crates' `#[link]` attributes and build scrip
 build needs no `CGO_LDFLAGS`, and on a platform with no library, `rt/platform.go` fails to
 compile. Go links Windows through MinGW, so only `x86_64-pc-windows-gnu` and
 `aarch64-pc-windows-gnullvm` are Windows targets it links, and iOS the device's library, as
-Go builds the simulator's from the same `ios/arm64`; Linux and macOS lines exclude Android
+Go builds the simulator's from the same `ios/arm64`. A library a crate ships rather than the
+system, as winapi's `winapi_<dll>` import libraries for MinGW, is not found where the Go
+links: the release builder exports and builds with `WINAPI_NO_BUNDLED_LIBRARIES=1`, so
+winapi links the system's; Linux and macOS lines exclude Android
 and iOS, which Go also counts as `linux` and `darwin`. The export puts no library there:
 copy it in, as [the release builder](release/README.md) does, without the LLVM bitcode
 (`.llvmbc`, `__LLVM`) that Go refuses, from 1.26.11 and 1.27.4, in an archive a `#cgo` line

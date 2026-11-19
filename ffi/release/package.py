@@ -825,6 +825,10 @@ def main():
                    help="the Go module's path, which a proxy you run serves, /vN suffix included")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
     args = parser.parse_args()
+    # winapi links MinGW import libraries of its own, from cargo's registry, where nothing
+    # linking the Go module's static library finds them: the system's serve every check and
+    # build, so the export's #cgo lines and rustc agree on them.
+    os.environ["WINAPI_NO_BUNDLED_LIBRARIES"] = "1"
 
     if args.command == "facts":
         info = facts(args.manifest_path)
