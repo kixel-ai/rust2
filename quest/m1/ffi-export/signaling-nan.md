@@ -10,6 +10,8 @@ optimizes the code it canonicalizes a quiet NaN's payload and sign too. The shap
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#879](https://github.com/kixel-ai/rust2/pull/879): ✅ keep it, and (a) the web holds floats as runtime `rt.f32`/`rt.f64` types that keep NaN bits, with checked conversion to and from `number`, as the lossless-types rule prescribes (rejected: (b) documenting that the web keeps no NaN's bits; dropping the quest).
+
 Found by the shape tests (`ffi/tests/fixtures/shapes.rs`), whose floats draw signaling and
 quiet NaNs, and whose native transcript marks each call that digests a NaN of its own bits
 (`nan signaling f32`, `nan quiet f64`), which `KNOWN` skips. AGENTS.md's lossless rule
