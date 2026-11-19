@@ -121,18 +121,20 @@ pub(crate) fn emit(t: &Transcript) -> String {
 /// The locals a call takes `&mut` that are values, not objects: each is an `api.Mut`,
 /// whose `value` the script reads.
 fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>) {
-	let mut visit = |expr: &Expr| walk(expr, &mut |e| {
-		if let Kind::Call(id, _, args) = &e.kind {
-			for (arg, param) in args.iter().zip(&t.function(*id).params) {
-				if let (Kind::Var(name), Type::Ref(Mutability::Mut, inner)) = (&arg.kind, &param.ty)
-					&& !matches!(**inner, Type::Object(_) | Type::Reader)
-					&& !out.contains(name)
-				{
-					out.push(name.clone());
+	let mut visit = |expr: &Expr| {
+		walk(expr, &mut |e| {
+			if let Kind::Call(id, _, args) = &e.kind {
+				for (arg, param) in args.iter().zip(&t.function(*id).params) {
+					if let (Kind::Var(name), Type::Ref(Mutability::Mut, inner)) = (&arg.kind, &param.ty)
+						&& !matches!(**inner, Type::Object(_) | Type::Reader)
+						&& !out.contains(name)
+					{
+						out.push(name.clone());
+					}
 				}
 			}
-		}
-	});
+		})
+	};
 	for step in steps {
 		each_expr(step, &mut visit);
 	}
@@ -160,9 +162,16 @@ fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
 	f(expr);
 	let mut inner = |e: &Expr| walk(e, f);
 	match &expr.kind {
-		Kind::Some(e) | Kind::Field(e, _) | Kind::Element(e, _) | Kind::Clone(e) | Kind::Unwrap(e) | Kind::UnwrapErr(e) => inner(e),
+		Kind::Some(e)
+		| Kind::Field(e, _)
+		| Kind::Element(e, _)
+		| Kind::Clone(e)
+		| Kind::Unwrap(e)
+		| Kind::UnwrapErr(e) => inner(e),
 		Kind::IsSome(e) | Kind::IsNone(e) | Kind::IsErr(e) | Kind::Utf8(e) | Kind::Len(e) => inner(e),
-		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => es.iter().for_each(inner),
+		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => {
+			es.iter().for_each(inner)
+		}
 		Kind::Call(_, r, args) => r.iter().map(|b| &**b).chain(args).for_each(inner),
 		Kind::Binary(_, a, b) => {
 			inner(a);
@@ -201,10 +210,60 @@ struct Emitter<'t> {
 }
 
 /// Python's keywords, which no name may be.
-const KEYWORDS: &[&str] = &["from", "in", "is", "not", "and", "or", "None", "True", "False", "lambda", "def", "del", "pass", "with", "yield", "async", "await", "class", "global", "import", "return", "try", "except", "raise", "while", "for", "if", "else", "elif", "break", "continue", "as", "assert", "finally", "nonlocal", "match", "case", "type"];
+const KEYWORDS: &[&str] = &[
+	"from", "in", "is", "not", "and", "or", "None", "True", "False", "lambda", "def", "del", "pass", "with", "yield",
+	"async", "await", "class", "global", "import", "return", "try", "except", "raise", "while", "for", "if", "else",
+	"elif", "break", "continue", "as", "assert", "finally", "nonlocal", "match", "case", "type",
+];
 
 /// What the script itself calls, which no local of its may shadow.
-const BUILTINS: &[&str] = &["list", "bytes", "str", "len", "range", "iter", "format", "print", "repr", "copy", "array", "struct", "ipaddress", "api", "local", "id", "hex", "min", "max", "sum", "next", "map", "filter", "bool", "int", "float", "tuple", "set", "dict", "object", "input", "open", "round", "all", "any", "zip", "slice", "vars", "bin", "oct", "ord", "chr", "abs", "hash", "callable"];
+const BUILTINS: &[&str] = &[
+	"list",
+	"bytes",
+	"str",
+	"len",
+	"range",
+	"iter",
+	"format",
+	"print",
+	"repr",
+	"copy",
+	"array",
+	"struct",
+	"ipaddress",
+	"api",
+	"local",
+	"id",
+	"hex",
+	"min",
+	"max",
+	"sum",
+	"next",
+	"map",
+	"filter",
+	"bool",
+	"int",
+	"float",
+	"tuple",
+	"set",
+	"dict",
+	"object",
+	"input",
+	"open",
+	"round",
+	"all",
+	"any",
+	"zip",
+	"slice",
+	"vars",
+	"bin",
+	"oct",
+	"ord",
+	"chr",
+	"abs",
+	"hash",
+	"callable",
+];
 
 /// A local's name in Python.
 fn ident(name: &str) -> String {
@@ -265,7 +324,9 @@ impl Emitter<'_> {
 				}
 				let v = self.expr(value, out);
 				match pat {
-					Pat::Name(name, _) if self.mutated.contains(name) => self.line(out, &format!("{} = api.Mut({v})", ident(name))),
+					Pat::Name(name, _) if self.mutated.contains(name) => {
+						self.line(out, &format!("{} = api.Mut({v})", ident(name)))
+					}
 					pat => self.bind(pat, &v, &value.ty, out),
 				}
 			}
@@ -291,7 +352,9 @@ impl Emitter<'_> {
 	/// A call of a method taking a value's `&mut self` on a local: the local's name, and
 	/// the call, which Python returns the value from as the call left it.
 	fn mut_receiver(&mut self, value: &Expr) -> Option<(String, String)> {
-		let Kind::Call(id, Some(receiver), args) = &value.kind else { return None };
+		let Kind::Call(id, Some(receiver), args) = &value.kind else {
+			return None;
+		};
 		let f = self.t.function(*id);
 		if f.receiver != Some(Receiver::Mut) || !matches!(id.owner, Owner::Record(_)) {
 			return None;
@@ -301,7 +364,10 @@ impl Emitter<'_> {
 		};
 		let mut scratch = String::new();
 		let call = self.call(*id, Some(receiver), args, &mut scratch);
-		assert!(scratch.is_empty(), "a value's &mut self method taking a closure of steps");
+		assert!(
+			scratch.is_empty(),
+			"a value's &mut self method taking a closure of steps"
+		);
 		Some((ident(name), call))
 	}
 
@@ -446,7 +512,13 @@ impl Emitter<'_> {
 		let Type::Object(i) = ty else { return None };
 		let o = &self.t.api.objects[*i];
 		let index = o.methods.iter().position(|m| m.access == Access::Text)?;
-		Some(self.t.name(LANGUAGE, FnId { owner: Owner::Object(*i), index }))
+		Some(self.t.name(
+			LANGUAGE,
+			FnId {
+				owner: Owner::Object(*i),
+				index,
+			},
+		))
 	}
 
 	/// `v` as Rust's `Debug` prints a value of `ty`.
@@ -467,7 +539,9 @@ impl Emitter<'_> {
 				format!("_list({v}, lambda {x}: {show})")
 			}
 			Type::Tuple(elements) => {
-				let parts: Vec<String> = (0..elements.len()).map(|i| self.debug(&format!("{v}[{i}]"), &elements[i])).collect();
+				let parts: Vec<String> = (0..elements.len())
+					.map(|i| self.debug(&format!("{v}[{i}]"), &elements[i]))
+					.collect();
 				let tail = if parts.len() == 1 { ",)" } else { ")" };
 				format!("\"(\" + {} + \"{tail}\"", parts.join(" + \", \" + "))
 			}
@@ -487,7 +561,9 @@ impl Emitter<'_> {
 			Kind::Unit => "None".to_string(),
 			Kind::Bool(b) => if *b { "True" } else { "False" }.to_string(),
 			Kind::Int(n) => n.to_string(),
-			Kind::Float(f) if !f.is_finite() || (*f == 0.0 && f.is_sign_negative()) => format!("_f64({:#x})", f.to_bits()),
+			Kind::Float(f) if !f.is_finite() || (*f == 0.0 && f.is_sign_negative()) => {
+				format!("_f64({:#x})", f.to_bits())
+			}
 			Kind::Float(f) => format!("{f:?}"),
 			Kind::Char(c) => string(&c.to_string()),
 			Kind::Str(s) => string(s),
@@ -515,7 +591,11 @@ impl Emitter<'_> {
 			Kind::Record(r, fields) => {
 				let name = self.t.type_name(LANGUAGE, &Type::Record(*r)).to_string();
 				let field_types: Vec<Type> = self.t.api.records[*r].fields.iter().map(|f| f.ty.clone()).collect();
-				let args: Vec<String> = fields.iter().zip(&field_types).map(|(f, ty)| self.value(f, ty, out)).collect();
+				let args: Vec<String> = fields
+					.iter()
+					.zip(&field_types)
+					.map(|(f, ty)| self.value(f, ty, out))
+					.collect();
 				format!("api.{name}({})", args.join(", "))
 			}
 			Kind::Variant(en, v, fields) => {
@@ -527,11 +607,17 @@ impl Emitter<'_> {
 				}
 				let field_types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
 				let variant_name = variant.name.clone();
-				let args: Vec<String> = fields.iter().zip(&field_types).map(|(f, ty)| self.value(f, ty, out)).collect();
+				let args: Vec<String> = fields
+					.iter()
+					.zip(&field_types)
+					.map(|(f, ty)| self.value(f, ty, out))
+					.collect();
 				format!("api.{name}.{variant_name}({})", args.join(", "))
 			}
 			Kind::Bound(kind, value) => {
-				let Type::Bound(int) = unref(&e.ty) else { panic!("a bound of {:?}", e.ty) };
+				let Type::Bound(int) = unref(&e.ty) else {
+					panic!("a bound of {:?}", e.ty)
+				};
 				let (kind, v) = match (kind, value) {
 					(BoundKind::Unbounded, _) => ("UNBOUNDED", "0".to_string()),
 					(BoundKind::Included, Some(v)) => ("INCLUDED", self.expr(v, out)),
@@ -550,11 +636,17 @@ impl Emitter<'_> {
 				true => format!("{}.value", ident(name)),
 				false => ident(name),
 			},
-			Kind::Const(c) => format!("api.{}", self.t.named(LANGUAGE, &format!("const {}", self.t.api.constants[*c].path.join("::")))),
+			Kind::Const(c) => format!(
+				"api.{}",
+				self.t
+					.named(LANGUAGE, &format!("const {}", self.t.api.constants[*c].path.join("::")))
+			),
 			Kind::Call(id, receiver, args) => self.call(*id, receiver.as_deref(), args, out),
 			Kind::Field(base, i) => {
 				let b = self.expr(base, out);
-				let Type::Record(r) = unref(&base.ty).base() else { panic!("a field of {:?}", base.ty) };
+				let Type::Record(r) = unref(&base.ty).base() else {
+					panic!("a field of {:?}", base.ty)
+				};
 				format!("{b}.{}", self.t.api.records[*r].fields[*i].name)
 			}
 			Kind::Element(base, i) => {
@@ -580,13 +672,17 @@ impl Emitter<'_> {
 				}
 			}
 			Kind::UnwrapErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("unwrap_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("unwrap_err of {:?}", inner.ty)
+				};
 				let exception = self.exception(err);
 				let v = self.expr(inner, out);
 				format!("_err(lambda: {v}, api.{exception})")
 			}
 			Kind::IsErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("is_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("is_err of {:?}", inner.ty)
+				};
 				let exception = self.exception(err);
 				let v = self.expr(inner, out);
 				format!("_fails(lambda: {v}, api.{exception})")
@@ -620,7 +716,12 @@ impl Emitter<'_> {
 				let body = self.expr(body, out);
 				format!("{}.join({body} for {target} in {items})", string(sep))
 			}
-			Kind::MapOr { option, none, pat, some } => {
+			Kind::MapOr {
+				option,
+				none,
+				pat,
+				some,
+			} => {
 				let option = self.expr(option, out);
 				let none = self.expr(none, out);
 				let target = self.pat(pat);
@@ -647,7 +748,11 @@ impl Emitter<'_> {
 					Type::Tuple(ts) => ts.clone(),
 					_ => elements.iter().map(|e| e.ty.clone()).collect(),
 				};
-				let parts: Vec<String> = elements.iter().zip(&wants).map(|(e, t)| self.value(e, t, out)).collect();
+				let parts: Vec<String> = elements
+					.iter()
+					.zip(&wants)
+					.map(|(e, t)| self.value(e, t, out))
+					.collect();
 				match parts.len() {
 					1 => format!("({},)", parts[0]),
 					_ => format!("({})", parts.join(", ")),

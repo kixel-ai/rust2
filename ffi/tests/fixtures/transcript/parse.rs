@@ -74,7 +74,16 @@ struct Scope<'t> {
 }
 
 /// Conversions that leave a value as the binding has it.
-const CONVERSIONS: &[&str] = &["to_string", "to_vec", "to_owned", "into", "as_ref", "into_iter", "iter", "as_deref"];
+const CONVERSIONS: &[&str] = &[
+	"to_string",
+	"to_vec",
+	"to_owned",
+	"into",
+	"as_ref",
+	"into_iter",
+	"iter",
+	"as_deref",
+];
 
 impl Scope<'_> {
 	fn import(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) {
@@ -187,7 +196,9 @@ impl Scope<'_> {
 			fail(field, "an assignment to an element")
 		};
 		let receiver = self.infer(&field.base);
-		let Some(id) = self.method_of(&receiver.ty, &name.to_string(), |f| matches!(f.access, Access::Field { set: true, .. })) else {
+		let Some(id) = self.method_of(&receiver.ty, &name.to_string(), |f| {
+			matches!(f.access, Access::Field { set: true, .. })
+		}) else {
 			fail(field, format!("no setter of {name} on {}", self.describe(&receiver.ty)))
 		};
 		let ty = self.t.function(id).params[0].ty.clone();
@@ -230,7 +241,14 @@ impl Scope<'_> {
 					fail(pat, "a tuple pattern of another length");
 				}
 				let elements = elements.clone();
-				Pat::Tuple(tuple.elems.iter().zip(&elements).map(|(p, ty)| self.bind(p, ty)).collect())
+				Pat::Tuple(
+					tuple
+						.elems
+						.iter()
+						.zip(&elements)
+						.map(|(p, ty)| self.bind(p, ty))
+						.collect(),
+				)
 			}
 			pat => fail(pat, "a pattern other than a name, `_`, or a tuple"),
 		}
@@ -240,7 +258,11 @@ impl Scope<'_> {
 	fn ty(&self, ty: &syn::Type) -> Type {
 		match ty {
 			syn::Type::Reference(r) => {
-				let mutability = if r.mutability.is_some() { Mutability::Mut } else { Mutability::Not };
+				let mutability = if r.mutability.is_some() {
+					Mutability::Mut
+				} else {
+					Mutability::Not
+				};
 				Type::Ref(mutability, Box::new(self.ty(&r.elem)))
 			}
 			syn::Type::Paren(p) => self.ty(&p.elem),
@@ -248,7 +270,8 @@ impl Scope<'_> {
 				let Some(syn::TypeParamBound::Trait(bound)) = t.bounds.first() else {
 					fail(t, "a trait object of no trait")
 				};
-				self.type_of_path(&bound.path).unwrap_or_else(|| fail(t, "a trait object the API lacks"))
+				self.type_of_path(&bound.path)
+					.unwrap_or_else(|| fail(t, "a trait object the API lacks"))
 			}
 			syn::Type::Tuple(t) if t.elems.is_empty() => Type::Unit,
 			syn::Type::Tuple(t) => Type::Tuple(t.elems.iter().map(|e| self.ty(e)).collect()),
@@ -305,7 +328,9 @@ impl Scope<'_> {
 						Type::Int(Int::U8) => Type::Vec,
 						item => Type::List(Collection::Vec, Box::new(item)),
 					},
-					_ => self.type_of_path(&p.path).unwrap_or_else(|| fail(ty, "a type the API lacks")),
+					_ => self
+						.type_of_path(&p.path)
+						.unwrap_or_else(|| fail(ty, "a type the API lacks")),
 				}
 			}
 			ty => fail(ty, "this type"),
@@ -319,8 +344,18 @@ impl Scope<'_> {
 		let api = &self.t.api;
 		let types: Vec<(Type, &Vec<String>, bool)> = (api.records.iter().enumerate())
 			.map(|(i, r)| (Type::Record(i), &r.path, r.args.is_empty()))
-			.chain(api.enums.iter().enumerate().map(|(i, e)| (Type::Enum(i), &e.path, e.args.is_empty())))
-			.chain(api.objects.iter().enumerate().map(|(i, o)| (Type::Object(i), &o.path, o.args.is_empty())))
+			.chain(
+				api.enums
+					.iter()
+					.enumerate()
+					.map(|(i, e)| (Type::Enum(i), &e.path, e.args.is_empty())),
+			)
+			.chain(
+				api.objects
+					.iter()
+					.enumerate()
+					.map(|(i, o)| (Type::Object(i), &o.path, o.args.is_empty())),
+			)
 			.collect();
 		let pick = |found: Vec<&(Type, &Vec<String>, bool)>| -> Option<Type> {
 			match found.as_slice() {
@@ -352,7 +387,8 @@ impl Scope<'_> {
 			.unwrap_or_else(|e| fail(mac, e));
 		let mut args = args.into_iter();
 		let Some(syn::Expr::Lit(syn::ExprLit {
-			lit: syn::Lit::Str(lit), ..
+			lit: syn::Lit::Str(lit),
+			..
 		})) = args.next()
 		else {
 			fail(mac, "a format without its string")
@@ -504,7 +540,10 @@ impl Scope<'_> {
 			syn::Expr::Lit(lit) => match &lit.lit {
 				syn::Lit::Str(s) => Expr::new(Kind::Str(s.value()), Type::Ref(Mutability::Not, Box::new(Type::Str))),
 				syn::Lit::Bool(b) => Expr::new(Kind::Bool(b.value), Type::Bool),
-				syn::Lit::ByteStr(b) => Expr::new(Kind::Bytes(b.value()), Type::Ref(Mutability::Not, Box::new(Type::Slice))),
+				syn::Lit::ByteStr(b) => Expr::new(
+					Kind::Bytes(b.value()),
+					Type::Ref(Mutability::Not, Box::new(Type::Slice)),
+				),
 				syn::Lit::Int(i) if !i.suffix().is_empty() => {
 					let int = int_named(i.suffix()).unwrap_or_else(|| fail(i, "this integer suffix"));
 					self.check(expr, &Type::Int(int))
@@ -568,10 +607,16 @@ impl Scope<'_> {
 					return Expr::new(e.kind, ty.clone());
 				}
 			}
-			syn::Expr::MethodCall(m) if m.method == "parse" || (m.method == "unwrap" && matches!(&*m.receiver, syn::Expr::MethodCall(r) if r.method == "parse")) => {
+			syn::Expr::MethodCall(m)
+				if m.method == "parse"
+					|| (m.method == "unwrap"
+						&& matches!(&*m.receiver, syn::Expr::MethodCall(r) if r.method == "parse")) =>
+			{
 				return self.parsed(m, ty);
 			}
-			syn::Expr::MethodCall(m) if CONVERSIONS.contains(&m.method.to_string().as_str()) && m.args.is_empty() && !self.api_method(m) => {
+			syn::Expr::MethodCall(m)
+				if CONVERSIONS.contains(&m.method.to_string().as_str()) && m.args.is_empty() && !self.api_method(m) =>
+			{
 				return self.check(&m.receiver, ty);
 			}
 			// `[..].into_iter().map(..).collect()`, as a map's or a set's items are built.
@@ -579,7 +624,14 @@ impl Scope<'_> {
 			syn::Expr::Call(call) => {
 				let func = &*call.func;
 				let one = call.args.len() == 1;
-				let passed = ["String::from", "Bytes::from_static", "Box::new", "PathBuf::from", "Path::new", "Bytes::from"];
+				let passed = [
+					"String::from",
+					"Bytes::from_static",
+					"Box::new",
+					"PathBuf::from",
+					"Path::new",
+					"Bytes::from",
+				];
 				if one && passed.iter().any(|p| path_is(func, p)) {
 					return self.check(&call.args[0], ty);
 				}
@@ -590,7 +642,13 @@ impl Scope<'_> {
 					let value = self.check(&call.args[0], inner);
 					return Expr::new(Kind::Some(Box::new(value)), ty.clone());
 				}
-				let empties = ["Default::default", "Box::default", "Vec::new", "String::new", "Bytes::new"];
+				let empties = [
+					"Default::default",
+					"Box::default",
+					"Vec::new",
+					"String::new",
+					"Bytes::new",
+				];
 				if call.args.is_empty() && empties.iter().any(|p| path_is(func, p)) {
 					return self.empty(expr, ty);
 				}
@@ -641,7 +699,10 @@ impl Scope<'_> {
 		}
 		let value = self.infer(expr);
 		if !fits(&value.ty, ty) {
-			fail(expr, format!("{} where {} is taken", self.describe(&value.ty), self.describe(ty)));
+			fail(
+				expr,
+				format!("{} where {} is taken", self.describe(&value.ty), self.describe(ty)),
+			);
 		}
 		value
 	}
@@ -853,7 +914,15 @@ impl Scope<'_> {
 					}
 				};
 				let start = end(self, r.start.as_deref(), BoundKind::Included);
-				let last = end(self, r.end.as_deref(), if closed { BoundKind::Included } else { BoundKind::Excluded });
+				let last = end(
+					self,
+					r.end.as_deref(),
+					if closed {
+						BoundKind::Included
+					} else {
+						BoundKind::Excluded
+					},
+				);
 				Expr::new(Kind::Tuple(vec![start, last]), ty.clone())
 			}
 			other => fail(r, format!("a range as {}", self.describe(other))),
@@ -869,7 +938,12 @@ impl Scope<'_> {
 			fail(c, "a closure of another arity");
 		}
 		let depth = self.vars.len();
-		let params = c.inputs.iter().zip(&closure.params).map(|(p, ty)| self.bind(p, ty)).collect();
+		let params = c
+			.inputs
+			.iter()
+			.zip(&closure.params)
+			.map(|(p, ty)| self.bind(p, ty))
+			.collect();
 		let (steps, value) = self.body(&c.body, &closure.ok);
 		self.vars.truncate(depth);
 		Expr::new(Kind::Closure(params, steps, Box::new(value)), ty.clone())
@@ -880,7 +954,11 @@ impl Scope<'_> {
 		let mut steps = Vec::new();
 		let value = match body {
 			syn::Expr::Block(b) => {
-				let (last, init) = b.block.stmts.split_last().unwrap_or_else(|| fail(b, "an empty closure"));
+				let (last, init) = b
+					.block
+					.stmts
+					.split_last()
+					.unwrap_or_else(|| fail(b, "an empty closure"));
 				init.iter().for_each(|s| self.stmt(s, &mut steps));
 				match last {
 					syn::Stmt::Expr(e, None) => self.check(e, ok),
@@ -937,7 +1015,10 @@ impl Scope<'_> {
 		let owner = unref(&base.ty).base().clone();
 		match (&f.member, &owner) {
 			(syn::Member::Unnamed(i), Type::Tuple(elements)) => {
-				let ty = elements.get(i.index as usize).unwrap_or_else(|| fail(f, "no such element")).clone();
+				let ty = elements
+					.get(i.index as usize)
+					.unwrap_or_else(|| fail(f, "no such element"))
+					.clone();
 				Expr::new(Kind::Element(Box::new(base), i.index as usize), ty)
 			}
 			(syn::Member::Named(name), Type::Range(int)) if name == "start" || name == "end" => {
@@ -953,7 +1034,8 @@ impl Scope<'_> {
 					return Expr::new(Kind::Field(Box::new(base), i), ty);
 				}
 				// A getter: an object's field, or an opaque value's.
-				let Some(id) = self.method_of(&owner, &name, |f| matches!(f.access, Access::Field { set: false, .. })) else {
+				let Some(id) = self.method_of(&owner, &name, |f| matches!(f.access, Access::Field { set: false, .. }))
+				else {
 					fail(f, format!("no field {name} on {}", self.describe(&owner)))
 				};
 				let ty = self.t.function(id).ok.clone();
@@ -966,7 +1048,9 @@ impl Scope<'_> {
 	/// The method `name` of `owner`'s type for which `which` holds.
 	fn method_of(&self, owner: &Type, name: &str, which: impl Fn(&Function) -> bool) -> Option<FnId> {
 		let (owner, methods) = self.methods(owner)?;
-		let index = methods.iter().position(|f| f.path.last().map(String::as_str) == Some(name) && which(f))?;
+		let index = methods
+			.iter()
+			.position(|f| f.path.last().map(String::as_str) == Some(name) && which(f))?;
 		Some(FnId { owner, index })
 	}
 
@@ -982,8 +1066,9 @@ impl Scope<'_> {
 	/// A struct literal: a record's, or an enum's struct variant's.
 	fn structure(&mut self, s: &syn::ExprStruct, ty: Option<&Type>) -> Expr {
 		if let Some((e, v)) = self.find_variant(&s.path, None) {
-			let fields: Vec<(String, Type)> =
-				(self.t.api.enums[e].variants[v].fields.iter()).map(|f| (f.name.clone(), f.ty.clone())).collect();
+			let fields: Vec<(String, Type)> = (self.t.api.enums[e].variants[v].fields.iter())
+				.map(|f| (f.name.clone(), f.ty.clone()))
+				.collect();
 			let values = self.fields(s, &fields);
 			return Expr::new(Kind::Variant(e, v, values), Type::Enum(e));
 		}
@@ -994,7 +1079,9 @@ impl Scope<'_> {
 			(Some(Type::Record(i)), _) => vec![*i],
 			(_, Some(Type::Record(i))) => {
 				let path = &self.t.api.records[*i].path;
-				(0..self.t.api.records.len()).filter(|r| self.t.api.records[*r].path == *path).collect()
+				(0..self.t.api.records.len())
+					.filter(|r| self.t.api.records[*r].path == *path)
+					.collect()
 			}
 			_ => fail(s, "a struct literal of no record"),
 		};
@@ -1009,7 +1096,9 @@ impl Scope<'_> {
 				})
 			})
 			.unwrap_or_else(|| fail(s, "a record literal fitting no instance"));
-		let fields: Vec<(String, Type)> = (self.t.api.records[r].fields.iter()).map(|f| (f.name.clone(), f.ty.clone())).collect();
+		let fields: Vec<(String, Type)> = (self.t.api.records[r].fields.iter())
+			.map(|f| (f.name.clone(), f.ty.clone()))
+			.collect();
 		if fields.len() != s.fields.len() {
 			fail(s, "a record literal without each field");
 		}
@@ -1068,12 +1157,19 @@ impl Scope<'_> {
 		let (variant, enum_path) = names.split_last()?;
 		let enum_path = enum_path.to_vec();
 		let found = |e: &super::ir::Enum| {
-			e.path == enum_path || (e.path.last() == enum_path.last() && !enum_path.is_empty()) || e.foreign && ty.is_some()
+			e.path == enum_path
+				|| (e.path.last() == enum_path.last() && !enum_path.is_empty())
+				|| e.foreign && ty.is_some()
 		};
 		let (e, en) = (self.t.api.enums.iter().enumerate()).find(|(i, e)| {
-			found(e) && ty.is_none_or(|t| matches!(unref(t), Type::Enum(j) if j == i) || matches!(unref(t), Type::Option(inner) if **inner == Type::Enum(*i)))
+			found(e)
+				&& ty.is_none_or(|t| {
+					matches!(unref(t), Type::Enum(j) if j == i)
+						|| matches!(unref(t), Type::Option(inner) if **inner == Type::Enum(*i))
+				})
 		})?;
-		let v = (en.variants.iter()).position(|v| &v.name == variant || (en.foreign && v.name.to_uppercase() == *variant))?;
+		let v = (en.variants.iter())
+			.position(|v| &v.name == variant || (en.foreign && v.name.to_uppercase() == *variant))?;
 		Some((e, v))
 	}
 
@@ -1086,7 +1182,11 @@ impl Scope<'_> {
 			return Some(Expr::new(Kind::None, ty.unwrap().clone()));
 		}
 		let (e, v) = self.find_variant(path, ty)?;
-		let fields: Vec<Type> = self.t.api.enums[e].variants[v].fields.iter().map(|f| f.ty.clone()).collect();
+		let fields: Vec<Type> = self.t.api.enums[e].variants[v]
+			.fields
+			.iter()
+			.map(|f| f.ty.clone())
+			.collect();
 		if fields.len() != args.len() {
 			fail(path, "a variant of another arity");
 		}
@@ -1102,22 +1202,40 @@ impl Scope<'_> {
 	/// including methods called by their path with the receiver first.
 	fn functions(&self, path: &syn::Path) -> Vec<FnId> {
 		let names = self.segments(path);
-		let Some((name, owner_path)) = names.split_last() else { return Vec::new() };
+		let Some((name, owner_path)) = names.split_last() else {
+			return Vec::new();
+		};
 		let api = &self.t.api;
 		let mut exact = Vec::new();
 		let mut loose = Vec::new();
 		for (i, f) in api.functions.iter().enumerate() {
 			if f.path == names {
-				exact.push(FnId { owner: Owner::Free, index: i });
+				exact.push(FnId {
+					owner: Owner::Free,
+					index: i,
+				});
 			} else if f.path.last() == Some(name) && names.len() == 1 {
-				loose.push(FnId { owner: Owner::Free, index: i });
+				loose.push(FnId {
+					owner: Owner::Free,
+					index: i,
+				});
 			}
 		}
 		if !owner_path.is_empty() {
 			let owners = (api.records.iter().enumerate())
 				.map(|(i, r)| (Owner::Record(i), &r.path, &r.methods))
-				.chain(api.enums.iter().enumerate().map(|(i, e)| (Owner::Enum(i), &e.path, &e.methods)))
-				.chain(api.objects.iter().enumerate().map(|(i, o)| (Owner::Object(i), &o.path, &o.methods)));
+				.chain(
+					api.enums
+						.iter()
+						.enumerate()
+						.map(|(i, e)| (Owner::Enum(i), &e.path, &e.methods)),
+				)
+				.chain(
+					api.objects
+						.iter()
+						.enumerate()
+						.map(|(i, o)| (Owner::Object(i), &o.path, &o.methods)),
+				);
 			for (owner, path, methods) in owners {
 				let list = match () {
 					_ if *path == owner_path => &mut exact,
@@ -1152,7 +1270,13 @@ impl Scope<'_> {
 	}
 
 	/// The candidate whose parameters `args` fit and whose return `expected` fits.
-	fn pick(&self, candidates: Vec<FnId>, args: &[syn::Expr], expected: Option<&Type>, turbofish: &[Type]) -> Option<FnId> {
+	fn pick(
+		&self,
+		candidates: Vec<FnId>,
+		args: &[syn::Expr],
+		expected: Option<&Type>,
+		turbofish: &[Type],
+	) -> Option<FnId> {
 		let fitting: Vec<FnId> = candidates
 			.into_iter()
 			.filter(|id| {
@@ -1170,8 +1294,12 @@ impl Scope<'_> {
 				let args: Vec<&syn::Expr> = args.iter().filter(|a| !is_unit(a)).collect();
 				turbofish.iter().zip(&named).all(|(t, n)| t == n)
 					&& args.len() == params.len() + receiver
-					&& args[receiver..].iter().zip(&params).all(|(a, ty)| self.fits_expr(a, ty))
-					&& expected.is_none_or(|e| f.err.is_some() || fits(&f.ok, e) || matches!(unref(e), Type::Result(..)))
+					&& args[receiver..]
+						.iter()
+						.zip(&params)
+						.all(|(a, ty)| self.fits_expr(a, ty))
+					&& expected
+						.is_none_or(|e| f.err.is_some() || fits(&f.ok, e) || matches!(unref(e), Type::Result(..)))
 			})
 			.collect();
 		fitting.first().copied()
@@ -1210,7 +1338,13 @@ impl Scope<'_> {
 			}
 		}
 		let Some(id) = self.function(&p.path, &args, expected) else {
-			fail(call, format!("a call of {}, which the API does not export", self.segments(&p.path).join("::")))
+			fail(
+				call,
+				format!(
+					"a call of {}, which the API does not export",
+					self.segments(&p.path).join("::")
+				),
+			)
 		};
 		let args: Vec<syn::Expr> = args.into_iter().filter(|a| !is_unit(a)).collect();
 		match self.t.function(id).receiver {
@@ -1261,13 +1395,17 @@ impl Scope<'_> {
 			}
 			// `String::from_utf8(..).unwrap()`, of bytes the transcript knows are text.
 			"unwrap" if matches!(&*m.receiver, syn::Expr::Call(c) if path_is(&c.func, "String::from_utf8")) => {
-				let syn::Expr::Call(c) = &*m.receiver else { unreachable!() };
+				let syn::Expr::Call(c) = &*m.receiver else {
+					unreachable!()
+				};
 				let value = self.infer(&c.args[0]);
 				return Expr::new(Kind::Utf8(Box::new(value)), Type::String);
 			}
 			// `.err().unwrap()`, the error of a call that must fail.
 			"unwrap" if matches!(&*m.receiver, syn::Expr::MethodCall(e) if e.method == "err" && e.args.is_empty()) => {
-				let syn::Expr::MethodCall(e) = &*m.receiver else { unreachable!() };
+				let syn::Expr::MethodCall(e) = &*m.receiver else {
+					unreachable!()
+				};
 				let value = self.infer(&e.receiver);
 				let Type::Result(_, err) = &value.ty else {
 					fail(e, "err() of no Result")
@@ -1367,9 +1505,12 @@ impl Scope<'_> {
 
 	/// `items.map(|pat| body).collect::<Vec<_>>().join(sep)`.
 	fn join(&mut self, m: &syn::ExprMethodCall) -> Expr {
-		let [syn::Expr::Lit(syn::ExprLit {
-			lit: syn::Lit::Str(sep), ..
-		})] = m.args.iter().collect::<Vec<_>>()[..]
+		let [
+			syn::Expr::Lit(syn::ExprLit {
+				lit: syn::Lit::Str(sep),
+				..
+			}),
+		] = m.args.iter().collect::<Vec<_>>()[..]
 		else {
 			fail(m, "a join other than on a string literal")
 		};
@@ -1409,9 +1550,13 @@ impl Scope<'_> {
 	}
 
 	fn methods_named(&self, owner: &Type, name: &str) -> Vec<FnId> {
-		let Some((owner, methods)) = self.methods(owner) else { return Vec::new() };
+		let Some((owner, methods)) = self.methods(owner) else {
+			return Vec::new();
+		};
 		(methods.iter().enumerate())
-			.filter(|(_, f)| f.path.last().map(String::as_str) == Some(name) && f.receiver.is_some() && f.access == Access::Call)
+			.filter(|(_, f)| {
+				f.path.last().map(String::as_str) == Some(name) && f.receiver.is_some() && f.access == Access::Call
+			})
 			.map(|(index, _)| FnId { owner, index })
 			.collect()
 	}
@@ -1535,7 +1680,8 @@ fn const_int(expr: &syn::Expr) -> Option<Num> {
 fn const_float(expr: &syn::Expr) -> Option<f64> {
 	match expr {
 		syn::Expr::Lit(syn::ExprLit {
-			lit: syn::Lit::Float(f), ..
+			lit: syn::Lit::Float(f),
+			..
 		}) => f.base10_parse().ok(),
 		syn::Expr::Lit(syn::ExprLit {
 			lit: syn::Lit::Int(i), ..
@@ -1610,7 +1756,9 @@ fn const_net(expr: &syn::Expr) -> Option<Net> {
 			}
 			if path_is(&c.func, "Ipv6Addr::new") {
 				let s: Vec<u16> = args.iter().map(|a| int(a).map(|v| v as u16)).collect::<Option<_>>()?;
-				return Some(Net::Ip(IpAddr::V6(Ipv6Addr::new(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]))));
+				return Some(Net::Ip(IpAddr::V6(Ipv6Addr::new(
+					s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+				))));
 			}
 			let ip = |e: &syn::Expr| match const_net(e)? {
 				Net::Ip(ip) => Some(ip),

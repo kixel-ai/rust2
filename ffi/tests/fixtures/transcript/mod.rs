@@ -11,12 +11,12 @@
 //! as its futures, or prints a value no binding shapes alike, such as `hex`. Anything else
 //! fails, naming its line.
 
-pub(crate) mod dart;
 pub(crate) mod cpp;
-pub(crate) mod ir;
-mod parse;
+pub(crate) mod dart;
 pub(crate) mod go;
+pub(crate) mod ir;
 pub(crate) mod kotlin;
+mod parse;
 pub(crate) mod python;
 pub(crate) mod swift;
 pub(crate) mod typescript;
@@ -44,7 +44,11 @@ pub(crate) enum Step {
 	/// `drop(name)`: the local's value drops here, not at the end of its scope.
 	Drop(String),
 	/// A `match` on a `Result` or an `Option`, `ok` on `Ok` or `Some`.
-	Match { value: Expr, ok: Arm, err: Arm },
+	Match {
+		value: Expr,
+		ok: Arm,
+		err: Arm,
+	},
 }
 
 /// A `match` arm: the pattern binding the payload, if any, and the steps it runs.

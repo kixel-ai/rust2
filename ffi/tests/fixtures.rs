@@ -1231,7 +1231,8 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
-	let script = generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
+	let script =
+		generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
 	// The Clang module the test and the contract program import on Linux.
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
@@ -3952,4 +3953,3 @@ fn profiled() {
 		"{stderr}"
 	);
 }
-

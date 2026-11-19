@@ -193,7 +193,8 @@ impl Model {
 	/// Whether a parameter of `ty` is `inout`: a value Rust writes back, a reader, or a struct
 	/// borrowed mutably.
 	fn inout(&self, ty: &Type) -> bool {
-		let written = matches!(ty, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader));
+		let written =
+			matches!(ty, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader));
 		let reader = matches!(ty, Type::Ref(_, inner) if **inner == Type::Reader);
 		let lent = self.unique(ty)
 			&& match ty {
@@ -348,10 +349,52 @@ struct Emitter<'t> {
 
 /// Swift's keywords, which a local's name is quoted as.
 const KEYWORDS: &[&str] = &[
-	"as", "break", "case", "catch", "class", "continue", "default", "defer", "do", "else", "enum", "extension", "fallthrough",
-	"false", "for", "func", "guard", "if", "import", "in", "init", "inout", "internal", "is", "let", "nil", "operator",
-	"private", "protocol", "public", "repeat", "rethrows", "return", "self", "static", "struct", "subscript", "super",
-	"switch", "throw", "throws", "true", "try", "var", "where", "while",
+	"as",
+	"break",
+	"case",
+	"catch",
+	"class",
+	"continue",
+	"default",
+	"defer",
+	"do",
+	"else",
+	"enum",
+	"extension",
+	"fallthrough",
+	"false",
+	"for",
+	"func",
+	"guard",
+	"if",
+	"import",
+	"in",
+	"init",
+	"inout",
+	"internal",
+	"is",
+	"let",
+	"nil",
+	"operator",
+	"private",
+	"protocol",
+	"public",
+	"repeat",
+	"rethrows",
+	"return",
+	"self",
+	"static",
+	"struct",
+	"subscript",
+	"super",
+	"switch",
+	"throw",
+	"throws",
+	"true",
+	"try",
+	"var",
+	"where",
+	"while",
 ];
 
 /// A name as Swift spells it, quoted if a keyword.
@@ -382,7 +425,9 @@ impl Emitter<'_> {
 	fn mutations(&mut self, step: &Step) {
 		let visit = |e: &Expr, this: &mut Self| {
 			walk(e, &mut |e| {
-				let Kind::Call(id, receiver, args) = &e.kind else { return };
+				let Kind::Call(id, receiver, args) = &e.kind else {
+					return;
+				};
 				if this.model.mutating(this.t, *id)
 					&& let Some(Kind::Var(name)) = receiver.as_ref().map(|r| &r.kind)
 				{
@@ -455,7 +500,9 @@ impl Emitter<'_> {
 			}
 		};
 		find(&self.t.steps);
-		let ty = types.first().unwrap_or_else(|| panic!("a drop of {name}, which no let binds"));
+		let ty = types
+			.first()
+			.unwrap_or_else(|| panic!("a drop of {name}, which no let binds"));
 		self.model.unique(ty)
 	}
 
@@ -470,7 +517,8 @@ impl Emitter<'_> {
 	fn step(&mut self, step: &Step, out: &mut String) {
 		match step {
 			Step::Let(pat, value) => {
-				let literal = matches!(&value.kind, Kind::Tuple(_)) && !matches!(unref(&value.ty).base(), Type::Range(_) | Type::Bounds(_));
+				let literal = matches!(&value.kind, Kind::Tuple(_))
+					&& !matches!(unref(&value.ty).base(), Type::Range(_) | Type::Bounds(_));
 				match (pat, &value.kind) {
 					// A tuple literal binds each element, so each may be its own `let` or `var`.
 					(Pat::Tuple(pats), Kind::Tuple(elements)) if literal => {
@@ -617,7 +665,12 @@ impl Emitter<'_> {
 	}
 
 	/// `write`'s expression, prefixed with `prefix` if it throws.
-	fn rooted(&mut self, prefix: &str, out: &mut String, write: impl FnOnce(&mut Self, &mut String) -> String) -> String {
+	fn rooted(
+		&mut self,
+		prefix: &str,
+		out: &mut String,
+		write: impl FnOnce(&mut Self, &mut String) -> String,
+	) -> String {
 		let saved = std::mem::replace(&mut self.threw, false);
 		let v = write(self, out);
 		match std::mem::replace(&mut self.threw, saved) {
@@ -850,7 +903,9 @@ impl Emitter<'_> {
 			(spec, ty) => panic!("{spec:?} of {ty:?}"),
 		}
 		match ty {
-			Type::Bool | Type::Int(_) | Type::U128 | Type::NonZero(_) | Type::String | Type::Str | Type::Char => v.to_string(),
+			Type::Bool | Type::Int(_) | Type::U128 | Type::NonZero(_) | Type::String | Type::Str | Type::Char => {
+				v.to_string()
+			}
 			Type::Object(i) if !self.t.api.objects[*i].traits.display => {
 				let o = &self.t.api.objects[*i];
 				let Some(index) = o.methods.iter().position(|m| m.access == Access::Text) else {
@@ -978,7 +1033,10 @@ impl Emitter<'_> {
 			}
 			Kind::Socket(addr) => {
 				let (v4, v6) = match addr {
-					std::net::SocketAddr::V4(a) => (Some(format!("SocketAddrV4(ip: {}, port: {})", ipv4(*a.ip()), a.port())), None),
+					std::net::SocketAddr::V4(a) => (
+						Some(format!("SocketAddrV4(ip: {}, port: {})", ipv4(*a.ip()), a.port())),
+						None,
+					),
 					std::net::SocketAddr::V6(a) => (
 						None,
 						Some(format!(
@@ -1066,13 +1124,20 @@ impl Emitter<'_> {
 			Kind::Var(name) => self.var(name),
 			Kind::Const(c) => format!(
 				"Api.{}",
-				self.t.named(LANGUAGE, &format!("const {}", self.t.api.constants[*c].path.join("::")))
+				self.t
+					.named(LANGUAGE, &format!("const {}", self.t.api.constants[*c].path.join("::")))
 			),
 			Kind::Call(id, receiver, args) => self.call(*id, receiver.as_deref(), args, out),
 			Kind::Field(base, i) => {
 				let b = self.expr(base, out);
-				let Type::Record(r) = unref(&base.ty).base() else { panic!("a field of {:?}", base.ty) };
-				format!("{}.{}", postfix(&b), field_name(&self.t.api.records[*r].fields[*i].name))
+				let Type::Record(r) = unref(&base.ty).base() else {
+					panic!("a field of {:?}", base.ty)
+				};
+				format!(
+					"{}.{}",
+					postfix(&b),
+					field_name(&self.t.api.records[*r].fields[*i].name)
+				)
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base, out);
@@ -1104,7 +1169,9 @@ impl Emitter<'_> {
 				}
 			}
 			Kind::UnwrapErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("unwrap_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("unwrap_err of {:?}", inner.ty)
+				};
 				let (exception, wrapped) = self.exception(err);
 				let call = self.attempt(inner);
 				match wrapped {
@@ -1113,7 +1180,9 @@ impl Emitter<'_> {
 				}
 			}
 			Kind::IsErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("is_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("is_err of {:?}", inner.ty)
+				};
 				let (exception, _) = self.exception(err);
 				let call = self.attempt(inner);
 				format!("_fails({exception}.self) {{ {call} }}")
@@ -1160,10 +1229,19 @@ impl Emitter<'_> {
 				let body = self.closure_value(body);
 				match self.model.unique(&item) {
 					true => format!("_each({v}) {{ {x} in {body} }}.joined(separator: \"{}\")", escape(sep)),
-					false => format!("{}.map {{ {x} in {body} }}.joined(separator: \"{}\")", postfix(&v), escape(sep)),
+					false => format!(
+						"{}.map {{ {x} in {body} }}.joined(separator: \"{}\")",
+						postfix(&v),
+						escape(sep)
+					),
 				}
 			}
-			Kind::MapOr { option, none, pat, some } => {
+			Kind::MapOr {
+				option,
+				none,
+				pat,
+				some,
+			} => {
 				let option = self.expr(option, out);
 				let none = self.expr(none, out);
 				let x = self.param(pat);
@@ -1231,7 +1309,11 @@ impl Emitter<'_> {
 					Type::Tuple(ts) => ts.clone(),
 					_ => elements.iter().map(|e| e.ty.clone()).collect(),
 				};
-				let parts: Vec<String> = elements.iter().zip(&wants).map(|(e, t)| self.value(e, t, out)).collect();
+				let parts: Vec<String> = elements
+					.iter()
+					.zip(&wants)
+					.map(|(e, t)| self.value(e, t, out))
+					.collect();
 				match parts.len() {
 					1 => parts.into_iter().next().unwrap(),
 					_ if self.model.unique(&Type::Tuple(wants.clone())) => {
@@ -1307,7 +1389,10 @@ impl Emitter<'_> {
 		assert!(!f.future, "a call of the future {key}, which only a hook awaits");
 		// A fresh implementation of a callback, passed to a call within an expression: the call
 		// is its own statement, so Swift's reference to it goes before the rest runs.
-		let fresh = args.iter().zip(&f.params).any(|(a, p)| matches!(p.ty.base(), Type::Callback(..)) && matches!(a.kind, Kind::Local(..)));
+		let fresh = args
+			.iter()
+			.zip(&f.params)
+			.any(|(a, p)| matches!(p.ty.base(), Type::Callback(..)) && matches!(a.kind, Kind::Local(..)));
 		if fresh && !at_root {
 			let call = self.rooted("try! ", out, |this, out| {
 				this.at_root = true;
@@ -1483,9 +1568,16 @@ fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
 	f(expr);
 	let mut inner = |e: &Expr| walk(e, f);
 	match &expr.kind {
-		Kind::Some(e) | Kind::Field(e, _) | Kind::Element(e, _) | Kind::Clone(e) | Kind::Unwrap(e) | Kind::UnwrapErr(e) => inner(e),
+		Kind::Some(e)
+		| Kind::Field(e, _)
+		| Kind::Element(e, _)
+		| Kind::Clone(e)
+		| Kind::Unwrap(e)
+		| Kind::UnwrapErr(e) => inner(e),
 		Kind::IsSome(e) | Kind::IsNone(e) | Kind::IsErr(e) | Kind::Utf8(e) | Kind::Len(e) => inner(e),
-		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => es.iter().for_each(inner),
+		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => {
+			es.iter().for_each(inner)
+		}
 		Kind::Call(_, r, args) => r.iter().map(|b| &**b).chain(args).for_each(inner),
 		Kind::Binary(_, a, b) => {
 			inner(a);
@@ -1602,7 +1694,11 @@ fn ipv4(ip: std::net::Ipv4Addr) -> String {
 
 fn ipv6(ip: std::net::Ipv6Addr) -> String {
 	let bits = u128::from(ip);
-	format!("Ipv6Addr(bits: U128(high: {:#x}, low: {:#x}))", (bits >> 64) as u64, bits as u64)
+	format!(
+		"Ipv6Addr(bits: U128(high: {:#x}, low: {:#x}))",
+		(bits >> 64) as u64,
+		bits as u64
+	)
 }
 
 /// Bytes as a Swift array literal.

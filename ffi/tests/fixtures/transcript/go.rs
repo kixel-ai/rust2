@@ -264,10 +264,16 @@ pub(crate) fn emit(t: &Transcript) -> String {
 	e.used = used;
 	e.reserved = RESERVED.iter().map(|s| s.to_string()).collect();
 	e.reserved.extend(locals.iter().map(|name| local(name)));
-	for name in t.names(LANGUAGE).iter().filter_map(|(key, name)| key.strip_prefix("crate ").map(|_| name)) {
+	for name in t
+		.names(LANGUAGE)
+		.iter()
+		.filter_map(|(key, name)| key.strip_prefix("crate ").map(|_| name))
+	{
 		e.reserved.insert(name.to_string());
 	}
-	for package in ["fmt", "strings", "errors", "unicode", "utf8", "math", "context", "slices", "rt", "io"] {
+	for package in [
+		"fmt", "strings", "errors", "unicode", "utf8", "math", "context", "slices", "rt", "io",
+	] {
 		e.reserved.insert(package.to_string());
 	}
 	for package in ["errors", "fmt", "strings", "unicode", "unicode/utf8"] {
@@ -328,9 +334,16 @@ fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
 	f(expr);
 	let mut inner = |e: &Expr| walk(e, f);
 	match &expr.kind {
-		Kind::Some(e) | Kind::Field(e, _) | Kind::Element(e, _) | Kind::Clone(e) | Kind::Unwrap(e) | Kind::UnwrapErr(e) => inner(e),
+		Kind::Some(e)
+		| Kind::Field(e, _)
+		| Kind::Element(e, _)
+		| Kind::Clone(e)
+		| Kind::Unwrap(e)
+		| Kind::UnwrapErr(e) => inner(e),
 		Kind::IsSome(e) | Kind::IsNone(e) | Kind::IsErr(e) | Kind::Utf8(e) | Kind::Len(e) => inner(e),
-		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => es.iter().for_each(inner),
+		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => {
+			es.iter().for_each(inner)
+		}
 		Kind::Call(_, r, args) => r.iter().map(|b| &**b).chain(args).for_each(inner),
 		Kind::Binary(_, a, b) => {
 			inner(a);
@@ -361,7 +374,61 @@ fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
 
 /// Go's keywords and the predeclared names the script calls, which no local may take.
 const RESERVED: &[&str] = &[
-	"break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select", "struct", "switch", "type", "var", "any", "bool", "byte", "error", "false", "float32", "float64", "int", "int8", "int16", "int32", "int64", "len", "nil", "rune", "string", "true", "uint", "uint8", "uint16", "uint32", "uint64", "append", "make", "max", "min", "new", "panic", "script", "main",
+	"break",
+	"case",
+	"chan",
+	"const",
+	"continue",
+	"default",
+	"defer",
+	"else",
+	"fallthrough",
+	"for",
+	"func",
+	"go",
+	"goto",
+	"if",
+	"import",
+	"interface",
+	"map",
+	"package",
+	"range",
+	"return",
+	"select",
+	"struct",
+	"switch",
+	"type",
+	"var",
+	"any",
+	"bool",
+	"byte",
+	"error",
+	"false",
+	"float32",
+	"float64",
+	"int",
+	"int8",
+	"int16",
+	"int32",
+	"int64",
+	"len",
+	"nil",
+	"rune",
+	"string",
+	"true",
+	"uint",
+	"uint8",
+	"uint16",
+	"uint32",
+	"uint64",
+	"append",
+	"make",
+	"max",
+	"min",
+	"new",
+	"panic",
+	"script",
+	"main",
 ];
 
 /// The Go name of a function `transcript.rs` defines: in camel case, unexported. A unit
@@ -475,7 +542,9 @@ impl Emitter<'_> {
 			Step::Let(pat, value) => {
 				if let Type::Result(_, err) = &value.ty {
 					// `let _ =` of a `Result`, which drops its error.
-					let Pat::Ignore(_) = pat else { panic!("a let binding a Result whole") };
+					let Pat::Ignore(_) = pat else {
+						panic!("a let binding a Result whole")
+					};
 					let made = self.made(value, Failure::Bind, false, out);
 					let error = self.error_type(err);
 					self.line(out, &format!("ignore_[{error}]({})", made.error.unwrap()));
@@ -628,9 +697,14 @@ impl Emitter<'_> {
 	/// The elements of `v`, a tuple or bounds of `ty`.
 	fn parts(&mut self, v: &str, ty: &Type) -> Vec<(String, Type)> {
 		match unref(ty).base() {
-			Type::Bounds(int) => vec![(format!("{v}.Start"), Type::Bound(*int)), (format!("{v}.End"), Type::Bound(*int))],
+			Type::Bounds(int) => vec![
+				(format!("{v}.Start"), Type::Bound(*int)),
+				(format!("{v}.End"), Type::Bound(*int)),
+			],
 			Type::Tuple(elements) if elements.len() == 1 => vec![(v.to_string(), elements[0].clone())],
-			Type::Tuple(elements) => (elements.iter().enumerate()).map(|(i, ty)| (format!("{v}.V{i}"), ty.clone())).collect(),
+			Type::Tuple(elements) => (elements.iter().enumerate())
+				.map(|(i, ty)| (format!("{v}.V{i}"), ty.clone()))
+				.collect(),
 			ty => panic!("the elements of {ty:?}"),
 		}
 	}
@@ -833,7 +907,9 @@ impl Emitter<'_> {
 				let elements = elements.clone();
 				let parts: Vec<String> = match elements.len() {
 					1 => vec![self.debug(v, &elements[0])],
-					_ => (elements.iter().enumerate()).map(|(i, ty)| self.debug(&format!("{v}.V{i}"), ty)).collect(),
+					_ => (elements.iter().enumerate())
+						.map(|(i, ty)| self.debug(&format!("{v}.V{i}"), ty))
+						.collect(),
 				};
 				let tail = if parts.len() == 1 { ",)" } else { ")" };
 				format!("\"(\" + {} + \"{tail}\"", parts.join(" + \", \" + "))
@@ -937,7 +1013,14 @@ impl Emitter<'_> {
 				let rust = self.t.rust(&ty);
 				let record = &self.t.api.records[*r];
 				let named: Vec<(String, Type)> = (record.fields.iter())
-					.map(|f| (self.t.named(LANGUAGE, &format!("type {rust} / field {}", f.name)).to_string(), f.ty.clone()))
+					.map(|f| {
+						(
+							self.t
+								.named(LANGUAGE, &format!("type {rust} / field {}", f.name))
+								.to_string(),
+							f.ty.clone(),
+						)
+					})
 					.collect();
 				let values: Vec<String> = (fields.iter().zip(&named))
 					.map(|(f, (name, ty))| {
@@ -953,12 +1036,19 @@ impl Emitter<'_> {
 				let rust = self.t.rust(&ty);
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
-				let name = self.t.named(LANGUAGE, &format!("type {rust} / variant {}", variant.name)).to_string();
+				let name = self
+					.t
+					.named(LANGUAGE, &format!("type {rust} / variant {}", variant.name))
+					.to_string();
 				let package = self.package(&enumeration.home.krate.clone());
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return format!("{package}.{name}");
 				}
-				let named: Vec<(String, Type)> = variant.fields.iter().map(|f| (field_name(&f.name), f.ty.clone())).collect();
+				let named: Vec<(String, Type)> = variant
+					.fields
+					.iter()
+					.map(|f| (field_name(&f.name), f.ty.clone()))
+					.collect();
 				let values: Vec<String> = (fields.iter().zip(&named))
 					.map(|(f, (name, ty))| {
 						let v = self.value(f, ty, out);
@@ -969,7 +1059,9 @@ impl Emitter<'_> {
 				format!("{package}.{name}{{{}}}", values.join(", "))
 			}
 			Kind::Bound(kind, value) => {
-				let Type::Bound(_) = &base else { panic!("a bound as {base:?}") };
+				let Type::Bound(_) = &base else {
+					panic!("a bound as {base:?}")
+				};
 				let rt = self.rt();
 				let ty = self.go(&base);
 				match (kind, value) {
@@ -1002,7 +1094,10 @@ impl Emitter<'_> {
 			}
 			Kind::Const(c) => {
 				let constant = &self.t.api.constants[*c];
-				let name = self.t.named(LANGUAGE, &format!("const {}", constant.path.join("::"))).to_string();
+				let name = self
+					.t
+					.named(LANGUAGE, &format!("const {}", constant.path.join("::")))
+					.to_string();
 				let package = self.package(&constant.home.krate.clone());
 				format!("{package}.{name}")
 			}
@@ -1033,10 +1128,15 @@ impl Emitter<'_> {
 			}
 			Kind::Field(base, i) => {
 				let b = self.expr(base, out);
-				let Type::Record(r) = unref(&base.ty).base() else { panic!("a field of {:?}", base.ty) };
+				let Type::Record(r) = unref(&base.ty).base() else {
+					panic!("a field of {:?}", base.ty)
+				};
 				let rust = self.t.rust(&Type::Record(*r));
 				let field = &self.t.api.records[*r].fields[*i].name;
-				let name = self.t.named(LANGUAGE, &format!("type {rust} / field {field}")).to_string();
+				let name = self
+					.t
+					.named(LANGUAGE, &format!("type {rust} / field {field}"))
+					.to_string();
 				format!("{b}.{name}")
 			}
 			Kind::Element(base, i) => {
@@ -1051,7 +1151,14 @@ impl Emitter<'_> {
 				match unref(&inner.ty).base() {
 					Type::Object(_) => {
 						self.lent(&v);
-						let made = self.hoist(&format!("{v}.Clone()"), &[inner.ty.clone()], true, Failure::Panic, true, out);
+						let made = self.hoist(
+							&format!("{v}.Clone()"),
+							&[inner.ty.clone()],
+							true,
+							Failure::Panic,
+							true,
+							out,
+						);
 						made.values[0].clone()
 					}
 					Type::List(..) => format!("{}.Clone({v})", self.std("slices")),
@@ -1068,7 +1175,14 @@ impl Emitter<'_> {
 					match item.base() {
 						Type::Object(_) => {
 							self.moved(&v);
-							let made = self.hoist(&format!("present_({v})"), &[(**item).clone()], false, Failure::Panic, true, out);
+							let made = self.hoist(
+								&format!("present_({v})"),
+								&[(**item).clone()],
+								false,
+								Failure::Panic,
+								true,
+								out,
+							);
 							made.values[0].clone()
 						}
 						_ => format!("some_({v})"),
@@ -1077,19 +1191,26 @@ impl Emitter<'_> {
 				ty => panic!("unwrap of {ty:?}"),
 			},
 			Kind::UnwrapErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("unwrap_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("unwrap_err of {:?}", inner.ty)
+				};
 				let made = self.made(inner, Failure::Bind, false, out);
 				self.payload(&made.error.unwrap(), err)
 			}
 			Kind::IsErr(inner) => {
-				let Type::Result(_, err) = &inner.ty else { panic!("is_err of {:?}", inner.ty) };
+				let Type::Result(_, err) = &inner.ty else {
+					panic!("is_err of {:?}", inner.ty)
+				};
 				let made = self.made(inner, Failure::Bind, false, out);
 				let error = self.error_type(err);
 				format!("isErr_[{error}]({})", made.error.unwrap())
 			}
 			Kind::IsSome(inner) | Kind::IsNone(inner) => {
 				let v = self.expr(inner, out);
-				let test = format!("({v} {} nil)", if matches!(e.kind, Kind::IsSome(_)) { "!=" } else { "==" });
+				let test = format!(
+					"({v} {} nil)",
+					if matches!(e.kind, Kind::IsSome(_)) { "!=" } else { "==" }
+				);
 				self.lent(&v);
 				test
 			}
@@ -1097,7 +1218,9 @@ impl Emitter<'_> {
 			Kind::Join { items, pat, body, sep } => {
 				let items_v = self.expr(items, out);
 				self.lent(&items_v);
-				let Type::List(_, item) = unref(&items.ty).base() else { panic!("a join over {:?}", items.ty) };
+				let Type::List(_, item) = unref(&items.ty).base() else {
+					panic!("a join over {:?}", items.ty)
+				};
 				let item = (**item).clone();
 				let parts = self.fresh("j");
 				let x = self.fresh("x");
@@ -1116,9 +1239,16 @@ impl Emitter<'_> {
 				self.line(out, "}");
 				format!("{}.Join({parts}, {})", self.std("strings"), string(sep))
 			}
-			Kind::MapOr { option, none, pat, some } => {
+			Kind::MapOr {
+				option,
+				none,
+				pat,
+				some,
+			} => {
 				let option_v = self.expr(option, out);
-				let Type::Option(inner) = unref(&option.ty).base() else { panic!("map_or of {:?}", option.ty) };
+				let Type::Option(inner) = unref(&option.ty).base() else {
+					panic!("map_or of {:?}", option.ty)
+				};
 				let inner = (**inner).clone();
 				let none_v = self.value(none, &e.ty, out);
 				let result = self.fresh("m");
@@ -1163,8 +1293,12 @@ impl Emitter<'_> {
 	/// taken, or an array of bytes where bytes are.
 	fn coerce(&mut self, v: &str, have: &Type, want: &Type) -> String {
 		match (unref(have).base(), want) {
-			(Type::SocketAddr(Family::V4), Type::SocketAddr(Family::Any)) => format!("{}.SocketAddrFromV4({v})", self.rt()),
-			(Type::SocketAddr(Family::V6), Type::SocketAddr(Family::Any)) => format!("{}.SocketAddrFromV6({v})", self.rt()),
+			(Type::SocketAddr(Family::V4), Type::SocketAddr(Family::Any)) => {
+				format!("{}.SocketAddrFromV4({v})", self.rt())
+			}
+			(Type::SocketAddr(Family::V6), Type::SocketAddr(Family::Any)) => {
+				format!("{}.SocketAddrFromV6({v})", self.rt())
+			}
 			(Type::IpAddr(Family::V4), Type::IpAddr(Family::Any)) => format!("{}.IpAddrFromV4({v})", self.rt()),
 			(Type::IpAddr(Family::V6), Type::IpAddr(Family::Any)) => format!("{}.IpAddrFromV6({v})", self.rt()),
 			(Type::Array(_), Type::Slice | Type::Vec | Type::Bytes) => format!("{}.NewBytes({v}[:])", self.rt()),
@@ -1177,7 +1311,14 @@ impl Emitter<'_> {
 		let (value, family) = match addr {
 			std::net::SocketAddr::V4(a) => {
 				let ip: Vec<String> = a.ip().octets().iter().map(|o| o.to_string()).collect();
-				(format!("{rt}.SocketAddrV4{{IP: {rt}.Ipv4Addr{{{}}}, Port: {}}}", ip.join(", "), a.port()), "V4")
+				(
+					format!(
+						"{rt}.SocketAddrV4{{IP: {rt}.Ipv4Addr{{{}}}, Port: {}}}",
+						ip.join(", "),
+						a.port()
+					),
+					"V4",
+				)
 			}
 			std::net::SocketAddr::V6(a) => {
 				let ip: Vec<String> = a.ip().octets().iter().map(|o| o.to_string()).collect();
@@ -1229,11 +1370,16 @@ impl Emitter<'_> {
 					_ => Type::Bound(*int),
 				};
 				let go = self.go(&ty);
-				let (a, b) = (self.value(&elements[0], &element, out), self.value(&elements[1], &element, out));
+				let (a, b) = (
+					self.value(&elements[0], &element, out),
+					self.value(&elements[1], &element, out),
+				);
 				format!("{go}{{Start: {a}, End: {b}}}")
 			}
 			Type::Tuple(types) => {
-				let values: Vec<String> = (elements.iter().zip(types)).map(|(e, t)| self.value(e, t, out)).collect();
+				let values: Vec<String> = (elements.iter().zip(types))
+					.map(|(e, t)| self.value(e, t, out))
+					.collect();
 				for v in &values {
 					self.moved(v);
 				}
@@ -1272,10 +1418,24 @@ impl Emitter<'_> {
 						self.lent(&x);
 						self.lent(&y);
 						let fails = matches!(ty, Type::Object(_)) || fails(self.t, &ty);
-						let made = self.hoist(&format!("{x}.Equal({y})"), &[Type::Bool], fails, Failure::Panic, true, out);
+						let made = self.hoist(
+							&format!("{x}.Equal({y})"),
+							&[Type::Bool],
+							fails,
+							Failure::Panic,
+							true,
+							out,
+						);
 						format!("{not}{}", made.values[0])
 					}
-					Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::Char | Type::F32 | Type::F64 | Type::String | Type::Str => {
+					Type::Bool
+					| Type::Int(_)
+					| Type::NonZero(_)
+					| Type::Char
+					| Type::F32
+					| Type::F64
+					| Type::String
+					| Type::Str => {
 						format!("({x} {} {y})", if op == Op::Eq { "==" } else { "!=" })
 					}
 					ty => panic!("== of {ty:?}"),
@@ -1284,7 +1444,9 @@ impl Emitter<'_> {
 			Op::Lt => format!("({x} < {y})"),
 			Op::Gt => format!("({x} > {y})"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
-				let Type::Int(_) = ty else { panic!("arithmetic on {ty:?}") };
+				let Type::Int(_) = ty else {
+					panic!("arithmetic on {ty:?}")
+				};
 				let f = match op {
 					Op::Add => "add_",
 					Op::Sub => "sub_",
@@ -1299,7 +1461,9 @@ impl Emitter<'_> {
 
 	/// A closure, as a function literal bound before the statement that passes it.
 	fn closure(&mut self, params: &[Pat], steps: &[Step], value: &Expr, want: &Type, out: &mut String) -> String {
-		let Type::Closure(closure) = want else { panic!("a closure as {want:?}") };
+		let Type::Closure(closure) = want else {
+			panic!("a closure as {want:?}")
+		};
 		if closure.err.is_some() {
 			panic!("a closure returning a Result, which Go returns beside an error");
 		}
@@ -1345,7 +1509,9 @@ impl Emitter<'_> {
 
 	/// A call of a function `transcript.rs` defines, each argument as its own type.
 	fn local_call(&mut self, e: &Expr, out: &mut String) -> String {
-		let Kind::Local(name, args) = &e.kind else { unreachable!() };
+		let Kind::Local(name, args) = &e.kind else {
+			unreachable!()
+		};
 		let args: Vec<String> = args.iter().map(|a| self.expr(a, out)).collect();
 		for a in &args {
 			self.lent(a);
@@ -1368,7 +1534,9 @@ impl Emitter<'_> {
 	/// A call expression `e`, made: bound before the statement, its error handled as
 	/// `failure` says, its values `kept` or else left `_`.
 	fn made(&mut self, e: &Expr, failure: Failure, kept: bool, out: &mut String) -> Made {
-		let Kind::Call(id, receiver, args) = &e.kind else { panic!("{} is no call", describe(&e.kind)) };
+		let Kind::Call(id, receiver, args) = &e.kind else {
+			panic!("{} is no call", describe(&e.kind))
+		};
 		let f = self.t.function(*id);
 		let receiver = receiver.as_ref().map(|r| {
 			let v = self.expr(r, out);
@@ -1382,7 +1550,9 @@ impl Emitter<'_> {
 		for (arg, param) in args.iter().zip(&f.params) {
 			if written(&param.ty) {
 				// A value passed for `&mut`, which the call writes back through its pointer.
-				let Kind::Var(name) = &arg.kind else { panic!("a value passed for &mut that is no local") };
+				let Kind::Var(name) = &arg.kind else {
+					panic!("a value passed for &mut that is no local")
+				};
 				values.push(format!("&{}", self.ident(name)));
 				continue;
 			}
@@ -1397,7 +1567,15 @@ impl Emitter<'_> {
 	}
 
 	/// The call of `id` on `receiver` with `args`, each already Go, made.
-	fn call_with(&mut self, id: FnId, receiver: Option<String>, mut args: Vec<String>, failure: Failure, kept: bool, out: &mut String) -> Made {
+	fn call_with(
+		&mut self,
+		id: FnId,
+		receiver: Option<String>,
+		mut args: Vec<String>,
+		failure: Failure,
+		kept: bool,
+		out: &mut String,
+	) -> Made {
 		let f = self.t.function(id);
 		let name = self.t.name(LANGUAGE, id).to_string();
 		if f.future {
@@ -1434,7 +1612,15 @@ impl Emitter<'_> {
 	}
 
 	/// `call`, of values of `types` and an error if `errs`, bound before the statement.
-	fn hoist(&mut self, call: &str, types: &[Type], errs: bool, failure: Failure, kept: bool, out: &mut String) -> Made {
+	fn hoist(
+		&mut self,
+		call: &str,
+		types: &[Type],
+		errs: bool,
+		failure: Failure,
+		kept: bool,
+		out: &mut String,
+	) -> Made {
 		let values: Vec<String> = types
 			.iter()
 			.map(|_| match kept {
@@ -1467,7 +1653,8 @@ impl Emitter<'_> {
 		}
 		for (v, ty) in made.values.iter().zip(types) {
 			if v != "_" && holds_handle(ty) {
-				self.handles.insert(v.clone(), !matches!(unref(ty).base(), Type::Object(_)));
+				self.handles
+					.insert(v.clone(), !matches!(unref(ty).base(), Type::Object(_)));
 			}
 		}
 		made
@@ -1547,7 +1734,9 @@ impl Emitter<'_> {
 	fn go_param(&mut self, ty: &Type) -> String {
 		match ty.base() {
 			Type::Slice | Type::Vec | Type::Bytes => "[]byte".to_string(),
-			Type::Option(inner) if matches!(inner.base(), Type::Slice | Type::Vec | Type::Bytes) => "*[]byte".to_string(),
+			Type::Option(inner) if matches!(inner.base(), Type::Slice | Type::Vec | Type::Bytes) => {
+				"*[]byte".to_string()
+			}
 			_ => self.go(ty),
 		}
 	}

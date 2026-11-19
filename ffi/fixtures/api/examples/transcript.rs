@@ -560,12 +560,7 @@ fn main() {
 
 	// A field and the method of its name, each its own member.
 	let mut retry = api::Retry::new(Some(5));
-	println!(
-		"retry {:?} {} {}",
-		retry.limit,
-		retry.limit(),
-		retry.delay()
-	);
+	println!("retry {:?} {} {}", retry.limit, retry.limit(), retry.delay());
 	// The renamed field's setter, named as its getter.
 	retry.limit = None;
 	println!("retry {}", retry.limit());
@@ -794,7 +789,10 @@ fn main() {
 	println!("doubled i64 {:?}", api::doubled_i64(&[i64::MIN, -1, 0, i64::MAX]));
 	println!(
 		"boxed floats {:?}",
-		f64_bits(&api::boxed_floats(Box::new([-0.0, f64::from_bits(0x7ff8_0000_0000_0001)])))
+		f64_bits(&api::boxed_floats(Box::new([
+			-0.0,
+			f64::from_bits(0x7ff8_0000_0000_0001)
+		])))
 	);
 	let summed = api::summed([Point { x: 1, y: 2 }, Point { x: -4, y: 6 }]);
 	let none = api::summed([]);
@@ -873,7 +871,11 @@ fn main() {
 	// A filter, collected at the call.
 	println!(
 		"beyond {}",
-		trail.beyond(1).map(|p| format!("{} {}", p.x, p.y)).collect::<Vec<_>>().join(", ")
+		trail
+			.beyond(1)
+			.map(|p| format!("{} {}", p.x, p.y))
+			.collect::<Vec<_>>()
+			.join(", ")
 	);
 	println!(
 		"numbered {}",

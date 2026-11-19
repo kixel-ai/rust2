@@ -35,7 +35,9 @@ impl Api {
 	pub(crate) fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
 		match ty {
 			Type::Object(i) => out.push(*i),
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.handles(inner, out, seen),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.handles(inner, out, seen)
+			}
 			Type::Tuple(elements) => elements.iter().for_each(|ty| self.handles(ty, out, seen)),
 			Type::Record(i) if !seen.contains(&(false, *i)) => {
 				seen.push((false, *i));
