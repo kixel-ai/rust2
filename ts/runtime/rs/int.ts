@@ -125,10 +125,24 @@ function approx(v: Limbs): number {
 	return "w1" in v ? ((v.hi * TWO32 + v.w2) * TWO32 + v.w1) * TWO32 + v.lo : v.hi * TWO32 + v.lo;
 }
 
+// Limbs and bigints trade through this buffer, as little-endian bytes: a store of each limb
+// and one load is several times faster than a shift and an add per limb, and a store of a
+// bigint wraps it into 64 bits as `BigInt.asUintN` does.
+const bridge = /* @__PURE__ */ new DataView(new ArrayBuffer(16));
+
 /** A wide integer's exact value. */
 function exact(v: Limbs): bigint {
-	if ("w1" in v) return (((((BigInt(v.hi) << 32n) + BigInt(v.w2)) << 32n) + BigInt(v.w1)) << 32n) + BigInt(v.lo);
-	return (BigInt(v.hi) << 32n) + BigInt(v.lo);
+	// A top limb below 2^31 reads the same in either sign; above it, only a uint32 holds it.
+	if ("w1" in v) {
+		bridge.setUint32(0, v.lo, true);
+		bridge.setUint32(4, v.w1, true);
+		bridge.setUint32(8, v.w2, true);
+		bridge.setUint32(12, v.hi, true);
+		return ((v.hi < 0x80000000 ? bridge.getBigInt64(8, true) : bridge.getBigUint64(8, true)) << 64n) + bridge.getBigUint64(0, true);
+	}
+	bridge.setUint32(0, v.lo, true);
+	bridge.setUint32(4, v.hi, true);
+	return v.hi < 0x80000000 ? bridge.getBigInt64(0, true) : bridge.getBigUint64(0, true);
 }
 
 function safe(n: number): boolean {
@@ -886,11 +900,11 @@ function fitsBig(v: bigint, bits: number, signed: boolean): boolean {
 
 /** `v`'s limbs, wrapped into the type's range. */
 function box(v: bigint, bits: number, signed: boolean): Limbs {
-	const top = v >> BigInt(bits - 32);
-	const hi = Number(signed ? BigInt.asIntN(32, top) : BigInt.asUintN(32, top));
-	const lo = Number(BigInt.asUintN(32, v));
-	if (bits === 64) return { hi, lo } as Limbs;
-	return { hi, w2: Number(BigInt.asUintN(32, v >> 64n)), w1: Number(BigInt.asUintN(32, v >> 32n)), lo } as Limbs;
+	bridge.setBigUint64(0, v, true);
+	if (bits === 64) return { hi: signed ? bridge.getInt32(4, true) : bridge.getUint32(4, true), lo: bridge.getUint32(0, true) } as Limbs;
+	bridge.setBigUint64(8, v >> 64n, true);
+	const hi = signed ? bridge.getInt32(12, true) : bridge.getUint32(12, true);
+	return { hi, w2: bridge.getUint32(8, true), w1: bridge.getUint32(4, true), lo: bridge.getUint32(0, true) } as Limbs;
 }
 
 /** The one form of a value: a number if it is a safe integer. */
@@ -1032,9 +1046,20 @@ function saturatingProduct(a: Wide, b: Wide, bits: number, signed: boolean): Wid
 	return product(a, b, bits, signed) ?? extreme(negative(a) === negative(b), bits, signed);
 }
 
-/** `a * b`, wrapped into the type's range. */
-function wrappingProduct(a: Wide, b: Wide, bits: number, signed: boolean): Wide {
-	return product(a, b, bits, signed) ?? one(box(exact(limbs(a, bits, signed)) * exact(limbs(b, bits, signed)), bits, signed));
+/** A 128-bit `a * b`, wrapped into the type's range. */
+function wrappingProduct(a: Wide, b: Wide, signed: boolean): Wide {
+	return product(a, b, 128, signed) ?? one(box(exact(limbs(a, 128, signed)) * exact(limbs(b, 128, signed)), 128, signed));
+}
+
+/**
+ * A 64-bit `a * b`, wrapped into the type's range: the low 64 bits of the product are the
+ * same in either sign, and come from the halves alone.
+ */
+function wrappingProduct64(a: Wide, b: Wide, signed: boolean): Wide {
+	const xl = loOf(a);
+	const yl = loOf(b);
+	const lo = mul32(xl, yl);
+	return join(high(mulHi + Math.imul(hiOf(a), yl) + Math.imul(xl, hiOf(b)), signed), lo);
 }
 
 /** Whether `a` is a multiple of `b`, unsigned: of 0, only 0 is. */
@@ -1503,7 +1528,7 @@ export const u64WrappingSub = (a: u64, b: u64): u64 => (typeof a === "number" &&
 /** `u64`'s `saturating_mul`: `a * b`, clamped to the type's range. */
 export const u64SaturatingMul = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : saturatingProduct(a, b, 64, false)) as u64;
 /** `u64`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
-export const u64WrappingMul = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 64, false)) as u64;
+export const u64WrappingMul = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct64(a, b, false)) as u64;
 /** `u64`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
 export const u64DivCeil = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b, at) : ceil64(a, b, at)) as u64;
 /** `u64`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
@@ -1615,7 +1640,7 @@ export const i64WrappingSub = (a: i64, b: i64): i64 => (typeof a === "number" &&
 /** `i64`'s `saturating_mul`: `a * b`, clamped to the type's range. */
 export const i64SaturatingMul = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : saturatingProduct(a, b, 64, true)) as i64;
 /** `i64`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
-export const i64WrappingMul = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 64, true)) as i64;
+export const i64WrappingMul = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct64(a, b, true)) as i64;
 /** `i64`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
 export const i64WrappingDiv = (a: i64, b: i64, at?: Location): i64 => (b === -1 ? i64WrappingSub(0, a) : i64Div(a, b, at));
 /** `i64`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
@@ -1725,7 +1750,7 @@ export const u128WrappingSub = (a: u128, b: u128): u128 => (typeof a === "number
 /** `u128`'s `saturating_mul`: `a * b`, clamped to the type's range. */
 export const u128SaturatingMul = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : saturatingProduct(a, b, 128, false)) as u128;
 /** `u128`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
-export const u128WrappingMul = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 128, false)) as u128;
+export const u128WrappingMul = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, false)) as u128;
 /** `u128`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
 export const u128DivCeil = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b, at) : ceil128(a, b, at)) as u128;
 /** `u128`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
@@ -1835,7 +1860,7 @@ export const i128WrappingSub = (a: i128, b: i128): i128 => (typeof a === "number
 /** `i128`'s `saturating_mul`: `a * b`, clamped to the type's range. */
 export const i128SaturatingMul = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : saturatingProduct(a, b, 128, true)) as i128;
 /** `i128`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
-export const i128WrappingMul = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 128, true)) as i128;
+export const i128WrappingMul = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, true)) as i128;
 /** `i128`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
 export const i128WrappingDiv = (a: i128, b: i128, at?: Location): i128 => (b === -1 ? i128WrappingSub(0, a) : i128Div(a, b, at));
 /** `i128`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */

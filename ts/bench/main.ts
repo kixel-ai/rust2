@@ -4,7 +4,7 @@
 //
 // usage: bun main.ts --rust2-ts <bin> --rust2-ffi <bin> --native <bin> --task-native <bin>
 //                    --moq <checkout> --out <dir>
-//                    [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>] [--filter <prefix>]
+//                    [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>] [--filter <prefix>[,<prefix>...]]
 //
 // The task fixture's async handoff runs beside the codec, against moq's way with promises.
 // `--route` times the translations in another run's `--out` as one more route, for A/B runs.
@@ -272,7 +272,8 @@ function expected(input: Uint8Array): Uint8Array {
 	if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 	return output;
 }
-const list = workloads(expected).filter((w) => w.name.startsWith(args.filter ?? ""));
+const prefixes = (args.filter ?? "").split(",");
+const list = workloads(expected).filter((w) => prefixes.some((p) => w.name.startsWith(p)));
 if (list.length === 0) throw new Error(`--filter ${args.filter} matches no codec workloads`);
 const handoffList = handoffs();
 const config: Config = {
@@ -448,7 +449,7 @@ function render(): string {
 		`- moq: ${text(["git", "-C", checkout, "rev-parse", "HEAD"])}`,
 		...engines.map((e) => `- ${e.engine}`),
 		"",
-		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, a line formatted, a step, a frame, or a string coded, joined, or keyed): the median",
+		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, a hash round, a line formatted, a step, a frame, or a string coded, joined, or keyed): the median",
 		`of ${rounds} samples of at least ${sampleMs} ms, ± half their interquartile range. Each round runs`,
 		`the JS routes and workloads in a new random order, from seed ${seed}. \`native\` is a release`,
 		"build on the host, its workloads in a fixed order. `wasm` is the same",
@@ -465,7 +466,7 @@ function render(): string {
 		"iterator helpers (`bench/iter.ts`), for `btree/` a sorted array (`bench/sorted.ts`), for `hash/` a `Map` (`bench/hashed.ts`), and",
 		"for `time/` conversions `bigint`, as moq's `js/hang` converts timescales (`bench/rescale.ts`),",
 		"for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`), for `fmt/` a template literal (`bench/fmt.ts`), for `parts/` a plain array (`bench/parts.ts`), for `bytes/` subarrays (`bench/frames.ts`), and for `str/`",
-		"moq's Writer and Cursor, a template literal, and a `Map` (`bench/strings.ts`).",
+		"moq's Writer and Cursor, a template literal, and a `Map` (`bench/strings.ts`), and for `int/` `bigint` wrapped to 64 bits (`bench/mixed.ts`).",
 		"Each route runs alone in a worker of its own, a fresh one each round. `A/A` is the translation again: its",
 		"gap from `translated` is the noise. A `reads` decode is the frame headers above as they",
 		"arrive that many bytes at a time, so a header cut by a read comes up short and is",
