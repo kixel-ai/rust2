@@ -1257,6 +1257,14 @@ they need.
   without which Node ran the codec 1.31x slower. Against the runtime functions, the codec
   and async handoff bundles are within 25 bytes gzipped, and `just ts bench` measures
   them within the A/A route's spread in Node, Bun, Chrome, and Firefox.
+- A `&str`'s UTF-8 is a loop's in `rs/utf8.ts` up to 64 code units, into the runtime's
+  shared byte buffer, and its decode a loop's up to 32 bytes; longer ones take
+  `TextEncoder` and `TextDecoder`. V8's `TextEncoder.encode` costs 450-950 ns at any
+  length, and a slice of a fresh array of its own costs V8 another 500 ns to give it a
+  buffer, which the shared one already has. `just ts bench` measured string encode in
+  Chrome at 121-129 ns against 767-778, and decode at 178-207 against 226-270; Firefox's
+  native codecs beat the loops, which take 1.4x their time to encode and 1.4-1.9x to
+  decode, but Chrome decides.
 
 ## Not yet
 
