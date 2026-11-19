@@ -12,6 +12,7 @@
 //! fails, naming its line.
 
 pub(crate) mod dart;
+pub(crate) mod cpp;
 pub(crate) mod ir;
 mod parse;
 pub(crate) mod go;

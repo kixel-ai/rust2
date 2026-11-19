@@ -159,8 +159,6 @@ pub(crate) struct Function {
 	pub(crate) lends_mut: bool,
 	pub(crate) access: Access,
 	pub(crate) instance: Option<Instance>,
-	/// The targets it is on.
-	pub(crate) on: u64,
 }
 
 #[derive(serde::Deserialize)]

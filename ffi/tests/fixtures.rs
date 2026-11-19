@@ -165,9 +165,15 @@ fn transcript() -> &'static transcript::Transcript {
 /// language's test puts on its path.
 fn generated(language: &str, file: &str, contents: &str) -> PathBuf {
 	let dir = scratch().join("api").join(format!("{language}-transcript"));
-	std::fs::create_dir_all(&dir).unwrap();
-	std::fs::write(dir.join(file), contents).unwrap();
+	// Written only when it changes, so what builds from it stays fresh.
+	step::write(&dir.join(file), contents);
 	dir
+}
+
+/// The directory of `transcript.hpp`, which `tests/api.cpp` includes: the transcript as
+/// C++.
+fn cpp_transcript() -> PathBuf {
+	generated("cpp", "transcript.hpp", &transcript::cpp::emit(transcript()))
 }
 
 fn api() -> &'static Api {
@@ -402,14 +408,22 @@ fn sanitized(sanitizer: &str) {
 		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
 		("TSAN_OPTIONS", "halt_on_error=1"),
 	];
+	let scripts = cpp_transcript();
 	for (compiler, std, src, args) in [
 		("clang", "-std=c11", "api.c", &["threads"][..]),
-		("clang++", "-std=c++17", "api.cpp", &["futures", "lifetimes"][..]),
+		(
+			"clang++",
+			"-std=c++17",
+			"api.cpp",
+			&["futures", "lifetimes", "checks"][..],
+		),
 	] {
 		let exe = dir.join(src.replace('.', "-"));
 		run(Command::new(compiler)
 			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
 			.arg(api.out.join("include"))
+			.arg("-I")
+			.arg(&scripts)
 			.arg(tests.join(src))
 			.arg(&lib)
 			.args(&native)
@@ -460,10 +474,14 @@ fn api_miri() {
 #[test]
 fn api_cpp() {
 	let api = api();
+	let link = Link {
+		generated: Some(cpp_transcript()),
+		..api.link()
+	};
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		cxx(
-			&api.link(),
+			&link,
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -477,6 +495,7 @@ fn api_cpp() {
 		);
 		run(Command::new(&exe).arg("futures"));
 		run(Command::new(&exe).arg("lifetimes"));
+		run(Command::new(&exe).arg("checks"));
 		let rehomed = run(Command::new(&exe).arg("rehomed"));
 		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
 		for (case, message) in [
@@ -511,7 +530,7 @@ fn api_cpp() {
 	}
 
 	if !cfg!(target_env = "msvc") {
-		cpp_strict(api);
+		cpp_strict(&link);
 	}
 
 	// Each crate's header builds alone, needing only the headers it includes.
@@ -564,13 +583,19 @@ int main() {}
 
 /// Clang's ownership checks: the whole script builds clean under them, and each case of
 /// `tests/api_strict.cpp` fails with its diagnostic.
-fn cpp_strict(api: &Api) {
-	let include = api.out.join("include");
+fn cpp_strict(link: &Link) {
+	let include = &link.include;
+	let generated = link
+		.generated
+		.as_deref()
+		.expect("tests/api.cpp includes its transcript");
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new("clang++");
 		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
-			.arg(&include)
+			.arg(include)
+			.arg("-I")
+			.arg(generated)
 			.arg(format!("-DCASE={case}"))
 			.arg(src)
 			.arg("-o")
@@ -581,7 +606,7 @@ fn cpp_strict(api: &Api) {
 			.join(format!("{}-{case}.stamp", src.file_stem().unwrap().to_string_lossy()));
 		let step = Step {
 			stamp: &stamp,
-			reads: &[src, &include],
+			reads: &[src, include, generated],
 			writes: &[],
 		};
 		// Case 0 must build, so only the failing cases keep a failure.
@@ -633,6 +658,8 @@ struct Link<'a> {
 	include: PathBuf,
 	staticlib: PathBuf,
 	native: &'a [String],
+	/// A directory of headers written for the program, such as its transcript.
+	generated: Option<PathBuf>,
 }
 
 impl Api {
@@ -641,6 +668,7 @@ impl Api {
 			include: self.out.join("include"),
 			staticlib: self.staticlib(),
 			native: &self.native,
+			generated: None,
 		}
 	}
 }
@@ -649,9 +677,11 @@ impl Api {
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
 fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
+	let mut reads = vec![src, &link.include, &link.staticlib];
+	reads.extend(link.generated.as_deref());
 	let step = Step {
 		stamp: &step::stamp(exe),
-		reads: &[src, &link.include, &link.staticlib],
+		reads: &reads,
 		writes: &[exe],
 	};
 	step.run(&mut cxx_command(link, standard, plain, src, exe));
@@ -682,7 +712,11 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		obj.push(exe.with_extension("obj"));
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
-		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
+		cmd.arg("-I").arg(include);
+		if let Some(generated) = &link.generated {
+			cmd.arg("-I").arg(generated);
+		}
+		cmd.arg(src).arg(obj).arg(out);
 		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
@@ -702,12 +736,11 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		"-Werror",
 		"-I",
 	])
-	.arg(include)
-	.arg(src)
-	.arg(&link.staticlib)
-	.args(link.native)
-	.arg("-o")
-	.arg(exe);
+	.arg(include);
+	if let Some(generated) = &link.generated {
+		cmd.arg("-I").arg(generated);
+	}
+	cmd.arg(src).arg(&link.staticlib).args(link.native).arg("-o").arg(exe);
 	cmd
 }
 
