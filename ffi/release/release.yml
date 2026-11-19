@@ -5,8 +5,9 @@ name: Release @NAME@ bindings
 # them in clean consumers, all read-only. The jobs after it publish only a tag's build,
 # once `attest` has signed it:
 #
-# - Attestations: a build provenance attestation and an SBOM attestation for every wheel and
-#   the XCFramework, from this repository's GitHub, checked with `gh attestation verify`.
+# - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
+#   XCFramework, and the Go module's .zip and .mod, from this repository's GitHub, checked
+#   with `gh attestation verify`.
 # - PyPI: the project @NAME@, through the trusted publisher this repository registers there
 #   for this workflow and the `pypi` environment.
 # - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
@@ -81,16 +82,24 @@ jobs:
         with:
           name: @NAME@-swift
           path: artifacts/swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-go
+          path: artifacts/go
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             artifacts/wheels/*.whl
             artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             artifacts/wheels/*.whl
             artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
           sbom-path: artifacts/sbom.cdx.json
 
   pypi:

@@ -628,7 +628,9 @@ def reproducible(info, export_dir, target):
         for old, _ in pairs:
             if any(c.isspace() for c in old):
                 raise SystemExit(f"{old} holds whitespace, which would split its -ffile-prefix-map in CFLAGS: build from a path without it")
-        env["CFLAGS"] = " ".join(filter(None, [os.environ.get("CFLAGS"), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
+        # cc reads CXXFLAGS, not CFLAGS, for C++.
+        for var in ("CFLAGS", "CXXFLAGS"):
+            env[var] = " ".join(filter(None, [os.environ.get(var), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
     if "apple" in target:
         # Apple's ar and libtool stamp archive members with the time unless told not to, and
         # the linker names a dylib after the path it wrote it to, in the export's build directory.

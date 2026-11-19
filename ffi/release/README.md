@@ -130,8 +130,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
 the crates the binding links (normal dependencies, platform-neutral, with each registry
 crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
-runs on a tag, before anything is published, and gives every wheel and the XCFramework a
-build provenance attestation and an SBOM attestation, which `gh attestation verify
+runs on a tag, before anything is published, and gives every wheel, the XCFramework, and the Go
+module's `.zip` and `.mod` a build provenance attestation and an SBOM attestation, which `gh attestation verify
 <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
 attestations for the wheels as well.
