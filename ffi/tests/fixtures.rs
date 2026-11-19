@@ -6,6 +6,8 @@
 //! The reject fixture's export must fail at each item it cannot export, and generated
 //! type shapes round-trip in every language ([`shapes`]).
 
+#[path = "fixtures/protocol.rs"]
+mod protocol;
 #[path = "fixtures/shapes.rs"]
 mod shapes;
 #[path = "fixtures/step.rs"]
@@ -303,6 +305,78 @@ fn api_c() {
 	}
 }
 
+/// Random sequences of the ownership protocol's steps through the C ABI, by
+/// `tests/protocol.c`, each matching what the model says each step returns.
+#[test]
+fn api_protocol() {
+	let api = api();
+	let exe = protocol_c(
+		api,
+		&scratch().join("api").join("protocol"),
+		&[],
+		&api.staticlib(),
+		&api.native,
+	);
+	let scripts = protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, true);
+	protocol::covered(&scripts);
+	protocol::check(
+		&scratch().join("api").join("protocol").join("scripts"),
+		&scripts,
+		|_| Command::new(&exe),
+	);
+}
+
+/// The gate's protocol scripts: how many, and their random steps each.
+const PROTOCOL_SEEDS: u64 = 500;
+const PROTOCOL_STEPS: usize = 100;
+
+/// Longer protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_protocol_nightly() {
+	let api = api();
+	let exe = protocol_c(
+		api,
+		&scratch().join("api").join("protocol"),
+		&[],
+		&api.staticlib(),
+		&api.native,
+	);
+	protocol::check(
+		&scratch().join("api").join("protocol").join("nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 20_000, 400, true),
+		|_| Command::new(&exe),
+	);
+}
+
+/// `tests/protocol.c` built in `dir` against `lib`, with `flags` to the compiler.
+fn protocol_c(api: &Api, dir: &Path, flags: &[&str], lib: &Path, native: &[String]) -> PathBuf {
+	std::fs::create_dir_all(dir).unwrap();
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+	let compiler = if flags.is_empty() { cc } else { "clang".into() };
+	let src = manifest_dir().join("tests").join("protocol.c");
+	let include = api.out.join("include");
+	Step {
+		stamp: &step::stamp(&exe),
+		reads: &[&src, &include, lib],
+		writes: &[&exe],
+	}
+	.run(
+		Command::new(compiler)
+			.args(["-std=c11", "-pedantic", "-g", "-Wall", "-Wextra", "-Werror"])
+			.args(flags)
+			.arg("-I")
+			.arg(&include)
+			.arg(&src)
+			.arg(lib)
+			.args(native)
+			.arg("-o")
+			.arg(&exe),
+	);
+	exe
+}
+
 /// The C and C++ scripts against the glue built under AddressSanitizer, whose leak check
 /// catches what a cancelled future or a freed handle keeps.
 #[test]
@@ -348,7 +422,8 @@ fn api_go_race() {
 }
 
 /// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
-/// C++ scripts against it, built by clang under the same one.
+/// C++ scripts and the protocol scripts' C driver against it, built by clang under the
+/// same one.
 fn sanitized(sanitizer: &str) {
 	let api = api();
 	let dir = scratch().join("api").join(sanitizer);
@@ -400,10 +475,22 @@ fn sanitized(sanitizer: &str) {
 			run(Command::new(&exe).arg(arg).envs(env));
 		}
 	}
+	// The protocol scripts, whose steps on two threads free and drop what the other made.
+	let exe = protocol_c(api, &dir.join("protocol"), &[&sanitize], &lib, &native);
+	protocol::check(
+		&dir.join("protocol").join("scripts"),
+		&protocol::scripts(0, PROTOCOL_SEEDS, 200, true),
+		|_| {
+			let mut cmd = Command::new(&exe);
+			cmd.envs(env);
+			cmd
+		},
+	);
 }
 
 /// The glue's `extern "C"` functions driven from Rust under Miri, by `tests/miri/api.rs`
-/// mounted as a test module of a copy of the export.
+/// and the protocol scripts' driver `tests/miri/protocol.rs`, mounted as test modules of a
+/// copy of the export.
 #[test]
 #[ignore = "needs the nightly's miri: just ffi sanitize"]
 fn api_miri() {
@@ -415,14 +502,20 @@ fn api_miri() {
 		std::fs::copy(api.out.join(file), copy.join(file)).unwrap();
 	}
 	std::fs::create_dir_all(copy.join("src").join("rt")).unwrap();
-	for file in ["rt.rs", "rt/borrow.rs", "rt/thread.rs", "lib.rs"] {
+	for file in ["rt.rs", "lib.rs"] {
 		std::fs::copy(api.out.join("src").join(file), copy.join("src").join(file)).unwrap();
 	}
+	for entry in std::fs::read_dir(api.out.join("src").join("rt")).unwrap() {
+		let entry = entry.unwrap();
+		std::fs::copy(entry.path(), copy.join("src").join("rt").join(entry.file_name())).unwrap();
+	}
 	let mut lib = std::fs::read_to_string(copy.join("src").join("lib.rs")).unwrap();
-	lib.push_str(&format!(
-		"\n#[cfg(test)]\n#[path = {:?}]\nmod miri;\n",
-		manifest_dir().join("tests").join("miri").join("api.rs")
-	));
+	for (module, file) in [("miri", "api.rs"), ("protocol", "protocol.rs")] {
+		lib.push_str(&format!(
+			"\n#[cfg(test)]\n#[path = {:?}]\nmod {module};\n",
+			manifest_dir().join("tests").join("miri").join(file)
+		));
+	}
 	std::fs::write(copy.join("src").join("lib.rs"), lib).unwrap();
 	run(cargo()
 		.args(["miri", "test", "--locked", "--lib", "--manifest-path"])

@@ -1141,9 +1141,15 @@ trait Lends: Send + Sync {
 impl<T: Send> Lends for Object<T> {
 	fn hold(&self, epoch: usize, local: bool, column: &mut usize, level: u32) -> Result<u64, Status> {
 		let listed = match local {
-			true => self.acquire_local(column, level)?,
-			false => self.acquire(column, level)?,
-		};
+			true => self.acquire_local(column, level),
+			false => self.acquire(column, level),
+		}
+		// A lender moved out or dropped since outlived this handle, whose own value is not
+		// the one gone.
+		.map_err(|status| match status {
+			Status::Moved => Status::Outlived,
+			status => status,
+		})?;
 		if self.epoch.load(Ordering::Acquire) != epoch {
 			self.unhold(local, *column, level, listed);
 			return Err(Status::Outlived);
