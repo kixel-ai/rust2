@@ -76,6 +76,27 @@ fix:
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
+# Write surface/, each binding's API as its language renders it, from the api fixture's export and moq's stand-in's at the pinned moq revision: --check fails where a committed file differs instead. The files are x86_64 Linux's exports, whose targets they name.
+surface *flags: (moq-write "") (standin "" "web")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ arch() }}-{{ os() }}" != x86_64-linux ]; then
+        echo "the surface files are x86_64 Linux's exports: run this there" >&2
+        exit 1
+    fi
+    # moq-write's export, of the host alone.
+    if [ "$(jq -c .api.targets target/export/moq/api.json)" != '["x86_64-unknown-linux-gnu"]' ]; then
+        echo "target/export/moq merged the APIs staged in target/moq-api: delete them for the host's export" >&2
+        exit 1
+    fi
+    # The api fixture as its tests export it, with wasm32 for the web binding.
+    cargo run --locked --quiet -- --config fixtures/api/ffi.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
+    python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
+    # Its other bindings are moq's on wasm32, which no one ships.
+    python3 -I surface/surface.py {{ flags }} target/surface/moq-web surface/moq-web web.d.ts
+
 # Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census

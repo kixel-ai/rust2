@@ -62,6 +62,82 @@ class Versions(unittest.TestCase):
                 package.pep440(version)
 
 
+class Baseline(unittest.TestCase):
+    def test_breaking_is_the_leftmost_nonzero_part(self):
+        for old, new, ok in [
+            ("1.2.3", "1.9.0", True), ("1.2.3", "2.0.0", False),
+            ("0.4.12", "0.4.13", True), ("0.4.12", "0.5.0", False),
+            ("0.0.3", "0.0.4", False),
+            ("1.0.0-rc.1", "1.0.0", False), ("1.0.0", "1.0.1-alpha.1", False),
+        ]:
+            self.assertEqual(package.compatible(old, new), ok, (old, new))
+
+    def test_releases_a_version_answers_to(self):
+        tags = ["moq-ffi-v0.4.10", "moq-ffi-v0.4.12", "moq-ffi-v0.5.0-rc.1", "other-v0.4.11", "moq-ffi-v0.4.11",
+                "moq-ffi-v1.2.3", "moq-ffi-v1.3.0-rc.1"]
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.12", tags), ("0.4.11", "0.4.11"))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.5.0", tags), ("0.5.0-rc.1", None))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.10", tags), (None, None))
+        # A prerelease between them leaves the stable release the baseline.
+        self.assertEqual(package.earlier_releases("moq-ffi", "1.3.0", tags), ("1.3.0-rc.1", "1.2.3"))
+
+
+def api(records, functions):
+    """An api.json of these records and functions, each a dict of its own fields."""
+    return {"api": {"records": records, "enums": [], "objects": [], "callbacks": [], "functions": functions,
+                    "constants": [], "targets": ["x86_64-unknown-linux-gnu"]}}
+
+
+def record(name, docs=""):
+    return {"path": ["moq", name], "shown": ["moq", name], "on": 1, "docs": docs, "span": {"lo": len(docs)},
+            "fields": [], "methods": []}
+
+
+def function(name, ret):
+    return {"path": ["moq", name], "shown": ["moq", name], "on": 1, "docs": "", "params": [], "ok": ret}
+
+
+class Changes(unittest.TestCase):
+    def test_types_are_named_not_indexed(self):
+        # A record added before `Track` moves its index, which changes nothing that names it.
+        old = api([record("Track")], [function("open", {"Record": 0}), function("close", None)])
+        new = api([record("Group", docs="new docs"), record("Track", docs="moved")],
+                  [function("open", {"Record": 1}), function("seek", {"Record": 0})])
+        text = package.changes(old, new, "0.4.11")
+        self.assertEqual(text, "## API changes since 0.4.11\n\n### Removed\n\n- fn `moq::close`\n"
+                               "\n### Added\n\n- fn `moq::seek`\n- struct `moq::Group`\n")
+        # An object added before the one a function's task makes moves its index too.
+        def obj(name):
+            return {**record(name), "fields": None}
+        def poll(i):
+            return {**function("poll", None), "task": {"at": 0, "kind": {"Made": {"object": i, "make": "new"}}}}
+        old = api([], [poll(0)])
+        old["api"]["objects"] = [obj("Waiter")]
+        new = api([], [poll(1)])
+        new["api"]["objects"] = [obj("Clock"), obj("Waiter")]
+        self.assertEqual(package.changes(old, new, "0.4.11"), "## API changes since 0.4.11\n\n### Added\n\n- type `moq::Clock`\n")
+
+    def test_accessors_and_nested_targets(self):
+        def method(name, access):
+            return {**function(name, None), "access": access}
+        old = api([{**record("Track"), "methods": [method("seq", {"Field": {"shared": False, "set": False}}),
+                                                     method("seq", {"Field": {"shared": False, "set": True}})],
+                    "variants": [{"name": "A", "on": 1}]}], [])
+        # A target sorting first shifts every mask, whose targets stay the same.
+        new = api([{**record("Track"), "on": 2,
+                    "methods": [{**method("seq", {"Field": {"shared": False, "set": False}}), "on": 2}],
+                    "variants": [{"name": "A", "on": 2}]}], [])
+        new["api"]["targets"] = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+        text = package.changes(old, new, "0.4.11")
+        self.assertIn("### Removed\n\n- set `moq::seq`\n", text)
+        self.assertNotIn("struct `moq::Track`", text)
+
+    def test_a_signature_change(self):
+        old = api([record("Track"), record("Group")], [function("open", {"Record": 0})])
+        new = api([record("Track"), record("Group")], [function("open", {"Record": 1})])
+        self.assertIn("### Changed\n\n- fn `moq::open`\n", package.changes(old, new, "0.4.11"))
+
+
 class Names(unittest.TestCase):
     def test_swift_module_matches_the_exporter(self):
         self.assertEqual(package.pascal("moq"), "Moq")

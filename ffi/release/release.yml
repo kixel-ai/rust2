@@ -133,7 +133,8 @@ jobs:
   # The XCFramework the mirror's Package.swift names and each target's C archive, uploaded
   # once: a consumer that resolved a checksum must never see other bytes at that URL. The
   # release stays a draft until its assets are up, as an immutable release takes none once
-  # published.
+  # published. The release's API, api.json, is an asset too: the next release's build checks
+  # its own against it, and its notes list what changed since the previous release's.
   github-release:
     needs: [build, tag]
     runs-on: ubuntu-24.04
@@ -149,6 +150,10 @@ jobs:
           pattern: @NAME@-build-*
           path: dist
           merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-release
+          path: release
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
@@ -158,10 +163,10 @@ jobs:
           PRERELEASE: ${{ contains(needs.build.outputs.version, '-') }}
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$PRERELEASE" --title "$TAG" --notes ""
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$PRERELEASE" --title "$TAG" --notes-file release/changes.md
           fi
           shopt -s nullglob
-          for path in "$XCFRAMEWORK" dist/c/*; do
+          for path in "$XCFRAMEWORK" release/api.json dist/c/*; do
             asset=$(basename "$path")
             if gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir existing; then
               cmp "existing/$asset" "$path" || { echo "::error::$TAG already hosts another $asset"; exit 1; }

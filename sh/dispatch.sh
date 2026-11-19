@@ -111,10 +111,18 @@ test_lint() { python3 -I .github/crabx/test_pipeline.py; }
 test_sh() { python3 -I sh/dispatch.test.py; }
 test_crabx() { just crabx test; }
 test_driver() { just driver test; }
-# moq's export at the pin, cut down to C, before the slower test build.
+# moq's export at the pin, cut down to C, and every binding's rendered API, which the
+# surface files lock on x86_64 Linux, the queue's host, before the slower test build.
 test_ffi() {
     python3 -I ffi/release/test_package.py
-    just ffi moq-c
+    python3 -I ffi/surface/test_surface.py
+    if [[ "$(uname -sm)" == "Linux x86_64" ]]; then
+        # One invocation, so the export both read runs once: moq-c's checkout comes first.
+        just ffi::moq-c '' ffi::surface --check
+    else
+        echo "test: the surface files are x86_64 Linux's exports, which the queue checks" >&2
+        just ffi moq-c
+    fi
     just ffi test
 }
 test_go() { just go test; }
