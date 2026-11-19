@@ -1494,9 +1494,16 @@ steps and the model's transcript of their outcomes, shaped by what a driver's su
 run, and each driver runs the script through its surface and prints the outcomes back, which
 must match line for line, with the counts of the script's waker where it polls with one.
 `tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
-`just ffi sanitize` runs the C driver under ASan and TSan. The gate runs 500 scripts of 100
-steps, fails unless they meet every status and make every kind of handle, and `just ffi
-protocol` runs 20,000 of 400 steps.
+`just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
+its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, and
+`.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+where its collector frees or a failed check where it aborts, and adds what the binding does
+its own way, such as a close that refuses before Rust's check, a future made only as it is
+awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its
+scripts to it. The gate runs 500 scripts of 100 steps through the C ABI, failing unless
+they meet every status and make every kind of handle, and 40 to 500 through each binding;
+`just ffi protocol`, run nightly, runs 20,000 of 400 steps through the C ABI and 1,000 to
+5,000 through each binding.
 `tests/borrow.rs` and `tests/hold.rs` model the borrow check and the bindings' hold counts
 under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futures and
 threads, each mounting the runtime's own source over loom's primitives. The futures' model
