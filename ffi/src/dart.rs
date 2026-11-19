@@ -1613,10 +1613,13 @@ impl<'a> Gen<'a> {
 			// A leaf call, as `Abi::leaf_trait` proves, takes no home and holds no handle.
 			let leaf = self.abi.leaf_trait(ty, false);
 			let (f, (pa, a), (pb, b)) = match (leaf, object) {
+				// `other` bound to its own type, since Dart keeps a value alive to the end of
+				// its scope only for a variable declared `Finalizable`, which a promoted
+				// `Object` is not: the `_on` check before the native may run a GC.
 				(true, true) => (
 					self.leaf(&sig),
 					(String::new(), "_live".to_string()),
-					(String::new(), "other._live".to_string()),
+					(format!("final {name} o_ = other;\n\t\t"), "o_._live".to_string()),
 				),
 				(true, false) => (self.leaf(&sig), this(self, "this"), this(self, "other")),
 				(false, _) => (self.served(&sig), this(self, "this"), this(self, "other")),

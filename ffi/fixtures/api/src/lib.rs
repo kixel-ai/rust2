@@ -2573,6 +2573,7 @@ impl Forged {
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Pinned {
 	pub value: u64,
+	part: Part,
 	_here: std::rc::Rc<()>,
 }
 
@@ -2581,9 +2582,24 @@ impl Pinned {
 	pub fn new(value: u64) -> Self {
 		Self {
 			value,
+			part: Part { value, kept: 0 },
 			_here: std::rc::Rc::new(()),
 		}
 	}
+
+	/// Its part, lent: a use of the handle borrows the [`Pinned`] on its thread too.
+	pub fn part(&self) -> &Part {
+		&self.part
+	}
+}
+
+/// A `Send` value a [`Pinned`] lends, whose field and derived traits would be leaves but
+/// for its lender.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq, Hash)]
+pub struct Part {
+	pub value: u64,
+	kept: u8,
 }
 
 #[cfg(not(target_arch = "wasm32"))]

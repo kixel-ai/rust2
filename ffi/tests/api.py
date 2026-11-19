@@ -1702,7 +1702,17 @@ def leaf():
 	thread.join()
 	check(len(hooked) == 2, "a value freed elsewhere waits for its thread")
 	check(pinned.value_get == 5 and len(hooked) == 3, "a getter that drains releases the GIL")
+	# A `Send` part it lends, whose getter and equality borrow it too, so drain the same.
+	part = pinned.part()
+	for use in [lambda: part.value_get == 5, lambda: part == part]:
+		freed = [api.Pinned.new(6)]
+		thread = threading.Thread(target=freed.clear)
+		thread.start()
+		thread.join()
+		count = len(hooked)
+		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
 	api.unhook()
+	del part
 	del pinned
 	print("leaf ok")
 
