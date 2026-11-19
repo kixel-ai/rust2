@@ -85,6 +85,45 @@ pub fn check(dir: &Path, scripts: &[Script], driver: impl Fn(&Path) -> Command) 
 	}
 }
 
+/// Run every script through one `driver` process, which takes each script's path as an
+/// argument and writes its outcomes to that path with `.out` added, as a driver whose
+/// startup costs more than a script does: the model's transcript must match each.
+pub fn check_all(dir: &Path, scripts: &[Script], driver: Command) {
+	let mut driver = driver;
+	std::fs::create_dir_all(dir).unwrap();
+	let paths: Vec<_> = scripts
+		.iter()
+		.map(|script| {
+			let path = dir.join(format!("script-{}.txt", script.seed));
+			std::fs::write(&path, script.text()).unwrap();
+			let _ = std::fs::remove_file(out(&path));
+			path
+		})
+		.collect();
+	let output = driver.args(&paths).output().unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for (script, path) in scripts.iter().zip(&paths) {
+		let got = std::fs::read_to_string(out(path)).unwrap_or_default();
+		if got == script.transcript() {
+			continue;
+		}
+		panic!(
+			"script {} ({}) differs from the model{}\nstderr:\n{stderr}",
+			script.seed,
+			path.display(),
+			difference(script, &got),
+		);
+	}
+	assert!(output.status.success(), "the driver failed:\n{stderr}");
+}
+
+/// Where [`check_all`]'s driver writes a script's outcomes.
+fn out(script: &Path) -> std::path::PathBuf {
+	let mut path = script.as_os_str().to_owned();
+	path.push(".out");
+	path.into()
+}
+
 /// Where a driver's output first parts from the model's, with the steps leading there.
 fn difference(script: &Script, stdout: &str) -> String {
 	let expected = script.transcript();
@@ -117,8 +156,8 @@ fn difference(script: &Script, stdout: &str) -> String {
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome};
-	for bits in 0..64u8 {
-		let on = |bit: u8| bits & 1 << bit != 0;
+	for bits in 0..512u16 {
+		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
 			homes: on(1),
@@ -126,8 +165,11 @@ fn protocol_profiles() {
 			frees: on(3),
 			polls: on(4),
 			failures: on(5),
+			settles: on(6),
+			cancels: on(7),
+			closes: on(8),
 		};
-		for script in scripts(0, 20, 100, profile) {
+		for script in scripts(0, 5, 100, profile) {
 			for step in &script.steps {
 				let line = step.line();
 				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
@@ -136,7 +178,10 @@ fn protocol_profiles() {
 					"{profile:?}: {line}"
 				);
 				match step.op {
-					Op::Free(_) => assert!(profile.frees, "{profile:?}: {line}"),
+					Op::Free(h) => assert!(
+						profile.frees || (profile.cancels && script.kinds[h].future()),
+						"{profile:?}: {line}"
+					),
 					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
 					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
 					Op::LocalNew(_, homed) => assert!(

@@ -1413,8 +1413,8 @@ fn wasm_transcript() -> String {
 	String::from_utf8_lossy(&transcript.stdout).into_owned()
 }
 
-/// The api fixture's web binding, beside a copy of `tests/api.ts` as a caller's project
-/// holds it, type-checked with no issue, and the module the crate's `web` feature builds
+/// The api fixture's web binding, beside copies of `tests/api.ts` and `tests/protocol.ts`
+/// as a caller's project holds them, type-checked with no issue, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
 struct Web {
 	dir: PathBuf,
@@ -1438,6 +1438,7 @@ fn web() -> &'static Web {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("web"), &dir.join("web"));
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+		step::copy(&manifest_dir().join("tests").join("protocol.ts"), &dir.join("protocol.ts"));
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
 		Web {
@@ -1541,6 +1542,31 @@ fn web_script(runtime: &str, case: Option<&str>) -> Command {
 		.current_dir(&web.dir)
 		.env("RUST2_WASM", &web.wasm);
 	cmd
+}
+
+/// Random sequences of the ownership protocol's steps through the web binding on Node, by
+/// `tests/protocol.ts`, each matching what the model says each step returns.
+#[test]
+fn api_web_protocol() {
+	web_protocol("scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+}
+
+/// Longer protocol scripts from other seeds through the web binding, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_web_protocol_nightly() {
+	web_protocol("nightly", PROTOCOL_SEEDS, 5000, 400);
+}
+
+/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one Node.
+fn web_protocol(name: &str, first: u64, count: u64, steps: usize) {
+	let web = web();
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
+	let mut node = Command::new("node");
+	node.args(["--no-warnings", "protocol.ts"])
+		.current_dir(&web.dir)
+		.env("RUST2_WASM", &web.wasm);
+	protocol::check_all(&scratch().join("api").join("web-protocol").join(name), &scripts, node);
 }
 
 /// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
@@ -1652,7 +1678,7 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "web/*.ts"]
+	"include": ["api.ts", "protocol.ts", "web/*.ts"]
 }
 "#;
 

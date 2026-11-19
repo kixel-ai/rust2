@@ -36,6 +36,16 @@ pub struct Profile {
 	pub polls: bool,
 	/// Steps whose check fails, which a surface that aborts on one never runs.
 	pub failures: bool,
+	/// An await lets every pending future run to its end, in the order they were made, as
+	/// a JavaScript microtask queue polls each one its wake scheduled: an await of one may
+	/// end another, whose own await then returns what it ended with.
+	pub settles: bool,
+	/// Frees of futures amid the steps, as a binding's cancel makes, where it frees no
+	/// object.
+	pub cancels: bool,
+	/// A dropped handle is closed: a later call naming it fails as moved in the binding,
+	/// before any check of Rust's, and a later drop does nothing.
+	pub closes: bool,
 }
 
 impl Profile {
@@ -47,12 +57,31 @@ impl Profile {
 		frees: true,
 		polls: true,
 		failures: true,
+		settles: false,
+		cancels: true,
+		closes: false,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
 	pub const MIRI: Self = Self {
 		homes: false,
 		..Self::C
+	};
+
+	/// The web binding's, on wasm32: one thread and no homes; a dispose is a drop, which
+	/// closes the handle, and only the garbage collector frees one, in its own time; a
+	/// future is a promise, polled on the microtask queue, which only an await runs, and
+	/// its `cancel()` frees it at once.
+	pub const TS: Self = Self {
+		threads: false,
+		homes: false,
+		homed: false,
+		frees: false,
+		polls: false,
+		failures: true,
+		settles: true,
+		cancels: true,
+		closes: true,
 	};
 }
 
@@ -243,6 +272,49 @@ impl Outcome {
 	}
 }
 
+impl Op {
+	/// The objects it names, receiver first, as a binding holds each before the call: not
+	/// the slot it fills, nor a future it polls or frees.
+	pub fn handles(self) -> Vec<usize> {
+		match self {
+			Op::CounterGet(h)
+			| Op::CounterAdd(h, _)
+			| Op::CounterIntoSum(h, _)
+			| Op::CounterClone(_, h)
+			| Op::LedgerEdit(_, h)
+			| Op::LedgerPublished(h)
+			| Op::LedgerSeal(h)
+			| Op::LedgerReceipt(_, h)
+			| Op::DraftWrite(h)
+			| Op::DraftLines(h)
+			| Op::DraftCommit(h)
+			| Op::ReceiptCount(h)
+			| Op::ReceiptClone(_, h)
+			| Op::TallyBump(h)
+			| Op::BumpLater(_, h)
+			| Op::LocalBump(h)
+			| Op::LocalShare(_, h)
+			| Op::LocalLater(_, h)
+			| Op::MetersFirst(_, h)
+			| Op::MetersClear(h)
+			| Op::MeterAdd(h, _)
+			| Op::MeterReset(h)
+			| Op::Drop(h) => vec![h],
+			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) | Op::PlusLater(_, h, o) => [Some(h), o].into_iter().flatten().collect(),
+			Op::CounterNew(..)
+			| Op::LedgerNew(_)
+			| Op::TallyNew(_)
+			| Op::LocalNew(..)
+			| Op::MetersNew(_)
+			| Op::MeterNew(_)
+			| Op::Free(_)
+			| Op::Poll(_)
+			| Op::Await(_)
+			| Op::Drain => Vec::new(),
+		}
+	}
+}
+
 impl Step {
 	/// The step's line in a script: its thread, the op's name, then its slots and numbers,
 	/// `-` for an absent handle.
@@ -388,6 +460,11 @@ struct Slot {
 	polls: u32,
 	done: bool,
 	adopted: bool,
+	/// What a finished future returned, and whether a step awaited it.
+	result: Option<u64>,
+	awaited: bool,
+	/// A handle a binding closed as it dropped it.
+	closed: bool,
 	/// A future's borrows: shared slots and an exclusive one.
 	holds_shared: Vec<usize>,
 	holds_exclusive: Option<usize>,
@@ -412,6 +489,9 @@ impl Slot {
 			polls: 0,
 			done: false,
 			adopted: false,
+			result: None,
+			awaited: false,
+			closed: false,
 			holds_shared: Vec::new(),
 			holds_exclusive: None,
 		}
@@ -423,6 +503,9 @@ impl Slot {
 struct Model {
 	/// Whether every value that is not `Send` is made on a home.
 	homed: bool,
+	/// [`Profile::settles`] and [`Profile::closes`].
+	settles: bool,
+	closes: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -433,9 +516,11 @@ struct Model {
 }
 
 impl Model {
-	fn new(homed: bool) -> Self {
+	fn new(profile: Profile) -> Self {
 		Self {
-			homed,
+			homed: profile.homed,
+			settles: profile.settles,
+			closes: profile.closes,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -569,7 +654,22 @@ impl Model {
 
 	/// Run `op` on `thread`: what it returns.
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
-		match self.run(thread, op) {
+		if self.closes {
+			match op {
+				Op::Drop(h) if self.slots[h].closed => return Outcome::Ok,
+				_ if op.handles().into_iter().any(|h| self.slots[h].closed) => {
+					return Outcome::Failed(Status::Moved);
+				}
+				_ => {}
+			}
+		}
+		let outcome = self.run(thread, op);
+		if self.closes
+			&& let (Op::Drop(h), Ok(_)) = (op, &outcome)
+		{
+			self.slots[h].closed = true;
+		}
+		match outcome {
 			Ok(outcome) => outcome,
 			Err(status) => Outcome::Failed(status),
 		}
@@ -853,11 +953,23 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::Await(f) => {
-				let mut outcome = self.run(thread, Op::Poll(f))?;
-				while outcome == Outcome::Pending {
-					outcome = self.run(thread, Op::Poll(f))?;
+				// With `settles`, every pending future ends, in the order they were made.
+				let ends: Vec<usize> = match self.settles {
+					true => (0..self.slots.len())
+						.filter(|&g| {
+							let slot = &self.slots[g];
+							slot.kind.future() && !slot.done && !slot.freed
+						})
+						.collect(),
+					false => vec![f],
+				};
+				for g in ends {
+					while !self.slots[g].done {
+						self.run(thread, Op::Poll(g))?;
+					}
 				}
-				outcome
+				self.slots[f].awaited = true;
+				Outcome::Value(self.slots[f].result.expect("an awaited future ended"))
 			}
 			Op::Poll(f) => {
 				if let Owner::Thread(t) = self.slots[f].owner
@@ -893,6 +1005,7 @@ impl Model {
 					kind => unreachable!("{kind:?} is no future"),
 				};
 				self.end_future(f);
+				self.slots[f].result = Some(value);
 				Outcome::Value(value)
 			}
 			Op::Drain => {
@@ -937,7 +1050,7 @@ const LIVE: usize = 8;
 /// a drain of each thread, so nothing is left for a thread's exit to drop.
 pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 	let mut rng = Rng(seed);
-	let mut model = Model::new(profile.homed);
+	let mut model = Model::new(profile);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
 		let expect = model.step(thread, op);
@@ -1018,7 +1131,11 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 /// on a home whose drop the script would observe, since the home drops it in its own time.
 fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 	let next = model.slots.len();
-	let live: Vec<usize> = (0..next).filter(|&h| !model.slots[h].freed).collect();
+	// A closed handle is never freed, so it would crowd out the rest: most steps pass it by.
+	let stale = profile.closes && !rng.chance(10);
+	let live: Vec<usize> = (0..next)
+		.filter(|&h| !model.slots[h].freed && !(stale && model.slots[h].closed))
+		.collect();
 	let of = |kinds: &[Kind]| -> Vec<usize> {
 		live.iter()
 			.copied()
@@ -1033,10 +1150,14 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 		.copied()
 		.filter(|&h| !model.slots[h].kind.future())
 		.collect();
+	// A future to poll, or to await: one a settling await ended still awaits once.
 	let futures: Vec<usize> = live
 		.iter()
 		.copied()
-		.filter(|&h| model.slots[h].kind.future() && !model.slots[h].done)
+		.filter(|&h| {
+			let slot = &model.slots[h];
+			slot.kind.future() && !slot.awaited && (!slot.done || (!profile.polls && slot.result.is_some()))
+		})
 		.collect();
 	let making = live.len() < LIVE;
 	Some(match rng.below(14) {
@@ -1121,8 +1242,13 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 			if profile.polls { Op::Poll(f) } else { Op::Await(f) }
 		}
 		11 => Op::Drop(rng.pick(&objects)?),
-		12 if profile.frees => {
-			let h = rng.pick(&live)?;
+		12 if profile.frees || profile.cancels => {
+			let frees: Vec<usize> = live
+				.iter()
+				.copied()
+				.filter(|&h| profile.frees || model.slots[h].kind.future())
+				.collect();
+			let h = rng.pick(&frees)?;
 			let slot = &model.slots[h];
 			let racy =
 				slot.owner == Owner::Home && !slot.gone && !slot.done && !matches!(model.releases(h), Release::Nothing);
