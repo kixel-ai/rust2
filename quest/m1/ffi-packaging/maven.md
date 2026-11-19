@@ -12,7 +12,11 @@ Gradle app consumes it on the emulator and prints the transcript.
 Found by the 2026-11-18 language audit: moq ships an Android library, and the builder has
 no Maven row.
 
-Public API: the Maven coordinates, derived from the crate.
+The artifactId and version come from the crate; the groupId is the caller's, since Cargo's
+`repository` can only suggest a Maven namespace it cannot prove the publisher owns
+(`ffi/release/README.md`'s "Other registries" table).
+
+Public API: the Maven coordinates.
 
 ## Required
 

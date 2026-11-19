@@ -17,7 +17,10 @@ Found by the 2026-11-18 language audit: `web/` ships only `.ts`, which Node refu
 strip under `node_modules` ([nodejs#57215](https://github.com/nodejs/node/issues/57215),
 closed as not planned), with no `package.json`; and the epic's requirement that every
 generator report its size raw and gzipped has no web row. The generator already writes
-only syntax type stripping erases, so emitting `.js` is mechanical. Document `import
+only syntax type stripping erases, so emitting `.js` is mechanical, except the import
+specifiers: today's modules import `./rt.ts` and `./glue.ts`, and each emitted `.js` must
+import the `.js` counterpart of every module instead, so no consumer needs a TypeScript
+loader. Document `import
 source`, which `load` already accepts as a `WebAssembly.Module`.
 
 Public API: the package layout and `load()`'s default source.

@@ -15,8 +15,11 @@ costs 24 ns wall against BoltFFI's 5.8. Android lists `@FastNative` near 35 ns a
 regular JNI call ([JNI tips](https://developer.android.com/ndk/guides/jni-tips)).
 
 - `@FastNative` needs `RegisterNatives` on Android 8 to 11, where the glue uses `Java_`
-  name lookup today (`ffi/src/kotlin.rs:2280`); registering also drops the exported
-  `Java_` symbols, without a `JNI_OnLoad`.
+  name lookup today (`ffi/src/kotlin.rs:2280`). Today `load()` is reached only through the
+  exported `Java_..._1Native__1_1contract`, and the library has no `JNI_OnLoad`, so
+  registration needs a native entry point that runs before any registered method.
+  Recommended: keep that one contract export, which registers every other method on its
+  first call, so the other `Java_` symbols drop; the spike says if `JNI_OnLoad` is simpler.
 - It is public SDK API only from API 34, so the JVM build needs a stub annotation.
 - It blocks the GC for the call, so it suits only calls that never block or call back.
 - `@CriticalNative` does not fit: it has no `JNIEnv` to throw a failed check, and
