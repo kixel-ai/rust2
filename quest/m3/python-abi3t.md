@@ -3,8 +3,10 @@
 ## Goal
 
 The Python binding loads in free-threaded CPython 3.15 and later as an `abi3.abi3t`
-extension ([PEP 803](https://peps.python.org/pep-0803/)), and the release builder ships
-that wheel. `tests/api.py` runs threaded under 3.15t, and under a ThreadSanitizer-built
+extension ([PEP 803](https://peps.python.org/pep-0803/)) whose module slots declare
+`Py_mod_gil = Py_MOD_GIL_NOT_USED`, so importing it leaves the GIL disabled, and the
+release builder ships that wheel. `tests/api.py` asserts `sys._is_gil_enabled()` is false
+after the import. `tests/api.py` runs threaded under 3.15t, and under a ThreadSanitizer-built
 interpreter nightly.
 
 ## Plan

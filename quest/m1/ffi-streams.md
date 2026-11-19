@@ -6,7 +6,9 @@ A method `async fn next(&mut self) -> Option<T>` or `-> Result<Option<T>, E>` ge
 generated adapter in each binding's iteration protocol: Go's `iter.Seq2`, TypeScript's
 `AsyncIterable`, Kotlin's `Flow`, Swift's `AsyncSequence`, Python's async iterator, Dart's
 `Stream`, and C++'s coroutine generator where the header has coroutines. Cancelling the
-iteration cancels the pending `next`, losing nothing, as the futures do.
+iteration drops the pending `next` future, exactly as dropping it in Rust would: the
+adapter loses nothing of its own, and an item is lost only where the method itself is not
+cancel-safe, which the adapter's docs say.
 
 ## Plan
 
