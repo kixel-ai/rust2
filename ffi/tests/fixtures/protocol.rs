@@ -116,9 +116,9 @@ fn difference(script: &Script, stdout: &str) -> String {
 /// awaits where it has none, and locals on a home where it says.
 #[test]
 fn protocol_profiles() {
-	use model::{Op, Outcome};
-	for bits in 0..64u8 {
-		let on = |bit: u8| bits & 1 << bit != 0;
+	use model::{Op, Outcome, Status};
+	for bits in 0..512u16 {
+		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
 			homes: on(1),
@@ -126,17 +126,28 @@ fn protocol_profiles() {
 			frees: on(3),
 			polls: on(4),
 			failures: on(5),
+			drops: on(6),
+			moved: on(7),
+			held: on(8),
 		};
+		if !(profile.frees || profile.drops) || (profile.polls && !profile.held) {
+			continue;
+		}
 		for script in scripts(0, 20, 100, profile) {
-			for step in &script.steps {
+			for (i, step) in script.steps.iter().enumerate() {
 				let line = step.line();
 				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
 				assert!(
 					profile.failures || !matches!(step.expect, Outcome::Failed(_)),
 					"{profile:?}: {line}"
 				);
+				assert!(
+					profile.moved || step.expect != Outcome::Failed(Status::Moved),
+					"{profile:?}: {line}"
+				);
 				match step.op {
 					Op::Free(_) => assert!(profile.frees, "{profile:?}: {line}"),
+					Op::Drop(_) => assert!(profile.drops, "{profile:?}: {line}"),
 					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
 					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
 					Op::LocalNew(_, homed) => assert!(
@@ -144,6 +155,18 @@ fn protocol_profiles() {
 						"{profile:?}: {line}"
 					),
 					_ => {}
+				}
+				// A future not held is awaited in the next step, on its thread.
+				if let Some(f) = step.op.made()
+					&& script.kinds.get(f).is_some_and(|kind| kind.future())
+					&& step.expect == Outcome::Ok
+					&& !profile.held
+				{
+					let next = &script.steps[i + 1];
+					assert!(
+						next.op == Op::Await(f) && next.thread == step.thread,
+						"{profile:?}: {line}"
+					);
 				}
 			}
 		}

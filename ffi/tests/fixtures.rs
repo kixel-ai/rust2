@@ -779,6 +779,41 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 	cmd
 }
 
+/// Random sequences of the ownership protocol's steps through the C++ header, by
+/// `tests/protocol.cpp`, each matching what the model says each step returns: never a
+/// failed check, which aborts in C++.
+#[test]
+fn api_cpp_protocol() {
+	cpp_protocol(&protocol::scripts(
+		0,
+		PROTOCOL_SEEDS,
+		PROTOCOL_STEPS,
+		protocol::Profile::CPP,
+	));
+}
+
+/// Longer protocol scripts through the C++ header, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_cpp_protocol_nightly() {
+	cpp_protocol(&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::CPP));
+}
+
+fn cpp_protocol(scripts: &[protocol::Script]) {
+	let api = api();
+	let dir = scratch().join("api").join("protocol-cpp");
+	std::fs::create_dir_all(&dir).unwrap();
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	cxx(
+		&api.link(),
+		17,
+		true,
+		&manifest_dir().join("tests").join("protocol.cpp"),
+		&exe,
+	);
+	protocol::check(&dir.join("scripts"), scripts, |_| Command::new(&exe));
+}
+
 /// The generated Kotlin, compiled with `tests/api.kt` against the library's JNI
 /// functions, runs its script on the JVM, then refuses a library of another contract.
 #[test]

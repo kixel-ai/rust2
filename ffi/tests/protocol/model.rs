@@ -36,6 +36,14 @@ pub struct Profile {
 	pub polls: bool,
 	/// Steps whose check fails, which a surface that aborts on one never runs.
 	pub failures: bool,
+	/// `_drop`, which a surface that frees only by letting go of a value has none of.
+	pub drops: bool,
+	/// Steps naming a value moved out or dropped, which a surface whose compiler tracks
+	/// each move never writes: only a free of it, which then frees nothing.
+	pub moved: bool,
+	/// Futures held between steps; else each is awaited, on its thread, in the step after
+	/// the one that makes it, as a surface whose futures are its own async calls runs it.
+	pub held: bool,
 }
 
 impl Profile {
@@ -47,11 +55,35 @@ impl Profile {
 		frees: true,
 		polls: true,
 		failures: true,
+		drops: true,
+		moved: true,
+		held: true,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
 	pub const MIRI: Self = Self {
 		homes: false,
+		..Self::C
+	};
+
+	/// C++'s: a failed check aborts, an object frees as it is destroyed, with no `_drop`,
+	/// and nothing is made on a home, which only a binding whose threads move asks for.
+	pub const CPP: Self = Self {
+		homes: false,
+		failures: false,
+		drops: false,
+		..Self::C
+	};
+
+	/// Swift's: noncopyable objects free in `deinit`, with no `_drop`, and its compiler
+	/// refuses a use of one moved out; a future is an `async` call, awaited as it is made,
+	/// whose own waker the script cannot count.
+	pub const SWIFT: Self = Self {
+		homes: false,
+		drops: false,
+		moved: false,
+		polls: false,
+		held: false,
 		..Self::C
 	};
 }
@@ -239,6 +271,72 @@ impl Outcome {
 			Outcome::Error => "error".to_string(),
 			Outcome::Failed(status) => status.name().to_string(),
 			Outcome::Pending => "pending".to_string(),
+		}
+	}
+}
+
+impl Op {
+	/// The slot a step making a handle fills.
+	pub fn made(self) -> Option<usize> {
+		match self {
+			Op::CounterNew(h, _)
+			| Op::LedgerNew(h)
+			| Op::TallyNew(h)
+			| Op::LocalNew(h, _)
+			| Op::MetersNew(h)
+			| Op::MeterNew(h)
+			| Op::CounterClone(h, _)
+			| Op::PlusLater(h, _, _)
+			| Op::LedgerEdit(h, _)
+			| Op::LedgerReceipt(h, _)
+			| Op::ReceiptClone(h, _)
+			| Op::BumpLater(h, _)
+			| Op::LocalShare(h, _)
+			| Op::LocalLater(h, _)
+			| Op::MetersFirst(h, _) => Some(h),
+			_ => None,
+		}
+	}
+
+	/// The handles a step passes.
+	pub fn named(self) -> Vec<usize> {
+		match self {
+			Op::CounterNew(..)
+			| Op::LedgerNew(_)
+			| Op::TallyNew(_)
+			| Op::LocalNew(..)
+			| Op::MetersNew(_)
+			| Op::MeterNew(_)
+			| Op::Drain => vec![],
+			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) | Op::PlusLater(_, h, o) => {
+				std::iter::once(h).chain(o).collect()
+			}
+			Op::CounterClone(_, h)
+			| Op::LedgerEdit(_, h)
+			| Op::LedgerReceipt(_, h)
+			| Op::ReceiptClone(_, h)
+			| Op::BumpLater(_, h)
+			| Op::LocalShare(_, h)
+			| Op::LocalLater(_, h)
+			| Op::MetersFirst(_, h)
+			| Op::CounterGet(h)
+			| Op::CounterAdd(h, _)
+			| Op::CounterIntoSum(h, _)
+			| Op::LedgerPublished(h)
+			| Op::LedgerSeal(h)
+			| Op::DraftWrite(h)
+			| Op::DraftLines(h)
+			| Op::DraftCommit(h)
+			| Op::ReceiptCount(h)
+			| Op::TallyBump(h)
+			| Op::LocalBump(h)
+			| Op::MetersClear(h)
+			| Op::MeterAdd(h, _)
+			| Op::MeterReset(h)
+			| Op::Drop(h)
+			| Op::Free(h)
+			| Op::Poll(h)
+			| Op::Await(h) => vec![h],
 		}
 	}
 }
@@ -936,6 +1034,14 @@ const LIVE: usize = 8;
 /// nothing amid the steps, then each object freed or dropped, each on its own thread, and
 /// a drain of each thread, so nothing is left for a thread's exit to drop.
 pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
+	assert!(
+		profile.frees || profile.drops,
+		"a profile ends each value by a free or a drop"
+	);
+	assert!(
+		profile.held || !profile.polls,
+		"a future awaited as it is made is never polled"
+	);
 	let mut rng = Rng(seed);
 	let mut model = Model::new(profile.homed);
 	let mut steps = Vec::new();
@@ -952,7 +1058,16 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 		if !profile.failures && matches!(model.clone().step(thread, op), Outcome::Failed(_)) {
 			continue;
 		}
+		if !profile.moved && !matches!(op, Op::Free(_)) && op.named().iter().any(|&h| model.slots[h].gone) {
+			continue;
+		}
 		push(&mut model, &mut steps, thread, op);
+		if let Some(f) = op
+			.made()
+			.filter(|&f| !profile.held && f < model.slots.len() && model.slots[f].kind.future())
+		{
+			push(&mut model, &mut steps, thread, Op::Await(f));
+		}
 	}
 	let live = |model: &Model, kinds: &[Kind]| -> Vec<usize> {
 		(0..model.slots.len())
@@ -1120,7 +1235,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 			let f = rng.pick(&futures)?;
 			if profile.polls { Op::Poll(f) } else { Op::Await(f) }
 		}
-		11 => Op::Drop(rng.pick(&objects)?),
+		11 if profile.drops => Op::Drop(rng.pick(&objects)?),
 		12 if profile.frees => {
 			let h = rng.pick(&live)?;
 			let slot = &model.slots[h];
