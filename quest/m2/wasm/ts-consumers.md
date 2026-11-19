@@ -2,10 +2,14 @@
 
 ## Goal
 
-- Both runtimes, rust2-ffi's web `rt.ts` and rust2-ts's, key disposal on
-  `Symbol.dispose ?? Symbol.for("Symbol.dispose")`, so a consumer's `using`, native or
-  downleveled by TypeScript or a bundler, runs the Rust drop on stable Safari, which lacks
-  `Symbol.dispose`. `ffi/tests/api.ts` and a translated fixture's caller use `using`.
+- Both runtimes, rust2-ffi's web `rt.ts` and rust2-ts's, define `Symbol.dispose` as
+  `Symbol.for("Symbol.dispose")` when the engine lacks it, at module evaluation before any
+  consumer code runs, and key disposal on it. So a consumer's `using` runs the Rust drop on
+  stable Safari, which lacks `Symbol.dispose`, whether native or downleveled: TypeScript's
+  `__addDisposableResource` throws when `Symbol.dispose` is absent rather than falling back,
+  while esbuild's helper falls back to `Symbol.for("Symbol.dispose")`, so a key fallback
+  alone would not do. `ffi/tests/api.ts` and a translated fixture's caller use `using`, and
+  the WebKit run below covers it native, downleveled by `tsc`, and downleveled by esbuild.
 - `just ffi browsers` runs the web binding's test in WebKit too (Playwright's WebKit or
   WPE `cog` from nixpkgs), nightly beside Chromium and Firefox.
 - rust2-ts's output type-checks under `noImplicitOverride` (`ts/src/check.rs:23`), which

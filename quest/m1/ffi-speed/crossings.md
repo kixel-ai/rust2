@@ -2,12 +2,20 @@
 
 ## Goal
 
-- Python keeps the GIL across calls where no user code can run: scalar `pub` field
-  getters, derived `eq` and `hash` (detected by `#[automatically_derived]`), and
-  `contract`, with the argument that this cannot deadlock written beside the rule.
-- Dart makes those same calls leaf calls (`isLeaf`), drops the per-call `_Arena` where a
-  call needs none, and passes borrowed `&[u8]` and numeric slices through
+- Python keeps the GIL across a call only when the exporter proves the whole call reaches
+  no user code, no blocking, and no foreign call: not its body, not a nested
+  implementation (a derived `eq` or `hash` calls each field's, which may be hand-written,
+  so `#[automatically_derived]` alone proves nothing), and not the runtime's own side
+  effects, such as a borrow check that drains queued destructors through `Thread::own`.
+  Candidates are `contract`, a getter of a primitive field whose borrow path drains
+  nothing, and a derived impl whose fields are recursively primitives or derived the same
+  way. The argument that this cannot deadlock is written beside the rule.
+- Dart makes those same proven calls leaf calls (`isLeaf`), drops the per-call `_Arena`
+  where a call needs none, and passes borrowed `&[u8]` and numeric slices through
   `TypedData.address` with no copy, as a direct argument of a leaf call.
+- A regression test per binding makes a call that looks like a candidate but reaches user
+  code (a field with a hand-written `PartialEq`, a getter after a value from another
+  thread queued its drop) and shows it still releases the GIL, or is no leaf call.
 - The binding benchmark gains a case for Dart's thread hop: while Rust holds any closure
   or trait implementation from an isolate, every call goes to a worker thread
   (`ffi/runtime/dart.rs:287-333`).
