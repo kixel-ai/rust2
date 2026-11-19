@@ -85,17 +85,19 @@ def concurrent(calls):
 	return wall, cpu / len(calls)
 
 
-async def throughput(track, subscriber, at, size):
+async def throughput(track, subscriber, micros, size):
 	"""Groups of 100 frames of `size` bytes written and each read back, its payload's first
-	byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU
-	second."""
+	byte touched, in about 64 MiB and at least 300 frames, each group starting at the next
+	of `micros`: megabytes a wall and a CPU second, and the next start."""
 	groups = min(max((64 << 20) // (size * FRAMES), 3), 2000)
 	frame = bytes(size)
 	name = f"throughput[{size}]".encode()
 	total = 0
 	start = begin()
 	for _ in range(groups):
-		group = track.append_group()
+		at = moq.Timestamp.from_micros(micros)
+		micros += 1
+		group = track.append_group(at)
 		reader = await subscriber.recv_group()
 		for _ in range(FRAMES):
 			group.write_frame(at, frame)
@@ -104,7 +106,7 @@ async def throughput(track, subscriber, at, size):
 				total += payload[0]
 		group.finish()
 	wall, cpu = end(start, name, groups * FRAMES * size)
-	return 1e3 / wall, 1e3 / cpu
+	return (1e3 / wall, 1e3 / cpu), micros
 
 
 def round(loop, measured):
@@ -112,6 +114,10 @@ def round(loop, measured):
 	track = broadcast.create_track("bench", moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
 	frame = bytes(100)
 	out = {}
+	# Each group's start, in microseconds: a track's appended starts strictly increase, so
+	# every group takes the next, and each frame of a group is written at its start, as
+	# moq's own bench does.
+	micros = 0
 
 	start = begin()
 	for _ in range(N):
@@ -119,14 +125,16 @@ def round(loop, measured):
 	out["call"] = end(start, b"call")
 
 	# A bound method called in a loop, as bench/ffi/README.md timed BoltFFI's
-	# `group.sequence()`. BoltFFI holds the GIL through the call, where the export releases
-	# it so Rust may call Python back from another thread.
-	demanded = track.append_group()
+	# `group.sequence()`, which a group's start has replaced. BoltFFI holds the GIL through
+	# the call, where the export releases it so Rust may call Python back from another
+	# thread.
+	demanded = track.append_group(moq.Timestamp.from_micros(micros))
+	micros += 1
 	demand = demanded.demand()
-	sequence = demand.sequence
+	group_start = demand.start
 	start = begin()
 	for _ in range(N):
-		sequence()
+		group_start()
 	out["getter"] = end(start, b"getter")
 
 	# The handle call and the getter from THREADS threads: on one shared handle, then on a
@@ -135,8 +143,8 @@ def round(loop, measured):
 	if not measured:
 		out["shared:call"] = concurrent([track.is_closed] * THREADS)
 		out["own:call"] = concurrent([track.clone().is_closed for _ in range(THREADS)])
-		out["shared:getter"] = concurrent([sequence] * THREADS)
-		out["own:getter"] = concurrent([demand.clone().sequence for _ in range(THREADS)])
+		out["shared:getter"] = concurrent([group_start] * THREADS)
+		out["own:getter"] = concurrent([demand.clone().start for _ in range(THREADS)])
 	demanded.finish()
 
 	start = begin()
@@ -150,26 +158,28 @@ def round(loop, measured):
 	out["object"] = end(start, b"object")
 
 	# Each frame stamped through a fresh timestamp, as a caller holding an int must.
-	micros = 0
 	start = begin()
 	for _ in range(GROUPS):
-		group = track.append_group()
+		group = track.append_group(moq.Timestamp.from_micros(micros))
 		for _ in range(FRAMES):
 			group.write_frame(moq.Timestamp.from_micros(micros), frame)
 			micros += 1
 		group.finish()
 	out["stamped"] = end(start, b"stamped")
 
-	at = moq.Timestamp.from_micros(micros)
+	# Each group's frames written at its start, converted once a group.
 	start = begin()
 	for _ in range(GROUPS):
-		group = track.append_group()
+		at = moq.Timestamp.from_micros(micros)
+		micros += 1
+		group = track.append_group(at)
 		for _ in range(FRAMES):
 			group.write_frame(at, frame)
 		group.finish()
 	out["write"] = end(start, b"write")
 
 	async def reads():
+		nonlocal micros
 		subscriber = await track.consume().subscribe(None)
 
 		# Each frame written, then read through an awaitable ready at its first poll, so it
@@ -177,7 +187,9 @@ def round(loop, measured):
 		last = None
 		start = begin()
 		for _ in range(GROUPS):
-			group = track.append_group()
+			at = moq.Timestamp.from_micros(micros)
+			micros += 1
+			group = track.append_group(at)
 			reader = await subscriber.recv_group()
 			for _ in range(FRAMES):
 				group.write_frame(at, frame)
@@ -189,7 +201,9 @@ def round(loop, measured):
 		# resumes it through the loop.
 		start = begin()
 		for _ in range(GROUPS):
-			group = track.append_group()
+			at = moq.Timestamp.from_micros(micros)
+			micros += 1
+			group = track.append_group(at)
 			reader = await subscriber.recv_group()
 			for _ in range(FRAMES):
 				pending = asyncio.ensure_future(reader.read_frame())
@@ -204,8 +218,11 @@ def round(loop, measured):
 		permits = asyncio.Queue(maxsize=1)
 
 		async def write_loop():
+			nonlocal micros
 			for _ in range(GROUPS):
-				group = track.append_group()
+				at = moq.Timestamp.from_micros(micros)
+				micros += 1
+				group = track.append_group(at)
 				for _ in range(FRAMES):
 					await permits.get()
 					group.write_frame(at, frame)
@@ -223,7 +240,7 @@ def round(loop, measured):
 		out["loop"] = end(start, b"loop")
 
 		for size in SIZES:
-			out[f"mbps:{size}"] = await throughput(track, subscriber, at, size)
+			out[f"mbps:{size}"], micros = await throughput(track, subscriber, micros, size)
 		return last
 
 	last = loop.run_until_complete(reads())
