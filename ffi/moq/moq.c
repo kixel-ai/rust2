@@ -190,8 +190,10 @@ int main(void) {
 	moq_track_Subscriber_recv_group_future *receiving = moq_track_Subscriber_recv_group(subscriber, NULL);
 	moq_group_Consumer *group = NULL;
 	CHECK(moq_track_Subscriber_recv_group_poll(receiving, waker, &group, &err) == MOQ_POLL_PENDING);
+	/* The track is untimed, so its group's start is a bare key, which frames reuse. */
+	moq_Timestamp *key = moq_Timestamp_unscaled(0);
 	moq_group_Producer *writer = NULL;
-	CHECK(moq_track_Producer_append_group(track, &writer, &err, NULL));
+	CHECK(moq_track_Producer_append_group(track, key, &writer, &err, NULL));
 	CHECK(wakes == 1);
 	CHECK(moq_track_Subscriber_recv_group_poll(receiving, waker, &group, &err) == MOQ_POLL_READY);
 	moq_track_Subscriber_recv_group_future_free(receiving);
@@ -201,32 +203,40 @@ int main(void) {
 	moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(group, NULL);
 	moq_frame_Frame *frame = NULL;
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_PENDING);
-	CHECK(moq_group_Producer_write_frame(writer, (moq_option_Timestamp){0}, str("hello"), &err, NULL));
+	CHECK(moq_group_Producer_write_frame(writer, key, str("hello"), &err, NULL));
 	CHECK(wakes == 2);
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_READY);
 	moq_group_Consumer_read_frame_future_free(reading);
 	CHECK(frame != NULL && is(moq_frame_Frame_payload_get(frame, NULL), "hello"));
-	CHECK(!moq_frame_Frame_timestamp_get(frame, NULL).some);
+	moq_Timestamp *stamp = moq_frame_Frame_timestamp_get(frame, NULL);
+	CHECK(stamp != NULL && !moq_Timestamp_scale(stamp, NULL).some);
+	moq_Timestamp_free(stamp);
 	/* When it arrived: kio's clock's `Instant`, from kio's own export. */
 	moq_clock_Instant arrived = moq_frame_Frame_arrived(frame, NULL);
 	moq_clock_Instant now = moq_clock_now();
 	CHECK(moq_clock_Instant_checked_duration_since(&now, arrived).some);
 	moq_frame_Frame_free(frame);
 
-	/* A timestamp is a `Copy` value C copies, which allocates nothing. The track is
-	 * untimed, so a timestamped frame is refused. */
-	moq_Timestamp at;
+	/* A timestamp is lent to a call, which leaves it to C. The track is untimed, so a
+	 * timed frame is refused. */
+	moq_Timestamp *at = NULL;
 	moq_TimeOverflow overflow;
+	uint64_t secs = 0;
 	CHECK(moq_Timestamp_from_millis(1500, &at, &overflow));
-	CHECK(moq_Timestamp_as_secs(&at) == 1);
-	CHECK(!moq_group_Producer_write_frame(writer, (moq_option_Timestamp){.some = true, .value = at}, str("late"), &err, NULL));
+	CHECK(moq_Timestamp_as_secs(at, &secs, &overflow, NULL) && secs == 1);
+	CHECK(!moq_group_Producer_write_frame(writer, at, str("late"), &err, NULL));
 	CHECK(err != NULL && is(moq_Error_to_string(err, NULL), "frame timestamp doesn't fit its track"));
 	moq_Error_free(err);
-	CHECK(moq_Timestamp_as_secs(&at) == 1);
+	secs = 0;
+	CHECK(moq_Timestamp_as_secs(at, &secs, &overflow, NULL) && secs == 1);
+	moq_Timestamp_free(at);
 
 	/* The last frame, bytes that are not UTF-8, then the group's end, which reads as None. */
-	CHECK(moq_group_Producer_write_frame(writer, (moq_option_Timestamp){0}, str("\xffworld"), &err, NULL));
-	CHECK(moq_group_Producer_finish(writer, &err, NULL));
+	CHECK(moq_group_Producer_write_frame(writer, key, str("\xffworld"), &err, NULL));
+	moq_Timestamp_free(key);
+	moq_group_Finished *finished = NULL;
+	CHECK(moq_group_Producer_finish(writer, &finished, &err, NULL));
+	moq_group_Finished_free(finished);
 	reading = moq_group_Consumer_read_frame(group, NULL);
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_READY);
 	moq_group_Consumer_read_frame_future_free(reading);
@@ -285,11 +295,11 @@ int main(void) {
 	moq_origin_Consumer_free(reader);
 	moq_origin_Producer_free(scoped);
 
-	/* A broadcast the origin creates is stamped with its path, which its info lends. */
-	moq_origin_Publication *publication = NULL;
-	CHECK(moq_origin_Producer_create_broadcast(origin, str("room/alice"), &publication, &err, NULL));
-	moq_broadcast_Producer *created = moq_origin_Publication_broadcast(publication);
-	moq_origin_Publication_free(publication);
+	/* A broadcast the origin routes is stamped with its path, which its info lends. */
+	moq_origin_Route *publication = NULL;
+	CHECK(moq_origin_Producer_route(origin, str("room/alice"), moq_origin_RouteOptions_default(), &publication, &err, NULL));
+	moq_broadcast_Producer *created = moq_origin_Route_broadcast(publication);
+	moq_origin_Route_free(publication);
 	moq_broadcast_Info *stamped = moq_broadcast_Producer_info(created, NULL);
 	moq_Path *path = moq_broadcast_Info_path_get(stamped, NULL);
 	CHECK(is(moq_Path_as_str(path, NULL), "room/alice"));
@@ -375,8 +385,8 @@ int main(void) {
 	/* A subscription's ranges, from any iterable of them: an array, copied in. */
 	moq_track_Range ranges[] = {
 	    moq_track_Range_live(),
-	    moq_track_Range_groups((moq_bounds_u64){.start = {.kind = MOQ_BOUND_INCLUDED, .value = 2},
-	                                            .end = {.kind = MOQ_BOUND_EXCLUDED, .value = 6}}),
+	    {.start = {.tag = MOQ_TRACK_ANCHOR_TIME, .time = {._0 = 2}},
+	     .end = {.some = true, .value = {.tag = MOQ_TRACK_ANCHOR_TIME, .time = {._0 = 6}}}},
 	};
 	moq_track_Subscription *unranged = moq_track_Subscription_default();
 	moq_track_Subscription *ranged =
@@ -384,8 +394,9 @@ int main(void) {
 	moq_track_Subscription_free(unranged);
 	moq_vec_track_Range got = moq_track_Subscription_ranges_get(ranged, NULL);
 	CHECK(got.len == 2 && moq_track_Range_eq(&got.ptr[0], &ranges[0]));
-	CHECK(got.len == 2 && got.ptr[1].start.tag == MOQ_TRACK_ANCHOR_ABSOLUTE && got.ptr[1].start.absolute._0 == 2);
-	CHECK(got.len == 2 && got.ptr[1].end.some && got.ptr[1].end.value.absolute._0 == 6);
+	CHECK(got.len == 2 && got.ptr[1].start.tag == MOQ_TRACK_ANCHOR_TIME && got.ptr[1].start.time._0 == 2);
+	CHECK(got.len == 2 && got.ptr[1].end.some && got.ptr[1].end.value.tag == MOQ_TRACK_ANCHOR_TIME &&
+	      got.ptr[1].end.value.time._0 == 6);
 	moq_vec_track_Range_free(got);
 	moq_track_Range_free(&ranges[0]);
 	moq_track_Range_free(&ranges[1]);
@@ -459,7 +470,10 @@ int main(void) {
 	moq_Json *latest = NULL;
 	moq_buf json_err;
 	CHECK(moq_Json_parse(str("{\"on\": true}"), &latest, &json_err));
-	CHECK(moq_mux_json_Snapshot_Json_update(status_snapshot, latest, moq_Timestamp_now(), &mux_err, NULL));
+	moq_Timestamp *updated = NULL;
+	CHECK(moq_Timestamp_from_millis(1, &updated, &overflow));
+	CHECK(moq_mux_json_Snapshot_Json_update(status_snapshot, latest, updated, &mux_err, NULL));
+	moq_Timestamp_free(updated);
 	moq_Json_free(latest);
 	moq_track_Subscriber *status_subscriber = moq_mux_json_Snapshot_Json_consume(status_snapshot, NULL);
 	moq_track_Subscriber_recv_group_future *status_receiving = moq_track_Subscriber_recv_group(status_subscriber, NULL);
@@ -552,15 +566,7 @@ int main(void) {
 	CHECK(is(moq_tokio_connect_Config_implementation_get(connect, NULL), "moq.c"));
 	url = moq_tokio_connect_Config_url_get(connect, NULL);
 	CHECK(url != NULL && is(moq_Url_to_string(url, NULL), "https://relay.example:4443/demo"));
-	/* The config's URL, dialed with no tokens. */
-	moq_auth_Tokens *tokens = moq_auth_Tokens_new((moq_vec_auth_Token){0}, NULL);
 	moq_Versions *versions = moq_Versions_default();
-	moq_auth_Dial *dial = moq_auth_Tokens_dial(tokens, url, versions, NULL);
-	moq_Url *dialed = moq_auth_Dial_url_get(dial, NULL);
-	CHECK(moq_Url_eq(dialed, url, NULL));
-	moq_Url_free(dialed);
-	moq_auth_Dial_free(dial);
-	moq_auth_Tokens_free(tokens);
 	moq_Url_free(url);
 	moq_tokio_connect_Config_free(connect);
 
@@ -606,18 +612,19 @@ int main(void) {
 	 * serves an origin with one call, and a client dials it with one call and reads a frame
 	 * back. Neither has a runtime of C's, so moq-tokio's fallback runs both. */
 	moq_origin_Producer *served = moq_tokio_origin_spawn();
-	moq_origin_Publication *live = NULL;
-	CHECK(moq_origin_Producer_create_broadcast(served, str("live"), &live, &err, NULL));
-	moq_origin_Route *route = moq_origin_Route_default();
-	CHECK(moq_origin_Publication_announce(live, route, &err, NULL));
-	moq_origin_Route_free(route);
-	moq_broadcast_Producer *live_broadcast = moq_origin_Publication_broadcast(live);
+	moq_origin_Route *live = NULL;
+	CHECK(moq_origin_Producer_route(served, str("live"), moq_origin_RouteOptions_default(), &live, &err, NULL));
+	moq_broadcast_Producer *live_broadcast = moq_origin_Route_broadcast(live);
 	moq_track_Producer *live_track = NULL;
 	CHECK(moq_broadcast_Producer_create_track(live_broadcast, str("video"), NULL, &live_track, &err, NULL));
+	moq_Timestamp *live_key = moq_Timestamp_unscaled(0);
 	moq_group_Producer *live_group = NULL;
-	CHECK(moq_track_Producer_append_group(live_track, &live_group, &err, NULL));
-	CHECK(moq_group_Producer_write_frame(live_group, (moq_option_Timestamp){0}, str("hello"), &err, NULL));
-	CHECK(moq_group_Producer_finish(live_group, &err, NULL));
+	CHECK(moq_track_Producer_append_group(live_track, live_key, &live_group, &err, NULL));
+	CHECK(moq_group_Producer_write_frame(live_group, live_key, str("hello"), &err, NULL));
+	moq_Timestamp_free(live_key);
+	moq_group_Finished *live_finished = NULL;
+	CHECK(moq_group_Producer_finish(live_group, &live_finished, &err, NULL));
+	moq_group_Finished_free(live_finished);
 	moq_group_Producer_free(live_group);
 
 	moq_tokio_server_Config *server_config = moq_tokio_server_Config_default();
@@ -714,7 +721,7 @@ int main(void) {
 	moq_origin_Consumer_free(remote);
 	moq_track_Producer_free(live_track);
 	moq_broadcast_Producer_free(live_broadcast);
-	moq_origin_Publication_free(live);
+	moq_origin_Route_free(live);
 	moq_origin_Producer_free(served);
 	CHECK(tokio_err == NULL);
 

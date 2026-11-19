@@ -139,13 +139,14 @@ span concurrent(const T *const (&handles)[threads], F call, unsigned &sum) {
 
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
 // touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, moq::Timestamp at, std::size_t size, unsigned &sum) {
+span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, std::uint64_t &micros, std::size_t size, unsigned &sum) {
 	std::size_t count = std::clamp<std::size_t>((64u << 20) / (size * frames), 3, 2000);
 	std::vector<std::uint8_t> payload(size);
 	std::string name = "throughput[" + std::to_string(size) + "]";
 	auto start = begin();
 	for (std::size_t g = 0; g < count; g++) {
-		auto group = must(track.append_group(), "append_group");
+		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+		auto group = must(track.append_group(at), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
 		for (int f = 0; f < frames; f++) {
 			must(group.write_frame(at, payload), "write_frame");
@@ -173,13 +174,16 @@ void round(bool print) {
 	}
 	span call = end(start, "call");
 
+	// Groups are keyed by their start, which only moves forward on a track: each group starts
+	// at its first frame's time, the next microsecond.
+	std::uint64_t micros = 0;
 	span getter, shared_call{}, own_call{}, shared_getter{}, own_getter{};
 	{
-		auto demanded = must(track.append_group(), "append_group");
+		auto demanded = must(track.append_group(must(moq::Timestamp::from_micros(micros++), "from_micros")), "append_group");
 		auto demand = demanded.demand();
 		start = begin();
 		for (int i = 0; i < n; i++) {
-			sum += static_cast<unsigned>(demand.sequence());
+			sum += static_cast<unsigned>(demand.start());
 		}
 		getter = end(start, "getter");
 
@@ -188,7 +192,7 @@ void round(bool print) {
 		// one thread at a time, which contends for nothing, so it skips them.
 		if (!measured) {
 			auto is_closed = [](const moq::track_Producer &t) { return static_cast<unsigned>(t.is_closed()); };
-			auto sequence = [](const moq::group_Demand &d) { return static_cast<unsigned>(d.sequence()); };
+			auto sequence = [](const moq::group_Demand &d) { return static_cast<unsigned>(d.start()); };
 			std::vector<moq::track_Producer> tracks;
 			std::vector<moq::group_Demand> demands;
 			for (int i = 0; i < threads; i++) {
@@ -224,10 +228,9 @@ void round(bool print) {
 	span object = end(start, "object");
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
-	std::uint64_t micros = 0;
 	start = begin();
 	for (int g = 0; g < groups; g++) {
-		auto group = must(track.append_group(), "append_group");
+		auto group = must(track.append_group(must(moq::Timestamp::from_micros(micros), "from_micros")), "append_group");
 		for (int f = 0; f < frames; f++) {
 			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
 			must(group.write_frame(at, frame), "write_frame");
@@ -236,10 +239,11 @@ void round(bool print) {
 	}
 	span stamped = end(start, "stamped");
 
-	auto at = must(moq::Timestamp::from_micros(micros), "from_micros");
+	// One timestamp per group, every frame of it stamped alike.
 	start = begin();
 	for (int g = 0; g < groups; g++) {
-		auto group = must(track.append_group(), "append_group");
+		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+		auto group = must(track.append_group(at), "append_group");
 		for (int f = 0; f < frames; f++) {
 			must(group.write_frame(at, frame), "write_frame");
 		}
@@ -253,7 +257,8 @@ void round(bool print) {
 	std::optional<moq::frame_Frame> last;
 	start = begin();
 	for (int g = 0; g < groups; g++) {
-		auto group = must(track.append_group(), "append_group");
+		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+		auto group = must(track.append_group(at), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
 		for (int f = 0; f < frames; f++) {
 			must(group.write_frame(at, frame), "write_frame");
@@ -266,7 +271,8 @@ void round(bool print) {
 	// Each read polled before its frame is written, so it pends, then polled again.
 	start = begin();
 	for (int g = 0; g < groups; g++) {
-		auto group = must(track.append_group(), "append_group");
+		auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+		auto group = must(track.append_group(at), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
 		for (int f = 0; f < frames; f++) {
 			auto reading = reader.read_frame();
@@ -290,7 +296,7 @@ void round(bool print) {
 
 	span mbps[std::size(sizes)];
 	for (std::size_t i = 0; i < std::size(sizes); i++) {
-		mbps[i] = throughput(track, subscriber, at, sizes[i], sum);
+		mbps[i] = throughput(track, subscriber, micros, sizes[i], sum);
 	}
 	sink = sum;
 

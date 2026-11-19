@@ -23,6 +23,10 @@ pub(crate) struct Api {
 	pub(crate) reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
 	pub(crate) targets: Vec<String>,
+	/// By target, the system libraries a static library of the export links beside it, as
+	/// rustc's `--print native-static-libs` prints them. An API from before it holds none.
+	#[serde(default)]
+	pub(crate) links: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 /// A crate the glue depends on beside the facade, as the facade resolves it.
