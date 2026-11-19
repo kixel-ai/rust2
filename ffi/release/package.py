@@ -869,12 +869,14 @@ def web(args):
 def check_program(check, name):
     """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
+    # Whitespace and comments, which may separate the keyword from its specifier.
+    gap = r"(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
     # Only a specifier, after `from` or `import`, in either quote, kept as written: a string
     # the check prints stays as the transcript has it.
-    text = re.sub(r"""(\b(?:from|import)\s*\(?\s*)(["'])\./web/([A-Za-z0-9_$]+)\.ts\2""",
+    text = re.sub(rf"""(\b(?:from|import){gap}(?:\({gap})?)(["'])\./web/([A-Za-z0-9_$]+)\.ts\2""",
                   lambda m: m.group(1) + m.group(2) + (name if m.group(3) == "index" else f"{name}/{m.group(3)}") + m.group(2),
                   text)
-    if re.search(r"""\b(?:from|import)\s*\(?\s*["']\./web/""", text):
+    if re.search(rf"""\b(?:from|import){gap}(?:\({gap})?["']\./web/""", text):
         raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
     return text
 

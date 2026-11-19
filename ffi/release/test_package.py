@@ -384,6 +384,9 @@ class Web(unittest.TestCase):
             check.write_text('import * as api from "./web/index.ts";\nconsole.log("./web/index.ts", await import("./web/rt.ts"));\n')
             self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
                              'import * as api from "@moq/moq-ffi";\nconsole.log("./web/index.ts", await import("@moq/moq-ffi/rt"));\n')
+            check.write_text("import * as api from /* binding */ './web/index.ts';\nimport(\n  // rt\n  './web/rt.ts');\n")
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             "import * as api from /* binding */ '@moq/moq-ffi';\nimport(\n  // rt\n  '@moq/moq-ffi/rt');\n")
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
