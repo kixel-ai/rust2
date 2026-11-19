@@ -1291,6 +1291,8 @@ fun broken(which: String) {
 			Node.new(2u, tail)
 			tail.sum()
 		}
+		// A Rust panic cannot unwind into the JVM, so it aborts.
+		"panicked" -> Clash.Unit.reading(0u)
 		"outlived" -> Meters.new().let { meters ->
 			val first = meters.first()
 			meters.clear()

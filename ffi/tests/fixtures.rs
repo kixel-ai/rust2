@@ -415,7 +415,7 @@ fn api_miri() {
 		std::fs::copy(api.out.join(file), copy.join(file)).unwrap();
 	}
 	std::fs::create_dir_all(copy.join("src").join("rt")).unwrap();
-	for file in ["rt.rs", "rt/borrow.rs", "rt/thread.rs", "lib.rs"] {
+	for file in ["rt.rs", "rt/android.rs", "rt/borrow.rs", "rt/thread.rs", "lib.rs"] {
 		std::fs::copy(api.out.join("src").join(file), copy.join("src").join(file)).unwrap();
 	}
 	let mut lib = std::fs::read_to_string(copy.join("src").join("lib.rs")).unwrap();
@@ -801,6 +801,26 @@ fn api_android() {
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
 
+	// Every segment aligns to the 16 KB pages Google Play requires of a 64-bit library from
+	// 2027-02-01, whichever NDK built it: r27 and older align to 4 KB unless told otherwise.
+	let lib = dir.join("lib").join(&abi).join("libapi.so");
+	let segments = run(Command::new("readelf").args(["--wide", "--program-headers"]).arg(&lib));
+	let segments = String::from_utf8_lossy(&segments.stdout);
+	let aligns: Vec<u64> = segments
+		.lines()
+		.filter(|line| line.trim_start().starts_with("LOAD"))
+		.map(|line| {
+			let align = line.split_whitespace().last().unwrap();
+			u64::from_str_radix(align.trim_start_matches("0x"), 16).unwrap()
+		})
+		.collect();
+	assert!(!aligns.is_empty(), "readelf listed no LOAD segment:\n{segments}");
+	assert!(
+		aligns.iter().all(|&align| align >= 16384),
+		"{} is not aligned to 16 KB pages:\n{segments}",
+		lib.display()
+	);
+
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
@@ -864,6 +884,33 @@ fn api_android() {
 		cmd
 	};
 	kotlin(&api.transcript, &art);
+
+	// An abort or a panic must reach logcat and bionic's abort message, which the tombstone
+	// shows: an app's stderr goes nowhere. The tombstone is logged as the crash dump
+	// finishes, after the process died, so the last read blocks until it arrives.
+	for (case, logged, tombstone) in [
+		(
+			"callback threw",
+			"api::Log::log: a call into Kotlin threw",
+			"Abort message: 'api::Log::log: a call into Kotlin threw'",
+		),
+		(
+			"panicked",
+			"called `Option::unwrap()` on a `None` value",
+			"Abort message: 'panicked at",
+		),
+	] {
+		run(Command::new(&adb).args(["logcat", "-c"]));
+		failed(&self::output(&mut art(&[case])), case);
+		let log = run(Command::new(&adb).args(["logcat", "-d", "-s", "rust2-ffi:F"]));
+		let log = String::from_utf8_lossy(&log.stdout);
+		assert!(log.contains(logged), "{case} logged {log}");
+		let dump = run(Command::new(&adb).args([
+			"shell", "timeout", "120", "logcat", "-s", "DEBUG:F", "-e", "Abort message", "-m", "1",
+		]));
+		let dump = String::from_utf8_lossy(&dump.stdout);
+		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump}");
+	}
 }
 
 /// kotlinc compiling the generated Kotlin with `tests/api.kt` into `dest`.
@@ -917,15 +964,16 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"Native$__Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
+		("panicked", "called `Option::unwrap()` on a `None` value"),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
 		(
 			"outlived",
-			"Native$__Refused: api_Meter_count: a handle lent from another outlived it",
+			"api_Meter_count: a handle lent from another outlived it",
 		),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the

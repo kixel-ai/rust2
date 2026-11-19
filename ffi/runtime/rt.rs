@@ -16,6 +16,8 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 use std::task::{Context, Wake};
 
+#[cfg(target_os = "android")]
+mod android;
 mod borrow;
 use borrow::{Borrow, EXCLUSIVE, RESERVED, TAKEN, Table};
 mod thread;
@@ -32,6 +34,8 @@ pub fn hash<T: std::hash::Hash + ?Sized>(value: &T) -> u64 {
 #[cold]
 pub fn fail(what: &str, msg: &str) -> ! {
 	eprintln!("{what}: {msg}");
+	#[cfg(target_os = "android")]
+	android::report(&format!("{what}: {msg}"));
 	std::process::abort()
 }
 
