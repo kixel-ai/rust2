@@ -997,7 +997,7 @@ which the export keeps as it is, as a release's names its module path, or else o
 `go.mod` above `--out`, with the path to `go/`, each as `go mod edit -json` reads it; or else
 `<prefix>`, the module of the `go.mod` the export writes in `go/`, which a caller requires and
 replaces with that directory. The export needs `go` on PATH whenever it reads a go.mod
-other than its own.
+other than one in its own form, `module <path>` and `go 1.24`.
 
 - **Names** are the C names without the prefix and the segments outside the item's crate,
   such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is

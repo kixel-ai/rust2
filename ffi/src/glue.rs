@@ -555,10 +555,18 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 	let own = out.join("go").join("go.mod");
 	if own.is_file() {
 		let text = std::fs::read_to_string(&own).map_err(|err| format!("reading {}: {err}", own.display()))?;
-		// The export's own needs no go command to read.
-		let module = match text == default {
-			true => prefix.to_string(),
-			false => module_path(&own)?,
+		// One in the form the export writes, as the release builder writes it too, needs no
+		// go command to read.
+		let plain = (text.strip_prefix("module "))
+			.and_then(|rest| rest.strip_suffix("\n\ngo 1.24\n"))
+			.filter(|path| {
+				!path.is_empty()
+					&& !path.contains("//")
+					&& path.chars().all(|c| c.is_ascii_alphanumeric() || "._~/-".contains(c))
+			});
+		let module = match plain {
+			Some(path) => path.to_string(),
+			None => module_path(&own)?,
 		};
 		return Ok((module, Some(text)));
 	}
