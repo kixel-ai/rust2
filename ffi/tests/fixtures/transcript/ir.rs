@@ -25,6 +25,9 @@ pub(crate) struct Api {
 #[derive(serde::Deserialize)]
 pub(crate) struct Record {
 	pub(crate) path: Vec<String>,
+	/// The path, with any arguments, the API shows the type at, which its keys name it by.
+	#[serde(default)]
+	pub(crate) shown: Option<Vec<String>>,
 	pub(crate) args: Vec<Type>,
 	pub(crate) fields: Vec<Field>,
 	pub(crate) tuple: bool,
@@ -42,6 +45,9 @@ pub(crate) struct Field {
 #[derive(serde::Deserialize)]
 pub(crate) struct Enum {
 	pub(crate) path: Vec<String>,
+	/// The path, with any arguments, the API shows the type at, which its keys name it by.
+	#[serde(default)]
+	pub(crate) shown: Option<Vec<String>>,
 	pub(crate) args: Vec<Type>,
 	pub(crate) variants: Vec<Variant>,
 	pub(crate) methods: Vec<Function>,
@@ -59,6 +65,9 @@ pub(crate) struct Variant {
 #[derive(serde::Deserialize)]
 pub(crate) struct Object {
 	pub(crate) path: Vec<String>,
+	/// The path, with any arguments, the API shows the type at, which its keys name it by.
+	#[serde(default)]
+	pub(crate) shown: Option<Vec<String>>,
 	pub(crate) args: Vec<Type>,
 	#[serde(default = "yes")]
 	pub(crate) send: bool,

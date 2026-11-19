@@ -284,9 +284,27 @@ impl Transcript {
 			Type::String => "String".to_string(),
 			Type::Bytes => "bytes::Bytes".to_string(),
 			Type::Duration => "std::time::Duration".to_string(),
-			Type::Record(i) => named(&self.api.records[*i].path, &self.api.records[*i].args),
-			Type::Enum(i) => named(&self.api.enums[*i].path, &self.api.enums[*i].args),
-			Type::Object(i) => named(&self.api.objects[*i].path, &self.api.objects[*i].args),
+			Type::Record(i) => {
+				let r = &self.api.records[*i];
+				match &r.shown {
+					Some(shown) => shown.join("::"),
+					None => named(&r.path, &r.args),
+				}
+			}
+			Type::Enum(i) => {
+				let e = &self.api.enums[*i];
+				match &e.shown {
+					Some(shown) => shown.join("::"),
+					None => named(&e.path, &e.args),
+				}
+			}
+			Type::Object(i) => {
+				let o = &self.api.objects[*i];
+				match &o.shown {
+					Some(shown) => shown.join("::"),
+					None => named(&o.path, &o.args),
+				}
+			}
 			Type::Const(ir::Literal::Int(_, v)) => v.to_string(),
 			Type::Const(ir::Literal::Bool(v)) => v.to_string(),
 			other => panic!("no type argument is {other:?}"),

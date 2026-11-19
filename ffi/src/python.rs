@@ -1661,6 +1661,7 @@ impl<'a> Gen<'a> {
 		let member = match (place, constant) {
 			(Place::Top, true) => self.claim(&member.to_uppercase(), format!("const `{}`", function.path.join("::"))),
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
+			(Place::Static, true) => member.to_uppercase(),
 			_ => member,
 		};
 
@@ -1916,7 +1917,7 @@ impl<'a> Gen<'a> {
 				return None;
 			}
 			(Access::Const, Place::Static) if constant => {
-				let name = member.to_uppercase();
+				let name = member.clone();
 				self.natives
 					.push(format!("@_staticmethod\ndef {bare}() -> {ret}: ...\n"));
 				// An `Enum` makes a member of any other value, to a type checker as at run time.

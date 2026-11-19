@@ -149,6 +149,27 @@ impl Api {
 	}
 }
 
+/// The fixture's script as data, typed against the export's API, which each language's
+/// test generates its own differential script from.
+fn transcript() -> &'static transcript::Transcript {
+	static TRANSCRIPT: OnceLock<transcript::Transcript> = OnceLock::new();
+	TRANSCRIPT.get_or_init(|| {
+		transcript::Transcript::load(
+			&api().out.join("api.json"),
+			&manifest_dir().join("fixtures/api/examples/transcript.rs"),
+		)
+	})
+}
+
+/// `contents` written as `file` in a scratch directory of `language`'s, which the
+/// language's test puts on its path.
+fn generated(language: &str, file: &str, contents: &str) -> PathBuf {
+	let dir = scratch().join("api").join(format!("{language}-transcript"));
+	std::fs::create_dir_all(&dir).unwrap();
+	std::fs::write(dir.join(file), contents).unwrap();
+	dir
+}
+
 fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
 	API.get_or_init(|| {
@@ -996,6 +1017,7 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 #[test]
 fn api_python() {
 	let api = api();
+	let scripts = generated("python", "transcript.py", &transcript::python::emit(transcript()));
 	let python = |dir: &Path, args: &[&str]| {
 		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
@@ -1003,7 +1025,7 @@ fn api_python() {
 		cmd.args(["-P", "-X", "dev", "-W", "error"])
 			.arg(manifest_dir().join("tests").join("api.py"))
 			.args(args)
-			.env("PYTHONPATH", dir);
+			.env("PYTHONPATH", std::env::join_paths([dir, &scripts]).unwrap());
 		cmd
 	};
 	let dir = api.out.join("python");
@@ -1013,7 +1035,7 @@ fn api_python() {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls"] {
+	for case in ["futures", "owned", "values", "calls", "checks"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
@@ -3852,12 +3874,3 @@ fn profiled() {
 	);
 }
 
-#[test]
-fn transcript_parses() {
-	let api = api();
-	let t = transcript::Transcript::load(
-		&api.out.join("api.json"),
-		&manifest_dir().join("fixtures/api/examples/transcript.rs"),
-	);
-	assert!(!t.steps.is_empty());
-}
