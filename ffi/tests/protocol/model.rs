@@ -294,6 +294,8 @@ impl Op {
 			| Op::DraftCommit(h)
 			| Op::ReceiptCount(h)
 			| Op::ReceiptClone(_, h)
+			| Op::Tallied(h)
+			| Op::Stored(h)
 			| Op::TallyBump(h)
 			| Op::BumpLater(_, h)
 			| Op::LocalBump(h)
@@ -304,7 +306,9 @@ impl Op {
 			| Op::MeterAdd(h, _)
 			| Op::MeterReset(h)
 			| Op::Drop(h) => vec![h],
-			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) | Op::PlusLater(_, h, o) => [Some(h), o].into_iter().flatten().collect(),
+			Op::CounterPlus(h, o) | Op::CounterAddTo(h, o) | Op::PlusLater(_, h, o) => {
+				[Some(h), o].into_iter().flatten().collect()
+			}
 			Op::CounterNew(..)
 			| Op::LedgerNew(_)
 			| Op::TallyNew(_)
@@ -1118,6 +1122,13 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 				push(&mut model, &mut steps, thread, Op::Poll(f));
 			}
 			model.slots[f].freed = true;
+		}
+	}
+	// A drop of a closed handle reaches no check that would drain its thread, so each thread
+	// runs what others queued for it before the drops that may wait on it, as a lend's end.
+	if !profile.frees && profile.closes {
+		for thread in 0..if profile.threads { THREADS } else { 1 } {
+			push(&mut model, &mut steps, thread, Op::Drain);
 		}
 	}
 	for (kinds, end) in [

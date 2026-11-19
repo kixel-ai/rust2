@@ -1438,7 +1438,10 @@ fn web() -> &'static Web {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("web"), &dir.join("web"));
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
-		step::copy(&manifest_dir().join("tests").join("protocol.ts"), &dir.join("protocol.ts"));
+		step::copy(
+			&manifest_dir().join("tests").join("protocol.ts"),
+			&dir.join("protocol.ts"),
+		);
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
 		Web {
@@ -1544,29 +1547,42 @@ fn web_script(runtime: &str, case: Option<&str>) -> Command {
 	cmd
 }
 
-/// Random sequences of the ownership protocol's steps through the web binding on Node, by
-/// `tests/protocol.ts`, each matching what the model says each step returns.
+/// Random sequences of the ownership protocol's steps through the web binding on Node and
+/// on Deno, by `tests/protocol.ts`, each matching what the model says each step returns.
 #[test]
 fn api_web_protocol() {
-	web_protocol("scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+	for runtime in ["node", "deno"] {
+		web_protocol(runtime, "scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+	}
 }
 
-/// Longer protocol scripts from other seeds through the web binding, as the nightly runs them.
+/// Longer protocol scripts from other seeds through the web binding on Node, as the
+/// nightly runs them.
 #[test]
 #[ignore = "slow: just ffi protocol"]
 fn api_web_protocol_nightly() {
-	web_protocol("nightly", PROTOCOL_SEEDS, 5000, 400);
+	web_protocol("node", "nightly", PROTOCOL_SEEDS, 5000, 400);
 }
 
-/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one Node.
-fn web_protocol(name: &str, first: u64, count: u64, steps: usize) {
+/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one process
+/// of `runtime`, Node or Deno.
+fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
 	let web = web();
 	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
-	let mut node = Command::new("node");
-	node.args(["--no-warnings", "protocol.ts"])
+	let mut cmd = Command::new(runtime);
+	match runtime {
+		"deno" => cmd
+			.args(["run", "--allow-read", "--allow-write", "--allow-env"])
+			.env("DENO_DIR", scratch().join("deno"))
+			.env("DENO_NO_UPDATE_CHECK", "1")
+			.env("NO_COLOR", "1"),
+		_ => cmd.arg("--no-warnings"),
+	};
+	cmd.arg("protocol.ts")
 		.current_dir(&web.dir)
 		.env("RUST2_WASM", &web.wasm);
-	protocol::check_all(&scratch().join("api").join("web-protocol").join(name), &scripts, node);
+	let dir = scratch().join("api").join("web-protocol").join(runtime).join(name);
+	protocol::check_all(&dir, &scripts, cmd);
 }
 
 /// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module

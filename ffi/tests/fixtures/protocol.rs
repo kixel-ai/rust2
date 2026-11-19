@@ -171,7 +171,7 @@ fn protocol_profiles() {
 		};
 		for script in scripts(0, 5, 100, profile) {
 			for step in &script.steps {
-				let line = step.line();
+				let line = format!("script {}: {} -> {}", script.seed, step.line(), step.expect.line());
 				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
 				assert!(
 					profile.failures || !matches!(step.expect, Outcome::Failed(_)),

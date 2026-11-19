@@ -131,6 +131,10 @@ async function run(text: string): Promise<string> {
 				return show(Receipt.count(at(a)));
 			case "receipt_clone":
 				return made(Receipt.clone(at(b)));
+			case "tallied":
+				return show(api.tallied(at(a)));
+			case "stored":
+				return show(api.stored(at(a)));
 			case "tally_new":
 				return made(Tally.new$());
 			case "tally_bump":
