@@ -1546,9 +1546,12 @@ impl<'a> Gen<'a> {
 			}
 		};
 		// A call in the arena `a_`, which a leaf call of an object's needs none of.
-		let arena = |leaf: bool, code: String| match leaf && object {
-			true => code.replace("\n\t\t\t", "\n\t\t"),
-			false => {
+		let arena = |leaf: bool, code: String| match (leaf && object, held_only(&code)) {
+			(true, _) => code.replace("\n\t\t\t", "\n\t\t"),
+			(false, Some(code)) => {
+				format!("final h_ = _hold();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\t_release();\n\t\t}}")
+			}
+			(false, None) => {
 				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
@@ -1557,28 +1560,41 @@ impl<'a> Gen<'a> {
 			let what = format!("{c}_to_string");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
-			let call = call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"));
-			body.push(format!(
-				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
-			));
+			let call = arena(
+				false,
+				format!(
+					"{pre}{}",
+					call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"))
+				),
+			);
+			body.push(format!("\t@override\n\tString toString() {{\n\t\t{call}\n\t}}\n"));
 		}
 		if t.debug {
 			members.push("debug".to_string());
 			let what = format!("{c}_debug");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
-			let call = call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"));
+			let call = arena(
+				false,
+				format!(
+					"{pre}{}",
+					call(&f, &format!("_n.home, {arg}"), &what, &|r| format!("_n.string({r})"))
+				),
+			);
 			body.push(format!(
-				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\t{call}\n\t}}\n"
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
 			let what = format!("{c}_clone");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
-			let call = call(&f, "_n.home, a_.hold(this)", &what, &|r| format!("{name}._({r})"));
+			let call = arena(
+				false,
+				call(&f, "_n.home, a_.hold(this)", &what, &|r| format!("{name}._({r})")),
+			);
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\t{call}\n\t}}\n"
 			));
 		}
 		// A Dart enum compares by identity, as a plain Rust enum does, and may not override `==`.
@@ -2523,11 +2539,16 @@ impl<'a> Gen<'a> {
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}
 			}
-			match leaf {
-				true => body.extend(inner),
-				false => body.push(format!(
+			let code = inner.join("\n");
+			match (leaf, held_only(&code)) {
+				(true, _) => body.extend(inner),
+				(false, Some(code)) => body.push(format!(
+					"final h_ = _hold();\ntry {{\n{}\n}} finally {{\n\t_release();\n}}",
+					indent(&code)
+				)),
+				(false, None) => body.push(format!(
 					"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
-					indent(&inner.join("\n"))
+					indent(&code)
 				)),
 			}
 		}
@@ -2865,6 +2886,16 @@ fn docs(docs: &str, indent: &str) -> String {
 }
 
 /// Code indented by one tab more, but for blank lines.
+/// `code`, a call's statements in the arena `a_`, without it if all it asks of the arena is
+/// to hold `this` for the call: then holding `this` itself, as `h_`, costs less.
+fn held_only(code: &str) -> Option<String> {
+	let uses = code
+		.match_indices("a_")
+		.filter(|(at, _)| !code[..*at].ends_with(|c: char| c.is_alphanumeric() || c == '_'))
+		.count();
+	(uses == 1 && code.contains("a_.hold(this)")).then(|| code.replace("a_.hold(this)", "h_"))
+}
+
 fn indent(code: &str) -> String {
 	let mut out: String = code
 		.lines()
