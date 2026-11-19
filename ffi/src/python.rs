@@ -65,6 +65,7 @@ const TAKEN: &[&str] = &[
 	"_dataclass",
 	"_same",
 	"_all",
+	"_any",
 	"_dict",
 	"_float",
 	"_int",
@@ -260,10 +261,10 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		\timport re\n\n\
 		\t# Loading by path skips the filename tag that keeps a GIL build's library out of a\n\
 		\t# free-threaded interpreter, which the stable ABI does not cover and which would crash.\n\
-		\t# Its extension suffixes carry the tag (`314t`, after `_d` on a Windows debug build),\n\
+		\t# Its extension suffixes carry the tag (`314t`, or `314td` on a POSIX debug build, after `_d` on a Windows one),\n\
 		\t# where sysconfig's `Py_GIL_DISABLED` follows an overridden sysconfig data file, as a\n\
 		\t# Nix shell sets.\n\
-		\tif _any(re.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+t[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
+		\tif _any(re.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+td?[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
 		\t\traise _ImportError(\n\
 		\t\t\t\"{p}.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use: \"\n\
 		\t\t\tf\"{{_sys.implementation.name}} {{_sys.version.partition(' ')[0]}}, free-threaded\"\n\

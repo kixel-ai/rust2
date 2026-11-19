@@ -1124,6 +1124,7 @@ fn api_free_threaded() {
 		"_d.cp314t-win_amd64.pyd",
 		".cpython-313t-darwin.so",
 		".cpython-315t-aarch64-linux-gnu.so",
+		".cpython-314td-x86_64-linux-gnu.so",
 	] {
 		let output = gil(suffix);
 		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
@@ -1136,6 +1137,7 @@ fn api_free_threaded() {
 		".cp314-win_amd64.pyd",
 		"_d.cp314-win_amd64.pyd",
 		".cpython-314-darwin.so",
+		".cpython-314d-x86_64-linux-gnu.so",
 	] {
 		let output = gil(suffix);
 		assert!(output.status.success(), "{suffix} was refused: {output:?}");
