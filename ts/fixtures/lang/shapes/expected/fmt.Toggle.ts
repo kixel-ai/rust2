@@ -21,7 +21,7 @@ export type Toggle = "Ready" | "Done";
 export function next$iter_Iterator(self: rs.Place<Toggle>): rs.u8 | rs.Done {
 	if (self.v === "Ready") {
 		self.v = "Done" as Toggle;
-		return 1;
+		return rs.iterFromOption(1);
 	}
 	return rs.DONE;
 }

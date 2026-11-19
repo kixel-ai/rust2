@@ -33,6 +33,10 @@ export function copy$array_array2_u8(v: Uint8Array[]): Uint8Array[] {
 	return v.map(copy$array_u8);
 }
 
+export function copy$array_mem_ManuallyDrop_array2_u8(v: Uint8Array[]): Uint8Array[] {
+	return v.map(copy$array_u8);
+}
+
 export function copy$array_u16(v: rs.u16[]): rs.u16[] {
 	return v.slice();
 }
@@ -50,6 +54,14 @@ export function copy$mem_MaybeUninit_array_u8(v: Uint8Array): Uint8Array {
 		return v;
 	}
 	return v.slice();
+}
+
+export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
+	return rs.objectCopy(v);
 }
 
 export function copy$slices_Pair(v: Pair.Pair): Pair.Pair {

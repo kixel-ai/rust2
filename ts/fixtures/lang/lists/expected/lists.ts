@@ -28,7 +28,7 @@ export function items(l: rs.LinkedList<rs.u8>, out: rs.ByteVec): void {
  * past the end ends it, which panics.
  */
 export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _93!: rs.i32;
+	let _90!: rs.i32;
 	let x2!: rs.u8 | undefined;
 	let x3!: rs.Place<rs.u8> | undefined;
 	let l: rs.LinkedList<rs.u8> = rs.listNew() as rs.LinkedList<rs.u8>;
@@ -48,16 +48,16 @@ export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.listEnd(l, true), 235));
 			rs.byteVecPush(out, l.n === 0 ? 1 : 0);
 		} else if (_13 === 5) {
-			const _37: rs.Place<rs.u8> | undefined = rs.listEndMut(l);
-			if (_37 !== undefined) {
-				_37.v = rs.u8WrappingAdd(_37.v, b);
+			const _36: rs.Place<rs.u8> | undefined = rs.listEndMut(l);
+			if (_36 !== undefined) {
+				_36.v = rs.u8WrappingAdd(_36.v, b);
 			}
-			const _43: rs.Place<rs.u8> | undefined = rs.listEndMut(l, true);
-			if (_43 !== undefined) {
-				_43.v = _43.v ^ 85;
+			const _42: rs.Place<rs.u8> | undefined = rs.listEndMut(l, true);
+			if (_42 !== undefined) {
+				_42.v = _42.v ^ 85;
 			}
-			const _47: rs.Place<rs.u8> = rs.listPushBack(l, b);
-			_47.v = _47.v ^ 15;
+			const _46: rs.Place<rs.u8> = rs.listPushBack(l, b);
+			_46.v = _46.v ^ 15;
 			const x: rs.Place<rs.u8> = rs.listPushFront(l, b);
 			x.v = rs.u8WrappingMul(x.v, 3);
 		} else if (_13 === 6) {
@@ -73,10 +73,16 @@ export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, rs.listContains(m, b ^ 1, rs.same) ? 1 : 0);
 		} else if (_13 === 9) {
 			const it: rs.Iter<rs.u8> = rs.listIter(l);
-			let iterStart: rs.i32 = 0;
-			const iterEnd: rs.i32 = 8;
-			while ((_93 = iterStart++) < iterEnd) {
-				if (!((rs.u8Shr(b, _93) & 1) === 0)) {
+			const iter2: rs.Range<rs.i32> = new rs.Range(0, 8);
+			while (true) {
+				const _90Some: boolean = iter2.start < iter2.end;
+				if (_90Some) {
+					_90 = iter2.start++;
+				}
+				if (!_90Some) {
+					break;
+				}
+				if (!((rs.u8Shr(b, _90) & 1) === 0)) {
 					x2 = rs.iterToOption(it.nextBack());
 				} else {
 					x2 = rs.iterToOption(it.next());
@@ -103,11 +109,11 @@ export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					} else {
 						const iter3: rs.Iter<rs.Place<rs.u8>> = rs.listIterMut(m);
 						while (true) {
-							const _144: rs.Place<rs.u8> | rs.Done = iter3.next();
-							if (_144 === rs.DONE) {
+							const _140: rs.Place<rs.u8> | rs.Done = iter3.next();
+							if (_140 === rs.DONE) {
 								break;
 							}
-							_144.v = rs.intRotateLeft(_144.v, 1, 8, false);
+							_140.v = rs.intRotateLeft(_140.v, 1, 8, false);
 						}
 						continue l1;
 					}
@@ -125,24 +131,24 @@ export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	items(l, out);
 	items(m, out);
-	const _164: rs.LinkedList<rs.u8> = m;
-	rs.byteVecPush(out, rs.eqList(rs.same)(l, _164) ? 1 : 0);
-	const _169: rs.LinkedList<rs.u8> = m;
-	rs.byteVecPush(out, !rs.eqList(rs.same)(l, _169) ? 1 : 0);
-	const _174: rs.LinkedList<rs.u8> = m;
-	rs.byteVecPush(out, rs.cmpList(rs.cmp)(l, _174) & 0xff);
-	const _180: rs.LinkedList<rs.u8> = m;
-	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpList(rs.cmp)(l, _180), 9, (o: rs.Ordering): rs.u8 => {
+	const _160: rs.LinkedList<rs.u8> = m;
+	rs.byteVecPush(out, rs.eqList(rs.same)(l, _160) ? 1 : 0);
+	const _165: rs.LinkedList<rs.u8> = m;
+	rs.byteVecPush(out, !rs.eqList(rs.same)(l, _165) ? 1 : 0);
+	const _170: rs.LinkedList<rs.u8> = m;
+	rs.byteVecPush(out, rs.cmpList(rs.cmp)(l, _170) & 0xff);
+	const _176: rs.LinkedList<rs.u8> = m;
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpList(rs.cmp)(l, _176), 9, (o: rs.Ordering): rs.u8 => {
 		return o & 0xff;
 	}));
-	const _185: rs.LinkedList<rs.u8> = m;
-	rs.byteVecPush(out, rs.cmpList(rs.cmp)(l, _185) === -1 ? 1 : 0);
-	const _190: rs.LinkedList<rs.u8> = m;
-	const order = rs.cmpList(rs.cmp)(l, _190);
+	const _181: rs.LinkedList<rs.u8> = m;
+	rs.byteVecPush(out, rs.cmpList(rs.cmp)(l, _181) === -1 ? 1 : 0);
+	const _186: rs.LinkedList<rs.u8> = m;
+	const order = rs.cmpList(rs.cmp)(l, _186);
 	rs.byteVecPush(out, order !== undefined && order >= 0 ? 1 : 0);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(hashOf$collections_LinkedList_u8(l)).reverse()), undefined, true);
-	const _196: rs.Iter<rs.LinkedList<rs.u8>> = rs.iterSlice([rs.listClone(l, undefined), rs.listClone(m, undefined), rs.listClone(l, undefined)]);
-	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashList(rs.hash8), rs.eqList(rs.same))) as rs.HashSet<rs.LinkedList<rs.u8>>, _196, undefined, undefined, 117440512)) & 0xff);
+	const _192: rs.Iter<rs.LinkedList<rs.u8>> = rs.iterSlice([rs.listClone(l, undefined), rs.listClone(m, undefined), rs.listClone(l, undefined)]);
+	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashList(rs.hash8), rs.eqList(rs.same))) as rs.HashSet<rs.LinkedList<rs.u8>>, _192, undefined, undefined, 117440512)) & 0xff);
 	const it3: rs.Iter<rs.u8> = rs.listIter(rs.listClone(l, undefined));
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it3.nextBack()), 233));
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it3.next()), 232));
@@ -169,11 +175,11 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const len: rs.usize = whole.n;
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, rs.min(1, len), rs.usizeDiv(len, 2), rs.usizeSaturatingSub(len, 1), len]);
 	while (true) {
-		const _15: rs.usize | rs.Done = iter.next();
-		if (_15 === rs.DONE) {
+		const _14: rs.usize | rs.Done = iter.next();
+		if (_14 === rs.DONE) {
 			break;
 		}
-		const at: rs.usize = _15;
+		const at: rs.usize = _14;
 		const front: rs.LinkedList<rs.u8> = rs.listClone(whole, undefined);
 		const back: rs.LinkedList<rs.u8> = rs.listSplitOff(front, at);
 		items(front, out);
@@ -183,26 +189,26 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.eqList(rs.same)(front, whole) ? 1 : 0);
 		const empty: rs.LinkedList<rs.u8> = rs.listNew() as rs.LinkedList<rs.u8>;
 		rs.listAppend(empty, front);
-		const _46: rs.LinkedList<rs.u8> = rs.listNew() as rs.LinkedList<rs.u8>;
-		rs.listAppend(empty, _46);
+		const _45: rs.LinkedList<rs.u8> = rs.listNew() as rs.LinkedList<rs.u8>;
+		rs.listAppend(empty, _45);
 		rs.byteVecPush(out, front.n & 0xff);
 		rs.byteVecPush(out, rs.eqList(rs.same)(empty, whole) ? 1 : 0);
 	}
 	const from: rs.LinkedList<rs.u8> = rs.listExtend(rs.listNew() as rs.LinkedList<rs.u8>, rs.iterSlice(Uint8Array.of(1, 2, 3)));
-	const _60: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3);
-	rs.listExtend(from, _60);
-	const _64: rs.LinkedList<rs.u8> = rs.listClone(whole, undefined);
-	rs.listAppend(from, _64);
-	const _68: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(7, 8));
-	rs.listExtend(from, rs.byteVecIntoIter(_68));
+	const _59: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3);
+	rs.listExtend(from, _59);
+	const _63: rs.LinkedList<rs.u8> = rs.listClone(whole, undefined);
+	rs.listAppend(from, _63);
+	const _67: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(7, 8));
+	rs.listExtend(from, rs.byteVecIntoIter(_67));
 	items(from, out);
-	const _75: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): [rs.u8, rs.u8] => {
+	const _74: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): [rs.u8, rs.u8] => {
 		const b: rs.u8 = _2;
-		return [b & (~1 & 0xff), b | 1] as [rs.u8, rs.u8];
+		return [b & 254, b | 1] as [rs.u8, rs.u8];
 	});
-	const _74: [rs.LinkedList<rs.u8>, rs.LinkedList<rs.u8>] = rs.tupleExtend([rs.listNew() as rs.LinkedList<rs.u8>, rs.listNew() as rs.LinkedList<rs.u8>] as [rs.LinkedList<rs.u8>, rs.LinkedList<rs.u8>], _75, [rs.listPart(), rs.listPart()]);
-	const evens: rs.LinkedList<rs.u8> = _74[0];
-	const odds: rs.LinkedList<rs.u8> = _74[1];
+	const _73: [rs.LinkedList<rs.u8>, rs.LinkedList<rs.u8>] = rs.tupleExtend([rs.listNew() as rs.LinkedList<rs.u8>, rs.listNew() as rs.LinkedList<rs.u8>] as [rs.LinkedList<rs.u8>, rs.LinkedList<rs.u8>], _74, [rs.listPart(), rs.listPart()]);
+	const evens: rs.LinkedList<rs.u8> = _73[0];
+	const odds: rs.LinkedList<rs.u8> = _73[1];
 	items(evens, out);
 	items(odds, out);
 	const copy: rs.LinkedList<rs.u8> = rs.listClone(from, undefined);
@@ -215,18 +221,18 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.listIter(rs.listNew()).len() & 0xff);
 	rs.byteVecPush(out, rs.iterToOption(rs.listIter(rs.listNew()).next()) === undefined ? 1 : 0);
 	rs.byteVecPush(out, rs.iterToOption(rs.listIter(rs.listNew()).next()) === undefined ? 1 : 0);
-	const _117: rs.Iter<rs.f64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.f64 => {
+	const _116: rs.Iter<rs.f64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.f64 => {
 		const b2: rs.u8 = _22;
 		if (!(b2 === 255)) {
 			return b2 as rs.f64;
 		}
 		return NaN;
 	});
-	const floats: rs.LinkedList<rs.f64> = rs.listExtend(rs.listNew() as rs.LinkedList<rs.f64>, _117);
-	const _120: rs.Iter<rs.f64> = rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), (_23: rs.u8): rs.f64 => {
+	const floats: rs.LinkedList<rs.f64> = rs.listExtend(rs.listNew() as rs.LinkedList<rs.f64>, _116);
+	const _119: rs.Iter<rs.f64> = rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), (_23: rs.u8): rs.f64 => {
 		return _23 as rs.f64;
 	});
-	const other: rs.LinkedList<rs.f64> = rs.listExtend(rs.listNew() as rs.LinkedList<rs.f64>, _120);
+	const other: rs.LinkedList<rs.f64> = rs.listExtend(rs.listNew() as rs.LinkedList<rs.f64>, _119);
 	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpList(rs.f64PartialCmp)(floats, other), 9, (o: rs.Ordering): rs.u8 => {
 		return o & 0xff;
 	}));
@@ -242,8 +248,8 @@ export function printed(l: rs.LinkedList<rs.u8>, m: rs.LinkedList<rs.u8>, out: r
 	rs.iterToOption(owned.nextBack());
 	const lent: rs.Iter<rs.Place<rs.u8>> = rs.listIterMut(rs.listClone(m, undefined));
 	lent.next();
-	const args3 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
-	rs.fmtWriteString(text, [args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1]), "|", args3[2], "|", rs.fmtSpec({ debugHex: "x" }, args3[2]), "|", rs.fmtSpec({ alternate: true }, args3[2]), "|", args3[3], "|", args3[4]]);
+	const args2 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
+	rs.fmtWriteString(text, [args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1]), "|", args2[2], "|", rs.fmtSpec({ debugHex: "x" }, args2[2]), "|", rs.fmtSpec({ alternate: true }, args2[2]), "|", args2[3], "|", args2[4]]);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 
@@ -268,27 +274,27 @@ export function tallies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	_20.n = rs.u16Mul(_20.n, 5);
 	const iter: rs.Iter<[rs.usize, Tally.Tally]> = rs.iterEnumerate(rs.listIter(l));
 	while (true) {
-		const _29: [rs.usize, Tally.Tally] | rs.Done = iter.next();
-		if (_29 === rs.DONE) {
+		const _28: [rs.usize, Tally.Tally] | rs.Done = iter.next();
+		if (_28 === rs.DONE) {
 			break;
 		}
-		_29[1].n = rs.u16WrappingAdd(_29[1].n, _29[0] & 0xffff);
+		_28[1].n = rs.u16WrappingAdd(_28[1].n, _28[0] & 0xffff);
 	}
-	const _38: rs.Iter<Tally.Tally> = rs.listExtractIf(l, (t: Tally.Tally): boolean => {
+	const _37: rs.Iter<Tally.Tally> = rs.listExtractIf(l, (t: Tally.Tally): boolean => {
 		t.n = rs.u16Add(t.n, 1);
 		return rs.u16Rem(t.n, 4) === 0;
 	});
-	const taken: rs.LinkedList<Tally.Tally> = rs.listExtend(rs.listNew() as rs.LinkedList<Tally.Tally>, _38);
+	const taken: rs.LinkedList<Tally.Tally> = rs.listExtend(rs.listNew() as rs.LinkedList<Tally.Tally>, _37);
 	const rest: rs.LinkedList<Tally.Tally> = rs.listClone(l, Tally.clone$Clone);
 	rs.listCloneFrom(rest, taken, Tally.clone$Clone);
 	const iter2: rs.Iter<rs.LinkedList<Tally.Tally>> = rs.iterSlice([l, copy, taken, rest]);
 	while (true) {
-		const _52: rs.LinkedList<Tally.Tally> | rs.Done = iter2.next();
-		if (_52 === rs.DONE) {
+		const _51: rs.LinkedList<Tally.Tally> | rs.Done = iter2.next();
+		if (_51 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, _52.n & 0xff);
-		rs.iterExtendBytes(out, rs.iterMap(rs.listIter(_52), (t2: Tally.Tally): rs.u8 => {
+		rs.byteVecPush(out, _51.n & 0xff);
+		rs.iterExtendBytes(out, rs.iterMap(rs.listIter(_51), (t2: Tally.Tally): rs.u8 => {
 			return t2.n & 0xff;
 		}), undefined, true);
 	}
@@ -296,11 +302,11 @@ export function tallies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.cmpList(Tally.cmp$cmp_Ord)(l, copy) & 0xff);
 	rs.byteVecPush(out, rs.u64Eq(hashOf$collections_LinkedList_lists_Tally(taken), hashOf$collections_LinkedList_lists_Tally(rest)) ? 1 : 0);
 	const text: rs.String = rs.stringNew();
-	const part = rs.iterToVec(rs.iterTake(rs.iterRev(rs.listIter(rest)), 2), undefined, 4, true);
-	const args5 = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	rs.fmtWriteString(text, [args5[0]]);
-	const args6 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	rs.fmtWriteString(text, [rs.fmtSpec({ alternate: true }, args6[0])]);
+	const _83: rs.Vec<Tally.Tally> = rs.iterToVec(rs.iterTake(rs.iterRev(rs.listIter(rest)), 2), undefined, 4, true);
+	const args3 = [(f: rs.Formatter) => rs.fmtList(_83.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [args3[0]]);
+	const args4 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [rs.fmtSpec({ alternate: true }, args4[0])]);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 

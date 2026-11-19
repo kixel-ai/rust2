@@ -21,8 +21,8 @@ export function bump$rings_Item_u32(self: rs.Place<rs.u32>): void {
 }
 
 export function make$rings_Item_String(b: rs.u8): rs.String {
-	const part = rs.u8Rem(b, 16);
-	return rs.fmtFormat(["s", (f: rs.Formatter) => rs.u8Display(part, f)]);
+	const _5: rs.u8 = rs.u8Rem(b, 16);
+	return rs.fmtFormat(["s", (f: rs.Formatter) => rs.u8Display(_5, f)]);
 }
 
 export function bump$rings_Item_String(self: rs.String): void {
@@ -240,8 +240,8 @@ export function text$u8(out: rs.ByteVec, value: rs.u8): void {
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$unit(out: rs.ByteVec, _value: undefined): void {
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(undefined, f)]).v));
+export function text$unit(out: rs.ByteVec, value: undefined): void {
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(value, f)]).v));
 }
 
 /**
@@ -256,10 +256,10 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 	});
 	const first: rs.u8 = _5[0];
 	const n: rs.usize = rs.usizeRem(first >> 2 as rs.usize, 12);
-	const _17: rs.u8 = rs.u8Rem(first, 3);
-	if (_17 === 0) {
+	const _13: rs.u8 = rs.u8Rem(first, 3);
+	if (_13 === 0) {
 		q = rs.dequeNew(12) as rs.VecDeque<rs.String>;
-	} else if (_17 === 1) {
+	} else if (_13 === 1) {
 		q = rs.dequeWithCapacity(n, 12) as rs.VecDeque<rs.String>;
 	} else {
 		q = rs.dequeFromVec(rs.vecFromElem(make$rings_Item_String(first), n, (a0: rs.String): rs.String => {
@@ -268,124 +268,124 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 	}
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(_5[1], 2);
 	while (true) {
-		const _24: rs.ByteSlice | rs.Done = iter.next();
-		if (_24 === rs.DONE) {
+		const _19: rs.ByteSlice | rs.Done = iter.next();
+		if (_19 === rs.DONE) {
 			break;
 		}
-		rs.idx(_24, 0);
-		const _30: [rs.u8, rs.u8] = [_24.data[_24.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_24, 1), 0)];
-		const op: rs.u8 = _30[0];
-		const arg: rs.u8 = _30[1];
-		const at: rs.usize = rs.usizeRem(arg as rs.usize, rs.usizeAdd(q.n, 1));
+		rs.idx(_19, 0);
+		const op: rs.u8 = _19.data[_19.start];
+		const _27: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_19, 1), 0);
 		b3: {
-			const _46: rs.u8 = rs.u8Rem(op, 35);
-			if (0 <= _46) {
-				if (_46 <= 3) {
-					rs.dequePushBack(q, make$rings_Item_String(arg));
+			const at: rs.usize = rs.usizeRem(_27 as rs.usize, rs.usizeAdd(q.n, 1));
+			const _38: rs.u8 = rs.u8Rem(op, 35);
+			const arg: rs.u8 = _27;
+			if (0 <= _38) {
+				if (_38 <= 3) {
+					rs.dequePushBack(q, make$rings_Item_String(_27));
 					break b3;
 				}
 			}
-			if (_46 === 4 || _46 === 5) {
-				rs.dequePushFront(q, make$rings_Item_String(arg));
-			} else if (_46 === 6) {
+			if (_38 === 4 || _38 === 5) {
+				rs.dequePushFront(q, make$rings_Item_String(_27));
+			} else if (_38 === 6) {
 				rs.dequePopFront(q);
-			} else if (_46 === 7) {
+			} else if (_38 === 7) {
 				rs.dequePopBack(q);
-			} else if (_46 === 8) {
-				rs.dequeInsert(q, at, make$rings_Item_String(arg));
-			} else if (_46 === 9) {
+			} else if (_38 === 8) {
+				rs.dequeInsert(q, at, make$rings_Item_String(_27));
+			} else if (_38 === 9) {
 				rs.dequeRemove(q, at);
-			} else if (_46 === 10) {
+			} else if (_38 === 10) {
 				rs.dequeSwapRemove(q, at);
-			} else if (_46 === 11) {
+			} else if (_38 === 11) {
 				rs.dequeSwapRemove(q, at, true);
-			} else if (_46 === 12) {
-				rs.dequeTruncate(q, rs.usizeRem(arg as rs.usize, 8));
-			} else if (_46 === 13) {
-				let kept: rs.u8 = arg;
-				rs.dequeRetain(q, (_25: rs.String): boolean => {
+			} else if (_38 === 12) {
+				rs.dequeTruncate(q, rs.usizeRem(_27 as rs.usize, 8));
+			} else if (_38 === 13) {
+				let kept: rs.u8 = _27;
+				rs.dequeRetain(q, (_23: rs.String): boolean => {
 					kept = rs.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
-			} else if (_46 === 14) {
-				drained$String(q, arg, out);
-			} else if (_46 === 15) {
-				rs.dequeReserve(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 16) {
-				rs.dequeReserveExact(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 17) {
-				rs.dequeShrinkTo(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 18) {
+			} else if (_38 === 14) {
+				drained$String(q, _27, out);
+			} else if (_38 === 15) {
+				rs.dequeReserve(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 16) {
+				rs.dequeReserveExact(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 17) {
+				rs.dequeShrinkTo(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 18) {
 				rs.dequeShrinkTo(q, 0);
-			} else if (_46 === 19) {
-				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(arg, 8)), (i: rs.u8): boolean => {
+			} else if (_38 === 19) {
+				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(_27, 8)), (i: rs.u8): boolean => {
 					return rs.u8Rem(i, 3) !== 0;
 				}), make$rings_Item_String), "next");
-			} else if (_46 === 20) {
-				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 8)), make$rings_Item_String), undefined, true);
-			} else if (_46 === 21) {
+			} else if (_38 === 20) {
+				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(_27, 8)), make$rings_Item_String), undefined, true);
+			} else if (_38 === 21) {
 				rs.dequeClear(q);
-			} else if (_46 === 22) {
-				q = remade$String(q, arg);
-			} else if (_46 === 23) {
-				mutated$String(q, arg, out);
-			} else if (_46 === 24) {
-				appended$String(q, arg, out);
-			} else if (_46 === 25) {
-				rs.dequeResize(q, rs.usizeRem(arg as rs.usize, 16), make$rings_Item_String(arg), (a02: rs.String): rs.String => {
+			} else if (_38 === 22) {
+				q = remade$String(q, _27);
+			} else if (_38 === 23) {
+				mutated$String(q, _27, out);
+			} else if (_38 === 24) {
+				appended$String(q, _27, out);
+			} else if (_38 === 25) {
+				rs.dequeResize(q, rs.usizeRem(_27 as rs.usize, 16), make$rings_Item_String(_27), (a02: rs.String): rs.String => {
 					return rs.stringClone(a02);
 				});
-			} else if (_46 === 26) {
-				rs.dequeResizeWith(q, rs.usizeRem(arg as rs.usize, 16), (): rs.String => {
+			} else if (_38 === 26) {
+				rs.dequeResizeWith(q, rs.usizeRem(_27 as rs.usize, 16), (): rs.String => {
 					return make$rings_Item_String(arg);
 				});
-			} else if (_46 === 27) {
+			} else if (_38 === 27) {
 				const tail: rs.VecDeque<rs.String> = rs.dequeSplitOff(q, at);
 				put(out, rs.dequeCapacity(tail));
 				text$tuple2_ref_slice_String_ref_slice_String(out, rs.dequeAsSlices(tail));
-			} else if (_46 === 28) {
-				const start: rs.usize = rs.usizeRem((arg & 7) as rs.usize, rs.usizeAdd(q.n, 1));
-				const it: rs.Iter<rs.String> = rs.dequeRange(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((arg >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
-				const _151: rs.String | rs.Done = it.next();
-				if (_151 !== rs.DONE) {
-					bump$rings_Item_String(_151);
+			} else if (_38 === 28) {
+				const start: rs.usize = rs.usizeRem((_27 & 7) as rs.usize, rs.usizeAdd(q.n, 1));
+				const it: rs.Iter<rs.String> = rs.dequeRange(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((_27 >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
+				const _132: rs.String | rs.Done = it.next();
+				if (_132 !== rs.DONE) {
+					bump$rings_Item_String(_132);
 				}
-				const _156: rs.String | undefined = rs.iterToOption(it.nextBack());
-				if (_156 !== undefined) {
-					bump$rings_Item_String(_156);
+				const _137: rs.String | undefined = rs.iterToOption(it.nextBack());
+				if (_137 !== undefined) {
+					bump$rings_Item_String(_137);
 				}
 				text$collections_vec_deque_IterMut_String(out, it);
-			} else if (_46 === 29) {
+			} else if (_38 === 29) {
 				const v: rs.Vec<rs.String> = rs.dequeToVec(q);
 				put(out, rs.vecCapacity(v, 12));
 				q = rs.dequeFromVec(v, 12) as rs.VecDeque<rs.String>;
-			} else if (_46 === 30) {
+			} else if (_38 === 30) {
 				rs.dequeRotate(q, at);
-			} else if (_46 === 31) {
+			} else if (_38 === 31) {
 				rs.dequeRotate(q, at, true);
-			} else if (_46 === 32) {
+			} else if (_38 === 32) {
 				if (!(q.n === 0)) {
-					rs.dequeSwap(q, rs.usizeRem(arg as rs.usize, q.n), rs.usizeRem(arg >> 4 as rs.usize, q.n));
+					rs.dequeSwap(q, rs.usizeRem(_27 as rs.usize, q.n), rs.usizeRem(_27 >> 4 as rs.usize, q.n));
 				}
-			} else if (_46 === 33) {
+			} else if (_38 === 33) {
 				const s: rs.Slice<rs.String> = rs.dequeMakeContiguous(q);
-				const _190: rs.String | undefined = rs.sliceFirst(s);
-				if (_190 !== undefined) {
-					bump$rings_Item_String(_190);
+				const _169: rs.String | undefined = rs.sliceFirst(s);
+				if (_169 !== undefined) {
+					bump$rings_Item_String(_169);
 				}
-				const _194: rs.String | undefined = rs.sliceLast(s);
-				if (_194 !== undefined) {
-					bump$rings_Item_String(_194);
+				const _173: rs.String | undefined = rs.sliceLast(s);
+				if (_173 !== undefined) {
+					bump$rings_Item_String(_173);
 				}
 				text$mut_slice_String(out, s);
 			} else {
-				searched$String(q, arg, out);
+				searched$String(q, _27, out);
 			}
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
 		text$tuple2_ref_slice_String_ref_slice_String(out, rs.dequeAsSlices(q));
-		iterated$String(q, arg, out);
+		iterated$String(q, _27, out);
 	}
 }
 
@@ -401,132 +401,132 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 	});
 	const first: rs.u8 = _5[0];
 	const n: rs.usize = rs.usizeRem(first >> 2 as rs.usize, 12);
-	const _17: rs.u8 = rs.u8Rem(first, 3);
-	if (_17 === 0) {
+	const _13: rs.u8 = rs.u8Rem(first, 3);
+	if (_13 === 0) {
 		q = rs.dequeNew(1101) as rs.VecDeque<Big.Big>;
-	} else if (_17 === 1) {
+	} else if (_13 === 1) {
 		q = rs.dequeWithCapacity(n, 1101) as rs.VecDeque<Big.Big>;
 	} else {
 		q = rs.dequeFromVec(rs.vecFromElem(Big.make$rings_Item(first), n, Big.clone$Clone), 1101) as rs.VecDeque<Big.Big>;
 	}
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(_5[1], 2);
 	while (true) {
-		const _24: rs.ByteSlice | rs.Done = iter.next();
-		if (_24 === rs.DONE) {
+		const _19: rs.ByteSlice | rs.Done = iter.next();
+		if (_19 === rs.DONE) {
 			break;
 		}
-		rs.idx(_24, 0);
-		const _30: [rs.u8, rs.u8] = [_24.data[_24.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_24, 1), 0)];
-		const op: rs.u8 = _30[0];
-		const arg: rs.u8 = _30[1];
-		const at: rs.usize = rs.usizeRem(arg as rs.usize, rs.usizeAdd(q.n, 1));
+		rs.idx(_19, 0);
+		const op: rs.u8 = _19.data[_19.start];
+		const _27: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_19, 1), 0);
 		b3: {
-			const _46: rs.u8 = rs.u8Rem(op, 35);
-			if (0 <= _46) {
-				if (_46 <= 3) {
-					rs.dequePushBack(q, Big.make$rings_Item(arg));
+			const at: rs.usize = rs.usizeRem(_27 as rs.usize, rs.usizeAdd(q.n, 1));
+			const _38: rs.u8 = rs.u8Rem(op, 35);
+			const arg: rs.u8 = _27;
+			if (0 <= _38) {
+				if (_38 <= 3) {
+					rs.dequePushBack(q, Big.make$rings_Item(_27));
 					break b3;
 				}
 			}
-			if (_46 === 4 || _46 === 5) {
-				rs.dequePushFront(q, Big.make$rings_Item(arg));
-			} else if (_46 === 6) {
+			if (_38 === 4 || _38 === 5) {
+				rs.dequePushFront(q, Big.make$rings_Item(_27));
+			} else if (_38 === 6) {
 				rs.dequePopFront(q);
-			} else if (_46 === 7) {
+			} else if (_38 === 7) {
 				rs.dequePopBack(q);
-			} else if (_46 === 8) {
-				rs.dequeInsert(q, at, Big.make$rings_Item(arg));
-			} else if (_46 === 9) {
+			} else if (_38 === 8) {
+				rs.dequeInsert(q, at, Big.make$rings_Item(_27));
+			} else if (_38 === 9) {
 				rs.dequeRemove(q, at);
-			} else if (_46 === 10) {
+			} else if (_38 === 10) {
 				rs.dequeSwapRemove(q, at);
-			} else if (_46 === 11) {
+			} else if (_38 === 11) {
 				rs.dequeSwapRemove(q, at, true);
-			} else if (_46 === 12) {
-				rs.dequeTruncate(q, rs.usizeRem(arg as rs.usize, 8));
-			} else if (_46 === 13) {
-				let kept: rs.u8 = arg;
-				rs.dequeRetain(q, (_25: Big.Big): boolean => {
+			} else if (_38 === 12) {
+				rs.dequeTruncate(q, rs.usizeRem(_27 as rs.usize, 8));
+			} else if (_38 === 13) {
+				let kept: rs.u8 = _27;
+				rs.dequeRetain(q, (_23: Big.Big): boolean => {
 					kept = rs.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
-			} else if (_46 === 14) {
-				drained$rings_Big(q, arg, out);
-			} else if (_46 === 15) {
-				rs.dequeReserve(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 16) {
-				rs.dequeReserveExact(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 17) {
-				rs.dequeShrinkTo(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 18) {
+			} else if (_38 === 14) {
+				drained$rings_Big(q, _27, out);
+			} else if (_38 === 15) {
+				rs.dequeReserve(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 16) {
+				rs.dequeReserveExact(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 17) {
+				rs.dequeShrinkTo(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 18) {
 				rs.dequeShrinkTo(q, 0);
-			} else if (_46 === 19) {
-				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(arg, 8)), (i: rs.u8): boolean => {
+			} else if (_38 === 19) {
+				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(_27, 8)), (i: rs.u8): boolean => {
 					return rs.u8Rem(i, 3) !== 0;
 				}), Big.make$rings_Item), "next");
-			} else if (_46 === 20) {
-				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 8)), Big.make$rings_Item), undefined, true);
-			} else if (_46 === 21) {
+			} else if (_38 === 20) {
+				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(_27, 8)), Big.make$rings_Item), undefined, true);
+			} else if (_38 === 21) {
 				rs.dequeClear(q);
-			} else if (_46 === 22) {
-				q = remade$rings_Big(q, arg);
-			} else if (_46 === 23) {
-				mutated$rings_Big(q, arg, out);
-			} else if (_46 === 24) {
-				appended$rings_Big(q, arg, out);
-			} else if (_46 === 25) {
-				rs.dequeResize(q, rs.usizeRem(arg as rs.usize, 16), Big.make$rings_Item(arg), Big.clone$Clone);
-			} else if (_46 === 26) {
-				rs.dequeResizeWith(q, rs.usizeRem(arg as rs.usize, 16), (): Big.Big => {
+			} else if (_38 === 22) {
+				q = remade$rings_Big(q, _27);
+			} else if (_38 === 23) {
+				mutated$rings_Big(q, _27, out);
+			} else if (_38 === 24) {
+				appended$rings_Big(q, _27, out);
+			} else if (_38 === 25) {
+				rs.dequeResize(q, rs.usizeRem(_27 as rs.usize, 16), Big.make$rings_Item(_27), Big.clone$Clone);
+			} else if (_38 === 26) {
+				rs.dequeResizeWith(q, rs.usizeRem(_27 as rs.usize, 16), (): Big.Big => {
 					return Big.make$rings_Item(arg);
 				});
-			} else if (_46 === 27) {
+			} else if (_38 === 27) {
 				const tail: rs.VecDeque<Big.Big> = rs.dequeSplitOff(q, at);
 				put(out, rs.dequeCapacity(tail));
 				text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out, rs.dequeAsSlices(tail));
-			} else if (_46 === 28) {
-				const start: rs.usize = rs.usizeRem((arg & 7) as rs.usize, rs.usizeAdd(q.n, 1));
-				const it: rs.Iter<Big.Big> = rs.dequeRange(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((arg >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
-				const _151: Big.Big | rs.Done = it.next();
-				if (_151 !== rs.DONE) {
-					Big.bump$rings_Item(_151);
+			} else if (_38 === 28) {
+				const start: rs.usize = rs.usizeRem((_27 & 7) as rs.usize, rs.usizeAdd(q.n, 1));
+				const it: rs.Iter<Big.Big> = rs.dequeRange(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((_27 >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
+				const _132: Big.Big | rs.Done = it.next();
+				if (_132 !== rs.DONE) {
+					Big.bump$rings_Item(_132);
 				}
-				const _156: Big.Big | undefined = rs.iterToOption(it.nextBack());
-				if (_156 !== undefined) {
-					Big.bump$rings_Item(_156);
+				const _137: Big.Big | undefined = rs.iterToOption(it.nextBack());
+				if (_137 !== undefined) {
+					Big.bump$rings_Item(_137);
 				}
 				text$collections_vec_deque_IterMut_rings_Big(out, it);
-			} else if (_46 === 29) {
+			} else if (_38 === 29) {
 				const v: rs.Vec<Big.Big> = rs.dequeToVec(q);
 				put(out, rs.vecCapacity(v, 1101));
 				q = rs.dequeFromVec(v, 1101) as rs.VecDeque<Big.Big>;
-			} else if (_46 === 30) {
+			} else if (_38 === 30) {
 				rs.dequeRotate(q, at);
-			} else if (_46 === 31) {
+			} else if (_38 === 31) {
 				rs.dequeRotate(q, at, true);
-			} else if (_46 === 32) {
+			} else if (_38 === 32) {
 				if (!(q.n === 0)) {
-					rs.dequeSwap(q, rs.usizeRem(arg as rs.usize, q.n), rs.usizeRem(arg >> 4 as rs.usize, q.n));
+					rs.dequeSwap(q, rs.usizeRem(_27 as rs.usize, q.n), rs.usizeRem(_27 >> 4 as rs.usize, q.n));
 				}
-			} else if (_46 === 33) {
+			} else if (_38 === 33) {
 				const s: rs.Slice<Big.Big> = rs.dequeMakeContiguous(q);
-				const _190: Big.Big | undefined = rs.sliceFirst(s);
-				if (_190 !== undefined) {
-					Big.bump$rings_Item(_190);
+				const _169: Big.Big | undefined = rs.sliceFirst(s);
+				if (_169 !== undefined) {
+					Big.bump$rings_Item(_169);
 				}
-				const _194: Big.Big | undefined = rs.sliceLast(s);
-				if (_194 !== undefined) {
-					Big.bump$rings_Item(_194);
+				const _173: Big.Big | undefined = rs.sliceLast(s);
+				if (_173 !== undefined) {
+					Big.bump$rings_Item(_173);
 				}
 				text$mut_slice_rings_Big(out, s);
 			} else {
-				searched$rings_Big(q, arg, out);
+				searched$rings_Big(q, _27, out);
 			}
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
 		text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out, rs.dequeAsSlices(q));
-		iterated$rings_Big(q, arg, out);
+		iterated$rings_Big(q, _27, out);
 	}
 }
 
@@ -542,132 +542,132 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 	});
 	const first: rs.u8 = _5[0];
 	const n: rs.usize = rs.usizeRem(first >> 2 as rs.usize, 12);
-	const _17: rs.u8 = rs.u8Rem(first, 3);
-	if (_17 === 0) {
+	const _13: rs.u8 = rs.u8Rem(first, 3);
+	if (_13 === 0) {
 		q = rs.dequeNew(4) as rs.VecDeque<rs.u32>;
-	} else if (_17 === 1) {
+	} else if (_13 === 1) {
 		q = rs.dequeWithCapacity(n, 4) as rs.VecDeque<rs.u32>;
 	} else {
 		q = rs.dequeFromVec(rs.vecFromElem(make$rings_Item_u32(first), n, undefined), 4) as rs.VecDeque<rs.u32>;
 	}
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(_5[1], 2);
 	while (true) {
-		const _24: rs.ByteSlice | rs.Done = iter.next();
-		if (_24 === rs.DONE) {
+		const _19: rs.ByteSlice | rs.Done = iter.next();
+		if (_19 === rs.DONE) {
 			break;
 		}
-		rs.idx(_24, 0);
-		const _30: [rs.u8, rs.u8] = [_24.data[_24.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_24, 1), 0)];
-		const op: rs.u8 = _30[0];
-		const arg: rs.u8 = _30[1];
-		const at: rs.usize = rs.usizeRem(arg as rs.usize, rs.usizeAdd(q.n, 1));
+		rs.idx(_19, 0);
+		const op: rs.u8 = _19.data[_19.start];
+		const _27: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_19, 1), 0);
 		b3: {
-			const _46: rs.u8 = rs.u8Rem(op, 35);
-			if (0 <= _46) {
-				if (_46 <= 3) {
-					rs.dequePushBack(q, make$rings_Item_u32(arg));
+			const at: rs.usize = rs.usizeRem(_27 as rs.usize, rs.usizeAdd(q.n, 1));
+			const _38: rs.u8 = rs.u8Rem(op, 35);
+			const arg: rs.u8 = _27;
+			if (0 <= _38) {
+				if (_38 <= 3) {
+					rs.dequePushBack(q, make$rings_Item_u32(_27));
 					break b3;
 				}
 			}
-			if (_46 === 4 || _46 === 5) {
-				rs.dequePushFront(q, make$rings_Item_u32(arg));
-			} else if (_46 === 6) {
+			if (_38 === 4 || _38 === 5) {
+				rs.dequePushFront(q, make$rings_Item_u32(_27));
+			} else if (_38 === 6) {
 				rs.dequePopFront(q);
-			} else if (_46 === 7) {
+			} else if (_38 === 7) {
 				rs.dequePopBack(q);
-			} else if (_46 === 8) {
-				rs.dequeInsert(q, at, make$rings_Item_u32(arg));
-			} else if (_46 === 9) {
+			} else if (_38 === 8) {
+				rs.dequeInsert(q, at, make$rings_Item_u32(_27));
+			} else if (_38 === 9) {
 				rs.dequeRemove(q, at);
-			} else if (_46 === 10) {
+			} else if (_38 === 10) {
 				rs.dequeSwapRemove(q, at);
-			} else if (_46 === 11) {
+			} else if (_38 === 11) {
 				rs.dequeSwapRemove(q, at, true);
-			} else if (_46 === 12) {
-				rs.dequeTruncate(q, rs.usizeRem(arg as rs.usize, 8));
-			} else if (_46 === 13) {
-				let kept: rs.u8 = arg;
-				rs.dequeRetain(q, (_25: rs.u32): boolean => {
+			} else if (_38 === 12) {
+				rs.dequeTruncate(q, rs.usizeRem(_27 as rs.usize, 8));
+			} else if (_38 === 13) {
+				let kept: rs.u8 = _27;
+				rs.dequeRetain(q, (_23: rs.u32): boolean => {
 					kept = rs.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
-			} else if (_46 === 14) {
-				drained$u32(q, arg, out);
-			} else if (_46 === 15) {
-				rs.dequeReserve(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 16) {
-				rs.dequeReserveExact(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 17) {
-				rs.dequeShrinkTo(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 18) {
+			} else if (_38 === 14) {
+				drained$u32(q, _27, out);
+			} else if (_38 === 15) {
+				rs.dequeReserve(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 16) {
+				rs.dequeReserveExact(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 17) {
+				rs.dequeShrinkTo(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 18) {
 				rs.dequeShrinkTo(q, 0);
-			} else if (_46 === 19) {
-				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(arg, 8)), (i: rs.u8): boolean => {
+			} else if (_38 === 19) {
+				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(_27, 8)), (i: rs.u8): boolean => {
 					return rs.u8Rem(i, 3) !== 0;
 				}), make$rings_Item_u32), "next");
-			} else if (_46 === 20) {
-				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 8)), make$rings_Item_u32), undefined, true);
-			} else if (_46 === 21) {
+			} else if (_38 === 20) {
+				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(_27, 8)), make$rings_Item_u32), undefined, true);
+			} else if (_38 === 21) {
 				rs.dequeClear(q);
-			} else if (_46 === 22) {
-				q = remade$u32(q, arg);
-			} else if (_46 === 23) {
-				mutated$u32(q, arg, out);
-			} else if (_46 === 24) {
-				appended$u32(q, arg, out);
-			} else if (_46 === 25) {
-				rs.dequeResize(q, rs.usizeRem(arg as rs.usize, 16), make$rings_Item_u32(arg), undefined);
-			} else if (_46 === 26) {
-				rs.dequeResizeWith(q, rs.usizeRem(arg as rs.usize, 16), (): rs.u32 => {
+			} else if (_38 === 22) {
+				q = remade$u32(q, _27);
+			} else if (_38 === 23) {
+				mutated$u32(q, _27, out);
+			} else if (_38 === 24) {
+				appended$u32(q, _27, out);
+			} else if (_38 === 25) {
+				rs.dequeResize(q, rs.usizeRem(_27 as rs.usize, 16), make$rings_Item_u32(_27), undefined);
+			} else if (_38 === 26) {
+				rs.dequeResizeWith(q, rs.usizeRem(_27 as rs.usize, 16), (): rs.u32 => {
 					return make$rings_Item_u32(arg);
 				});
-			} else if (_46 === 27) {
+			} else if (_38 === 27) {
 				const tail: rs.VecDeque<rs.u32> = rs.dequeSplitOff(q, at);
 				put(out, rs.dequeCapacity(tail));
 				text$tuple2_ref_slice_u32_ref_slice_u32(out, rs.dequeAsSlices(tail));
-			} else if (_46 === 28) {
-				const start: rs.usize = rs.usizeRem((arg & 7) as rs.usize, rs.usizeAdd(q.n, 1));
-				const it: rs.Iter<rs.Place<rs.u32>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((arg >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
-				const _151: rs.Place<rs.u32> | rs.Done = it.next();
-				if (_151 !== rs.DONE) {
-					bump$rings_Item_u32(_151);
+			} else if (_38 === 28) {
+				const start: rs.usize = rs.usizeRem((_27 & 7) as rs.usize, rs.usizeAdd(q.n, 1));
+				const it: rs.Iter<rs.Place<rs.u32>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((_27 >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
+				const _132: rs.Place<rs.u32> | rs.Done = it.next();
+				if (_132 !== rs.DONE) {
+					bump$rings_Item_u32(_132);
 				}
-				const _156: rs.Place<rs.u32> | undefined = rs.iterToOption(it.nextBack());
-				if (_156 !== undefined) {
-					bump$rings_Item_u32(_156);
+				const _137: rs.Place<rs.u32> | undefined = rs.iterToOption(it.nextBack());
+				if (_137 !== undefined) {
+					bump$rings_Item_u32(_137);
 				}
 				text$collections_vec_deque_IterMut_u32(out, it);
-			} else if (_46 === 29) {
+			} else if (_38 === 29) {
 				const v: rs.Vec<rs.u32> = rs.dequeToVec(q);
 				put(out, rs.vecCapacity(v, 4));
 				q = rs.dequeFromVec(v, 4) as rs.VecDeque<rs.u32>;
-			} else if (_46 === 30) {
+			} else if (_38 === 30) {
 				rs.dequeRotate(q, at);
-			} else if (_46 === 31) {
+			} else if (_38 === 31) {
 				rs.dequeRotate(q, at, true);
-			} else if (_46 === 32) {
+			} else if (_38 === 32) {
 				if (!(q.n === 0)) {
-					rs.dequeSwap(q, rs.usizeRem(arg as rs.usize, q.n), rs.usizeRem(arg >> 4 as rs.usize, q.n));
+					rs.dequeSwap(q, rs.usizeRem(_27 as rs.usize, q.n), rs.usizeRem(_27 >> 4 as rs.usize, q.n));
 				}
-			} else if (_46 === 33) {
+			} else if (_38 === 33) {
 				const s: rs.Slice<rs.u32> = rs.dequeMakeContiguous(q);
-				const _190: rs.Place<rs.u32> | undefined = rs.sliceFirstMut(s);
-				if (_190 !== undefined) {
-					bump$rings_Item_u32(_190);
+				const _169: rs.Place<rs.u32> | undefined = rs.sliceFirstMut(s);
+				if (_169 !== undefined) {
+					bump$rings_Item_u32(_169);
 				}
-				const _194: rs.Place<rs.u32> | undefined = rs.sliceLastMut(s);
-				if (_194 !== undefined) {
-					bump$rings_Item_u32(_194);
+				const _173: rs.Place<rs.u32> | undefined = rs.sliceLastMut(s);
+				if (_173 !== undefined) {
+					bump$rings_Item_u32(_173);
 				}
 				text$mut_slice_u32(out, s);
 			} else {
-				searched$u32(q, arg, out);
+				searched$u32(q, _27, out);
 			}
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
 		text$tuple2_ref_slice_u32_ref_slice_u32(out, rs.dequeAsSlices(q));
-		iterated$u32(q, arg, out);
+		iterated$u32(q, _27, out);
 	}
 }
 
@@ -683,132 +683,132 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 	});
 	const first: rs.u8 = _5[0];
 	const n: rs.usize = rs.usizeRem(first >> 2 as rs.usize, 12);
-	const _17: rs.u8 = rs.u8Rem(first, 3);
-	if (_17 === 0) {
+	const _13: rs.u8 = rs.u8Rem(first, 3);
+	if (_13 === 0) {
 		q = rs.dequeNew(1, true) as rs.VecDeque<rs.u8>;
-	} else if (_17 === 1) {
+	} else if (_13 === 1) {
 		q = rs.dequeWithCapacity(n, 1, true) as rs.VecDeque<rs.u8>;
 	} else {
 		q = rs.dequeFromVec(rs.byteVecToVec(rs.byteVecOf(make$rings_Item_u8(first), n)), 1, true) as rs.VecDeque<rs.u8>;
 	}
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(_5[1], 2);
 	while (true) {
-		const _24: rs.ByteSlice | rs.Done = iter.next();
-		if (_24 === rs.DONE) {
+		const _19: rs.ByteSlice | rs.Done = iter.next();
+		if (_19 === rs.DONE) {
 			break;
 		}
-		rs.idx(_24, 0);
-		const _30: [rs.u8, rs.u8] = [_24.data[_24.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_24, 1), 0)];
-		const op: rs.u8 = _30[0];
-		const arg: rs.u8 = _30[1];
-		const at: rs.usize = rs.usizeRem(arg as rs.usize, rs.usizeAdd(q.n, 1));
+		rs.idx(_19, 0);
+		const op: rs.u8 = _19.data[_19.start];
+		const _27: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_19, 1), 0);
 		b3: {
-			const _46: rs.u8 = rs.u8Rem(op, 35);
-			if (0 <= _46) {
-				if (_46 <= 3) {
-					rs.dequePushBack(q, make$rings_Item_u8(arg));
+			const at: rs.usize = rs.usizeRem(_27 as rs.usize, rs.usizeAdd(q.n, 1));
+			const _38: rs.u8 = rs.u8Rem(op, 35);
+			const arg: rs.u8 = _27;
+			if (0 <= _38) {
+				if (_38 <= 3) {
+					rs.dequePushBack(q, make$rings_Item_u8(_27));
 					break b3;
 				}
 			}
-			if (_46 === 4 || _46 === 5) {
-				rs.dequePushFront(q, make$rings_Item_u8(arg));
-			} else if (_46 === 6) {
+			if (_38 === 4 || _38 === 5) {
+				rs.dequePushFront(q, make$rings_Item_u8(_27));
+			} else if (_38 === 6) {
 				rs.dequePopFront(q);
-			} else if (_46 === 7) {
+			} else if (_38 === 7) {
 				rs.dequePopBack(q);
-			} else if (_46 === 8) {
-				rs.dequeInsert(q, at, make$rings_Item_u8(arg));
-			} else if (_46 === 9) {
+			} else if (_38 === 8) {
+				rs.dequeInsert(q, at, make$rings_Item_u8(_27));
+			} else if (_38 === 9) {
 				rs.dequeRemove(q, at);
-			} else if (_46 === 10) {
+			} else if (_38 === 10) {
 				rs.dequeSwapRemove(q, at);
-			} else if (_46 === 11) {
+			} else if (_38 === 11) {
 				rs.dequeSwapRemove(q, at, true);
-			} else if (_46 === 12) {
-				rs.dequeTruncate(q, rs.usizeRem(arg as rs.usize, 8));
-			} else if (_46 === 13) {
-				let kept: rs.u8 = arg;
-				rs.dequeRetain(q, (_25: rs.u8): boolean => {
+			} else if (_38 === 12) {
+				rs.dequeTruncate(q, rs.usizeRem(_27 as rs.usize, 8));
+			} else if (_38 === 13) {
+				let kept: rs.u8 = _27;
+				rs.dequeRetain(q, (_23: rs.u8): boolean => {
 					kept = rs.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
-			} else if (_46 === 14) {
-				drained$u8(q, arg, out);
-			} else if (_46 === 15) {
-				rs.dequeReserve(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 16) {
-				rs.dequeReserveExact(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 17) {
-				rs.dequeShrinkTo(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 18) {
+			} else if (_38 === 14) {
+				drained$u8(q, _27, out);
+			} else if (_38 === 15) {
+				rs.dequeReserve(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 16) {
+				rs.dequeReserveExact(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 17) {
+				rs.dequeShrinkTo(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 18) {
 				rs.dequeShrinkTo(q, 0);
-			} else if (_46 === 19) {
-				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(arg, 8)), (i: rs.u8): boolean => {
+			} else if (_38 === 19) {
+				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(_27, 8)), (i: rs.u8): boolean => {
 					return rs.u8Rem(i, 3) !== 0;
 				}), make$rings_Item_u8), "next");
-			} else if (_46 === 20) {
-				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 8)), make$rings_Item_u8), undefined, true);
-			} else if (_46 === 21) {
+			} else if (_38 === 20) {
+				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(_27, 8)), make$rings_Item_u8), undefined, true);
+			} else if (_38 === 21) {
 				rs.dequeClear(q);
-			} else if (_46 === 22) {
-				q = remade$u8(q, arg);
-			} else if (_46 === 23) {
-				mutated$u8(q, arg, out);
-			} else if (_46 === 24) {
-				appended$u8(q, arg, out);
-			} else if (_46 === 25) {
-				rs.dequeResize(q, rs.usizeRem(arg as rs.usize, 16), make$rings_Item_u8(arg), undefined);
-			} else if (_46 === 26) {
-				rs.dequeResizeWith(q, rs.usizeRem(arg as rs.usize, 16), (): rs.u8 => {
+			} else if (_38 === 22) {
+				q = remade$u8(q, _27);
+			} else if (_38 === 23) {
+				mutated$u8(q, _27, out);
+			} else if (_38 === 24) {
+				appended$u8(q, _27, out);
+			} else if (_38 === 25) {
+				rs.dequeResize(q, rs.usizeRem(_27 as rs.usize, 16), make$rings_Item_u8(_27), undefined);
+			} else if (_38 === 26) {
+				rs.dequeResizeWith(q, rs.usizeRem(_27 as rs.usize, 16), (): rs.u8 => {
 					return make$rings_Item_u8(arg);
 				});
-			} else if (_46 === 27) {
+			} else if (_38 === 27) {
 				const tail: rs.VecDeque<rs.u8> = rs.dequeSplitOff(q, at);
 				put(out, rs.dequeCapacity(tail));
 				text$tuple2_ref_slice_u8_ref_slice_u8(out, rs.dequeByteSlices(tail));
-			} else if (_46 === 28) {
-				const start: rs.usize = rs.usizeRem((arg & 7) as rs.usize, rs.usizeAdd(q.n, 1));
-				const it: rs.Iter<rs.Place<rs.u8>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((arg >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
-				const _151: rs.Place<rs.u8> | rs.Done = it.next();
-				if (_151 !== rs.DONE) {
-					bump$rings_Item_u8(_151);
+			} else if (_38 === 28) {
+				const start: rs.usize = rs.usizeRem((_27 & 7) as rs.usize, rs.usizeAdd(q.n, 1));
+				const it: rs.Iter<rs.Place<rs.u8>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((_27 >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
+				const _132: rs.Place<rs.u8> | rs.Done = it.next();
+				if (_132 !== rs.DONE) {
+					bump$rings_Item_u8(_132);
 				}
-				const _156: rs.Place<rs.u8> | undefined = rs.iterToOption(it.nextBack());
-				if (_156 !== undefined) {
-					bump$rings_Item_u8(_156);
+				const _137: rs.Place<rs.u8> | undefined = rs.iterToOption(it.nextBack());
+				if (_137 !== undefined) {
+					bump$rings_Item_u8(_137);
 				}
 				text$collections_vec_deque_IterMut_u8(out, it);
-			} else if (_46 === 29) {
+			} else if (_38 === 29) {
 				const v: rs.ByteVec = rs.byteVecFromVec(rs.dequeToVec(q));
 				put(out, v.data.length);
 				q = rs.dequeFromVec(rs.byteVecToVec(v), 1, true) as rs.VecDeque<rs.u8>;
-			} else if (_46 === 30) {
+			} else if (_38 === 30) {
 				rs.dequeRotate(q, at);
-			} else if (_46 === 31) {
+			} else if (_38 === 31) {
 				rs.dequeRotate(q, at, true);
-			} else if (_46 === 32) {
+			} else if (_38 === 32) {
 				if (!(q.n === 0)) {
-					rs.dequeSwap(q, rs.usizeRem(arg as rs.usize, q.n), rs.usizeRem(arg >> 4 as rs.usize, q.n));
+					rs.dequeSwap(q, rs.usizeRem(_27 as rs.usize, q.n), rs.usizeRem(_27 >> 4 as rs.usize, q.n));
 				}
-			} else if (_46 === 33) {
+			} else if (_38 === 33) {
 				const s: rs.ByteSlice = rs.dequeByteMakeContiguous(q);
-				const _190: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(s);
-				if (_190 !== undefined) {
-					bump$rings_Item_u8(_190);
+				const _169: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(s);
+				if (_169 !== undefined) {
+					bump$rings_Item_u8(_169);
 				}
-				const _194: rs.Place<rs.u8> | undefined = rs.sliceLastMut(s);
-				if (_194 !== undefined) {
-					bump$rings_Item_u8(_194);
+				const _173: rs.Place<rs.u8> | undefined = rs.sliceLastMut(s);
+				if (_173 !== undefined) {
+					bump$rings_Item_u8(_173);
 				}
 				text$mut_slice_u8(out, s);
 			} else {
-				searched$u8(q, arg, out);
+				searched$u8(q, _27, out);
 			}
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
 		text$tuple2_ref_slice_u8_ref_slice_u8(out, rs.dequeByteSlices(q));
-		iterated$u8(q, arg, out);
+		iterated$u8(q, _27, out);
 	}
 }
 
@@ -824,10 +824,10 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 	});
 	const first: rs.u8 = _5[0];
 	const n: rs.usize = rs.usizeRem(first >> 2 as rs.usize, 12);
-	const _17: rs.u8 = rs.u8Rem(first, 3);
-	if (_17 === 0) {
+	const _13: rs.u8 = rs.u8Rem(first, 3);
+	if (_13 === 0) {
 		q = rs.dequeNew(0) as rs.VecDeque<undefined>;
-	} else if (_17 === 1) {
+	} else if (_13 === 1) {
 		q = rs.dequeWithCapacity(n, 0) as rs.VecDeque<undefined>;
 	} else {
 		make$rings_Item_unit(first);
@@ -835,131 +835,131 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 	}
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(_5[1], 2);
 	while (true) {
-		const _24: rs.ByteSlice | rs.Done = iter.next();
-		if (_24 === rs.DONE) {
+		const _19: rs.ByteSlice | rs.Done = iter.next();
+		if (_19 === rs.DONE) {
 			break;
 		}
-		rs.idx(_24, 0);
-		const _30: [rs.u8, rs.u8] = [_24.data[_24.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_24, 1), 0)];
-		const op: rs.u8 = _30[0];
-		const arg: rs.u8 = _30[1];
-		const at: rs.usize = rs.usizeRem(arg as rs.usize, rs.usizeAdd(q.n, 1));
+		rs.idx(_19, 0);
+		const op: rs.u8 = _19.data[_19.start];
+		const _27: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_19, 1), 0);
 		b3: {
-			const _46: rs.u8 = rs.u8Rem(op, 35);
-			if (0 <= _46) {
-				if (_46 <= 3) {
-					const _50: rs.VecDeque<undefined> = q;
-					make$rings_Item_unit(arg);
-					rs.dequePushBack(_50, undefined);
+			const at: rs.usize = rs.usizeRem(_27 as rs.usize, rs.usizeAdd(q.n, 1));
+			const _38: rs.u8 = rs.u8Rem(op, 35);
+			const arg: rs.u8 = _27;
+			if (0 <= _38) {
+				if (_38 <= 3) {
+					const _41: rs.VecDeque<undefined> = q;
+					make$rings_Item_unit(_27);
+					rs.dequePushBack(_41, undefined);
 					break b3;
 				}
 			}
-			if (_46 === 4 || _46 === 5) {
-				const _52: rs.VecDeque<undefined> = q;
-				make$rings_Item_unit(arg);
-				rs.dequePushFront(_52, undefined);
-			} else if (_46 === 6) {
+			if (_38 === 4 || _38 === 5) {
+				const _43: rs.VecDeque<undefined> = q;
+				make$rings_Item_unit(_27);
+				rs.dequePushFront(_43, undefined);
+			} else if (_38 === 6) {
 				rs.dequePopFront(q, rs.None);
-			} else if (_46 === 7) {
+			} else if (_38 === 7) {
 				rs.dequePopBack(q, rs.None);
-			} else if (_46 === 8) {
-				const _58: rs.VecDeque<undefined> = q;
-				make$rings_Item_unit(arg);
-				rs.dequeInsert(_58, at, undefined);
-			} else if (_46 === 9) {
+			} else if (_38 === 8) {
+				const _49: rs.VecDeque<undefined> = q;
+				make$rings_Item_unit(_27);
+				rs.dequeInsert(_49, at, undefined);
+			} else if (_38 === 9) {
 				rs.dequeRemove(q, at, rs.None);
-			} else if (_46 === 10) {
+			} else if (_38 === 10) {
 				rs.dequeSwapRemove(q, at, false, rs.None);
-			} else if (_46 === 11) {
+			} else if (_38 === 11) {
 				rs.dequeSwapRemove(q, at, true, rs.None);
-			} else if (_46 === 12) {
-				rs.dequeTruncate(q, rs.usizeRem(arg as rs.usize, 8));
-			} else if (_46 === 13) {
-				let kept: rs.u8 = arg;
-				rs.dequeRetain(q, (_25: undefined): boolean => {
+			} else if (_38 === 12) {
+				rs.dequeTruncate(q, rs.usizeRem(_27 as rs.usize, 8));
+			} else if (_38 === 13) {
+				let kept: rs.u8 = _27;
+				rs.dequeRetain(q, (_23: undefined): boolean => {
 					kept = rs.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
-			} else if (_46 === 14) {
-				drained$unit(q, arg, out);
-			} else if (_46 === 15) {
-				rs.dequeReserve(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 16) {
-				rs.dequeReserveExact(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 17) {
-				rs.dequeShrinkTo(q, rs.usizeRem(arg as rs.usize, 12));
-			} else if (_46 === 18) {
+			} else if (_38 === 14) {
+				drained$unit(q, _27, out);
+			} else if (_38 === 15) {
+				rs.dequeReserve(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 16) {
+				rs.dequeReserveExact(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 17) {
+				rs.dequeShrinkTo(q, rs.usizeRem(_27 as rs.usize, 12));
+			} else if (_38 === 18) {
 				rs.dequeShrinkTo(q, 0);
-			} else if (_46 === 19) {
-				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(arg, 8)), (i: rs.u8): boolean => {
+			} else if (_38 === 19) {
+				rs.dequeExtend(q, rs.iterMap(rs.iterFilter(new rs.Range(0, rs.u8Rem(_27, 8)), (i: rs.u8): boolean => {
 					return rs.u8Rem(i, 3) !== 0;
 				}), make$rings_Item_unit as (a0: rs.u8) => undefined), "next");
-			} else if (_46 === 20) {
-				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 8)), make$rings_Item_unit as (a0: rs.u8) => undefined), undefined, true);
-			} else if (_46 === 21) {
+			} else if (_38 === 20) {
+				rs.dequeExtend(q, rs.iterMap(new rs.Range(0, rs.u8Rem(_27, 8)), make$rings_Item_unit as (a0: rs.u8) => undefined), undefined, true);
+			} else if (_38 === 21) {
 				rs.dequeClear(q);
-			} else if (_46 === 22) {
-				q = remade$unit(q, arg);
-			} else if (_46 === 23) {
-				mutated$unit(q, arg, out);
-			} else if (_46 === 24) {
-				appended$unit(q, arg, out);
-			} else if (_46 === 25) {
-				const _105: rs.VecDeque<undefined> = q;
-				const _106: rs.usize = rs.usizeRem(arg as rs.usize, 16);
-				make$rings_Item_unit(arg);
-				rs.dequeResize(_105, _106, undefined, undefined);
-			} else if (_46 === 26) {
-				rs.dequeResizeWith(q, rs.usizeRem(arg as rs.usize, 16), (): undefined => {
+			} else if (_38 === 22) {
+				q = remade$unit(q, _27);
+			} else if (_38 === 23) {
+				mutated$unit(q, _27, out);
+			} else if (_38 === 24) {
+				appended$unit(q, _27, out);
+			} else if (_38 === 25) {
+				const _90: rs.VecDeque<undefined> = q;
+				const _91: rs.usize = rs.usizeRem(_27 as rs.usize, 16);
+				make$rings_Item_unit(_27);
+				rs.dequeResize(_90, _91, undefined, undefined);
+			} else if (_38 === 26) {
+				rs.dequeResizeWith(q, rs.usizeRem(_27 as rs.usize, 16), (): undefined => {
 					make$rings_Item_unit(arg);
 				});
-			} else if (_46 === 27) {
+			} else if (_38 === 27) {
 				const tail: rs.VecDeque<undefined> = rs.dequeSplitOff(q, at);
 				put(out, rs.dequeCapacity(tail));
 				text$tuple2_ref_slice_unit_ref_slice_unit(out, rs.dequeAsSlices(tail));
-			} else if (_46 === 28) {
-				const start: rs.usize = rs.usizeRem((arg & 7) as rs.usize, rs.usizeAdd(q.n, 1));
-				const it: rs.Iter<rs.Place<undefined>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((arg >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
-				const _151: rs.Place<undefined> | rs.Done = it.next();
-				if (_151 !== rs.DONE) {
-					bump$rings_Item_unit(_151);
+			} else if (_38 === 28) {
+				const start: rs.usize = rs.usizeRem((_27 & 7) as rs.usize, rs.usizeAdd(q.n, 1));
+				const it: rs.Iter<rs.Place<undefined>> = rs.dequeRangeMut(q, new rs.Range(start, rs.usizeAdd(start, rs.usizeRem(((_27 >> 3) & 7) as rs.usize, rs.usizeAdd(rs.usizeSub(q.n, start), 1)))));
+				const _132: rs.Place<undefined> | rs.Done = it.next();
+				if (_132 !== rs.DONE) {
+					bump$rings_Item_unit(_132);
 				}
-				const _156: rs.Place<undefined> | undefined = rs.iterToOption(it.nextBack());
-				if (_156 !== undefined) {
-					bump$rings_Item_unit(_156);
+				const _137: rs.Place<undefined> | undefined = rs.iterToOption(it.nextBack());
+				if (_137 !== undefined) {
+					bump$rings_Item_unit(_137);
 				}
 				text$collections_vec_deque_IterMut_unit(out, it);
-			} else if (_46 === 29) {
+			} else if (_38 === 29) {
 				const v: rs.Vec<undefined> = rs.dequeToVec(q);
 				put(out, rs.vecCapacity(v, 0));
 				q = rs.dequeFromVec(v, 0) as rs.VecDeque<undefined>;
-			} else if (_46 === 30) {
+			} else if (_38 === 30) {
 				rs.dequeRotate(q, at);
-			} else if (_46 === 31) {
+			} else if (_38 === 31) {
 				rs.dequeRotate(q, at, true);
-			} else if (_46 === 32) {
+			} else if (_38 === 32) {
 				if (!(q.n === 0)) {
-					rs.dequeSwap(q, rs.usizeRem(arg as rs.usize, q.n), rs.usizeRem(arg >> 4 as rs.usize, q.n));
+					rs.dequeSwap(q, rs.usizeRem(_27 as rs.usize, q.n), rs.usizeRem(_27 >> 4 as rs.usize, q.n));
 				}
-			} else if (_46 === 33) {
+			} else if (_38 === 33) {
 				const s: rs.Slice<undefined> = rs.dequeMakeContiguous(q);
-				const _190: rs.Place<undefined> | undefined = rs.sliceFirstMut(s);
-				if (_190 !== undefined) {
-					bump$rings_Item_unit(_190);
+				const _169: rs.Place<undefined> | undefined = rs.sliceFirstMut(s);
+				if (_169 !== undefined) {
+					bump$rings_Item_unit(_169);
 				}
-				const _194: rs.Place<undefined> | undefined = rs.sliceLastMut(s);
-				if (_194 !== undefined) {
-					bump$rings_Item_unit(_194);
+				const _173: rs.Place<undefined> | undefined = rs.sliceLastMut(s);
+				if (_173 !== undefined) {
+					bump$rings_Item_unit(_173);
 				}
 				text$mut_slice_unit(out, s);
 			} else {
-				searched$unit(q, arg, out);
+				searched$unit(q, _27, out);
 			}
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
 		text$tuple2_ref_slice_unit_ref_slice_unit(out, rs.dequeAsSlices(q));
-		iterated$unit(q, arg, out);
+		iterated$unit(q, _27, out);
 	}
 }
 
@@ -972,12 +972,12 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDeque<rs.String> {
 	let _0!: rs.VecDeque<rs.String>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
-	const _8: rs.u8 = rs.u8Rem(arg, 5);
-	if (_8 === 0) {
+	const _6: rs.u8 = rs.u8Rem(arg, 5);
+	if (_6 === 0) {
 		if (!((arg & 32) === 0)) {
 			const own: rs.VecDeque<rs.String> = rs.dequeWithCapacity(rs.usizeMul(skip, 3), 12) as rs.VecDeque<rs.String>;
-			const _18: rs.String = make$rings_Item_String(arg);
-			rs.dequePushFront(own, _18);
+			const _15: rs.String = make$rings_Item_String(arg);
+			rs.dequePushFront(own, _15);
 			if ((arg & 64) === 0) {
 				rs.dequeCloneFrom(own, q, (a04: rs.String): rs.String => {
 					return rs.stringClone(a04);
@@ -993,7 +993,7 @@ export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDequ
 			return rs.stringClone(a02);
 		});
 	}
-	if (_8 === 1) {
+	if (_6 === 1) {
 		const it: rs.Iter<rs.String> = rs.dequeIntoIter(q);
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = skip;
@@ -1003,12 +1003,12 @@ export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDequ
 		rs.iterToOption(it.nextBack());
 		return rs.dequeFromIntoIter(it, 12) as rs.VecDeque<rs.String>;
 	}
-	if (_8 === 2) {
+	if (_6 === 2) {
 		const it2: rs.Iter<rs.String> = rs.dequeIntoIter(q);
 		rs.iterNth(it2, skip);
 		return rs.dequeFromIntoIter(it2, 12) as rs.VecDeque<rs.String>;
 	}
-	if (_8 === 3) {
+	if (_6 === 3) {
 		if (!((arg & 32) === 0)) {
 			const v: rs.Vec<rs.String> = rs.iterToVec(rs.dequeIntoIter(q), undefined, 12, true);
 			let kept: boolean = false;
@@ -1046,12 +1046,12 @@ export function remade$String(q: rs.VecDeque<rs.String>, arg: rs.u8): rs.VecDequ
 export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeque<Big.Big> {
 	let _0!: rs.VecDeque<Big.Big>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
-	const _8: rs.u8 = rs.u8Rem(arg, 5);
-	if (_8 === 0) {
+	const _6: rs.u8 = rs.u8Rem(arg, 5);
+	if (_6 === 0) {
 		if (!((arg & 32) === 0)) {
 			const own: rs.VecDeque<Big.Big> = rs.dequeWithCapacity(rs.usizeMul(skip, 3), 1101) as rs.VecDeque<Big.Big>;
-			const _18: Big.Big = Big.make$rings_Item(arg);
-			rs.dequePushFront(own, _18);
+			const _15: Big.Big = Big.make$rings_Item(arg);
+			rs.dequePushFront(own, _15);
 			if ((arg & 64) === 0) {
 				rs.dequeCloneFrom(own, q, Big.clone$Clone);
 			} else {
@@ -1061,7 +1061,7 @@ export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeq
 		}
 		return rs.dequeClone(q, Big.clone$Clone);
 	}
-	if (_8 === 1) {
+	if (_6 === 1) {
 		const it: rs.Iter<Big.Big> = rs.dequeIntoIter(q);
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = skip;
@@ -1071,12 +1071,12 @@ export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeq
 		rs.iterToOption(it.nextBack());
 		return rs.dequeFromIntoIter(it, 1101) as rs.VecDeque<Big.Big>;
 	}
-	if (_8 === 2) {
+	if (_6 === 2) {
 		const it2: rs.Iter<Big.Big> = rs.dequeIntoIter(q);
 		rs.iterNth(it2, skip);
 		return rs.dequeFromIntoIter(it2, 1101) as rs.VecDeque<Big.Big>;
 	}
-	if (_8 === 3) {
+	if (_6 === 3) {
 		if (!((arg & 32) === 0)) {
 			const v: rs.Vec<Big.Big> = rs.iterToVec(rs.dequeIntoIter(q), undefined, 1101, true);
 			let kept: boolean = false;
@@ -1112,12 +1112,12 @@ export function remade$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8): rs.VecDeq
 export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u32> {
 	let _0!: rs.VecDeque<rs.u32>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
-	const _8: rs.u8 = rs.u8Rem(arg, 5);
-	if (_8 === 0) {
+	const _6: rs.u8 = rs.u8Rem(arg, 5);
+	if (_6 === 0) {
 		if (!((arg & 32) === 0)) {
 			const own: rs.VecDeque<rs.u32> = rs.dequeWithCapacity(rs.usizeMul(skip, 3), 4) as rs.VecDeque<rs.u32>;
-			const _18: rs.u32 = make$rings_Item_u32(arg);
-			rs.dequePushFront(own, _18);
+			const _15: rs.u32 = make$rings_Item_u32(arg);
+			rs.dequePushFront(own, _15);
 			if ((arg & 64) === 0) {
 				rs.dequeCloneFrom(own, q, undefined);
 			} else {
@@ -1127,7 +1127,7 @@ export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u
 		}
 		return rs.dequeClone(q);
 	}
-	if (_8 === 1) {
+	if (_6 === 1) {
 		const it: rs.Iter<rs.u32> = rs.dequeIntoIter(q);
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = skip;
@@ -1137,12 +1137,12 @@ export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u
 		rs.iterToOption(it.nextBack());
 		return rs.dequeFromIntoIter(it, 4) as rs.VecDeque<rs.u32>;
 	}
-	if (_8 === 2) {
+	if (_6 === 2) {
 		const it2: rs.Iter<rs.u32> = rs.dequeIntoIter(q);
 		rs.iterNth(it2, skip);
 		return rs.dequeFromIntoIter(it2, 4) as rs.VecDeque<rs.u32>;
 	}
-	if (_8 === 3) {
+	if (_6 === 3) {
 		if (!((arg & 32) === 0)) {
 			const v: rs.Vec<rs.u32> = rs.iterToVec(rs.dequeIntoIter(q), undefined, 4, true);
 			let kept: boolean = false;
@@ -1178,12 +1178,12 @@ export function remade$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8): rs.VecDeque<rs.u
 export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8> {
 	let _0!: rs.VecDeque<rs.u8>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
-	const _8: rs.u8 = rs.u8Rem(arg, 5);
-	if (_8 === 0) {
+	const _6: rs.u8 = rs.u8Rem(arg, 5);
+	if (_6 === 0) {
 		if (!((arg & 32) === 0)) {
 			const own: rs.VecDeque<rs.u8> = rs.dequeWithCapacity(rs.usizeMul(skip, 3), 1, true) as rs.VecDeque<rs.u8>;
-			const _18: rs.u8 = make$rings_Item_u8(arg);
-			rs.dequePushFront(own, _18);
+			const _15: rs.u8 = make$rings_Item_u8(arg);
+			rs.dequePushFront(own, _15);
 			if ((arg & 64) === 0) {
 				rs.dequeCloneFrom(own, q, undefined);
 			} else {
@@ -1193,7 +1193,7 @@ export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8>
 		}
 		return rs.dequeClone(q);
 	}
-	if (_8 === 1) {
+	if (_6 === 1) {
 		const it: rs.Iter<rs.u8> = rs.dequeIntoIter(q);
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = skip;
@@ -1203,12 +1203,12 @@ export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8>
 		rs.iterToOption(it.nextBack());
 		return rs.dequeFromIntoIter(it, 1, true) as rs.VecDeque<rs.u8>;
 	}
-	if (_8 === 2) {
+	if (_6 === 2) {
 		const it2: rs.Iter<rs.u8> = rs.dequeIntoIter(q);
 		rs.iterNth(it2, skip);
 		return rs.dequeFromIntoIter(it2, 1, true) as rs.VecDeque<rs.u8>;
 	}
-	if (_8 === 3) {
+	if (_6 === 3) {
 		if (!((arg & 32) === 0)) {
 			const v: rs.ByteVec = rs.iterToByteVec(rs.dequeIntoIter(q), undefined, true);
 			let kept: boolean = false;
@@ -1244,8 +1244,8 @@ export function remade$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8): rs.VecDeque<rs.u8>
 export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<undefined> {
 	let _0!: rs.VecDeque<undefined>;
 	const skip: rs.usize = rs.usizeRem(rs.u8Div(arg, 5) as rs.usize, 4);
-	const _8: rs.u8 = rs.u8Rem(arg, 5);
-	if (_8 === 0) {
+	const _6: rs.u8 = rs.u8Rem(arg, 5);
+	if (_6 === 0) {
 		if (!((arg & 32) === 0)) {
 			const own: rs.VecDeque<undefined> = rs.dequeWithCapacity(rs.usizeMul(skip, 3), 0) as rs.VecDeque<undefined>;
 			make$rings_Item_unit(arg);
@@ -1259,7 +1259,7 @@ export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<
 		}
 		return rs.dequeClone(q);
 	}
-	if (_8 === 1) {
+	if (_6 === 1) {
 		const it: rs.Iter<undefined> = rs.dequeIntoIter(q);
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = skip;
@@ -1269,12 +1269,12 @@ export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<
 		rs.iterToOption(it.nextBack(), rs.None);
 		return rs.dequeFromIntoIter(it, 0) as rs.VecDeque<undefined>;
 	}
-	if (_8 === 2) {
+	if (_6 === 2) {
 		const it2: rs.Iter<undefined> = rs.dequeIntoIter(q);
 		rs.iterNth(it2, skip, undefined, rs.None);
 		return rs.dequeFromIntoIter(it2, 0) as rs.VecDeque<undefined>;
 	}
-	if (_8 === 3) {
+	if (_6 === 3) {
 		if (!((arg & 32) === 0)) {
 			const v: rs.Vec<undefined> = rs.iterToVec(rs.dequeIntoIter(q), undefined, 0, true);
 			let kept: boolean = false;
@@ -1306,27 +1306,27 @@ export function remade$unit(q: rs.VecDeque<undefined>, arg: rs.u8): rs.VecDeque<
  * it, which shows where its head is once pushed at both ends.
  */
 export function appended$String(q: rs.VecDeque<rs.String>, arg: rs.u8, out: rs.ByteVec): void {
-	let _16!: rs.u8;
+	let _13!: rs.u8;
 	const other: rs.VecDeque<rs.String> = rs.dequeWithCapacity(rs.u8Rem(arg, 4) as rs.usize, 12) as rs.VecDeque<rs.String>;
-	const _10: rs.u8 = (arg >> 2) & 7;
+	const _9: rs.u8 = (arg >> 2) & 7;
 	let iterStart: rs.u8 = 0;
-	const iterEnd: rs.u8 = _10;
-	while ((_16 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _16;
+	const iterEnd: rs.u8 = _9;
+	while ((_13 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _13;
 		if (rs.u8Rem(i, 3) === 2) {
-			const _23: rs.String = make$rings_Item_String(i);
-			rs.dequePushFront(other, _23);
+			const _19: rs.String = make$rings_Item_String(i);
+			rs.dequePushFront(other, _19);
 		} else {
-			const _25: rs.String = make$rings_Item_String(i);
-			rs.dequePushBack(other, _25);
+			const _21: rs.String = make$rings_Item_String(i);
+			rs.dequePushBack(other, _21);
 		}
 	}
 	rs.dequeAppend(q, other);
 	put(out, rs.dequeCapacity(other));
-	const _33: rs.String = make$rings_Item_String(arg);
-	rs.dequePushFront(other, _33);
-	const _36: rs.String = make$rings_Item_String(arg);
-	rs.dequePushBack(other, _36);
+	const _29: rs.String = make$rings_Item_String(arg);
+	rs.dequePushFront(other, _29);
+	const _32: rs.String = make$rings_Item_String(arg);
+	rs.dequePushBack(other, _32);
 	text$tuple2_ref_slice_String_ref_slice_String(out, rs.dequeAsSlices(other));
 }
 
@@ -1335,27 +1335,27 @@ export function appended$String(q: rs.VecDeque<rs.String>, arg: rs.u8, out: rs.B
  * it, which shows where its head is once pushed at both ends.
  */
 export function appended$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8, out: rs.ByteVec): void {
-	let _16!: rs.u8;
+	let _13!: rs.u8;
 	const other: rs.VecDeque<Big.Big> = rs.dequeWithCapacity(rs.u8Rem(arg, 4) as rs.usize, 1101) as rs.VecDeque<Big.Big>;
-	const _10: rs.u8 = (arg >> 2) & 7;
+	const _9: rs.u8 = (arg >> 2) & 7;
 	let iterStart: rs.u8 = 0;
-	const iterEnd: rs.u8 = _10;
-	while ((_16 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _16;
+	const iterEnd: rs.u8 = _9;
+	while ((_13 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _13;
 		if (rs.u8Rem(i, 3) === 2) {
-			const _23: Big.Big = Big.make$rings_Item(i);
-			rs.dequePushFront(other, _23);
+			const _19: Big.Big = Big.make$rings_Item(i);
+			rs.dequePushFront(other, _19);
 		} else {
-			const _25: Big.Big = Big.make$rings_Item(i);
-			rs.dequePushBack(other, _25);
+			const _21: Big.Big = Big.make$rings_Item(i);
+			rs.dequePushBack(other, _21);
 		}
 	}
 	rs.dequeAppend(q, other);
 	put(out, rs.dequeCapacity(other));
-	const _33: Big.Big = Big.make$rings_Item(arg);
-	rs.dequePushFront(other, _33);
-	const _36: Big.Big = Big.make$rings_Item(arg);
-	rs.dequePushBack(other, _36);
+	const _29: Big.Big = Big.make$rings_Item(arg);
+	rs.dequePushFront(other, _29);
+	const _32: Big.Big = Big.make$rings_Item(arg);
+	rs.dequePushBack(other, _32);
 	text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out, rs.dequeAsSlices(other));
 }
 
@@ -1364,27 +1364,27 @@ export function appended$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8, out: rs.
  * it, which shows where its head is once pushed at both ends.
  */
 export function appended$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8, out: rs.ByteVec): void {
-	let _16!: rs.u8;
+	let _13!: rs.u8;
 	const other: rs.VecDeque<rs.u32> = rs.dequeWithCapacity(rs.u8Rem(arg, 4) as rs.usize, 4) as rs.VecDeque<rs.u32>;
-	const _10: rs.u8 = (arg >> 2) & 7;
+	const _9: rs.u8 = (arg >> 2) & 7;
 	let iterStart: rs.u8 = 0;
-	const iterEnd: rs.u8 = _10;
-	while ((_16 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _16;
+	const iterEnd: rs.u8 = _9;
+	while ((_13 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _13;
 		if (rs.u8Rem(i, 3) === 2) {
-			const _23: rs.u32 = make$rings_Item_u32(i);
-			rs.dequePushFront(other, _23);
+			const _19: rs.u32 = make$rings_Item_u32(i);
+			rs.dequePushFront(other, _19);
 		} else {
-			const _25: rs.u32 = make$rings_Item_u32(i);
-			rs.dequePushBack(other, _25);
+			const _21: rs.u32 = make$rings_Item_u32(i);
+			rs.dequePushBack(other, _21);
 		}
 	}
 	rs.dequeAppend(q, other);
 	put(out, rs.dequeCapacity(other));
-	const _33: rs.u32 = make$rings_Item_u32(arg);
-	rs.dequePushFront(other, _33);
-	const _36: rs.u32 = make$rings_Item_u32(arg);
-	rs.dequePushBack(other, _36);
+	const _29: rs.u32 = make$rings_Item_u32(arg);
+	rs.dequePushFront(other, _29);
+	const _32: rs.u32 = make$rings_Item_u32(arg);
+	rs.dequePushBack(other, _32);
 	text$tuple2_ref_slice_u32_ref_slice_u32(out, rs.dequeAsSlices(other));
 }
 
@@ -1393,27 +1393,27 @@ export function appended$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8, out: rs.ByteVec
  * it, which shows where its head is once pushed at both ends.
  */
 export function appended$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8, out: rs.ByteVec): void {
-	let _16!: rs.u8;
+	let _13!: rs.u8;
 	const other: rs.VecDeque<rs.u8> = rs.dequeWithCapacity(rs.u8Rem(arg, 4) as rs.usize, 1, true) as rs.VecDeque<rs.u8>;
-	const _10: rs.u8 = (arg >> 2) & 7;
+	const _9: rs.u8 = (arg >> 2) & 7;
 	let iterStart: rs.u8 = 0;
-	const iterEnd: rs.u8 = _10;
-	while ((_16 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _16;
+	const iterEnd: rs.u8 = _9;
+	while ((_13 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _13;
 		if (rs.u8Rem(i, 3) === 2) {
-			const _23: rs.u8 = make$rings_Item_u8(i);
-			rs.dequePushFront(other, _23);
+			const _19: rs.u8 = make$rings_Item_u8(i);
+			rs.dequePushFront(other, _19);
 		} else {
-			const _25: rs.u8 = make$rings_Item_u8(i);
-			rs.dequePushBack(other, _25);
+			const _21: rs.u8 = make$rings_Item_u8(i);
+			rs.dequePushBack(other, _21);
 		}
 	}
 	rs.dequeAppend(q, other);
 	put(out, rs.dequeCapacity(other));
-	const _33: rs.u8 = make$rings_Item_u8(arg);
-	rs.dequePushFront(other, _33);
-	const _36: rs.u8 = make$rings_Item_u8(arg);
-	rs.dequePushBack(other, _36);
+	const _29: rs.u8 = make$rings_Item_u8(arg);
+	rs.dequePushFront(other, _29);
+	const _32: rs.u8 = make$rings_Item_u8(arg);
+	rs.dequePushBack(other, _32);
 	text$tuple2_ref_slice_u8_ref_slice_u8(out, rs.dequeByteSlices(other));
 }
 
@@ -1422,13 +1422,13 @@ export function appended$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8, out: rs.ByteVec):
  * it, which shows where its head is once pushed at both ends.
  */
 export function appended$unit(q: rs.VecDeque<undefined>, arg: rs.u8, out: rs.ByteVec): void {
-	let _16!: rs.u8;
+	let _13!: rs.u8;
 	const other: rs.VecDeque<undefined> = rs.dequeWithCapacity(rs.u8Rem(arg, 4) as rs.usize, 0) as rs.VecDeque<undefined>;
-	const _10: rs.u8 = (arg >> 2) & 7;
+	const _9: rs.u8 = (arg >> 2) & 7;
 	let iterStart: rs.u8 = 0;
-	const iterEnd: rs.u8 = _10;
-	while ((_16 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _16;
+	const iterEnd: rs.u8 = _9;
+	while ((_13 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _13;
 		if (rs.u8Rem(i, 3) === 2) {
 			make$rings_Item_unit(i);
 			rs.dequePushFront(other, undefined);
@@ -1542,14 +1542,14 @@ export function mutated$String(q: rs.VecDeque<rs.String>, arg: rs.u8, out: rs.By
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _18;
 	while (iterStart++ < iterEnd) {
-		const _24: rs.String | rs.Done = it.next();
-		if (_24 !== rs.DONE) {
-			bump$rings_Item_String(_24);
+		const _23: rs.String | rs.Done = it.next();
+		if (_23 !== rs.DONE) {
+			bump$rings_Item_String(_23);
 		}
 	}
-	const _29: rs.String | undefined = rs.iterToOption(it.nextBack());
-	if (_29 !== undefined) {
-		bump$rings_Item_String(_29);
+	const _28: rs.String | undefined = rs.iterToOption(it.nextBack());
+	if (_28 !== undefined) {
+		bump$rings_Item_String(_28);
 	}
 	text$collections_vec_deque_IterMut_String(out, it);
 }
@@ -1570,14 +1570,14 @@ export function mutated$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8, out: rs.B
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _18;
 	while (iterStart++ < iterEnd) {
-		const _24: Big.Big | rs.Done = it.next();
-		if (_24 !== rs.DONE) {
-			Big.bump$rings_Item(_24);
+		const _23: Big.Big | rs.Done = it.next();
+		if (_23 !== rs.DONE) {
+			Big.bump$rings_Item(_23);
 		}
 	}
-	const _29: Big.Big | undefined = rs.iterToOption(it.nextBack());
-	if (_29 !== undefined) {
-		Big.bump$rings_Item(_29);
+	const _28: Big.Big | undefined = rs.iterToOption(it.nextBack());
+	if (_28 !== undefined) {
+		Big.bump$rings_Item(_28);
 	}
 	text$collections_vec_deque_IterMut_rings_Big(out, it);
 }
@@ -1598,14 +1598,14 @@ export function mutated$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8, out: rs.ByteVec)
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _18;
 	while (iterStart++ < iterEnd) {
-		const _24: rs.Place<rs.u32> | rs.Done = it.next();
-		if (_24 !== rs.DONE) {
-			bump$rings_Item_u32(_24);
+		const _23: rs.Place<rs.u32> | rs.Done = it.next();
+		if (_23 !== rs.DONE) {
+			bump$rings_Item_u32(_23);
 		}
 	}
-	const _29: rs.Place<rs.u32> | undefined = rs.iterToOption(it.nextBack());
-	if (_29 !== undefined) {
-		bump$rings_Item_u32(_29);
+	const _28: rs.Place<rs.u32> | undefined = rs.iterToOption(it.nextBack());
+	if (_28 !== undefined) {
+		bump$rings_Item_u32(_28);
 	}
 	text$collections_vec_deque_IterMut_u32(out, it);
 }
@@ -1626,14 +1626,14 @@ export function mutated$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8, out: rs.ByteVec): 
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _18;
 	while (iterStart++ < iterEnd) {
-		const _24: rs.Place<rs.u8> | rs.Done = it.next();
-		if (_24 !== rs.DONE) {
-			bump$rings_Item_u8(_24);
+		const _23: rs.Place<rs.u8> | rs.Done = it.next();
+		if (_23 !== rs.DONE) {
+			bump$rings_Item_u8(_23);
 		}
 	}
-	const _29: rs.Place<rs.u8> | undefined = rs.iterToOption(it.nextBack());
-	if (_29 !== undefined) {
-		bump$rings_Item_u8(_29);
+	const _28: rs.Place<rs.u8> | undefined = rs.iterToOption(it.nextBack());
+	if (_28 !== undefined) {
+		bump$rings_Item_u8(_28);
 	}
 	text$collections_vec_deque_IterMut_u8(out, it);
 }
@@ -1654,14 +1654,14 @@ export function mutated$unit(q: rs.VecDeque<undefined>, arg: rs.u8, out: rs.Byte
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _18;
 	while (iterStart++ < iterEnd) {
-		const _24: rs.Place<undefined> | rs.Done = it.next();
-		if (_24 !== rs.DONE) {
-			bump$rings_Item_unit(_24);
+		const _23: rs.Place<undefined> | rs.Done = it.next();
+		if (_23 !== rs.DONE) {
+			bump$rings_Item_unit(_23);
 		}
 	}
-	const _29: rs.Place<undefined> | undefined = rs.iterToOption(it.nextBack());
-	if (_29 !== undefined) {
-		bump$rings_Item_unit(_29);
+	const _28: rs.Place<undefined> | undefined = rs.iterToOption(it.nextBack());
+	if (_28 !== undefined) {
+		bump$rings_Item_unit(_28);
 	}
 	text$collections_vec_deque_IterMut_unit(out, it);
 }
@@ -1763,7 +1763,7 @@ export function searched$unit(q: rs.VecDeque<undefined>, arg: rs.u8, out: rs.Byt
 	}));
 	text$Result_usize_usize(out, rs.dequeBinarySearchByKey(q, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(undefined, f)]), (y2: undefined): rs.String => {
 		text$unit(out, y2);
-		return rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(undefined, f)]);
+		return rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(y2, f)]);
 	}, rs.cmpStr));
 	put(out, rs.dequePartitionPoint(q, (y3: undefined): boolean => {
 		text$unit(out, y3);
@@ -1773,30 +1773,36 @@ export function searched$unit(q: rs.VecDeque<undefined>, arg: rs.u8, out: rs.Byt
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */
 export function iterated$String(q: rs.VecDeque<rs.String>, arg: rs.u8, out: rs.ByteVec): void {
-	let _10!: rs.u32;
+	let _9!: rs.u32;
 	let read!: rs.String | undefined;
 	const it: rs.Iter<rs.String> = rs.dequeIter(q);
 	text$collections_vec_deque_Iter_String(out, it);
-	let iterStart: rs.u32 = 0;
-	const iterEnd: rs.u32 = 3;
-	while ((_10 = iterStart++) < iterEnd) {
-		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(3, _10), 8, false);
+	const iter: rs.Range<rs.u32> = new rs.Range(0, 3);
+	while (true) {
+		const _9Some: boolean = iter.start < iter.end;
+		if (_9Some) {
+			_9 = iter.start++;
+		}
+		if (!_9Some) {
+			break;
+		}
+		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(_9, 3), 8, false);
 		let count: rs.u8 = (pick >> 3) & 3;
-		const _22: rs.u8 = rs.u8Rem(pick, 7);
-		if (_22 === 0) {
+		const _19: rs.u8 = rs.u8Rem(pick, 7);
+		if (_19 === 0) {
 			read = rs.iterToOption(it.next());
-		} else if (_22 === 1) {
+		} else if (_19 === 1) {
 			read = rs.iterToOption(it.nextBack());
-		} else if (_22 === 2) {
+		} else if (_19 === 2) {
 			read = rs.iterNth(it, count as rs.usize);
-		} else if (_22 === 3) {
+		} else if (_19 === 3) {
 			read = rs.iterNthBack(it, count as rs.usize);
-		} else if (_22 === 4) {
-			read = rs.iterFind(it, (_24: rs.String): boolean => {
+		} else if (_19 === 4) {
+			read = rs.iterFind(it, (_22: rs.String): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
 			});
-		} else if (_22 === 5) {
+		} else if (_19 === 5) {
 			read = rs.iterRfind(it, (_2: rs.String): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
@@ -1811,30 +1817,36 @@ export function iterated$String(q: rs.VecDeque<rs.String>, arg: rs.u8, out: rs.B
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */
 export function iterated$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8, out: rs.ByteVec): void {
-	let _10!: rs.u32;
+	let _9!: rs.u32;
 	let read!: Big.Big | undefined;
 	const it: rs.Iter<Big.Big> = rs.dequeIter(q);
 	text$collections_vec_deque_Iter_rings_Big(out, it);
-	let iterStart: rs.u32 = 0;
-	const iterEnd: rs.u32 = 3;
-	while ((_10 = iterStart++) < iterEnd) {
-		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(3, _10), 8, false);
+	const iter: rs.Range<rs.u32> = new rs.Range(0, 3);
+	while (true) {
+		const _9Some: boolean = iter.start < iter.end;
+		if (_9Some) {
+			_9 = iter.start++;
+		}
+		if (!_9Some) {
+			break;
+		}
+		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(_9, 3), 8, false);
 		let count: rs.u8 = (pick >> 3) & 3;
-		const _22: rs.u8 = rs.u8Rem(pick, 7);
-		if (_22 === 0) {
+		const _19: rs.u8 = rs.u8Rem(pick, 7);
+		if (_19 === 0) {
 			read = rs.iterToOption(it.next());
-		} else if (_22 === 1) {
+		} else if (_19 === 1) {
 			read = rs.iterToOption(it.nextBack());
-		} else if (_22 === 2) {
+		} else if (_19 === 2) {
 			read = rs.iterNth(it, count as rs.usize);
-		} else if (_22 === 3) {
+		} else if (_19 === 3) {
 			read = rs.iterNthBack(it, count as rs.usize);
-		} else if (_22 === 4) {
-			read = rs.iterFind(it, (_24: Big.Big): boolean => {
+		} else if (_19 === 4) {
+			read = rs.iterFind(it, (_22: Big.Big): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
 			});
-		} else if (_22 === 5) {
+		} else if (_19 === 5) {
 			read = rs.iterRfind(it, (_2: Big.Big): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
@@ -1849,30 +1861,36 @@ export function iterated$rings_Big(q: rs.VecDeque<Big.Big>, arg: rs.u8, out: rs.
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */
 export function iterated$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8, out: rs.ByteVec): void {
-	let _10!: rs.u32;
+	let _9!: rs.u32;
 	let read!: rs.u32 | undefined;
 	const it: rs.Iter<rs.u32> = rs.dequeIter(q);
 	text$collections_vec_deque_Iter_u32(out, it);
-	let iterStart: rs.u32 = 0;
-	const iterEnd: rs.u32 = 3;
-	while ((_10 = iterStart++) < iterEnd) {
-		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(3, _10), 8, false);
+	const iter: rs.Range<rs.u32> = new rs.Range(0, 3);
+	while (true) {
+		const _9Some: boolean = iter.start < iter.end;
+		if (_9Some) {
+			_9 = iter.start++;
+		}
+		if (!_9Some) {
+			break;
+		}
+		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(_9, 3), 8, false);
 		let count: rs.u8 = (pick >> 3) & 3;
-		const _22: rs.u8 = rs.u8Rem(pick, 7);
-		if (_22 === 0) {
+		const _19: rs.u8 = rs.u8Rem(pick, 7);
+		if (_19 === 0) {
 			read = rs.iterToOption(it.next());
-		} else if (_22 === 1) {
+		} else if (_19 === 1) {
 			read = rs.iterToOption(it.nextBack());
-		} else if (_22 === 2) {
+		} else if (_19 === 2) {
 			read = rs.iterNth(it, count as rs.usize);
-		} else if (_22 === 3) {
+		} else if (_19 === 3) {
 			read = rs.iterNthBack(it, count as rs.usize);
-		} else if (_22 === 4) {
-			read = rs.iterFind(it, (_24: rs.u32): boolean => {
+		} else if (_19 === 4) {
+			read = rs.iterFind(it, (_22: rs.u32): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
 			});
-		} else if (_22 === 5) {
+		} else if (_19 === 5) {
 			read = rs.iterRfind(it, (_2: rs.u32): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
@@ -1887,30 +1905,36 @@ export function iterated$u32(q: rs.VecDeque<rs.u32>, arg: rs.u8, out: rs.ByteVec
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */
 export function iterated$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8, out: rs.ByteVec): void {
-	let _10!: rs.u32;
+	let _9!: rs.u32;
 	let read!: rs.u8 | undefined;
 	const it: rs.Iter<rs.u8> = rs.dequeIter(q);
 	text$collections_vec_deque_Iter_u8(out, it);
-	let iterStart: rs.u32 = 0;
-	const iterEnd: rs.u32 = 3;
-	while ((_10 = iterStart++) < iterEnd) {
-		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(3, _10), 8, false);
+	const iter: rs.Range<rs.u32> = new rs.Range(0, 3);
+	while (true) {
+		const _9Some: boolean = iter.start < iter.end;
+		if (_9Some) {
+			_9 = iter.start++;
+		}
+		if (!_9Some) {
+			break;
+		}
+		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(_9, 3), 8, false);
 		let count: rs.u8 = (pick >> 3) & 3;
-		const _22: rs.u8 = rs.u8Rem(pick, 7);
-		if (_22 === 0) {
+		const _19: rs.u8 = rs.u8Rem(pick, 7);
+		if (_19 === 0) {
 			read = rs.iterToOption(it.next());
-		} else if (_22 === 1) {
+		} else if (_19 === 1) {
 			read = rs.iterToOption(it.nextBack());
-		} else if (_22 === 2) {
+		} else if (_19 === 2) {
 			read = rs.iterNth(it, count as rs.usize);
-		} else if (_22 === 3) {
+		} else if (_19 === 3) {
 			read = rs.iterNthBack(it, count as rs.usize);
-		} else if (_22 === 4) {
-			read = rs.iterFind(it, (_24: rs.u8): boolean => {
+		} else if (_19 === 4) {
+			read = rs.iterFind(it, (_22: rs.u8): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
 			});
-		} else if (_22 === 5) {
+		} else if (_19 === 5) {
 			read = rs.iterRfind(it, (_2: rs.u8): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
@@ -1925,30 +1949,36 @@ export function iterated$u8(q: rs.VecDeque<rs.u8>, arg: rs.u8, out: rs.ByteVec):
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */
 export function iterated$unit(q: rs.VecDeque<undefined>, arg: rs.u8, out: rs.ByteVec): void {
-	let _10!: rs.u32;
+	let _9!: rs.u32;
 	let read!: undefined | rs.None;
 	const it: rs.Iter<undefined> = rs.dequeIter(q);
 	text$collections_vec_deque_Iter_unit(out, it);
-	let iterStart: rs.u32 = 0;
-	const iterEnd: rs.u32 = 3;
-	while ((_10 = iterStart++) < iterEnd) {
-		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(3, _10), 8, false);
+	const iter: rs.Range<rs.u32> = new rs.Range(0, 3);
+	while (true) {
+		const _9Some: boolean = iter.start < iter.end;
+		if (_9Some) {
+			_9 = iter.start++;
+		}
+		if (!_9Some) {
+			break;
+		}
+		const pick: rs.u8 = rs.intRotateLeft(arg, rs.u32Mul(_9, 3), 8, false);
 		let count: rs.u8 = (pick >> 3) & 3;
-		const _22: rs.u8 = rs.u8Rem(pick, 7);
-		if (_22 === 0) {
+		const _19: rs.u8 = rs.u8Rem(pick, 7);
+		if (_19 === 0) {
 			read = rs.iterToOption(it.next(), rs.None);
-		} else if (_22 === 1) {
+		} else if (_19 === 1) {
 			read = rs.iterToOption(it.nextBack(), rs.None);
-		} else if (_22 === 2) {
+		} else if (_19 === 2) {
 			read = rs.iterNth(it, count as rs.usize, undefined, rs.None);
-		} else if (_22 === 3) {
+		} else if (_19 === 3) {
 			read = rs.iterNthBack(it, count as rs.usize, undefined, rs.None);
-		} else if (_22 === 4) {
-			read = rs.iterFind(it, (_24: undefined): boolean => {
+		} else if (_19 === 4) {
+			read = rs.iterFind(it, (_22: undefined): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;
 			}, undefined, rs.None);
-		} else if (_22 === 5) {
+		} else if (_19 === 5) {
 			read = rs.iterRfind(it, (_2: undefined): boolean => {
 				count = rs.u8SaturatingSub(count, 1);
 				return count === 0;

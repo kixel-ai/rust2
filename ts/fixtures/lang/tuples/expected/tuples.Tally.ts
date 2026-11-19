@@ -35,9 +35,10 @@ export function extend$iter_Extend_u8_Option_u8(self: Tally, iter: rs.u8 | undef
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);
@@ -62,9 +63,10 @@ export function extend$iter_Extend_u8_iter_Map_iter_Map_iter_Filter_slice_Iter_u
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);
@@ -89,9 +91,10 @@ export function extend$iter_Extend_u8_iter_Map_iter_Map_iter_Inspect_slice_Iter_
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);
@@ -116,9 +119,10 @@ export function extend$iter_Extend_u8_iter_Map_iter_Map_iter_Map_iter_Enumerate_
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);
@@ -143,9 +147,10 @@ export function extend$iter_Extend_u8_iter_Map_iter_adapters_GenericShunt_iter_M
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);
@@ -170,9 +175,10 @@ export function extend$iter_Extend_u8_iter_Map_iter_adapters_GenericShunt_iter_a
 		}
 		const b: rs.u8 = _12;
 		if (!(b !== 238)) {
+			const _20: rs.u8 = n;
 			const arg = self.id;
-			const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(n, f)];
-			rs.panicFmt(["tally ", args3[0], " at its item ", args3[1]]);
+			const args2 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(_20, f)];
+			rs.panicFmt(["tally ", args2[0], " at its item ", args2[1]]);
 		} else {
 			self.sum = rs.u8WrappingAdd(self.sum, b);
 			n = rs.u8Add(n, 1);

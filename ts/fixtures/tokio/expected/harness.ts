@@ -59,30 +59,29 @@ export function op(name: string): rs.u8 {
  */
 export function zero(data: rs.ByteSlice, out: rs.String): void {
 	let room!: rs.usize;
-	const most: rs.usize = 536870911;
-	const _7: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(data), (b: rs.u8): rs.u8 => {
+	const _4: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(data), (b: rs.u8): rs.u8 => {
 		return rs.u8Rem(b, 3);
 	});
 	b0: {
-		if (_7 !== undefined) {
-			if (_7 === 0) {
+		if (_4 !== undefined) {
+			if (_4 === 0) {
 				room = 0;
 				break b0;
 			}
-			if (_7 === 1) {
-				room = rs.usizeAdd(most, 1);
+			if (_4 === 1) {
+				room = 536870912;
 				break b0;
 			}
 		}
-		room = most;
+		room = 536870911;
 	}
-	const _13: [rs.MpscSender<rs.u8>, rs.MpscReceiver<rs.u8>] = rs.mpscChannel<rs.u8>(room);
-	const tx: rs.MpscSender<rs.u8> = _13[0];
-	const _rx: rs.MpscReceiver<rs.u8> = _13[1];
-	const _23: rs.usize = rs.mpscCapacity(tx);
-	const _26: rs.usize = rs.mpscMaxCapacity(tx);
-	const args3 = [(f: rs.Formatter) => rs.usizeDisplay(_23, f), (f: rs.Formatter) => rs.usizeDisplay(_26, f)];
-	rs.stringPushStr(out, rs.fmtFormat([args3[0], " ", args3[1]]).v);
+	const _9: [rs.MpscSender<rs.u8>, rs.MpscReceiver<rs.u8>] = rs.mpscChannel<rs.u8>(room);
+	const tx: rs.MpscSender<rs.u8> = _9[0];
+	const _rx: rs.MpscReceiver<rs.u8> = _9[1];
+	const _18: rs.usize = rs.mpscCapacity(tx);
+	const _21: rs.usize = rs.mpscMaxCapacity(tx);
+	const args2 = [(f: rs.Formatter) => rs.usizeDisplay(_18, f), (f: rs.Formatter) => rs.usizeDisplay(_21, f)];
+	rs.stringPushStr(out, rs.fmtFormat([args2[0], " ", args2[1]]).v);
 	_rx[Symbol.dispose]();
 	tx[Symbol.dispose]();
 }

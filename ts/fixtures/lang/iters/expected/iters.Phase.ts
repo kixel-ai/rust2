@@ -7,11 +7,11 @@ import { thenSome$0quywni } from "./core/bool.ts";
 export type Phase = "Three" | "Two" | "One" | "Done";
 
 export function of(b: rs.u8): Phase {
-	const _7: rs.usize = rs.u8Rem(b, 4) as rs.usize;
-	if (!(_7 < 4)) {
-		rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _7);
+	const _3: rs.usize = rs.u8Rem(b, 4) as rs.usize;
+	if (!(_3 < 4)) {
+		rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _3);
 	}
-	return ["Three" as Phase, "Two" as Phase, "One" as Phase, "Done" as Phase][_7];
+	return (["Three" as Phase, "Two" as Phase, "One" as Phase, "Done" as Phase] as Phase[])[_3];
 }
 
 export function left(self: Phase): rs.u8 {
@@ -37,7 +37,7 @@ export function next$iter_Iterator(self: rs.Place<Phase>): rs.u8 | rs.Done {
 	} else {
 		_4 = "Done" as Phase;
 	}
-	self.v = _4;
+	self.v = _4 as Phase;
 	return rs.iterFromOption(thenSome$0quywni(left_ !== 0, left_));
 }
 

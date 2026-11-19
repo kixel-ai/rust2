@@ -34,7 +34,7 @@ export function hold(self: Park, cx: rs.Context): Waiter.Waiter {
 	if (!reuse) {
 		const _10: Waiter.Waiter | undefined = Waiter.new(cx.clone());
 		rs.drop(self._0);
-		self._0 = _10;
+		self._0 = _10 as Waiter.Waiter | undefined;
 	}
 	return rs.optionUnwrap(self._0);
 }

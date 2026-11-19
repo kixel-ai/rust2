@@ -144,36 +144,36 @@ export function waker(byte: rs.u8): rs.Waker {
  * used, and those it made dropped in reverse.
  */
 export function calls(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _39: boolean = false;
+	let _37: boolean = false;
 	const kept: rs.Vec<rs.Waker> = new rs.Vec();
 	for (const byte of rs.byteSliceView(data)) {
 		const w: rs.Waker = waker(byte);
-		_39 = true;
+		_37 = true;
 		rs.byteVecPush(out, (w.data as rs.Place<undefined>) === rs.NULL ? 1 : 0);
 		const _17: rs.u8 = rs.u8Rem(rs.u8Div(byte, 12), 6);
 		if (_17 === 0) {
 			w.wakeByRef();
 		} else if (_17 === 1) {
-			_39 = false;
+			_37 = false;
 			w.wake();
 		} else if (_17 === 2) {
-			const _24: rs.Waker = w.clone();
-			kept.items.push(_24);
+			const _22: rs.Waker = w.clone();
+			kept.items.push(_22);
 		} else if (_17 === 3) {
-			_39 = false;
+			_37 = false;
 		} else if (_17 === 4) {
 			w.clone().wake();
 			w.wakeByRef();
 		}
-		if (_39) {
+		if (_37) {
 			w[Symbol.dispose]();
 		}
-		_39 = false;
+		_37 = false;
 	}
 	while (true) {
-		const _32: rs.Waker | undefined = rs.vecPop(kept);
-		if (_32 !== undefined) {
-			const w2: rs.Waker = _32;
+		const _30: rs.Waker | undefined = rs.vecPop(kept);
+		if (_30 !== undefined) {
+			const w2: rs.Waker = _30;
 			w2.wakeByRef();
 			w2[Symbol.dispose]();
 		} else {
@@ -202,15 +202,15 @@ export function clones(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.willWake(source, other) ? 1 : 0);
 		rs.byteVecPush(out, rs.willWake(held, source) ? 1 : 0);
 		held = rs.wakerCloneFrom(held, source);
-		const _37: rs.Waker | undefined = other.clone();
-		maybe = rs.optionCloneFrom(maybe, _37, (a0: rs.Waker): rs.Waker => {
+		const _36: rs.Waker | undefined = other.clone();
+		maybe = rs.optionCloneFrom(maybe, _36, (a0: rs.Waker): rs.Waker => {
 			return a0.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
-		rs.drop(_37);
+		rs.drop(_36);
 		rs.byteVecPush(out, rs.willWake(held, source) ? 1 : 0);
-		const _50: rs.Waker = source.clone();
-		rs.byteVecPush(out, rs.willWake(source, _50) ? 1 : 0);
-		_50[Symbol.dispose]();
+		const _49: rs.Waker = source.clone();
+		rs.byteVecPush(out, rs.willWake(source, _49) ? 1 : 0);
+		_49[Symbol.dispose]();
 		rs.localKeyWithBorrowMut(LOG, (log: rs.ByteVec): undefined => {
 			rs.byteVecPush(log, 124);
 		});
@@ -241,15 +241,15 @@ export const EXEC: rs.WakerVTable = /* @__PURE__ */ rs.wakerVTable(execClone, ex
 /** Poll `f` until it is ready, again only once its task wakes. */
 export function blockOn$future_Pending_u8(f: rs.Future<rs.u8>): rs.u8 | undefined {
 	let _0!: rs.u8 | undefined;
-	let _13!: rs.Poll<rs.u8>;
+	let _11!: rs.Poll<rs.u8>;
 	const waker: rs.Waker = rs.wakerFromRaw({ data: rs.NULL, vtable: EXEC });
 	const cx: rs.Context = waker;
 	const f2: rs.Future<rs.u8> = f;
 	b0: {
 		while (true) {
 			set$15db765(WOKEN, false);
-			_13 = f2.poll(cx);
-			if (_13 !== rs.Pending) {
+			_11 = f2.poll(cx);
+			if (_11 !== rs.Pending) {
 				break;
 			}
 			if (!get$1htgqdl(WOKEN)) {
@@ -257,7 +257,7 @@ export function blockOn$future_Pending_u8(f: rs.Future<rs.u8>): rs.u8 | undefine
 				break b0;
 			}
 		}
-		_0 = _13;
+		_0 = _11;
 	}
 	waker[Symbol.dispose]();
 	return _0;
@@ -266,7 +266,7 @@ export function blockOn$future_Pending_u8(f: rs.Future<rs.u8>): rs.u8 | undefine
 /** Poll `f` until it is ready, again only once its task wakes. */
 export function blockOn$raw_executor_closure1(f: rs.Future<rs.u8>): rs.u8 | undefined {
 	let _0!: rs.u8 | undefined;
-	let _13!: rs.Poll<rs.u8>;
+	let _11!: rs.Poll<rs.u8>;
 	const waker: rs.Waker = rs.wakerFromRaw({ data: rs.NULL, vtable: EXEC });
 	const cx: rs.Context = waker;
 	const pinned: rs.Future<rs.u8> = f;
@@ -274,8 +274,8 @@ export function blockOn$raw_executor_closure1(f: rs.Future<rs.u8>): rs.u8 | unde
 	b0: {
 		while (true) {
 			set$15db765(WOKEN, false);
-			_13 = f2.poll(cx);
-			if (_13 !== rs.Pending) {
+			_11 = f2.poll(cx);
+			if (_11 !== rs.Pending) {
 				break;
 			}
 			if (!get$1htgqdl(WOKEN)) {
@@ -283,7 +283,7 @@ export function blockOn$raw_executor_closure1(f: rs.Future<rs.u8>): rs.u8 | unde
 				break b0;
 			}
 		}
-		_0 = _13;
+		_0 = _11;
 	}
 	rs.drop(pinned);
 	waker[Symbol.dispose]();
@@ -369,41 +369,48 @@ export class executorFuture$closure1 {
 
 /** `==` of vtables compares their functions, not where they are, as `will_wake` does. */
 export function vtables(data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _4!: rs.WakerVTable;
 	const tables: rs.WakerVTable[] = [A, B, A_AGAIN, EXEC];
-	for (const byte of rs.byteSliceView(data)) {
-		const _18: rs.usize = rs.u8Rem(byte, 4) as rs.usize;
+	const iterS: Uint8Array = rs.byteSliceView(data);
+	let iterI: number = 0;
+	while (true) {
+		const _7: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+		_4 = A;
+		if (_7 === rs.DONE) {
+			break;
+		}
+		const byte: rs.u8 = _7;
+		const _14: rs.usize = rs.u8Rem(byte, 4) as rs.usize;
+		if (!(_14 < 4)) {
+			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _14);
+		}
+		const _20: rs.u8 = rs.u8Div(byte, 4);
+		const _18: rs.usize = rs.u8Rem(_20, 4) as rs.usize;
 		if (!(_18 < 4)) {
 			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _18);
 		}
-		const _23: rs.usize = rs.u8Rem(rs.u8Div(byte, 4), 4) as rs.usize;
-		if (!(_23 < 4)) {
-			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _23);
-		}
-		const part = tables[_18];
-		const part2 = tables[_23];
-		const l: rs.WakerVTable = part;
-		const r: rs.WakerVTable = part2;
-		rs.byteVecPush(out, wake_eq$1obrnmy(l, r) ? 1 : 0);
-		rs.byteVecPush(out, !wake_eq$1obrnmy(l, r) ? 1 : 0);
-		const _39: [rs.Waker, rs.Waker] = [waker(rs.u8Rem(byte, 3)), waker(rs.u8Rem(rs.u8Div(byte, 4), 3))];
-		const wl: rs.Waker = _39[0];
-		const wr: rs.Waker = _39[1];
+		rs.byteVecPush(out, wake_eq$1obrnmy(tables[_14], tables[_18]) ? 1 : 0);
+		rs.byteVecPush(out, !wake_eq$1obrnmy(tables[_14], tables[_18]) ? 1 : 0);
+		const _32: rs.Waker = waker(rs.u8Rem(byte, 3));
+		const _34: rs.Waker = waker(rs.u8Rem(_20, 3));
+		const wl: rs.Waker = _32;
+		const wr: rs.Waker = _34;
 		rs.byteVecPush(out, wake_eq$1obrnmy(wl.vtable, wr.vtable) ? 1 : 0);
 		rs.byteVecPush(out, rs.willWake(wl, wr) ? 1 : 0);
-		rs.byteVecPush(out, wake_eq$1ohvggu({ data: dataOf(byte), vtable: l }, { data: dataOf(byte >> 1), vtable: r }) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1ohvggu({ data: dataOf(byte), vtable: tables[_14] }, { data: dataOf(byte >> 1), vtable: tables[_18] }) ? 1 : 0);
 	}
-	const copy: rs.WakerVTable = copy$task_RawWakerVTable(A);
+	const copy: rs.WakerVTable = copy$task_RawWakerVTable(_4);
 	const raw: rs.RawWaker = { data: rs.NULL, vtable: A };
 	for (const byte2 of rs.byteSliceView(data)) {
-		const _87: rs.usize = rs.u8Rem(byte2, 4) as rs.usize;
-		if (!(_87 < 4)) {
-			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _87);
+		const _71: rs.usize = rs.u8Rem(byte2, 4) as rs.usize;
+		if (!(_71 < 4)) {
+			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _71);
 		}
-		replace(copy, tables[_87]);
+		replace(copy, tables[_71]);
 		replaceRaw(raw, byte2);
 		rs.byteVecPush(out, wake_eq$1obrnmy(copy, B) ? 1 : 0);
-		const _103: rs.RawWaker = { data: dataOf(byte2), vtable: B };
-		rs.byteVecPush(out, wake_eq$1ohvggu(raw, _103) ? 1 : 0);
+		const _85: rs.RawWaker = { data: dataOf(byte2), vtable: B };
+		rs.byteVecPush(out, wake_eq$1ohvggu(raw, _85) ? 1 : 0);
 	}
 	rs.byteVecPush(out, wake_eq$1obrnmy(A, A_AGAIN) ? 1 : 0);
 	const noop: rs.Waker = rs.NOOP_WAKER;
@@ -443,13 +450,13 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, wake_eq$1obrnmy(w.vtable, A) ? 1 : 0);
 	rs.wakerFromRaw(other)[Symbol.dispose]();
 	rs.byteVecPush(out, count.strong & 0xff);
-	for (const _58 of rs.byteSliceView(data)) {
-		const _63: rs.u8 = rs.u8Rem(_58, 4);
-		if (_63 === 0) {
+	for (const _57 of rs.byteSliceView(data)) {
+		const _62: rs.u8 = rs.u8Rem(_57, 4);
+		if (_62 === 0) {
 			w.wakeByRef();
-		} else if (_63 === 1) {
+		} else if (_62 === 1) {
 			w.clone().wake();
-		} else if (_63 === 2) {
+		} else if (_62 === 2) {
 			w.clone()[Symbol.dispose]();
 		} else {
 			new rs.VTableWaker(w.data as rs.Place<undefined>, w.vtable).wakeByRef();
@@ -476,8 +483,8 @@ export function noteOf(data: rs.Place<undefined>): Note.Note {
 		note2 = rs.ptrUnerase(data, "raw::Note", 2) as Note.Note;
 	}
 	const note: Note.Note = note2;
-	const _11: rs.u16 = rs.u16WrappingAdd(note.calls.v, 1);
-	rs.cellSet(note.calls, _11);
+	const _9: rs.u16 = rs.u16WrappingAdd(note.calls.v, 1);
+	rs.cellSet(note.calls, _9);
 	return note;
 }
 
@@ -562,28 +569,28 @@ export function erased(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const first: rs.Waker = new rs.VTableWaker(shared, BORROWED);
 	const second: rs.Waker = new rs.VTableWaker(rs.ptrErase(other, "raw::Note", 2), BORROWED);
 	rs.byteVecPush(out, rs.willWake(first, second) ? 1 : 0);
-	const _47: rs.Waker = new rs.VTableWaker(rs.ptrErase(kept, "raw::Note", 2), BORROWED);
-	rs.byteVecPush(out, rs.willWake(first, _47) ? 1 : 0);
-	_47[Symbol.dispose]();
+	const _45: rs.Waker = new rs.VTableWaker(rs.ptrErase(kept, "raw::Note", 2), BORROWED);
+	rs.byteVecPush(out, rs.willWake(first, _45) ? 1 : 0);
+	_45[Symbol.dispose]();
 	const wakers: rs.Vec<rs.Waker> = new rs.Vec();
 	for (const byte of rs.byteSliceView(data)) {
 		const id: rs.u8 = byte & 63;
-		const _60: rs.u8 = byte >> 6;
-		if (_60 === 0) {
+		const _57: rs.u8 = byte >> 6;
+		if (_57 === 0) {
 			w = first.clone();
-		} else if (_60 === 1) {
+		} else if (_57 === 1) {
 			w = second.clone();
-		} else if (_60 === 2) {
+		} else if (_57 === 2) {
 			w = new rs.VTableWaker(rs.ptrErase({ id, calls: new rs.Cell(0) }, "raw::Note", 2), BOXED);
 		} else {
 			w = rs.wakerFromRaw({ data: rs.ptrErase({ id, calls: new rs.Cell(0) }, "raw::Note", 2), vtable: BOXED });
 		}
-		const _80: rs.u8 = rs.u8Rem(byte, 3);
-		if (_80 === 0) {
+		const _73: rs.u8 = rs.u8Rem(byte, 3);
+		if (_73 === 0) {
 			w.wakeByRef();
-		} else if (_80 === 1) {
-			const _84: rs.Waker = w.clone();
-			wakers.items.push(_84);
+		} else if (_73 === 1) {
+			const _76: rs.Waker = w.clone();
+			wakers.items.push(_76);
 		}
 		if (rs.u8Rem(byte, 4) === 0) {
 			w.wake();
@@ -595,9 +602,9 @@ export function erased(data: rs.ByteSlice, out: rs.ByteVec): void {
 		})).id);
 	}
 	while (true) {
-		const _99: rs.Waker | undefined = rs.vecPop(wakers);
-		if (_99 !== undefined) {
-			const w2: rs.Waker = _99;
+		const _90: rs.Waker | undefined = rs.vecPop(wakers);
+		if (_90 !== undefined) {
+			const w2: rs.Waker = _90;
 			w2.wakeByRef();
 			w2[Symbol.dispose]();
 		} else {
@@ -605,28 +612,29 @@ export function erased(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	drop$tuple2_task_Waker_task_Waker([first, second] as [rs.Waker, rs.Waker]);
-	const _110: Note.Note = rs.ptrUnerase(rs.ptrErase(kept, "raw::Note", 2), "raw::Note", 2) as Note.Note;
-	_110.id = _110.id ^ 15;
+	const _101: Note.Note = rs.ptrUnerase(rs.ptrErase(kept, "raw::Note", 2), "raw::Note", 2) as Note.Note;
+	_101.id = _101.id ^ 15;
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(kept.id, kept.calls.v & 0xff, other.calls.v & 0xff)), undefined, true);
-	const null_: rs.Place<undefined> = rs.ptrErase(rs.NULL, "raw::Note", 2);
-	rs.byteVecPush(out, null_ === rs.NULL ? 1 : 0);
-	rs.byteVecPush(out, (rs.ptrUnerase(null_, "raw::Note", 2) as Note.Note) === rs.NULL ? 1 : 0);
+	const _112: Note.Note = rs.NULL;
+	rs.byteVecPush(out, rs.ptrErase(_112, "raw::Note", 2) === rs.NULL ? 1 : 0);
+	rs.byteVecPush(out, _112 === rs.NULL ? 1 : 0);
 	rs.byteVecPush(out, rs.ptrErase(rs.NULL, "raw::Note", 2) === rs.NULL ? 1 : 0);
 	const unit: rs.Place<undefined> = rs.DANGLING_UNIT;
-	const note2: rs.Place<undefined> = rs.ptrErase(rs.DANGLING, "raw::Note", 2);
+	const _128: Note.Note = rs.DANGLING;
+	const note2: rs.Place<undefined> = rs.ptrErase(_128, "raw::Note", 2);
 	const byte2: rs.Place<undefined> = rs.ptrErase(rs.DANGLING, "raw::Byte", 1);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([unit === note2, unit === byte2, note2 === byte2, note2 === rs.NULL], (a02: boolean): rs.u8 => {
+	const _137: boolean = unit === note2;
+	const _138: boolean = unit === byte2;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_137, _138, note2 === byte2, note2 === rs.NULL], (a02: boolean): rs.u8 => {
 		return a02 ? 1 : 0;
 	})), undefined, true);
-	rs.byteVecPush(out, (rs.ptrUnerase(note2, "raw::Note", 2) as Note.Note) === rs.DANGLING ? 1 : 0);
-	const through2: rs.Place<undefined> = rs.ptrErase(rs.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte, "raw::Byte", 1);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([through2 === note2, through2 === unit, (rs.ptrUnerase(through2, "raw::Note", 2) as Note.Note) === rs.NULL], (a03: boolean): rs.u8 => {
+	rs.byteVecPush(out, _128 === rs.DANGLING ? 1 : 0);
+	const a: Byte.Byte = rs.ptrUnerase(rs.ptrErase(_128, "raw::Note", 2), "raw::Byte", 1) as Byte.Byte;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, _137, (rs.ptrUnerase(note2, "raw::Note", 2) as Note.Note) === rs.NULL], (a03: boolean): rs.u8 => {
 		return a03 ? 1 : 0;
 	})), undefined, true);
-	rs.byteVecPush(out, rs.ptrErase(rs.ptrUnerase(byte2, "raw::Note", 2) as Note.Note, "raw::Note", 2) === unit ? 1 : 0);
-	const _174: [Byte.Byte, Byte.Byte] = [rs.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte, rs.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte];
-	const a: Byte.Byte = _174[0];
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === _174[1], a === rs.DANGLING, a === rs.NULL], (a04: boolean): rs.u8 => {
+	rs.byteVecPush(out, _138 ? 1 : 0);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === rs.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte, a === rs.DANGLING, a === rs.NULL], (a04: boolean): rs.u8 => {
 		return a04 ? 1 : 0;
 	})), undefined, true);
 	rs.dropVec(wakers);
@@ -676,15 +684,16 @@ export function taskWaker(task: rs.Arc<Task.Task>): rs.Waker {
  * with the last; and polling a future to its end.
  */
 export function tasks(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _101!: rs.Poll<rs.u8>;
+	let _100!: rs.Poll<rs.u8>;
 	const task: rs.Arc<Task.Task> = new rs.Arc(new Task.Task(1, new rs.Cell(0)));
 	const wakers: rs.Vec<rs.Waker> = rs.vecFrom([taskWaker(rs.arcClone(task))]);
-	for (const byte of rs.byteSliceView(data)) {
+	for (const _13 of rs.byteSliceView(data)) {
 		b2: {
+			const byte: rs.u8 = _13;
 			const _18: rs.u8 = rs.u8Rem(byte, 5);
 			if (_18 === 0) {
-				const _21: rs.Waker = wakers.items[rs.idx(wakers.items, rs.usizeRem(byte as rs.usize, wakers.items.length))].clone();
-				wakers.items.push(_21);
+				const _20: rs.Waker = wakers.items[rs.idx(wakers.items, rs.usizeRem(byte as rs.usize, wakers.items.length))].clone();
+				wakers.items.push(_20);
 				break b2;
 			}
 			if (_18 === 1) {
@@ -710,9 +719,9 @@ export function tasks(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	task[Symbol.dispose]();
 	while (true) {
-		const _80: rs.Waker | undefined = rs.vecPop(wakers);
-		if (_80 !== undefined) {
-			_80.wake();
+		const _79: rs.Waker | undefined = rs.vecPop(wakers);
+		if (_79 !== undefined) {
+			_79.wake();
 		} else {
 			break;
 		}
@@ -730,12 +739,12 @@ export function tasks(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const pinned: rs.Future<rs.u8> = new tasksFuture$closure1(v);
 	const f: rs.Future<rs.u8> = pinned;
 	while (true) {
-		_101 = f.poll(cx);
-		if (_101 !== rs.Pending) {
+		_100 = f.poll(cx);
+		if (_100 !== rs.Pending) {
 			break;
 		}
 	}
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_101, task2.value.wakes.v, task2.strong & 0xff)), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_100, task2.value.wakes.v, task2.strong & 0xff)), undefined, true);
 	drop$tuple2_task_Waker_sync_Arc_raw_Task([waker, task2] as [rs.Waker, rs.Arc<Task.Task>]);
 	rs.drop(pinned);
 	rs.dropVec(wakers);

@@ -18,6 +18,10 @@ export function copy$Option_inlines_Text_2(v: Text.Text | undefined): Text.Text 
 	return v === undefined ? v : copy$inlines_Text_2(v);
 }
 
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
+}
+
 export function copy$array_Option_inlines_Text_2(v: Array<Text.Text | undefined>): Array<Text.Text | undefined> {
 	return v.map(copy$Option_inlines_Text_2);
 }
@@ -36,6 +40,10 @@ export function copy$inlines_Block_0(v: Block.Block): Block.Block {
 
 export function copy$inlines_Block_3(v: Block.Block): Block.Block {
 	return { _0: copy$array_u8(v._0) };
+}
+
+export function copy$inlines_Stack_u8_1(v: Stack.Stack<rs.u8>): Stack.Stack<rs.u8> {
+	return new Stack.Stack(copy$array_Option_u8(v.items) as rs.OptionOf<rs.u8>[], v.len);
 }
 
 export function copy$inlines_Text_0(v: Text.Text): Text.Text {

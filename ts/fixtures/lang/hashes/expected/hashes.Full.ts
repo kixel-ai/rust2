@@ -21,9 +21,9 @@ export class Full {
 
 export function finish$hash_Hasher(self: Full): rs.u64 {
 	record(self._0, 102, rs.byteSliceFrom(Uint8Array.of()));
-	const _9: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(self._0);
-	const _0: rs.u64 = rs.u64Mul(_9.value.length as rs.u64, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64);
-	rs.refRelease(_9);
+	const _8: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(self._0);
+	const _0: rs.u64 = rs.u64Mul(_8.value.length as rs.u64, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64);
+	rs.refRelease(_8);
 	return _0;
 }
 

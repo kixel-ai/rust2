@@ -44,11 +44,11 @@ export function tail(data: rs.ByteSlice, n: rs.usize): returns_Error.Error | und
 /** A number past 2^31 and the rest. */
 export function wide(dataData: Uint8Array, dataStart: number, dataLen: number): rs.u64 | undefined {
 	if (dataLen >= 8) {
-		const _11_0: rs.u64 = rs.u64FromBeBytes(rs.byteSliceToArray(new rs.ByteSlice(dataData, dataStart, 8)));
+		const _7_0: rs.u64 = rs.u64FromBeBytes(rs.byteSliceToArray(new rs.ByteSlice(dataData, dataStart, 8)));
 		out$tuple2_u64_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_u64_ref_slice_u8.p_1Start = dataStart + 8;
 		out$tuple2_u64_ref_slice_u8.p_1Len = dataLen - 8;
-		return _11_0;
+		return _7_0;
 	}
 	out$tuple2_u64_ref_slice_u8.err = { tag: "Short", _0: 8 } as returns_Error.Error;
 	return undefined;
@@ -96,11 +96,11 @@ export function count(dataData: Uint8Array, dataStart: number, dataLen: number):
 	const part3: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 	const part4: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 	if (err === undefined) {
-		const _14_0: rs.u64 = rs.u64Add(part as rs.u64, 1);
+		const _11_0: rs.u64 = rs.u64Add(part as rs.u64, 1);
 		out$tuple2_u64_ref_slice_u8.p_1Data = part2;
 		out$tuple2_u64_ref_slice_u8.p_1Start = part3;
 		out$tuple2_u64_ref_slice_u8.p_1Len = part4;
-		return _14_0;
+		return _11_0;
 	}
 	out$tuple2_u64_ref_slice_u8.err = err as returns_Error.Error;
 	return undefined;
@@ -151,7 +151,7 @@ export function both(dataData: Uint8Array, dataStart: number, dataLen: number): 
 				const err4: returns_Error.Error | undefined = take(part9, part10, part11, rs.u64Low(rs.u64Rem(b, 4)));
 				const part14: number = out$ref_slice_u8.pLen;
 				if (err4 === undefined) {
-					out$tuple3_u64_u64_ref_slice_u8.p_1 = rs.u64Xor(b, part14 as rs.u64);
+					out$tuple3_u64_u64_ref_slice_u8.p_1 = rs.u64Xor(part14 as rs.u64, b);
 					out$tuple3_u64_u64_ref_slice_u8.p_2Data = part9;
 					out$tuple3_u64_u64_ref_slice_u8.p_2Start = part10;
 					out$tuple3_u64_u64_ref_slice_u8.p_2Len = part11;
@@ -200,22 +200,23 @@ export function noneErr(data: rs.ByteSlice): rs.Result<rs.ByteSlice, rs.u8 | und
 		if (_2 === 0) {
 			return rs.ERR;
 		}
-		if (_2 > 240) {
-			return rs.Err(_2);
+		const b: rs.u8 = _2;
+		if (b > 240) {
+			return rs.Err(b);
 		}
 	}
 	return option_okOr$0j0xd63(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 		return _22[1];
-	}), undefined as rs.u8 | undefined);
+	}), undefined);
 }
 
 export function lead$u16(dataData: Uint8Array, dataStart: number, dataLen: number): rs.u16 | undefined {
 	if (dataLen !== 0) {
-		const _11_0: rs.u16 = dataData[dataStart] as rs.u16;
+		const _8_0: rs.u16 = dataData[dataStart] as rs.u16;
 		out$tuple2_u16_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_u16_ref_slice_u8.p_1Start = dataStart + 1;
 		out$tuple2_u16_ref_slice_u8.p_1Len = dataLen - 1;
-		return _11_0;
+		return _8_0;
 	}
 	out$tuple2_u16_ref_slice_u8.err = { tag: "Short", _0: 1 } as returns_Error.Error;
 	return undefined;
@@ -223,11 +224,11 @@ export function lead$u16(dataData: Uint8Array, dataStart: number, dataLen: numbe
 
 export function lead$u32(dataData: Uint8Array, dataStart: number, dataLen: number): rs.u32 | undefined {
 	if (dataLen !== 0) {
-		const _11_0: rs.u32 = dataData[dataStart] as rs.u32;
+		const _8_0: rs.u32 = dataData[dataStart] as rs.u32;
 		out$tuple2_u32_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_u32_ref_slice_u8.p_1Start = dataStart + 1;
 		out$tuple2_u32_ref_slice_u8.p_1Len = dataLen - 1;
-		return _11_0;
+		return _8_0;
 	}
 	out$tuple2_u32_ref_slice_u8.err = { tag: "Short", _0: 1 } as returns_Error.Error;
 	return undefined;
@@ -239,8 +240,9 @@ export function splitWith$returns_At(s: At.At, dataData: Uint8Array, dataStart: 
 
 export function push(out: rs.ByteVec, r: rs.Result<rs.ByteSlice, returns_Error.Error>): void {
 	if (r.ok) {
-		rs.byteVecPush(out, r.value.length & 0xff);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceRange(r.value, 0, rs.min(r.value.length, 4)));
+		const _7: rs.usize = r.value.length;
+		rs.byteVecPush(out, _7 & 0xff);
+		rs.byteVecExtendFromSlice(out, rs.byteSliceRange(r.value, 0, rs.min(_7, 4)));
 	} else {
 		const dst = out;
 		const byte = returns_Error.code(r.error);
@@ -320,32 +322,33 @@ export function wrapped(dataData: Uint8Array, dataStart: number, dataLen: number
 		r_0Start = dataStart;
 		r_0Len = dataLen;
 		r_1 = 0;
-	} else if (!(rs.u8Rem(dataData[dataStart], 2) === 0)) {
-		const _12_1: rs.u8 = dataData[dataStart];
-		rErr = true;
-		r_0Data = dataData;
-		r_0Start = dataStart + 1;
-		r_0Len = dataLen - 1;
-		r_1 = _12_1;
 	} else {
 		const b: rs.u8 = dataData[dataStart];
-		rErr = false;
-		r2 = b;
+		if (!(rs.u8Rem(b, 2) === 0)) {
+			rErr = true;
+			r_0Data = dataData;
+			r_0Start = dataStart + 1;
+			r_0Len = dataLen - 1;
+			r_1 = b;
+		} else {
+			rErr = false;
+			r2 = b;
+		}
 	}
-	const _15Err: boolean = rErr;
-	const _152: rs.u8 = r2;
-	const _15_0Data: Uint8Array = r_0Data;
-	const _15_0Start: number = r_0Start;
-	const _15_0Len: number = r_0Len;
-	const _15_1: rs.u8 = r_1;
-	if (!_15Err) {
-		const _19_0: rs.u8 = _152;
+	const _12Err: boolean = rErr;
+	const _122: rs.u8 = r2;
+	const _12_0Data: Uint8Array = r_0Data;
+	const _12_0Start: number = r_0Start;
+	const _12_0Len: number = r_0Len;
+	const _12_1: rs.u8 = r_1;
+	if (!_12Err) {
+		const _16_0: rs.u8 = _122;
 		out$tuple2_u8_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_u8_ref_slice_u8.p_1Start = dataStart;
 		out$tuple2_u8_ref_slice_u8.p_1Len = dataLen;
-		return _19_0;
+		return _16_0;
 	}
-	out$tuple2_u8_ref_slice_u8.err = Wrapped.from$convert_From_tuple2_ref_slice_u8_u8([new rs.ByteSlice(_15_0Data, _15_0Start, _15_0Len), _15_1]);
+	out$tuple2_u8_ref_slice_u8.err = Wrapped.from$convert_From_tuple2_ref_slice_u8_u8([new rs.ByteSlice(_12_0Data, _12_0Start, _12_0Len), _12_1]);
 	return undefined;
 }
 
@@ -409,11 +412,12 @@ export function byte(data: rs.ByteSlice, i: rs.usize): rs.u8 | undefined {
 		out$u8.err = i & 0xff;
 		return undefined;
 	}
-	if (!(_3 < 128)) {
-		out$u8.err = _3;
+	const b: rs.u8 = _3;
+	if (!(b < 128)) {
+		out$u8.err = b;
 		return undefined;
 	}
-	return _3;
+	return b;
 }
 
 /** A float and a char. */
@@ -577,7 +581,8 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	}
 	const part5: rs.u64 | undefined = big(data);
 	const err4: returns_Error.Error | undefined = part5 === undefined ? out$u64.err as returns_Error.Error : undefined;
-	const part7: rs.u64 | undefined = big(rs.byteSliceRange(data, rs.min(data.length, 1)));
+	const _35: rs.usize = data.length;
+	const part7: rs.u64 | undefined = big(rs.byteSliceRange(data, rs.min(_35, 1)));
 	const err5: returns_Error.Error | undefined = part7 === undefined ? out$u64.err as returns_Error.Error : undefined;
 	b2: {
 		if (err4 === undefined) {
@@ -620,8 +625,8 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const y8: rs.Result<rs.u64, returns_Error.Error> = f3(start++);
 		v.items.push(y8);
 	}
-	for (const _67 of v.items) {
-		pushBig(out, _67);
+	for (const _61 of v.items) {
+		pushBig(out, _61);
 	}
 	if (!(rs.u8Rem(kind, 2) === 0)) {
 		f = (a02: rs.ByteSlice): rs.Result<rs.u64, returns_Error.Error> => {
@@ -638,8 +643,8 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const part12: rs.u64 | undefined = either(data, rs.u8Rem(kind, 3) === 0);
 	const err6: returns_Error.Error | undefined = part12 === undefined ? out$u64.err as returns_Error.Error : undefined;
 	pushBig(out, (err6 !== undefined ? rs.Err(err6 as returns_Error.Error) : rs.Ok(part12 as rs.u64)) as rs.Result<rs.u64, returns_Error.Error>);
-	const _86: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, 2));
-	const part14: rs.u64 | undefined = late(data.data, data.start, data.length, _86);
+	const _78: rs.ByteSlice = rs.byteSliceRange(data, rs.min(_35, 2));
+	const part14: rs.u64 | undefined = late(data.data, data.start, data.length, _78);
 	const err7: returns_Error.Error | undefined = part14 === undefined ? out$u64.err as returns_Error.Error : undefined;
 	pushBig(out, (err7 !== undefined ? rs.Err(err7 as returns_Error.Error) : rs.Ok(part14 as rs.u64)) as rs.Result<rs.u64, returns_Error.Error>);
 	const part15: rs.f64 | undefined = mixed(data.data, data.start, data.length);
@@ -682,8 +687,8 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	let rest: rs.ByteSlice = data;
 	let sum: rs.u64 = 0;
 	while (true) {
-		const _112: rs.ByteSlice = rest;
-		const part17: rs.u32 | undefined = depth(_112.data, _112.start, _112.length);
+		const _103: rs.ByteSlice = rest;
+		const part17: rs.u32 | undefined = depth(_103.data, _103.start, _103.length);
 		if ((part17 === undefined ? out$u32.err as returns_Error.Error : undefined) === undefined) {
 			const n: rs.u32 = part17 as rs.u32;
 			sum = rs.u64WrappingAdd(rs.u64WrappingMul(sum, 31), n as rs.u64);
@@ -699,8 +704,8 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	let f!: (a0: rs.ByteSlice) => rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>;
 	b0: {
 		if (!(rs.u8Rem(kind, 8) === 7)) {
-			const _7: rs.u8 = rs.u8Rem(kind, 7);
-			if (_7 === 0) {
+			const _6: rs.u8 = rs.u8Rem(kind, 7);
+			if (_6 === 0) {
 				const err16: returns_Error.Error | undefined = take(data.data, data.start, data.length, rs.usizeRem(kind as rs.usize, 7));
 				const part65: Uint8Array = out$ref_slice_u8.pData;
 				const part66: number = out$ref_slice_u8.pStart;
@@ -728,7 +733,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part80: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 				const part81: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 				pushNumber(out, (err20 !== undefined ? rs.Err(err20 as returns_Error.Error) : rs.Ok([part78 as rs.u64, new rs.ByteSlice(part79, part80, part81)] as [rs.u64, rs.ByteSlice])) as rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>);
-			} else if (_7 === 1) {
+			} else if (_6 === 1) {
 				let start = 0;
 				let end = 4;
 				const f3 = (n3: rs.usize): rs.Result<rs.ByteSlice, returns_Error.Error> => {
@@ -744,8 +749,8 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part57: Uint8Array = out$ref_slice_u8.pData;
 				const part58: number = out$ref_slice_u8.pStart;
 				const part59: number = out$ref_slice_u8.pLen;
-				for (const _32 of v3.items) {
-					push(out, _32);
+				for (const _27 of v3.items) {
+					push(out, _27);
 				}
 				push(out, (err14 !== undefined ? rs.Err(err14 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(part57, part58, part59))) as rs.Result<rs.ByteSlice, returns_Error.Error>);
 				const part60: rs.u64 | undefined = both(data.data, data.start, data.length);
@@ -787,8 +792,9 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				} else {
 					rs.byteVecPush(out, returns_Error.code(err15 as returns_Error.Error));
 				}
-			} else if (_7 === 2) {
-				if (!(rs.usizeRem(data.length, 2) === 0)) {
+			} else if (_6 === 2) {
+				const _54: rs.usize = data.length;
+				if (!(rs.usizeRem(_54, 2) === 0)) {
 					f = (a02: rs.ByteSlice): rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> => {
 						const part51 = narrow(a02.data, a02.start, a02.length);
 						return part51 === undefined ? rs.Err(out$tuple2_u64_ref_slice_u8.err as returns_Error.Error) : rs.Ok([part51, new rs.ByteSlice(out$tuple2_u64_ref_slice_u8.p_1Data, out$tuple2_u64_ref_slice_u8.p_1Start, out$tuple2_u64_ref_slice_u8.p_1Len)] as [rs.u64, rs.ByteSlice]);
@@ -800,7 +806,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					};
 				}
 				pushNumber(out, f(data));
-				const s2 = [data, rs.byteSliceRange(data, rs.min(data.length, 3))];
+				const s2 = [data, rs.byteSliceRange(data, rs.min(_54, 3))];
 				let front = 0;
 				let back = s2.length;
 				const f2 = (a03: rs.ByteSlice): rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> => {
@@ -812,11 +818,11 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					const y: rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error> = f2(s2[front++]);
 					v2.items.push(y);
 				}
-				for (const _74 of v2.items) {
-					pushNumber(out, _74);
+				for (const _67 of v2.items) {
+					pushNumber(out, _67);
 				}
-				rs.iterExtendBytes(out, rs.iterOption(option_map$0q6fk7x(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_23: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
-					return _23[1];
+				rs.iterExtendBytes(out, rs.iterOption(option_map$0q6fk7x(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_24: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+					return _24[1];
 				}), (s3: rs.ByteSlice): rs.u8 => {
 					const err12: returns_Error.Error | undefined = tail(s3, 2);
 					const part54: Uint8Array = out$ref_slice_u8.pData;
@@ -826,7 +832,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 						return a04.length;
 					}) & 0xff;
 				})), undefined, true);
-			} else if (_7 === 3) {
+			} else if (_6 === 3) {
 				const err9: rs.u8 | undefined = halves(data.data, data.start, data.length);
 				const part35: number = out$tuple3_ref_slice_u8_ref_array2_u8_ref_slice_u8.p_0Len;
 				const part36: Uint8Array = out$tuple3_ref_slice_u8_ref_array2_u8_ref_slice_u8.p_1Data;
@@ -843,33 +849,33 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					rs.byteVecPush(out, err9 as rs.u8);
 				}
 				const other: Uint8Array = Uint8Array.of(255, 1, 2);
-				const _99: rs.ByteSlice = rs.byteSliceFrom(other);
-				const part42: rs.u64 | undefined = guarded(data.data, data.start, data.length, _99);
+				const _92: rs.ByteSlice = rs.byteSliceFrom(other);
+				const part42: rs.u64 | undefined = guarded(data.data, data.start, data.length, _92);
 				const err10: returns_Error.Error | undefined = part42 === undefined ? out$tuple2_u64_ref_slice_u8.err as returns_Error.Error : undefined;
 				const part43: Uint8Array = out$tuple2_u64_ref_slice_u8.p_1Data;
 				const part44: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 				const part45: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 				pushNumber(out, (err10 !== undefined ? rs.Err(err10 as returns_Error.Error) : rs.Ok([part42 as rs.u64, new rs.ByteSlice(part43, part44, part45)] as [rs.u64, rs.ByteSlice])) as rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>);
-				const _103: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(other), 1);
-				const part46: rs.u64 | undefined = guarded(data.data, data.start, data.length, _103);
+				const _96: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(other), new rs.RangeFrom(1, rs.usizeStep).start);
+				const part46: rs.u64 | undefined = guarded(data.data, data.start, data.length, _96);
 				const err11: returns_Error.Error | undefined = part46 === undefined ? out$tuple2_u64_ref_slice_u8.err as returns_Error.Error : undefined;
 				const part47: Uint8Array = out$tuple2_u64_ref_slice_u8.p_1Data;
 				const part48: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 				const part49: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 				pushNumber(out, (err11 !== undefined ? rs.Err(err11 as returns_Error.Error) : rs.Ok([part46 as rs.u64, new rs.ByteSlice(part47, part48, part49)] as [rs.u64, rs.ByteSlice])) as rs.Result<[rs.u64, rs.ByteSlice], returns_Error.Error>);
-			} else if (_7 === 4) {
-				const _107: rs.Result<rs.ByteSlice, undefined> = unitErr(data.data, data.start, data.length);
-				if (_107.ok) {
-					rs.byteVecPush(out, _107.value.length & 0xff);
+			} else if (_6 === 4) {
+				const _99: rs.Result<rs.ByteSlice, undefined> = unitErr(data.data, data.start, data.length);
+				if (_99.ok) {
+					rs.byteVecPush(out, _99.value.length & 0xff);
 				} else {
 					rs.byteVecPush(out, 238);
 				}
-				const _113: rs.Result<rs.ByteSlice, rs.u8 | undefined> = noneErr(data);
-				if (_113.ok) {
-					rs.byteVecPush(out, _113.value.length & 0xff);
+				const _105: rs.Result<rs.ByteSlice, rs.u8 | undefined> = noneErr(data);
+				if (_105.ok) {
+					rs.byteVecPush(out, _105.value.length & 0xff);
 				} else {
 					const dst3 = out;
-					const byte = option_unwrapOr$1fr498u(_113.error, 0);
+					const byte = option_unwrapOr$1fr498u(_105.error, 0);
 					rs.byteVecReserve(dst3, 2 as rs.usize);
 					const pos3 = dst3.length;
 					dst3.data[pos3 + 0] = 238;
@@ -881,8 +887,8 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part25: Uint8Array = out$tuple2_u16_ref_slice_u8.p_1Data;
 				const part26: number = out$tuple2_u16_ref_slice_u8.p_1Start;
 				const part27: number = out$tuple2_u16_ref_slice_u8.p_1Len;
-				const _126: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, 1));
-				const part29: rs.u32 | undefined = lead$u32(_126.data, _126.start, _126.length);
+				const _117: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, 1));
+				const part29: rs.u32 | undefined = lead$u32(_117.data, _117.start, _117.length);
 				const err8: returns_Error.Error | undefined = part29 === undefined ? out$tuple2_u32_ref_slice_u8.err as returns_Error.Error : undefined;
 				const part30: Uint8Array = out$tuple2_u32_ref_slice_u8.p_1Data;
 				const part31: number = out$tuple2_u32_ref_slice_u8.p_1Start;
@@ -917,7 +923,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				dst6.data[pos6 + 0] = byte2;
 				dst6.data[pos6 + 1] = byte3;
 				dst6.length = dst6.length + 2;
-			} else if (_7 === 5) {
+			} else if (_6 === 5) {
 				const err5: returns_Error.Error | undefined = afterFixed(data.data, data.start, data.length);
 				const part17: Uint8Array = out$ref_slice_u8.pData;
 				const part18: number = out$ref_slice_u8.pStart;
@@ -963,18 +969,18 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				} else {
 					rs.byteVecPush(out, returns_Error.code(err as returns_Error.Error));
 				}
-				const _199: rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error> = new of$returns_At(at).split$Split(data);
-				if (_199.ok) {
+				const _189: rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error> = new of$returns_At(at).split$Split(data);
+				if (_189.ok) {
 					const dst10 = out;
-					const byte6 = _199.value[1].length & 0xff;
-					const byte7 = _199.value[0].length & 0xff;
+					const byte6 = _189.value[1].length & 0xff;
+					const byte7 = _189.value[0].length & 0xff;
 					rs.byteVecReserve(dst10, 2 as rs.usize);
 					const pos10 = dst10.length;
 					dst10.data[pos10 + 0] = byte6;
 					dst10.data[pos10 + 1] = byte7;
 					dst10.length = dst10.length + 2;
 				} else {
-					rs.byteVecPush(out, returns_Error.code(_199.error));
+					rs.byteVecPush(out, returns_Error.code(_189.error));
 				}
 				const err2: returns_Error.Error | undefined = At.split$returns_Split(at, data.data, data.start, data.length);
 				const part7: Uint8Array = out$tuple2_ref_slice_u8_ref_slice_u8.p_0Data;
@@ -983,14 +989,14 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part10: Uint8Array = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Data;
 				const part11: number = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start;
 				const part12: number = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len;
-				const _213: rs.Result<rs.ByteSlice, returns_Error.Error> = result_andThen$0ud0j7o((err2 !== undefined ? rs.Err(err2 as returns_Error.Error) : rs.Ok([new rs.ByteSlice(part7, part8, part9), new rs.ByteSlice(part10, part11, part12)] as [rs.ByteSlice, rs.ByteSlice])) as rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.Result<rs.ByteSlice, returns_Error.Error> => {
+				const _203: rs.Result<rs.ByteSlice, returns_Error.Error> = result_andThen$0ud0j7o((err2 !== undefined ? rs.Err(err2 as returns_Error.Error) : rs.Ok([new rs.ByteSlice(part7, part8, part9), new rs.ByteSlice(part10, part11, part12)] as [rs.ByteSlice, rs.ByteSlice])) as rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.Result<rs.ByteSlice, returns_Error.Error> => {
 					const err3 = take(_2[1].data, _2[1].start, _2[1].length, _2[0].length);
 					return err3 !== undefined ? rs.Err(err3 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(out$ref_slice_u8.pData, out$ref_slice_u8.pStart, out$ref_slice_u8.pLen));
 				});
-				if (_213.ok) {
-					rs.byteVecPush(out, _213.value.length & 0xff);
+				if (_203.ok) {
+					rs.byteVecPush(out, _203.value.length & 0xff);
 				} else {
-					rs.byteVecPush(out, returns_Error.code(_213.error));
+					rs.byteVecPush(out, returns_Error.code(_203.error));
 				}
 				let restData4: Uint8Array = data.data;
 				let restStart4: number = data.start;
@@ -1035,364 +1041,364 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 
 export function optF32(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_f32.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_f32.p = -0.0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_f32.p = NaN;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_f32.p = rs.f32FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_f32.p = rs.f32FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optF64(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_f64.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_f64.p = 0.0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_f64.p = NaN;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_f64.p = rs.f64FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_f64.p = rs.f64FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optI128(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_i128.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_i128.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_i128.p = { hi: -0x80000000, w2: 0, w1: 0, lo: 0 } as rs.i128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_i128.p = rs.i128FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_i128.p = rs.i128FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optI16(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_i16.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_i16.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_i16.p = -32768;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_i16.p = (((_17.value.data[_17.value.start] << 8) | _17.value.data[_17.value.start + 1]) << 16) >> 16;
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_i16.p = (((_9.value.data[_9.value.start] << 8) | _9.value.data[_9.value.start + 1]) << 16) >> 16;
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optI32(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_i32.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_i32.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_i32.p = -2147483648;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_i32.p = (_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3];
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_i32.p = (_9.value.data[_9.value.start] << 24) | (_9.value.data[_9.value.start + 1] << 16) | (_9.value.data[_9.value.start + 2] << 8) | _9.value.data[_9.value.start + 3];
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optI64(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_i64.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_i64.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_i64.p = { hi: -0x80000000, lo: 0 } as rs.i64;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_i64.p = rs.i64FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_i64.p = rs.i64FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optI8(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_i8.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_i8.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_i8.p = -128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_i8.p = (_17.value.data[_17.value.start] << 24) >> 24;
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_i8.p = (_9.value.data[_9.value.start] << 24) >> 24;
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optU128(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_u128.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_u128.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_u128.p = { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_u128.p = rs.u128FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_u128.p = rs.u128FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optU16(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_u16.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_u16.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_u16.p = 65535;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_u16.p = (_17.value.data[_17.value.start] << 8) | _17.value.data[_17.value.start + 1];
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_u16.p = (_9.value.data[_9.value.start] << 8) | _9.value.data[_9.value.start + 1];
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optU32(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_u32.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_u32.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_u32.p = 4294967295;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_u32.p = ((_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3]) >>> 0;
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_u32.p = ((_9.value.data[_9.value.start] << 24) | (_9.value.data[_9.value.start + 1] << 16) | (_9.value.data[_9.value.start + 2] << 8) | _9.value.data[_9.value.start + 3]) >>> 0;
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optU64(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_u64.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_u64.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_u64.p = { hi: 0xffffffff, lo: 0xffffffff } as rs.u64;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_u64.p = rs.u64FromBeBytes(rs.byteSliceToArray(_17.value));
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_u64.p = rs.u64FromBeBytes(rs.byteSliceToArray(_9.value));
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optU8(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_u8.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_u8.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_u8.p = 255;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_u8.p = _17.value.data[_17.value.start];
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_u8.p = _9.value.data[_9.value.start];
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
 
 export function optUsize(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
-		const _11: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
-		if (_11 === 0) {
+		const _8: rs.u8 = rs.u8Rem(dataData[dataStart], 5);
+		if (_8 === 0) {
 			out$Option_usize.p = undefined;
 			return undefined;
 		}
-		if (_11 === 1) {
+		if (_8 === 1) {
 			out$Option_usize.p = 0;
 			return undefined;
 		}
-		if (_11 === 2) {
+		if (_8 === 2) {
 			return { tag: "Bad" } as returns_Error.Error;
 		}
-		if (_11 === 3) {
+		if (_8 === 3) {
 			out$Option_usize.p = 4294967295;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
-		if (_17.ok) {
-			out$Option_usize.p = ((_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3]) >>> 0;
+		const _9: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		if (_9.ok) {
+			out$Option_usize.p = ((_9.value.data[_9.value.start] << 24) | (_9.value.data[_9.value.start + 1] << 16) | (_9.value.data[_9.value.start + 2] << 8) | _9.value.data[_9.value.start + 3]) >>> 0;
 			return undefined;
 		}
-		return (_17 as { ok: false; error: returns_Error.Error }).error;
+		return (_9 as { ok: false; error: returns_Error.Error }).error;
 	}
 	return { tag: "Short", _0: 1 } as returns_Error.Error;
 }
@@ -1402,8 +1408,9 @@ export function optBool(data: rs.ByteSlice): returns_Error.Error | undefined {
 	if (_2 === undefined) {
 		return { tag: "Short", _0: 1 } as returns_Error.Error;
 	}
-	if (!(rs.u8Rem(_2, 3) === 0)) {
-		out$Option_bool.p = rs.u8Rem(_2, 3) === 1;
+	const _5: rs.u8 = rs.u8Rem(_2, 3);
+	if (!(_5 === 0)) {
+		out$Option_bool.p = _5 === 1;
 		return undefined;
 	}
 	out$Option_bool.p = undefined;
@@ -1965,7 +1972,8 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst15.length = dst15.length + 2;
 	}
 	const tail: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, 1));
-	const err16: returns_Error.Error | undefined = optAgain(data, rs.u8Rem(kind, 2) === 0);
+	const _187: boolean = rs.u8Rem(kind, 2) === 0;
+	const err16: returns_Error.Error | undefined = optAgain(data, _187);
 	const part17: rs.u64 | undefined = out$Option_u64.p;
 	if (err16 === undefined) {
 		if (part17 === undefined) {
@@ -2107,7 +2115,7 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			dst21.length = dst21.length + 2;
 		}
 	}
-	if (!(rs.u8Rem(kind, 2) === 0)) {
+	if (!_187) {
 		f = (d: rs.ByteSlice): rs.Result<rs.i64 | undefined, returns_Error.Error> => {
 			const _32: rs.ByteSlice = rs.byteSliceRange(d, rs.min(d.length, 1));
 			const err25 = optI64(_32.data, _32.start, _32.length);
@@ -2119,18 +2127,18 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			return err24 !== undefined ? rs.Err(err24 as returns_Error.Error) : rs.Ok(out$Option_i64.p);
 		};
 	}
-	const _310: rs.Result<rs.i64 | undefined, returns_Error.Error> = f(data);
-	if (_310.ok) {
-		if (_310.value === undefined) {
+	const _299: rs.Result<rs.i64 | undefined, returns_Error.Error> = f(data);
+	if (_299.ok) {
+		if (_299.value === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
-			const v18: rs.i64 = _310.value;
+			const v18: rs.i64 = _299.value;
 			rs.byteVecPush(out, 1);
 			put$returns_Put_i64(v18, out);
 		}
 	} else {
 		const dst22 = out;
-		const byte25 = returns_Error.code(_310.error);
+		const byte25 = returns_Error.code(_299.error);
 		rs.byteVecReserve(dst22, 2 as rs.usize);
 		const pos22 = dst22.length;
 		dst22.data[pos22 + 0] = 238;
@@ -2140,8 +2148,8 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	let rest2: rs.ByteSlice = data;
 	let sum: rs.u32 = 0;
 	while (true) {
-		const _325: rs.ByteSlice = rest2;
-		const err26: returns_Error.Error | undefined = optU32(_325.data, _325.start, _325.length);
+		const _314: rs.ByteSlice = rest2;
+		const err26: returns_Error.Error | undefined = optU32(_314.data, _314.start, _314.length);
 		const part31: rs.u32 | undefined = out$Option_u32.p;
 		if (err26 === undefined) {
 			if (part31 !== undefined) {

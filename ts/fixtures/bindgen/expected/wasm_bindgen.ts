@@ -376,8 +376,8 @@ export function from$convert_From_u128_wasm_bindgen_JsValue(arg: rs.u128): rs.Js
 }
 
 export function fmt$fmt_Debug_wasm_bindgen_JsValue(self: rs.JsValue, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const part = asDebugString$wasm_bindgen_JsValue(self);
-	return rs.fmtWriteFmt(f, ["JsValue(", (f: rs.Formatter) => rs.fmtPad(f, part.v), ")"]);
+	const _5: rs.String = asDebugString$wasm_bindgen_JsValue(self);
+	return rs.fmtWriteFmt(f, ["JsValue(", (f: rs.Formatter) => rs.fmtPad(f, _5.v), ")"]);
 }
 
 export function default_$Default_wasm_bindgen_JsValue(): rs.JsValue {
@@ -393,11 +393,12 @@ export function unwrapThrow$wasm_bindgen_UnwrapThrowExt_String_Option_String(sel
 		return self;
 	}
 	const loc: rs.Location = caller;
-	const _9: string = loc.file;
-	const _11: rs.u32 = loc.line;
-	const _13: rs.u32 = loc.col;
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, "called `Option::unwrap_throw()` on a `None` value"), (f: rs.Formatter) => rs.fmtPad(f, _9), (f: rs.Formatter) => rs.u32Display(_11, f), (f: rs.Formatter) => rs.u32Display(_13, f)];
-	rs.jsThrow(new rs.global.Error(rs.fmtFormat([args3[0], " (", args3[1], ":", args3[2], ":", args3[3], ")"]).v));
+	const _8: string = loc.file;
+	const _10: rs.u32 = loc.line;
+	const _12: rs.u32 = loc.col;
+	const _22: string = "called `Option::unwrap_throw()` on a `None` value";
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, _22), (f: rs.Formatter) => rs.fmtPad(f, _8), (f: rs.Formatter) => rs.u32Display(_10, f), (f: rs.Formatter) => rs.u32Display(_12, f)];
+	rs.jsThrow(new rs.global.Error(rs.fmtFormat([args2[0], " (", args2[1], ":", args2[2], ":", args2[3], ")"]).v));
 }
 
 //# sourceMappingURL=wasm_bindgen.ts.map

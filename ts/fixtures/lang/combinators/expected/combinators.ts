@@ -40,7 +40,7 @@ export function options(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8
 	}), (x4: rs.u8): rs.u8 | undefined => {
 		rs.byteVecPush(out, 162);
 		return option_map$1yjmt5m(b, (y: rs.u8): rs.u8 => {
-			return x4 ^ y;
+			return y ^ x4;
 		});
 	}), 238));
 	rs.byteVecPush(out, option_mapOr$0vxw5sq(filter$0hq86nl(a, (x5: rs.u8): boolean => {
@@ -205,11 +205,11 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 		return a02 as rs.u16;
 	})), copy$Result_array2_u32_u16(wide), copy$Result_array2_u32_u16(matched)]);
 	while (true) {
-		const _79: rs.Result<rs.u32[], rs.u16> | rs.Done = iter2.next();
-		if (_79 === rs.DONE) {
+		const _75: rs.Result<rs.u32[], rs.u16> | rs.Done = iter2.next();
+		if (_75 === rs.DONE) {
 			break;
 		}
-		const r2: rs.Result<rs.u32[], rs.u16> = _79;
+		const r2: rs.Result<rs.u32[], rs.u16> = _75;
 		if (r2.ok) {
 			const dst = out;
 			const byte = r2.value[0] & 0xff;

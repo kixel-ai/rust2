@@ -15,7 +15,7 @@ export function next$iter_Iterator(self: Units): undefined | rs.Done {
 		const _10: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log);
 		rs.byteVecPush(_10.value, self.n);
 		rs.refMutRelease(_10);
-		return undefined;
+		return rs.iterFromOption(undefined, rs.None);
 	}
 	return rs.DONE;
 }

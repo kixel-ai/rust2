@@ -10,8 +10,10 @@ import { put } from "./harness.ts";
 /** A `u64` and a `u32` from the front of `data`, big-endian and zero-padded. */
 export function take(data: rs.ByteSlice): [rs.u64, rs.u32, rs.ByteSlice] {
 	const buf: Uint8Array = rs.bytes(12);
-	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
+	const n: rs.usize = rs.min(data.length, 12);
+	const _7: rs.ByteSlice = rs.byteSliceFrom(buf);
+	const _8: { end: rs.usize } = { end: n };
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_7, 0, _8.end), rs.byteSliceRange(data, 0, _8.end));
 	const s0: rs.u8 = buf[0];
 	const s1: rs.u8 = buf[1];
 	const s2: rs.u8 = buf[2];
@@ -71,8 +73,9 @@ export function putOpt(out: rs.ByteVec, d: rs.Duration | undefined): void {
 }
 
 export function addAssign$ops_AddAssign_durations_Twice_time_Duration(self: rs.Place<rs.Duration>, by: Twice.Twice): void {
-	self.v = rs.durationAdd(self.v, by._0);
-	self.v = rs.durationAdd(self.v, by._0);
+	const _4: rs.Duration = by._0;
+	self.v = rs.durationAdd(self.v, _4);
+	self.v = rs.durationAdd(self.v, _4);
 }
 
 /** `-=` through a `&mut`, which is an `rs.Place`. */
@@ -86,14 +89,16 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const _9: [rs.Duration, rs.ByteSlice] = duration(_6[1]);
 	const b: rs.Duration = _9[0];
 	const word: Uint8Array = rs.bytes(4);
-	const k: rs.usize = rs.min(_9[1].length, rs.byteSliceFrom(word).length);
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(word), 0, k), rs.byteSliceRange(_9[1], 0, k));
+	const k: rs.usize = rs.min(_9[1].length, 4);
+	const _15: rs.ByteSlice = rs.byteSliceFrom(word);
+	const _16: { end: rs.usize } = { end: k };
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(_15, 0, _16.end), rs.byteSliceRange(_9[1], 0, _16.end));
 	const n: rs.u32 = rs.u32FromBeBytes(word);
-	const _24: rs.u8 = rs.u8Rem(kind, 14);
-	if (_24 === 0) {
-		const _28: [rs.u64, rs.u32, rs.ByteSlice] = take(data);
-		putDuration(out, rs.durationNew(_28[0], _28[1]));
-	} else if (_24 === 1) {
+	const _20: rs.u8 = rs.u8Rem(kind, 14);
+	if (_20 === 0) {
+		const _23: [rs.u64, rs.u32, rs.ByteSlice] = take(data);
+		putDuration(out, rs.durationNew(_23[0], _23[1]));
+	} else if (_20 === 1) {
 		const units: rs.u64 = take(data)[0];
 		putDuration(out, rs.durationFromSecs(units));
 		putDuration(out, rs.durationFromMillis(units));
@@ -208,7 +213,7 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		dst6.data[pos6 + 15] = word18 & 255;
 		dst6.length = dst6.length + 16;
 		rs.byteVecPush(out, rs.durationIsZero(b) ? 1 : 0);
-	} else if (_24 === 2) {
+	} else if (_20 === 2) {
 		putOpt(out, rs.durationCheckedAdd(a, b));
 		putOpt(out, rs.durationCheckedSub(a, b));
 		putOpt(out, rs.durationCheckedMul(a, n));
@@ -217,37 +222,37 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		putDuration(out, rs.durationSaturatingSub(a, b));
 		putDuration(out, rs.durationSaturatingMul(a, n));
 		putDuration(out, rs.durationAbsDiff(a, b));
-	} else if (_24 === 3) {
+	} else if (_20 === 3) {
 		putDuration(out, rs.durationAdd(a, b));
-	} else if (_24 === 4) {
+	} else if (_20 === 4) {
 		putDuration(out, rs.durationSub(a, b));
-	} else if (_24 === 5) {
+	} else if (_20 === 5) {
 		putDuration(out, rs.durationTimes(n, a));
 		putDuration(out, rs.durationMul(a, n));
-	} else if (_24 === 6) {
+	} else if (_20 === 6) {
 		putDuration(out, rs.durationDiv(a, n));
-	} else if (_24 === 7) {
-		const _105: boolean = rs.durationEq(a, b);
-		const _108: boolean = !rs.durationEq(a, b);
-		const _111: boolean = rs.durationCmp(a, b) === -1;
+	} else if (_20 === 7) {
+		const _100: boolean = rs.durationEq(a, b);
+		const _103: boolean = !rs.durationEq(a, b);
+		const _106: boolean = rs.durationCmp(a, b) === -1;
 		const order = rs.durationCmp(a, b);
-		const _114: boolean = order !== undefined && order <= 0;
-		const _117: boolean = rs.durationCmp(a, b) === 1;
+		const _109: boolean = order !== undefined && order <= 0;
+		const _112: boolean = rs.durationCmp(a, b) === 1;
 		const order2 = rs.durationCmp(a, b);
-		const _120: boolean = order2 !== undefined && order2 >= 0;
-		const _123: boolean = rs.durationCmp(a, b) < 0;
-		const _127: boolean = rs.durationCmp(a, b) === 1;
-		const _135: rs.Duration | undefined = a;
-		const _137: rs.Duration | undefined = b;
-		const _133: boolean = rs.eqOption(rs.durationEq)(_135, _137);
-		const _140: rs.Duration | undefined = a;
-		const iter: rs.Iter<boolean> = rs.iterSlice([_105, _108, _111, _114, _117, _120, _123, _127, _133, rs.eqOption(rs.durationEq)(_140, undefined)]);
+		const _115: boolean = order2 !== undefined && order2 >= 0;
+		const _118: boolean = rs.durationCmp(a, b) < 0;
+		const _122: boolean = rs.durationCmp(a, b) === 1;
+		const _129: rs.Duration | undefined = a;
+		const _131: rs.Duration | undefined = b;
+		const _127: boolean = rs.eqOption(rs.durationEq)(_129, _131);
+		const _134 = _129 as rs.Duration | undefined;
+		const iter: rs.Iter<boolean> = rs.iterSlice([_100, _103, _106, _109, _112, _115, _118, _122, _127, rs.eqOption(rs.durationEq)(_134, undefined)]);
 		while (true) {
-			const _144: boolean | rs.Done = iter.next();
-			if (_144 === rs.DONE) {
+			const _137: boolean | rs.Done = iter.next();
+			if (_137 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _144 ? 1 : 0);
+			rs.byteVecPush(out, _137 ? 1 : 0);
 		}
 		putDuration(out, rs.ordMax(a, b, rs.cmpLt(rs.durationCmp)));
 		putDuration(out, rs.ordMin(a, b, rs.cmpLt(rs.durationCmp)));
@@ -263,38 +268,39 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		}
 		const iter3: rs.Iter<[rs.Duration, rs.u8]> = rs.btreeIter(seen);
 		while (true) {
-			const _171: [rs.Duration, rs.u8] | rs.Done = iter3.next();
-			if (_171 === rs.DONE) {
+			const _164: [rs.Duration, rs.u8] | rs.Done = iter3.next();
+			if (_164 === rs.DONE) {
 				break;
 			}
-			putDuration(out, _171[0]);
-			rs.byteVecPush(out, _171[1]);
+			putDuration(out, _164[0]);
+			rs.byteVecPush(out, _164[1]);
 		}
-		const _181: rs.Iter<rs.Duration> = rs.iterSlice([a, b, { secs: 1, nanos: 500000000 }]);
-		const set: rs.HashSet<rs.Duration> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.durationHash, rs.durationEq)) as rs.HashSet<rs.Duration>, _181, undefined, undefined, 58720256);
+		const _174: rs.Iter<rs.Duration> = rs.iterSlice([a, b, { secs: 1, nanos: 500000000 }]);
+		const set: rs.HashSet<rs.Duration> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.durationHash, rs.durationEq)) as rs.HashSet<rs.Duration>, _174, undefined, undefined, 58720256);
 		rs.byteVecPush(out, rs.hashLen(set) & 0xff);
-		const _192: rs.Duration = rs.durationNew(rs.durationAsSecs(a), rs.durationSubsecNanos(a));
-		rs.byteVecPush(out, rs.hashContains(set, _192) ? 1 : 0);
-	} else if (_24 === 8) {
+		const _185: rs.Duration = rs.durationNew(rs.durationAsSecs(a), rs.durationSubsecNanos(a));
+		rs.byteVecPush(out, rs.hashContains(set, _185) ? 1 : 0);
+	} else if (_20 === 8) {
 		const c: rs.Duration = rs.durationNew(0, rs.durationSubsecNanos(b));
 		const d2: rs.Duration = rs.durationFromNanos(rs.u32Rem(n, 1000000) as rs.u64);
-		const args10 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), (f: rs.Formatter) => rs.fmtOption(b, f, rs.durationDebug)];
-		put(out, rs.fmtFormat([args10[0], "|", args10[1], "|", args10[2], "|", rs.fmtSpec({ align: ">", width: 16 }, args10[1]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 14 }, args10[2]), "|", rs.fmtSpec({ align: "<", width: 12 }, args10[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args10[0]), "|", args10[3]]).v);
+		const _203: rs.Duration | undefined = b;
+		const args6 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), (f: rs.Formatter) => rs.fmtOption(_203, f, rs.durationDebug)];
+		put(out, rs.fmtFormat([args6[0], "|", args6[1], "|", args6[2], "|", rs.fmtSpec({ align: ">", width: 16 }, args6[1]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 14 }, args6[2]), "|", rs.fmtSpec({ align: "<", width: 12 }, args6[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args6[0]), "|", args6[3]]).v);
 		const p: rs.usize = rs.u32Rem(n, 13) as rs.usize;
-		const _234: rs.Duration | undefined = b;
-		const args11 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), rs.fmtCount(p), (f: rs.Formatter) => rs.fmtOption(_234, f, rs.durationDebug)];
-		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args11[0]), "|", rs.fmtSpec({ precision: 3 }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[1]), "|", rs.fmtSpec({ precision: 12 }, args11[2]), "|", rs.fmtSpec({ plus: true }, args11[0]), "|", rs.fmtSpec({ plus: true, width: 12, precision: 2 }, args11[1]), "|", rs.fmtSpec({ align: "<", width: 10, precision: 1 }, args11[2]), "|", rs.fmtSpec({ precision: rs.fmtCountOf(args11[3]) }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[4])]).v);
+		const _222 = _203 as rs.Duration | undefined;
+		const args7 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), rs.fmtCount(p), (f: rs.Formatter) => rs.fmtOption(_222, f, rs.durationDebug)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args7[0]), "|", rs.fmtSpec({ precision: 3 }, args7[0]), "|", rs.fmtSpec({ precision: 1 }, args7[1]), "|", rs.fmtSpec({ precision: 12 }, args7[2]), "|", rs.fmtSpec({ plus: true }, args7[0]), "|", rs.fmtSpec({ plus: true, width: 12, precision: 2 }, args7[1]), "|", rs.fmtSpec({ align: "<", width: 10, precision: 1 }, args7[2]), "|", rs.fmtSpec({ precision: rs.fmtCountOf(args7[3]) }, args7[0]), "|", rs.fmtSpec({ precision: 1 }, args7[4])]).v);
 		const iter4: rs.Iter<rs.u64> = rs.iterSlice([1500000000, 2500000000, 1250000, 1350000, 999500, 1999999999]);
 		while (true) {
-			const _250: rs.u64 | rs.Done = iter4.next();
-			if (_250 === rs.DONE) {
+			const _237: rs.u64 | rs.Done = iter4.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			const part = rs.durationFromNanos(_250);
-			const args12 = [(f: rs.Formatter) => rs.durationDebug(part, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args12[0]), " ", rs.fmtSpec({ precision: 1 }, args12[0]), " ", rs.fmtSpec({ precision: 2 }, args12[0])]).v);
+			const d4: rs.Duration = rs.durationFromNanos(_237);
+			const args8 = [(f: rs.Formatter) => rs.durationDebug(d4, f)];
+			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args8[0]), " ", rs.fmtSpec({ precision: 1 }, args8[0]), " ", rs.fmtSpec({ precision: 2 }, args8[0])]).v);
 		}
-	} else if (_24 === 10) {
+	} else if (_20 === 10) {
 		let c2: rs.Duration = a;
 		c2 = rs.durationAdd(c2, b);
 		putDuration(out, c2);
@@ -302,8 +308,8 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		w.start = rs.durationSub(w.start, b);
 		putDuration(out, w.start);
 		if (w.len !== undefined) {
-			const _283: rs.Duration = rs.ordMin(a, b, rs.cmpLt(rs.durationCmp));
-			w.len = rs.durationSub(w.len, _283);
+			const _268: rs.Duration = rs.ordMin(a, b, rs.cmpLt(rs.durationCmp));
+			w.len = rs.durationSub(w.len, _268);
 		}
 		putOpt(out, w.len);
 		const v: rs.Duration[] = [a, b];
@@ -312,10 +318,10 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		shrink(rs.place(() => v[0], (value) => v[0] = value), b);
 		putDuration(out, v[0]);
 		let d5: rs.Duration = a;
-		const _306: Twice.Twice = { _0: b };
-		addAssign$ops_AddAssign_durations_Twice_time_Duration(rs.place(() => d5, (value2) => d5 = value2), _306);
+		const _283: Twice.Twice = { _0: b };
+		addAssign$ops_AddAssign_durations_Twice_time_Duration(rs.place(() => d5, (value2) => d5 = value2), _283);
 		putDuration(out, d5);
-	} else if (_24 === 11) {
+	} else if (_20 === 11) {
 		let c3: rs.Duration = a;
 		c3 = rs.durationMul(c3, n);
 		putDuration(out, c3);
@@ -323,17 +329,19 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const at = rs.idx(v2.items, 0);
 		v2.items[at] = rs.durationDiv(v2.items[at], n);
 		putDuration(out, v2.items[rs.idx(v2.items, 0)]);
-	} else if (_24 === 12) {
+	} else if (_20 === 12) {
 		const units2: rs.u64 = take(data)[0];
 		const wide: Uint8Array = rs.bytes(16);
-		const k2: rs.usize = rs.min(data.length, rs.byteSliceFrom(wide).length);
-		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(wide), 0, k2), rs.byteSliceRange(data, 0, k2));
+		const k2: rs.usize = rs.min(data.length, 16);
+		const _307: rs.ByteSlice = rs.byteSliceFrom(wide);
+		const _308: { end: rs.usize } = { end: k2 };
+		rs.byteSliceCopyFromSlice(rs.byteSliceRange(_307, 0, _308.end), rs.byteSliceRange(data, 0, _308.end));
 		putDuration(out, rs.durationFromMins(units2));
 		putDuration(out, rs.durationFromHours(units2));
 		putDuration(out, rs.durationFromNanosU128(rs.u128FromBeBytes(wide)));
-	} else if (_24 === 13) {
-		const _346: rs.Duration = rs.durationNew(0, rs.u32Rem(n, 1000000000));
-		const parts: rs.Duration[] = [a, b, _346];
+	} else if (_20 === 13) {
+		const _319: rs.Duration = rs.durationNew(0, rs.u32Rem(n, 1000000000));
+		const parts: rs.Duration[] = [a, b, _319];
 		putDuration(out, rs.durationSum(rs.iterSlice(parts)));
 		putDuration(out, rs.durationSum(rs.iterSlice([b, a])));
 		putDuration(out, rs.durationSum(rs.iterFilter(rs.iterSlice(parts), (d7: rs.Duration): boolean => {
@@ -342,26 +350,26 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	} else {
 		const iter5: rs.Iter<rs.Duration> = rs.iterSlice([{ secs: 0, nanos: 0 }, { secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, { secs: 0, nanos: 999 }]);
 		while (true) {
-			const _367: rs.Duration | rs.Done = iter5.next();
-			if (_367 === rs.DONE) {
+			const _339: rs.Duration | rs.Done = iter5.next();
+			if (_339 === rs.DONE) {
 				break;
 			}
-			putDuration(out, _367);
+			putDuration(out, _339);
 		}
 		putDuration(out, { secs: 1, nanos: 500000000 });
 		putDuration(out, { secs: 0, nanos: 0 });
 		putOpt(out, rs.durationCheckedAdd({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationFromNanos(1)));
-		const _379: rs.Duration | undefined = thenSome$00rtwed(rs.durationCmp(b, { secs: 1, nanos: 500000000 }) === 1, b);
-		const w2: Window.Window = { start: a, len: _379 };
-		const _388: Window.Window = Window.default$Default();
-		rs.byteVecPush(out, Window.eq$cmp_PartialEq(w2, _388) ? 1 : 0);
+		const _351: rs.Duration | undefined = thenSome$00rtwed(rs.durationCmp(b, { secs: 1, nanos: 500000000 }) === 1, b);
+		const w2: Window.Window = { start: a, len: _351 };
+		const _359: Window.Window = Window.default$Default();
+		rs.byteVecPush(out, Window.eq$cmp_PartialEq(w2, _359) ? 1 : 0);
 		rs.byteVecPush(out, Window.cmp$cmp_Ord(w2, { start: b, len: undefined }) < 0 ? 1 : 0);
-		const _400: Window.Window = copy$durations_Window(Window.default$Default());
-		const _398: rs.Iter<Window.Window> = rs.iterSlice([copy$durations_Window(w2), copy$durations_Window(w2), _400]);
-		rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Window.hash$Hash_hash_DefaultHasher as (a0: Window.Window, a1: rs.Hasher) => undefined, Window.eq$cmp_PartialEq)) as rs.HashSet<Window.Window>, _398, undefined, undefined, 29360128)) & 0xff);
-		const _413: Window.Window = Window.default$Default();
-		const args9 = [(f: rs.Formatter) => Window.fmt$fmt_Debug(w2, f), (f: rs.Formatter) => Window.fmt$fmt_Debug(_413, f)];
-		put(out, rs.fmtFormat([args9[0], "|", rs.fmtSpec({ alternate: true }, args9[1])]).v);
+		const _370: Window.Window = copy$durations_Window(Window.default$Default());
+		const _368: rs.Iter<Window.Window> = rs.iterSlice([copy$durations_Window(w2), copy$durations_Window(w2), _370]);
+		rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Window.hash$Hash_hash_DefaultHasher as (a0: Window.Window, a1: rs.Hasher) => undefined, Window.eq$cmp_PartialEq)) as rs.HashSet<Window.Window>, _368, undefined, undefined, 29360128)) & 0xff);
+		const _382: Window.Window = Window.default$Default();
+		const args5 = [(f: rs.Formatter) => Window.fmt$fmt_Debug(w2, f), (f: rs.Formatter) => Window.fmt$fmt_Debug(_382, f)];
+		put(out, rs.fmtFormat([args5[0], "|", rs.fmtSpec({ alternate: true }, args5[1])]).v);
 	}
 }
 

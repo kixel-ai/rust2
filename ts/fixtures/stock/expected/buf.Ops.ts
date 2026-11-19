@@ -10,14 +10,14 @@ export interface Ops {
 }
 
 export function next(self: Ops): rs.u8 | undefined {
-	const _8Data: Uint8Array = self._0Data;
-	const _8Start: number = self._0Start;
-	const _8Len: number = self._0Len;
-	if (_8Len !== 0) {
-		const first: rs.u8 = _8Data[_8Start];
-		self._0Data = _8Data;
-		self._0Start = _8Start + 1;
-		self._0Len = _8Len - 1;
+	const _6Data: Uint8Array = self._0Data;
+	const _6Start: number = self._0Start;
+	const _6Len: number = self._0Len;
+	if (_6Len !== 0) {
+		const first: rs.u8 = _6Data[_6Start];
+		self._0Data = _6Data;
+		self._0Start = _6Start + 1;
+		self._0Len = _6Len - 1;
 		return first;
 	}
 	return undefined;

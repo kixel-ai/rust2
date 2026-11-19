@@ -777,6 +777,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Whether a copy out of `place` of what isn't `Copy` leaves another owner of its value:
+	/// what a pointer points at, which stays, as a `clone` of copies folds into a copy of
+	/// `*self`, or another read of it, or of a part of it or what holds it, as value
+	/// numbering reads one value it made for two equal ones. Reads of disjoint parts, as a
+	/// move of each variant's payload, share nothing.
+	pub(super) fn reread(&self, place: Place<'tcx>) -> bool {
+		let overlaps = |other: &&Place<'tcx>| {
+			let n = place.projection.len().min(other.projection.len());
+			place.projection[..n] == other.projection[..n]
+		};
+		place.projection.iter().any(|e| matches!(e, ProjectionElem::Deref))
+			|| (self.value_reads.get(&place.local)).is_some_and(|reads| reads.iter().filter(overlaps).count() > 1)
+	}
+
 	/// An operand's value, copied if it is a `Copy` aggregate read from a place that keeps it.
 	pub(crate) fn operand(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		match op {
@@ -798,6 +812,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				let value = self.place_expr(*place, span, out);
 				let shared = self.force_share || self.into_frozen && self.frozen(*place);
+				if !self.b.t.is_copy(ty) {
+					// Value numbering also copies what isn't `Copy` out of a place read again,
+					// as it makes one aggregate for two equal ones, which each change apart.
+					return match self.reread(*place) {
+						true => self.b.t.snapshot(value, ty, span),
+						false => value,
+					};
+				}
 				match shared && !self.b.t.held_addressed(ty) {
 					true => value,
 					false => self.b.t.copied(value, ty, span),
@@ -1137,7 +1159,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(
 					Some(mir::Rvalue::Cast(mir::CastKind::BoxDerefTransmute, op, _)),
 					[ProjectionElem::Deref, rest @ ..],
-				) if let Some(p) = op.place()
+				) if let Some(p) = op.place().map(|p| self.box_field(p))
 					&& let [inner @ .., ProjectionElem::Field(..)] = p.projection.as_slice() =>
 				{
 					let boxed = Place {

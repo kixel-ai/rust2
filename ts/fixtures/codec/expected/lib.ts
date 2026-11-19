@@ -7,6 +7,10 @@ export function copy$bench_Timestamp(v: Timestamp.Timestamp): Timestamp.Timestam
 	return { value: v.value, scale: v.scale };
 }
 
+export function copy$ops_Range_u32(v: rs.Range<rs.u32>): rs.Range<rs.u32> {
+	return rs.objectCopy(v);
+}
+
 export const out$Option_u64: { p: rs.u64 | undefined } = { p: undefined as never };
 
 export const out$bool: { p: boolean } = { p: undefined as never };

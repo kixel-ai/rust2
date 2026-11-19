@@ -82,20 +82,20 @@ export function encodeMsg$lite_message_Message(self: Group, w: Encoder.Encoder, 
 /** Encode the value to the given encoder, which may hold partial output on error. */
 export function encode$coding_encode_Encode_lite_version_Version(self: Group, w: Encoder.Encoder, version: lite_version_Version.Version): rs.Result<undefined, EncodeError.EncodeError> {
 	const prefix: Prefix.Prefix = Encoder.prefixVarint(w);
-	const _39: rs.Result<undefined, EncodeError.EncodeError> = encodeMsg$lite_message_Message(self, w, version);
-	if (_39.ok) {
+	const _32: rs.Result<undefined, EncodeError.EncodeError> = encodeMsg$lite_message_Message(self, w, version);
+	if (_32.ok) {
 		if (!(Encoder.since(w, prefix) > 65535)) {
-			const _49: rs.Result<undefined, EncodeError.EncodeError> = Encoder.fill(w, prefix);
-			if (_49.ok) {
+			const _41: rs.Result<undefined, EncodeError.EncodeError> = Encoder.fill(w, prefix);
+			if (_41.ok) {
 				w.control = undefined;
 				return rs.OK;
 			}
-			return _49;
+			return _41;
 		}
 		Encoder.discard(w, prefix);
 		return rs.Err("TooLarge" as EncodeError.EncodeError);
 	}
-	return _39;
+	return _32;
 }
 
 /** Decode the value from the front of the decoder. */

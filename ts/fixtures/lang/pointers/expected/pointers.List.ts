@@ -38,7 +38,7 @@ export function guard$Vec_u8(self: List<rs.ByteVec>): Node.Node<rs.ByteVec> {
 	const _11: Node.Node<rs.ByteVec> = guard2;
 	_11.link.at0 = _8.next;
 	_11.link.at4 = _8.prev;
-	self.guard = guard2;
+	self.guard = guard2 as Node.Node<rs.ByteVec> | undefined;
 	return guard2;
 }
 
@@ -51,7 +51,7 @@ export function guard$sync_Arc_u8(self: List<rs.Arc<rs.u8>>): Node.Node<rs.Arc<r
 	const _11: Node.Node<rs.Arc<rs.u8>> = guard2;
 	_11.link.at0 = _8.next;
 	_11.link.at4 = _8.prev;
-	self.guard = guard2;
+	self.guard = guard2 as Node.Node<rs.Arc<rs.u8>> | undefined;
 	return guard2;
 }
 
@@ -95,7 +95,7 @@ export function find$Vec_u8(self: List<rs.ByteVec>, key: rs.u8): Node.Node<rs.By
 		const guard: Node.Node<rs.ByteVec> = _4;
 		let at: Node.Node<rs.ByteVec> = guard.link.at0 as Node.Node<rs.ByteVec>;
 		while (at !== guard) {
-			if (!(at.entry[0] === key)) {
+			if (!(key === at.entry[0])) {
 				at = at.link.at0 as Node.Node<rs.ByteVec>;
 			} else {
 				return at;
@@ -112,7 +112,7 @@ export function find$sync_Arc_u8(self: List<rs.Arc<rs.u8>>, key: rs.u8): Node.No
 		const guard: Node.Node<rs.Arc<rs.u8>> = _4;
 		let at: Node.Node<rs.Arc<rs.u8>> = guard.link.at0 as Node.Node<rs.Arc<rs.u8>>;
 		while (at !== guard) {
-			if (!(at.entry[0] === key)) {
+			if (!(key === at.entry[0])) {
 				at = at.link.at0 as Node.Node<rs.Arc<rs.u8>>;
 			} else {
 				return at;

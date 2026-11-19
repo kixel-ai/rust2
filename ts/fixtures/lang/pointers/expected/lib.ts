@@ -10,6 +10,7 @@ import type * as ByObject from "./pointers.ByObject.ts";
 import type * as Duo from "./pointers.Duo.ts";
 import type * as Either from "./pointers.Either.ts";
 import type * as Halves from "./pointers.Halves.ts";
+import * as Held from "./pointers.Held.ts";
 import type * as HeldCell from "./pointers.HeldCell.ts";
 import type * as Housed from "./pointers.Housed.ts";
 import type * as Inner from "./pointers.Inner.ts";
@@ -136,6 +137,10 @@ export function copy$mem_MaybeUninit_tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs
 	return [v[0], v[1]];
 }
 
+export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
+	return rs.objectCopy(v);
+}
+
 export function copy$ops_Range_Cell_u32(v: rs.Range<rs.Cell<rs.u32>>): rs.Range<rs.Cell<rs.u32>> {
 	const c = rs.objectCopy(v);
 	c.start = copy$Cell_u32(c.start);
@@ -197,6 +202,10 @@ export function copy$pointers_Either_u8(v: Either.Either<rs.u8>): Either.Either<
 
 export function copy$pointers_Halves(v: Halves.Halves): Halves.Halves {
 	return ({ at0: copy$mem_MaybeUninit_array_u32(v.at0) } as unknown) as Halves.Halves;
+}
+
+export function copy$pointers_Held(v: Held.Held): Held.Held {
+	return new Held.Held(v.n, v.count);
 }
 
 export function copy$pointers_Inner(v: Inner.Inner): Inner.Inner {

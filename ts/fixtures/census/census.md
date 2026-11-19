@@ -1,6 +1,6 @@
 # Census of `census-fixture`
 
-- Refusals: 9
+- Refusals: 8
 - Function instances: 6
 - Generic functions no instance reached, lowered over their type parameters: 1
 
@@ -10,8 +10,8 @@
 | ---: | --- | --- |
 | 3 | a cast from `_` to `_`, between a pointer and an integer | fixtures/census/src/lib.rs:9:2 |
 | 2 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | fixtures/census/src/lib.rs:19:12 |
-| 2 | a mutable static, which any code may write | fixtures/census/src/lib.rs:38:3 |
 | 1 | `Pointer` formatting, as in `{:p}`, is not supported | fixtures/census/src/lib.rs:24:2 |
+| 1 | a mutable static, which any code may write | fixtures/census/src/lib.rs:38:3 |
 | 1 | union `_`, whose fields overlap in `_` and `f64`, which JS keeps apart | fixtures/census/src/lib.rs:28:1 |
 
 ## By API
@@ -57,16 +57,15 @@ The type or module each refused type or path belongs to.
 
 </details>
 
-<details><summary>a mutable static, which any code may write (2)</summary>
-
-- fixtures/census/src/lib.rs:38:3: a mutable static, which any code may write
-- fixtures/census/src/lib.rs:39:3: a mutable static, which any code may write
-
-</details>
-
 <details><summary>`Pointer` formatting, as in `{:p}`, is not supported (1)</summary>
 
 - fixtures/census/src/lib.rs:24:2: `Pointer` formatting, as in `{:p}`, is not supported
+
+</details>
+
+<details><summary>a mutable static, which any code may write (1)</summary>
+
+- fixtures/census/src/lib.rs:38:3: a mutable static, which any code may write
 
 </details>
 

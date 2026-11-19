@@ -6,6 +6,7 @@ import type * as Hasher from "./core/hash.Hasher.ts";
 import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics, peek$dyns_Peek_unit_u8, peek$dyns_Peek_Option_u8_u16, options } from "./dyns.ts";
 import * as Beats from "./dyns.Beats.ts";
 import * as By from "./dyns.By.ts";
+import * as Countdown from "./dyns.Countdown.ts";
 import * as Drained from "./dyns.Drained.ts";
 import * as Guarded from "./dyns.Guarded.ts";
 import * as Held from "./dyns.Held.ts";
@@ -32,11 +33,27 @@ import * as Key from "./stds.Key.ts";
 import * as stds_Sum from "./stds.Sum.ts";
 import * as Upper from "./stds.Upper.ts";
 
+export function copy$Option_tuple2_dyns_Tagged_dyns_Tagged(v: [Tagged.Tagged, Tagged.Tagged] | undefined): [Tagged.Tagged, Tagged.Tagged] | undefined {
+	return v === undefined ? v : copy$tuple2_dyns_Tagged_dyns_Tagged(v);
+}
+
+export function copy$dyns_Countdown(v: Countdown.Countdown): Countdown.Countdown {
+	return new Countdown.Countdown(v._0);
+}
+
 export function copy$dyns_Tri(v: Tri.Tri): Tri.Tri {
 	if (v.tag === "Tall") {
 		return { tag: "Tall", _0: v._0 };
 	}
 	return v;
+}
+
+export function copy$ops_Range_u8(v: rs.Range<rs.u8>): rs.Range<rs.u8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$tuple2_dyns_Tagged_dyns_Tagged(v: [Tagged.Tagged, Tagged.Tagged]): [Tagged.Tagged, Tagged.Tagged] {
+	return [v[0], v[1]];
 }
 
 export function drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_1: rs.Result<rs.Arc<Noisy.Noisy>, rs.Arc<Any.Any>>): void {
@@ -1464,31 +1481,31 @@ export class ofPlace$unit {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["dyns::dyns", (_210: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["dyns::dyns", (_29: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		dyns(data.data, data.start, data.length, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::shared", (_211: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::shared", (_210: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		shared(data2.data, data2.start, data2.length, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::anys", (_212: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::anys", (_211: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		anys(data3.data, data3.start, data3.length, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::fns", (_213: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::fns", (_212: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		fns(data4, out4);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::pointers", (_214: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::pointers", (_213: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
 		pointers(data5.data, data5.start, data5.length, out5);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::iters", (_215: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::iters", (_214: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
 		iters(data6, out6);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::boxes", (_216: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::boxes", (_215: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
 		boxes(data7, out7);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::tails", (_217: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::tails", (_216: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
 		tails(data8, out8);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::rests", (_218: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::rests", (_217: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
 		rests(data9.data, data9.start, data9.length, out9);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::generics", (_219: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::generics", (_218: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
 		generics(data10, out10);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["stds::stds", (_220: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["stds::stds", (_219: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
 		stds(data11, out11);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::options", (_221: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::options", (_220: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
 		options(data12, out12);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["ids::ids", (_222: rs.u8, data13: rs.ByteSlice, out13: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["ids::ids", (_221: rs.u8, data13: rs.ByteSlice, out13: rs.ByteVec): undefined => {
 		ids(data13.data, data13.start, data13.length, out13);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

@@ -35,10 +35,10 @@ export function poll$Future(self: Yields, cx: rs.Context): rs.Poll<rs.u8> {
 		if (_18 === 0) {
 			cx.wakeByRef();
 		} else if (_18 === 1) {
-			const _25: rs.Waker | undefined = cx.clone();
-			const _29: Yields = self;
-			rs.drop(_29._1);
-			_29._1 = _25;
+			const _24: rs.Waker | undefined = cx.clone();
+			const _28: Yields = self;
+			rs.drop(_28._1);
+			_28._1 = _24;
 		} else {
 			const w: rs.Waker = cx.clone();
 			w.wakeByRef();

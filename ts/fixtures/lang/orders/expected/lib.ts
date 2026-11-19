@@ -2,6 +2,20 @@
 
 import * as rs from "./rs.ts";
 import { orders, bytes, tuples, held, btrees } from "./orders.ts";
+import * as Item from "./orders.Item.ts";
+import type * as Part from "./orders.Part.ts";
+
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
+}
+
+export function copy$collections_VecDeque_orders_Part(v: rs.VecDeque<Part.Part>): rs.VecDeque<Part.Part> {
+	return rs.objectCopy(v);
+}
+
+export function copy$orders_Item(v: Item.Item): Item.Item {
+	return new Item.Item(v.key, v.tag);
+}
 
 export function copy$tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {
 	return [v[0], v[1]];

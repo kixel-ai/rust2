@@ -2,12 +2,37 @@
 
 import * as rs from "./rs.ts";
 import { borrows, guards, maps, tries, leaks, printed } from "./borrows.ts";
-import type * as Parts from "./borrows.Parts.ts";
+import * as Noisy from "./borrows.Noisy.ts";
+import * as Parts from "./borrows.Parts.ts";
 import type * as Probe from "./borrows.Probe.ts";
-import type * as Tagged from "./borrows.Tagged.ts";
+import * as Tagged from "./borrows.Tagged.ts";
 
 export function copy$Option_tuple2_u64_u64(v: [rs.u64, rs.u64] | undefined): [rs.u64, rs.u64] | undefined {
 	return v === undefined ? v : copy$tuple2_u64_u64(v);
+}
+
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
+}
+
+export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
+	return rs.objectCopy(v);
+}
+
+export function copy$array_u8(v: Uint8Array): Uint8Array {
+	return v.slice();
+}
+
+export function copy$borrows_Noisy(v: Noisy.Noisy): Noisy.Noisy {
+	return new Noisy.Noisy(v.id, v.log);
+}
+
+export function copy$borrows_Parts(v: Parts.Parts): Parts.Parts {
+	return new Parts.Parts(v.n, copy$String(v.text), copy$Vec_u8(v.bytes), copy$borrows_Tagged(v.tagged), v.maybe, copy$array_u8(v.quad));
+}
+
+export function copy$borrows_Tagged(v: Tagged.Tagged): Tagged.Tagged {
+	return new Tagged.Tagged(v.id, v.n, v.log);
 }
 
 export function copy$tuple2_u64_u64(v: [rs.u64, rs.u64]): [rs.u64, rs.u64] {

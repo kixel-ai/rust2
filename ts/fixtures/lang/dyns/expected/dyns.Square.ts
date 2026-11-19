@@ -32,7 +32,8 @@ export interface Square {
 }
 
 export function area$dyns_Shape(self: Square): rs.u32 {
-	return rs.u32Mul(self.side as rs.u32, self.side as rs.u32);
+	const _3: rs.u16 = self.side;
+	return rs.u32Mul(_3 as rs.u32, _3 as rs.u32);
 }
 
 export function grow$dyns_Shape(self: Square, by: rs.u8): void {

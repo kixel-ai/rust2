@@ -14,43 +14,43 @@ import { unwrapOr$0yvilko as option_unwrapOr$0yvilko, unwrapOr$1fr498u as option
  * 1 slices out of order, which panics.
  */
 export function run(input: rs.ByteSlice): rs.ByteVec {
-	let _128: boolean = false;
+	let _125: boolean = false;
 	const out: rs.ByteVec = new rs.ByteVec();
 	const bytes: Blob.Blob = Blob.copyFromSlice(input);
 	const mid: rs.usize = rs.usizeDiv(Blob.len(bytes), 2);
 	const head: Blob.Blob = Blob.slice(bytes, { end: mid });
 	const tail: Blob.Blob = Blob.slice(bytes, new rs.RangeFrom(mid, rs.usizeStep));
-	const _16: rs.Range<rs.usize> = new rs.Range(rs.min(1, mid), mid);
-	const inner: Blob.Blob = Blob.slice(bytes, _16);
-	const _20: rs.u8 = Blob.len(head) & 0xff;
-	rs.byteVecPush(out, _20);
-	const _25: rs.u8 = Blob.len(inner) & 0xff;
-	rs.byteVecPush(out, _25);
-	const _30: rs.ByteSlice = Blob.deref$ops_Deref(tail);
-	rs.byteVecExtendFromSlice(out, _30);
-	const _34: rs.u8 = Blob.eq$cmp_PartialEq(head, tail) ? 1 : 0;
-	rs.byteVecPush(out, _34);
-	const _40: rs.u8 = Blob.eq$cmp_PartialEq(Blob.clone$Clone(head), head) ? 1 : 0;
-	rs.byteVecPush(out, _40);
-	const _48: rs.u8 = Blob.eq$cmp_PartialEq(Blob.from$convert_From_Vec_u8(rs.byteSliceToByteVec(input)), bytes) ? 1 : 0;
-	rs.byteVecPush(out, _48);
-	const _56: rs.u8 = Blob.isEmpty(bytes) ? 1 : 0;
-	rs.byteVecPush(out, _56);
+	const _15: rs.Range<rs.usize> = new rs.Range(rs.min(1, mid), mid);
+	const inner: Blob.Blob = Blob.slice(bytes, _15);
+	const _19: rs.u8 = Blob.len(head) & 0xff;
+	rs.byteVecPush(out, _19);
+	const _24: rs.u8 = Blob.len(inner) & 0xff;
+	rs.byteVecPush(out, _24);
+	const _29: rs.ByteSlice = Blob.deref$ops_Deref(tail);
+	rs.byteVecExtendFromSlice(out, _29);
+	const _33: rs.u8 = Blob.eq$cmp_PartialEq(head, tail) ? 1 : 0;
+	rs.byteVecPush(out, _33);
+	const _39: rs.u8 = Blob.eq$cmp_PartialEq(Blob.clone$Clone(head), head) ? 1 : 0;
+	rs.byteVecPush(out, _39);
+	const _47: rs.u8 = Blob.eq$cmp_PartialEq(Blob.from$convert_From_Vec_u8(rs.byteSliceToByteVec(input)), bytes) ? 1 : 0;
+	rs.byteVecPush(out, _47);
+	const _55: rs.u8 = Blob.isEmpty(bytes) ? 1 : 0;
+	rs.byteVecPush(out, _55);
 	const sum: rs.u32 = checksum.checksum(Blob.deref$ops_Deref(tail));
 	const iter: rs.Iter<rs.i32> = rs.iterSlice([0, 8, 16, 24]);
 	while (true) {
-		const _65: rs.i32 | rs.Done = iter.next();
-		if (_65 === rs.DONE) {
+		const _64: rs.i32 | rs.Done = iter.next();
+		if (_64 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, rs.u32Shr(sum, _65) & 0xff);
+		rs.byteVecPush(out, rs.u32Shr(sum, _64) & 0xff);
 	}
 	let at: rs.usize = 0;
 	skip.skip(input, rs.place(() => at, (value) => at = value));
 	rs.byteVecPush(out, at & 0xff);
 	if (rs.byteSliceFirst(input) === 1) {
-		const _88: rs.Range<rs.usize> = new rs.Range(mid, rs.usizeSaturatingSub(mid, 1));
-		Blob.slice(bytes, _88);
+		const _86: rs.Range<rs.usize> = new rs.Range(mid, rs.usizeSaturatingSub(mid, 1));
+		Blob.slice(bytes, _86);
 	}
 	const count: rs.Arc<rs.u32> = new rs.Arc(input.length as rs.u32);
 	const a: Tally.Tally = Tally.new(count);
@@ -58,21 +58,21 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 	rs.byteVecPush(out, count.strong & 0xff);
 	a[Symbol.dispose]();
 	rs.byteVecPush(out, count.strong & 0xff);
-	const _110: rs.u8 = Tally.get(b) & 0xff;
-	rs.byteVecPush(out, _110);
-	_128 = true;
+	const _108: rs.u8 = Tally.get(b) & 0xff;
+	rs.byteVecPush(out, _108);
+	_125 = true;
 	const held: Tally.Tally | undefined = b;
 	if (rs.byteSliceFirst(input) === 2) {
-		_128 = false;
-		rs.drop(held);
+		_125 = false;
+		rs.drop(held as Tally.Tally | undefined);
 	}
 	rs.byteVecPush(out, count.strong & 0xff);
 	keys(input, bytes, out);
 	const _0: rs.ByteVec = out;
-	if (_128) {
+	if (_125) {
 		rs.drop(held);
 	}
-	_128 = false;
+	_125 = false;
 	count[Symbol.dispose]();
 	return _0;
 }
@@ -83,7 +83,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
  */
 export function keys(input: rs.ByteSlice, bytes: Blob.Blob, out: rs.ByteVec): void {
 	let _12!: rs.usize;
-	let _143!: rs.u8;
+	let _141!: rs.u8;
 	const seen: rs.HashSet<Blob.Blob> = rs.hashNew(rs.hashing(Blob.hash$Hash as (a0: Blob.Blob, a1: rs.Hasher) => undefined, Blob.eq$cmp_PartialEq, true)) as rs.HashSet<Blob.Blob>;
 	const counts: rs.HashMap<Blob.Blob, rs.u8> = rs.hashNew(rs.hashing(Blob.hash$Hash as (a0: Blob.Blob, a1: rs.Hasher) => undefined, Blob.eq$cmp_PartialEq, true)) as rs.HashMap<Blob.Blob, rs.u8>;
 	const sorted: rs.BTreeSet<Blob.Blob> = rs.btreeNew(Blob.cmp$cmp_Ord) as rs.BTreeSet<Blob.Blob>;
@@ -105,22 +105,22 @@ export function keys(input: rs.ByteSlice, bytes: Blob.Blob, out: rs.ByteVec): vo
 	}
 	rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	rs.byteVecPush(out, rs.hashLen(counts) & 0xff);
-	const probe: Blob.Blob = Blob.copyFromSlice(option_unwrapOr$0yvilko(rs.byteSliceGetRange(input, 0, 2), input));
+	const probe: Blob.Blob = Blob.copyFromSlice(option_unwrapOr$0yvilko(rs.byteSliceGetRange(input, 0, { end: 2 }.end), input));
 	rs.byteVecPush(out, rs.hashContains(seen, probe) ? 1 : 0);
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashGet(counts, probe), 0));
 	rs.byteVecPush(out, rs.btreeContains(sorted, probe) ? 1 : 0);
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.btreeGet(firsts, probe), 255));
-	const _81: rs.RangeFrom<Blob.Blob> = new rs.RangeFrom(Blob.clone$Clone(probe));
-	rs.byteVecPush(out, rs.iterCount(rs.btreeRangeKeys(sorted, _81, Blob.eq$cmp_PartialEq, rs.cmpGt(Blob.partialCmp$cmp_PartialOrd))) & 0xff);
+	const _80: rs.RangeFrom<Blob.Blob> = new rs.RangeFrom(Blob.clone$Clone(probe));
+	rs.byteVecPush(out, rs.iterCount(rs.btreeRangeKeys(sorted, _80, Blob.eq$cmp_PartialEq, rs.cmpGt(Blob.partialCmp$cmp_PartialOrd))) & 0xff);
 	const iter2: rs.Iter<[Blob.Blob, rs.u8]> = rs.btreeIter(firsts);
 	while (true) {
-		const _87: [Blob.Blob, rs.u8] | rs.Done = iter2.next();
-		if (_87 === rs.DONE) {
+		const _86: [Blob.Blob, rs.u8] | rs.Done = iter2.next();
+		if (_86 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, Blob.len(_87[0]) & 0xff);
-		rs.byteVecExtendFromSlice(out, Blob.deref$ops_Deref(_87[0]));
-		rs.byteVecPush(out, _87[1]);
+		rs.byteVecPush(out, Blob.len(_86[0]) & 0xff);
+		rs.byteVecExtendFromSlice(out, Blob.deref$ops_Deref(_86[0]));
+		rs.byteVecPush(out, _86[1]);
 	}
 	rs.byteVecPush(out, rs.hashDelete(seen, probe) ? 1 : 0);
 	rs.byteVecPush(out, rs.btreeDelete(sorted, probe) ? 1 : 0);
@@ -137,10 +137,16 @@ export function keys(input: rs.ByteSlice, bytes: Blob.Blob, out: rs.ByteVec): vo
 		rs.btreeInsert(values, key, byte);
 	}
 	rs.byteVecPush(out, rs.hashLen(nibbles) & 0xff);
-	let iterStart2: rs.u8 = 0;
-	const iterEnd2: rs.u8 = 16;
-	while ((_143 = iterStart2++) < iterEnd2) {
-		const key3: Nibble.Nibble = Nibble.new(rs.u8Mul(_143, 17));
+	const iter4: rs.Range<rs.u8> = new rs.Range(0, 16);
+	while (true) {
+		const _141Some: boolean = iter4.start < iter4.end;
+		if (_141Some) {
+			_141 = iter4.start++;
+		}
+		if (!_141Some) {
+			break;
+		}
+		const key3: Nibble.Nibble = Nibble.new(rs.u8Mul(_141, 17));
 		rs.byteVecPush(out, option_mapOr$0oywhrg(rs.hashKey(nibbles, key3), 255, (n: Nibble.Nibble): rs.u8 => {
 			return Nibble.get(n);
 		}));
@@ -148,12 +154,12 @@ export function keys(input: rs.ByteSlice, bytes: Blob.Blob, out: rs.ByteVec): vo
 	}
 	const iter5: rs.Iter<[Nibble.Nibble, rs.u8]> = rs.btreeIter(values);
 	while (true) {
-		const _164: [Nibble.Nibble, rs.u8] | rs.Done = iter5.next();
-		if (_164 === rs.DONE) {
+		const _162: [Nibble.Nibble, rs.u8] | rs.Done = iter5.next();
+		if (_162 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, Nibble.get(_164[0]));
-		rs.byteVecPush(out, _164[1]);
+		rs.byteVecPush(out, Nibble.get(_162[0]));
+		rs.byteVecPush(out, _162[1]);
 	}
 	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(ordered), (n2: Nibble.Nibble): rs.u8 => {
 		return Nibble.get(n2);

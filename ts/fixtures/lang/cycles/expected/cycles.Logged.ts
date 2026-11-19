@@ -28,14 +28,14 @@ export function id(self: Logged): rs.u8 {
 /** Logs `x`, as a closure that holds it is called. */
 export function called(self: Logged, x: rs.u8): rs.u8 {
 	const _6: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log.value);
-	rs.byteVecPush(_6.value, 64 | (x & 63));
+	rs.byteVecPush(_6.value, (x & 63) | 64);
 	rs.refMutRelease(_6);
 	return x ^ self.id;
 }
 
 export function clone$Clone(self: Logged): Logged {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log.value);
-	rs.byteVecPush(_5.value, 128 | self.id);
+	rs.byteVecPush(_5.value, self.id | 128);
 	rs.refMutRelease(_5);
 	return new Logged(rs.u8WrappingAdd(self.id, 1), rs.arcClone(self.log));
 }

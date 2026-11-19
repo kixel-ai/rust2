@@ -12,39 +12,39 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.u8 = rs.u8FromBeBytes(rs.bytesFromFn(1, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(1, i3));
+		return byte(rs.usizeAdd(i3, 1));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 1, i4));
+		return byte(rs.usizeAdd(i4, 2));
 	}));
 	const o: rs.i8 = (b << 24) >> 24;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 8);
-	const _22: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v4: rs.u8): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 24);
+	const _19: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v2: rs.u8): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		rs.byteVecReserve(dst, 1 as rs.usize);
 		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
-		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v4)) === v4 ? 1 : 0);
+		rs.byteVecPush(out2, v2 === rs.u8FromBeBytes(rs.u8ToBeBytes(v2)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u8 | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v3: rs.u8 | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.u8 = v5;
+			const v4: rs.u8 = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.u8, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u8, boolean]): undefined => {
-		const v7: rs.u8 = _37[0];
+		const v5: rs.u8 = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v8;
+		const word2 = v6;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -53,17 +53,17 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v10: rs.u32 = v9;
+			const v8: rs.u32 = v7;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v8);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part92 = rs.u8CheckedAdd(a, b);
 		putOpt(out, part92);
 		const part93 = rs.u8CheckedSub(a, b);
@@ -71,17 +71,17 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part94 = rs.u8CheckedMul(a, b);
 		putOpt(out, part94);
 		const part95 = rs.u8SaturatingAdd(a, b);
-		_22(out, part95);
+		_19(out, part95);
 		const part96 = rs.u8SaturatingSub(a, b);
-		_22(out, part96);
+		_19(out, part96);
 		const part97 = rs.u8SaturatingMul(a, b);
-		_22(out, part97);
+		_19(out, part97);
 		const part98 = rs.u8WrappingAdd(a, b);
-		_22(out, part98);
+		_19(out, part98);
 		const part99 = rs.u8WrappingSub(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.u8WrappingMul(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.intOverflowingAdd(a, b, 8, false);
 		putPair(out, part101);
 		const part102 = rs.intOverflowingSub(a, b, 8, false);
@@ -89,58 +89,58 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part103 = rs.intOverflowingMul(a, b, 8, false);
 		putPair(out, part103);
 		const part104 = rs.intMidpoint(a, b, 8, false);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intCheckedAdd(a, o, 8, false);
 		putOpt(out, part105);
 		const part106 = rs.intCheckedSub(a, o, 8, false);
 		putOpt(out, part106);
 		const part107 = rs.intSaturatingAdd(a, o, 8, false);
-		_22(out, part107);
+		_19(out, part107);
 		const part108 = rs.intSaturatingSub(a, o, 8, false);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intWrappingAdd(a, o, 8, false);
-		_22(out, part109);
+		_19(out, part109);
 		const part110 = rs.intWrappingSub(a, o, 8, false);
-		_22(out, part110);
+		_19(out, part110);
 		const part111 = rs.intOverflowingAdd(a, o, 8, false);
 		putPair(out, part111);
 		const part112 = rs.intOverflowingSub(a, o, 8, false);
 		putPair(out, part112);
 		const b2: rs.u8 = o & 0xff;
-		const _118: rs.i8 | undefined = rs.intCheckedSignedDiff(a, b2, 8, false) as rs.i8 | undefined;
-		if (_118 === undefined) {
+		const _114: rs.i8 | undefined = rs.intCheckedSignedDiff(a, b2, 8, false) as rs.i8 | undefined;
+		if (_114 === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
 			const dst3 = out;
 			rs.byteVecReserve(dst3, 1 as rs.usize);
-			dst3.data[dst3.length + 0] = _118 & 255;
+			dst3.data[dst3.length + 0] = _114 & 255;
 			dst3.length = dst3.length + 1;
 		}
 		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
 		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
 				break;
 			}
-			const carry: boolean = _127;
+			const carry: boolean = _123;
 			const part113 = rs.intCarryingAdd(a, b2, carry, 8, false);
 			putPair(out, part113);
 			const part114 = rs.intBorrowingSub(a, b2, carry, 8, false);
 			putPair(out, part114);
 		}
-		const _141: [rs.u8, rs.u8] = rs.intCarryingMul(a, b2, a, 8, false);
-		const lo: rs.u8 = _141[0];
-		const hi: rs.u8 = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.u8, rs.u8] = rs.intCarryingMulAdd(a, b2, b2, a, 8, false);
-		const lo2: rs.u8 = _150[0];
-		const hi2: rs.u8 = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
+		const _137: [rs.u8, rs.u8] = rs.intCarryingMul(a, b2, a, 8, false);
+		const lo: rs.u8 = _137[0];
+		const hi: rs.u8 = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.u8, rs.u8] = rs.intCarryingMulAdd(a, b2, b2, a, 8, false);
+		const lo2: rs.u8 = _146[0];
+		const hi2: rs.u8 = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
 		const part115 = rs.intCheckedNextMultipleOf(a, b2, 8, false);
 		putOpt(out, part115);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part87 = rs.intCheckedDiv(a, b, 8, false);
 		putOpt(out, part87);
 		const part88 = rs.intCheckedRem(a, b, 8, false);
@@ -151,99 +151,99 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part90);
 		if (b !== 0) {
 			const part91 = rs.u8DivCeil(a, b);
-			_22(out, part91);
+			_19(out, part91);
 			rs.byteVecPush(out, rs.u8IsMultipleOf(a, b) ? 1 : 0);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part82 = rs.intCheckedNeg(a, 8, false);
 		putOpt(out, part82);
 		const part83 = rs.intWrappingNeg(a, 8, false);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingNeg(a, 8, false);
 		putPair(out, part84);
 		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 8, false) ? 1 : 0);
 		const part85 = rs.intCheckedNextPowerOfTwo(a, 8, false);
 		putOpt(out, part85);
 		const part86 = rs.intBitWidth(a, 8, false);
-		_27(out, part86);
+		_24(out, part86);
 		const dst4 = out;
 		rs.byteVecReserve(dst4, 1 as rs.usize);
 		dst4.data[dst4.length + 0] = ((a << 24) >> 24) & 255;
 		dst4.length = dst4.length + 1;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _216;
+			const e: rs.u32 = _212;
 			const part78 = rs.intCheckedPow(a, e, 8, false);
 			putOpt(out, part78);
 			const part79 = rs.intWrappingPow(a, e, 8, false);
-			_22(out, part79);
+			_19(out, part79);
 			const part80 = rs.intSaturatingPow(a, e, 8, false);
-			_22(out, part80);
+			_19(out, part80);
 			const part81 = rs.intOverflowingPow(a, e, 8, false);
 			putPair(out, part81);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _239;
+			const s: rs.u32 = _235;
 			const part68 = rs.intCheckedShl(a, s, 8, false);
 			putOpt(out, part68);
 			const part69 = rs.intCheckedShr(a, s, 8, false);
 			putOpt(out, part69);
 			const part70 = rs.intWrappingShl(a, s, 8, false);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intWrappingShr(a, s, 8, false);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intOverflowingShl(a, s, 8, false);
 			putPair(out, part72);
 			const part73 = rs.intOverflowingShr(a, s, 8, false);
 			putPair(out, part73);
 			const part74 = rs.intUnboundedShl(a, s, 8, false);
-			_22(out, part74);
+			_19(out, part74);
 			const part75 = rs.intUnboundedShr(a, s, 8, false);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intRotateLeft(a, s, 8, false);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intRotateRight(a, s, 8, false);
-			_22(out, part77);
+			_19(out, part77);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 8, false), rs.intCountZeros(a, 8, false), rs.u8LeadingZeros(a), rs.u8TrailingZeros(a), rs.u8LeadingOnes(a), rs.intTrailingOnes(a, 8, false)]);
 		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
 				break;
 			}
-			_27(out, _292);
+			_24(out, _288);
 		}
 		const iter5: rs.Iter<rs.u8> = rs.iterSlice(Uint8Array.of(rs.intSwapBytes(a, 8, false), rs.intReverseBits(a, 8, false), rs.intSwapBytes(a, 8, false), a, rs.intSwapBytes(a, 8, false), a));
 		while (true) {
-			const _308: rs.u8 | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
+			const _304: rs.u8 | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
 				break;
 			}
-			_22(out, _308);
+			_19(out, _304);
 		}
 		const part64 = rs.intHighestOne(a, 8, false);
 		putOptU32(out, part64);
 		const part65 = rs.intLowestOne(a, 8, false);
 		putOptU32(out, part65);
 		const part66 = rs.intIsolateHighestOne(a, 8, false);
-		_22(out, part66);
+		_19(out, part66);
 		const part67 = rs.intIsolateLowestOne(a, 8, false);
-		_22(out, part67);
-		_22(out, 255);
-		_22(out, 0);
-	} else if (_30 === 6) {
+		_19(out, part67);
+		_19(out, 255);
+		_19(out, 0);
+	} else if (_27 === 6) {
 		const part61 = rs.intCheckedIlog(a, b, 8, false);
 		putOptU32(out, part61);
 		const part62 = rs.intCheckedIlog2(a, 8, false);
@@ -255,135 +255,135 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecReserve(dst5, 1 as rs.usize);
 		dst5.data[dst5.length + 0] = word3 & 255;
 		dst5.length = dst5.length + 1;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part60 = rs.intPow(a, k, 8, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
+		_19(out, part60);
+	} else if (_27 === 8) {
 		const part59 = rs.intPow(a, n, 8, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
+		_19(out, part59);
+	} else if (_27 === 9) {
 		const part58 = rs.intDivEuclid(a, b, 8, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
+		_19(out, part58);
+	} else if (_27 === 10) {
 		const part57 = rs.intRemEuclid(a, b, 8, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
+		_19(out, part57);
+	} else if (_27 === 11) {
 		const part56 = rs.intIsqrt(a, 8, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
+		_19(out, part56);
+	} else if (_27 === 12) {
 		const part55 = rs.intIlog(a, b, 8, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
+		_24(out, part55);
+	} else if (_27 === 13) {
 		const part54 = rs.intIlog2(a, 8, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
+		_24(out, part54);
+	} else if (_27 === 14) {
 		const part53 = rs.intIlog10(a, 8, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.u8Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.u8Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.u8Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.u8Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.u8Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.u8Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.u8Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.u8Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.u8Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.u8Rem(a, b));
+	} else if (_27 === 20) {
 		const part47 = rs.intStrictNeg(a, 8, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.u8Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.u8Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.u8Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.u8Shr(a, k));
+	} else if (_27 === 23) {
 		const part44 = rs.intPow(a, k, 8, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
+		_19(out, part44);
+	} else if (_27 === 24) {
 		const part43 = rs.intDivEuclid(a, b, 8, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
+		_19(out, part43);
+	} else if (_27 === 25) {
 		const part42 = rs.intRemEuclid(a, b, 8, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
+		_19(out, part42);
+	} else if (_27 === 26) {
 		const part41 = rs.intStrictAdd(a, o, 8, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
+		_19(out, part41);
+	} else if (_27 === 27) {
 		const part40 = rs.intStrictSub(a, o, 8, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.u8Div(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.u8Rem(a, b));
-	} else if (_30 === 30) {
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.u8Div(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.u8Rem(a, b));
+	} else if (_27 === 30) {
 		const part37 = rs.intWrappingDivEuclid(a, b, 8, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
+		_19(out, part37);
+	} else if (_27 === 31) {
 		const part36 = rs.intWrappingRemEuclid(a, b, 8, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
+		_19(out, part36);
+	} else if (_27 === 32) {
 		const part35 = rs.intOverflowingDiv(a, b, 8, false);
 		putPair(out, part35);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part34 = rs.intOverflowingRem(a, b, 8, false);
 		putPair(out, part34);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part33 = rs.intOverflowingDivEuclid(a, b, 8, false);
 		putPair(out, part33);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part32 = rs.intOverflowingRemEuclid(a, b, 8, false);
 		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.u8Div(a, b));
-	} else if (_30 === 37) {
+	} else if (_27 === 36) {
+		_19(out, rs.u8Div(a, b));
+	} else if (_27 === 37) {
 		const part30 = rs.intNextPowerOfTwo(a, 8, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
 			const part29 = rs.intNextMultipleOf(a, b, 8, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
+			_19(out, part29);
+		} else if (_445 === 1) {
 			const part28 = rs.intFunnelShl(a, b, k, 8, false);
-			_22(out, part28);
+			_19(out, part28);
 		} else {
 			const part27 = rs.intFunnelShr(a, b, k, 8, false);
-			_22(out, part27);
+			_19(out, part27);
 		}
-	} else if (_30 === 39) {
+	} else if (_27 === 39) {
 		const s2: rs.u8 = a;
 		const w: rs.u8 = a;
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 8, false), rs.intCountZeros(s2, 8, false), rs.u8LeadingZeros(s2), rs.u8TrailingZeros(s2)]);
 		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
 				break;
 			}
-			_27(out, _472);
+			_24(out, _464);
 		}
 		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 8, false), rs.intCountZeros(w, 8, false), rs.u8LeadingZeros(w), rs.u8TrailingZeros(w)]);
 		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
 				break;
 			}
-			_27(out, _486);
+			_24(out, _478);
 		}
 		const iter8: rs.Iter<rs.u8> = rs.iterSlice([rs.intRotateLeft(s2, k, 8, false), rs.intRotateRight(s2, n, 8, false), rs.intSwapBytes(s2, 8, false), rs.intReverseBits(s2, 8, false), rs.intSwapBytes(s2, 8, false), s2, rs.intSwapBytes(s2, 8, false), s2, rs.intSaturatingPow(s2, k, 8, false), rs.intSaturatingPow(s2, n, 8, false)]);
 		while (true) {
-			const _506: rs.u8 | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
+			const _498: rs.u8 | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
 				break;
 			}
-			_22(out, _506);
+			_19(out, _498);
 		}
 		const iter9: rs.Iter<rs.u8> = rs.iterSlice([rs.intRotateLeft(w, k, 8, false), rs.intRotateRight(w, n, 8, false), rs.intSwapBytes(w, 8, false), rs.intReverseBits(w, 8, false), rs.intSwapBytes(w, 8, false), w, rs.intSwapBytes(w, 8, false), w, rs.intWrappingPow(w, k, 8, false), rs.intWrappingPow(w, n, 8, false)]);
 		while (true) {
-			const _527: rs.u8 | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
+			const _517: rs.u8 | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
 				break;
 			}
-			_22(out, _527);
+			_19(out, _517);
 		}
 		const dst6 = out;
 		const byte2 = rs.intIsPowerOfTwo(s2, 8, false) ? 1 : 0;
@@ -394,27 +394,28 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 1] = byte3;
 		dst6.length = dst6.length + 2;
 		const part26 = rs.intWrappingNextPowerOfTwo(w, 8, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.u8 | undefined, rs.u8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.u8 = _548[0];
-				const y: rs.u8 = _548[1];
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.u8 | undefined = rs.nonZero(a);
+		const _537: rs.u8 | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.u8 = _536;
+				const y: rs.u8 = _537;
 				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.u8LeadingZeros(x), rs.u8TrailingZeros(x), rs.intCountOnes(x, 8, false), 7 - rs.u8LeadingZeros(x), rs.u8TrailingZeros(x)]);
 				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
 						break;
 					}
-					_27(out, _564);
+					_24(out, _551);
 				}
 				const part13 = option_map$1far4bd(rs.u8CheckedMul(x, y), (a0: rs.u8): rs.u8 => {
 					return a0;
 				});
 				putOpt(out, part13);
 				const part14 = rs.u8SaturatingMul(x, y);
-				_22(out, part14);
+				_19(out, part14);
 				const part15 = option_map$1far4bd(rs.intCheckedPow(x, k, 8, false), (a02: rs.u8): rs.u8 => {
 					return a02;
 				});
@@ -424,83 +425,84 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part16);
 				const part17 = rs.intSaturatingPow(x, k, 8, false);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateHighestOne(x, 8, false);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = rs.intIsolateLowestOne(x, 8, false);
-				_22(out, part19);
+				_19(out, part19);
 				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 8, false) ? 1 : 0);
 				const part20 = option_map$1far4bd(rs.u8CheckedAdd(x, b), (a04: rs.u8): rs.u8 => {
 					return a04;
 				});
 				putOpt(out, part20);
 				const part21 = rs.u8SaturatingAdd(x, b);
-				_22(out, part21);
+				_19(out, part21);
 				const part22 = option_map$1far4bd(rs.intCheckedNextPowerOfTwo(x, 8, false), (a05: rs.u8): rs.u8 => {
 					return a05;
 				});
 				putOpt(out, part22);
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 8, false), rs.intIlog10(x, 8, false), rs.intBitWidth(x, 8, false)]);
 				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
 						break;
 					}
-					_27(out, _631);
+					_24(out, _618);
 				}
 				const part23 = rs.intMidpoint(x, y, 8, false);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intIsqrt(x, 8, false);
-				_22(out, part24);
+				_19(out, part24);
 				const part25 = rs.u8DivCeil(x, y);
-				_22(out, part25);
+				_19(out, part25);
 				const dst7 = out;
 				rs.byteVecReserve(dst7, 1 as rs.usize);
 				dst7.data[dst7.length + 0] = ((x << 24) >> 24) & 255;
 				dst7.length = dst7.length + 1;
 			}
 		}
-	} else if (_30 === 41) {
+	} else if (_27 === 41) {
 		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part12 = rs.precondition(rs.u8CheckedAdd(a, b), "u8::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
+		_19(out, part12);
+	} else if (_27 === 43) {
 		const part11 = rs.precondition(rs.u8CheckedSub(a, b), "u8::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
+		_19(out, part11);
+	} else if (_27 === 44) {
 		const part10 = rs.precondition(rs.u8CheckedMul(a, b), "u8::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
+		_19(out, part10);
+	} else if (_27 === 45) {
 		const part9 = rs.precondition(rs.intCheckedShl(a, k, 8, false), "u8::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
+		_19(out, part9);
+	} else if (_27 === 46) {
 		const part8 = rs.precondition(rs.intCheckedShr(a, k, 8, false), "u8::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
+		_19(out, part8);
+	} else if (_27 === 47) {
 		if (rs.u32Rem(k, 2) === 0) {
 			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 8, false), "u8::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
+			_19(out, part7);
 		} else {
 			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 8, false), "u8::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
+			_19(out, part6);
 		}
-	} else if (_30 === 48) {
+	} else if (_27 === 48) {
 		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.u8 | undefined, rs.u8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.u8CheckedMul(_686[0], _686[1]), "u8::unchecked_mul cannot overflow");
-				_22(out, part4);
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.u8 | undefined = rs.nonZero(a);
+		const _673: rs.u8 | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.u8CheckedMul(_672, _673), "u8::unchecked_mul cannot overflow");
+				_19(out, part4);
 			}
 		}
 	} else {
-		const _698: rs.u8 | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.u8CheckedAdd(_698, b), "u8::unchecked_add cannot overflow");
-			_22(out, part3);
+		const _683: rs.u8 | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.u8CheckedAdd(_683, b), "u8::unchecked_add cannot overflow");
+			_19(out, part3);
 		}
 	}
 }
@@ -514,41 +516,41 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.u16 = rs.u16FromBeBytes(rs.bytesFromFn(2, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2, i3));
+		return byte(rs.usizeAdd(i3, 2));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 2, i4));
+		return byte(rs.usizeAdd(i4, 4));
 	}));
 	const o: rs.i16 = (b << 16) >> 16;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 16);
-	const _22: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v4: rs.u16): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 48);
+	const _19: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v2: rs.u16): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 8) & 255;
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
-		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v4)) === v4 ? 1 : 0);
+		rs.byteVecPush(out2, v2 === rs.u16FromBeBytes(rs.u16ToBeBytes(v2)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u16 | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v3: rs.u16 | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.u16 = v5;
+			const v4: rs.u16 = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.u16, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u16, boolean]): undefined => {
-		const v7: rs.u16 = _37[0];
+		const v5: rs.u16 = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v8;
+		const word2 = v6;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -557,17 +559,17 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v10: rs.u32 = v9;
+			const v8: rs.u32 = v7;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v8);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part92 = rs.u16CheckedAdd(a, b);
 		putOpt(out, part92);
 		const part93 = rs.u16CheckedSub(a, b);
@@ -575,17 +577,17 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part94 = rs.u16CheckedMul(a, b);
 		putOpt(out, part94);
 		const part95 = rs.u16SaturatingAdd(a, b);
-		_22(out, part95);
+		_19(out, part95);
 		const part96 = rs.u16SaturatingSub(a, b);
-		_22(out, part96);
+		_19(out, part96);
 		const part97 = rs.u16SaturatingMul(a, b);
-		_22(out, part97);
+		_19(out, part97);
 		const part98 = rs.u16WrappingAdd(a, b);
-		_22(out, part98);
+		_19(out, part98);
 		const part99 = rs.u16WrappingSub(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.u16WrappingMul(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.intOverflowingAdd(a, b, 16, false);
 		putPair(out, part101);
 		const part102 = rs.intOverflowingSub(a, b, 16, false);
@@ -593,60 +595,60 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part103 = rs.intOverflowingMul(a, b, 16, false);
 		putPair(out, part103);
 		const part104 = rs.intMidpoint(a, b, 16, false);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intCheckedAdd(a, o, 16, false);
 		putOpt(out, part105);
 		const part106 = rs.intCheckedSub(a, o, 16, false);
 		putOpt(out, part106);
 		const part107 = rs.intSaturatingAdd(a, o, 16, false);
-		_22(out, part107);
+		_19(out, part107);
 		const part108 = rs.intSaturatingSub(a, o, 16, false);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intWrappingAdd(a, o, 16, false);
-		_22(out, part109);
+		_19(out, part109);
 		const part110 = rs.intWrappingSub(a, o, 16, false);
-		_22(out, part110);
+		_19(out, part110);
 		const part111 = rs.intOverflowingAdd(a, o, 16, false);
 		putPair(out, part111);
 		const part112 = rs.intOverflowingSub(a, o, 16, false);
 		putPair(out, part112);
 		const b2: rs.u16 = o & 0xffff;
-		const _118: rs.i16 | undefined = rs.intCheckedSignedDiff(a, b2, 16, false) as rs.i16 | undefined;
-		if (_118 === undefined) {
+		const _114: rs.i16 | undefined = rs.intCheckedSignedDiff(a, b2, 16, false) as rs.i16 | undefined;
+		if (_114 === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
 			const dst3 = out;
 			rs.byteVecReserve(dst3, 2 as rs.usize);
 			const pos3 = dst3.length;
-			dst3.data[pos3 + 0] = (_118 >>> 8) & 255;
-			dst3.data[pos3 + 1] = _118 & 255;
+			dst3.data[pos3 + 0] = (_114 >>> 8) & 255;
+			dst3.data[pos3 + 1] = _114 & 255;
 			dst3.length = dst3.length + 2;
 		}
 		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
 		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
 				break;
 			}
-			const carry: boolean = _127;
+			const carry: boolean = _123;
 			const part113 = rs.intCarryingAdd(a, b2, carry, 16, false);
 			putPair(out, part113);
 			const part114 = rs.intBorrowingSub(a, b2, carry, 16, false);
 			putPair(out, part114);
 		}
-		const _141: [rs.u16, rs.u16] = rs.intCarryingMul(a, b2, a, 16, false);
-		const lo: rs.u16 = _141[0];
-		const hi: rs.u16 = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.u16, rs.u16] = rs.intCarryingMulAdd(a, b2, b2, a, 16, false);
-		const lo2: rs.u16 = _150[0];
-		const hi2: rs.u16 = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
+		const _137: [rs.u16, rs.u16] = rs.intCarryingMul(a, b2, a, 16, false);
+		const lo: rs.u16 = _137[0];
+		const hi: rs.u16 = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.u16, rs.u16] = rs.intCarryingMulAdd(a, b2, b2, a, 16, false);
+		const lo2: rs.u16 = _146[0];
+		const hi2: rs.u16 = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
 		const part115 = rs.intCheckedNextMultipleOf(a, b2, 16, false);
 		putOpt(out, part115);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part87 = rs.intCheckedDiv(a, b, 16, false);
 		putOpt(out, part87);
 		const part88 = rs.intCheckedRem(a, b, 16, false);
@@ -657,101 +659,101 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part90);
 		if (b !== 0) {
 			const part91 = rs.u16DivCeil(a, b);
-			_22(out, part91);
+			_19(out, part91);
 			rs.byteVecPush(out, rs.u16IsMultipleOf(a, b) ? 1 : 0);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part82 = rs.intCheckedNeg(a, 16, false);
 		putOpt(out, part82);
 		const part83 = rs.intWrappingNeg(a, 16, false);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingNeg(a, 16, false);
 		putPair(out, part84);
 		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 16, false) ? 1 : 0);
 		const part85 = rs.intCheckedNextPowerOfTwo(a, 16, false);
 		putOpt(out, part85);
 		const part86 = rs.intBitWidth(a, 16, false);
-		_27(out, part86);
+		_24(out, part86);
 		const dst4 = out;
 		rs.byteVecReserve(dst4, 2 as rs.usize);
 		const pos4 = dst4.length;
 		dst4.data[pos4 + 0] = (((a << 16) >> 16) >>> 8) & 255;
 		dst4.data[pos4 + 1] = ((a << 16) >> 16) & 255;
 		dst4.length = dst4.length + 2;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _216;
+			const e: rs.u32 = _212;
 			const part78 = rs.intCheckedPow(a, e, 16, false);
 			putOpt(out, part78);
 			const part79 = rs.intWrappingPow(a, e, 16, false);
-			_22(out, part79);
+			_19(out, part79);
 			const part80 = rs.intSaturatingPow(a, e, 16, false);
-			_22(out, part80);
+			_19(out, part80);
 			const part81 = rs.intOverflowingPow(a, e, 16, false);
 			putPair(out, part81);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _239;
+			const s: rs.u32 = _235;
 			const part68 = rs.intCheckedShl(a, s, 16, false);
 			putOpt(out, part68);
 			const part69 = rs.intCheckedShr(a, s, 16, false);
 			putOpt(out, part69);
 			const part70 = rs.intWrappingShl(a, s, 16, false);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intWrappingShr(a, s, 16, false);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intOverflowingShl(a, s, 16, false);
 			putPair(out, part72);
 			const part73 = rs.intOverflowingShr(a, s, 16, false);
 			putPair(out, part73);
 			const part74 = rs.intUnboundedShl(a, s, 16, false);
-			_22(out, part74);
+			_19(out, part74);
 			const part75 = rs.intUnboundedShr(a, s, 16, false);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intRotateLeft(a, s, 16, false);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intRotateRight(a, s, 16, false);
-			_22(out, part77);
+			_19(out, part77);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 16, false), rs.intCountZeros(a, 16, false), rs.u16LeadingZeros(a), rs.u16TrailingZeros(a), rs.u16LeadingOnes(a), rs.intTrailingOnes(a, 16, false)]);
 		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
 				break;
 			}
-			_27(out, _292);
+			_24(out, _288);
 		}
 		const iter5: rs.Iter<rs.u16> = rs.iterSlice([rs.intSwapBytes(a, 16, false), rs.intReverseBits(a, 16, false), rs.intSwapBytes(a, 16, false), a, rs.intSwapBytes(a, 16, false), a]);
 		while (true) {
-			const _308: rs.u16 | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
+			const _304: rs.u16 | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
 				break;
 			}
-			_22(out, _308);
+			_19(out, _304);
 		}
 		const part64 = rs.intHighestOne(a, 16, false);
 		putOptU32(out, part64);
 		const part65 = rs.intLowestOne(a, 16, false);
 		putOptU32(out, part65);
 		const part66 = rs.intIsolateHighestOne(a, 16, false);
-		_22(out, part66);
+		_19(out, part66);
 		const part67 = rs.intIsolateLowestOne(a, 16, false);
-		_22(out, part67);
-		_22(out, 65535);
-		_22(out, 0);
-	} else if (_30 === 6) {
+		_19(out, part67);
+		_19(out, 65535);
+		_19(out, 0);
+	} else if (_27 === 6) {
 		const part61 = rs.intCheckedIlog(a, b, 16, false);
 		putOptU32(out, part61);
 		const part62 = rs.intCheckedIlog2(a, 16, false);
@@ -765,135 +767,135 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 0] = (word3 >>> 8) & 255;
 		dst5.data[pos5 + 1] = word3 & 255;
 		dst5.length = dst5.length + 2;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part60 = rs.intPow(a, k, 16, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
+		_19(out, part60);
+	} else if (_27 === 8) {
 		const part59 = rs.intPow(a, n, 16, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
+		_19(out, part59);
+	} else if (_27 === 9) {
 		const part58 = rs.intDivEuclid(a, b, 16, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
+		_19(out, part58);
+	} else if (_27 === 10) {
 		const part57 = rs.intRemEuclid(a, b, 16, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
+		_19(out, part57);
+	} else if (_27 === 11) {
 		const part56 = rs.intIsqrt(a, 16, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
+		_19(out, part56);
+	} else if (_27 === 12) {
 		const part55 = rs.intIlog(a, b, 16, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
+		_24(out, part55);
+	} else if (_27 === 13) {
 		const part54 = rs.intIlog2(a, 16, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
+		_24(out, part54);
+	} else if (_27 === 14) {
 		const part53 = rs.intIlog10(a, 16, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.u16Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.u16Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.u16Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.u16Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.u16Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.u16Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.u16Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.u16Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.u16Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.u16Rem(a, b));
+	} else if (_27 === 20) {
 		const part47 = rs.intStrictNeg(a, 16, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.u16Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.u16Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.u16Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.u16Shr(a, k));
+	} else if (_27 === 23) {
 		const part44 = rs.intPow(a, k, 16, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
+		_19(out, part44);
+	} else if (_27 === 24) {
 		const part43 = rs.intDivEuclid(a, b, 16, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
+		_19(out, part43);
+	} else if (_27 === 25) {
 		const part42 = rs.intRemEuclid(a, b, 16, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
+		_19(out, part42);
+	} else if (_27 === 26) {
 		const part41 = rs.intStrictAdd(a, o, 16, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
+		_19(out, part41);
+	} else if (_27 === 27) {
 		const part40 = rs.intStrictSub(a, o, 16, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.u16Div(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.u16Rem(a, b));
-	} else if (_30 === 30) {
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.u16Div(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.u16Rem(a, b));
+	} else if (_27 === 30) {
 		const part37 = rs.intWrappingDivEuclid(a, b, 16, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
+		_19(out, part37);
+	} else if (_27 === 31) {
 		const part36 = rs.intWrappingRemEuclid(a, b, 16, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
+		_19(out, part36);
+	} else if (_27 === 32) {
 		const part35 = rs.intOverflowingDiv(a, b, 16, false);
 		putPair(out, part35);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part34 = rs.intOverflowingRem(a, b, 16, false);
 		putPair(out, part34);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part33 = rs.intOverflowingDivEuclid(a, b, 16, false);
 		putPair(out, part33);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part32 = rs.intOverflowingRemEuclid(a, b, 16, false);
 		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.u16Div(a, b));
-	} else if (_30 === 37) {
+	} else if (_27 === 36) {
+		_19(out, rs.u16Div(a, b));
+	} else if (_27 === 37) {
 		const part30 = rs.intNextPowerOfTwo(a, 16, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
 			const part29 = rs.intNextMultipleOf(a, b, 16, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
+			_19(out, part29);
+		} else if (_445 === 1) {
 			const part28 = rs.intFunnelShl(a, b, k, 16, false);
-			_22(out, part28);
+			_19(out, part28);
 		} else {
 			const part27 = rs.intFunnelShr(a, b, k, 16, false);
-			_22(out, part27);
+			_19(out, part27);
 		}
-	} else if (_30 === 39) {
+	} else if (_27 === 39) {
 		const s2: rs.u16 = a;
 		const w: rs.u16 = a;
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 16, false), rs.intCountZeros(s2, 16, false), rs.u16LeadingZeros(s2), rs.u16TrailingZeros(s2)]);
 		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
 				break;
 			}
-			_27(out, _472);
+			_24(out, _464);
 		}
 		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 16, false), rs.intCountZeros(w, 16, false), rs.u16LeadingZeros(w), rs.u16TrailingZeros(w)]);
 		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
 				break;
 			}
-			_27(out, _486);
+			_24(out, _478);
 		}
 		const iter8: rs.Iter<rs.u16> = rs.iterSlice([rs.intRotateLeft(s2, k, 16, false), rs.intRotateRight(s2, n, 16, false), rs.intSwapBytes(s2, 16, false), rs.intReverseBits(s2, 16, false), rs.intSwapBytes(s2, 16, false), s2, rs.intSwapBytes(s2, 16, false), s2, rs.intSaturatingPow(s2, k, 16, false), rs.intSaturatingPow(s2, n, 16, false)]);
 		while (true) {
-			const _506: rs.u16 | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
+			const _498: rs.u16 | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
 				break;
 			}
-			_22(out, _506);
+			_19(out, _498);
 		}
 		const iter9: rs.Iter<rs.u16> = rs.iterSlice([rs.intRotateLeft(w, k, 16, false), rs.intRotateRight(w, n, 16, false), rs.intSwapBytes(w, 16, false), rs.intReverseBits(w, 16, false), rs.intSwapBytes(w, 16, false), w, rs.intSwapBytes(w, 16, false), w, rs.intWrappingPow(w, k, 16, false), rs.intWrappingPow(w, n, 16, false)]);
 		while (true) {
-			const _527: rs.u16 | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
+			const _517: rs.u16 | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
 				break;
 			}
-			_22(out, _527);
+			_19(out, _517);
 		}
 		const dst6 = out;
 		const byte2 = rs.intIsPowerOfTwo(s2, 16, false) ? 1 : 0;
@@ -904,27 +906,28 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 1] = byte3;
 		dst6.length = dst6.length + 2;
 		const part26 = rs.intWrappingNextPowerOfTwo(w, 16, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.u16 | undefined, rs.u16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.u16 = _548[0];
-				const y: rs.u16 = _548[1];
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.u16 | undefined = rs.nonZero(a);
+		const _537: rs.u16 | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.u16 = _536;
+				const y: rs.u16 = _537;
 				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.u16LeadingZeros(x), rs.u16TrailingZeros(x), rs.intCountOnes(x, 16, false), 15 - rs.u16LeadingZeros(x), rs.u16TrailingZeros(x)]);
 				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
 						break;
 					}
-					_27(out, _564);
+					_24(out, _551);
 				}
 				const part13 = option_map$0frntt5(rs.u16CheckedMul(x, y), (a0: rs.u16): rs.u16 => {
 					return a0;
 				});
 				putOpt(out, part13);
 				const part14 = rs.u16SaturatingMul(x, y);
-				_22(out, part14);
+				_19(out, part14);
 				const part15 = option_map$0frntt5(rs.intCheckedPow(x, k, 16, false), (a02: rs.u16): rs.u16 => {
 					return a02;
 				});
@@ -934,36 +937,36 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part16);
 				const part17 = rs.intSaturatingPow(x, k, 16, false);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateHighestOne(x, 16, false);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = rs.intIsolateLowestOne(x, 16, false);
-				_22(out, part19);
+				_19(out, part19);
 				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 16, false) ? 1 : 0);
 				const part20 = option_map$0frntt5(rs.u16CheckedAdd(x, b), (a04: rs.u16): rs.u16 => {
 					return a04;
 				});
 				putOpt(out, part20);
 				const part21 = rs.u16SaturatingAdd(x, b);
-				_22(out, part21);
+				_19(out, part21);
 				const part22 = option_map$0frntt5(rs.intCheckedNextPowerOfTwo(x, 16, false), (a05: rs.u16): rs.u16 => {
 					return a05;
 				});
 				putOpt(out, part22);
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 16, false), rs.intIlog10(x, 16, false), rs.intBitWidth(x, 16, false)]);
 				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
 						break;
 					}
-					_27(out, _631);
+					_24(out, _618);
 				}
 				const part23 = rs.intMidpoint(x, y, 16, false);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intIsqrt(x, 16, false);
-				_22(out, part24);
+				_19(out, part24);
 				const part25 = rs.u16DivCeil(x, y);
-				_22(out, part25);
+				_19(out, part25);
 				const dst7 = out;
 				rs.byteVecReserve(dst7, 2 as rs.usize);
 				const pos7 = dst7.length;
@@ -972,47 +975,48 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.length = dst7.length + 2;
 			}
 		}
-	} else if (_30 === 41) {
+	} else if (_27 === 41) {
 		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part12 = rs.precondition(rs.u16CheckedAdd(a, b), "u16::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
+		_19(out, part12);
+	} else if (_27 === 43) {
 		const part11 = rs.precondition(rs.u16CheckedSub(a, b), "u16::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
+		_19(out, part11);
+	} else if (_27 === 44) {
 		const part10 = rs.precondition(rs.u16CheckedMul(a, b), "u16::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
+		_19(out, part10);
+	} else if (_27 === 45) {
 		const part9 = rs.precondition(rs.intCheckedShl(a, k, 16, false), "u16::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
+		_19(out, part9);
+	} else if (_27 === 46) {
 		const part8 = rs.precondition(rs.intCheckedShr(a, k, 16, false), "u16::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
+		_19(out, part8);
+	} else if (_27 === 47) {
 		if (rs.u32Rem(k, 2) === 0) {
 			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 16, false), "u16::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
+			_19(out, part7);
 		} else {
 			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 16, false), "u16::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
+			_19(out, part6);
 		}
-	} else if (_30 === 48) {
+	} else if (_27 === 48) {
 		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.u16 | undefined, rs.u16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.u16CheckedMul(_686[0], _686[1]), "u16::unchecked_mul cannot overflow");
-				_22(out, part4);
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.u16 | undefined = rs.nonZero(a);
+		const _673: rs.u16 | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.u16CheckedMul(_672, _673), "u16::unchecked_mul cannot overflow");
+				_19(out, part4);
 			}
 		}
 	} else {
-		const _698: rs.u16 | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.u16CheckedAdd(_698, b), "u16::unchecked_add cannot overflow");
-			_22(out, part3);
+		const _683: rs.u16 | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.u16CheckedAdd(_683, b), "u16::unchecked_add cannot overflow");
+			_19(out, part3);
 		}
 	}
 }
@@ -1026,16 +1030,16 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(4, i3));
+		return byte(rs.usizeAdd(i3, 4));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 4, i4));
+		return byte(rs.usizeAdd(i4, 8));
 	}));
 	const o: rs.i32 = b | 0;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const _22: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v4: rs.u32): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 96);
+	const _19: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v2: rs.u32): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -1043,26 +1047,26 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 2] = (word >>> 8) & 255;
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
-		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v4)) === v4 ? 1 : 0);
+		rs.byteVecPush(out2, v2 === rs.u32FromBeBytes(rs.u32ToBeBytes(v2)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u32 | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v3: rs.u32 | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.u32 = v5;
+			const v4: rs.u32 = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.u32, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u32, boolean]): undefined => {
-		const v7: rs.u32 = _37[0];
+		const v5: rs.u32 = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v8;
+		const word2 = v6;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -1071,17 +1075,17 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v10: rs.u32 = v9;
+			const v8: rs.u32 = v7;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v8);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part92 = rs.u32CheckedAdd(a, b);
 		putOpt(out, part92);
 		const part93 = rs.u32CheckedSub(a, b);
@@ -1089,17 +1093,17 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part94 = rs.u32CheckedMul(a, b);
 		putOpt(out, part94);
 		const part95 = rs.u32SaturatingAdd(a, b);
-		_22(out, part95);
+		_19(out, part95);
 		const part96 = rs.u32SaturatingSub(a, b);
-		_22(out, part96);
+		_19(out, part96);
 		const part97 = rs.u32SaturatingMul(a, b);
-		_22(out, part97);
+		_19(out, part97);
 		const part98 = rs.u32WrappingAdd(a, b);
-		_22(out, part98);
+		_19(out, part98);
 		const part99 = rs.u32WrappingSub(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.u32WrappingMul(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.intOverflowingAdd(a, b, 32, false);
 		putPair(out, part101);
 		const part102 = rs.intOverflowingSub(a, b, 32, false);
@@ -1107,62 +1111,62 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part103 = rs.intOverflowingMul(a, b, 32, false);
 		putPair(out, part103);
 		const part104 = rs.intMidpoint(a, b, 32, false);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intCheckedAdd(a, o, 32, false);
 		putOpt(out, part105);
 		const part106 = rs.intCheckedSub(a, o, 32, false);
 		putOpt(out, part106);
 		const part107 = rs.intSaturatingAdd(a, o, 32, false);
-		_22(out, part107);
+		_19(out, part107);
 		const part108 = rs.intSaturatingSub(a, o, 32, false);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intWrappingAdd(a, o, 32, false);
-		_22(out, part109);
+		_19(out, part109);
 		const part110 = rs.intWrappingSub(a, o, 32, false);
-		_22(out, part110);
+		_19(out, part110);
 		const part111 = rs.intOverflowingAdd(a, o, 32, false);
 		putPair(out, part111);
 		const part112 = rs.intOverflowingSub(a, o, 32, false);
 		putPair(out, part112);
 		const b2: rs.u32 = o >>> 0;
-		const _118: rs.i32 | undefined = rs.intCheckedSignedDiff(a, b2, 32, false) as rs.i32 | undefined;
-		if (_118 === undefined) {
+		const _114: rs.i32 | undefined = rs.intCheckedSignedDiff(a, b2, 32, false) as rs.i32 | undefined;
+		if (_114 === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
 			const dst3 = out;
 			rs.byteVecReserve(dst3, 4 as rs.usize);
 			const pos3 = dst3.length;
-			dst3.data[pos3 + 0] = (_118 >>> 24) & 255;
-			dst3.data[pos3 + 1] = (_118 >>> 16) & 255;
-			dst3.data[pos3 + 2] = (_118 >>> 8) & 255;
-			dst3.data[pos3 + 3] = _118 & 255;
+			dst3.data[pos3 + 0] = (_114 >>> 24) & 255;
+			dst3.data[pos3 + 1] = (_114 >>> 16) & 255;
+			dst3.data[pos3 + 2] = (_114 >>> 8) & 255;
+			dst3.data[pos3 + 3] = _114 & 255;
 			dst3.length = dst3.length + 4;
 		}
 		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
 		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
 				break;
 			}
-			const carry: boolean = _127;
+			const carry: boolean = _123;
 			const part113 = rs.intCarryingAdd(a, b2, carry, 32, false);
 			putPair(out, part113);
 			const part114 = rs.intBorrowingSub(a, b2, carry, 32, false);
 			putPair(out, part114);
 		}
-		const _141: [rs.u32, rs.u32] = rs.intCarryingMul(a, b2, a, 32, false);
-		const lo: rs.u32 = _141[0];
-		const hi: rs.u32 = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.u32, rs.u32] = rs.intCarryingMulAdd(a, b2, b2, a, 32, false);
-		const lo2: rs.u32 = _150[0];
-		const hi2: rs.u32 = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
+		const _137: [rs.u32, rs.u32] = rs.intCarryingMul(a, b2, a, 32, false);
+		const lo: rs.u32 = _137[0];
+		const hi: rs.u32 = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.u32, rs.u32] = rs.intCarryingMulAdd(a, b2, b2, a, 32, false);
+		const lo2: rs.u32 = _146[0];
+		const hi2: rs.u32 = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
 		const part115 = rs.intCheckedNextMultipleOf(a, b2, 32, false);
 		putOpt(out, part115);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part87 = rs.intCheckedDiv(a, b, 32, false);
 		putOpt(out, part87);
 		const part88 = rs.intCheckedRem(a, b, 32, false);
@@ -1173,21 +1177,21 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part90);
 		if (b !== 0) {
 			const part91 = rs.u32DivCeil(a, b);
-			_22(out, part91);
+			_19(out, part91);
 			rs.byteVecPush(out, rs.u32IsMultipleOf(a, b) ? 1 : 0);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part82 = rs.intCheckedNeg(a, 32, false);
 		putOpt(out, part82);
 		const part83 = rs.intWrappingNeg(a, 32, false);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingNeg(a, 32, false);
 		putPair(out, part84);
 		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 32, false) ? 1 : 0);
 		const part85 = rs.intCheckedNextPowerOfTwo(a, 32, false);
 		putOpt(out, part85);
 		const part86 = rs.intBitWidth(a, 32, false);
-		_27(out, part86);
+		_24(out, part86);
 		const dst4 = out;
 		rs.byteVecReserve(dst4, 4 as rs.usize);
 		const pos4 = dst4.length;
@@ -1196,80 +1200,80 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 2] = ((a | 0) >>> 8) & 255;
 		dst4.data[pos4 + 3] = (a | 0) & 255;
 		dst4.length = dst4.length + 4;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _216;
+			const e: rs.u32 = _212;
 			const part78 = rs.intCheckedPow(a, e, 32, false);
 			putOpt(out, part78);
 			const part79 = rs.intWrappingPow(a, e, 32, false);
-			_22(out, part79);
+			_19(out, part79);
 			const part80 = rs.intSaturatingPow(a, e, 32, false);
-			_22(out, part80);
+			_19(out, part80);
 			const part81 = rs.intOverflowingPow(a, e, 32, false);
 			putPair(out, part81);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _239;
+			const s: rs.u32 = _235;
 			const part68 = rs.intCheckedShl(a, s, 32, false);
 			putOpt(out, part68);
 			const part69 = rs.intCheckedShr(a, s, 32, false);
 			putOpt(out, part69);
 			const part70 = rs.intWrappingShl(a, s, 32, false);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intWrappingShr(a, s, 32, false);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intOverflowingShl(a, s, 32, false);
 			putPair(out, part72);
 			const part73 = rs.intOverflowingShr(a, s, 32, false);
 			putPair(out, part73);
 			const part74 = rs.intUnboundedShl(a, s, 32, false);
-			_22(out, part74);
+			_19(out, part74);
 			const part75 = rs.intUnboundedShr(a, s, 32, false);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intRotateLeft(a, s, 32, false);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intRotateRight(a, s, 32, false);
-			_22(out, part77);
+			_19(out, part77);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 32, false), rs.intCountZeros(a, 32, false), rs.u32LeadingZeros(a), rs.u32TrailingZeros(a), rs.u32LeadingOnes(a), rs.intTrailingOnes(a, 32, false)]);
 		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
 				break;
 			}
-			_27(out, _292);
+			_24(out, _288);
 		}
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intSwapBytes(a, 32, false), rs.intReverseBits(a, 32, false), rs.intSwapBytes(a, 32, false), a, rs.intSwapBytes(a, 32, false), a]);
 		while (true) {
-			const _308: rs.u32 | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
+			const _304: rs.u32 | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
 				break;
 			}
-			_22(out, _308);
+			_19(out, _304);
 		}
 		const part64 = rs.intHighestOne(a, 32, false);
 		putOptU32(out, part64);
 		const part65 = rs.intLowestOne(a, 32, false);
 		putOptU32(out, part65);
 		const part66 = rs.intIsolateHighestOne(a, 32, false);
-		_22(out, part66);
+		_19(out, part66);
 		const part67 = rs.intIsolateLowestOne(a, 32, false);
-		_22(out, part67);
-		_22(out, 4294967295);
-		_22(out, 0);
-	} else if (_30 === 6) {
+		_19(out, part67);
+		_19(out, 4294967295);
+		_19(out, 0);
+	} else if (_27 === 6) {
 		const part61 = rs.intCheckedIlog(a, b, 32, false);
 		putOptU32(out, part61);
 		const part62 = rs.intCheckedIlog2(a, 32, false);
@@ -1285,135 +1289,135 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 2] = (word3 >>> 8) & 255;
 		dst5.data[pos5 + 3] = word3 & 255;
 		dst5.length = dst5.length + 4;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part60 = rs.intPow(a, k, 32, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
+		_19(out, part60);
+	} else if (_27 === 8) {
 		const part59 = rs.intPow(a, n, 32, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
+		_19(out, part59);
+	} else if (_27 === 9) {
 		const part58 = rs.intDivEuclid(a, b, 32, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
+		_19(out, part58);
+	} else if (_27 === 10) {
 		const part57 = rs.intRemEuclid(a, b, 32, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
+		_19(out, part57);
+	} else if (_27 === 11) {
 		const part56 = rs.intIsqrt(a, 32, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
+		_19(out, part56);
+	} else if (_27 === 12) {
 		const part55 = rs.intIlog(a, b, 32, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
+		_24(out, part55);
+	} else if (_27 === 13) {
 		const part54 = rs.intIlog2(a, 32, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
+		_24(out, part54);
+	} else if (_27 === 14) {
 		const part53 = rs.intIlog10(a, 32, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.u32Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.u32Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.u32Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.u32Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.u32Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.u32Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.u32Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.u32Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.u32Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.u32Rem(a, b));
+	} else if (_27 === 20) {
 		const part47 = rs.intStrictNeg(a, 32, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.u32Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.u32Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.u32Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.u32Shr(a, k));
+	} else if (_27 === 23) {
 		const part44 = rs.intPow(a, k, 32, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
+		_19(out, part44);
+	} else if (_27 === 24) {
 		const part43 = rs.intDivEuclid(a, b, 32, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
+		_19(out, part43);
+	} else if (_27 === 25) {
 		const part42 = rs.intRemEuclid(a, b, 32, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
+		_19(out, part42);
+	} else if (_27 === 26) {
 		const part41 = rs.intStrictAdd(a, o, 32, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
+		_19(out, part41);
+	} else if (_27 === 27) {
 		const part40 = rs.intStrictSub(a, o, 32, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.u32Div(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.u32Rem(a, b));
-	} else if (_30 === 30) {
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.u32Div(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.u32Rem(a, b));
+	} else if (_27 === 30) {
 		const part37 = rs.intWrappingDivEuclid(a, b, 32, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
+		_19(out, part37);
+	} else if (_27 === 31) {
 		const part36 = rs.intWrappingRemEuclid(a, b, 32, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
+		_19(out, part36);
+	} else if (_27 === 32) {
 		const part35 = rs.intOverflowingDiv(a, b, 32, false);
 		putPair(out, part35);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part34 = rs.intOverflowingRem(a, b, 32, false);
 		putPair(out, part34);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part33 = rs.intOverflowingDivEuclid(a, b, 32, false);
 		putPair(out, part33);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part32 = rs.intOverflowingRemEuclid(a, b, 32, false);
 		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.u32Div(a, b));
-	} else if (_30 === 37) {
+	} else if (_27 === 36) {
+		_19(out, rs.u32Div(a, b));
+	} else if (_27 === 37) {
 		const part30 = rs.intNextPowerOfTwo(a, 32, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
 			const part29 = rs.intNextMultipleOf(a, b, 32, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
+			_19(out, part29);
+		} else if (_445 === 1) {
 			const part28 = rs.intFunnelShl(a, b, k, 32, false);
-			_22(out, part28);
+			_19(out, part28);
 		} else {
 			const part27 = rs.intFunnelShr(a, b, k, 32, false);
-			_22(out, part27);
+			_19(out, part27);
 		}
-	} else if (_30 === 39) {
+	} else if (_27 === 39) {
 		const s2: rs.u32 = a;
 		const w: rs.u32 = a;
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 32, false), rs.intCountZeros(s2, 32, false), rs.u32LeadingZeros(s2), rs.u32TrailingZeros(s2)]);
 		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
 				break;
 			}
-			_27(out, _472);
+			_24(out, _464);
 		}
 		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 32, false), rs.intCountZeros(w, 32, false), rs.u32LeadingZeros(w), rs.u32TrailingZeros(w)]);
 		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
 				break;
 			}
-			_27(out, _486);
+			_24(out, _478);
 		}
 		const iter8: rs.Iter<rs.u32> = rs.iterSlice([rs.intRotateLeft(s2, k, 32, false), rs.intRotateRight(s2, n, 32, false), rs.intSwapBytes(s2, 32, false), rs.intReverseBits(s2, 32, false), rs.intSwapBytes(s2, 32, false), s2, rs.intSwapBytes(s2, 32, false), s2, rs.intSaturatingPow(s2, k, 32, false), rs.intSaturatingPow(s2, n, 32, false)]);
 		while (true) {
-			const _506: rs.u32 | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
+			const _498: rs.u32 | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
 				break;
 			}
-			_22(out, _506);
+			_19(out, _498);
 		}
 		const iter9: rs.Iter<rs.u32> = rs.iterSlice([rs.intRotateLeft(w, k, 32, false), rs.intRotateRight(w, n, 32, false), rs.intSwapBytes(w, 32, false), rs.intReverseBits(w, 32, false), rs.intSwapBytes(w, 32, false), w, rs.intSwapBytes(w, 32, false), w, rs.intWrappingPow(w, k, 32, false), rs.intWrappingPow(w, n, 32, false)]);
 		while (true) {
-			const _527: rs.u32 | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
+			const _517: rs.u32 | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
 				break;
 			}
-			_22(out, _527);
+			_19(out, _517);
 		}
 		const dst6 = out;
 		const byte2 = rs.intIsPowerOfTwo(s2, 32, false) ? 1 : 0;
@@ -1424,27 +1428,28 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 1] = byte3;
 		dst6.length = dst6.length + 2;
 		const part26 = rs.intWrappingNextPowerOfTwo(w, 32, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.u32 | undefined, rs.u32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.u32 = _548[0];
-				const y: rs.u32 = _548[1];
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.u32 | undefined = rs.nonZero(a);
+		const _537: rs.u32 | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.u32 = _536;
+				const y: rs.u32 = _537;
 				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.u32LeadingZeros(x), rs.u32TrailingZeros(x), rs.intCountOnes(x, 32, false), 31 - rs.u32LeadingZeros(x), rs.u32TrailingZeros(x)]);
 				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
 						break;
 					}
-					_27(out, _564);
+					_24(out, _551);
 				}
 				const part13 = option_map$03qwbb9(rs.u32CheckedMul(x, y), (a0: rs.u32): rs.u32 => {
 					return a0;
 				});
 				putOpt(out, part13);
 				const part14 = rs.u32SaturatingMul(x, y);
-				_22(out, part14);
+				_19(out, part14);
 				const part15 = option_map$03qwbb9(rs.intCheckedPow(x, k, 32, false), (a02: rs.u32): rs.u32 => {
 					return a02;
 				});
@@ -1454,36 +1459,36 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part16);
 				const part17 = rs.intSaturatingPow(x, k, 32, false);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateHighestOne(x, 32, false);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = rs.intIsolateLowestOne(x, 32, false);
-				_22(out, part19);
+				_19(out, part19);
 				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 32, false) ? 1 : 0);
 				const part20 = option_map$03qwbb9(rs.u32CheckedAdd(x, b), (a04: rs.u32): rs.u32 => {
 					return a04;
 				});
 				putOpt(out, part20);
 				const part21 = rs.u32SaturatingAdd(x, b);
-				_22(out, part21);
+				_19(out, part21);
 				const part22 = option_map$03qwbb9(rs.intCheckedNextPowerOfTwo(x, 32, false), (a05: rs.u32): rs.u32 => {
 					return a05;
 				});
 				putOpt(out, part22);
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 32, false), rs.intIlog10(x, 32, false), rs.intBitWidth(x, 32, false)]);
 				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
 						break;
 					}
-					_27(out, _631);
+					_24(out, _618);
 				}
 				const part23 = rs.intMidpoint(x, y, 32, false);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intIsqrt(x, 32, false);
-				_22(out, part24);
+				_19(out, part24);
 				const part25 = rs.u32DivCeil(x, y);
-				_22(out, part25);
+				_19(out, part25);
 				const dst7 = out;
 				rs.byteVecReserve(dst7, 4 as rs.usize);
 				const pos7 = dst7.length;
@@ -1494,47 +1499,48 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.length = dst7.length + 4;
 			}
 		}
-	} else if (_30 === 41) {
+	} else if (_27 === 41) {
 		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part12 = rs.precondition(rs.u32CheckedAdd(a, b), "u32::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
+		_19(out, part12);
+	} else if (_27 === 43) {
 		const part11 = rs.precondition(rs.u32CheckedSub(a, b), "u32::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
+		_19(out, part11);
+	} else if (_27 === 44) {
 		const part10 = rs.precondition(rs.u32CheckedMul(a, b), "u32::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
+		_19(out, part10);
+	} else if (_27 === 45) {
 		const part9 = rs.precondition(rs.intCheckedShl(a, k, 32, false), "u32::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
+		_19(out, part9);
+	} else if (_27 === 46) {
 		const part8 = rs.precondition(rs.intCheckedShr(a, k, 32, false), "u32::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
+		_19(out, part8);
+	} else if (_27 === 47) {
 		if (rs.u32Rem(k, 2) === 0) {
 			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 32, false), "u32::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
+			_19(out, part7);
 		} else {
 			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 32, false), "u32::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
+			_19(out, part6);
 		}
-	} else if (_30 === 48) {
+	} else if (_27 === 48) {
 		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.u32 | undefined, rs.u32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.u32CheckedMul(_686[0], _686[1]), "u32::unchecked_mul cannot overflow");
-				_22(out, part4);
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.u32 | undefined = rs.nonZero(a);
+		const _673: rs.u32 | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.u32CheckedMul(_672, _673), "u32::unchecked_mul cannot overflow");
+				_19(out, part4);
 			}
 		}
 	} else {
-		const _698: rs.u32 | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.u32CheckedAdd(_698, b), "u32::unchecked_add cannot overflow");
-			_22(out, part3);
+		const _683: rs.u32 | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.u32CheckedAdd(_683, b), "u32::unchecked_add cannot overflow");
+			_19(out, part3);
 		}
 	}
 }
@@ -1548,16 +1554,16 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.u64 = rs.u64FromBeBytes(rs.bytesFromFn(8, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(8, i3));
+		return byte(rs.usizeAdd(i3, 8));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 8, i4));
+		return byte(rs.usizeAdd(i4, 16));
 	}));
 	const o: rs.i64 = rs.i64Cast(b);
-	const k: rs.u32 = rs.u32Rem(n, 3 * 64);
-	const _22: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v4: rs.u64): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 192);
+	const _19: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v2: rs.u64): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		const word2 = rs.intWord(word, 0);
 		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
@@ -1571,26 +1577,26 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 6] = (word2 >>> 8) & 255;
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v4)), v4) ? 1 : 0);
+		rs.byteVecPush(out2, rs.u64Eq(v2, rs.u64FromBeBytes(rs.u64ToBeBytes(v2))) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u64 | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v3: rs.u64 | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.u64 = v5;
+			const v4: rs.u64 = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.u64, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u64, boolean]): undefined => {
-		const v7: rs.u64 = _37[0];
+		const v5: rs.u64 = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
 		const dst2 = out5;
-		const word4 = v8;
+		const word4 = v6;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
@@ -1599,17 +1605,17 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word4 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v10: rs.u32 = v9;
+			const v8: rs.u32 = v7;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v8);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part92 = rs.u64CheckedAdd(a, b);
 		putOpt(out, part92);
 		const part93 = rs.u64CheckedSub(a, b);
@@ -1617,17 +1623,17 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part94 = rs.u64CheckedMul(a, b);
 		putOpt(out, part94);
 		const part95 = rs.u64SaturatingAdd(a, b);
-		_22(out, part95);
+		_19(out, part95);
 		const part96 = rs.u64SaturatingSub(a, b);
-		_22(out, part96);
+		_19(out, part96);
 		const part97 = rs.u64SaturatingMul(a, b);
-		_22(out, part97);
+		_19(out, part97);
 		const part98 = rs.u64WrappingAdd(a, b);
-		_22(out, part98);
+		_19(out, part98);
 		const part99 = rs.u64WrappingSub(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.u64WrappingMul(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.intOverflowingAdd(a, b, 64, false);
 		putPair(out, part101);
 		const part102 = rs.intOverflowingSub(a, b, 64, false);
@@ -1635,31 +1641,31 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part103 = rs.intOverflowingMul(a, b, 64, false);
 		putPair(out, part103);
 		const part104 = rs.intMidpoint(a, b, 64, false);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intCheckedAdd(a, o, 64, false);
 		putOpt(out, part105);
 		const part106 = rs.intCheckedSub(a, o, 64, false);
 		putOpt(out, part106);
 		const part107 = rs.intSaturatingAdd(a, o, 64, false);
-		_22(out, part107);
+		_19(out, part107);
 		const part108 = rs.intSaturatingSub(a, o, 64, false);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intWrappingAdd(a, o, 64, false);
-		_22(out, part109);
+		_19(out, part109);
 		const part110 = rs.intWrappingSub(a, o, 64, false);
-		_22(out, part110);
+		_19(out, part110);
 		const part111 = rs.intOverflowingAdd(a, o, 64, false);
 		putPair(out, part111);
 		const part112 = rs.intOverflowingSub(a, o, 64, false);
 		putPair(out, part112);
 		const b2: rs.u64 = rs.u64Cast(o);
-		const _118: rs.i64 | undefined = rs.intCheckedSignedDiff(a, b2, 64, false) as rs.i64 | undefined;
-		if (_118 === undefined) {
+		const _114: rs.i64 | undefined = rs.intCheckedSignedDiff(a, b2, 64, false) as rs.i64 | undefined;
+		if (_114 === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
 			const dst3 = out;
-			const word5 = rs.intWord(_118, 0);
-			const word6 = rs.intWord(_118, 32);
+			const word5 = rs.intWord(_114, 0);
+			const word6 = rs.intWord(_114, 32);
 			rs.byteVecReserve(dst3, 8 as rs.usize);
 			const pos3 = dst3.length;
 			dst3.data[pos3 + 0] = (word6 >>> 24) & 255;
@@ -1674,29 +1680,29 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
 		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
 				break;
 			}
-			const carry: boolean = _127;
+			const carry: boolean = _123;
 			const part113 = rs.intCarryingAdd(a, b2, carry, 64, false);
 			putPair(out, part113);
 			const part114 = rs.intBorrowingSub(a, b2, carry, 64, false);
 			putPair(out, part114);
 		}
-		const _141: [rs.u64, rs.u64] = rs.intCarryingMul(a, b2, a, 64, false);
-		const lo: rs.u64 = _141[0];
-		const hi: rs.u64 = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.u64, rs.u64] = rs.intCarryingMulAdd(a, b2, b2, a, 64, false);
-		const lo2: rs.u64 = _150[0];
-		const hi2: rs.u64 = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
+		const _137: [rs.u64, rs.u64] = rs.intCarryingMul(a, b2, a, 64, false);
+		const lo: rs.u64 = _137[0];
+		const hi: rs.u64 = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.u64, rs.u64] = rs.intCarryingMulAdd(a, b2, b2, a, 64, false);
+		const lo2: rs.u64 = _146[0];
+		const hi2: rs.u64 = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
 		const part115 = rs.intCheckedNextMultipleOf(a, b2, 64, false);
 		putOpt(out, part115);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part87 = rs.intCheckedDiv(a, b, 64, false);
 		putOpt(out, part87);
 		const part88 = rs.intCheckedRem(a, b, 64, false);
@@ -1707,21 +1713,21 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part90);
 		if (b !== 0) {
 			const part91 = rs.u64DivCeil(a, b);
-			_22(out, part91);
+			_19(out, part91);
 			rs.byteVecPush(out, rs.u64IsMultipleOf(a, b) ? 1 : 0);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part82 = rs.intCheckedNeg(a, 64, false);
 		putOpt(out, part82);
 		const part83 = rs.intWrappingNeg(a, 64, false);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingNeg(a, 64, false);
 		putPair(out, part84);
 		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 64, false) ? 1 : 0);
 		const part85 = rs.intCheckedNextPowerOfTwo(a, 64, false);
 		putOpt(out, part85);
 		const part86 = rs.intBitWidth(a, 64, false);
-		_27(out, part86);
+		_24(out, part86);
 		const dst4 = out;
 		const word7 = rs.i64Cast(a);
 		const word8 = rs.intWord(word7, 0);
@@ -1737,80 +1743,80 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 6] = (word8 >>> 8) & 255;
 		dst4.data[pos4 + 7] = word8 & 255;
 		dst4.length = dst4.length + 8;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _216;
+			const e: rs.u32 = _212;
 			const part78 = rs.intCheckedPow(a, e, 64, false);
 			putOpt(out, part78);
 			const part79 = rs.intWrappingPow(a, e, 64, false);
-			_22(out, part79);
+			_19(out, part79);
 			const part80 = rs.intSaturatingPow(a, e, 64, false);
-			_22(out, part80);
+			_19(out, part80);
 			const part81 = rs.intOverflowingPow(a, e, 64, false);
 			putPair(out, part81);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _239;
+			const s: rs.u32 = _235;
 			const part68 = rs.intCheckedShl(a, s, 64, false);
 			putOpt(out, part68);
 			const part69 = rs.intCheckedShr(a, s, 64, false);
 			putOpt(out, part69);
 			const part70 = rs.intWrappingShl(a, s, 64, false);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intWrappingShr(a, s, 64, false);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intOverflowingShl(a, s, 64, false);
 			putPair(out, part72);
 			const part73 = rs.intOverflowingShr(a, s, 64, false);
 			putPair(out, part73);
 			const part74 = rs.intUnboundedShl(a, s, 64, false);
-			_22(out, part74);
+			_19(out, part74);
 			const part75 = rs.intUnboundedShr(a, s, 64, false);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intRotateLeft(a, s, 64, false);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intRotateRight(a, s, 64, false);
-			_22(out, part77);
+			_19(out, part77);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 64, false), rs.intCountZeros(a, 64, false), rs.u64LeadingZeros(a), rs.u64TrailingZeros(a), rs.u64LeadingOnes(a), rs.intTrailingOnes(a, 64, false)]);
 		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
 				break;
 			}
-			_27(out, _292);
+			_24(out, _288);
 		}
 		const iter5: rs.Iter<rs.u64> = rs.iterSlice([rs.intSwapBytes(a, 64, false), rs.intReverseBits(a, 64, false), rs.intSwapBytes(a, 64, false), a, rs.intSwapBytes(a, 64, false), a]);
 		while (true) {
-			const _308: rs.u64 | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
+			const _304: rs.u64 | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
 				break;
 			}
-			_22(out, _308);
+			_19(out, _304);
 		}
 		const part64 = rs.intHighestOne(a, 64, false);
 		putOptU32(out, part64);
 		const part65 = rs.intLowestOne(a, 64, false);
 		putOptU32(out, part65);
 		const part66 = rs.intIsolateHighestOne(a, 64, false);
-		_22(out, part66);
+		_19(out, part66);
 		const part67 = rs.intIsolateLowestOne(a, 64, false);
-		_22(out, part67);
-		_22(out, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64);
-		_22(out, 0);
-	} else if (_30 === 6) {
+		_19(out, part67);
+		_19(out, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64);
+		_19(out, 0);
+	} else if (_27 === 6) {
 		const part61 = rs.intCheckedIlog(a, b, 64, false);
 		putOptU32(out, part61);
 		const part62 = rs.intCheckedIlog2(a, 64, false);
@@ -1832,135 +1838,135 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 6] = (word11 >>> 8) & 255;
 		dst5.data[pos5 + 7] = word11 & 255;
 		dst5.length = dst5.length + 8;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part60 = rs.intPow(a, k, 64, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
+		_19(out, part60);
+	} else if (_27 === 8) {
 		const part59 = rs.intPow(a, n, 64, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
+		_19(out, part59);
+	} else if (_27 === 9) {
 		const part58 = rs.intDivEuclid(a, b, 64, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
+		_19(out, part58);
+	} else if (_27 === 10) {
 		const part57 = rs.intRemEuclid(a, b, 64, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
+		_19(out, part57);
+	} else if (_27 === 11) {
 		const part56 = rs.intIsqrt(a, 64, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
+		_19(out, part56);
+	} else if (_27 === 12) {
 		const part55 = rs.intIlog(a, b, 64, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
+		_24(out, part55);
+	} else if (_27 === 13) {
 		const part54 = rs.intIlog2(a, 64, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
+		_24(out, part54);
+	} else if (_27 === 14) {
 		const part53 = rs.intIlog10(a, 64, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.u64Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.u64Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.u64Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.u64Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.u64Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.u64Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.u64Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.u64Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.u64Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.u64Rem(a, b));
+	} else if (_27 === 20) {
 		const part47 = rs.intStrictNeg(a, 64, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.u64Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.u64Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.u64Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.u64Shr(a, k));
+	} else if (_27 === 23) {
 		const part44 = rs.intPow(a, k, 64, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
+		_19(out, part44);
+	} else if (_27 === 24) {
 		const part43 = rs.intDivEuclid(a, b, 64, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
+		_19(out, part43);
+	} else if (_27 === 25) {
 		const part42 = rs.intRemEuclid(a, b, 64, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
+		_19(out, part42);
+	} else if (_27 === 26) {
 		const part41 = rs.intStrictAdd(a, o, 64, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
+		_19(out, part41);
+	} else if (_27 === 27) {
 		const part40 = rs.intStrictSub(a, o, 64, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.u64Div(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.u64Rem(a, b));
-	} else if (_30 === 30) {
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.u64Div(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.u64Rem(a, b));
+	} else if (_27 === 30) {
 		const part37 = rs.intWrappingDivEuclid(a, b, 64, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
+		_19(out, part37);
+	} else if (_27 === 31) {
 		const part36 = rs.intWrappingRemEuclid(a, b, 64, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
+		_19(out, part36);
+	} else if (_27 === 32) {
 		const part35 = rs.intOverflowingDiv(a, b, 64, false);
 		putPair(out, part35);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part34 = rs.intOverflowingRem(a, b, 64, false);
 		putPair(out, part34);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part33 = rs.intOverflowingDivEuclid(a, b, 64, false);
 		putPair(out, part33);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part32 = rs.intOverflowingRemEuclid(a, b, 64, false);
 		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.u64Div(a, b));
-	} else if (_30 === 37) {
+	} else if (_27 === 36) {
+		_19(out, rs.u64Div(a, b));
+	} else if (_27 === 37) {
 		const part30 = rs.intNextPowerOfTwo(a, 64, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
 			const part29 = rs.intNextMultipleOf(a, b, 64, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
+			_19(out, part29);
+		} else if (_445 === 1) {
 			const part28 = rs.intFunnelShl(a, b, k, 64, false);
-			_22(out, part28);
+			_19(out, part28);
 		} else {
 			const part27 = rs.intFunnelShr(a, b, k, 64, false);
-			_22(out, part27);
+			_19(out, part27);
 		}
-	} else if (_30 === 39) {
+	} else if (_27 === 39) {
 		const s2: rs.u64 = a;
 		const w: rs.u64 = a;
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 64, false), rs.intCountZeros(s2, 64, false), rs.u64LeadingZeros(s2), rs.u64TrailingZeros(s2)]);
 		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
 				break;
 			}
-			_27(out, _472);
+			_24(out, _464);
 		}
 		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 64, false), rs.intCountZeros(w, 64, false), rs.u64LeadingZeros(w), rs.u64TrailingZeros(w)]);
 		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
 				break;
 			}
-			_27(out, _486);
+			_24(out, _478);
 		}
 		const iter8: rs.Iter<rs.u64> = rs.iterSlice([rs.intRotateLeft(s2, k, 64, false), rs.intRotateRight(s2, n, 64, false), rs.intSwapBytes(s2, 64, false), rs.intReverseBits(s2, 64, false), rs.intSwapBytes(s2, 64, false), s2, rs.intSwapBytes(s2, 64, false), s2, rs.intSaturatingPow(s2, k, 64, false), rs.intSaturatingPow(s2, n, 64, false)]);
 		while (true) {
-			const _506: rs.u64 | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
+			const _498: rs.u64 | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
 				break;
 			}
-			_22(out, _506);
+			_19(out, _498);
 		}
 		const iter9: rs.Iter<rs.u64> = rs.iterSlice([rs.intRotateLeft(w, k, 64, false), rs.intRotateRight(w, n, 64, false), rs.intSwapBytes(w, 64, false), rs.intReverseBits(w, 64, false), rs.intSwapBytes(w, 64, false), w, rs.intSwapBytes(w, 64, false), w, rs.intWrappingPow(w, k, 64, false), rs.intWrappingPow(w, n, 64, false)]);
 		while (true) {
-			const _527: rs.u64 | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
+			const _517: rs.u64 | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
 				break;
 			}
-			_22(out, _527);
+			_19(out, _517);
 		}
 		const dst6 = out;
 		const byte2 = rs.intIsPowerOfTwo(s2, 64, false) ? 1 : 0;
@@ -1971,27 +1977,28 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 1] = byte3;
 		dst6.length = dst6.length + 2;
 		const part26 = rs.intWrappingNextPowerOfTwo(w, 64, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.u64 | undefined, rs.u64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.u64 = _548[0];
-				const y: rs.u64 = _548[1];
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.u64 | undefined = rs.nonZero(a);
+		const _537: rs.u64 | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.u64 = _536;
+				const y: rs.u64 = _537;
 				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.u64LeadingZeros(x), rs.u64TrailingZeros(x), rs.intCountOnes(x, 64, false), 63 - rs.u64LeadingZeros(x), rs.u64TrailingZeros(x)]);
 				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
 						break;
 					}
-					_27(out, _564);
+					_24(out, _551);
 				}
 				const part13 = option_map$0fest7b(rs.u64CheckedMul(x, y), (a0: rs.u64): rs.u64 => {
 					return a0;
 				});
 				putOpt(out, part13);
 				const part14 = rs.u64SaturatingMul(x, y);
-				_22(out, part14);
+				_19(out, part14);
 				const part15 = option_map$0fest7b(rs.intCheckedPow(x, k, 64, false), (a02: rs.u64): rs.u64 => {
 					return a02;
 				});
@@ -2001,36 +2008,36 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part16);
 				const part17 = rs.intSaturatingPow(x, k, 64, false);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateHighestOne(x, 64, false);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = rs.intIsolateLowestOne(x, 64, false);
-				_22(out, part19);
+				_19(out, part19);
 				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 64, false) ? 1 : 0);
 				const part20 = option_map$0fest7b(rs.u64CheckedAdd(x, b), (a04: rs.u64): rs.u64 => {
 					return a04;
 				});
 				putOpt(out, part20);
 				const part21 = rs.u64SaturatingAdd(x, b);
-				_22(out, part21);
+				_19(out, part21);
 				const part22 = option_map$0fest7b(rs.intCheckedNextPowerOfTwo(x, 64, false), (a05: rs.u64): rs.u64 => {
 					return a05;
 				});
 				putOpt(out, part22);
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 64, false), rs.intIlog10(x, 64, false), rs.intBitWidth(x, 64, false)]);
 				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
 						break;
 					}
-					_27(out, _631);
+					_24(out, _618);
 				}
 				const part23 = rs.intMidpoint(x, y, 64, false);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intIsqrt(x, 64, false);
-				_22(out, part24);
+				_19(out, part24);
 				const part25 = rs.u64DivCeil(x, y);
-				_22(out, part25);
+				_19(out, part25);
 				const dst7 = out;
 				const word13 = rs.i64Cast(x);
 				const word14 = rs.intWord(word13, 0);
@@ -2048,47 +2055,48 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.length = dst7.length + 8;
 			}
 		}
-	} else if (_30 === 41) {
+	} else if (_27 === 41) {
 		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part12 = rs.precondition(rs.u64CheckedAdd(a, b), "u64::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
+		_19(out, part12);
+	} else if (_27 === 43) {
 		const part11 = rs.precondition(rs.u64CheckedSub(a, b), "u64::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
+		_19(out, part11);
+	} else if (_27 === 44) {
 		const part10 = rs.precondition(rs.u64CheckedMul(a, b), "u64::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
+		_19(out, part10);
+	} else if (_27 === 45) {
 		const part9 = rs.precondition(rs.intCheckedShl(a, k, 64, false), "u64::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
+		_19(out, part9);
+	} else if (_27 === 46) {
 		const part8 = rs.precondition(rs.intCheckedShr(a, k, 64, false), "u64::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
+		_19(out, part8);
+	} else if (_27 === 47) {
 		if (rs.u32Rem(k, 2) === 0) {
 			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 64, false), "u64::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
+			_19(out, part7);
 		} else {
 			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 64, false), "u64::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
+			_19(out, part6);
 		}
-	} else if (_30 === 48) {
+	} else if (_27 === 48) {
 		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.u64 | undefined, rs.u64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.u64CheckedMul(_686[0], _686[1]), "u64::unchecked_mul cannot overflow");
-				_22(out, part4);
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.u64 | undefined = rs.nonZero(a);
+		const _673: rs.u64 | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.u64CheckedMul(_672, _673), "u64::unchecked_mul cannot overflow");
+				_19(out, part4);
 			}
 		}
 	} else {
-		const _698: rs.u64 | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.u64CheckedAdd(_698, b), "u64::unchecked_add cannot overflow");
-			_22(out, part3);
+		const _683: rs.u64 | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.u64CheckedAdd(_683, b), "u64::unchecked_add cannot overflow");
+			_19(out, part3);
 		}
 	}
 }
@@ -2102,16 +2110,16 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.u128 = rs.u128FromBeBytes(rs.bytesFromFn(16, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(16, i3));
+		return byte(rs.usizeAdd(i3, 16));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 16, i4));
+		return byte(rs.usizeAdd(i4, 32));
 	}));
 	const o: rs.i128 = rs.i128Cast(b);
-	const k: rs.u32 = rs.u32Rem(n, 3 * 128);
-	const _22: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v4: rs.u128): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 384);
+	const _19: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v2: rs.u128): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		const word2 = rs.intWord(word, 0);
 		const word3 = rs.intWord(word, 32);
 		const word4 = rs.intWord(word, 64);
@@ -2135,26 +2143,26 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v4)), v4) ? 1 : 0);
+		rs.byteVecPush(out2, rs.u128Eq(v2, rs.u128FromBeBytes(rs.u128ToBeBytes(v2))) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u128 | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v3: rs.u128 | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.u128 = v5;
+			const v4: rs.u128 = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.u128, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u128, boolean]): undefined => {
-		const v7: rs.u128 = _37[0];
+		const v5: rs.u128 = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
 		const dst2 = out5;
-		const word6 = v8;
+		const word6 = v6;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
@@ -2163,17 +2171,17 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word6 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v10: rs.u32 = v9;
+			const v8: rs.u32 = v7;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v8);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part92 = rs.u128CheckedAdd(a, b);
 		putOpt(out, part92);
 		const part93 = rs.u128CheckedSub(a, b);
@@ -2181,17 +2189,17 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part94 = rs.u128CheckedMul(a, b);
 		putOpt(out, part94);
 		const part95 = rs.u128SaturatingAdd(a, b);
-		_22(out, part95);
+		_19(out, part95);
 		const part96 = rs.u128SaturatingSub(a, b);
-		_22(out, part96);
+		_19(out, part96);
 		const part97 = rs.u128SaturatingMul(a, b);
-		_22(out, part97);
+		_19(out, part97);
 		const part98 = rs.u128WrappingAdd(a, b);
-		_22(out, part98);
+		_19(out, part98);
 		const part99 = rs.u128WrappingSub(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.u128WrappingMul(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.intOverflowingAdd(a, b, 128, false);
 		putPair(out, part101);
 		const part102 = rs.intOverflowingSub(a, b, 128, false);
@@ -2199,33 +2207,33 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part103 = rs.intOverflowingMul(a, b, 128, false);
 		putPair(out, part103);
 		const part104 = rs.intMidpoint(a, b, 128, false);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intCheckedAdd(a, o, 128, false);
 		putOpt(out, part105);
 		const part106 = rs.intCheckedSub(a, o, 128, false);
 		putOpt(out, part106);
 		const part107 = rs.intSaturatingAdd(a, o, 128, false);
-		_22(out, part107);
+		_19(out, part107);
 		const part108 = rs.intSaturatingSub(a, o, 128, false);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intWrappingAdd(a, o, 128, false);
-		_22(out, part109);
+		_19(out, part109);
 		const part110 = rs.intWrappingSub(a, o, 128, false);
-		_22(out, part110);
+		_19(out, part110);
 		const part111 = rs.intOverflowingAdd(a, o, 128, false);
 		putPair(out, part111);
 		const part112 = rs.intOverflowingSub(a, o, 128, false);
 		putPair(out, part112);
 		const b2: rs.u128 = rs.u128Cast(o);
-		const _118: rs.i128 | undefined = rs.intCheckedSignedDiff(a, b2, 128, false) as rs.i128 | undefined;
-		if (_118 === undefined) {
+		const _114: rs.i128 | undefined = rs.intCheckedSignedDiff(a, b2, 128, false) as rs.i128 | undefined;
+		if (_114 === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
 			const dst3 = out;
-			const word7 = rs.intWord(_118, 0);
-			const word8 = rs.intWord(_118, 32);
-			const word9 = rs.intWord(_118, 64);
-			const word10 = rs.intWord(_118, 96);
+			const word7 = rs.intWord(_114, 0);
+			const word8 = rs.intWord(_114, 32);
+			const word9 = rs.intWord(_114, 64);
+			const word10 = rs.intWord(_114, 96);
 			rs.byteVecReserve(dst3, 16 as rs.usize);
 			const pos3 = dst3.length;
 			dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
@@ -2248,29 +2256,29 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
 		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
 				break;
 			}
-			const carry: boolean = _127;
+			const carry: boolean = _123;
 			const part113 = rs.intCarryingAdd(a, b2, carry, 128, false);
 			putPair(out, part113);
 			const part114 = rs.intBorrowingSub(a, b2, carry, 128, false);
 			putPair(out, part114);
 		}
-		const _141: [rs.u128, rs.u128] = rs.intCarryingMul(a, b2, a, 128, false);
-		const lo: rs.u128 = _141[0];
-		const hi: rs.u128 = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.u128, rs.u128] = rs.intCarryingMulAdd(a, b2, b2, a, 128, false);
-		const lo2: rs.u128 = _150[0];
-		const hi2: rs.u128 = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
+		const _137: [rs.u128, rs.u128] = rs.intCarryingMul(a, b2, a, 128, false);
+		const lo: rs.u128 = _137[0];
+		const hi: rs.u128 = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.u128, rs.u128] = rs.intCarryingMulAdd(a, b2, b2, a, 128, false);
+		const lo2: rs.u128 = _146[0];
+		const hi2: rs.u128 = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
 		const part115 = rs.intCheckedNextMultipleOf(a, b2, 128, false);
 		putOpt(out, part115);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part87 = rs.intCheckedDiv(a, b, 128, false);
 		putOpt(out, part87);
 		const part88 = rs.intCheckedRem(a, b, 128, false);
@@ -2281,21 +2289,21 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part90);
 		if (b !== 0) {
 			const part91 = rs.u128DivCeil(a, b);
-			_22(out, part91);
+			_19(out, part91);
 			rs.byteVecPush(out, rs.u128IsMultipleOf(a, b) ? 1 : 0);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part82 = rs.intCheckedNeg(a, 128, false);
 		putOpt(out, part82);
 		const part83 = rs.intWrappingNeg(a, 128, false);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingNeg(a, 128, false);
 		putPair(out, part84);
 		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 128, false) ? 1 : 0);
 		const part85 = rs.intCheckedNextPowerOfTwo(a, 128, false);
 		putOpt(out, part85);
 		const part86 = rs.intBitWidth(a, 128, false);
-		_27(out, part86);
+		_24(out, part86);
 		const dst4 = out;
 		const word11 = rs.i128Cast(a);
 		const word12 = rs.intWord(word11, 0);
@@ -2321,80 +2329,80 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 14] = (word12 >>> 8) & 255;
 		dst4.data[pos4 + 15] = word12 & 255;
 		dst4.length = dst4.length + 16;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _216;
+			const e: rs.u32 = _212;
 			const part78 = rs.intCheckedPow(a, e, 128, false);
 			putOpt(out, part78);
 			const part79 = rs.intWrappingPow(a, e, 128, false);
-			_22(out, part79);
+			_19(out, part79);
 			const part80 = rs.intSaturatingPow(a, e, 128, false);
-			_22(out, part80);
+			_19(out, part80);
 			const part81 = rs.intOverflowingPow(a, e, 128, false);
 			putPair(out, part81);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _239;
+			const s: rs.u32 = _235;
 			const part68 = rs.intCheckedShl(a, s, 128, false);
 			putOpt(out, part68);
 			const part69 = rs.intCheckedShr(a, s, 128, false);
 			putOpt(out, part69);
 			const part70 = rs.intWrappingShl(a, s, 128, false);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intWrappingShr(a, s, 128, false);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intOverflowingShl(a, s, 128, false);
 			putPair(out, part72);
 			const part73 = rs.intOverflowingShr(a, s, 128, false);
 			putPair(out, part73);
 			const part74 = rs.intUnboundedShl(a, s, 128, false);
-			_22(out, part74);
+			_19(out, part74);
 			const part75 = rs.intUnboundedShr(a, s, 128, false);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intRotateLeft(a, s, 128, false);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intRotateRight(a, s, 128, false);
-			_22(out, part77);
+			_19(out, part77);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 128, false), rs.intCountZeros(a, 128, false), rs.u128LeadingZeros(a), rs.u128TrailingZeros(a), rs.u128LeadingOnes(a), rs.intTrailingOnes(a, 128, false)]);
 		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
 				break;
 			}
-			_27(out, _292);
+			_24(out, _288);
 		}
 		const iter5: rs.Iter<rs.u128> = rs.iterSlice([rs.intSwapBytes(a, 128, false), rs.intReverseBits(a, 128, false), rs.intSwapBytes(a, 128, false), a, rs.intSwapBytes(a, 128, false), a]);
 		while (true) {
-			const _308: rs.u128 | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
+			const _304: rs.u128 | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
 				break;
 			}
-			_22(out, _308);
+			_19(out, _304);
 		}
 		const part64 = rs.intHighestOne(a, 128, false);
 		putOptU32(out, part64);
 		const part65 = rs.intLowestOne(a, 128, false);
 		putOptU32(out, part65);
 		const part66 = rs.intIsolateHighestOne(a, 128, false);
-		_22(out, part66);
+		_19(out, part66);
 		const part67 = rs.intIsolateLowestOne(a, 128, false);
-		_22(out, part67);
-		_22(out, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128);
-		_22(out, 0);
-	} else if (_30 === 6) {
+		_19(out, part67);
+		_19(out, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128);
+		_19(out, 0);
+	} else if (_27 === 6) {
 		const part61 = rs.intCheckedIlog(a, b, 128, false);
 		putOptU32(out, part61);
 		const part62 = rs.intCheckedIlog2(a, 128, false);
@@ -2426,135 +2434,135 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 14] = (word17 >>> 8) & 255;
 		dst5.data[pos5 + 15] = word17 & 255;
 		dst5.length = dst5.length + 16;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part60 = rs.intPow(a, k, 128, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
+		_19(out, part60);
+	} else if (_27 === 8) {
 		const part59 = rs.intPow(a, n, 128, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
+		_19(out, part59);
+	} else if (_27 === 9) {
 		const part58 = rs.intDivEuclid(a, b, 128, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
+		_19(out, part58);
+	} else if (_27 === 10) {
 		const part57 = rs.intRemEuclid(a, b, 128, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
+		_19(out, part57);
+	} else if (_27 === 11) {
 		const part56 = rs.intIsqrt(a, 128, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
+		_19(out, part56);
+	} else if (_27 === 12) {
 		const part55 = rs.intIlog(a, b, 128, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
+		_24(out, part55);
+	} else if (_27 === 13) {
 		const part54 = rs.intIlog2(a, 128, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
+		_24(out, part54);
+	} else if (_27 === 14) {
 		const part53 = rs.intIlog10(a, 128, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.u128Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.u128Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.u128Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.u128Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.u128Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.u128Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.u128Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.u128Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.u128Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.u128Rem(a, b));
+	} else if (_27 === 20) {
 		const part47 = rs.intStrictNeg(a, 128, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.u128Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.u128Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.u128Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.u128Shr(a, k));
+	} else if (_27 === 23) {
 		const part44 = rs.intPow(a, k, 128, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
+		_19(out, part44);
+	} else if (_27 === 24) {
 		const part43 = rs.intDivEuclid(a, b, 128, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
+		_19(out, part43);
+	} else if (_27 === 25) {
 		const part42 = rs.intRemEuclid(a, b, 128, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
+		_19(out, part42);
+	} else if (_27 === 26) {
 		const part41 = rs.intStrictAdd(a, o, 128, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
+		_19(out, part41);
+	} else if (_27 === 27) {
 		const part40 = rs.intStrictSub(a, o, 128, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.u128Div(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.u128Rem(a, b));
-	} else if (_30 === 30) {
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.u128Div(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.u128Rem(a, b));
+	} else if (_27 === 30) {
 		const part37 = rs.intWrappingDivEuclid(a, b, 128, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
+		_19(out, part37);
+	} else if (_27 === 31) {
 		const part36 = rs.intWrappingRemEuclid(a, b, 128, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
+		_19(out, part36);
+	} else if (_27 === 32) {
 		const part35 = rs.intOverflowingDiv(a, b, 128, false);
 		putPair(out, part35);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part34 = rs.intOverflowingRem(a, b, 128, false);
 		putPair(out, part34);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part33 = rs.intOverflowingDivEuclid(a, b, 128, false);
 		putPair(out, part33);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part32 = rs.intOverflowingRemEuclid(a, b, 128, false);
 		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.u128Div(a, b));
-	} else if (_30 === 37) {
+	} else if (_27 === 36) {
+		_19(out, rs.u128Div(a, b));
+	} else if (_27 === 37) {
 		const part30 = rs.intNextPowerOfTwo(a, 128, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
 			const part29 = rs.intNextMultipleOf(a, b, 128, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
+			_19(out, part29);
+		} else if (_445 === 1) {
 			const part28 = rs.intFunnelShl(a, b, k, 128, false);
-			_22(out, part28);
+			_19(out, part28);
 		} else {
 			const part27 = rs.intFunnelShr(a, b, k, 128, false);
-			_22(out, part27);
+			_19(out, part27);
 		}
-	} else if (_30 === 39) {
+	} else if (_27 === 39) {
 		const s2: rs.u128 = a;
 		const w: rs.u128 = a;
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 128, false), rs.intCountZeros(s2, 128, false), rs.u128LeadingZeros(s2), rs.u128TrailingZeros(s2)]);
 		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
 				break;
 			}
-			_27(out, _472);
+			_24(out, _464);
 		}
 		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 128, false), rs.intCountZeros(w, 128, false), rs.u128LeadingZeros(w), rs.u128TrailingZeros(w)]);
 		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
 				break;
 			}
-			_27(out, _486);
+			_24(out, _478);
 		}
 		const iter8: rs.Iter<rs.u128> = rs.iterSlice([rs.intRotateLeft(s2, k, 128, false), rs.intRotateRight(s2, n, 128, false), rs.intSwapBytes(s2, 128, false), rs.intReverseBits(s2, 128, false), rs.intSwapBytes(s2, 128, false), s2, rs.intSwapBytes(s2, 128, false), s2, rs.intSaturatingPow(s2, k, 128, false), rs.intSaturatingPow(s2, n, 128, false)]);
 		while (true) {
-			const _506: rs.u128 | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
+			const _498: rs.u128 | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
 				break;
 			}
-			_22(out, _506);
+			_19(out, _498);
 		}
 		const iter9: rs.Iter<rs.u128> = rs.iterSlice([rs.intRotateLeft(w, k, 128, false), rs.intRotateRight(w, n, 128, false), rs.intSwapBytes(w, 128, false), rs.intReverseBits(w, 128, false), rs.intSwapBytes(w, 128, false), w, rs.intSwapBytes(w, 128, false), w, rs.intWrappingPow(w, k, 128, false), rs.intWrappingPow(w, n, 128, false)]);
 		while (true) {
-			const _527: rs.u128 | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
+			const _517: rs.u128 | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
 				break;
 			}
-			_22(out, _527);
+			_19(out, _517);
 		}
 		const dst6 = out;
 		const byte2 = rs.intIsPowerOfTwo(s2, 128, false) ? 1 : 0;
@@ -2565,27 +2573,28 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 1] = byte3;
 		dst6.length = dst6.length + 2;
 		const part26 = rs.intWrappingNextPowerOfTwo(w, 128, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.u128 | undefined, rs.u128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.u128 = _548[0];
-				const y: rs.u128 = _548[1];
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.u128 | undefined = rs.nonZero(a);
+		const _537: rs.u128 | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.u128 = _536;
+				const y: rs.u128 = _537;
 				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.u128LeadingZeros(x), rs.u128TrailingZeros(x), rs.intCountOnes(x, 128, false), 127 - rs.u128LeadingZeros(x), rs.u128TrailingZeros(x)]);
 				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
 						break;
 					}
-					_27(out, _564);
+					_24(out, _551);
 				}
 				const part13 = option_map$1x2mrlk(rs.u128CheckedMul(x, y), (a0: rs.u128): rs.u128 => {
 					return a0;
 				});
 				putOpt(out, part13);
 				const part14 = rs.u128SaturatingMul(x, y);
-				_22(out, part14);
+				_19(out, part14);
 				const part15 = option_map$1x2mrlk(rs.intCheckedPow(x, k, 128, false), (a02: rs.u128): rs.u128 => {
 					return a02;
 				});
@@ -2595,36 +2604,36 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part16);
 				const part17 = rs.intSaturatingPow(x, k, 128, false);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateHighestOne(x, 128, false);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = rs.intIsolateLowestOne(x, 128, false);
-				_22(out, part19);
+				_19(out, part19);
 				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 128, false) ? 1 : 0);
 				const part20 = option_map$1x2mrlk(rs.u128CheckedAdd(x, b), (a04: rs.u128): rs.u128 => {
 					return a04;
 				});
 				putOpt(out, part20);
 				const part21 = rs.u128SaturatingAdd(x, b);
-				_22(out, part21);
+				_19(out, part21);
 				const part22 = option_map$1x2mrlk(rs.intCheckedNextPowerOfTwo(x, 128, false), (a05: rs.u128): rs.u128 => {
 					return a05;
 				});
 				putOpt(out, part22);
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 128, false), rs.intIlog10(x, 128, false), rs.intBitWidth(x, 128, false)]);
 				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
 						break;
 					}
-					_27(out, _631);
+					_24(out, _618);
 				}
 				const part23 = rs.intMidpoint(x, y, 128, false);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intIsqrt(x, 128, false);
-				_22(out, part24);
+				_19(out, part24);
 				const part25 = rs.u128DivCeil(x, y);
-				_22(out, part25);
+				_19(out, part25);
 				const dst7 = out;
 				const word21 = rs.i128Cast(x);
 				const word22 = rs.intWord(word21, 0);
@@ -2652,47 +2661,48 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.length = dst7.length + 16;
 			}
 		}
-	} else if (_30 === 41) {
+	} else if (_27 === 41) {
 		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part12 = rs.precondition(rs.u128CheckedAdd(a, b), "u128::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
+		_19(out, part12);
+	} else if (_27 === 43) {
 		const part11 = rs.precondition(rs.u128CheckedSub(a, b), "u128::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
+		_19(out, part11);
+	} else if (_27 === 44) {
 		const part10 = rs.precondition(rs.u128CheckedMul(a, b), "u128::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
+		_19(out, part10);
+	} else if (_27 === 45) {
 		const part9 = rs.precondition(rs.intCheckedShl(a, k, 128, false), "u128::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
+		_19(out, part9);
+	} else if (_27 === 46) {
 		const part8 = rs.precondition(rs.intCheckedShr(a, k, 128, false), "u128::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
+		_19(out, part8);
+	} else if (_27 === 47) {
 		if (rs.u32Rem(k, 2) === 0) {
 			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 128, false), "u128::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
+			_19(out, part7);
 		} else {
 			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 128, false), "u128::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
+			_19(out, part6);
 		}
-	} else if (_30 === 48) {
+	} else if (_27 === 48) {
 		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.u128 | undefined, rs.u128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.u128CheckedMul(_686[0], _686[1]), "u128::unchecked_mul cannot overflow");
-				_22(out, part4);
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.u128 | undefined = rs.nonZero(a);
+		const _673: rs.u128 | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.u128CheckedMul(_672, _673), "u128::unchecked_mul cannot overflow");
+				_19(out, part4);
 			}
 		}
 	} else {
-		const _698: rs.u128 | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.u128CheckedAdd(_698, b), "u128::unchecked_add cannot overflow");
-			_22(out, part3);
+		const _683: rs.u128 | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.u128CheckedAdd(_683, b), "u128::unchecked_add cannot overflow");
+			_19(out, part3);
 		}
 	}
 }
@@ -2706,16 +2716,16 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.usize = rs.usizeFromBeBytes(rs.bytesFromFn(4, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(4, i3));
+		return byte(rs.usizeAdd(i3, 4));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 4, i4));
+		return byte(rs.usizeAdd(i4, 8));
 	}));
 	const o: rs.isize = b | 0;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const _22: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v4: rs.usize): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 96);
+	const _19: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v2: rs.usize): undefined => {
 		const dst = out2;
-		const word = v4;
+		const word = v2;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -2723,24 +2733,544 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 2] = (word >>> 8) & 255;
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
-		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v4)) === v4 ? 1 : 0);
+		rs.byteVecPush(out2, v2 === rs.usizeFromBeBytes(rs.usizeToBeBytes(v2)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v5: rs.usize | undefined): undefined => {
-		if (v5 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v3: rs.usize | undefined): undefined => {
+		if (v3 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v6: rs.usize = v5;
+			const v4: rs.usize = v3;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v6);
+			_19(out3, v4);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.usize, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.usize, boolean]): undefined => {
-		const v7: rs.usize = _37[0];
+		const v5: rs.usize = _37[0];
 		const over: boolean = _37[1];
-		_22(out4, v7);
+		_19(out4, v5);
 		rs.byteVecPush(out4, over ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v6: rs.u32): undefined => {
+		const dst2 = out5;
+		const word2 = v6;
+		rs.byteVecReserve(dst2, 4 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word2 & 255;
+		dst2.length = dst2.length + 4;
+	};
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v7: rs.u32 | undefined): undefined => {
+		if (v7 === undefined) {
+			rs.byteVecPush(out6, 0);
+		} else {
+			const v8: rs.u32 = v7;
+			rs.byteVecPush(out6, 1);
+			_24(out6, v8);
+		}
+	};
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
+		const part92 = rs.usizeCheckedAdd(a, b);
+		putOpt(out, part92);
+		const part93 = rs.usizeCheckedSub(a, b);
+		putOpt(out, part93);
+		const part94 = rs.usizeCheckedMul(a, b);
+		putOpt(out, part94);
+		const part95 = rs.usizeSaturatingAdd(a, b);
+		_19(out, part95);
+		const part96 = rs.usizeSaturatingSub(a, b);
+		_19(out, part96);
+		const part97 = rs.usizeSaturatingMul(a, b);
+		_19(out, part97);
+		const part98 = rs.usizeWrappingAdd(a, b);
+		_19(out, part98);
+		const part99 = rs.usizeWrappingSub(a, b);
+		_19(out, part99);
+		const part100 = rs.usizeWrappingMul(a, b);
+		_19(out, part100);
+		const part101 = rs.intOverflowingAdd(a, b, 32, false);
+		putPair(out, part101);
+		const part102 = rs.intOverflowingSub(a, b, 32, false);
+		putPair(out, part102);
+		const part103 = rs.intOverflowingMul(a, b, 32, false);
+		putPair(out, part103);
+		const part104 = rs.intMidpoint(a, b, 32, false);
+		_19(out, part104);
+		const part105 = rs.intCheckedAdd(a, o, 32, false);
+		putOpt(out, part105);
+		const part106 = rs.intCheckedSub(a, o, 32, false);
+		putOpt(out, part106);
+		const part107 = rs.intSaturatingAdd(a, o, 32, false);
+		_19(out, part107);
+		const part108 = rs.intSaturatingSub(a, o, 32, false);
+		_19(out, part108);
+		const part109 = rs.intWrappingAdd(a, o, 32, false);
+		_19(out, part109);
+		const part110 = rs.intWrappingSub(a, o, 32, false);
+		_19(out, part110);
+		const part111 = rs.intOverflowingAdd(a, o, 32, false);
+		putPair(out, part111);
+		const part112 = rs.intOverflowingSub(a, o, 32, false);
+		putPair(out, part112);
+		const b2: rs.usize = o >>> 0;
+		const _114: rs.isize | undefined = rs.intCheckedSignedDiff(a, b2, 32, false) as rs.isize | undefined;
+		if (_114 === undefined) {
+			rs.byteVecPush(out, 0);
+		} else {
+			const dst3 = out;
+			rs.byteVecReserve(dst3, 4 as rs.usize);
+			const pos3 = dst3.length;
+			dst3.data[pos3 + 0] = (_114 >>> 24) & 255;
+			dst3.data[pos3 + 1] = (_114 >>> 16) & 255;
+			dst3.data[pos3 + 2] = (_114 >>> 8) & 255;
+			dst3.data[pos3 + 3] = _114 & 255;
+			dst3.length = dst3.length + 4;
+		}
+		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
+		while (true) {
+			const _123: boolean | rs.Done = iter.next();
+			if (_123 === rs.DONE) {
+				break;
+			}
+			const carry: boolean = _123;
+			const part113 = rs.intCarryingAdd(a, b2, carry, 32, false);
+			putPair(out, part113);
+			const part114 = rs.intBorrowingSub(a, b2, carry, 32, false);
+			putPair(out, part114);
+		}
+		const _137: [rs.usize, rs.usize] = rs.intCarryingMul(a, b2, a, 32, false);
+		const lo: rs.usize = _137[0];
+		const hi: rs.usize = _137[1];
+		_19(out, lo);
+		_19(out, hi);
+		const _146: [rs.usize, rs.usize] = rs.intCarryingMulAdd(a, b2, b2, a, 32, false);
+		const lo2: rs.usize = _146[0];
+		const hi2: rs.usize = _146[1];
+		_19(out, lo2);
+		_19(out, hi2);
+		const part115 = rs.intCheckedNextMultipleOf(a, b2, 32, false);
+		putOpt(out, part115);
+	} else if (_27 === 1) {
+		const part87 = rs.intCheckedDiv(a, b, 32, false);
+		putOpt(out, part87);
+		const part88 = rs.intCheckedRem(a, b, 32, false);
+		putOpt(out, part88);
+		const part89 = rs.intCheckedDivEuclid(a, b, 32, false);
+		putOpt(out, part89);
+		const part90 = rs.intCheckedRemEuclid(a, b, 32, false);
+		putOpt(out, part90);
+		if (b !== 0) {
+			const part91 = rs.usizeDivCeil(a, b);
+			_19(out, part91);
+			rs.byteVecPush(out, rs.usizeIsMultipleOf(a, b) ? 1 : 0);
+		}
+	} else if (_27 === 2) {
+		const part82 = rs.intCheckedNeg(a, 32, false);
+		putOpt(out, part82);
+		const part83 = rs.intWrappingNeg(a, 32, false);
+		_19(out, part83);
+		const part84 = rs.intOverflowingNeg(a, 32, false);
+		putPair(out, part84);
+		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 32, false) ? 1 : 0);
+		const part85 = rs.intCheckedNextPowerOfTwo(a, 32, false);
+		putOpt(out, part85);
+		const part86 = rs.intBitWidth(a, 32, false);
+		_24(out, part86);
+		const dst4 = out;
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = ((a | 0) >>> 24) & 255;
+		dst4.data[pos4 + 1] = ((a | 0) >>> 16) & 255;
+		dst4.data[pos4 + 2] = ((a | 0) >>> 8) & 255;
+		dst4.data[pos4 + 3] = (a | 0) & 255;
+		dst4.length = dst4.length + 4;
+	} else if (_27 === 3) {
+		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
+		while (true) {
+			const _212: rs.u32 | rs.Done = iter2.next();
+			if (_212 === rs.DONE) {
+				break;
+			}
+			const e: rs.u32 = _212;
+			const part78 = rs.intCheckedPow(a, e, 32, false);
+			putOpt(out, part78);
+			const part79 = rs.intWrappingPow(a, e, 32, false);
+			_19(out, part79);
+			const part80 = rs.intSaturatingPow(a, e, 32, false);
+			_19(out, part80);
+			const part81 = rs.intOverflowingPow(a, e, 32, false);
+			putPair(out, part81);
+		}
+	} else if (_27 === 4) {
+		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
+		while (true) {
+			const _235: rs.u32 | rs.Done = iter3.next();
+			if (_235 === rs.DONE) {
+				break;
+			}
+			const s: rs.u32 = _235;
+			const part68 = rs.intCheckedShl(a, s, 32, false);
+			putOpt(out, part68);
+			const part69 = rs.intCheckedShr(a, s, 32, false);
+			putOpt(out, part69);
+			const part70 = rs.intWrappingShl(a, s, 32, false);
+			_19(out, part70);
+			const part71 = rs.intWrappingShr(a, s, 32, false);
+			_19(out, part71);
+			const part72 = rs.intOverflowingShl(a, s, 32, false);
+			putPair(out, part72);
+			const part73 = rs.intOverflowingShr(a, s, 32, false);
+			putPair(out, part73);
+			const part74 = rs.intUnboundedShl(a, s, 32, false);
+			_19(out, part74);
+			const part75 = rs.intUnboundedShr(a, s, 32, false);
+			_19(out, part75);
+			const part76 = rs.intRotateLeft(a, s, 32, false);
+			_19(out, part76);
+			const part77 = rs.intRotateRight(a, s, 32, false);
+			_19(out, part77);
+		}
+	} else if (_27 === 5) {
+		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 32, false), rs.intCountZeros(a, 32, false), rs.usizeLeadingZeros(a), rs.usizeTrailingZeros(a), rs.usizeLeadingOnes(a), rs.intTrailingOnes(a, 32, false)]);
+		while (true) {
+			const _288: rs.u32 | rs.Done = iter4.next();
+			if (_288 === rs.DONE) {
+				break;
+			}
+			_24(out, _288);
+		}
+		const iter5: rs.Iter<rs.usize> = rs.iterSlice([rs.intSwapBytes(a, 32, false), rs.intReverseBits(a, 32, false), rs.intSwapBytes(a, 32, false), a, rs.intSwapBytes(a, 32, false), a]);
+		while (true) {
+			const _304: rs.usize | rs.Done = iter5.next();
+			if (_304 === rs.DONE) {
+				break;
+			}
+			_19(out, _304);
+		}
+		const part64 = rs.intHighestOne(a, 32, false);
+		putOptU32(out, part64);
+		const part65 = rs.intLowestOne(a, 32, false);
+		putOptU32(out, part65);
+		const part66 = rs.intIsolateHighestOne(a, 32, false);
+		_19(out, part66);
+		const part67 = rs.intIsolateLowestOne(a, 32, false);
+		_19(out, part67);
+		_19(out, 4294967295);
+		_19(out, 0);
+	} else if (_27 === 6) {
+		const part61 = rs.intCheckedIlog(a, b, 32, false);
+		putOptU32(out, part61);
+		const part62 = rs.intCheckedIlog2(a, 32, false);
+		putOptU32(out, part62);
+		const part63 = rs.intCheckedIlog10(a, 32, false);
+		putOptU32(out, part63);
+		const dst5 = out;
+		const word3 = rs.intAbsDiff(a, b, 32, false) as rs.usize;
+		rs.byteVecReserve(dst5, 4 as rs.usize);
+		const pos5 = dst5.length;
+		dst5.data[pos5 + 0] = (word3 >>> 24) & 255;
+		dst5.data[pos5 + 1] = (word3 >>> 16) & 255;
+		dst5.data[pos5 + 2] = (word3 >>> 8) & 255;
+		dst5.data[pos5 + 3] = word3 & 255;
+		dst5.length = dst5.length + 4;
+	} else if (_27 === 7) {
+		const part60 = rs.intPow(a, k, 32, false);
+		_19(out, part60);
+	} else if (_27 === 8) {
+		const part59 = rs.intPow(a, n, 32, false);
+		_19(out, part59);
+	} else if (_27 === 9) {
+		const part58 = rs.intDivEuclid(a, b, 32, false);
+		_19(out, part58);
+	} else if (_27 === 10) {
+		const part57 = rs.intRemEuclid(a, b, 32, false);
+		_19(out, part57);
+	} else if (_27 === 11) {
+		const part56 = rs.intIsqrt(a, 32, false);
+		_19(out, part56);
+	} else if (_27 === 12) {
+		const part55 = rs.intIlog(a, b, 32, false);
+		_24(out, part55);
+	} else if (_27 === 13) {
+		const part54 = rs.intIlog2(a, 32, false);
+		_24(out, part54);
+	} else if (_27 === 14) {
+		const part53 = rs.intIlog10(a, 32, false);
+		_24(out, part53);
+	} else if (_27 === 15) {
+		_19(out, rs.usizeAdd(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.usizeSub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.usizeMul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.usizeDiv(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.usizeRem(a, b));
+	} else if (_27 === 20) {
+		const part47 = rs.intStrictNeg(a, 32, false);
+		_19(out, part47);
+	} else if (_27 === 21) {
+		_19(out, rs.usizeShl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.usizeShr(a, k));
+	} else if (_27 === 23) {
+		const part44 = rs.intPow(a, k, 32, false);
+		_19(out, part44);
+	} else if (_27 === 24) {
+		const part43 = rs.intDivEuclid(a, b, 32, false);
+		_19(out, part43);
+	} else if (_27 === 25) {
+		const part42 = rs.intRemEuclid(a, b, 32, false);
+		_19(out, part42);
+	} else if (_27 === 26) {
+		const part41 = rs.intStrictAdd(a, o, 32, false);
+		_19(out, part41);
+	} else if (_27 === 27) {
+		const part40 = rs.intStrictSub(a, o, 32, false);
+		_19(out, part40);
+	} else if (_27 === 28) {
+		_19(out, rs.usizeDiv(a, b));
+	} else if (_27 === 29) {
+		_19(out, rs.usizeRem(a, b));
+	} else if (_27 === 30) {
+		const part37 = rs.intWrappingDivEuclid(a, b, 32, false);
+		_19(out, part37);
+	} else if (_27 === 31) {
+		const part36 = rs.intWrappingRemEuclid(a, b, 32, false);
+		_19(out, part36);
+	} else if (_27 === 32) {
+		const part35 = rs.intOverflowingDiv(a, b, 32, false);
+		putPair(out, part35);
+	} else if (_27 === 33) {
+		const part34 = rs.intOverflowingRem(a, b, 32, false);
+		putPair(out, part34);
+	} else if (_27 === 34) {
+		const part33 = rs.intOverflowingDivEuclid(a, b, 32, false);
+		putPair(out, part33);
+	} else if (_27 === 35) {
+		const part32 = rs.intOverflowingRemEuclid(a, b, 32, false);
+		putPair(out, part32);
+	} else if (_27 === 36) {
+		_19(out, rs.usizeDiv(a, b));
+	} else if (_27 === 37) {
+		const part30 = rs.intNextPowerOfTwo(a, 32, false);
+		_19(out, part30);
+	} else if (_27 === 38) {
+		const _445: rs.u32 = rs.u32Rem(k, 3);
+		if (_445 === 0) {
+			const part29 = rs.intNextMultipleOf(a, b, 32, false);
+			_19(out, part29);
+		} else if (_445 === 1) {
+			const part28 = rs.intFunnelShl(a, b, k, 32, false);
+			_19(out, part28);
+		} else {
+			const part27 = rs.intFunnelShr(a, b, k, 32, false);
+			_19(out, part27);
+		}
+	} else if (_27 === 39) {
+		const s2: rs.usize = a;
+		const w: rs.usize = a;
+		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 32, false), rs.intCountZeros(s2, 32, false), rs.usizeLeadingZeros(s2), rs.usizeTrailingZeros(s2)]);
+		while (true) {
+			const _464: rs.u32 | rs.Done = iter6.next();
+			if (_464 === rs.DONE) {
+				break;
+			}
+			_24(out, _464);
+		}
+		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 32, false), rs.intCountZeros(w, 32, false), rs.usizeLeadingZeros(w), rs.usizeTrailingZeros(w)]);
+		while (true) {
+			const _478: rs.u32 | rs.Done = iter7.next();
+			if (_478 === rs.DONE) {
+				break;
+			}
+			_24(out, _478);
+		}
+		const iter8: rs.Iter<rs.usize> = rs.iterSlice([rs.intRotateLeft(s2, k, 32, false), rs.intRotateRight(s2, n, 32, false), rs.intSwapBytes(s2, 32, false), rs.intReverseBits(s2, 32, false), rs.intSwapBytes(s2, 32, false), s2, rs.intSwapBytes(s2, 32, false), s2, rs.intSaturatingPow(s2, k, 32, false), rs.intSaturatingPow(s2, n, 32, false)]);
+		while (true) {
+			const _498: rs.usize | rs.Done = iter8.next();
+			if (_498 === rs.DONE) {
+				break;
+			}
+			_19(out, _498);
+		}
+		const iter9: rs.Iter<rs.usize> = rs.iterSlice([rs.intRotateLeft(w, k, 32, false), rs.intRotateRight(w, n, 32, false), rs.intSwapBytes(w, 32, false), rs.intReverseBits(w, 32, false), rs.intSwapBytes(w, 32, false), w, rs.intSwapBytes(w, 32, false), w, rs.intWrappingPow(w, k, 32, false), rs.intWrappingPow(w, n, 32, false)]);
+		while (true) {
+			const _517: rs.usize | rs.Done = iter9.next();
+			if (_517 === rs.DONE) {
+				break;
+			}
+			_19(out, _517);
+		}
+		const dst6 = out;
+		const byte2 = rs.intIsPowerOfTwo(s2, 32, false) ? 1 : 0;
+		const byte3 = rs.intIsPowerOfTwo(w, 32, false) ? 1 : 0;
+		rs.byteVecReserve(dst6, 2 as rs.usize);
+		const pos6 = dst6.length;
+		dst6.data[pos6 + 0] = byte2;
+		dst6.data[pos6 + 1] = byte3;
+		dst6.length = dst6.length + 2;
+		const part26 = rs.intWrappingNextPowerOfTwo(w, 32, false);
+		_19(out, part26);
+	} else if (_27 === 40) {
+		const _536: rs.usize | undefined = rs.nonZero(a);
+		const _537: rs.usize | undefined = rs.nonZero(b);
+		if (_536 !== undefined) {
+			if (_537 !== undefined) {
+				const x: rs.usize = _536;
+				const y: rs.usize = _537;
+				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.usizeLeadingZeros(x), rs.usizeTrailingZeros(x), rs.intCountOnes(x, 32, false), 31 - rs.usizeLeadingZeros(x), rs.usizeTrailingZeros(x)]);
+				while (true) {
+					const _551: rs.u32 | rs.Done = iter10.next();
+					if (_551 === rs.DONE) {
+						break;
+					}
+					_24(out, _551);
+				}
+				const part13 = option_map$07b2cw7(rs.usizeCheckedMul(x, y), (a0: rs.usize): rs.usize => {
+					return a0;
+				});
+				putOpt(out, part13);
+				const part14 = rs.usizeSaturatingMul(x, y);
+				_19(out, part14);
+				const part15 = option_map$07b2cw7(rs.intCheckedPow(x, k, 32, false), (a02: rs.usize): rs.usize => {
+					return a02;
+				});
+				putOpt(out, part15);
+				const part16 = option_map$07b2cw7(rs.intCheckedPow(x, n, 32, false), (a03: rs.usize): rs.usize => {
+					return a03;
+				});
+				putOpt(out, part16);
+				const part17 = rs.intSaturatingPow(x, k, 32, false);
+				_19(out, part17);
+				const part18 = rs.intIsolateHighestOne(x, 32, false);
+				_19(out, part18);
+				const part19 = rs.intIsolateLowestOne(x, 32, false);
+				_19(out, part19);
+				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 32, false) ? 1 : 0);
+				const part20 = option_map$07b2cw7(rs.usizeCheckedAdd(x, b), (a04: rs.usize): rs.usize => {
+					return a04;
+				});
+				putOpt(out, part20);
+				const part21 = rs.usizeSaturatingAdd(x, b);
+				_19(out, part21);
+				const part22 = option_map$07b2cw7(rs.intCheckedNextPowerOfTwo(x, 32, false), (a05: rs.usize): rs.usize => {
+					return a05;
+				});
+				putOpt(out, part22);
+				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 32, false), rs.intIlog10(x, 32, false), rs.intBitWidth(x, 32, false)]);
+				while (true) {
+					const _618: rs.u32 | rs.Done = iter11.next();
+					if (_618 === rs.DONE) {
+						break;
+					}
+					_24(out, _618);
+				}
+				const part23 = rs.intMidpoint(x, y, 32, false);
+				_19(out, part23);
+				const part24 = rs.intIsqrt(x, 32, false);
+				_19(out, part24);
+				const part25 = rs.usizeDivCeil(x, y);
+				_19(out, part25);
+				const dst7 = out;
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = ((x | 0) >>> 24) & 255;
+				dst7.data[pos7 + 1] = ((x | 0) >>> 16) & 255;
+				dst7.data[pos7 + 2] = ((x | 0) >>> 8) & 255;
+				dst7.data[pos7 + 3] = (x | 0) & 255;
+				dst7.length = dst7.length + 4;
+			}
+		}
+	} else if (_27 === 41) {
+		rs.byteVecPush(out, 0);
+	} else if (_27 === 42) {
+		const part12 = rs.precondition(rs.usizeCheckedAdd(a, b), "usize::unchecked_add cannot overflow");
+		_19(out, part12);
+	} else if (_27 === 43) {
+		const part11 = rs.precondition(rs.usizeCheckedSub(a, b), "usize::unchecked_sub cannot overflow");
+		_19(out, part11);
+	} else if (_27 === 44) {
+		const part10 = rs.precondition(rs.usizeCheckedMul(a, b), "usize::unchecked_mul cannot overflow");
+		_19(out, part10);
+	} else if (_27 === 45) {
+		const part9 = rs.precondition(rs.intCheckedShl(a, k, 32, false), "usize::unchecked_shl cannot overflow");
+		_19(out, part9);
+	} else if (_27 === 46) {
+		const part8 = rs.precondition(rs.intCheckedShr(a, k, 32, false), "usize::unchecked_shr cannot overflow");
+		_19(out, part8);
+	} else if (_27 === 47) {
+		if (rs.u32Rem(k, 2) === 0) {
+			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 32, false), "usize::unchecked_funnel_shl cannot overflow");
+			_19(out, part7);
+		} else {
+			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 32, false), "usize::unchecked_funnel_shr cannot overflow");
+			_19(out, part6);
+		}
+	} else if (_27 === 48) {
+		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
+		_19(out, part5);
+	} else if (_27 === 49) {
+		const _672: rs.usize | undefined = rs.nonZero(a);
+		const _673: rs.usize | undefined = rs.nonZero(b);
+		if (_672 !== undefined) {
+			if (_673 !== undefined) {
+				const part4 = rs.precondition(rs.usizeCheckedMul(_672, _673), "usize::unchecked_mul cannot overflow");
+				_19(out, part4);
+			}
+		}
+	} else {
+		const _683: rs.usize | undefined = rs.nonZero(a);
+		if (_683 !== undefined) {
+			const part3 = rs.precondition(rs.usizeCheckedAdd(_683, b), "usize::unchecked_add cannot overflow");
+			_19(out, part3);
+		}
+	}
+}
+
+/** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
+export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
+	};
+	const a: rs.i8 = rs.i8FromBeBytes(rs.bytesFromFn(1, (i2: rs.usize): rs.u8 => {
+		return byte(i2);
+	}));
+	const b: rs.i8 = rs.i8FromBeBytes(rs.bytesFromFn(1, (i3: rs.usize): rs.u8 => {
+		return byte(rs.usizeAdd(i3, 1));
+	}));
+	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
+		return byte(rs.usizeAdd(i4, 2));
+	}));
+	const o: rs.u8 = b & 0xff;
+	const k: rs.u32 = rs.u32Rem(n, 24);
+	const _19: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v4: rs.i8): undefined => {
+		const dst = out2;
+		const word = v4;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
+		rs.byteVecPush(out2, v4 === rs.i8FromBeBytes(rs.i8ToBeBytes(v4)) ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.i8 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v6: rs.i8 = v5;
+			rs.byteVecPush(out3, 1);
+			_19(out3, v6);
+		}
+	};
+	const putPair: (a0: rs.ByteVec, a1: [rs.i8, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i8, boolean]): undefined => {
+		const v7: rs.i8 = _37[0];
+		const over3: boolean = _37[1];
+		_19(out4, v7);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
 		const word2 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
@@ -2757,529 +3287,11 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v10);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
-		const part92 = rs.usizeCheckedAdd(a, b);
-		putOpt(out, part92);
-		const part93 = rs.usizeCheckedSub(a, b);
-		putOpt(out, part93);
-		const part94 = rs.usizeCheckedMul(a, b);
-		putOpt(out, part94);
-		const part95 = rs.usizeSaturatingAdd(a, b);
-		_22(out, part95);
-		const part96 = rs.usizeSaturatingSub(a, b);
-		_22(out, part96);
-		const part97 = rs.usizeSaturatingMul(a, b);
-		_22(out, part97);
-		const part98 = rs.usizeWrappingAdd(a, b);
-		_22(out, part98);
-		const part99 = rs.usizeWrappingSub(a, b);
-		_22(out, part99);
-		const part100 = rs.usizeWrappingMul(a, b);
-		_22(out, part100);
-		const part101 = rs.intOverflowingAdd(a, b, 32, false);
-		putPair(out, part101);
-		const part102 = rs.intOverflowingSub(a, b, 32, false);
-		putPair(out, part102);
-		const part103 = rs.intOverflowingMul(a, b, 32, false);
-		putPair(out, part103);
-		const part104 = rs.intMidpoint(a, b, 32, false);
-		_22(out, part104);
-		const part105 = rs.intCheckedAdd(a, o, 32, false);
-		putOpt(out, part105);
-		const part106 = rs.intCheckedSub(a, o, 32, false);
-		putOpt(out, part106);
-		const part107 = rs.intSaturatingAdd(a, o, 32, false);
-		_22(out, part107);
-		const part108 = rs.intSaturatingSub(a, o, 32, false);
-		_22(out, part108);
-		const part109 = rs.intWrappingAdd(a, o, 32, false);
-		_22(out, part109);
-		const part110 = rs.intWrappingSub(a, o, 32, false);
-		_22(out, part110);
-		const part111 = rs.intOverflowingAdd(a, o, 32, false);
-		putPair(out, part111);
-		const part112 = rs.intOverflowingSub(a, o, 32, false);
-		putPair(out, part112);
-		const b2: rs.usize = o >>> 0;
-		const _118: rs.isize | undefined = rs.intCheckedSignedDiff(a, b2, 32, false) as rs.isize | undefined;
-		if (_118 === undefined) {
-			rs.byteVecPush(out, 0);
-		} else {
-			const dst3 = out;
-			rs.byteVecReserve(dst3, 4 as rs.usize);
-			const pos3 = dst3.length;
-			dst3.data[pos3 + 0] = (_118 >>> 24) & 255;
-			dst3.data[pos3 + 1] = (_118 >>> 16) & 255;
-			dst3.data[pos3 + 2] = (_118 >>> 8) & 255;
-			dst3.data[pos3 + 3] = _118 & 255;
-			dst3.length = dst3.length + 4;
-		}
-		const iter: rs.Iter<boolean> = rs.iterSlice([false, true]);
-		while (true) {
-			const _127: boolean | rs.Done = iter.next();
-			if (_127 === rs.DONE) {
-				break;
-			}
-			const carry: boolean = _127;
-			const part113 = rs.intCarryingAdd(a, b2, carry, 32, false);
-			putPair(out, part113);
-			const part114 = rs.intBorrowingSub(a, b2, carry, 32, false);
-			putPair(out, part114);
-		}
-		const _141: [rs.usize, rs.usize] = rs.intCarryingMul(a, b2, a, 32, false);
-		const lo: rs.usize = _141[0];
-		const hi: rs.usize = _141[1];
-		_22(out, lo);
-		_22(out, hi);
-		const _150: [rs.usize, rs.usize] = rs.intCarryingMulAdd(a, b2, b2, a, 32, false);
-		const lo2: rs.usize = _150[0];
-		const hi2: rs.usize = _150[1];
-		_22(out, lo2);
-		_22(out, hi2);
-		const part115 = rs.intCheckedNextMultipleOf(a, b2, 32, false);
-		putOpt(out, part115);
-	} else if (_30 === 1) {
-		const part87 = rs.intCheckedDiv(a, b, 32, false);
-		putOpt(out, part87);
-		const part88 = rs.intCheckedRem(a, b, 32, false);
-		putOpt(out, part88);
-		const part89 = rs.intCheckedDivEuclid(a, b, 32, false);
-		putOpt(out, part89);
-		const part90 = rs.intCheckedRemEuclid(a, b, 32, false);
-		putOpt(out, part90);
-		if (b !== 0) {
-			const part91 = rs.usizeDivCeil(a, b);
-			_22(out, part91);
-			rs.byteVecPush(out, rs.usizeIsMultipleOf(a, b) ? 1 : 0);
-		}
-	} else if (_30 === 2) {
-		const part82 = rs.intCheckedNeg(a, 32, false);
-		putOpt(out, part82);
-		const part83 = rs.intWrappingNeg(a, 32, false);
-		_22(out, part83);
-		const part84 = rs.intOverflowingNeg(a, 32, false);
-		putPair(out, part84);
-		rs.byteVecPush(out, rs.intIsPowerOfTwo(a, 32, false) ? 1 : 0);
-		const part85 = rs.intCheckedNextPowerOfTwo(a, 32, false);
-		putOpt(out, part85);
-		const part86 = rs.intBitWidth(a, 32, false);
-		_27(out, part86);
-		const dst4 = out;
-		rs.byteVecReserve(dst4, 4 as rs.usize);
-		const pos4 = dst4.length;
-		dst4.data[pos4 + 0] = ((a | 0) >>> 24) & 255;
-		dst4.data[pos4 + 1] = ((a | 0) >>> 16) & 255;
-		dst4.data[pos4 + 2] = ((a | 0) >>> 8) & 255;
-		dst4.data[pos4 + 3] = (a | 0) & 255;
-		dst4.length = dst4.length + 4;
-	} else if (_30 === 3) {
-		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
-		while (true) {
-			const _216: rs.u32 | rs.Done = iter2.next();
-			if (_216 === rs.DONE) {
-				break;
-			}
-			const e: rs.u32 = _216;
-			const part78 = rs.intCheckedPow(a, e, 32, false);
-			putOpt(out, part78);
-			const part79 = rs.intWrappingPow(a, e, 32, false);
-			_22(out, part79);
-			const part80 = rs.intSaturatingPow(a, e, 32, false);
-			_22(out, part80);
-			const part81 = rs.intOverflowingPow(a, e, 32, false);
-			putPair(out, part81);
-		}
-	} else if (_30 === 4) {
-		const iter3: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
-		while (true) {
-			const _239: rs.u32 | rs.Done = iter3.next();
-			if (_239 === rs.DONE) {
-				break;
-			}
-			const s: rs.u32 = _239;
-			const part68 = rs.intCheckedShl(a, s, 32, false);
-			putOpt(out, part68);
-			const part69 = rs.intCheckedShr(a, s, 32, false);
-			putOpt(out, part69);
-			const part70 = rs.intWrappingShl(a, s, 32, false);
-			_22(out, part70);
-			const part71 = rs.intWrappingShr(a, s, 32, false);
-			_22(out, part71);
-			const part72 = rs.intOverflowingShl(a, s, 32, false);
-			putPair(out, part72);
-			const part73 = rs.intOverflowingShr(a, s, 32, false);
-			putPair(out, part73);
-			const part74 = rs.intUnboundedShl(a, s, 32, false);
-			_22(out, part74);
-			const part75 = rs.intUnboundedShr(a, s, 32, false);
-			_22(out, part75);
-			const part76 = rs.intRotateLeft(a, s, 32, false);
-			_22(out, part76);
-			const part77 = rs.intRotateRight(a, s, 32, false);
-			_22(out, part77);
-		}
-	} else if (_30 === 5) {
-		const iter4: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 32, false), rs.intCountZeros(a, 32, false), rs.usizeLeadingZeros(a), rs.usizeTrailingZeros(a), rs.usizeLeadingOnes(a), rs.intTrailingOnes(a, 32, false)]);
-		while (true) {
-			const _292: rs.u32 | rs.Done = iter4.next();
-			if (_292 === rs.DONE) {
-				break;
-			}
-			_27(out, _292);
-		}
-		const iter5: rs.Iter<rs.usize> = rs.iterSlice([rs.intSwapBytes(a, 32, false), rs.intReverseBits(a, 32, false), rs.intSwapBytes(a, 32, false), a, rs.intSwapBytes(a, 32, false), a]);
-		while (true) {
-			const _308: rs.usize | rs.Done = iter5.next();
-			if (_308 === rs.DONE) {
-				break;
-			}
-			_22(out, _308);
-		}
-		const part64 = rs.intHighestOne(a, 32, false);
-		putOptU32(out, part64);
-		const part65 = rs.intLowestOne(a, 32, false);
-		putOptU32(out, part65);
-		const part66 = rs.intIsolateHighestOne(a, 32, false);
-		_22(out, part66);
-		const part67 = rs.intIsolateLowestOne(a, 32, false);
-		_22(out, part67);
-		_22(out, 4294967295);
-		_22(out, 0);
-	} else if (_30 === 6) {
-		const part61 = rs.intCheckedIlog(a, b, 32, false);
-		putOptU32(out, part61);
-		const part62 = rs.intCheckedIlog2(a, 32, false);
-		putOptU32(out, part62);
-		const part63 = rs.intCheckedIlog10(a, 32, false);
-		putOptU32(out, part63);
-		const dst5 = out;
-		const word3 = rs.intAbsDiff(a, b, 32, false) as rs.usize;
-		rs.byteVecReserve(dst5, 4 as rs.usize);
-		const pos5 = dst5.length;
-		dst5.data[pos5 + 0] = (word3 >>> 24) & 255;
-		dst5.data[pos5 + 1] = (word3 >>> 16) & 255;
-		dst5.data[pos5 + 2] = (word3 >>> 8) & 255;
-		dst5.data[pos5 + 3] = word3 & 255;
-		dst5.length = dst5.length + 4;
-	} else if (_30 === 7) {
-		const part60 = rs.intPow(a, k, 32, false);
-		_22(out, part60);
-	} else if (_30 === 8) {
-		const part59 = rs.intPow(a, n, 32, false);
-		_22(out, part59);
-	} else if (_30 === 9) {
-		const part58 = rs.intDivEuclid(a, b, 32, false);
-		_22(out, part58);
-	} else if (_30 === 10) {
-		const part57 = rs.intRemEuclid(a, b, 32, false);
-		_22(out, part57);
-	} else if (_30 === 11) {
-		const part56 = rs.intIsqrt(a, 32, false);
-		_22(out, part56);
-	} else if (_30 === 12) {
-		const part55 = rs.intIlog(a, b, 32, false);
-		_27(out, part55);
-	} else if (_30 === 13) {
-		const part54 = rs.intIlog2(a, 32, false);
-		_27(out, part54);
-	} else if (_30 === 14) {
-		const part53 = rs.intIlog10(a, 32, false);
-		_27(out, part53);
-	} else if (_30 === 15) {
-		_22(out, rs.usizeAdd(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.usizeSub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.usizeMul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.usizeDiv(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.usizeRem(a, b));
-	} else if (_30 === 20) {
-		const part47 = rs.intStrictNeg(a, 32, false);
-		_22(out, part47);
-	} else if (_30 === 21) {
-		_22(out, rs.usizeShl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.usizeShr(a, k));
-	} else if (_30 === 23) {
-		const part44 = rs.intPow(a, k, 32, false);
-		_22(out, part44);
-	} else if (_30 === 24) {
-		const part43 = rs.intDivEuclid(a, b, 32, false);
-		_22(out, part43);
-	} else if (_30 === 25) {
-		const part42 = rs.intRemEuclid(a, b, 32, false);
-		_22(out, part42);
-	} else if (_30 === 26) {
-		const part41 = rs.intStrictAdd(a, o, 32, false);
-		_22(out, part41);
-	} else if (_30 === 27) {
-		const part40 = rs.intStrictSub(a, o, 32, false);
-		_22(out, part40);
-	} else if (_30 === 28) {
-		_22(out, rs.usizeDiv(a, b));
-	} else if (_30 === 29) {
-		_22(out, rs.usizeRem(a, b));
-	} else if (_30 === 30) {
-		const part37 = rs.intWrappingDivEuclid(a, b, 32, false);
-		_22(out, part37);
-	} else if (_30 === 31) {
-		const part36 = rs.intWrappingRemEuclid(a, b, 32, false);
-		_22(out, part36);
-	} else if (_30 === 32) {
-		const part35 = rs.intOverflowingDiv(a, b, 32, false);
-		putPair(out, part35);
-	} else if (_30 === 33) {
-		const part34 = rs.intOverflowingRem(a, b, 32, false);
-		putPair(out, part34);
-	} else if (_30 === 34) {
-		const part33 = rs.intOverflowingDivEuclid(a, b, 32, false);
-		putPair(out, part33);
-	} else if (_30 === 35) {
-		const part32 = rs.intOverflowingRemEuclid(a, b, 32, false);
-		putPair(out, part32);
-	} else if (_30 === 36) {
-		_22(out, rs.usizeDiv(a, b));
-	} else if (_30 === 37) {
-		const part30 = rs.intNextPowerOfTwo(a, 32, false);
-		_22(out, part30);
-	} else if (_30 === 38) {
-		const _449: rs.u32 = rs.u32Rem(k, 3);
-		if (_449 === 0) {
-			const part29 = rs.intNextMultipleOf(a, b, 32, false);
-			_22(out, part29);
-		} else if (_449 === 1) {
-			const part28 = rs.intFunnelShl(a, b, k, 32, false);
-			_22(out, part28);
-		} else {
-			const part27 = rs.intFunnelShr(a, b, k, 32, false);
-			_22(out, part27);
-		}
-	} else if (_30 === 39) {
-		const s2: rs.usize = a;
-		const w: rs.usize = a;
-		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 32, false), rs.intCountZeros(s2, 32, false), rs.usizeLeadingZeros(s2), rs.usizeTrailingZeros(s2)]);
-		while (true) {
-			const _472: rs.u32 | rs.Done = iter6.next();
-			if (_472 === rs.DONE) {
-				break;
-			}
-			_27(out, _472);
-		}
-		const iter7: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 32, false), rs.intCountZeros(w, 32, false), rs.usizeLeadingZeros(w), rs.usizeTrailingZeros(w)]);
-		while (true) {
-			const _486: rs.u32 | rs.Done = iter7.next();
-			if (_486 === rs.DONE) {
-				break;
-			}
-			_27(out, _486);
-		}
-		const iter8: rs.Iter<rs.usize> = rs.iterSlice([rs.intRotateLeft(s2, k, 32, false), rs.intRotateRight(s2, n, 32, false), rs.intSwapBytes(s2, 32, false), rs.intReverseBits(s2, 32, false), rs.intSwapBytes(s2, 32, false), s2, rs.intSwapBytes(s2, 32, false), s2, rs.intSaturatingPow(s2, k, 32, false), rs.intSaturatingPow(s2, n, 32, false)]);
-		while (true) {
-			const _506: rs.usize | rs.Done = iter8.next();
-			if (_506 === rs.DONE) {
-				break;
-			}
-			_22(out, _506);
-		}
-		const iter9: rs.Iter<rs.usize> = rs.iterSlice([rs.intRotateLeft(w, k, 32, false), rs.intRotateRight(w, n, 32, false), rs.intSwapBytes(w, 32, false), rs.intReverseBits(w, 32, false), rs.intSwapBytes(w, 32, false), w, rs.intSwapBytes(w, 32, false), w, rs.intWrappingPow(w, k, 32, false), rs.intWrappingPow(w, n, 32, false)]);
-		while (true) {
-			const _527: rs.usize | rs.Done = iter9.next();
-			if (_527 === rs.DONE) {
-				break;
-			}
-			_22(out, _527);
-		}
-		const dst6 = out;
-		const byte2 = rs.intIsPowerOfTwo(s2, 32, false) ? 1 : 0;
-		const byte3 = rs.intIsPowerOfTwo(w, 32, false) ? 1 : 0;
-		rs.byteVecReserve(dst6, 2 as rs.usize);
-		const pos6 = dst6.length;
-		dst6.data[pos6 + 0] = byte2;
-		dst6.data[pos6 + 1] = byte3;
-		dst6.length = dst6.length + 2;
-		const part26 = rs.intWrappingNextPowerOfTwo(w, 32, false);
-		_22(out, part26);
-	} else if (_30 === 40) {
-		const _548: [rs.usize | undefined, rs.usize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_548[0] !== undefined) {
-			if (_548[1] !== undefined) {
-				const x: rs.usize = _548[0];
-				const y: rs.usize = _548[1];
-				const iter10: rs.Iter<rs.u32> = rs.iterSlice([rs.usizeLeadingZeros(x), rs.usizeTrailingZeros(x), rs.intCountOnes(x, 32, false), 31 - rs.usizeLeadingZeros(x), rs.usizeTrailingZeros(x)]);
-				while (true) {
-					const _564: rs.u32 | rs.Done = iter10.next();
-					if (_564 === rs.DONE) {
-						break;
-					}
-					_27(out, _564);
-				}
-				const part13 = option_map$07b2cw7(rs.usizeCheckedMul(x, y), (a0: rs.usize): rs.usize => {
-					return a0;
-				});
-				putOpt(out, part13);
-				const part14 = rs.usizeSaturatingMul(x, y);
-				_22(out, part14);
-				const part15 = option_map$07b2cw7(rs.intCheckedPow(x, k, 32, false), (a02: rs.usize): rs.usize => {
-					return a02;
-				});
-				putOpt(out, part15);
-				const part16 = option_map$07b2cw7(rs.intCheckedPow(x, n, 32, false), (a03: rs.usize): rs.usize => {
-					return a03;
-				});
-				putOpt(out, part16);
-				const part17 = rs.intSaturatingPow(x, k, 32, false);
-				_22(out, part17);
-				const part18 = rs.intIsolateHighestOne(x, 32, false);
-				_22(out, part18);
-				const part19 = rs.intIsolateLowestOne(x, 32, false);
-				_22(out, part19);
-				rs.byteVecPush(out, rs.intIsPowerOfTwo(x, 32, false) ? 1 : 0);
-				const part20 = option_map$07b2cw7(rs.usizeCheckedAdd(x, b), (a04: rs.usize): rs.usize => {
-					return a04;
-				});
-				putOpt(out, part20);
-				const part21 = rs.usizeSaturatingAdd(x, b);
-				_22(out, part21);
-				const part22 = option_map$07b2cw7(rs.intCheckedNextPowerOfTwo(x, 32, false), (a05: rs.usize): rs.usize => {
-					return a05;
-				});
-				putOpt(out, part22);
-				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.intIlog2(x, 32, false), rs.intIlog10(x, 32, false), rs.intBitWidth(x, 32, false)]);
-				while (true) {
-					const _631: rs.u32 | rs.Done = iter11.next();
-					if (_631 === rs.DONE) {
-						break;
-					}
-					_27(out, _631);
-				}
-				const part23 = rs.intMidpoint(x, y, 32, false);
-				_22(out, part23);
-				const part24 = rs.intIsqrt(x, 32, false);
-				_22(out, part24);
-				const part25 = rs.usizeDivCeil(x, y);
-				_22(out, part25);
-				const dst7 = out;
-				rs.byteVecReserve(dst7, 4 as rs.usize);
-				const pos7 = dst7.length;
-				dst7.data[pos7 + 0] = ((x | 0) >>> 24) & 255;
-				dst7.data[pos7 + 1] = ((x | 0) >>> 16) & 255;
-				dst7.data[pos7 + 2] = ((x | 0) >>> 8) & 255;
-				dst7.data[pos7 + 3] = (x | 0) & 255;
-				dst7.length = dst7.length + 4;
-			}
-		}
-	} else if (_30 === 41) {
-		rs.byteVecPush(out, 0);
-	} else if (_30 === 42) {
-		const part12 = rs.precondition(rs.usizeCheckedAdd(a, b), "usize::unchecked_add cannot overflow");
-		_22(out, part12);
-	} else if (_30 === 43) {
-		const part11 = rs.precondition(rs.usizeCheckedSub(a, b), "usize::unchecked_sub cannot overflow");
-		_22(out, part11);
-	} else if (_30 === 44) {
-		const part10 = rs.precondition(rs.usizeCheckedMul(a, b), "usize::unchecked_mul cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 45) {
-		const part9 = rs.precondition(rs.intCheckedShl(a, k, 32, false), "usize::unchecked_shl cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 46) {
-		const part8 = rs.precondition(rs.intCheckedShr(a, k, 32, false), "usize::unchecked_shr cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 47) {
-		if (rs.u32Rem(k, 2) === 0) {
-			const part7 = rs.precondition(rs.intCheckedFunnelShl(a, b, k, 32, false), "usize::unchecked_funnel_shl cannot overflow");
-			_22(out, part7);
-		} else {
-			const part6 = rs.precondition(rs.intCheckedFunnelShr(a, b, k, 32, false), "usize::unchecked_funnel_shr cannot overflow");
-			_22(out, part6);
-		}
-	} else if (_30 === 48) {
-		const part5 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part5);
-	} else if (_30 === 49) {
-		const _686: [rs.usize | undefined, rs.usize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_686[0] !== undefined) {
-			if (_686[1] !== undefined) {
-				const part4 = rs.precondition(rs.usizeCheckedMul(_686[0], _686[1]), "usize::unchecked_mul cannot overflow");
-				_22(out, part4);
-			}
-		}
-	} else {
-		const _698: rs.usize | undefined = rs.nonZero(a);
-		if (_698 !== undefined) {
-			const part3 = rs.precondition(rs.usizeCheckedAdd(_698, b), "usize::unchecked_add cannot overflow");
-			_22(out, part3);
-		}
-	}
-}
-
-/** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
-export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
-	};
-	const a: rs.i8 = rs.i8FromBeBytes(rs.bytesFromFn(1, (i2: rs.usize): rs.u8 => {
-		return byte(i2);
-	}));
-	const b: rs.i8 = rs.i8FromBeBytes(rs.bytesFromFn(1, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(1, i3));
-	}));
-	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 1, i4));
-	}));
-	const o: rs.u8 = b & 0xff;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 8);
-	const _22: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v8: rs.i8): undefined => {
-		const dst = out2;
-		const word = v8;
-		rs.byteVecReserve(dst, 1 as rs.usize);
-		dst.data[dst.length + 0] = word & 255;
-		dst.length = dst.length + 1;
-		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v8)) === v8 ? 1 : 0);
-	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i8 | undefined): undefined => {
-		if (v9 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v10: rs.i8 = v9;
-			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
-		}
-	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i8, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i8, boolean]): undefined => {
-		const v11: rs.i8 = _37[0];
-		const over3: boolean = _37[1];
-		_22(out4, v11);
-		rs.byteVecPush(out4, over3 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
-		const dst2 = out5;
-		const word2 = v12;
-		rs.byteVecReserve(dst2, 4 as rs.usize);
-		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
-		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
-		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
-		dst2.data[pos2 + 3] = word2 & 255;
-		dst2.length = dst2.length + 4;
-	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
-			rs.byteVecPush(out6, 0);
-		} else {
-			const v14: rs.u32 = v13;
-			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
-		}
-	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.i8CheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.i8CheckedSub(a, b);
@@ -3287,17 +3299,17 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.i8CheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.i8SaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.i8SaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.i8SaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.i8WrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.i8WrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.i8WrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 8, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 8, true);
@@ -3305,24 +3317,24 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 8, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 8, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 8, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 8, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 8, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 8, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 8, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 8, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 8, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 8, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 8, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 8, true);
@@ -3333,33 +3345,33 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.i8WrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.i8WrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 8, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 8, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 8, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 8, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 8, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 8, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 8, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 8, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 8, true);
 		putPair(out, part84);
 		const part85 = rs.i8SaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 8, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, a > 0 ? 1 : 0);
 		rs.byteVecPush(out, a < 0 ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 8, true);
@@ -3373,80 +3385,80 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecReserve(dst4, 1 as rs.usize);
 		dst4.data[dst4.length + 0] = a & 0xff & 255;
 		dst4.length = dst4.length + 1;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 8, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 8, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 8, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 8, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 8, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 8, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 8, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 8, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 8, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 8, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 8, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 8, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 8, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 8, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 8, true), rs.intCountZeros(a, 8, true), rs.i8LeadingZeros(a), rs.i8TrailingZeros(a), rs.i8LeadingOnes(a), rs.intTrailingOnes(a, 8, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.i8> = rs.iterSlice([rs.intSwapBytes(a, 8, true), rs.intReverseBits(a, 8, true), rs.intSwapBytes(a, 8, true), a, rs.intSwapBytes(a, 8, true), a]);
 		while (true) {
-			const _300: rs.i8 | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.i8 | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 8, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 8, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 8, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 8, true);
-		_22(out, part63);
-		_22(out, 127);
-		_22(out, -128);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, 127);
+		_19(out, -128);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 8, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 8, true);
@@ -3458,145 +3470,145 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecReserve(dst5, 1 as rs.usize);
 		dst5.data[dst5.length + 0] = word4 & 255;
 		dst5.length = dst5.length + 1;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 8, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 8, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 8, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 8, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 8, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 8, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 8, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 8, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.i8Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.i8Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.i8Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.i8Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.i8Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.i8Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.i8Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.i8Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.i8Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.i8Rem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 8, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.i8Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.i8Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.i8Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.i8Shr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 8, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 8, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 8, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 8, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 8, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.i8WrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.i8WrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 8, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 8, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 8, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 8, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 8, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 8, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.i8SaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 8, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 8, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.i8 = a;
 		const w: rs.i8 = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 8, true), rs.intCountZeros(s2, 8, true), rs.i8LeadingZeros(s2), rs.i8TrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 8, true), rs.intCountZeros(w, 8, true), rs.i8LeadingZeros(w), rs.i8TrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.i8> = rs.iterSlice([rs.intRotateLeft(s2, k, 8, true), rs.intRotateRight(s2, n, 8, true), rs.intSwapBytes(s2, 8, true), rs.intReverseBits(s2, 8, true), rs.intSwapBytes(s2, 8, true), s2, rs.intSwapBytes(s2, 8, true), s2, rs.intSaturatingPow(s2, k, 8, true), rs.intSaturatingPow(s2, n, 8, true)]);
 		while (true) {
-			const _490: rs.i8 | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.i8 | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.i8> = rs.iterSlice([rs.intRotateLeft(w, k, 8, true), rs.intRotateRight(w, n, 8, true), rs.intSwapBytes(w, 8, true), rs.intReverseBits(w, 8, true), rs.intSwapBytes(w, 8, true), w, rs.intSwapBytes(w, 8, true), w, rs.intWrappingPow(w, k, 8, true), rs.intWrappingPow(w, n, 8, true)]);
 		while (true) {
-			const _511: rs.i8 | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.i8 | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.i8> = rs.iterSlice([rs.intSaturatingAbs(s2, 8, true), rs.intSignum(s2, 8, true)]);
 		while (true) {
-			const _524: rs.i8 | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.i8 | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.i8> = rs.iterSlice([rs.intWrappingAbs(w, 8, true), rs.intSignum(w, 8, true)]);
 		while (true) {
-			const _537: rs.i8 | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.i8 | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = s2 > 0 ? 1 : 0;
@@ -3610,26 +3622,27 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.i8 | undefined, rs.i8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.i8 = _557[0];
-				const y: rs.i8 = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.i8 | undefined = rs.nonZero(a);
+		const _543: rs.i8 | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.i8 = _542;
+				const y: rs.i8 = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.i8LeadingZeros(x), rs.i8TrailingZeros(x), rs.intCountOnes(x, 8, true), 7 - rs.i8LeadingZeros(x), rs.i8TrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$1hwn965(rs.i8CheckedMul(x, y), (a0: rs.i8): rs.i8 => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.i8SaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$1hwn965(rs.intCheckedPow(x, k, 8, true), (a02: rs.i8): rs.i8 => {
 					return a02;
 				});
@@ -3639,21 +3652,21 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 8, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 8, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 8, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$1hwn965(rs.intCheckedAbs(x, 8, true), (a04: rs.i8): rs.i8 => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.i8, boolean] = rs.intOverflowingAbs(x, 8, true);
-				putPair(out, [_622[0], _622[1]] as [rs.i8, boolean]);
+				const _606: [rs.i8, boolean] = rs.intOverflowingAbs(x, 8, true);
+				putPair(out, [_606[0], _606[1]] as [rs.i8, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 8, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 8, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word5 = rs.intUnsignedAbs(x, 8, true) as rs.u8;
 				rs.byteVecReserve(dst7, 1 as rs.usize);
@@ -3671,51 +3684,52 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.i8, boolean] = rs.intOverflowingNeg(x, 8, true);
-				putPair(out, [_659[0], _659[1]] as [rs.i8, boolean]);
+				const _643: [rs.i8, boolean] = rs.intOverflowingNeg(x, 8, true);
+				putPair(out, [_643[0], _643[1]] as [rs.i8, boolean]);
 				const part23 = rs.i8SaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 8, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				rs.byteVecReserve(dst9, 1 as rs.usize);
 				dst9.data[dst9.length + 0] = x & 0xff & 255;
 				dst9.length = dst9.length + 1;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.i8 | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 8, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.i8 | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 8, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.i8CheckedAdd(a, b), "i8::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.i8CheckedSub(a, b), "i8::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.i8CheckedMul(a, b), "i8::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 8, true), "i8::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 8, true), "i8::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 8, true), "i8::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.i8 | undefined, rs.i8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.i8CheckedMul(_711[0], _711[1]), "i8::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.i8 | undefined = rs.nonZero(a);
+		const _696: rs.i8 | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.i8CheckedMul(_695, _696), "i8::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {
@@ -3732,41 +3746,41 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.i16 = rs.i16FromBeBytes(rs.bytesFromFn(2, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2, i3));
+		return byte(rs.usizeAdd(i3, 2));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 2, i4));
+		return byte(rs.usizeAdd(i4, 4));
 	}));
 	const o: rs.u16 = b & 0xffff;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 16);
-	const _22: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v8: rs.i16): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 48);
+	const _19: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v4: rs.i16): undefined => {
 		const dst = out2;
-		const word = v8;
+		const word = v4;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 8) & 255;
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
-		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v8)) === v8 ? 1 : 0);
+		rs.byteVecPush(out2, v4 === rs.i16FromBeBytes(rs.i16ToBeBytes(v4)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i16 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.i16 | undefined): undefined => {
+		if (v5 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v10: rs.i16 = v9;
+			const v6: rs.i16 = v5;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
+			_19(out3, v6);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.i16, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i16, boolean]): undefined => {
-		const v11: rs.i16 = _37[0];
+		const v7: rs.i16 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out4, v11);
+		_19(out4, v7);
 		rs.byteVecPush(out4, over3 ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v12;
+		const word2 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -3775,17 +3789,17 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
+		if (v9 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v14: rs.u32 = v13;
+			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.i16CheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.i16CheckedSub(a, b);
@@ -3793,17 +3807,17 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.i16CheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.i16SaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.i16SaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.i16SaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.i16WrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.i16WrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.i16WrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 16, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 16, true);
@@ -3811,24 +3825,24 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 16, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 16, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 16, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 16, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 16, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 16, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 16, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 16, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 16, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 16, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 16, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 16, true);
@@ -3839,33 +3853,33 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.i16WrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.i16WrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 16, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 16, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 16, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 16, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 16, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 16, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 16, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 16, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 16, true);
 		putPair(out, part84);
 		const part85 = rs.i16SaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 16, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, a > 0 ? 1 : 0);
 		rs.byteVecPush(out, a < 0 ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 16, true);
@@ -3883,80 +3897,80 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 0] = ((a & 0xffff) >>> 8) & 255;
 		dst4.data[pos4 + 1] = a & 0xffff & 255;
 		dst4.length = dst4.length + 2;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 16, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 16, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 16, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 16, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 16, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 16, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 16, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 16, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 16, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 16, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 16, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 16, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 16, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 16, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 16, true), rs.intCountZeros(a, 16, true), rs.i16LeadingZeros(a), rs.i16TrailingZeros(a), rs.i16LeadingOnes(a), rs.intTrailingOnes(a, 16, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.i16> = rs.iterSlice([rs.intSwapBytes(a, 16, true), rs.intReverseBits(a, 16, true), rs.intSwapBytes(a, 16, true), a, rs.intSwapBytes(a, 16, true), a]);
 		while (true) {
-			const _300: rs.i16 | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.i16 | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 16, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 16, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 16, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 16, true);
-		_22(out, part63);
-		_22(out, 32767);
-		_22(out, -32768);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, 32767);
+		_19(out, -32768);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 16, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 16, true);
@@ -3970,145 +3984,145 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 0] = (word4 >>> 8) & 255;
 		dst5.data[pos5 + 1] = word4 & 255;
 		dst5.length = dst5.length + 2;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 16, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 16, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 16, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 16, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 16, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 16, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 16, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 16, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.i16Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.i16Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.i16Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.i16Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.i16Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.i16Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.i16Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.i16Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.i16Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.i16Rem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 16, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.i16Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.i16Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.i16Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.i16Shr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 16, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 16, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 16, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 16, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 16, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.i16WrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.i16WrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 16, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 16, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 16, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 16, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 16, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 16, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.i16SaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 16, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 16, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.i16 = a;
 		const w: rs.i16 = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 16, true), rs.intCountZeros(s2, 16, true), rs.i16LeadingZeros(s2), rs.i16TrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 16, true), rs.intCountZeros(w, 16, true), rs.i16LeadingZeros(w), rs.i16TrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.i16> = rs.iterSlice([rs.intRotateLeft(s2, k, 16, true), rs.intRotateRight(s2, n, 16, true), rs.intSwapBytes(s2, 16, true), rs.intReverseBits(s2, 16, true), rs.intSwapBytes(s2, 16, true), s2, rs.intSwapBytes(s2, 16, true), s2, rs.intSaturatingPow(s2, k, 16, true), rs.intSaturatingPow(s2, n, 16, true)]);
 		while (true) {
-			const _490: rs.i16 | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.i16 | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.i16> = rs.iterSlice([rs.intRotateLeft(w, k, 16, true), rs.intRotateRight(w, n, 16, true), rs.intSwapBytes(w, 16, true), rs.intReverseBits(w, 16, true), rs.intSwapBytes(w, 16, true), w, rs.intSwapBytes(w, 16, true), w, rs.intWrappingPow(w, k, 16, true), rs.intWrappingPow(w, n, 16, true)]);
 		while (true) {
-			const _511: rs.i16 | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.i16 | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.i16> = rs.iterSlice([rs.intSaturatingAbs(s2, 16, true), rs.intSignum(s2, 16, true)]);
 		while (true) {
-			const _524: rs.i16 | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.i16 | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.i16> = rs.iterSlice([rs.intWrappingAbs(w, 16, true), rs.intSignum(w, 16, true)]);
 		while (true) {
-			const _537: rs.i16 | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.i16 | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = s2 > 0 ? 1 : 0;
@@ -4122,26 +4136,27 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.i16 | undefined, rs.i16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.i16 = _557[0];
-				const y: rs.i16 = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.i16 | undefined = rs.nonZero(a);
+		const _543: rs.i16 | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.i16 = _542;
+				const y: rs.i16 = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.i16LeadingZeros(x), rs.i16TrailingZeros(x), rs.intCountOnes(x, 16, true), 15 - rs.i16LeadingZeros(x), rs.i16TrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$0ip7buw(rs.i16CheckedMul(x, y), (a0: rs.i16): rs.i16 => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.i16SaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$0ip7buw(rs.intCheckedPow(x, k, 16, true), (a02: rs.i16): rs.i16 => {
 					return a02;
 				});
@@ -4151,21 +4166,21 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 16, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 16, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 16, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$0ip7buw(rs.intCheckedAbs(x, 16, true), (a04: rs.i16): rs.i16 => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.i16, boolean] = rs.intOverflowingAbs(x, 16, true);
-				putPair(out, [_622[0], _622[1]] as [rs.i16, boolean]);
+				const _606: [rs.i16, boolean] = rs.intOverflowingAbs(x, 16, true);
+				putPair(out, [_606[0], _606[1]] as [rs.i16, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 16, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 16, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word5 = rs.intUnsignedAbs(x, 16, true) as rs.u16;
 				rs.byteVecReserve(dst7, 2 as rs.usize);
@@ -4185,12 +4200,12 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.i16, boolean] = rs.intOverflowingNeg(x, 16, true);
-				putPair(out, [_659[0], _659[1]] as [rs.i16, boolean]);
+				const _643: [rs.i16, boolean] = rs.intOverflowingNeg(x, 16, true);
+				putPair(out, [_643[0], _643[1]] as [rs.i16, boolean]);
 				const part23 = rs.i16SaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 16, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				rs.byteVecReserve(dst9, 2 as rs.usize);
 				const pos9 = dst9.length;
@@ -4199,39 +4214,40 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst9.length = dst9.length + 2;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.i16 | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 16, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.i16 | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 16, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.i16CheckedAdd(a, b), "i16::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.i16CheckedSub(a, b), "i16::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.i16CheckedMul(a, b), "i16::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 16, true), "i16::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 16, true), "i16::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 16, true), "i16::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.i16 | undefined, rs.i16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.i16CheckedMul(_711[0], _711[1]), "i16::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.i16 | undefined = rs.nonZero(a);
+		const _696: rs.i16 | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.i16CheckedMul(_695, _696), "i16::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {
@@ -4248,16 +4264,16 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.i32 = rs.i32FromBeBytes(rs.bytesFromFn(4, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(4, i3));
+		return byte(rs.usizeAdd(i3, 4));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 4, i4));
+		return byte(rs.usizeAdd(i4, 8));
 	}));
 	const o: rs.u32 = b >>> 0;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const _22: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v8: rs.i32): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 96);
+	const _19: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v4: rs.i32): undefined => {
 		const dst = out2;
-		const word = v8;
+		const word = v4;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -4265,26 +4281,26 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 2] = (word >>> 8) & 255;
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
-		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v8)) === v8 ? 1 : 0);
+		rs.byteVecPush(out2, v4 === rs.i32FromBeBytes(rs.i32ToBeBytes(v4)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i32 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.i32 | undefined): undefined => {
+		if (v5 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v10: rs.i32 = v9;
+			const v6: rs.i32 = v5;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
+			_19(out3, v6);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.i32, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i32, boolean]): undefined => {
-		const v11: rs.i32 = _37[0];
+		const v7: rs.i32 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out4, v11);
+		_19(out4, v7);
 		rs.byteVecPush(out4, over3 ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v12;
+		const word2 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -4293,17 +4309,17 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
+		if (v9 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v14: rs.u32 = v13;
+			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.i32CheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.i32CheckedSub(a, b);
@@ -4311,17 +4327,17 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.i32CheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.i32SaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.i32SaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.i32SaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.i32WrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.i32WrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.i32WrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 32, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 32, true);
@@ -4329,24 +4345,24 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 32, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 32, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 32, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 32, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 32, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 32, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 32, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 32, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 32, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 32, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 32, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 32, true);
@@ -4357,33 +4373,33 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.i32WrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.i32WrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 32, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 32, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 32, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 32, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 32, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 32, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 32, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 32, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 32, true);
 		putPair(out, part84);
 		const part85 = rs.i32SaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 32, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, a > 0 ? 1 : 0);
 		rs.byteVecPush(out, a < 0 ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 32, true);
@@ -4405,80 +4421,80 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 2] = (a >>> 0 >>> 8) & 255;
 		dst4.data[pos4 + 3] = (a >>> 0) & 255;
 		dst4.length = dst4.length + 4;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 32, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 32, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 32, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 32, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 32, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 32, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 32, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 32, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 32, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 32, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 32, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 32, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 32, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 32, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 32, true), rs.intCountZeros(a, 32, true), rs.i32LeadingZeros(a), rs.i32TrailingZeros(a), rs.i32LeadingOnes(a), rs.intTrailingOnes(a, 32, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.i32> = rs.iterSlice([rs.intSwapBytes(a, 32, true), rs.intReverseBits(a, 32, true), rs.intSwapBytes(a, 32, true), a, rs.intSwapBytes(a, 32, true), a]);
 		while (true) {
-			const _300: rs.i32 | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.i32 | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 32, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 32, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 32, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 32, true);
-		_22(out, part63);
-		_22(out, 2147483647);
-		_22(out, -2147483648);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, 2147483647);
+		_19(out, -2147483648);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 32, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 32, true);
@@ -4494,145 +4510,145 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 2] = (word4 >>> 8) & 255;
 		dst5.data[pos5 + 3] = word4 & 255;
 		dst5.length = dst5.length + 4;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 32, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 32, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 32, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 32, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 32, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 32, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 32, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 32, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.i32Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.i32Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.i32Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.i32Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.i32Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.i32Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.i32Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.i32Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.i32Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.i32Rem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 32, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.i32Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.i32Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.i32Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.i32Shr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 32, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 32, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 32, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 32, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 32, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.i32WrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.i32WrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 32, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 32, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 32, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 32, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 32, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 32, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.i32SaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 32, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 32, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.i32 = a;
 		const w: rs.i32 = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 32, true), rs.intCountZeros(s2, 32, true), rs.i32LeadingZeros(s2), rs.i32TrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 32, true), rs.intCountZeros(w, 32, true), rs.i32LeadingZeros(w), rs.i32TrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.i32> = rs.iterSlice([rs.intRotateLeft(s2, k, 32, true), rs.intRotateRight(s2, n, 32, true), rs.intSwapBytes(s2, 32, true), rs.intReverseBits(s2, 32, true), rs.intSwapBytes(s2, 32, true), s2, rs.intSwapBytes(s2, 32, true), s2, rs.intSaturatingPow(s2, k, 32, true), rs.intSaturatingPow(s2, n, 32, true)]);
 		while (true) {
-			const _490: rs.i32 | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.i32 | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.i32> = rs.iterSlice([rs.intRotateLeft(w, k, 32, true), rs.intRotateRight(w, n, 32, true), rs.intSwapBytes(w, 32, true), rs.intReverseBits(w, 32, true), rs.intSwapBytes(w, 32, true), w, rs.intSwapBytes(w, 32, true), w, rs.intWrappingPow(w, k, 32, true), rs.intWrappingPow(w, n, 32, true)]);
 		while (true) {
-			const _511: rs.i32 | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.i32 | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.i32> = rs.iterSlice([rs.intSaturatingAbs(s2, 32, true), rs.intSignum(s2, 32, true)]);
 		while (true) {
-			const _524: rs.i32 | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.i32 | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.i32> = rs.iterSlice([rs.intWrappingAbs(w, 32, true), rs.intSignum(w, 32, true)]);
 		while (true) {
-			const _537: rs.i32 | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.i32 | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = s2 > 0 ? 1 : 0;
@@ -4646,26 +4662,27 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.i32 | undefined, rs.i32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.i32 = _557[0];
-				const y: rs.i32 = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.i32 | undefined = rs.nonZero(a);
+		const _543: rs.i32 | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.i32 = _542;
+				const y: rs.i32 = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.i32LeadingZeros(x), rs.i32TrailingZeros(x), rs.intCountOnes(x, 32, true), 31 - rs.i32LeadingZeros(x), rs.i32TrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$0a35how(rs.i32CheckedMul(x, y), (a0: rs.i32): rs.i32 => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.i32SaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$0a35how(rs.intCheckedPow(x, k, 32, true), (a02: rs.i32): rs.i32 => {
 					return a02;
 				});
@@ -4675,21 +4692,21 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 32, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 32, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 32, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$0a35how(rs.intCheckedAbs(x, 32, true), (a04: rs.i32): rs.i32 => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.i32, boolean] = rs.intOverflowingAbs(x, 32, true);
-				putPair(out, [_622[0], _622[1]] as [rs.i32, boolean]);
+				const _606: [rs.i32, boolean] = rs.intOverflowingAbs(x, 32, true);
+				putPair(out, [_606[0], _606[1]] as [rs.i32, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 32, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 32, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word5 = rs.intUnsignedAbs(x, 32, true) as rs.u32;
 				rs.byteVecReserve(dst7, 4 as rs.usize);
@@ -4711,12 +4728,12 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.i32, boolean] = rs.intOverflowingNeg(x, 32, true);
-				putPair(out, [_659[0], _659[1]] as [rs.i32, boolean]);
+				const _643: [rs.i32, boolean] = rs.intOverflowingNeg(x, 32, true);
+				putPair(out, [_643[0], _643[1]] as [rs.i32, boolean]);
 				const part23 = rs.i32SaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 32, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				rs.byteVecReserve(dst9, 4 as rs.usize);
 				const pos9 = dst9.length;
@@ -4727,39 +4744,40 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst9.length = dst9.length + 4;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.i32 | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 32, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.i32 | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 32, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.i32CheckedAdd(a, b), "i32::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.i32CheckedSub(a, b), "i32::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.i32CheckedMul(a, b), "i32::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 32, true), "i32::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 32, true), "i32::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 32, true), "i32::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.i32 | undefined, rs.i32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.i32CheckedMul(_711[0], _711[1]), "i32::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.i32 | undefined = rs.nonZero(a);
+		const _696: rs.i32 | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.i32CheckedMul(_695, _696), "i32::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {
@@ -4776,16 +4794,16 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.i64 = rs.i64FromBeBytes(rs.bytesFromFn(8, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(8, i3));
+		return byte(rs.usizeAdd(i3, 8));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 8, i4));
+		return byte(rs.usizeAdd(i4, 16));
 	}));
 	const o: rs.u64 = rs.u64Cast(b);
-	const k: rs.u32 = rs.u32Rem(n, 3 * 64);
-	const _22: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v8: rs.i64): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 192);
+	const _19: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v4: rs.i64): undefined => {
 		const dst = out2;
-		const word = v8;
+		const word = v4;
 		const word2 = rs.intWord(word, 0);
 		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
@@ -4799,26 +4817,26 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 6] = (word2 >>> 8) & 255;
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v8)), v8) ? 1 : 0);
+		rs.byteVecPush(out2, rs.i64Eq(v4, rs.i64FromBeBytes(rs.i64ToBeBytes(v4))) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i64 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.i64 | undefined): undefined => {
+		if (v5 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v10: rs.i64 = v9;
+			const v6: rs.i64 = v5;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
+			_19(out3, v6);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.i64, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i64, boolean]): undefined => {
-		const v11: rs.i64 = _37[0];
+		const v7: rs.i64 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out4, v11);
+		_19(out4, v7);
 		rs.byteVecPush(out4, over3 ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
-		const word4 = v12;
+		const word4 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
@@ -4827,17 +4845,17 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word4 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
+		if (v9 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v14: rs.u32 = v13;
+			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.i64CheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.i64CheckedSub(a, b);
@@ -4845,17 +4863,17 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.i64CheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.i64SaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.i64SaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.i64SaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.i64WrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.i64WrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.i64WrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 64, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 64, true);
@@ -4863,24 +4881,24 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 64, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 64, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 64, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 64, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 64, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 64, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 64, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 64, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 64, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 64, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 64, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 64, true);
@@ -4891,33 +4909,33 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.i64WrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.i64WrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 64, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 64, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 64, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 64, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 64, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 64, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 64, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 64, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 64, true);
 		putPair(out, part84);
 		const part85 = rs.i64SaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 64, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, rs.i64Gt(a, 0) ? 1 : 0);
 		rs.byteVecPush(out, rs.i64Lt(a, 0) ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 64, true);
@@ -4952,80 +4970,80 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 6] = (word9 >>> 8) & 255;
 		dst4.data[pos4 + 7] = word9 & 255;
 		dst4.length = dst4.length + 8;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 64, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 64, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 64, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 64, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 64, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 64, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 64, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 64, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 64, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 64, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 64, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 64, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 64, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 64, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 64, true), rs.intCountZeros(a, 64, true), rs.i64LeadingZeros(a), rs.i64TrailingZeros(a), rs.i64LeadingOnes(a), rs.intTrailingOnes(a, 64, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.i64> = rs.iterSlice([rs.intSwapBytes(a, 64, true), rs.intReverseBits(a, 64, true), rs.intSwapBytes(a, 64, true), a, rs.intSwapBytes(a, 64, true), a]);
 		while (true) {
-			const _300: rs.i64 | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.i64 | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 64, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 64, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 64, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 64, true);
-		_22(out, part63);
-		_22(out, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64);
-		_22(out, { hi: -0x80000000, lo: 0 } as rs.i64);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64);
+		_19(out, { hi: -0x80000000, lo: 0 } as rs.i64);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 64, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 64, true);
@@ -5047,145 +5065,145 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 6] = (word12 >>> 8) & 255;
 		dst5.data[pos5 + 7] = word12 & 255;
 		dst5.length = dst5.length + 8;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 64, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 64, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 64, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 64, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 64, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 64, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 64, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 64, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.i64Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.i64Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.i64Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.i64Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.i64Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.i64Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.i64Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.i64Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.i64Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.i64Rem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 64, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.i64Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.i64Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.i64Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.i64Shr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 64, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 64, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 64, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 64, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 64, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.i64WrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.i64WrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 64, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 64, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 64, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 64, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 64, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 64, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.i64SaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 64, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 64, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.i64 = a;
 		const w: rs.i64 = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 64, true), rs.intCountZeros(s2, 64, true), rs.i64LeadingZeros(s2), rs.i64TrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 64, true), rs.intCountZeros(w, 64, true), rs.i64LeadingZeros(w), rs.i64TrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.i64> = rs.iterSlice([rs.intRotateLeft(s2, k, 64, true), rs.intRotateRight(s2, n, 64, true), rs.intSwapBytes(s2, 64, true), rs.intReverseBits(s2, 64, true), rs.intSwapBytes(s2, 64, true), s2, rs.intSwapBytes(s2, 64, true), s2, rs.intSaturatingPow(s2, k, 64, true), rs.intSaturatingPow(s2, n, 64, true)]);
 		while (true) {
-			const _490: rs.i64 | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.i64 | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.i64> = rs.iterSlice([rs.intRotateLeft(w, k, 64, true), rs.intRotateRight(w, n, 64, true), rs.intSwapBytes(w, 64, true), rs.intReverseBits(w, 64, true), rs.intSwapBytes(w, 64, true), w, rs.intSwapBytes(w, 64, true), w, rs.intWrappingPow(w, k, 64, true), rs.intWrappingPow(w, n, 64, true)]);
 		while (true) {
-			const _511: rs.i64 | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.i64 | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.i64> = rs.iterSlice([rs.intSaturatingAbs(s2, 64, true), rs.intSignum(s2, 64, true)]);
 		while (true) {
-			const _524: rs.i64 | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.i64 | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.i64> = rs.iterSlice([rs.intWrappingAbs(w, 64, true), rs.intSignum(w, 64, true)]);
 		while (true) {
-			const _537: rs.i64 | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.i64 | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = rs.i64Gt(s2, 0) ? 1 : 0;
@@ -5199,26 +5217,27 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.i64 | undefined, rs.i64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.i64 = _557[0];
-				const y: rs.i64 = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.i64 | undefined = rs.nonZero(a);
+		const _543: rs.i64 | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.i64 = _542;
+				const y: rs.i64 = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.i64LeadingZeros(x), rs.i64TrailingZeros(x), rs.intCountOnes(x, 64, true), 63 - rs.i64LeadingZeros(x), rs.i64TrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$05k3lfb(rs.i64CheckedMul(x, y), (a0: rs.i64): rs.i64 => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.i64SaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$05k3lfb(rs.intCheckedPow(x, k, 64, true), (a02: rs.i64): rs.i64 => {
 					return a02;
 				});
@@ -5228,21 +5247,21 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 64, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 64, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 64, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$05k3lfb(rs.intCheckedAbs(x, 64, true), (a04: rs.i64): rs.i64 => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.i64, boolean] = rs.intOverflowingAbs(x, 64, true);
-				putPair(out, [_622[0], _622[1]] as [rs.i64, boolean]);
+				const _606: [rs.i64, boolean] = rs.intOverflowingAbs(x, 64, true);
+				putPair(out, [_606[0], _606[1]] as [rs.i64, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 64, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 64, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word14 = rs.intUnsignedAbs(x, 64, true) as rs.u64;
 				const word15 = rs.intWord(word14, 0);
@@ -5270,12 +5289,12 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.i64, boolean] = rs.intOverflowingNeg(x, 64, true);
-				putPair(out, [_659[0], _659[1]] as [rs.i64, boolean]);
+				const _643: [rs.i64, boolean] = rs.intOverflowingNeg(x, 64, true);
+				putPair(out, [_643[0], _643[1]] as [rs.i64, boolean]);
 				const part23 = rs.i64SaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 64, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				const word17 = rs.u64Cast(x);
 				const word18 = rs.intWord(word17, 0);
@@ -5293,39 +5312,40 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst9.length = dst9.length + 8;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.i64 | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 64, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.i64 | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 64, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.i64CheckedAdd(a, b), "i64::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.i64CheckedSub(a, b), "i64::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.i64CheckedMul(a, b), "i64::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 64, true), "i64::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 64, true), "i64::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 64, true), "i64::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.i64 | undefined, rs.i64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.i64CheckedMul(_711[0], _711[1]), "i64::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.i64 | undefined = rs.nonZero(a);
+		const _696: rs.i64 | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.i64CheckedMul(_695, _696), "i64::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {
@@ -5342,16 +5362,16 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.i128 = rs.i128FromBeBytes(rs.bytesFromFn(16, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(16, i3));
+		return byte(rs.usizeAdd(i3, 16));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 16, i4));
+		return byte(rs.usizeAdd(i4, 32));
 	}));
 	const o: rs.u128 = rs.u128Cast(b);
-	const k: rs.u32 = rs.u32Rem(n, 3 * 128);
-	const _22: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v8: rs.i128): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 384);
+	const _19: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v4: rs.i128): undefined => {
 		const dst = out2;
-		const word = v8;
+		const word = v4;
 		const word2 = rs.intWord(word, 0);
 		const word3 = rs.intWord(word, 32);
 		const word4 = rs.intWord(word, 64);
@@ -5375,26 +5395,26 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v8)), v8) ? 1 : 0);
+		rs.byteVecPush(out2, rs.i128Eq(v4, rs.i128FromBeBytes(rs.i128ToBeBytes(v4))) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i128 | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.i128 | undefined): undefined => {
+		if (v5 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v10: rs.i128 = v9;
+			const v6: rs.i128 = v5;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
+			_19(out3, v6);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.i128, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i128, boolean]): undefined => {
-		const v11: rs.i128 = _37[0];
+		const v7: rs.i128 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out4, v11);
+		_19(out4, v7);
 		rs.byteVecPush(out4, over3 ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
-		const word6 = v12;
+		const word6 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
@@ -5403,17 +5423,17 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word6 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
+		if (v9 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v14: rs.u32 = v13;
+			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.i128CheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.i128CheckedSub(a, b);
@@ -5421,17 +5441,17 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.i128CheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.i128SaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.i128SaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.i128SaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.i128WrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.i128WrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.i128WrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 128, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 128, true);
@@ -5439,24 +5459,24 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 128, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 128, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 128, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 128, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 128, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 128, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 128, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 128, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 128, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 128, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 128, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 128, true);
@@ -5467,33 +5487,33 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.i128WrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.i128WrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 128, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 128, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 128, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 128, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 128, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 128, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 128, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 128, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 128, true);
 		putPair(out, part84);
 		const part85 = rs.i128SaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 128, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, rs.i128Gt(a, 0) ? 1 : 0);
 		rs.byteVecPush(out, rs.i128Lt(a, 0) ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 128, true);
@@ -5548,80 +5568,80 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 14] = (word13 >>> 8) & 255;
 		dst4.data[pos4 + 15] = word13 & 255;
 		dst4.length = dst4.length + 16;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 128, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 128, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 128, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 128, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 128, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 128, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 128, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 128, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 128, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 128, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 128, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 128, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 128, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 128, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 128, true), rs.intCountZeros(a, 128, true), rs.i128LeadingZeros(a), rs.i128TrailingZeros(a), rs.i128LeadingOnes(a), rs.intTrailingOnes(a, 128, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.i128> = rs.iterSlice([rs.intSwapBytes(a, 128, true), rs.intReverseBits(a, 128, true), rs.intSwapBytes(a, 128, true), a, rs.intSwapBytes(a, 128, true), a]);
 		while (true) {
-			const _300: rs.i128 | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.i128 | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 128, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 128, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 128, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 128, true);
-		_22(out, part63);
-		_22(out, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128);
-		_22(out, { hi: -0x80000000, w2: 0, w1: 0, lo: 0 } as rs.i128);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128);
+		_19(out, { hi: -0x80000000, w2: 0, w1: 0, lo: 0 } as rs.i128);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 128, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 128, true);
@@ -5653,145 +5673,145 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 14] = (word18 >>> 8) & 255;
 		dst5.data[pos5 + 15] = word18 & 255;
 		dst5.length = dst5.length + 16;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 128, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 128, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 128, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 128, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 128, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 128, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 128, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 128, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.i128Add(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.i128Sub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.i128Mul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.i128Div(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.i128Rem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.i128Add(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.i128Sub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.i128Mul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.i128Div(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.i128Rem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 128, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.i128Shl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.i128Shr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.i128Shl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.i128Shr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 128, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 128, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 128, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 128, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 128, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.i128WrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.i128WrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 128, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 128, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 128, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 128, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 128, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 128, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.i128SaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 128, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 128, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.i128 = a;
 		const w: rs.i128 = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 128, true), rs.intCountZeros(s2, 128, true), rs.i128LeadingZeros(s2), rs.i128TrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 128, true), rs.intCountZeros(w, 128, true), rs.i128LeadingZeros(w), rs.i128TrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.i128> = rs.iterSlice([rs.intRotateLeft(s2, k, 128, true), rs.intRotateRight(s2, n, 128, true), rs.intSwapBytes(s2, 128, true), rs.intReverseBits(s2, 128, true), rs.intSwapBytes(s2, 128, true), s2, rs.intSwapBytes(s2, 128, true), s2, rs.intSaturatingPow(s2, k, 128, true), rs.intSaturatingPow(s2, n, 128, true)]);
 		while (true) {
-			const _490: rs.i128 | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.i128 | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.i128> = rs.iterSlice([rs.intRotateLeft(w, k, 128, true), rs.intRotateRight(w, n, 128, true), rs.intSwapBytes(w, 128, true), rs.intReverseBits(w, 128, true), rs.intSwapBytes(w, 128, true), w, rs.intSwapBytes(w, 128, true), w, rs.intWrappingPow(w, k, 128, true), rs.intWrappingPow(w, n, 128, true)]);
 		while (true) {
-			const _511: rs.i128 | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.i128 | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.i128> = rs.iterSlice([rs.intSaturatingAbs(s2, 128, true), rs.intSignum(s2, 128, true)]);
 		while (true) {
-			const _524: rs.i128 | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.i128 | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.i128> = rs.iterSlice([rs.intWrappingAbs(w, 128, true), rs.intSignum(w, 128, true)]);
 		while (true) {
-			const _537: rs.i128 | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.i128 | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = rs.i128Gt(s2, 0) ? 1 : 0;
@@ -5805,26 +5825,27 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.i128 | undefined, rs.i128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.i128 = _557[0];
-				const y: rs.i128 = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.i128 | undefined = rs.nonZero(a);
+		const _543: rs.i128 | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.i128 = _542;
+				const y: rs.i128 = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.i128LeadingZeros(x), rs.i128TrailingZeros(x), rs.intCountOnes(x, 128, true), 127 - rs.i128LeadingZeros(x), rs.i128TrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$1ocvprc(rs.i128CheckedMul(x, y), (a0: rs.i128): rs.i128 => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.i128SaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$1ocvprc(rs.intCheckedPow(x, k, 128, true), (a02: rs.i128): rs.i128 => {
 					return a02;
 				});
@@ -5834,21 +5855,21 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 128, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 128, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 128, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$1ocvprc(rs.intCheckedAbs(x, 128, true), (a04: rs.i128): rs.i128 => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.i128, boolean] = rs.intOverflowingAbs(x, 128, true);
-				putPair(out, [_622[0], _622[1]] as [rs.i128, boolean]);
+				const _606: [rs.i128, boolean] = rs.intOverflowingAbs(x, 128, true);
+				putPair(out, [_606[0], _606[1]] as [rs.i128, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 128, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 128, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word22 = rs.intUnsignedAbs(x, 128, true) as rs.u128;
 				const word23 = rs.intWord(word22, 0);
@@ -5886,12 +5907,12 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.i128, boolean] = rs.intOverflowingNeg(x, 128, true);
-				putPair(out, [_659[0], _659[1]] as [rs.i128, boolean]);
+				const _643: [rs.i128, boolean] = rs.intOverflowingNeg(x, 128, true);
+				putPair(out, [_643[0], _643[1]] as [rs.i128, boolean]);
 				const part23 = rs.i128SaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 128, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				const word27 = rs.u128Cast(x);
 				const word28 = rs.intWord(word27, 0);
@@ -5919,39 +5940,40 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst9.length = dst9.length + 16;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.i128 | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 128, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.i128 | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 128, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.i128CheckedAdd(a, b), "i128::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.i128CheckedSub(a, b), "i128::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.i128CheckedMul(a, b), "i128::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 128, true), "i128::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 128, true), "i128::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 128, true), "i128::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.i128 | undefined, rs.i128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.i128CheckedMul(_711[0], _711[1]), "i128::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.i128 | undefined = rs.nonZero(a);
+		const _696: rs.i128 | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.i128CheckedMul(_695, _696), "i128::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {
@@ -5968,16 +5990,16 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return byte(i2);
 	}));
 	const b: rs.isize = rs.isizeFromBeBytes(rs.bytesFromFn(4, (i3: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(4, i3));
+		return byte(rs.usizeAdd(i3, 4));
 	}));
 	const n: rs.u32 = rs.u32FromBeBytes(rs.bytesFromFn(4, (i4: rs.usize): rs.u8 => {
-		return byte(rs.usizeAdd(2 * 4, i4));
+		return byte(rs.usizeAdd(i4, 8));
 	}));
 	const o: rs.usize = b >>> 0;
-	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const _22: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v8: rs.isize): undefined => {
+	const k: rs.u32 = rs.u32Rem(n, 96);
+	const _19: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v4: rs.isize): undefined => {
 		const dst = out2;
-		const word = v8;
+		const word = v4;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = (word >>> 24) & 255;
@@ -5985,26 +6007,26 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 2] = (word >>> 8) & 255;
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
-		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v8)) === v8 ? 1 : 0);
+		rs.byteVecPush(out2, v4 === rs.isizeFromBeBytes(rs.isizeToBeBytes(v4)) ? 1 : 0);
 	};
-	const putOpt: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v9: rs.isize | undefined): undefined => {
-		if (v9 === undefined) {
+	const putOpt: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v5: rs.isize | undefined): undefined => {
+		if (v5 === undefined) {
 			rs.byteVecPush(out3, 0);
 		} else {
-			const v10: rs.isize = v9;
+			const v6: rs.isize = v5;
 			rs.byteVecPush(out3, 1);
-			_22(out3, v10);
+			_19(out3, v6);
 		}
 	};
 	const putPair: (a0: rs.ByteVec, a1: [rs.isize, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.isize, boolean]): undefined => {
-		const v11: rs.isize = _37[0];
+		const v7: rs.isize = _37[0];
 		const over3: boolean = _37[1];
-		_22(out4, v11);
+		_19(out4, v7);
 		rs.byteVecPush(out4, over3 ? 1 : 0);
 	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+	const _24: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
 		const dst2 = out5;
-		const word2 = v12;
+		const word2 = v8;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
 		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
@@ -6013,17 +6035,17 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	};
-	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
-		if (v13 === undefined) {
+	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
+		if (v9 === undefined) {
 			rs.byteVecPush(out6, 0);
 		} else {
-			const v14: rs.u32 = v13;
+			const v10: rs.u32 = v9;
 			rs.byteVecPush(out6, 1);
-			_27(out6, v14);
+			_24(out6, v10);
 		}
 	};
-	const _30: rs.u8 = rs.u8Rem(kind, 51);
-	if (_30 === 0) {
+	const _27: rs.u8 = rs.u8Rem(kind, 51);
+	if (_27 === 0) {
 		const part96 = rs.isizeCheckedAdd(a, b);
 		putOpt(out, part96);
 		const part97 = rs.isizeCheckedSub(a, b);
@@ -6031,17 +6053,17 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part98 = rs.isizeCheckedMul(a, b);
 		putOpt(out, part98);
 		const part99 = rs.isizeSaturatingAdd(a, b);
-		_22(out, part99);
+		_19(out, part99);
 		const part100 = rs.isizeSaturatingSub(a, b);
-		_22(out, part100);
+		_19(out, part100);
 		const part101 = rs.isizeSaturatingMul(a, b);
-		_22(out, part101);
+		_19(out, part101);
 		const part102 = rs.isizeWrappingAdd(a, b);
-		_22(out, part102);
+		_19(out, part102);
 		const part103 = rs.isizeWrappingSub(a, b);
-		_22(out, part103);
+		_19(out, part103);
 		const part104 = rs.isizeWrappingMul(a, b);
-		_22(out, part104);
+		_19(out, part104);
 		const part105 = rs.intOverflowingAdd(a, b, 32, true);
 		putPair(out, part105);
 		const part106 = rs.intOverflowingSub(a, b, 32, true);
@@ -6049,24 +6071,24 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part107 = rs.intOverflowingMul(a, b, 32, true);
 		putPair(out, part107);
 		const part108 = rs.intMidpoint(a, b, 32, true);
-		_22(out, part108);
+		_19(out, part108);
 		const part109 = rs.intCheckedAdd(a, o, 32, true);
 		putOpt(out, part109);
 		const part110 = rs.intCheckedSub(a, o, 32, true);
 		putOpt(out, part110);
 		const part111 = rs.intSaturatingAdd(a, o, 32, true);
-		_22(out, part111);
+		_19(out, part111);
 		const part112 = rs.intSaturatingSub(a, o, 32, true);
-		_22(out, part112);
+		_19(out, part112);
 		const part113 = rs.intWrappingAdd(a, o, 32, true);
-		_22(out, part113);
+		_19(out, part113);
 		const part114 = rs.intWrappingSub(a, o, 32, true);
-		_22(out, part114);
+		_19(out, part114);
 		const part115 = rs.intOverflowingAdd(a, o, 32, true);
 		putPair(out, part115);
 		const part116 = rs.intOverflowingSub(a, o, 32, true);
 		putPair(out, part116);
-	} else if (_30 === 1) {
+	} else if (_27 === 1) {
 		const part88 = rs.intCheckedDiv(a, b, 32, true);
 		putOpt(out, part88);
 		const part89 = rs.intCheckedRem(a, b, 32, true);
@@ -6077,33 +6099,33 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putOpt(out, part91);
 		if (b !== 0) {
 			const part92 = rs.isizeWrappingDiv(a, b);
-			_22(out, part92);
+			_19(out, part92);
 			const part93 = rs.isizeWrappingRem(a, b);
-			_22(out, part93);
+			_19(out, part93);
 			const part94 = rs.intOverflowingDivEuclid(a, b, 32, true);
 			putPair(out, part94);
 			const part95 = rs.intOverflowingRemEuclid(a, b, 32, true);
 			putPair(out, part95);
 		}
-	} else if (_30 === 2) {
+	} else if (_27 === 2) {
 		const part78 = rs.intCheckedNeg(a, 32, true);
 		putOpt(out, part78);
 		const part79 = rs.intWrappingNeg(a, 32, true);
-		_22(out, part79);
+		_19(out, part79);
 		const part80 = rs.intOverflowingNeg(a, 32, true);
 		putPair(out, part80);
 		const part81 = rs.intCheckedAbs(a, 32, true);
 		putOpt(out, part81);
 		const part82 = rs.intWrappingAbs(a, 32, true);
-		_22(out, part82);
+		_19(out, part82);
 		const part83 = rs.intSaturatingAbs(a, 32, true);
-		_22(out, part83);
+		_19(out, part83);
 		const part84 = rs.intOverflowingAbs(a, 32, true);
 		putPair(out, part84);
 		const part85 = rs.isizeSaturatingSub(0, a);
-		_22(out, part85);
+		_19(out, part85);
 		const part86 = rs.intSignum(a, 32, true);
-		_22(out, part86);
+		_19(out, part86);
 		rs.byteVecPush(out, a > 0 ? 1 : 0);
 		rs.byteVecPush(out, a < 0 ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 32, true);
@@ -6125,80 +6147,80 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst4.data[pos4 + 2] = (a >>> 0 >>> 8) & 255;
 		dst4.data[pos4 + 3] = (a >>> 0) & 255;
 		dst4.length = dst4.length + 4;
-	} else if (_30 === 3) {
+	} else if (_27 === 3) {
 		const iter: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _208: rs.u32 | rs.Done = iter.next();
-			if (_208 === rs.DONE) {
+			const _204: rs.u32 | rs.Done = iter.next();
+			if (_204 === rs.DONE) {
 				break;
 			}
-			const e: rs.u32 = _208;
+			const e: rs.u32 = _204;
 			const part74 = rs.intCheckedPow(a, e, 32, true);
 			putOpt(out, part74);
 			const part75 = rs.intWrappingPow(a, e, 32, true);
-			_22(out, part75);
+			_19(out, part75);
 			const part76 = rs.intSaturatingPow(a, e, 32, true);
-			_22(out, part76);
+			_19(out, part76);
 			const part77 = rs.intOverflowingPow(a, e, 32, true);
 			putPair(out, part77);
 		}
-	} else if (_30 === 4) {
+	} else if (_27 === 4) {
 		const iter2: rs.Iter<rs.u32> = rs.iterSlice([n, k]);
 		while (true) {
-			const _231: rs.u32 | rs.Done = iter2.next();
-			if (_231 === rs.DONE) {
+			const _227: rs.u32 | rs.Done = iter2.next();
+			if (_227 === rs.DONE) {
 				break;
 			}
-			const s: rs.u32 = _231;
+			const s: rs.u32 = _227;
 			const part64 = rs.intCheckedShl(a, s, 32, true);
 			putOpt(out, part64);
 			const part65 = rs.intCheckedShr(a, s, 32, true);
 			putOpt(out, part65);
 			const part66 = rs.intWrappingShl(a, s, 32, true);
-			_22(out, part66);
+			_19(out, part66);
 			const part67 = rs.intWrappingShr(a, s, 32, true);
-			_22(out, part67);
+			_19(out, part67);
 			const part68 = rs.intOverflowingShl(a, s, 32, true);
 			putPair(out, part68);
 			const part69 = rs.intOverflowingShr(a, s, 32, true);
 			putPair(out, part69);
 			const part70 = rs.intUnboundedShl(a, s, 32, true);
-			_22(out, part70);
+			_19(out, part70);
 			const part71 = rs.intUnboundedShr(a, s, 32, true);
-			_22(out, part71);
+			_19(out, part71);
 			const part72 = rs.intRotateLeft(a, s, 32, true);
-			_22(out, part72);
+			_19(out, part72);
 			const part73 = rs.intRotateRight(a, s, 32, true);
-			_22(out, part73);
+			_19(out, part73);
 		}
-	} else if (_30 === 5) {
+	} else if (_27 === 5) {
 		const iter3: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(a, 32, true), rs.intCountZeros(a, 32, true), rs.isizeLeadingZeros(a), rs.isizeTrailingZeros(a), rs.isizeLeadingOnes(a), rs.intTrailingOnes(a, 32, true)]);
 		while (true) {
-			const _284: rs.u32 | rs.Done = iter3.next();
-			if (_284 === rs.DONE) {
+			const _280: rs.u32 | rs.Done = iter3.next();
+			if (_280 === rs.DONE) {
 				break;
 			}
-			_27(out, _284);
+			_24(out, _280);
 		}
 		const iter4: rs.Iter<rs.isize> = rs.iterSlice([rs.intSwapBytes(a, 32, true), rs.intReverseBits(a, 32, true), rs.intSwapBytes(a, 32, true), a, rs.intSwapBytes(a, 32, true), a]);
 		while (true) {
-			const _300: rs.isize | rs.Done = iter4.next();
-			if (_300 === rs.DONE) {
+			const _296: rs.isize | rs.Done = iter4.next();
+			if (_296 === rs.DONE) {
 				break;
 			}
-			_22(out, _300);
+			_19(out, _296);
 		}
 		const part60 = rs.intHighestOne(a, 32, true);
 		putOptU32(out, part60);
 		const part61 = rs.intLowestOne(a, 32, true);
 		putOptU32(out, part61);
 		const part62 = rs.intIsolateHighestOne(a, 32, true);
-		_22(out, part62);
+		_19(out, part62);
 		const part63 = rs.intIsolateLowestOne(a, 32, true);
-		_22(out, part63);
-		_22(out, 2147483647);
-		_22(out, -2147483648);
-	} else if (_30 === 6) {
+		_19(out, part63);
+		_19(out, 2147483647);
+		_19(out, -2147483648);
+	} else if (_27 === 6) {
 		const part57 = rs.intCheckedIlog(a, b, 32, true);
 		putOptU32(out, part57);
 		const part58 = rs.intCheckedIlog2(a, 32, true);
@@ -6214,145 +6236,145 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst5.data[pos5 + 2] = (word4 >>> 8) & 255;
 		dst5.data[pos5 + 3] = word4 & 255;
 		dst5.length = dst5.length + 4;
-	} else if (_30 === 7) {
+	} else if (_27 === 7) {
 		const part56 = rs.intPow(a, k, 32, true);
-		_22(out, part56);
-	} else if (_30 === 8) {
+		_19(out, part56);
+	} else if (_27 === 8) {
 		const part55 = rs.intPow(a, n, 32, true);
-		_22(out, part55);
-	} else if (_30 === 9) {
+		_19(out, part55);
+	} else if (_27 === 9) {
 		const part54 = rs.intDivEuclid(a, b, 32, true);
-		_22(out, part54);
-	} else if (_30 === 10) {
+		_19(out, part54);
+	} else if (_27 === 10) {
 		const part53 = rs.intRemEuclid(a, b, 32, true);
-		_22(out, part53);
-	} else if (_30 === 11) {
+		_19(out, part53);
+	} else if (_27 === 11) {
 		const part52 = rs.intIsqrt(a, 32, true);
-		_22(out, part52);
-	} else if (_30 === 12) {
+		_19(out, part52);
+	} else if (_27 === 12) {
 		const part51 = rs.intIlog(a, b, 32, true);
-		_27(out, part51);
-	} else if (_30 === 13) {
+		_24(out, part51);
+	} else if (_27 === 13) {
 		const part50 = rs.intIlog2(a, 32, true);
-		_27(out, part50);
-	} else if (_30 === 14) {
+		_24(out, part50);
+	} else if (_27 === 14) {
 		const part49 = rs.intIlog10(a, 32, true);
-		_27(out, part49);
-	} else if (_30 === 15) {
-		_22(out, rs.isizeAdd(a, b));
-	} else if (_30 === 16) {
-		_22(out, rs.isizeSub(a, b));
-	} else if (_30 === 17) {
-		_22(out, rs.isizeMul(a, b));
-	} else if (_30 === 18) {
-		_22(out, rs.isizeDiv(a, b));
-	} else if (_30 === 19) {
-		_22(out, rs.isizeRem(a, b));
-	} else if (_30 === 20) {
+		_24(out, part49);
+	} else if (_27 === 15) {
+		_19(out, rs.isizeAdd(a, b));
+	} else if (_27 === 16) {
+		_19(out, rs.isizeSub(a, b));
+	} else if (_27 === 17) {
+		_19(out, rs.isizeMul(a, b));
+	} else if (_27 === 18) {
+		_19(out, rs.isizeDiv(a, b));
+	} else if (_27 === 19) {
+		_19(out, rs.isizeRem(a, b));
+	} else if (_27 === 20) {
 		const part43 = rs.intStrictNeg(a, 32, true);
-		_22(out, part43);
-	} else if (_30 === 21) {
-		_22(out, rs.isizeShl(a, k));
-	} else if (_30 === 22) {
-		_22(out, rs.isizeShr(a, k));
-	} else if (_30 === 23) {
+		_19(out, part43);
+	} else if (_27 === 21) {
+		_19(out, rs.isizeShl(a, k));
+	} else if (_27 === 22) {
+		_19(out, rs.isizeShr(a, k));
+	} else if (_27 === 23) {
 		const part40 = rs.intPow(a, k, 32, true);
-		_22(out, part40);
-	} else if (_30 === 24) {
+		_19(out, part40);
+	} else if (_27 === 24) {
 		const part39 = rs.intDivEuclid(a, b, 32, true);
-		_22(out, part39);
-	} else if (_30 === 25) {
+		_19(out, part39);
+	} else if (_27 === 25) {
 		const part38 = rs.intRemEuclid(a, b, 32, true);
-		_22(out, part38);
-	} else if (_30 === 26) {
+		_19(out, part38);
+	} else if (_27 === 26) {
 		const part37 = rs.intStrictAdd(a, o, 32, true);
-		_22(out, part37);
-	} else if (_30 === 27) {
+		_19(out, part37);
+	} else if (_27 === 27) {
 		const part36 = rs.intStrictSub(a, o, 32, true);
-		_22(out, part36);
-	} else if (_30 === 28) {
+		_19(out, part36);
+	} else if (_27 === 28) {
 		const part35 = rs.isizeWrappingDiv(a, b);
-		_22(out, part35);
-	} else if (_30 === 29) {
+		_19(out, part35);
+	} else if (_27 === 29) {
 		const part34 = rs.isizeWrappingRem(a, b);
-		_22(out, part34);
-	} else if (_30 === 30) {
+		_19(out, part34);
+	} else if (_27 === 30) {
 		const part33 = rs.intWrappingDivEuclid(a, b, 32, true);
-		_22(out, part33);
-	} else if (_30 === 31) {
+		_19(out, part33);
+	} else if (_27 === 31) {
 		const part32 = rs.intWrappingRemEuclid(a, b, 32, true);
-		_22(out, part32);
-	} else if (_30 === 32) {
+		_19(out, part32);
+	} else if (_27 === 32) {
 		const part31 = rs.intOverflowingDiv(a, b, 32, true);
 		putPair(out, part31);
-	} else if (_30 === 33) {
+	} else if (_27 === 33) {
 		const part30 = rs.intOverflowingRem(a, b, 32, true);
 		putPair(out, part30);
-	} else if (_30 === 34) {
+	} else if (_27 === 34) {
 		const part29 = rs.intOverflowingDivEuclid(a, b, 32, true);
 		putPair(out, part29);
-	} else if (_30 === 35) {
+	} else if (_27 === 35) {
 		const part28 = rs.intOverflowingRemEuclid(a, b, 32, true);
 		putPair(out, part28);
-	} else if (_30 === 36) {
+	} else if (_27 === 36) {
 		const part27 = rs.isizeSaturatingDiv(a, b);
-		_22(out, part27);
-	} else if (_30 === 37) {
+		_19(out, part27);
+	} else if (_27 === 37) {
 		const part26 = rs.intAbs(a, 32, true);
-		_22(out, part26);
-	} else if (_30 === 38) {
+		_19(out, part26);
+	} else if (_27 === 38) {
 		const part25 = rs.intAbs(a, 32, true);
-		_22(out, part25);
-	} else if (_30 === 39) {
+		_19(out, part25);
+	} else if (_27 === 39) {
 		const s2: rs.isize = a;
 		const w: rs.isize = a;
 		const iter5: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(s2, 32, true), rs.intCountZeros(s2, 32, true), rs.isizeLeadingZeros(s2), rs.isizeTrailingZeros(s2)]);
 		while (true) {
-			const _456: rs.u32 | rs.Done = iter5.next();
-			if (_456 === rs.DONE) {
+			const _449: rs.u32 | rs.Done = iter5.next();
+			if (_449 === rs.DONE) {
 				break;
 			}
-			_27(out, _456);
+			_24(out, _449);
 		}
 		const iter6: rs.Iter<rs.u32> = rs.iterSlice([rs.intCountOnes(w, 32, true), rs.intCountZeros(w, 32, true), rs.isizeLeadingZeros(w), rs.isizeTrailingZeros(w)]);
 		while (true) {
-			const _470: rs.u32 | rs.Done = iter6.next();
-			if (_470 === rs.DONE) {
+			const _463: rs.u32 | rs.Done = iter6.next();
+			if (_463 === rs.DONE) {
 				break;
 			}
-			_27(out, _470);
+			_24(out, _463);
 		}
 		const iter7: rs.Iter<rs.isize> = rs.iterSlice([rs.intRotateLeft(s2, k, 32, true), rs.intRotateRight(s2, n, 32, true), rs.intSwapBytes(s2, 32, true), rs.intReverseBits(s2, 32, true), rs.intSwapBytes(s2, 32, true), s2, rs.intSwapBytes(s2, 32, true), s2, rs.intSaturatingPow(s2, k, 32, true), rs.intSaturatingPow(s2, n, 32, true)]);
 		while (true) {
-			const _490: rs.isize | rs.Done = iter7.next();
-			if (_490 === rs.DONE) {
+			const _483: rs.isize | rs.Done = iter7.next();
+			if (_483 === rs.DONE) {
 				break;
 			}
-			_22(out, _490);
+			_19(out, _483);
 		}
 		const iter8: rs.Iter<rs.isize> = rs.iterSlice([rs.intRotateLeft(w, k, 32, true), rs.intRotateRight(w, n, 32, true), rs.intSwapBytes(w, 32, true), rs.intReverseBits(w, 32, true), rs.intSwapBytes(w, 32, true), w, rs.intSwapBytes(w, 32, true), w, rs.intWrappingPow(w, k, 32, true), rs.intWrappingPow(w, n, 32, true)]);
 		while (true) {
-			const _511: rs.isize | rs.Done = iter8.next();
-			if (_511 === rs.DONE) {
+			const _502: rs.isize | rs.Done = iter8.next();
+			if (_502 === rs.DONE) {
 				break;
 			}
-			_22(out, _511);
+			_19(out, _502);
 		}
 		const iter9: rs.Iter<rs.isize> = rs.iterSlice([rs.intSaturatingAbs(s2, 32, true), rs.intSignum(s2, 32, true)]);
 		while (true) {
-			const _524: rs.isize | rs.Done = iter9.next();
-			if (_524 === rs.DONE) {
+			const _513: rs.isize | rs.Done = iter9.next();
+			if (_513 === rs.DONE) {
 				break;
 			}
-			_22(out, _524);
+			_19(out, _513);
 		}
 		const iter10: rs.Iter<rs.isize> = rs.iterSlice([rs.intWrappingAbs(w, 32, true), rs.intSignum(w, 32, true)]);
 		while (true) {
-			const _537: rs.isize | rs.Done = iter10.next();
-			if (_537 === rs.DONE) {
+			const _524: rs.isize | rs.Done = iter10.next();
+			if (_524 === rs.DONE) {
 				break;
 			}
-			_22(out, _537);
+			_19(out, _524);
 		}
 		const dst6 = out;
 		const byte2 = s2 > 0 ? 1 : 0;
@@ -6366,26 +6388,27 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst6.data[pos6 + 2] = byte4;
 		dst6.data[pos6 + 3] = byte5;
 		dst6.length = dst6.length + 4;
-	} else if (_30 === 40) {
-		const _557: [rs.isize | undefined, rs.isize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_557[0] !== undefined) {
-			if (_557[1] !== undefined) {
-				const x: rs.isize = _557[0];
-				const y: rs.isize = _557[1];
+	} else if (_27 === 40) {
+		const _542: rs.isize | undefined = rs.nonZero(a);
+		const _543: rs.isize | undefined = rs.nonZero(b);
+		if (_542 !== undefined) {
+			if (_543 !== undefined) {
+				const x: rs.isize = _542;
+				const y: rs.isize = _543;
 				const iter11: rs.Iter<rs.u32> = rs.iterSlice([rs.isizeLeadingZeros(x), rs.isizeTrailingZeros(x), rs.intCountOnes(x, 32, true), 31 - rs.isizeLeadingZeros(x), rs.isizeTrailingZeros(x)]);
 				while (true) {
-					const _573: rs.u32 | rs.Done = iter11.next();
-					if (_573 === rs.DONE) {
+					const _557: rs.u32 | rs.Done = iter11.next();
+					if (_557 === rs.DONE) {
 						break;
 					}
-					_27(out, _573);
+					_24(out, _557);
 				}
 				const part12 = option_map$1vj7z9f(rs.isizeCheckedMul(x, y), (a0: rs.isize): rs.isize => {
 					return a0;
 				});
 				putOpt(out, part12);
 				const part13 = rs.isizeSaturatingMul(x, y);
-				_22(out, part13);
+				_19(out, part13);
 				const part14 = option_map$1vj7z9f(rs.intCheckedPow(x, k, 32, true), (a02: rs.isize): rs.isize => {
 					return a02;
 				});
@@ -6395,21 +6418,21 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				});
 				putOpt(out, part15);
 				const part16 = rs.intSaturatingPow(x, k, 32, true);
-				_22(out, part16);
+				_19(out, part16);
 				const part17 = rs.intIsolateHighestOne(x, 32, true);
-				_22(out, part17);
+				_19(out, part17);
 				const part18 = rs.intIsolateLowestOne(x, 32, true);
-				_22(out, part18);
+				_19(out, part18);
 				const part19 = option_map$1vj7z9f(rs.intCheckedAbs(x, 32, true), (a04: rs.isize): rs.isize => {
 					return a04;
 				});
 				putOpt(out, part19);
-				const _622: [rs.isize, boolean] = rs.intOverflowingAbs(x, 32, true);
-				putPair(out, [_622[0], _622[1]] as [rs.isize, boolean]);
+				const _606: [rs.isize, boolean] = rs.intOverflowingAbs(x, 32, true);
+				putPair(out, [_606[0], _606[1]] as [rs.isize, boolean]);
 				const part20 = rs.intSaturatingAbs(x, 32, true);
-				_22(out, part20);
+				_19(out, part20);
 				const part21 = rs.intWrappingAbs(x, 32, true);
-				_22(out, part21);
+				_19(out, part21);
 				const dst7 = out;
 				const word5 = rs.intUnsignedAbs(x, 32, true) as rs.usize;
 				rs.byteVecReserve(dst7, 4 as rs.usize);
@@ -6431,12 +6454,12 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					return a05;
 				});
 				putOpt(out, part22);
-				const _659: [rs.isize, boolean] = rs.intOverflowingNeg(x, 32, true);
-				putPair(out, [_659[0], _659[1]] as [rs.isize, boolean]);
+				const _643: [rs.isize, boolean] = rs.intOverflowingNeg(x, 32, true);
+				putPair(out, [_643[0], _643[1]] as [rs.isize, boolean]);
 				const part23 = rs.isizeSaturatingSub(0, x);
-				_22(out, part23);
+				_19(out, part23);
 				const part24 = rs.intWrappingNeg(x, 32, true);
-				_22(out, part24);
+				_19(out, part24);
 				const dst9 = out;
 				rs.byteVecReserve(dst9, 4 as rs.usize);
 				const pos9 = dst9.length;
@@ -6447,39 +6470,40 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst9.length = dst9.length + 4;
 			}
 		}
-	} else if (_30 === 41) {
-		const _681: rs.isize | undefined = rs.nonZero(a);
-		if (_681 !== undefined) {
-			const part11 = rs.intAbs(_681, 32, true);
-			_22(out, part11);
+	} else if (_27 === 41) {
+		const _665: rs.isize | undefined = rs.nonZero(a);
+		if (_665 !== undefined) {
+			const part11 = rs.intAbs(_665, 32, true);
+			_19(out, part11);
 		}
-	} else if (_30 === 42) {
+	} else if (_27 === 42) {
 		const part10 = rs.precondition(rs.isizeCheckedAdd(a, b), "isize::unchecked_add cannot overflow");
-		_22(out, part10);
-	} else if (_30 === 43) {
+		_19(out, part10);
+	} else if (_27 === 43) {
 		const part9 = rs.precondition(rs.isizeCheckedSub(a, b), "isize::unchecked_sub cannot overflow");
-		_22(out, part9);
-	} else if (_30 === 44) {
+		_19(out, part9);
+	} else if (_27 === 44) {
 		const part8 = rs.precondition(rs.isizeCheckedMul(a, b), "isize::unchecked_mul cannot overflow");
-		_22(out, part8);
-	} else if (_30 === 45) {
+		_19(out, part8);
+	} else if (_27 === 45) {
 		const part7 = rs.precondition(rs.intCheckedShl(a, k, 32, true), "isize::unchecked_shl cannot overflow");
-		_22(out, part7);
-	} else if (_30 === 46) {
+		_19(out, part7);
+	} else if (_27 === 46) {
 		const part6 = rs.precondition(rs.intCheckedShr(a, k, 32, true), "isize::unchecked_shr cannot overflow");
-		_22(out, part6);
-	} else if (_30 === 47) {
+		_19(out, part6);
+	} else if (_27 === 47) {
 		const part5 = rs.precondition(rs.intCheckedNeg(a, 32, true), "isize::unchecked_neg cannot overflow");
-		_22(out, part5);
-	} else if (_30 === 48) {
+		_19(out, part5);
+	} else if (_27 === 48) {
 		const part4 = rs.precondition(rs.nonZero(a), "NonZero::new_unchecked requires the argument to be non-zero");
-		_22(out, part4);
-	} else if (_30 === 49) {
-		const _711: [rs.isize | undefined, rs.isize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_711[0] !== undefined) {
-			if (_711[1] !== undefined) {
-				const part3 = rs.precondition(rs.isizeCheckedMul(_711[0], _711[1]), "isize::unchecked_mul cannot overflow");
-				_22(out, part3);
+		_19(out, part4);
+	} else if (_27 === 49) {
+		const _695: rs.isize | undefined = rs.nonZero(a);
+		const _696: rs.isize | undefined = rs.nonZero(b);
+		if (_695 !== undefined) {
+			if (_696 !== undefined) {
+				const part3 = rs.precondition(rs.isizeCheckedMul(_695, _696), "isize::unchecked_mul cannot overflow");
+				_19(out, part3);
 			}
 		}
 	} else {

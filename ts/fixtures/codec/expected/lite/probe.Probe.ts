@@ -26,20 +26,20 @@ export function decodeSlice$coding_decode_Decode_lite_version_Version(buf: rs.By
 /** Encode the value to the given encoder, which may hold partial output on error. */
 export function encode$coding_encode_Encode_lite_version_Version(self: Probe, w: Encoder.Encoder, version: lite_version_Version.Version): rs.Result<undefined, EncodeError.EncodeError> {
 	const prefix: Prefix.Prefix = Encoder.prefixVarint(w);
-	const _39: rs.Result<undefined, EncodeError.EncodeError> = encodeMsg$lite_message_Message(self, w, version);
-	if (_39.ok) {
+	const _32: rs.Result<undefined, EncodeError.EncodeError> = encodeMsg$lite_message_Message(self, w, version);
+	if (_32.ok) {
 		if (!(Encoder.since(w, prefix) > 65535)) {
-			const _49: rs.Result<undefined, EncodeError.EncodeError> = Encoder.fill(w, prefix);
-			if (_49.ok) {
+			const _41: rs.Result<undefined, EncodeError.EncodeError> = Encoder.fill(w, prefix);
+			if (_41.ok) {
 				w.control = "Probe" as Control.Control;
 				return rs.OK;
 			}
-			return _49;
+			return _41;
 		}
 		Encoder.discard(w, prefix);
 		return rs.Err("TooLarge" as EncodeError.EncodeError);
 	}
-	return _39;
+	return _32;
 }
 
 /** Decode the value from the front of the decoder. */
@@ -102,21 +102,21 @@ export function encodeMsg$lite_message_Message(self: Probe, w: Encoder.Encoder, 
 	if (version === "Lite01" || version === "Lite02") {
 		return rs.Err("Version" as EncodeError.EncodeError);
 	}
-	const _9: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.bitrate, (v: rs.u64): rs.u64 => {
+	const _8: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.bitrate, (v: rs.u64): rs.u64 => {
 		return rs.u64Max(v, 1);
 	}), 0));
-	if (_9.ok) {
+	if (_8.ok) {
 		if (lite_version_Version.hasProbeRtt(version)) {
-			const _17: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.rtt, (v2: rs.u64): rs.u64 => {
+			const _16: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.rtt, (v2: rs.u64): rs.u64 => {
 				return rs.u64Max(v2, 1);
 			}), 0));
-			if (!_17.ok) {
-				return _17;
+			if (!_16.ok) {
+				return _16;
 			}
 		}
 		return rs.OK;
 	}
-	return _9;
+	return _8;
 }
 
 //# sourceMappingURL=probe.Probe.ts.map

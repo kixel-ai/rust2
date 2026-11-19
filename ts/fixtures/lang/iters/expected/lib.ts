@@ -2,8 +2,165 @@
 
 import * as rs from "./rs.ts";
 import { adaptors, consumers, reducers, peekedOthers, skips, ranked, ranges, options, optionItems, own, values, returned, zips, zipsBack, rangeFroms, rangeMethods, compares, lent, byValue, heldFields, unfused, fused, fusedOwned, fusedBack, fusedLeaves, fusedCuts } from "./iters.ts";
+import type * as Countdown from "./iters.Countdown.ts";
 import type * as Noted from "./iters.Noted.ts";
 import type * as Ticks from "./iters.Ticks.ts";
+
+export function copy$iters_Countdown(v: Countdown.Countdown): Countdown.Countdown {
+	return { left: v.left, step: v.step };
+}
+
+export function copy$ops_RangeFrom_char(v: rs.RangeFrom<rs.char>): rs.RangeFrom<rs.char> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_f32(v: rs.RangeFrom<rs.f32>): rs.RangeFrom<rs.f32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_f64(v: rs.RangeFrom<rs.f64>): rs.RangeFrom<rs.f64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_i128(v: rs.RangeFrom<rs.i128>): rs.RangeFrom<rs.i128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_i16(v: rs.RangeFrom<rs.i16>): rs.RangeFrom<rs.i16> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_i32(v: rs.RangeFrom<rs.i32>): rs.RangeFrom<rs.i32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_i64(v: rs.RangeFrom<rs.i64>): rs.RangeFrom<rs.i64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_i8(v: rs.RangeFrom<rs.i8>): rs.RangeFrom<rs.i8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_isize(v: rs.RangeFrom<rs.isize>): rs.RangeFrom<rs.isize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_num_NonZero_u128(v: rs.RangeFrom<rs.u128>): rs.RangeFrom<rs.u128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_num_NonZero_u64(v: rs.RangeFrom<rs.u64>): rs.RangeFrom<rs.u64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_num_NonZero_u8(v: rs.RangeFrom<rs.u8>): rs.RangeFrom<rs.u8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_num_NonZero_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_u128(v: rs.RangeFrom<rs.u128>): rs.RangeFrom<rs.u128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_u16(v: rs.RangeFrom<rs.u16>): rs.RangeFrom<rs.u16> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_u32(v: rs.RangeFrom<rs.u32>): rs.RangeFrom<rs.u32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_u64(v: rs.RangeFrom<rs.u64>): rs.RangeFrom<rs.u64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_u8(v: rs.RangeFrom<rs.u8>): rs.RangeFrom<rs.u8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_char(v: rs.Range<rs.char>): rs.Range<rs.char> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_f32(v: rs.Range<rs.f32>): rs.Range<rs.f32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_f64(v: rs.Range<rs.f64>): rs.Range<rs.f64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_i128(v: rs.Range<rs.i128>): rs.Range<rs.i128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_i16(v: rs.Range<rs.i16>): rs.Range<rs.i16> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_i32(v: rs.Range<rs.i32>): rs.Range<rs.i32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_i64(v: rs.Range<rs.i64>): rs.Range<rs.i64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_i8(v: rs.Range<rs.i8>): rs.Range<rs.i8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_isize(v: rs.Range<rs.isize>): rs.Range<rs.isize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_num_NonZero_u128(v: rs.Range<rs.u128>): rs.Range<rs.u128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_num_NonZero_u64(v: rs.Range<rs.u64>): rs.Range<rs.u64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_num_NonZero_u8(v: rs.Range<rs.u8>): rs.Range<rs.u8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_num_NonZero_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_u128(v: rs.Range<rs.u128>): rs.Range<rs.u128> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_u16(v: rs.Range<rs.u16>): rs.Range<rs.u16> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_u32(v: rs.Range<rs.u32>): rs.Range<rs.u32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_u64(v: rs.Range<rs.u64>): rs.Range<rs.u64> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_u8(v: rs.Range<rs.u8>): rs.Range<rs.u8> {
+	return rs.objectCopy(v);
+}
+
+export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
+	return rs.objectCopy(v);
+}
 
 export function drop$iters_Ticks(_1: Ticks.Ticks): void {
 	if (_1.tag === "Left") {

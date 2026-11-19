@@ -2,11 +2,16 @@
 
 import * as rs from "./rs.ts";
 import { awaits } from "./awaits.ts";
+import * as Noted from "./awaits.Noted.ts";
 import { futures } from "./futures.ts";
 import type * as Held from "./futures.Held.ts";
 import type * as Logged from "./futures.Logged.ts";
 import { raw } from "./raw.ts";
 import type * as Task from "./raw.Task.ts";
+
+export function copy$awaits_Noted(v: Noted.Noted): Noted.Noted {
+	return new Noted.Noted(v._0, v._1);
+}
 
 export function copy$task_RawWakerVTable(v: rs.WakerVTable): rs.WakerVTable {
 	return rs.wakerVTable(v.clone, v.wake, v.wakeByRef, v.drop);

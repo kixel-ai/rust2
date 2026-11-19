@@ -3,15 +3,13 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_u16(self: Fixed<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Fixed pair tag";
-	const _5: rs.Slice<rs.u16> = rs.sliceFrom(self.pair as rs.u16[]);
-	return rs.fmtDebugFields(f, _3, [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(_5), f, rs.u16Debug), (f: rs.Formatter) => rs.u8Debug(self.tag, f)]);
+	const _4: rs.Slice<rs.u16> = rs.sliceFrom(self.pair as rs.u16[]);
+	return rs.fmtDebugFields(f, "Fixed pair tag", [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(_4), f, rs.u16Debug), (f: rs.Formatter) => rs.u8Debug(self.tag, f)]);
 }
 
 export function fmt$fmt_Debug_u8(self: Fixed<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Fixed pair tag";
-	const _5: rs.ByteSlice = rs.byteSliceFrom(self.pair as Uint8Array);
-	return rs.fmtDebugFields(f, _3, [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_5), f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self.tag, f)]);
+	const _4: rs.ByteSlice = rs.byteSliceFrom(self.pair as Uint8Array);
+	return rs.fmtDebugFields(f, "Fixed pair tag", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_4), f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self.tag, f)]);
 }
 
 /** A generic type JS copies, holding an array of its parameter. */

@@ -79,12 +79,11 @@ export function last$iter_Iterator(self: Overrides): rs.u8 | undefined {
 export function find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(self: Overrides, p: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	Run.logged(self._0, 70);
 	while (true) {
-		const _5: rs.u8 | rs.Done = Run.next$iter_Iterator(self._0);
-		if (_5 !== rs.DONE) {
-			const b: rs.u8 = _5;
-			if (p(b)) {
+		const _5: rs.u8 | undefined = rs.iterToOption(Run.next$iter_Iterator(self._0));
+		if (_5 !== undefined) {
+			if (p(_5)) {
 				rs.drop(p);
-				return b;
+				return _5;
 			}
 		} else {
 			break;
@@ -97,11 +96,10 @@ export function find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(se
 export function find$iter_Iterator_ends_found_closure11_ends_Overrides(self: Overrides, p: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	Run.logged(self._0, 70);
 	while (true) {
-		const _5: rs.u8 | rs.Done = Run.next$iter_Iterator(self._0);
-		if (_5 !== rs.DONE) {
-			const b: rs.u8 = _5;
-			if (p(b)) {
-				return b;
+		const _5: rs.u8 | undefined = rs.iterToOption(Run.next$iter_Iterator(self._0));
+		if (_5 !== undefined) {
+			if (p(_5)) {
+				return _5;
 			}
 		} else {
 			break;
@@ -245,7 +243,7 @@ export function max$iter_Iterator(self: Overrides): rs.u8 | undefined {
 			if (isNoneOr$0xn3i4j(best, (m: rs.u8): boolean => {
 				return b > m;
 			})) {
-				best = b;
+				best = _5;
 			}
 		} else {
 			return best;

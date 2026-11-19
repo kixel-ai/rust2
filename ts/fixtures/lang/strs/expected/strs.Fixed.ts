@@ -13,11 +13,11 @@ function new_(): Fixed {
 }
 
 export function tryPushStr(self: Fixed, s: string): rs.Result<undefined, string> {
-	if (!(rs.stringLen(s) > rs.usizeSub(rs.byteSliceFrom(self.xs).length, self.len))) {
+	if (!(rs.stringLen(s) > rs.usizeSub(12, self.len))) {
 		const dst: rs.Place<rs.u8> = rs.ptrAdd(rs.byteSliceAsPtr(rs.byteSliceFrom(self.xs)), self.len);
 		rs.ptrCopy(rs.strAsPtr(s), dst, rs.stringLen(s));
-		const _20: rs.usize = rs.stringLen(s);
-		self.len = rs.usizeAdd(self.len, _20);
+		const _17: rs.usize = rs.stringLen(s);
+		self.len = rs.usizeAdd(self.len, _17);
 		return rs.OK;
 	}
 	return rs.Err(s);

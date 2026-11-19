@@ -16,7 +16,7 @@ export interface Picky {
 }
 
 export function log(self: Picky, other: Picky, by: rs.u16): void {
-	rs.cellSet(self._1, rs.u16WrappingAdd(rs.u16WrappingMul(self._1.v, 31), self._0 ^ ((other._0 << 4) & 0xffff) ^ by));
+	rs.cellSet(self._1, rs.u16WrappingAdd(rs.u16WrappingMul(self._1.v, 31), by ^ (self._0 ^ ((other._0 << 4) & 0xffff))));
 }
 
 export function eq$cmp_PartialEq(self: Picky, other: Picky): boolean {

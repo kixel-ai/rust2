@@ -3,12 +3,14 @@
 import * as rs from "./rs.ts";
 
 export function eq$cmp_PartialEq(self: Error, other: Error): boolean {
-	if (!({ Short: 0, Bad: 1 }[self.tag] === { Short: 0, Bad: 1 }[other.tag])) {
+	const _4: rs.isize = { Short: 0, Bad: 1 }[self.tag];
+	const _5: rs.isize = { Short: 0, Bad: 1 }[other.tag];
+	if (!(_4 === _5)) {
 		return false;
 	}
-	if (self.tag === "Short") {
-		if (other.tag === "Short") {
-			return self._0 === other._0;
+	if (_4 === 0) {
+		if (_5 === 0) {
+			return (self as { tag: "Short"; _0: rs.usize })._0 === (other as { tag: "Short"; _0: rs.usize })._0;
 		}
 	}
 	return true;

@@ -2,10 +2,14 @@
 
 import * as rs from "./rs.ts";
 import { bytes, wides, copies, drops, strs, generics, keys, addresses, unsizedArrays } from "./shares.ts";
-import type * as Logged from "./shares.Logged.ts";
+import * as Logged from "./shares.Logged.ts";
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$shares_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v.id, v.log);
 }
 
 export function copy$tuple2_u8_u16(v: [rs.u8, rs.u16]): [rs.u8, rs.u16] {

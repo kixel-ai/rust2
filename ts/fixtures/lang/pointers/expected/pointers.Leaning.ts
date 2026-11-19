@@ -23,7 +23,7 @@ export function put$pointers_Aim(self: rs.Place<Leaning>, n: rs.u8): void {
 	} else {
 		_3 = { tag: "Pos", _0: rs.u8WrappingSub(self.v._0, n) } as Leaning;
 	}
-	self.v = _3;
+	self.v = _3 as Leaning;
 }
 
 //# sourceMappingURL=pointers.Leaning.ts.map

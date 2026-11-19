@@ -7,52 +7,57 @@ import * as Partial from "./hashes.Partial.ts";
 import * as Switch from "./hashes.Switch.ts";
 
 export function hash$Hash_hash_DefaultHasher(self: Shape, state: rs.Hasher): void {
-	rs.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], state);
-	if (self.tag === "Line") {
-		rs.hash32(self._0, state);
-	} else if (self.tag === "Rect") {
-		rs.hashI16(self.w, state);
-		rs.hashI16(self.h, state);
+	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
+	rs.hashIsize(_5, state);
+	if (_5 === 1) {
+		rs.hash32((self as { tag: "Line"; _0: rs.u32 })._0, state);
+	} else if (_5 === 2) {
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).w, state);
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).h, state);
 	}
 }
 
 export function hash$Hash_hashes_Bare(self: Shape, state: Bare.Bare): void {
-	rs.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
-	if (self.tag === "Line") {
-		rs.hash32(self._0, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
-	} else if (self.tag === "Rect") {
-		rs.hashI16(self.w, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
-		rs.hashI16(self.h, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
+	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
+	rs.hashIsize(_5, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
+	if (_5 === 1) {
+		rs.hash32((self as { tag: "Line"; _0: rs.u32 })._0, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
+	} else if (_5 === 2) {
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).w, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).h, new rs.OwnHasher(state, Bare.hasher$hash_Hasher));
 	}
 }
 
 export function hash$Hash_hashes_Full(self: Shape, state: Full.Full): void {
-	rs.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], new rs.OwnHasher(state, Full.hasher$hash_Hasher));
-	if (self.tag === "Line") {
-		rs.hash32(self._0, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
-	} else if (self.tag === "Rect") {
-		rs.hashI16(self.w, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
-		rs.hashI16(self.h, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
+	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
+	rs.hashIsize(_5, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
+	if (_5 === 1) {
+		rs.hash32((self as { tag: "Line"; _0: rs.u32 })._0, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
+	} else if (_5 === 2) {
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).w, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).h, new rs.OwnHasher(state, Full.hasher$hash_Hasher));
 	}
 }
 
 export function hash$Hash_hashes_Partial(self: Shape, state: Partial.Partial): void {
-	rs.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
-	if (self.tag === "Line") {
-		rs.hash32(self._0, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
-	} else if (self.tag === "Rect") {
-		rs.hashI16(self.w, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
-		rs.hashI16(self.h, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
+	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
+	rs.hashIsize(_5, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
+	if (_5 === 1) {
+		rs.hash32((self as { tag: "Line"; _0: rs.u32 })._0, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
+	} else if (_5 === 2) {
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).w, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).h, new rs.OwnHasher(state, Partial.hasher$hash_Hasher));
 	}
 }
 
 export function hash$Hash_hashes_Switch(self: Shape, state: rs.Place<Switch.Switch>): void {
-	rs.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
-	if (self.tag === "Line") {
-		rs.hash32(self._0, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
-	} else if (self.tag === "Rect") {
-		rs.hashI16(self.w, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
-		rs.hashI16(self.h, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
+	const _5: rs.isize = { Dot: 0, Line: 1, Rect: 2 }[self.tag];
+	rs.hashIsize(_5, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
+	if (_5 === 1) {
+		rs.hash32((self as { tag: "Line"; _0: rs.u32 })._0, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
+	} else if (_5 === 2) {
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).w, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
+		rs.hashI16((self as { tag: "Rect"; w: rs.i16; h: rs.i16 }).h, new rs.OwnHasher(state, Switch.hasher$hash_Hasher));
 	}
 }
 

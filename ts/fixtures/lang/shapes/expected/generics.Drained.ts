@@ -43,9 +43,9 @@ export function new$generics_Flags(first: boolean, items: rs.Slice<boolean>): Dr
 export function next$array1_Option_u8(self: Drained<Array<rs.u8 | undefined>, rs.u8 | undefined>): rs.u8 | undefined | rs.None {
 	const _3: rs.u8 | undefined | rs.Done = (self.iter as rs.Iter<rs.u8 | undefined>).next();
 	if (_3 !== rs.DONE) {
-		const item: rs.u8 | undefined = _3;
-		self.last = item;
-		return item;
+		const _8: rs.u8 | undefined | rs.None = _3;
+		self.last = _8 as rs.u8 | undefined | rs.None;
+		return _8;
 	}
 	return rs.None;
 }
@@ -53,17 +53,18 @@ export function next$array1_Option_u8(self: Drained<Array<rs.u8 | undefined>, rs
 export function next$array2_u16(self: Drained<rs.u16[], rs.u16>): rs.u16 | undefined {
 	const _3: rs.u16 | rs.Done = (self.iter as rs.Iter<rs.u16>).next();
 	if (_3 !== rs.DONE) {
-		const item: rs.u16 = _3;
-		self.last = item;
-		return item;
+		const _8: rs.u16 | undefined = _3;
+		self.last = _8 as rs.u16 | undefined;
+		return _8;
 	}
 	return undefined;
 }
 
 export function next$array3_unit(self: Drained<undefined[], undefined>): undefined | rs.None {
 	if ((self.iter as rs.Iter<undefined>).next() !== rs.DONE) {
-		self.last = undefined;
-		return undefined;
+		const _8: undefined | rs.None = undefined;
+		self.last = _8 as undefined | rs.None;
+		return _8;
 	}
 	return rs.None;
 }
@@ -71,9 +72,9 @@ export function next$array3_unit(self: Drained<undefined[], undefined>): undefin
 export function next$array4_u8(self: Drained<Uint8Array, rs.u8>): rs.u8 | undefined {
 	const _3: rs.u8 | rs.Done = (self.iter as rs.Iter<rs.u8>).next();
 	if (_3 !== rs.DONE) {
-		const item: rs.u8 = _3;
-		self.last = item;
-		return item;
+		const _8: rs.u8 | undefined = _3;
+		self.last = _8 as rs.u8 | undefined;
+		return _8;
 	}
 	return undefined;
 }
@@ -81,9 +82,9 @@ export function next$array4_u8(self: Drained<Uint8Array, rs.u8>): rs.u8 | undefi
 export function next$generics_Flags(self: Drained<Flags.Flags, boolean>): boolean | undefined {
 	const _3: boolean | rs.Done = (self.iter as rs.Iter<boolean>).next();
 	if (_3 !== rs.DONE) {
-		const item: boolean = _3;
-		self.last = item;
-		return item;
+		const _8: boolean | undefined = _3;
+		self.last = _8 as boolean | undefined;
+		return _8;
 	}
 	return undefined;
 }

@@ -16,10 +16,10 @@ export function walk$generics_Flags_vec_IntoIter_u8(self: Even<Flags.Flags, rs.I
 	if (self.tag === "Next") {
 		const _22: Odd.Odd<Flags.Flags, rs.Iter<rs.u8>, rs.u8, boolean> = self._1;
 		const arg = self._0;
-		const _16: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(arg, f);
+		const _15: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(arg, f);
 		const arg2 = _22.seen;
-		const args3 = [_16, (f: rs.Formatter) => rs.fmtOption(arg2, f, rs.u8Debug)];
-		rs.stringPushStr(out, rs.fmtFormat([args3[0], " ", args3[1], " "]).v);
+		const args2 = [_15, (f: rs.Formatter) => rs.fmtOption(arg2, f, rs.u8Debug)];
+		rs.stringPushStr(out, rs.fmtFormat([args2[0], " ", args2[1], " "]).v);
 		walk$generics_Flags_vec_IntoIter_u8(self._1.next, out);
 	}
 }

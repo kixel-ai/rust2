@@ -209,27 +209,31 @@ export function deref$ops_Deref_5(self: Text): string {
 }
 
 export function fmt$fmt_Display_0(self: Text, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _7: string = deref$ops_Deref_0(self);
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _7), (f: rs.Formatter) => rs.usizeDisplay(0, f)];
-	return rs.fmtWriteFmt(f, [args3[0], "/", args3[1]]);
+	const _6: string = deref$ops_Deref_0(self);
+	const _11: rs.usize = 0;
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, _6), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
+	return rs.fmtWriteFmt(f, [args2[0], "/", args2[1]]);
 }
 
 export function fmt$fmt_Display_16(self: Text, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _7: string = deref$ops_Deref_16(self);
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _7), (f: rs.Formatter) => rs.usizeDisplay(16, f)];
-	return rs.fmtWriteFmt(f, [args3[0], "/", args3[1]]);
+	const _6: string = deref$ops_Deref_16(self);
+	const _11: rs.usize = 16;
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, _6), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
+	return rs.fmtWriteFmt(f, [args2[0], "/", args2[1]]);
 }
 
 export function fmt$fmt_Display_3(self: Text, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _7: string = deref$ops_Deref_3(self);
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _7), (f: rs.Formatter) => rs.usizeDisplay(3, f)];
-	return rs.fmtWriteFmt(f, [args3[0], "/", args3[1]]);
+	const _6: string = deref$ops_Deref_3(self);
+	const _11: rs.usize = 3;
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, _6), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
+	return rs.fmtWriteFmt(f, [args2[0], "/", args2[1]]);
 }
 
 export function fmt$fmt_Display_5(self: Text, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _7: string = deref$ops_Deref_5(self);
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _7), (f: rs.Formatter) => rs.usizeDisplay(5, f)];
-	return rs.fmtWriteFmt(f, [args3[0], "/", args3[1]]);
+	const _6: string = deref$ops_Deref_5(self);
+	const _11: rs.usize = 5;
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, _6), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
+	return rs.fmtWriteFmt(f, [args2[0], "/", args2[1]]);
 }
 
 export function fmt$fmt_Debug_16(self: Text, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {

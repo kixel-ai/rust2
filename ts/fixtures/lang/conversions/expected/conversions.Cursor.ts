@@ -11,18 +11,19 @@ export interface Cursor {
 
 /** Fills `buf` from the front, or leaves it as it is if too few are left. */
 export function readExact(self: Cursor, buf: rs.ByteSlice): boolean {
-	if (!(self.dataLen < buf.length)) {
-		const _14Data: Uint8Array = self.dataData;
-		const _14Start: number = self.dataStart;
-		const _14Len: number = self.dataLen;
-		const mid: number = buf.length;
-		if (mid > _14Len) {
+	const _10Len: number = self.dataLen;
+	const _5: rs.usize = buf.length;
+	if (!(_10Len < _5)) {
+		const _11Data: Uint8Array = self.dataData;
+		const _11Start: number = self.dataStart;
+		const _11Len: number = self.dataLen;
+		if (_5 > _11Len) {
 			rs.panic("mid > len");
 		}
-		rs.byteSliceCopyFromSlice(buf, new rs.ByteSlice(_14Data, _14Start, mid));
-		self.dataData = _14Data;
-		self.dataStart = _14Start + mid;
-		self.dataLen = _14Len - mid;
+		rs.byteSliceCopyFromSlice(buf, new rs.ByteSlice(_11Data, _11Start, _5));
+		self.dataData = _11Data;
+		self.dataStart = _11Start + _5;
+		self.dataLen = _11Len - _5;
 		return true;
 	}
 	return false;

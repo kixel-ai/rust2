@@ -51,8 +51,8 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const parts: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(all.items), 0, part);
 	const sep: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	const seps: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.min(data.length, 3));
-	const _26: rs.u8 = rs.u8Rem(kind, 7);
-	if (_26 === 0) {
+	const _24: rs.u8 = rs.u8Rem(kind, 7);
+	if (_24 === 0) {
 		bytes(rs.byteSlicesJoin(parts), out);
 		bytes(rs.byteSlicesJoin(parts, rs.byteSliceFrom(Uint8Array.of(sep))), out);
 		bytes(rs.byteSlicesJoin(parts, seps), out);
@@ -81,28 +81,27 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items)), out);
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items), rs.byteSliceFrom(Uint8Array.of(sep))), out);
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items), seps), out);
-		const _71: rs.ByteSlice[] = [];
-		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71)), out);
-		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71), rs.byteSliceFrom(Uint8Array.of(sep))), out);
-		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71), seps), out);
-	} else if (_26 === 1) {
+		const _67: rs.ByteSlice[] = [];
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_67)), out);
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_67), rs.byteSliceFrom(Uint8Array.of(sep))), out);
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_67), seps), out);
+	} else if (_24 === 1) {
 		const at: (a0: rs.usize) => rs.u8 = (i8: rs.usize): rs.u8 => {
 			return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i8), i8 & 0xff);
 		};
-		const hashA: Uint8Array = rs.bytesFromFn(8, at);
-		const hashB: Uint8Array = rs.bytesFromFn(8, (i9: rs.usize): rs.u8 => {
+		const _90: Uint8Array[] = [rs.bytesFromFn(8, at), rs.bytesFromFn(8, (i9: rs.usize): rs.u8 => {
 			return at(rs.usizeAdd(i9, 8));
-		});
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom([hashA, hashB], rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom([hashA, hashB], rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom([hashA, hashB], rs.byteSliceFrom)), seps, rs.byteSliceFrom), out);
+		})];
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_90, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_90, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_90, rs.byteSliceFrom)), seps, rs.byteSliceFrom), out);
 		const s20 = rs.sliceItems(parts);
 		let front18 = 0;
 		let back18 = s20.length;
 		const f19 = (p6: rs.ByteSlice): Uint8Array => {
-			const _423: rs.ByteSlice = p6;
+			const _424: rs.ByteSlice = p6;
 			return rs.bytesFromFn(4, (i10: rs.usize): rs.u8 => {
-				return option_unwrapOr$1fr498u(rs.byteSliceGet(_423, i10), 0);
+				return option_unwrapOr$1fr498u(rs.byteSliceGet(_424, i10), 0);
 			});
 		};
 		const v21: rs.Vec<Uint8Array> = rs.vecWithCapacity(back18 - front18, 4);
@@ -114,16 +113,16 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(quads.items, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(quads.items, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(quads.items, rs.byteSliceFrom)), seps, rs.byteSliceFrom), out);
-		const zeros: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(parts)), (_228: rs.ByteSlice): Uint8Array => {
+		const zeros: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(parts)), (_226: rs.ByteSlice): Uint8Array => {
 			return Uint8Array.of();
 		}), undefined, 0, true);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), seps, rs.byteSliceFrom), out);
-		const _138: Uint8Array[] = [];
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_138, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_138, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
-	} else if (_26 === 2) {
+		const _134: Uint8Array[] = [];
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_134, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_134, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
+	} else if (_24 === 2) {
 		const sep2: rs.u16 = (((sep as rs.u16) << 8) & 0xffff) | 1;
 		const s15 = rs.sliceItems(parts);
 		let front14 = 0;
@@ -189,10 +188,10 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const pairs: rs.Vec<rs.u16[]> = v20;
 		wides(rs.slicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(pairs.items, rs.sliceFrom)), 2, undefined, rs.sliceFrom), out);
 		wides(rs.slicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(pairs.items, rs.sliceFrom)), 2, rs.sliceFrom([sep2]), rs.sliceFrom), out);
-		const _231: rs.ArraySlice<rs.Slice<rs.u16>> = rs.arraySliceFrom(pairs.items, rs.sliceFrom);
-		const _233: rs.Slice<rs.u16> = rs.sliceFrom(wideSeps.items);
-		wides(rs.slicesJoin(rs.arraySliceAsSlice(_231), 2, _233, rs.sliceFrom), out);
-		const zeros2: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(parts)), (_227: rs.ByteSlice): rs.u16[] => {
+		const _225: rs.ArraySlice<rs.Slice<rs.u16>> = rs.arraySliceFrom(pairs.items, rs.sliceFrom);
+		const _227: rs.Slice<rs.u16> = rs.sliceFrom(wideSeps.items);
+		wides(rs.slicesJoin(rs.arraySliceAsSlice(_225), 2, _227, rs.sliceFrom), out);
+		const zeros2: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(parts)), (_223: rs.ByteSlice): rs.u16[] => {
 			return [];
 		}), undefined, 0, true);
 		wides(rs.slicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros2.items, rs.sliceFrom)), 2, undefined, rs.sliceFrom), out);
@@ -201,7 +200,7 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		wides(rs.slicesJoin(rs.sliceFrom(none.items), 2, undefined, rs.vecSlice), out);
 		wides(rs.slicesJoin(rs.sliceFrom(none.items), 2, rs.sliceFrom([sep2]), rs.vecSlice), out);
 		wides(rs.slicesJoin(rs.sliceFrom(none.items), 2, rs.sliceFrom(wideSeps.items), rs.vecSlice), out);
-	} else if (_26 === 3) {
+	} else if (_24 === 3) {
 		const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 		const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 			return new Logged.Logged(id, rs.arcClone(log));
@@ -226,7 +225,7 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			v10.items.push(y10);
 		}
 		const vecs: rs.Vec<rs.Vec<Logged.Logged>> = v10;
-		const sep3: Logged.Logged = logged(80);
+		const sep3: Logged.Logged = logged(([80] as [rs.u8])[0]);
 		const s10 = rs.byteSliceView(seps);
 		let front10 = 0;
 		let back10 = s10.length;
@@ -266,16 +265,17 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		ids(rs.slicesJoin(rs.sliceFrom(boxed3.items), 8, rs.sliceFrom([sep3]), undefined, Logged.clone$Clone), log.value, out);
 		rs.dropVec(boxed3, drop$boxed_Box_slice_joins_Logged);
 		flush(log.value, out);
-		const pairs2: Logged.Logged[][] = [[logged(2), logged(4)], [logged(6), logged(8)]];
+		const _347: Logged.Logged[] = [logged(([2] as [rs.u8])[0]), logged(([4] as [rs.u8])[0])];
+		const pairs2: Logged.Logged[][] = [_347, [logged(([6] as [rs.u8])[0]), logged(([8] as [rs.u8])[0])]];
 		ids(rs.slicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(pairs2, rs.sliceFrom)), 8, undefined, rs.sliceFrom, Logged.clone$Clone), log.value, out);
 		ids(rs.slicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(pairs2, rs.sliceFrom)), 8, rs.sliceFrom([sep3]), rs.sliceFrom, Logged.clone$Clone), log.value, out);
-		const _383: rs.ArraySlice<rs.Slice<Logged.Logged>> = rs.arraySliceFrom(pairs2, rs.sliceFrom);
-		const _385: rs.Slice<Logged.Logged> = rs.sliceFrom(seps2.items);
-		ids(rs.slicesJoin(rs.arraySliceAsSlice(_383), 8, _385, rs.sliceFrom, Logged.clone$Clone), log.value, out);
+		const _372: rs.ArraySlice<rs.Slice<Logged.Logged>> = rs.arraySliceFrom(pairs2, rs.sliceFrom);
+		const _374: rs.Slice<Logged.Logged> = rs.sliceFrom(seps2.items);
+		ids(rs.slicesJoin(rs.arraySliceAsSlice(_372), 8, _374, rs.sliceFrom, Logged.clone$Clone), log.value, out);
 		drop$tuple4_Vec_Vec_joins_Logged_array2_array2_joins_Logged_joins_Logged_Vec_joins_Logged([vecs, pairs2, sep3, seps2] as [rs.Vec<rs.Vec<Logged.Logged>>, Logged.Logged[][], Logged.Logged, rs.Vec<Logged.Logged>]);
 		flush(log.value, out);
 		log[Symbol.dispose]();
-	} else if (_26 === 4) {
+	} else if (_24 === 4) {
 		const s6 = rs.sliceItems(parts);
 		let front6 = 0;
 		let back6 = s6.length;
@@ -287,9 +287,9 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const owned2: rs.Vec<rs.String> = v7;
 		const sep4: rs.String = text(seps);
 		put(out, rs.strsJoin(owned2.items, "").v);
-		const _409: rs.Slice<rs.String> = rs.sliceFrom(owned2.items);
-		const _411: string = sep4.v;
-		put(out, rs.strsJoin(rs.sliceItems(_409), _411).v);
+		const _398: rs.Slice<rs.String> = rs.sliceFrom(owned2.items);
+		const _400: string = sep4.v;
+		put(out, rs.strsJoin(rs.sliceItems(_398), _400).v);
 		const s7 = owned2.items;
 		let front7 = 0;
 		let back7 = s7.length;
@@ -300,22 +300,22 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const borrowed: rs.Vec<string> = v8;
 		put(out, rs.strsJoin(borrowed.items, "").v);
-		const _428: rs.Slice<string> = rs.sliceFrom(borrowed.items);
-		const _430: string = sep4.v;
-		put(out, rs.strsJoin(rs.sliceItems(_428), _430).v);
-		const _432: rs.String[] = [];
-		put(out, rs.strsJoin(_432, "").v);
-		const _443: rs.Slice<rs.String> = rs.sliceFrom(_432);
-		const _445: string = sep4.v;
-		put(out, rs.strsJoin(rs.sliceItems(_443), _445).v);
-	} else if (_26 === 5) {
+		const _417: rs.Slice<string> = rs.sliceFrom(borrowed.items);
+		const _419: string = sep4.v;
+		put(out, rs.strsJoin(rs.sliceItems(_417), _419).v);
+		const _421: rs.String[] = [];
+		put(out, rs.strsJoin(_421, "").v);
+		const _432: rs.Slice<rs.String> = rs.sliceFrom(_421);
+		const _434: string = sep4.v;
+		put(out, rs.strsJoin(rs.sliceItems(_432), _434).v);
+	} else if (_24 === 5) {
 		const s = rs.sliceItems(parts);
 		let front = 0;
 		let back = s.length;
 		let count = 0;
-		const f2 = (_22: [rs.usize, rs.ByteSlice]): rs.ByteCow => {
-			const i2: rs.usize = _22[0];
-			const p: rs.ByteSlice = _22[1];
+		const f2 = (_25: [rs.usize, rs.ByteSlice]): rs.ByteCow => {
+			const i2: rs.usize = _25[0];
+			const p: rs.ByteSlice = _25[1];
 			if (rs.usizeRem(i2, 2) === 0) {
 				return p;
 			}
@@ -354,11 +354,11 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front4 = 0;
 		let back4 = s4.length;
 		let count2 = 0;
-		const f5 = (_212: [rs.usize, rs.Vec<rs.u16>]): rs.Cow<rs.u16> => {
-			if (rs.usizeRem(_212[0], 2) === 0) {
-				return new rs.Borrowed(rs.sliceFrom(_212[1].items));
+		const f5 = (_29: [rs.usize, rs.Vec<rs.u16>]): rs.Cow<rs.u16> => {
+			if (rs.usizeRem(_29[0], 2) === 0) {
+				return new rs.Borrowed(rs.sliceFrom(_29[1].items));
 			}
-			return rs.vecFrom(_212[1].items.slice());
+			return rs.vecFrom(_29[1].items.slice());
 		};
 		const v5: rs.Vec<rs.Cow<rs.u16>> = rs.vecWithCapacity(back4 - front4, 12);
 		while (!(front4 >= back4)) {
@@ -373,11 +373,11 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front5 = 0;
 		let back5 = s5.length;
 		let count3 = 0;
-		const f6 = (_214: [rs.usize, rs.ByteSlice]): rs.StrCow => {
-			if (rs.usizeRem(_214[0], 2) === 0) {
+		const f6 = (_213: [rs.usize, rs.ByteSlice]): rs.StrCow => {
+			if (rs.usizeRem(_213[0], 2) === 0) {
 				return new rs.Borrowed("ab");
 			}
-			return text(_214[1]);
+			return text(_213[1]);
 		};
 		const v6: rs.Vec<rs.StrCow> = rs.vecWithCapacity(back5 - front5, 12);
 		while (!(front5 >= back5)) {
@@ -389,34 +389,34 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, rs.strsJoin(texts.items.map(rs.strCowStr), "").v);
 		put(out, rs.strsJoin(texts.items.map(rs.strCowStr), "--").v);
 	} else {
-		const big: rs.ByteVec = rs.byteVecOf(1, 1 << 16);
-		const wide4: rs.Vec<rs.u16> = rs.vecFromElem(1, 1 << 16, undefined);
+		const big: rs.ByteVec = rs.byteVecOf(1, 65536);
+		const wide4: rs.Vec<rs.u16> = rs.vecFromElem(1, 65536, undefined);
 		const text_: rs.String = text(rs.byteVecSlice(big));
 		const refs: (a0: rs.usize) => rs.Vec<rs.ByteSlice> = (n: rs.usize): rs.Vec<rs.ByteSlice> => {
 			return rs.vecFromElem(rs.byteSliceRange(rs.byteVecSlice(big), 0), n, undefined);
 		};
-		const _512: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 7);
-		if (_512 === 0) {
-			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 15, 1)).items)), out);
-		} else if (_512 === 1) {
-			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 16, 1)).items)), out);
-		} else if (_512 === 2) {
-			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 14, 1)).items), rs.byteSliceRange(rs.byteVecSlice(big), 0)), out);
-		} else if (_512 === 3) {
-			wides(rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(wide4.items), rs.usizeAdd(1 << 14, 1), undefined).items), 2), out);
-		} else if (_512 === 4) {
-			put(out, rs.strsJoin(rs.vecFromElem(text_.v, rs.usizeAdd(1 << 15, 1), undefined).items, "").v);
-		} else if (_512 === 5) {
-			put(out, rs.strsJoin(rs.vecFromElem(text_.v, rs.usizeAdd(1 << 16, 1), undefined).items, "").v);
+		const _493: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 7);
+		if (_493 === 0) {
+			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(([32769] as [rs.usize])[0]).items)), out);
+		} else if (_493 === 1) {
+			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(([65537] as [rs.usize])[0]).items)), out);
+		} else if (_493 === 2) {
+			bytes(rs.byteSlicesJoin(rs.sliceFrom(refs(([16385] as [rs.usize])[0]).items), rs.byteSliceRange(rs.byteVecSlice(big), 0)), out);
+		} else if (_493 === 3) {
+			wides(rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(wide4.items), 16385, undefined).items), 2), out);
+		} else if (_493 === 4) {
+			put(out, rs.strsJoin(rs.vecFromElem(text_.v, 32769, undefined).items, "").v);
+		} else if (_493 === 5) {
+			put(out, rs.strsJoin(rs.vecFromElem(text_.v, 65537, undefined).items, "").v);
 		} else {
 			let start = 0;
-			let end = 1 << 16;
+			let end = 65536;
 			const v: rs.Vec<Sentinel.Sentinel> = rs.vecWithCapacity(Math.max(end - start, 0), 1);
 			while (!(start >= end)) {
 				const y: Sentinel.Sentinel = { _0: (start++ & 0xff) ^ 90 };
 				v.items.push(y);
 			}
-			rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom([]), rs.usizeAdd(1 << 16, 1), undefined).items), 1, rs.sliceFrom(v.items), undefined, Sentinel.clone$Clone);
+			rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom([]), 65537, undefined).items), 1, rs.sliceFrom(v.items), undefined, Sentinel.clone$Clone);
 		}
 	}
 }

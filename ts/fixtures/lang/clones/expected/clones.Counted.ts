@@ -10,7 +10,7 @@ export interface Counted {
 
 export function clone$Clone(self: Counted): Counted {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log);
-	rs.byteVecPush(_5.value, 128 | self.id);
+	rs.byteVecPush(_5.value, self.id | 128);
 	rs.refMutRelease(_5);
 	return { id: rs.u8WrappingAdd(self.id, 1), log: self.log };
 }

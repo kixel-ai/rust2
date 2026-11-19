@@ -2,39 +2,52 @@
 
 import * as rs from "../rs.ts";
 import { out$usize } from "../lib.ts";
+import type * as EncodeUtf8Error from "../arrayvec/char.EncodeUtf8Error.ts";
 
 export function encodeUtf8(ch: rs.char, ptr: rs.Place<rs.u8>, len: rs.usize): rs.usize | undefined {
-	const code: rs.u32 = ch as rs.u32;
-	if (code < 128) {
-		if (len >= 1) {
-			rs.ptrAdd(ptr, 0).v = code & 0xff;
-			return 1;
+	let _0!: rs.Result<rs.usize, EncodeUtf8Error.EncodeUtf8Error>;
+	b0: {
+		const code: rs.u32 = ch as rs.u32;
+		if (code < 128) {
+			if (len >= 1) {
+				rs.ptrAdd(ptr, 0).v = code & 0xff;
+				_0 = rs.Ok(1);
+				break b0;
+			}
+		}
+		if (code < 2048) {
+			if (len >= 2) {
+				rs.ptrAdd(ptr, 0).v = ((((code >>> 6) & 31) >>> 0) & 0xff) | 192;
+				rs.ptrAdd(ptr, 1).v = (((code & 63) >>> 0) & 0xff) | 128;
+				_0 = rs.Ok(2);
+				break b0;
+			}
+		}
+		if (code < 65536) {
+			if (len >= 3) {
+				rs.ptrAdd(ptr, 0).v = ((((code >>> 12) & 15) >>> 0) & 0xff) | 224;
+				rs.ptrAdd(ptr, 1).v = ((((code >>> 6) & 63) >>> 0) & 0xff) | 128;
+				rs.ptrAdd(ptr, 2).v = (((code & 63) >>> 0) & 0xff) | 128;
+				_0 = rs.Ok(3);
+				break b0;
+			}
+		}
+		if (!(len >= 4)) {
+			_0 = rs.Err({});
+		} else {
+			rs.ptrAdd(ptr, 0).v = ((((code >>> 18) & 7) >>> 0) & 0xff) | 240;
+			rs.ptrAdd(ptr, 1).v = ((((code >>> 12) & 63) >>> 0) & 0xff) | 128;
+			rs.ptrAdd(ptr, 2).v = ((((code >>> 6) & 63) >>> 0) & 0xff) | 128;
+			rs.ptrAdd(ptr, 3).v = (((code & 63) >>> 0) & 0xff) | 128;
+			_0 = rs.Ok(4);
 		}
 	}
-	if (code < 2048) {
-		if (len >= 2) {
-			rs.ptrAdd(ptr, 0).v = ((((code >>> 6) & 31) >>> 0) & 0xff) | 192;
-			rs.ptrAdd(ptr, 1).v = (((code & 63) >>> 0) & 0xff) | 128;
-			return 2;
-		}
-	}
-	if (code < 65536) {
-		if (len >= 3) {
-			rs.ptrAdd(ptr, 0).v = ((((code >>> 12) & 15) >>> 0) & 0xff) | 224;
-			rs.ptrAdd(ptr, 1).v = ((((code >>> 6) & 63) >>> 0) & 0xff) | 128;
-			rs.ptrAdd(ptr, 2).v = (((code & 63) >>> 0) & 0xff) | 128;
-			return 3;
-		}
-	}
-	if (!(len >= 4)) {
-		out$usize.err = {};
+	const result: rs.Result<rs.usize, EncodeUtf8Error.EncodeUtf8Error> = _0;
+	if (!result.ok) {
+		out$usize.err = result.error;
 		return undefined;
 	}
-	rs.ptrAdd(ptr, 0).v = ((((code >>> 18) & 7) >>> 0) & 0xff) | 240;
-	rs.ptrAdd(ptr, 1).v = ((((code >>> 12) & 63) >>> 0) & 0xff) | 128;
-	rs.ptrAdd(ptr, 2).v = ((((code >>> 6) & 63) >>> 0) & 0xff) | 128;
-	rs.ptrAdd(ptr, 3).v = (((code & 63) >>> 0) & 0xff) | 128;
-	return 4;
+	return result.value;
 }
 
 //# sourceMappingURL=char.ts.map

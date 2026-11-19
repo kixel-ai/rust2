@@ -23,21 +23,23 @@ export function fmt$fmt_Debug_4(self: Small, f: rs.Formatter): rs.Result<undefin
 export type Small = { tag: "Inline"; _0: Uint8Array; _1: rs.u8 } | { tag: "Heap"; _0: rs.ByteVec };
 
 export function from$2(data: rs.ByteSlice): Small {
-	if (!(data.length <= 2)) {
+	const _3: rs.usize = data.length;
+	if (!(_3 <= 2)) {
 		return { tag: "Heap", _0: rs.byteSliceToByteVec(data) } as Small;
 	}
 	const bytes: Uint8Array = rs.bytes(2);
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, data.length), data);
-	return { tag: "Inline", _0: copy$array_u8(bytes), _1: data.length & 0xff } as Small;
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, _3), data);
+	return { tag: "Inline", _0: copy$array_u8(bytes), _1: _3 & 0xff } as Small;
 }
 
 export function from$4(data: rs.ByteSlice): Small {
-	if (!(data.length <= 4)) {
+	const _3: rs.usize = data.length;
+	if (!(_3 <= 4)) {
 		return { tag: "Heap", _0: rs.byteSliceToByteVec(data) } as Small;
 	}
 	const bytes: Uint8Array = rs.bytes(4);
-	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, data.length), data);
-	return { tag: "Inline", _0: copy$array_u8(bytes), _1: data.length & 0xff } as Small;
+	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, _3), data);
+	return { tag: "Inline", _0: copy$array_u8(bytes), _1: _3 & 0xff } as Small;
 }
 
 export function bytes$2(self: Small): rs.ByteSlice {

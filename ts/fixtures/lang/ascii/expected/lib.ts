@@ -3,6 +3,10 @@
 import * as rs from "./rs.ts";
 import { bytes, chars, slices, parts } from "./ascii.ts";
 
+export function copy$ops_RangeFrom_usize(v: rs.RangeFrom<rs.usize>): rs.RangeFrom<rs.usize> {
+	return rs.objectCopy(v);
+}
+
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.

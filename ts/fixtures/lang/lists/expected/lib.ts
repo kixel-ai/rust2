@@ -2,6 +2,11 @@
 
 import * as rs from "./rs.ts";
 import { lists } from "./lists.ts";
+import type * as Tally from "./lists.Tally.ts";
+
+export function copy$lists_Tally(v: Tally.Tally): Tally.Tally {
+	return { n: v.n };
+}
 
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo

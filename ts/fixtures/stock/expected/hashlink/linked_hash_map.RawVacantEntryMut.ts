@@ -105,101 +105,115 @@ export function insertWithHasher$u16_u32_hashlink_DefaultHashBuilder_hashlink_li
 }
 
 export function insertEntryWithHasher$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: Logged.Logged, value: Logged.Logged, hasher: (a0: Logged.Logged) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$maps_Logged_maps_Logged(self.values);
-	const newNode: Node.Node<Logged.Logged, Logged.Logged> = allocateNode$maps_Logged_maps_Logged(self.free);
+	const _22: rs.Place<Node.Node<Logged.Logged, Logged.Logged> | undefined> = self.values;
+	ensureGuardNode$maps_Logged_maps_Logged(_22);
+	const _23: rs.Place<Node.Node<Logged.Logged, Logged.Logged> | undefined> = self.free;
+	const newNode: Node.Node<Logged.Logged, Logged.Logged> = allocateNode$maps_Logged_maps_Logged(_23);
 	Node.putEntry$maps_Logged_maps_Logged(newNode, [key, value] as [Logged.Logged, Logged.Logged]);
-	attachBefore$maps_Logged_maps_Logged(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged(self.values.v));
+	attachBefore$maps_Logged_maps_Logged(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged(_22.v));
 	const _18: rs.HashTable<Node.Node<Logged.Logged, Logged.Logged>> = self.entry.t;
 	const _20: Node.Node<Logged.Logged, Logged.Logged> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<Logged.Logged, Logged.Logged>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<Logged.Logged, Logged.Logged>): rs.u64 => {
 		return captured(Node.keyRef$maps_Logged_maps_Logged(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$maps_Logged_unit_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_maps_Logged_unit_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: Logged.Logged, _: undefined, hasher: (a0: Logged.Logged) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$maps_Logged_unit(self.values);
-	const newNode: Node.Node<Logged.Logged, undefined> = allocateNode$maps_Logged_unit(self.free);
+	const _22: rs.Place<Node.Node<Logged.Logged, undefined> | undefined> = self.values;
+	ensureGuardNode$maps_Logged_unit(_22);
+	const _23: rs.Place<Node.Node<Logged.Logged, undefined> | undefined> = self.free;
+	const newNode: Node.Node<Logged.Logged, undefined> = allocateNode$maps_Logged_unit(_23);
 	Node.putEntry$maps_Logged_unit(newNode, [key, undefined] as [Logged.Logged, undefined]);
-	attachBefore$maps_Logged_unit(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_unit_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_unit(self.values.v));
+	attachBefore$maps_Logged_unit(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_unit_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_unit(_22.v));
 	const _18: rs.HashTable<Node.Node<Logged.Logged, undefined>> = self.entry.t;
 	const _20: Node.Node<Logged.Logged, undefined> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<Logged.Logged, undefined>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<Logged.Logged, undefined>): rs.u64 => {
 		return captured(Node.keyRef$maps_Logged_unit(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$sync_Arc_str_u32_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: rs.Arc<string>, value: rs.u32, hasher: (a0: rs.Arc<string>) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.Arc<string>, rs.u32, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$sync_Arc_str_u32(self.values);
-	const newNode: Node.Node<rs.Arc<string>, rs.u32> = allocateNode$sync_Arc_str_u32(self.free);
+	const _22: rs.Place<Node.Node<rs.Arc<string>, rs.u32> | undefined> = self.values;
+	ensureGuardNode$sync_Arc_str_u32(_22);
+	const _23: rs.Place<Node.Node<rs.Arc<string>, rs.u32> | undefined> = self.free;
+	const newNode: Node.Node<rs.Arc<string>, rs.u32> = allocateNode$sync_Arc_str_u32(_23);
 	Node.putEntry$sync_Arc_str_u32(newNode, [key, value] as [rs.Arc<string>, rs.u32]);
-	attachBefore$sync_Arc_str_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32(self.values.v));
+	attachBefore$sync_Arc_str_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32(_22.v));
 	const _18: rs.HashTable<Node.Node<rs.Arc<string>, rs.u32>> = self.entry.t;
 	const _20: Node.Node<rs.Arc<string>, rs.u32> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<rs.Arc<string>, rs.u32>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<rs.Arc<string>, rs.u32>): rs.u64 => {
 		return captured(Node.keyRef$sync_Arc_str_u32(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$u16_maps_Logged_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_u16_maps_Logged_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<rs.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: rs.u16, value: Logged.Logged, hasher: (a0: rs.u16) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$u16_maps_Logged(self.values);
-	const newNode: Node.Node<rs.u16, Logged.Logged> = allocateNode$u16_maps_Logged(self.free);
+	const _22: rs.Place<Node.Node<rs.u16, Logged.Logged> | undefined> = self.values;
+	ensureGuardNode$u16_maps_Logged(_22);
+	const _23: rs.Place<Node.Node<rs.u16, Logged.Logged> | undefined> = self.free;
+	const newNode: Node.Node<rs.u16, Logged.Logged> = allocateNode$u16_maps_Logged(_23);
 	Node.putEntry$u16_maps_Logged(newNode, [key, value] as [rs.u16, Logged.Logged]);
-	attachBefore$u16_maps_Logged(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_maps_Logged(self.values.v));
+	attachBefore$u16_maps_Logged(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_maps_Logged(_22.v));
 	const _18: rs.HashTable<Node.Node<rs.u16, Logged.Logged>> = self.entry.t;
 	const _20: Node.Node<rs.u16, Logged.Logged> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<rs.u16, Logged.Logged>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<rs.u16, Logged.Logged>): rs.u64 => {
 		return captured(Node.keyRef$u16_maps_Logged(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$u16_u32_hash_RandomState_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_u16_u32_hash_RandomState(self: RawVacantEntryMut<rs.u16, rs.u32, rs.RandomState>, hash: rs.u64, key: rs.u16, value: rs.u32, hasher: (a0: rs.u16) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.u16, rs.u32, rs.RandomState> {
-	ensureGuardNode$u16_u32(self.values);
-	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(self.free);
+	const _22: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.values;
+	ensureGuardNode$u16_u32(_22);
+	const _23: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.free;
+	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(_23);
 	Node.putEntry$u16_u32(newNode, [key, value] as [rs.u16, rs.u32]);
-	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values.v));
+	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(_22.v));
 	const _18: rs.HashTable<Node.Node<rs.u16, rs.u32>> = self.entry.t;
 	const _20: Node.Node<rs.u16, rs.u32> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<rs.u16, rs.u32>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<rs.u16, rs.u32>): rs.u64 => {
 		return captured(Node.keyRef$u16_u32(k));
 	});
-	return { hashBuilder: self.hashBuilder as rs.RandomState, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as rs.RandomState, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$u16_u32_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_entry_hashed_nocheck_closure0_u16_u32_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: rs.u16, value: rs.u32, hasher: (a0: rs.u16) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$u16_u32(self.values);
-	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(self.free);
+	const _22: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.values;
+	ensureGuardNode$u16_u32(_22);
+	const _23: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.free;
+	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(_23);
 	Node.putEntry$u16_u32(newNode, [key, value] as [rs.u16, rs.u32]);
-	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values.v));
+	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(_22.v));
 	const _18: rs.HashTable<Node.Node<rs.u16, rs.u32>> = self.entry.t;
 	const _20: Node.Node<rs.u16, rs.u32> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<rs.u16, rs.u32>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<rs.u16, rs.u32>): rs.u64 => {
 		return captured(Node.keyRef$u16_u32(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryWithHasher$u16_u32_hashlink_DefaultHashBuilder_hashlink_linked_hash_map_RawVacantEntryMut_K_V_S_insert_hashed_nocheck_closure0_u16_u32_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: rs.u16, value: rs.u32, hasher: (a0: rs.u16) => rs.u64): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder> {
-	ensureGuardNode$u16_u32(self.values);
-	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(self.free);
+	const _22: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.values;
+	ensureGuardNode$u16_u32(_22);
+	const _23: rs.Place<Node.Node<rs.u16, rs.u32> | undefined> = self.free;
+	const newNode: Node.Node<rs.u16, rs.u32> = allocateNode$u16_u32(_23);
 	Node.putEntry$u16_u32(newNode, [key, value] as [rs.u16, rs.u32]);
-	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values.v));
+	attachBefore$u16_u32(newNode, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(_22.v));
 	const _18: rs.HashTable<Node.Node<rs.u16, rs.u32>> = self.entry.t;
 	const _20: Node.Node<rs.u16, rs.u32> = newNode;
 	const captured = hasher;
 	const node: rs.TableEntry<Node.Node<rs.u16, rs.u32>> = rs.tableInsertUnique(_18, hash, _20, (k: Node.Node<rs.u16, rs.u32>): rs.u64 => {
 		return captured(Node.keyRef$u16_u32(k));
 	});
-	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: self.free, values: self.values, entry: node };
+	return { hashBuilder: self.hashBuilder as DefaultHashBuilder.DefaultHashBuilder, free: _23, values: _22, entry: node };
 }
 
 export function insertEntryHashedNocheck$u16_u32_hashlink_DefaultHashBuilder(self: RawVacantEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder>, hash: rs.u64, key: rs.u16, value: rs.u32): RawOccupiedEntryMut.RawOccupiedEntryMut<rs.u16, rs.u32, DefaultHashBuilder.DefaultHashBuilder> {

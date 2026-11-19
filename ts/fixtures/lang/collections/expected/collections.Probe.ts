@@ -15,7 +15,7 @@ export interface Probe {
 }
 
 export function log(self: Probe, other: Probe, by: rs.u32): void {
-	const call: rs.u32 = ((((((self._0 as rs.u32) << 16) >>> 0) ^ other._0 as rs.u32) >>> 0) ^ by) >>> 0;
+	const call: rs.u32 = (by ^ (((((self._0 as rs.u32) << 16) >>> 0) ^ other._0 as rs.u32) >>> 0)) >>> 0;
 	rs.cellSet(self._1, rs.u32WrappingAdd(rs.u32WrappingMul(self._1.v, 16777619), call));
 }
 

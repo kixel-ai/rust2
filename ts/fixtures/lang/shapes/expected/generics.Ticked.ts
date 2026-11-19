@@ -20,7 +20,7 @@ export class Ticked {
 
 export function clone$Clone(self: Ticked): Ticked {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self.log.value);
-	rs.byteVecPush(_5.value, 128 | self.id);
+	rs.byteVecPush(_5.value, self.id | 128);
 	rs.refMutRelease(_5);
 	return new Ticked(self.id, rs.arcClone(self.log));
 }

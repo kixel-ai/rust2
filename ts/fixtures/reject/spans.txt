@@ -18,11 +18,11 @@ fixtures/reject/src/spans.rs:early+4:2: spans.ts:13:26 doesn't type-check, which
 fixtures/reject/src/spans.rs:early+4:2: spans.ts:13:3 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
 fixtures/reject/src/spans.rs:early+4:4: spans.ts:13:29 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 32
 fixtures/reject/src/spans.rs:early+4:4: spans.ts:13:33 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, false
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items[rs.idx(self.reads.items, at)]
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, by
 fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:43 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:61 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, at
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:67 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, by
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:23 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items[rs.idx(self.reads.items, at)]
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:47 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:65 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, at
 fixtures/reject/src/spans.rs:method+1:2: spans.ts:19:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
 fixtures/reject/src/spans.rs:method+1:2: spans.ts:19:22 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, m
 fixtures/reject/src/spans.rs:method+1:11: spans.ts:19:43 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, a
@@ -37,8 +37,8 @@ fixtures/reject/src/spans.rs:operators+1:11: spans.ts:29:25 doesn't type-check, 
 fixtures/reject/src/spans.rs:operators+1:18: spans.ts:29:40 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.usizeDiv(at, 2)
 fixtures/reject/src/spans.rs:operators+1:18: spans.ts:29:52 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, at
 fixtures/reject/src/spans.rs:operators+1:18: spans.ts:29:56 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 2
+fixtures/reject/src/spans.rs:tail+2:2: spans.ts:8:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, b
 fixtures/reject/src/spans.rs:tail+2:2: spans.ts:8:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
-fixtures/reject/src/spans.rs:tail+2:2: spans.ts:8:37 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, (a ^ b) >>> 0
-fixtures/reject/src/spans.rs:tail+2:2: spans.ts:8:56 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, b
-fixtures/reject/src/spans.rs:tail+2:4: spans.ts:8:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.u32WrappingMul((a ^ b) >>> 0, a)
-fixtures/reject/src/spans.rs:tail+2:17: spans.ts:8:52 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, a
+fixtures/reject/src/spans.rs:tail+2:2: spans.ts:8:40 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, (a ^ b) >>> 0
+fixtures/reject/src/spans.rs:tail+2:4: spans.ts:8:22 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.u32WrappingMul((a ^ b) >>> 0, a)
+fixtures/reject/src/spans.rs:tail+2:17: spans.ts:8:55 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, a

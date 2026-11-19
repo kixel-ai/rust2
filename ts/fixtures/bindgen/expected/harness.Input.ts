@@ -91,16 +91,16 @@ export function f64(self: Input): rs.f64 {
 /** Up to 15 bytes. */
 export function slice(self: Input): rs.ByteSlice {
 	const len: rs.usize = rs.min(rs.u8Rem(u8(self), 16) as rs.usize, self._0Len);
-	const _11Data: Uint8Array = self._0Data;
-	const _11Start: number = self._0Start;
-	const _11Len: number = self._0Len;
-	if (len > _11Len) {
+	const _10Data: Uint8Array = self._0Data;
+	const _10Start: number = self._0Start;
+	const _10Len: number = self._0Len;
+	if (len > _10Len) {
 		rs.panic("mid > len");
 	}
-	const taken: rs.ByteSlice = new rs.ByteSlice(_11Data, _11Start, len);
-	self._0Data = _11Data;
-	self._0Start = _11Start + len;
-	self._0Len = _11Len - len;
+	const taken: rs.ByteSlice = new rs.ByteSlice(_10Data, _10Start, len);
+	self._0Data = _10Data;
+	self._0Start = _10Start + len;
+	self._0Len = _10Len - len;
 	return taken;
 }
 
@@ -134,8 +134,8 @@ export function value(self: Input): rs.JsValue {
 		return wasm_bindgen_from$convert_From_i64_wasm_bindgen_JsValue(rs.i64Cast(u64(self)));
 	}
 	if (_2 === 7) {
-		const _12: rs.ByteSlice = slice(self);
-		return rs.jsGlobal("Array").from(rs.byteSliceView(_12)) as rs.JsValue;
+		const _11: rs.ByteSlice = slice(self);
+		return rs.jsGlobal("Array").from(rs.byteSliceView(_11)) as rs.JsValue;
 	}
 	if (_2 === 8) {
 		return js_sys_from$convert_From_ref_slice_u8_js_sys_Uint8Array(slice(self));
@@ -146,8 +146,8 @@ export function value(self: Input): rs.JsValue {
 	if (_2 === 10) {
 		return wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Rem(u32(self), 1000));
 	}
-	const _20: rs.Slice<rs.u16> = rs.sliceFrom(units(self).items);
-	return rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _20, false)) as rs.JsValue;
+	const _18: rs.Slice<rs.u16> = rs.sliceFrom(units(self).items);
+	return rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _18, false)) as rs.JsValue;
 }
 
 /** UTF-16 code units, lone surrogates among them. */
@@ -157,10 +157,10 @@ export function units(self: Input): rs.Vec<rs.u16> {
 	const f = (_2: rs.u8): rs.u16 => {
 		const _32: rs.u8 = rs.u8Rem(u8(self), 4);
 		if (_32 === 0) {
-			return 55296 | u8(self) as rs.u16;
+			return (u8(self) as rs.u16) | 55296;
 		}
 		if (_32 === 1) {
-			return 56320 | u8(self) as rs.u16;
+			return (u8(self) as rs.u16) | 56320;
 		}
 		return (u8(self) as rs.u16) | 64;
 	};

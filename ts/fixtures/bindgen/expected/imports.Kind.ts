@@ -6,20 +6,19 @@ import * as rs from "./rs.ts";
 export type Kind = "Number" | "String" | "Object" | "Undefined" | "__Invalid";
 
 export function fmt$fmt_Debug(self: Kind, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	let _4!: rs.usize;
-	const _3: string = "Number String Object Undefined __Invalid";
+	let _3!: rs.usize;
 	if (self === "Number") {
-		_4 = 0;
+		_3 = 0;
 	} else if (self === "String") {
-		_4 = 7;
+		_3 = 7;
 	} else if (self === "Object") {
-		_4 = 14;
+		_3 = 14;
 	} else if (self === "Undefined") {
-		_4 = 21;
+		_3 = 21;
 	} else {
-		_4 = 31;
+		_3 = 31;
 	}
-	return rs.fmtDebugEnum(f, _3, _4);
+	return rs.fmtDebugEnum(f, "Number String Object Undefined __Invalid", _3);
 }
 
 //# sourceMappingURL=imports.Kind.ts.map

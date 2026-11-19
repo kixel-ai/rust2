@@ -28,18 +28,18 @@ export function step$String_slice_Iter_u8(self: Holder<rs.String, rs.Iter<rs.u8>
 	let item!: rs.String | undefined;
 	const _6: rs.u8 = rs.u8Rem(op, 6);
 	if (_6 === 0) {
-		const _8: rs.String | undefined = rs.iterToOption((self.slice as rs.Iter<rs.String>).next());
-		item = _8 === undefined ? undefined : rs.stringClone(_8);
+		const _7: rs.String | undefined = rs.iterToOption((self.slice as rs.Iter<rs.String>).next());
+		item = _7 === undefined ? undefined : rs.stringClone(_7);
 	} else if (_6 === 1) {
-		const _10: rs.String | undefined = rs.iterToOption((self.slice as rs.Iter<rs.String>).nextBack());
-		item = _10 === undefined ? undefined : rs.stringClone(_10);
+		const _9: rs.String | undefined = rs.iterToOption((self.slice as rs.Iter<rs.String>).nextBack());
+		item = _9 === undefined ? undefined : rs.stringClone(_9);
 	} else if (_6 === 2) {
-		item = option_map$1p2lbl3(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.String]>).next()), (_210: [rs.u8, rs.String]): rs.String => {
-			return rs.stringClone(_210[1]);
+		item = option_map$1p2lbl3(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.String]>).next()), (_211: [rs.u8, rs.String]): rs.String => {
+			return rs.stringClone(_211[1]);
 		});
 	} else if (_6 === 3) {
-		item = option_map$1p2lbl3(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.String]>).nextBack()), (_25: [rs.u8, rs.String]): rs.String => {
-			return rs.stringClone(_25[1]);
+		item = option_map$1p2lbl3(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.String]>).nextBack()), (_210: [rs.u8, rs.String]): rs.String => {
+			return rs.stringClone(_210[1]);
 		});
 	} else if (_6 === 4) {
 		item = rs.iterToOption(self.owned.next());
@@ -47,8 +47,8 @@ export function step$String_slice_Iter_u8(self: Holder<rs.String, rs.Iter<rs.u8>
 		rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.peekablePeek(self.peeked), 255, (_2: rs.u8): rs.u8 => {
 			return _2;
 		}));
-		item = option_andThen$1x5oz34(rs.peekableNextIf(self.peeked, (_22: rs.u8): boolean => {
-			return rs.u8Rem(_22, 2) === 0;
+		item = option_andThen$1x5oz34(rs.peekableNextIf(self.peeked, (_23: rs.u8): boolean => {
+			return rs.u8Rem(_23, 2) === 0;
 		}), (_24: rs.u8): rs.String | undefined => {
 			return option_clone$0dg4ec5(self.last);
 		});
@@ -70,12 +70,12 @@ export function step$u16_slice_Iter_u8(self: Holder<rs.u16, rs.Iter<rs.u8>>, op:
 	} else if (_6 === 1) {
 		item = rs.iterToOption((self.slice as rs.Iter<rs.u16>).nextBack());
 	} else if (_6 === 2) {
-		item = option_map$1oqs2fe(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.u16]>).next()), (_210: [rs.u8, rs.u16]): rs.u16 => {
-			return _210[1];
+		item = option_map$1oqs2fe(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.u16]>).next()), (_211: [rs.u8, rs.u16]): rs.u16 => {
+			return _211[1];
 		});
 	} else if (_6 === 3) {
-		item = option_map$1oqs2fe(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.u16]>).nextBack()), (_25: [rs.u8, rs.u16]): rs.u16 => {
-			return _25[1];
+		item = option_map$1oqs2fe(rs.iterToOption((self.tree as rs.Iter<[rs.u8, rs.u16]>).nextBack()), (_210: [rs.u8, rs.u16]): rs.u16 => {
+			return _210[1];
 		});
 	} else if (_6 === 4) {
 		item = rs.iterToOption(self.owned.next());
@@ -83,8 +83,8 @@ export function step$u16_slice_Iter_u8(self: Holder<rs.u16, rs.Iter<rs.u8>>, op:
 		rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.peekablePeek(self.peeked), 255, (_2: rs.u8): rs.u8 => {
 			return _2;
 		}));
-		item = option_andThen$1fnqvxl(rs.peekableNextIf(self.peeked, (_22: rs.u8): boolean => {
-			return rs.u8Rem(_22, 2) === 0;
+		item = option_andThen$1fnqvxl(rs.peekableNextIf(self.peeked, (_23: rs.u8): boolean => {
+			return rs.u8Rem(_23, 2) === 0;
 		}), (_24: rs.u8): rs.u16 | undefined => {
 			return self.last;
 		});

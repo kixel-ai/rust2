@@ -4,8 +4,8 @@ import * as rs from "./rs.ts";
 
 /** `T`'s constants compared with [`Mid`]'s. */
 export function against$u16(out: rs.ByteVec): void {
-	let _255!: rs.u8;
-	let _259!: rs.u8;
+	let _151!: rs.u8;
+	let _155!: rs.u8;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
@@ -36,36 +36,40 @@ export function against$u16(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-2, -2), rs.i128Ne(-2, -2), rs.i128Lt(-2, -2), rs.i128Le(-2, -2), rs.i128Gt(-2, -2), rs.i128Ge(-2, -2)], (a011: boolean): rs.u8 => {
+	const _114: rs.i128 = -2;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_114 === -2, _114 !== -2, rs.i128Lt(_114, -2), rs.i128Le(_114, -2), rs.i128Gt(_114, -2), rs.i128Ge(_114, -2)], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(2 as rs.char) === 2 as rs.char, (2 as rs.char) !== 2 as rs.char, (2 as rs.char) < (2 as rs.char), (2 as rs.char) <= (2 as rs.char), (2 as rs.char) > (2 as rs.char), (2 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
+	const _124: rs.char = 2 as rs.char;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_124 === 2, _124 !== 2, _124 < 2, _124 <= 2, _124 > 2, _124 >= 2], (a012: boolean): rs.u8 => {
 		return a012 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a013: boolean): rs.u8 => {
+	const _134: rs.u8 = 1;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_134 === 1, _134 !== 1, _134 < 1, _134 <= 1, _134 > 1, _134 >= 1], (a013: boolean): rs.u8 => {
 		return a013 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a014: boolean): rs.u8 => {
+	const _144: rs.i32 = 0;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_144 === 0, _144 !== 0, _144 < 0, _144 <= 0, _144 > 0, _144 >= 0], (a014: boolean): rs.u8 => {
 		return a014 ? 1 : 0;
 	})), undefined, true);
 	if (false) {
-		_255 = 0;
+		_151 = 0;
 	} else {
-		_255 = 1;
+		_151 = 1;
 	}
-	rs.byteVecPush(out, _255);
+	rs.byteVecPush(out, _151);
 	if (true) {
-		_259 = 4;
+		_155 = 4;
 	} else {
-		_259 = 3;
+		_155 = 3;
 	}
-	rs.byteVecPush(out, _259);
+	rs.byteVecPush(out, _155);
 }
 
 /** `T`'s constants compared with [`Mid`]'s. */
 export function against$u64(out: rs.ByteVec): void {
-	let _255!: rs.u8;
-	let _259!: rs.u8;
+	let _151!: rs.u8;
+	let _155!: rs.u8;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
@@ -96,36 +100,40 @@ export function against$u64(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-1, -2), rs.i128Ne(-1, -2), rs.i128Lt(-1, -2), rs.i128Le(-1, -2), rs.i128Gt(-1, -2), rs.i128Ge(-1, -2)], (a011: boolean): rs.u8 => {
+	const _114: rs.i128 = -1;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_114 === -2, _114 !== -2, rs.i128Lt(_114, -2), rs.i128Le(_114, -2), rs.i128Gt(_114, -2), rs.i128Ge(_114, -2)], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(3 as rs.char) === 2 as rs.char, (3 as rs.char) !== 2 as rs.char, (3 as rs.char) < (2 as rs.char), (3 as rs.char) <= (2 as rs.char), (3 as rs.char) > (2 as rs.char), (3 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
+	const _124: rs.char = 3 as rs.char;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_124 === 2, _124 !== 2, _124 < 2, _124 <= 2, _124 > 2, _124 >= 2], (a012: boolean): rs.u8 => {
 		return a012 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a013: boolean): rs.u8 => {
+	const _134: rs.u8 = 1;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_134 === 1, _134 !== 1, _134 < 1, _134 <= 1, _134 > 1, _134 >= 1], (a013: boolean): rs.u8 => {
 		return a013 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a014: boolean): rs.u8 => {
+	const _144: rs.i32 = -1;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_144 === 0, _144 !== 0, _144 < 0, _144 <= 0, _144 > 0, _144 >= 0], (a014: boolean): rs.u8 => {
 		return a014 ? 1 : 0;
 	})), undefined, true);
 	if (true) {
-		_255 = 0;
+		_151 = 0;
 	} else {
-		_255 = 1;
+		_151 = 1;
 	}
-	rs.byteVecPush(out, _255);
+	rs.byteVecPush(out, _151);
 	if (true) {
-		_259 = 4;
+		_155 = 4;
 	} else {
-		_259 = 3;
+		_155 = 3;
 	}
-	rs.byteVecPush(out, _259);
+	rs.byteVecPush(out, _155);
 }
 
 /** `T`'s constants compared with [`Mid`]'s. */
 export function against$u8(out: rs.ByteVec): void {
-	let _255!: rs.u8;
-	let _259!: rs.u8;
+	let _151!: rs.u8;
+	let _155!: rs.u8;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
@@ -156,36 +164,40 @@ export function against$u8(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-3, -2), rs.i128Ne(-3, -2), rs.i128Lt(-3, -2), rs.i128Le(-3, -2), rs.i128Gt(-3, -2), rs.i128Ge(-3, -2)], (a011: boolean): rs.u8 => {
+	const _114: rs.i128 = -3;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_114 === -2, _114 !== -2, rs.i128Lt(_114, -2), rs.i128Le(_114, -2), rs.i128Gt(_114, -2), rs.i128Ge(_114, -2)], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(1 as rs.char) === 2 as rs.char, (1 as rs.char) !== 2 as rs.char, (1 as rs.char) < (2 as rs.char), (1 as rs.char) <= (2 as rs.char), (1 as rs.char) > (2 as rs.char), (1 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
+	const _124: rs.char = 1 as rs.char;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_124 === 2, _124 !== 2, _124 < 2, _124 <= 2, _124 > 2, _124 >= 2], (a012: boolean): rs.u8 => {
 		return a012 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a013: boolean): rs.u8 => {
+	const _134: rs.u8 = 0;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_134 === 1, _134 !== 1, _134 < 1, _134 <= 1, _134 > 1, _134 >= 1], (a013: boolean): rs.u8 => {
 		return a013 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a014: boolean): rs.u8 => {
+	const _144: rs.i32 = -1;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_144 === 0, _144 !== 0, _144 < 0, _144 <= 0, _144 > 0, _144 >= 0], (a014: boolean): rs.u8 => {
 		return a014 ? 1 : 0;
 	})), undefined, true);
 	if (true) {
-		_255 = 0;
+		_151 = 0;
 	} else {
-		_255 = 1;
+		_151 = 1;
 	}
-	rs.byteVecPush(out, _255);
+	rs.byteVecPush(out, _151);
 	if (false) {
-		_259 = 4;
+		_155 = 4;
 	} else {
-		_259 = 3;
+		_155 = 3;
 	}
-	rs.byteVecPush(out, _259);
+	rs.byteVecPush(out, _155);
 }
 
 /** `T`'s constants compared with [`Mid`]'s. */
 export function against$unit(out: rs.ByteVec): void {
-	let _255!: rs.u8;
-	let _259!: rs.u8;
+	let _151!: rs.u8;
+	let _155!: rs.u8;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
@@ -216,30 +228,34 @@ export function against$unit(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-2147483648, -2), rs.i128Ne(-2147483648, -2), rs.i128Lt(-2147483648, -2), rs.i128Le(-2147483648, -2), rs.i128Gt(-2147483648, -2), rs.i128Ge(-2147483648, -2)], (a011: boolean): rs.u8 => {
+	const _114: rs.i128 = -2147483648;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_114 === -2, _114 !== -2, rs.i128Lt(_114, -2), rs.i128Le(_114, -2), rs.i128Gt(_114, -2), rs.i128Ge(_114, -2)], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(255 as rs.char) === 2 as rs.char, (255 as rs.char) !== 2 as rs.char, (255 as rs.char) < (2 as rs.char), (255 as rs.char) <= (2 as rs.char), (255 as rs.char) > (2 as rs.char), (255 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
+	const _124: rs.char = 255 as rs.char;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_124 === 2, _124 !== 2, _124 < 2, _124 <= 2, _124 > 2, _124 >= 2], (a012: boolean): rs.u8 => {
 		return a012 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a013: boolean): rs.u8 => {
+	const _134: rs.u8 = 127;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_134 === 1, _134 !== 1, _134 < 1, _134 <= 1, _134 > 1, _134 >= 1], (a013: boolean): rs.u8 => {
 		return a013 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a014: boolean): rs.u8 => {
+	const _144: rs.i32 = 0;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_144 === 0, _144 !== 0, _144 < 0, _144 <= 0, _144 > 0, _144 >= 0], (a014: boolean): rs.u8 => {
 		return a014 ? 1 : 0;
 	})), undefined, true);
 	if (true) {
-		_255 = 0;
+		_151 = 0;
 	} else {
-		_255 = 1;
+		_151 = 1;
 	}
-	rs.byteVecPush(out, _255);
+	rs.byteVecPush(out, _151);
 	if (true) {
-		_259 = 4;
+		_155 = 4;
 	} else {
-		_259 = 3;
+		_155 = 3;
 	}
-	rs.byteVecPush(out, _259);
+	rs.byteVecPush(out, _155);
 }
 
 /** The constants of each type compared with [`Mid`]'s. */

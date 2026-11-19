@@ -46,25 +46,25 @@ export function define(): void {
 	const typeof_: rs.JsValue = new (rs.jsGlobal("Function"))("v", "return typeof v") as rs.JsValue;
 	const identity: rs.JsValue = new (rs.jsGlobal("Function"))("v", "return v") as rs.JsValue;
 	const check: rs.JsValue = new (rs.jsGlobal("Function"))("v", "if (typeof v !== 'number') throw new TypeError('not a number: ' + String(v))") as rs.JsValue;
-	const _14: rs.JsValue = global;
-	const _17: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustTypeof");
-	const _19: rs.JsValue = typeof_;
-	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_14, _17, _19), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
-	const _24: rs.JsValue = global;
-	const _27: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustCheck");
-	const _29: rs.JsValue = check;
-	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_24, _27, _29), (item2: unknown) => rs.jsToBool(item2), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
-	const _34: rs.JsValue = global;
-	const _37: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustIdentity");
-	const _39: rs.JsValue = identity;
-	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_34, _37, _39), (item3: unknown) => rs.jsToBool(item3), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _7: rs.JsValue = global;
+	const _10: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustTypeof");
+	const _11: rs.JsValue = typeof_;
+	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_7, _10, _11), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _16: rs.JsValue = global;
+	const _19: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustCheck");
+	const _20: rs.JsValue = check;
+	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_16, _19, _20), (item2: unknown) => rs.jsToBool(item2), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _25: rs.JsValue = global;
+	const _28: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("rustIdentity");
+	const _29: rs.JsValue = identity;
+	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_25, _28, _29), (item3: unknown) => rs.jsToBool(item3), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 }
 
 /** A JS value's text, as `String()` gives it, in a line. */
 export function show(out: rs.String, what: string, v: rs.JsValue): void {
 	const text: rs.String = js_sys_from$convert_From_js_sys_JsString_String(rs.jsGlobal("String")(v) as rs.JsValue);
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, what), (f: rs.Formatter) => rs.fmtStr(text.v, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, [args3[0], ": ", args3[1], "\n"]), rs.fmtErrorDebug);
+	const args2 = [(f: rs.Formatter) => rs.fmtPad(f, what), (f: rs.Formatter) => rs.fmtStr(text.v, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, [args2[0], ": ", args2[1], "\n"]), rs.fmtErrorDebug);
 }
 
 /**
@@ -84,194 +84,195 @@ export function opBits(x: rs.f64): rs.u64 {
 
 export function math(input: Input.Input, out: rs.String): void {
 	let fround2!: rs.f32;
-	const _5: [rs.f64, rs.f64] = [Input.f64(input), Input.f64(input)];
-	const x: rs.f64 = _5[0];
-	const y: rs.f64 = _5[1];
-	const part = opBits(rs.jsToF64(rs.jsGlobal("Math").floor(x)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["floor ", (f: rs.Formatter) => rs.u64Debug(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = opBits(rs.jsToF64(rs.jsGlobal("Math").trunc(x)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["trunc ", (f: rs.Formatter) => rs.u64Debug(part2, f), "\n"]), rs.fmtErrorDebug);
-	const part3 = opBits(rs.jsToF64(rs.jsGlobal("Math").sign(x)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["sign ", (f: rs.Formatter) => rs.u64Debug(part3, f), "\n"]), rs.fmtErrorDebug);
+	const x: rs.f64 = Input.f64(input);
+	const y: rs.f64 = Input.f64(input);
+	const _9: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").floor(x)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["floor ", (f: rs.Formatter) => rs.u64Debug(_9, f), "\n"]), rs.fmtErrorDebug);
+	const _18: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").trunc(x)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["trunc ", (f: rs.Formatter) => rs.u64Debug(_18, f), "\n"]), rs.fmtErrorDebug);
+	const _27: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").sign(x)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["sign ", (f: rs.Formatter) => rs.u64Debug(_27, f), "\n"]), rs.fmtErrorDebug);
 	const fround: rs.f32 = rs.jsToF32(rs.jsGlobal("Math").fround(x));
 	if (!Number.isNaN(fround)) {
 		fround2 = fround;
 	} else {
 		fround2 = NaN;
 	}
-	const part4 = rs.f32ToBits(fround2);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fround ", (f: rs.Formatter) => rs.u32Debug(part4, f), "\n"]), rs.fmtErrorDebug);
-	const part5 = opBits(rs.jsToF64(rs.jsGlobal("Math").hypot(x, y)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["hypot ", (f: rs.Formatter) => rs.u64Debug(part5, f), "\n"]), rs.fmtErrorDebug);
-	const part6 = opBits(rs.jsToF64(rs.jsGlobal("Math").atan2(x, y)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["atan2 ", (f: rs.Formatter) => rs.u64Debug(part6, f), "\n"]), rs.fmtErrorDebug);
-	const part7 = opBits(rs.jsToF64(rs.jsGlobal("Math").pow(x, y)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["pow ", (f: rs.Formatter) => rs.u64Debug(part7, f), "\n"]), rs.fmtErrorDebug);
-	const part8 = opBits(rs.jsToF64(rs.jsGlobal("Math").max(x, y)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["max ", (f: rs.Formatter) => rs.u64Debug(part8, f), "\n"]), rs.fmtErrorDebug);
-	const _105: rs.i32 = Input.u32(input) | 0;
-	const part9 = rs.jsToU32(rs.jsGlobal("Math").clz32(_105));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["clz32 ", (f: rs.Formatter) => rs.u32Display(part9, f), "\n"]), rs.fmtErrorDebug);
-	const _121: rs.Slice<rs.f64> = rs.sliceRange(rs.sliceFrom([y, Input.f64(input), Input.f64(input)]), 0, rs.u8Rem(Input.u8(input), 4) as rs.usize);
-	const part11 = opBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, _121, false))));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["max_of ", (f: rs.Formatter) => rs.u64Debug(part11, f), "\n"]), rs.fmtErrorDebug);
+	const _39: rs.u32 = rs.f32ToBits(fround2);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fround ", (f: rs.Formatter) => rs.u32Debug(_39, f), "\n"]), rs.fmtErrorDebug);
+	const _48: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").hypot(x, y)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["hypot ", (f: rs.Formatter) => rs.u64Debug(_48, f), "\n"]), rs.fmtErrorDebug);
+	const _57: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").atan2(x, y)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["atan2 ", (f: rs.Formatter) => rs.u64Debug(_57, f), "\n"]), rs.fmtErrorDebug);
+	const _66: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").pow(x, y)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["pow ", (f: rs.Formatter) => rs.u64Debug(_66, f), "\n"]), rs.fmtErrorDebug);
+	const _75: rs.u64 = opBits(rs.jsToF64(rs.jsGlobal("Math").max(x, y)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["max ", (f: rs.Formatter) => rs.u64Debug(_75, f), "\n"]), rs.fmtErrorDebug);
+	const _85: rs.i32 = Input.u32(input) | 0;
+	const _84: rs.u32 = rs.jsToU32(rs.jsGlobal("Math").clz32(_85));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["clz32 ", (f: rs.Formatter) => rs.u32Display(_84, f), "\n"]), rs.fmtErrorDebug);
+	const _99: rs.Slice<rs.f64> = rs.sliceRange(rs.sliceFrom([y, Input.f64(input), Input.f64(input)]), 0, rs.u8Rem(Input.u8(input), 4) as rs.usize);
+	const _97: rs.u64 = opBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, _99, false))));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["max_of ", (f: rs.Formatter) => rs.u64Debug(_97, f), "\n"]), rs.fmtErrorDebug);
 }
 
 export function numbers(input: Input.Input, out: rs.String): void {
 	const x: rs.f64 = Input.f64(input);
-	const part = rs.jsToU8(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["u8 ", (f: rs.Formatter) => rs.u8Display(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = rs.jsToI8(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["i8 ", (f: rs.Formatter) => rs.i8Display(part2, f), "\n"]), rs.fmtErrorDebug);
-	const part3 = rs.jsToU16(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["u16 ", (f: rs.Formatter) => rs.u16Display(part3, f), "\n"]), rs.fmtErrorDebug);
-	const part4 = rs.jsToI16(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["i16 ", (f: rs.Formatter) => rs.i16Display(part4, f), "\n"]), rs.fmtErrorDebug);
-	const part5 = rs.jsToU32(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["u32 ", (f: rs.Formatter) => rs.u32Display(part5, f), "\n"]), rs.fmtErrorDebug);
-	const part6 = rs.jsToI32(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["i32 ", (f: rs.Formatter) => rs.i32Display(part6, f), "\n"]), rs.fmtErrorDebug);
-	const part7 = rs.jsToUsize(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["usize ", (f: rs.Formatter) => rs.usizeDisplay(part7, f), "\n"]), rs.fmtErrorDebug);
-	const part8 = rs.f32ToBits(rs.jsToF32(rs.jsGlobal("Math").round(x)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["f32 ", (f: rs.Formatter) => rs.u32Display(part8, f), "\n"]), rs.fmtErrorDebug);
-	const part9 = rs.jsToBool(rs.jsGlobal("Math").round(x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["bool ", (f: rs.Formatter) => rs.fmtBool(part9, f), "\n"]), rs.fmtErrorDebug);
+	const _8: rs.u8 = rs.jsToU8(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["u8 ", (f: rs.Formatter) => rs.u8Display(_8, f), "\n"]), rs.fmtErrorDebug);
+	const _16: rs.i8 = rs.jsToI8(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["i8 ", (f: rs.Formatter) => rs.i8Display(_16, f), "\n"]), rs.fmtErrorDebug);
+	const _24: rs.u16 = rs.jsToU16(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["u16 ", (f: rs.Formatter) => rs.u16Display(_24, f), "\n"]), rs.fmtErrorDebug);
+	const _32: rs.i16 = rs.jsToI16(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["i16 ", (f: rs.Formatter) => rs.i16Display(_32, f), "\n"]), rs.fmtErrorDebug);
+	const _40: rs.u32 = rs.jsToU32(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["u32 ", (f: rs.Formatter) => rs.u32Display(_40, f), "\n"]), rs.fmtErrorDebug);
+	const _48: rs.i32 = rs.jsToI32(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["i32 ", (f: rs.Formatter) => rs.i32Display(_48, f), "\n"]), rs.fmtErrorDebug);
+	const _56: rs.usize = rs.jsToUsize(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["usize ", (f: rs.Formatter) => rs.usizeDisplay(_56, f), "\n"]), rs.fmtErrorDebug);
+	const _64: rs.u32 = rs.f32ToBits(rs.jsToF32(rs.jsGlobal("Math").round(x)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["f32 ", (f: rs.Formatter) => rs.u32Display(_64, f), "\n"]), rs.fmtErrorDebug);
+	const _73: boolean = rs.jsToBool(rs.jsGlobal("Math").round(x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["bool ", (f: rs.Formatter) => rs.fmtBool(_73, f), "\n"]), rs.fmtErrorDebug);
 	const maybe: rs.f64 | undefined = thenSome$07biun1(Input.flag(input), x);
-	const part10 = ((got: unknown): rs.u32 | undefined => {
+	const _83: rs.u32 | undefined = ((got: unknown): rs.u32 | undefined => {
 		return rs.jsIsNone(got) ? undefined : rs.jsToU32(got);
 	})(rs.jsGlobal("Math").round(((some: rs.f64 | undefined) => some === undefined ? undefined : some)(maybe)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["option ", (f: rs.Formatter) => rs.fmtOption(part10, f, rs.u32Debug), "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["option ", (f: rs.Formatter) => rs.fmtOption(_83, f, rs.u32Debug), "\n"]), rs.fmtErrorDebug);
 	const n: rs.JsValue = fromF64$wasm_bindgen_JsValue(x);
-	const _113: boolean = rs.jsToBool(rs.jsGlobal("Number").isInteger(n));
-	const _116: boolean = rs.jsToBool(rs.jsGlobal("Number").isSafeInteger(n));
-	const args35 = [(f: rs.Formatter) => rs.fmtBool(_113, f), (f: rs.Formatter) => rs.fmtBool(_116, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["integer ", args35[0], " safe ", args35[1], "\n"]), rs.fmtErrorDebug);
-	const _126: rs.JsValue = js_sys_from$convert_From_f64_js_sys_Number(x);
-	const _127: rs.u8 = rs.u8Rem(Input.u8(input), 40);
-	const _124: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsAny(_126).toString(_127), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_124.ok) {
-		const part11 = js_sys_from$convert_From_js_sys_JsString_String(_124.value);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["radix ", (f: rs.Formatter) => rs.fmtStr(part11.v, f), "\n"]), rs.fmtErrorDebug);
+	const _92: boolean = rs.jsToBool(rs.jsGlobal("Number").isInteger(n));
+	const _95: boolean = rs.jsToBool(rs.jsGlobal("Number").isSafeInteger(n));
+	const args23 = [(f: rs.Formatter) => rs.fmtBool(_92, f), (f: rs.Formatter) => rs.fmtBool(_95, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["integer ", args23[0], " safe ", args23[1], "\n"]), rs.fmtErrorDebug);
+	const _104: rs.JsValue = js_sys_from$convert_From_f64_js_sys_Number(x);
+	const _105: rs.u8 = rs.u8Rem(Input.u8(input), 40);
+	const _102: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsAny(_104).toString(_105), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_102.ok) {
+		const _112: rs.String = js_sys_from$convert_From_js_sys_JsString_String(_102.value);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["radix ", (f: rs.Formatter) => rs.fmtStr(_112.v, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "radix threw", _124.error);
+		show(out, "radix threw", _102.error);
 	}
 	show(out, "string", fromF64$wasm_bindgen_JsValue(x));
 }
 
 export function bigints(input: Input.Input, out: rs.String): void {
 	const bits: rs.u32 = rs.u8Rem(Input.u8(input), 140) as rs.u32;
-	const _9: [rs.u64, rs.u128] = [Input.u64(input), Input.u128(input)];
-	const a: rs.u64 = _9[0];
-	const b: rs.u128 = _9[1];
-	const part = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(rs.i64Cast(a))), 64, true) as rs.i64;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n ", (f: rs.Formatter) => rs.i64Display(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = rs.jsToWide(rs.jsGlobal("BigInt").asUintN(bits, rs.jsBigInt(a)), 64, false) as rs.u64;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_uint_n ", (f: rs.Formatter) => rs.u64Display(part2, f), "\n"]), rs.fmtErrorDebug);
-	const part3 = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(rs.i128Cast(b))), 128, true) as rs.i128;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n128 ", (f: rs.Formatter) => rs.i128Display(part3, f), "\n"]), rs.fmtErrorDebug);
-	const part4 = rs.jsToWide(rs.jsGlobal("BigInt").asUintN(bits, rs.jsBigInt(b)), 128, false) as rs.u128;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_uint_n128 ", (f: rs.Formatter) => rs.u128Display(part4, f), "\n"]), rs.fmtErrorDebug);
-	const _56: rs.f64 = Input.f64(input);
-	const _55: rs.Result<rs.i64, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("BigInt").asIntN(bits, _56), (item: unknown) => rs.jsToWide(item, 64, true) as rs.i64, false) as rs.Result<rs.i64, rs.JsValue>;
-	if (_55.ok) {
-		const arg = _55.value;
-		rs.resultUnwrap(rs.fmtWriteString(out, ["from number ", (f: rs.Formatter) => rs.i64Display(arg, f), "\n"]), rs.fmtErrorDebug);
+	const a: rs.u64 = Input.u64(input);
+	const b: rs.u128 = Input.u128(input);
+	const _13: rs.i64 = rs.i64Cast(a);
+	const _12: rs.i64 = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(_13)), 64, true) as rs.i64;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n ", (f: rs.Formatter) => rs.i64Display(_12, f), "\n"]), rs.fmtErrorDebug);
+	const _21: rs.u64 = rs.jsToWide(rs.jsGlobal("BigInt").asUintN(bits, rs.jsBigInt(a)), 64, false) as rs.u64;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_uint_n ", (f: rs.Formatter) => rs.u64Display(_21, f), "\n"]), rs.fmtErrorDebug);
+	const _30: rs.i128 = rs.i128Cast(b);
+	const _29: rs.i128 = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(_30)), 128, true) as rs.i128;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n128 ", (f: rs.Formatter) => rs.i128Display(_29, f), "\n"]), rs.fmtErrorDebug);
+	const _38: rs.u128 = rs.jsToWide(rs.jsGlobal("BigInt").asUintN(bits, rs.jsBigInt(b)), 128, false) as rs.u128;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_uint_n128 ", (f: rs.Formatter) => rs.u128Display(_38, f), "\n"]), rs.fmtErrorDebug);
+	const _44: rs.f64 = Input.f64(input);
+	const _43: rs.Result<rs.i64, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("BigInt").asIntN(bits, _44), (item: unknown) => rs.jsToWide(item, 64, true) as rs.i64, false) as rs.Result<rs.i64, rs.JsValue>;
+	if (_43.ok) {
+		const v: rs.i64 = _43.value;
+		rs.resultUnwrap(rs.fmtWriteString(out, ["from number ", (f: rs.Formatter) => rs.i64Display(v, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "from number threw", _55.error);
+		show(out, "from number threw", _43.error);
 	}
-	show(out, "i64", wasm_bindgen_from$convert_From_i64_wasm_bindgen_JsValue(rs.i64Cast(a)));
+	show(out, "i64", wasm_bindgen_from$convert_From_i64_wasm_bindgen_JsValue(_13));
 	show(out, "u128", wasm_bindgen_from$convert_From_u128_wasm_bindgen_JsValue(b));
-	show(out, "i128", wasm_bindgen_from$convert_From_i128_wasm_bindgen_JsValue(rs.i128Cast(b)));
+	show(out, "i128", wasm_bindgen_from$convert_From_i128_wasm_bindgen_JsValue(_30));
 }
 
 export function text(input: Input.Input, out: rs.String): void {
 	const c: rs.char = option_unwrapOr$04rqm9m(rs.charFromU32(rs.u32Rem(Input.u32(input), 1114112)), 65533);
-	const part = rs.jsToString(rs.jsGlobal("String")(rs.jsChar(c)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["char_string ", (f: rs.Formatter) => rs.fmtStr(part.v, f), "\n"]), rs.fmtErrorDebug);
+	const _11: rs.String = rs.jsToString(rs.jsGlobal("String")(rs.jsChar(c)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["char_string ", (f: rs.Formatter) => rs.fmtStr(_11.v, f), "\n"]), rs.fmtErrorDebug);
 	const s: rs.String = Input.text(input);
-	const _25: string = s.v;
-	const part2 = rs.jsToChar(rs.jsGlobal("String")(_25));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["first_char ", (f: rs.Formatter) => rs.fmtCharDebug(part2, f), "\n"]), rs.fmtErrorDebug);
+	const _21: string = s.v;
+	const _20: rs.char = rs.jsToChar(rs.jsGlobal("String")(_21));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["first_char ", (f: rs.Formatter) => rs.fmtCharDebug(_20, f), "\n"]), rs.fmtErrorDebug);
 	const maybe: rs.String | undefined = bool_then$15odrdm(Input.flag(input), (): rs.String => {
 		return rs.stringClone(s);
 	});
-	const part3 = ((got: unknown): rs.String | undefined => {
+	const _34: rs.String | undefined = ((got: unknown): rs.String | undefined => {
 		return rs.jsIsNone(got) ? undefined : rs.jsToString(got);
 	})(rs.jsGlobal("String")(((some: rs.String | undefined) => some === undefined ? undefined : rs.jsString(some))(maybe)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["string_option ", (f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["string_option ", (f: rs.Formatter) => rs.fmtOption(_34, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 	const units: rs.Vec<rs.u16> = Input.units(input);
-	const _47: rs.Slice<rs.u16> = rs.sliceFrom(units.items);
-	const js: rs.JsValue = rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _47, false)) as rs.JsValue;
-	const _54: rs.u32 = rs.jsToU32(rs.jsAny(js).length);
-	const args30 = [(f: rs.Formatter) => rs.fmtList(units.items, f, rs.u16Debug), (f: rs.Formatter) => rs.u32Display(_54, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["units ", args30[0], " length ", args30[1], "\n"]), rs.fmtErrorDebug);
-	const part4 = isValidUtf16$js_sys_JsString(js);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["well formed ", (f: rs.Formatter) => rs.fmtBool(part4, f), "\n"]), rs.fmtErrorDebug);
-	const part5 = js_sys_from$convert_From_ref_js_sys_JsString_String(js);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["lossy ", (f: rs.Formatter) => rs.fmtStr(part5.v, f), "\n"]), rs.fmtErrorDebug);
-	const part6 = asString$wasm_bindgen_JsValue(wasm_bindgen_from$convert_From_ref_js_sys_JsString_wasm_bindgen_JsValue(js));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_string ", (f: rs.Formatter) => rs.fmtOption(part6, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
-	const part7 = js_sys_from$convert_From_js_sys_JsString_String(rs.jsAny(js).toUpperCase() as rs.JsValue);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["upper ", (f: rs.Formatter) => rs.fmtStr(part7.v, f), "\n"]), rs.fmtErrorDebug);
-	const part8 = rs.f64ToBits(rs.jsToF64(rs.jsAny(js).charCodeAt(0)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["char_code_at ", (f: rs.Formatter) => rs.u64Debug(part8, f), "\n"]), rs.fmtErrorDebug);
-	const part9 = asF64$wasm_bindgen_JsValue(rs.jsAny(js).codePointAt(0) as rs.JsValue);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["code_point_at ", (f: rs.Formatter) => rs.fmtOption(part9, f, rs.f64Debug), "\n"]), rs.fmtErrorDebug);
-	const _136: rs.u32 = rs.u32Rem(Input.u32(input), 1179648);
-	const _135: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("String").fromCodePoint(_136), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_135.ok) {
-		const part10 = js_sys_from$convert_From_js_sys_JsString_String(_135.value);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["from_code_point ", (f: rs.Formatter) => rs.fmtStr(part10.v, f), "\n"]), rs.fmtErrorDebug);
+	const _40: rs.Slice<rs.u16> = rs.sliceFrom(units.items);
+	const js: rs.JsValue = rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _40, false)) as rs.JsValue;
+	const _46: rs.u32 = rs.jsToU32(rs.jsAny(js).length);
+	const args17 = [(f: rs.Formatter) => rs.fmtList(units.items, f, rs.u16Debug), (f: rs.Formatter) => rs.u32Display(_46, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["units ", args17[0], " length ", args17[1], "\n"]), rs.fmtErrorDebug);
+	const _57: boolean = isValidUtf16$js_sys_JsString(js);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["well formed ", (f: rs.Formatter) => rs.fmtBool(_57, f), "\n"]), rs.fmtErrorDebug);
+	const _66: rs.String = js_sys_from$convert_From_ref_js_sys_JsString_String(js);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["lossy ", (f: rs.Formatter) => rs.fmtStr(_66.v, f), "\n"]), rs.fmtErrorDebug);
+	const _75: rs.String | undefined = asString$wasm_bindgen_JsValue(wasm_bindgen_from$convert_From_ref_js_sys_JsString_wasm_bindgen_JsValue(js));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_string ", (f: rs.Formatter) => rs.fmtOption(_75, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	const _86: rs.String = js_sys_from$convert_From_js_sys_JsString_String(rs.jsAny(js).toUpperCase() as rs.JsValue);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["upper ", (f: rs.Formatter) => rs.fmtStr(_86.v, f), "\n"]), rs.fmtErrorDebug);
+	const _96: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(js).charCodeAt(0)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["char_code_at ", (f: rs.Formatter) => rs.u64Debug(_96, f), "\n"]), rs.fmtErrorDebug);
+	const _106: rs.f64 | undefined = asF64$wasm_bindgen_JsValue(rs.jsAny(js).codePointAt(0) as rs.JsValue);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["code_point_at ", (f: rs.Formatter) => rs.fmtOption(_106, f, rs.f64Debug), "\n"]), rs.fmtErrorDebug);
+	const _115: rs.u32 = rs.u32Rem(Input.u32(input), 1179648);
+	const _114: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("String").fromCodePoint(_115), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_114.ok) {
+		const _122: rs.String = js_sys_from$convert_From_js_sys_JsString_String(_114.value);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["from_code_point ", (f: rs.Formatter) => rs.fmtStr(_122.v, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "from_code_point threw", _135.error);
+		show(out, "from_code_point threw", _114.error);
 	}
-	const part11 = JsThreadLocal.with$js_sys_JsString_harness_text_closure1_String(GREETING.force(), (s3: rs.JsValue): rs.String => {
+	const _132: rs.String = JsThreadLocal.with$js_sys_JsString_harness_text_closure1_String(GREETING.force(), (s3: rs.JsValue): rs.String => {
 		return js_sys_from$convert_From_ref_js_sys_JsString_String(s3);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["greeting ", (f: rs.Formatter) => rs.fmtStr(part11.v, f), "\n"]), rs.fmtErrorDebug);
-	const _171: string = s.v;
-	const part12 = rs.jsToBool(rs.jsAny(js).includes(_171, 0));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["includes ", (f: rs.Formatter) => rs.fmtBool(part12, f), "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["greeting ", (f: rs.Formatter) => rs.fmtStr(_132.v, f), "\n"]), rs.fmtErrorDebug);
+	const _142: string = s.v;
+	const _140: boolean = rs.jsToBool(rs.jsAny(js).includes(_142, 0));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["includes ", (f: rs.Formatter) => rs.fmtBool(_140, f), "\n"]), rs.fmtErrorDebug);
 }
 
 export function encoding(input: Input.Input, out: rs.String): void {
 	const encoder: rs.JsValue = rs.resultUnwrap(rs.jsCatch(() => new (rs.jsGlobal("TextEncoder"))(), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 	const s: rs.String = Input.text(input);
-	const part = rs.jsToString(rs.jsAny(encoder).encoding);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["encoding ", (f: rs.Formatter) => rs.fmtPad(f, part.v), "\n"]), rs.fmtErrorDebug);
-	const _24: string = s.v;
-	const part2 = rs.jsToByteVec(rs.jsAny(encoder).encode(_24));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["encode ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
-	const labels: string[] = ["utf-8", "UTF8", "latin1", "utf-16le", "no such label"];
-	const _36: rs.usize = rs.usizeRem(Input.u8(input) as rs.usize, rs.sliceFrom(labels).length);
-	if (!(_36 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _36);
+	const _10: rs.String = rs.jsToString(rs.jsAny(encoder).encoding);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["encoding ", (f: rs.Formatter) => rs.fmtPad(f, _10.v), "\n"]), rs.fmtErrorDebug);
+	const _21: string = s.v;
+	const _19: rs.ByteVec = rs.jsToByteVec(rs.jsAny(encoder).encode(_21));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["encode ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_19), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
+	const _28: rs.usize = rs.usizeRem(Input.u8(input) as rs.usize, 5);
+	if (!(_28 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _28);
 	}
 	const options: rs.JsValue = gen_TextDecoderOptions_new_$web_sys_TextDecoderOptions();
-	const _47: boolean = Input.flag(input);
-	rs.jsAny(options).fatal = _47;
-	const part3 = ((got: unknown): boolean | undefined => {
+	const labels: string[] = ["utf-8", "UTF8", "latin1", "utf-16le", "no such label"];
+	const _35: boolean = Input.flag(input);
+	rs.jsAny(options).fatal = _35;
+	undefined;
+	const _40: boolean | undefined = ((got: unknown): boolean | undefined => {
 		return rs.jsIsNone(got) ? undefined : !!got;
 	})(rs.jsAny(options).fatal);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fatal ", (f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtBool), "\n"]), rs.fmtErrorDebug);
-	const _59: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => new (rs.jsGlobal("TextDecoder"))(labels[_36], options), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_59.ok) {
-		const decoder: rs.JsValue = _59.value;
-		const _68: rs.String = rs.jsToString(rs.jsAny(decoder).encoding);
-		const _71: boolean = rs.jsToBool(rs.jsAny(decoder).fatal);
-		const args14 = [(f: rs.Formatter) => rs.fmtPad(f, _68.v), (f: rs.Formatter) => rs.fmtBool(_71, f)];
-		rs.resultUnwrap(rs.fmtWriteString(out, ["decoder ", args14[0], " fatal ", args14[1], "\n"]), rs.fmtErrorDebug);
-		const _80: rs.ByteSlice = Input.slice(input);
-		const _78: rs.Result<rs.String, rs.JsValue> = rs.jsCatch(() => rs.jsAny(decoder).decode(rs.byteSliceView(_80)), (item3: unknown) => rs.jsToString(item3), true) as rs.Result<rs.String, rs.JsValue>;
-		if (_78.ok) {
-			const arg = _78.value;
-			rs.resultUnwrap(rs.fmtWriteString(out, ["decode ", (f: rs.Formatter) => rs.fmtStr(arg.v, f), "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fatal ", (f: rs.Formatter) => rs.fmtOption(_40, f, rs.fmtBool), "\n"]), rs.fmtErrorDebug);
+	const _45: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => new (rs.jsGlobal("TextDecoder"))(labels[_28], options), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_45.ok) {
+		const decoder: rs.JsValue = _45.value;
+		const _53: rs.String = rs.jsToString(rs.jsAny(decoder).encoding);
+		const _56: boolean = rs.jsToBool(rs.jsAny(decoder).fatal);
+		const args9 = [(f: rs.Formatter) => rs.fmtPad(f, _53.v), (f: rs.Formatter) => rs.fmtBool(_56, f)];
+		rs.resultUnwrap(rs.fmtWriteString(out, ["decoder ", args9[0], " fatal ", args9[1], "\n"]), rs.fmtErrorDebug);
+		const _64: rs.ByteSlice = Input.slice(input);
+		const _62: rs.Result<rs.String, rs.JsValue> = rs.jsCatch(() => rs.jsAny(decoder).decode(rs.byteSliceView(_64)), (item3: unknown) => rs.jsToString(item3), true) as rs.Result<rs.String, rs.JsValue>;
+		if (_62.ok) {
+			const s2: rs.String = _62.value;
+			rs.resultUnwrap(rs.fmtWriteString(out, ["decode ", (f: rs.Formatter) => rs.fmtStr(s2.v, f), "\n"]), rs.fmtErrorDebug);
 		} else {
-			show(out, "decode threw", _78.error);
+			show(out, "decode threw", _62.error);
 		}
 	} else {
-		show(out, "decoder threw", _59.error);
+		show(out, "decoder threw", _45.error);
 	}
 }
 
@@ -282,44 +283,44 @@ export function json(input: Input.Input, out: rs.String): void {
 	if (i === 5) {
 		text = Input.text(input);
 	} else {
-		const _12: rs.usize = i as rs.usize;
-		if (!(_12 < 5)) {
-			rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _12);
+		const _7: rs.usize = i as rs.usize;
+		if (!(_7 < 5)) {
+			rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _7);
 		}
-		text = rs.stringFrom(texts[_12]);
+		text = rs.stringFrom(texts[_7]);
 	}
-	const _16: string = text.v;
-	const _15: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").parse(_16), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_15.ok) {
-		const v: rs.JsValue = _15.value;
-		const _21: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").stringify(v), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-		if (_21.ok) {
-			const part = asString$wasm_bindgen_JsValue(_21.value);
-			rs.resultUnwrap(rs.fmtWriteString(out, ["stringify ", (f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	const _11: string = text.v;
+	const _10: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").parse(_11), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_10.ok) {
+		const v: rs.JsValue = _10.value;
+		const _16: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").stringify(v), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+		if (_16.ok) {
+			const _23: rs.String | undefined = asString$wasm_bindgen_JsValue(_16.value);
+			rs.resultUnwrap(rs.fmtWriteString(out, ["stringify ", (f: rs.Formatter) => rs.fmtOption(_23, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 		} else {
-			show(out, "stringify threw", _21.error);
+			show(out, "stringify threw", _16.error);
 		}
 		if (isObject$wasm_bindgen_JsValue(v)) {
-			const part2 = rs.jsToVec(rs.jsGlobal("Object").keys(v), (item3: unknown) => rs.jsToString(item3));
-			rs.resultUnwrap(rs.fmtWriteString(out, ["keys ", (f: rs.Formatter) => rs.fmtList(part2.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
-			const part3 = rs.jsToU32(rs.jsAny(rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").ownKeys(v), (item4: unknown) => item4 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f))).length);
-			rs.resultUnwrap(rs.fmtWriteString(out, ["own_keys ", (f: rs.Formatter) => rs.u32Display(part3, f), "\n"]), rs.fmtErrorDebug);
-			const _74: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("a");
-			show(out, "get a", rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(v, _74), (item5: unknown) => item5 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)));
-			const _84: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("x");
-			const part4 = rs.jsCatch(() => rs.jsGlobal("Reflect").has(v, _84), (item6: unknown) => rs.jsToBool(item6), false) as rs.Result<boolean, rs.JsValue>;
-			rs.resultUnwrap(rs.fmtWriteString(out, ["has x ", (f: rs.Formatter) => rs.fmtResult(part4, f, rs.fmtBool, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)), "\n"]), rs.fmtErrorDebug);
+			const _38: rs.Vec<rs.String> = rs.jsToVec(rs.jsGlobal("Object").keys(v), (item3: unknown) => rs.jsToString(item3));
+			rs.resultUnwrap(rs.fmtWriteString(out, ["keys ", (f: rs.Formatter) => rs.fmtList(_38.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+			const _50: rs.u32 = rs.jsToU32(rs.jsAny(rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").ownKeys(v), (item4: unknown) => item4 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f))).length);
+			rs.resultUnwrap(rs.fmtWriteString(out, ["own_keys ", (f: rs.Formatter) => rs.u32Display(_50, f), "\n"]), rs.fmtErrorDebug);
+			const _61: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("a");
+			show(out, "get a", rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(v, _61), (item5: unknown) => item5 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)));
+			const _69: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("x");
+			const _66: rs.Result<boolean, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("Reflect").has(v, _69), (item6: unknown) => rs.jsToBool(item6), false) as rs.Result<boolean, rs.JsValue>;
+			rs.resultUnwrap(rs.fmtWriteString(out, ["has x ", (f: rs.Formatter) => rs.fmtResult(_66, f, rs.fmtBool, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)), "\n"]), rs.fmtErrorDebug);
 		}
 	} else {
-		show(out, "parse threw", _15.error);
+		show(out, "parse threw", _10.error);
 	}
-	const _95: rs.JsValue = Input.value(input);
-	const _93: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").stringify(_95), (item7: unknown) => item7 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_93.ok) {
-		const part5 = asString$wasm_bindgen_JsValue(_93.value);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["value ", (f: rs.Formatter) => rs.fmtOption(part5, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	const _77: rs.JsValue = Input.value(input);
+	const _75: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("JSON").stringify(_77), (item7: unknown) => item7 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_75.ok) {
+		const _83: rs.String | undefined = asString$wasm_bindgen_JsValue(_75.value);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["value ", (f: rs.Formatter) => rs.fmtOption(_83, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "value threw", _93.error);
+		show(out, "value threw", _75.error);
 	}
 }
 
@@ -329,45 +330,43 @@ export function arrays(input: Input.Input, out: rs.String): void {
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _6;
 	while (iterStart++ < iterEnd) {
-		const _16: rs.JsValue = Input.value(input);
-		rs.jsToU32(rs.jsAny(array).push(_16));
+		const _15: rs.JsValue = Input.value(input);
+		rs.jsToU32(rs.jsAny(array).push(_15));
 	}
-	const part = rs.jsToU32(rs.jsAny(array).length);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["length ", (f: rs.Formatter) => rs.u32Display(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = js_sys_from$convert_From_js_sys_JsString_String(rs.jsAny(array).join(",") as rs.JsValue);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["join ", (f: rs.Formatter) => rs.fmtStr(part2.v, f), "\n"]), rs.fmtErrorDebug);
+	const _20: rs.u32 = rs.jsToU32(rs.jsAny(array).length);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["length ", (f: rs.Formatter) => rs.u32Display(_20, f), "\n"]), rs.fmtErrorDebug);
+	const _29: rs.String = js_sys_from$convert_From_js_sys_JsString_String(rs.jsAny(array).join(",") as rs.JsValue);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["join ", (f: rs.Formatter) => rs.fmtStr(_29.v, f), "\n"]), rs.fmtErrorDebug);
 	const probe: rs.JsValue = Input.value(input);
-	const _47: rs.i32 = rs.jsToI32(rs.jsAny(array).indexOf(probe, 0));
-	const _51: boolean = rs.jsToBool(rs.jsAny(array).includes(probe, 0));
-	const args17 = [(f: rs.Formatter) => rs.i32Display(_47, f), (f: rs.Formatter) => rs.fmtBool(_51, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["index_of ", args17[0], " includes ", args17[1], "\n"]), rs.fmtErrorDebug);
-	const _65: rs.JsValue = array;
-	const _64: boolean = rs.jsToBool(rs.jsGlobal("Array").isArray(_65));
-	const _69: boolean = rs.jsToBool(rs.jsGlobal("Array").isArray(probe));
-	const args18 = [(f: rs.Formatter) => rs.fmtBool(_64, f), (f: rs.Formatter) => rs.fmtBool(_69, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["is_array ", args18[0], " ", args18[1], "\n"]), rs.fmtErrorDebug);
+	const _40: rs.i32 = rs.jsToI32(rs.jsAny(array).indexOf(probe, 0));
+	const _44: boolean = rs.jsToBool(rs.jsAny(array).includes(probe, 0));
+	const args10 = [(f: rs.Formatter) => rs.i32Display(_40, f), (f: rs.Formatter) => rs.fmtBool(_44, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["index_of ", args10[0], " includes ", args10[1], "\n"]), rs.fmtErrorDebug);
+	const _56: rs.JsValue = array;
+	const _55: boolean = rs.jsToBool(rs.jsGlobal("Array").isArray(_56));
+	const _60: boolean = rs.jsToBool(rs.jsGlobal("Array").isArray(probe));
+	const args11 = [(f: rs.Formatter) => rs.fmtBool(_55, f), (f: rs.Formatter) => rs.fmtBool(_60, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["is_array ", args11[0], " ", args11[1], "\n"]), rs.fmtErrorDebug);
 	show(out, "pop", rs.jsAny(array).pop() as rs.JsValue);
 	show(out, "at", rs.jsAny(array).at(-1) as rs.JsValue);
-	const _87: string = "get";
-	const _91: rs.u32 = rs.u32Rem(Input.u32(input), 8);
-	show(out, _87, rs.jsAny(array)[_91] as rs.JsValue);
-	const _96: rs.u32 = rs.u32Rem(Input.u32(input), 6);
-	const _99: rs.JsValue = probe;
-	rs.jsAny(array)[_96] = _99;
+	const _78: rs.u32 = rs.u32Rem(Input.u32(input), 8);
+	show(out, "get", rs.jsAny(array)[_78] as rs.JsValue);
+	const _82: rs.u32 = rs.u32Rem(Input.u32(input), 6);
+	const _84: rs.JsValue = probe;
+	rs.jsAny(array)[_82] = _84;
 	show(out, "reversed", rs.jsAny(array).reverse() as rs.JsValue);
 	show(out, "sorted", rs.jsAny(array).sort() as rs.JsValue);
-	const _116: string = "of2";
-	const _122: rs.JsValue = array;
-	show(out, _116, rs.jsGlobal("Array").of(probe, _122) as rs.JsValue);
+	const _104: rs.JsValue = array;
+	show(out, "of2", rs.jsGlobal("Array").of(probe, _104) as rs.JsValue);
 	show(out, "array_of", rs.jsSpreadMethod(rs.jsGlobal("Array"), "of", [], array) as rs.JsValue);
 	const values: rs.Vec<rs.JsValue> = rs.iterToVec(rs.iterFrom(iter$js_sys_Array(array), ArrayIter.next$iter_Iterator_wasm_bindgen_JsValue, undefined, { hint: ArrayIter.sizeHint$iter_Iterator_wasm_bindgen_JsValue, nth: (it: ArrayIter.ArrayIter<rs.JsValue>, n) => rs.iterFromOption(ArrayIter.nth$iter_Iterator_wasm_bindgen_JsValue(it, n), rs.None), count: ArrayIter.count$iter_Iterator_wasm_bindgen_JsValue, last: (it: ArrayIter.ArrayIter<rs.JsValue>) => rs.iterFromOption(ArrayIter.last$iter_Iterator_wasm_bindgen_JsValue(it), rs.None), back: (it: ArrayIter.ArrayIter<rs.JsValue>) => rs.iterFromOption(ArrayIter.nextBack$iter_DoubleEndedIterator_wasm_bindgen_JsValue(it), rs.None), nthBack: (it: ArrayIter.ArrayIter<rs.JsValue>, n) => rs.iterFromOption(ArrayIter.nthBack$iter_DoubleEndedIterator_wasm_bindgen_JsValue(it, n), rs.None) }), "next", 4);
-	const part3 = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(values, (item: rs.JsValue) => item)), (item2: unknown) => item2 as rs.JsValue).items.length;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["values ", (f: rs.Formatter) => rs.usizeDisplay(part3, f), "\n"]), rs.fmtErrorDebug);
+	const _120: rs.usize = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(values, (item: rs.JsValue) => item)), (item2: unknown) => item2 as rs.JsValue).items.length;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["values ", (f: rs.Formatter) => rs.usizeDisplay(_120, f), "\n"]), rs.fmtErrorDebug);
 	const strings: rs.Vec<rs.String> = rs.vecFrom([Input.text(input), Input.text(input)]);
-	const part4 = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(strings, (item3: rs.String) => rs.jsString(item3))), (item4: unknown) => rs.jsToString(item4));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["strings ", (f: rs.Formatter) => rs.fmtList(part4.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
-	const _170: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
-	const s = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _170, false)), (item5: unknown) => rs.jsToF64(item5)).items;
+	const _134: rs.Vec<rs.String> = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(strings, (item3: rs.String) => rs.jsString(item3))), (item4: unknown) => rs.jsToString(item4));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["strings ", (f: rs.Formatter) => rs.fmtList(_134.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	const _147: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
+	const s = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _147, false)), (item5: unknown) => rs.jsToF64(item5)).items;
 	let front = 0;
 	let back2 = s.length;
 	const v2: rs.Vec<rs.u64> = rs.vecWithCapacity(back2 - front, 8);
@@ -375,65 +374,66 @@ export function arrays(input: Input.Input, out: rs.String): void {
 		const y: rs.u64 = rs.f64ToBits(s[front++]);
 		v2.items.push(y);
 	}
-	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", (f: rs.Formatter) => rs.fmtList(v2.items, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
-	const _185: rs.Slice<rs.u64> = rs.sliceFrom([Input.u64(input), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64]);
-	for (const v of rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.BigUint64Array, _185, true)), (item6: unknown) => item6 as rs.JsValue).items) {
-		show(out, "wide", v);
+	const back: rs.Vec<rs.u64> = v2;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", (f: rs.Formatter) => rs.fmtList(back.items, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
+	const _160: rs.Slice<rs.u64> = rs.sliceFrom([Input.u64(input), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64]);
+	for (const _163 of rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.BigUint64Array, _160, true)), (item6: unknown) => item6 as rs.JsValue).items) {
+		show(out, "wide", _163);
 	}
-	const _196: string = "bytes";
-	const _200: rs.ByteSlice = Input.slice(input);
-	show(out, _196, rs.jsGlobal("Array").from(rs.byteSliceView(_200)) as rs.JsValue);
+	const _173: rs.ByteSlice = Input.slice(input);
+	show(out, "bytes", rs.jsGlobal("Array").from(rs.byteSliceView(_173)) as rs.JsValue);
 }
 
 export function typed(input: Input.Input, out: rs.String): void {
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(Input.slice(input));
 	const array: rs.JsValue = js_sys_from$convert_From_ref_slice_u8_js_sys_Uint8Array(rs.byteSliceRange(rs.byteVecSlice(bytes), 0));
-	const part = rs.jsToU32(rs.jsAny(array).length);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["length ", (f: rs.Formatter) => rs.u32Display(part, f), "\n"]), rs.fmtErrorDebug);
+	const _12: rs.u32 = rs.jsToU32(rs.jsAny(array).length);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["length ", (f: rs.Formatter) => rs.u32Display(_12, f), "\n"]), rs.fmtErrorDebug);
 	const i: rs.u32 = rs.u32Rem(Input.u32(input), 20);
-	const _27: rs.u8 = rs.jsToU8(rs.jsAny(array)[i]);
-	const args20 = [(f: rs.Formatter) => rs.u32Display(i, f), (f: rs.Formatter) => rs.u8Display(_27, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["get_index ", args20[0], " ", args20[1], "\n"]), rs.fmtErrorDebug);
-	const _37: rs.u32 = rs.u32Rem(Input.u32(input), 20);
-	const _40: rs.u8 = Input.u8(input);
-	rs.jsAny(array)[_37] = _40;
-	const _43: rs.u32 = rs.u32Rem(Input.u32(input), 8);
-	const _46: rs.u32 = rs.u32Rem(Input.u32(input), 16);
-	const sub: rs.JsValue = rs.jsAny(array).subarray(_43, _46) as rs.JsValue;
+	const _23: rs.u8 = rs.jsToU8(rs.jsAny(array)[i]);
+	const args11 = [(f: rs.Formatter) => rs.u32Display(i, f), (f: rs.Formatter) => rs.u8Display(_23, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["get_index ", args11[0], " ", args11[1], "\n"]), rs.fmtErrorDebug);
+	const _32: rs.u32 = rs.u32Rem(Input.u32(input), 20);
+	const _34: rs.u8 = Input.u8(input);
+	rs.jsAny(array)[_32] = _34;
+	undefined;
+	const _37: rs.u32 = rs.u32Rem(Input.u32(input), 8);
+	const _39: rs.u32 = rs.u32Rem(Input.u32(input), 16);
+	const sub: rs.JsValue = rs.jsAny(array).subarray(_37, _39) as rs.JsValue;
 	const copy: rs.ByteVec = rs.byteVecOf(0, rs.jsToU32(rs.jsAny(sub).length) as rs.usize);
-	const _55: rs.ByteSlice = rs.byteVecSlice(copy);
-	copyTo$js_sys_Uint8Array(sub, _55);
+	const _47: rs.ByteSlice = rs.byteVecSlice(copy);
+	copyTo$js_sys_Uint8Array(sub, _47);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["subarray ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(copy), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
-	const _68: rs.u8 = Input.u8(input);
-	rs.jsAny(array).fill(_68, 1, 3) as rs.JsValue;
+	const _58: rs.u8 = Input.u8(input);
+	rs.jsAny(array).fill(_58, 1, 3) as rs.JsValue;
 	const whole: rs.ByteVec = rs.byteVecOf(0, rs.jsToU32(rs.jsAny(array).length) as rs.usize);
-	const _75: rs.ByteSlice = rs.byteVecSlice(whole);
-	copyTo$js_sys_Uint8Array(array, _75);
+	const _65: rs.ByteSlice = rs.byteVecSlice(whole);
+	copyTo$js_sys_Uint8Array(array, _65);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["filled ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(whole), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
-	const _92: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(bytes));
-	const part2 = rs.jsToByteVec(rs.jsGlobal("Uint8Array").from(rs.jsByteVec(_92)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["copy ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
-	const _104: rs.ByteSlice = rs.byteVecSlice(bytes);
-	const part3 = rs.jsToByteSlice(rs.jsGlobal("Uint8Array").from(rs.byteSliceView(_104)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["boxed ", (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(part3), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
-	const _111: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
-	const floats: rs.JsValue = new (rs.jsGlobal("Float64Array"))(rs.jsTyped(rs.global.Float64Array, _111, false)) as rs.JsValue;
-	const _121: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(floats)[0]));
-	const _125: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(floats)[5]));
-	const args25 = [(f: rs.Formatter) => rs.u64Debug(_121, f), (f: rs.Formatter) => rs.u64Debug(_125, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", args25[0], " ", args25[1], "\n"]), rs.fmtErrorDebug);
-	const _134: rs.JsValue = floats;
-	const shorts: rs.JsValue = new (rs.jsGlobal("Int16Array"))(_134) as rs.JsValue;
-	const _142: rs.i16 = rs.jsToI16(rs.jsAny(shorts)[0]);
-	const _145: rs.i16 = rs.jsToI16(rs.jsAny(shorts)[1]);
-	const args26 = [(f: rs.Formatter) => rs.i16Display(_142, f), (f: rs.Formatter) => rs.i16Display(_145, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["shorts ", args26[0], " ", args26[1], "\n"]), rs.fmtErrorDebug);
-	const _153: rs.Slice<rs.i64> = rs.sliceFrom([rs.i64Cast(Input.u64(input)), { hi: -0x80000000, lo: 0 } as rs.i64]);
-	const wides: rs.JsValue = new (rs.jsGlobal("BigInt64Array"))(rs.jsTyped(rs.global.BigInt64Array, _153, true)) as rs.JsValue;
-	const _163: rs.i64 = rs.jsToWide(rs.jsAny(wides)[0], 64, true) as rs.i64;
-	const _166: rs.i64 = rs.jsToWide(rs.jsAny(wides)[1], 64, true) as rs.i64;
-	const args27 = [(f: rs.Formatter) => rs.i64Display(_163, f), (f: rs.Formatter) => rs.i64Display(_166, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["wides ", args27[0], " ", args27[1], "\n"]), rs.fmtErrorDebug);
+	const _79: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(bytes));
+	const _78: rs.ByteVec = rs.jsToByteVec(rs.jsGlobal("Uint8Array").from(rs.jsByteVec(_79)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["copy ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_78), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
+	const _89: rs.ByteSlice = rs.byteVecSlice(bytes);
+	const _88: rs.ByteSlice = rs.jsToByteSlice(rs.jsGlobal("Uint8Array").from(rs.byteSliceView(_89)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["boxed ", (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_88), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
+	const _95: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
+	const floats: rs.JsValue = new (rs.jsGlobal("Float64Array"))(rs.jsTyped(rs.global.Float64Array, _95, false)) as rs.JsValue;
+	const _104: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(floats)[0]));
+	const _108: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(floats)[5]));
+	const args16 = [(f: rs.Formatter) => rs.u64Debug(_104, f), (f: rs.Formatter) => rs.u64Debug(_108, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", args16[0], " ", args16[1], "\n"]), rs.fmtErrorDebug);
+	const _116: rs.JsValue = floats;
+	const shorts: rs.JsValue = new (rs.jsGlobal("Int16Array"))(_116) as rs.JsValue;
+	const _123: rs.i16 = rs.jsToI16(rs.jsAny(shorts)[0]);
+	const _126: rs.i16 = rs.jsToI16(rs.jsAny(shorts)[1]);
+	const args17 = [(f: rs.Formatter) => rs.i16Display(_123, f), (f: rs.Formatter) => rs.i16Display(_126, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["shorts ", args17[0], " ", args17[1], "\n"]), rs.fmtErrorDebug);
+	const _133: rs.Slice<rs.i64> = rs.sliceFrom([rs.i64Cast(Input.u64(input)), { hi: -0x80000000, lo: 0 } as rs.i64]);
+	const wides: rs.JsValue = new (rs.jsGlobal("BigInt64Array"))(rs.jsTyped(rs.global.BigInt64Array, _133, true)) as rs.JsValue;
+	const _142: rs.i64 = rs.jsToWide(rs.jsAny(wides)[0], 64, true) as rs.i64;
+	const _145: rs.i64 = rs.jsToWide(rs.jsAny(wides)[1], 64, true) as rs.i64;
+	const args18 = [(f: rs.Formatter) => rs.i64Display(_142, f), (f: rs.Formatter) => rs.i64Display(_145, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["wides ", args18[0], " ", args18[1], "\n"]), rs.fmtErrorDebug);
 	show(out, "at", option_mapOr$09yh1c6(((got: unknown): rs.u8 | undefined => {
 		return got === undefined ? undefined : rs.jsToU8(got);
 	})(rs.jsToOptionSmall(rs.jsAny(array).at(-1))), null, wasm_bindgen_from$convert_From_u8_wasm_bindgen_JsValue));
@@ -442,60 +442,66 @@ export function typed(input: Input.Input, out: rs.String): void {
 export function casts(input: Input.Input, out: rs.String): void {
 	const v: rs.JsValue = Input.value(input);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["debug ", (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(v, f), "\n"]), rs.fmtErrorDebug);
-	const _18: boolean = isUndefined$wasm_bindgen_JsValue(v);
-	const _21: boolean = isNull$wasm_bindgen_JsValue(v);
-	const _24: boolean = isNullOrUndefined$wasm_bindgen_JsValue(v);
-	const _27: boolean = isObject$wasm_bindgen_JsValue(v);
-	const _30: boolean = isFunction$wasm_bindgen_JsValue(v);
-	const _33: boolean = isString$wasm_bindgen_JsValue(v);
-	const _36: boolean = isBigint$wasm_bindgen_JsValue(v);
-	const _39: boolean = isSymbol$wasm_bindgen_JsValue(v);
-	const _42: boolean = isFalsy$wasm_bindgen_JsValue(v);
-	const _45: boolean = isTruthy$wasm_bindgen_JsValue(v);
-	const args28 = [(f: rs.Formatter) => rs.fmtBool(_18, f), (f: rs.Formatter) => rs.fmtBool(_21, f), (f: rs.Formatter) => rs.fmtBool(_24, f), (f: rs.Formatter) => rs.fmtBool(_27, f), (f: rs.Formatter) => rs.fmtBool(_30, f), (f: rs.Formatter) => rs.fmtBool(_33, f), (f: rs.Formatter) => rs.fmtBool(_36, f), (f: rs.Formatter) => rs.fmtBool(_39, f), (f: rs.Formatter) => rs.fmtBool(_42, f), (f: rs.Formatter) => rs.fmtBool(_45, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["undefined ", args28[0], " null ", args28[1], " none ", args28[2], " object ", args28[3], " function ", args28[4], " string ", args28[5], " bigint ", args28[6], " symbol ", args28[7], " falsy ", args28[8], " truthy ", args28[9], "\n"]), rs.fmtErrorDebug);
-	const _65: rs.u64 | undefined = option_map$1izrkip(asF64$wasm_bindgen_JsValue(v), (a0: rs.f64): rs.u64 => {
+	const _15: boolean = isUndefined$wasm_bindgen_JsValue(v);
+	const _18: boolean = isNull$wasm_bindgen_JsValue(v);
+	const _21: boolean = isNullOrUndefined$wasm_bindgen_JsValue(v);
+	const _24: boolean = isObject$wasm_bindgen_JsValue(v);
+	const _27: boolean = isFunction$wasm_bindgen_JsValue(v);
+	const _30: boolean = isString$wasm_bindgen_JsValue(v);
+	const _33: boolean = isBigint$wasm_bindgen_JsValue(v);
+	const _36: boolean = isSymbol$wasm_bindgen_JsValue(v);
+	const _39: boolean = isFalsy$wasm_bindgen_JsValue(v);
+	const _42: boolean = isTruthy$wasm_bindgen_JsValue(v);
+	const args15 = [(f: rs.Formatter) => rs.fmtBool(_15, f), (f: rs.Formatter) => rs.fmtBool(_18, f), (f: rs.Formatter) => rs.fmtBool(_21, f), (f: rs.Formatter) => rs.fmtBool(_24, f), (f: rs.Formatter) => rs.fmtBool(_27, f), (f: rs.Formatter) => rs.fmtBool(_30, f), (f: rs.Formatter) => rs.fmtBool(_33, f), (f: rs.Formatter) => rs.fmtBool(_36, f), (f: rs.Formatter) => rs.fmtBool(_39, f), (f: rs.Formatter) => rs.fmtBool(_42, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["undefined ", args15[0], " null ", args15[1], " none ", args15[2], " object ", args15[3], " function ", args15[4], " string ", args15[5], " bigint ", args15[6], " symbol ", args15[7], " falsy ", args15[8], " truthy ", args15[9], "\n"]), rs.fmtErrorDebug);
+	const _60: rs.u64 | undefined = option_map$1izrkip(asF64$wasm_bindgen_JsValue(v), (a0: rs.f64): rs.u64 => {
 		return rs.f64ToBits(a0);
 	});
-	const _69: boolean | undefined = asBool$wasm_bindgen_JsValue(v);
-	const _72: rs.String | undefined = asString$wasm_bindgen_JsValue(v);
-	const args29 = [(f: rs.Formatter) => rs.fmtOption(_65, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtOption(_69, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(_72, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_f64 ", args29[0], " as_bool ", args29[1], " as_string ", args29[2], "\n"]), rs.fmtErrorDebug);
+	const _64: boolean | undefined = asBool$wasm_bindgen_JsValue(v);
+	const _67: rs.String | undefined = asString$wasm_bindgen_JsValue(v);
+	const args16 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtOption(_64, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(_67, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_f64 ", args16[0], " as_bool ", args16[1], " as_string ", args16[2], "\n"]), rs.fmtErrorDebug);
 	show(out, "typeof", jsTypeof$wasm_bindgen_JsValue(v));
 	const kind: Kind.Kind = rs.jsToEnum(["Number", "String", "Object", "Undefined", "__Invalid"], ["number", "string", "object", "undefined"], rs.jsGlobal("rustTypeof")(v)) as Kind.Kind;
-	const _92: rs.String = rs.jsToString(rs.jsGlobal("String")(rs.jsEnum(["Number", "String", "Object", "Undefined", "__Invalid"], ["number", "string", "object", "undefined"], kind)));
-	const args30 = [(f: rs.Formatter) => Kind.fmt$fmt_Debug(kind, f), (f: rs.Formatter) => rs.fmtPad(f, _92.v)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["kind ", args30[0], " ", args30[1], "\n"]), rs.fmtErrorDebug);
-	const part = option_unwrapOr$1b5hww3(option_map$0wjyljl(dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Array(v), (a02: rs.JsValue): rs.u32 => {
+	const _84: rs.String = rs.jsToString(rs.jsGlobal("String")(rs.jsEnum(["Number", "String", "Object", "Undefined", "__Invalid"], ["number", "string", "object", "undefined"], kind)));
+	const args17 = [(f: rs.Formatter) => Kind.fmt$fmt_Debug(kind, f), (f: rs.Formatter) => rs.fmtPad(f, _84.v)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["kind ", args17[0], " ", args17[1], "\n"]), rs.fmtErrorDebug);
+	const _94: rs.u32 = option_unwrapOr$1b5hww3(option_map$0wjyljl(dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Array(v), (a02: rs.JsValue): rs.u32 => {
 		return rs.jsToU32(rs.jsAny(a02).length);
 	}), 4294967295);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["array ", (f: rs.Formatter) => rs.u32Display(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = option_map$0wjyljl(dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Uint8Array(v), (a03: rs.JsValue): rs.u32 => {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["array ", (f: rs.Formatter) => rs.u32Display(_94, f), "\n"]), rs.fmtErrorDebug);
+	const _105: rs.u32 | undefined = option_map$0wjyljl(dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Uint8Array(v), (a03: rs.JsValue): rs.u32 => {
 		return rs.jsToU32(rs.jsAny(a03).length);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["bytes ", (f: rs.Formatter) => rs.fmtOption(part2, f, rs.u32Debug), "\n"]), rs.fmtErrorDebug);
-	const part3 = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Table(v);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["table ", (f: rs.Formatter) => rs.fmtBool(part3, f), "\n"]), rs.fmtErrorDebug);
-	const part4 = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Missing(v);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["missing class ", (f: rs.Formatter) => rs.fmtBool(part4, f), "\n"]), rs.fmtErrorDebug);
-	const _147: rs.Result<rs.JsValue, rs.JsValue> = dynInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_JsString(v);
-	if (_147.ok) {
-		const part5 = rs.jsToU32(rs.jsAny(_147.value).length);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["js string ", (f: rs.Formatter) => rs.u32Display(part5, f), "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["bytes ", (f: rs.Formatter) => rs.fmtOption(_105, f, rs.u32Debug), "\n"]), rs.fmtErrorDebug);
+	const _115: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Table(v);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["table ", (f: rs.Formatter) => rs.fmtBool(_115, f), "\n"]), rs.fmtErrorDebug);
+	const _124: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Missing(v);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["missing class ", (f: rs.Formatter) => rs.fmtBool(_124, f), "\n"]), rs.fmtErrorDebug);
+	const _130: rs.Result<rs.JsValue, rs.JsValue> = dynInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_JsString(v);
+	if (_130.ok) {
+		const _138: rs.u32 = rs.jsToU32(rs.jsAny(_130.value).length);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["js string ", (f: rs.Formatter) => rs.u32Display(_138, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "not a js string", _147.error);
+		show(out, "not a js string", _130.error);
 	}
-	const part6 = isUndefined$wasm_bindgen_JsValue(uncheckedRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Object(v));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["unchecked ", (f: rs.Formatter) => rs.fmtBool(part6, f), "\n"]), rs.fmtErrorDebug);
+	const _151: boolean = isUndefined$wasm_bindgen_JsValue(uncheckedRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Object(v));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["unchecked ", (f: rs.Formatter) => rs.fmtBool(_151, f), "\n"]), rs.fmtErrorDebug);
 	const other: rs.JsValue = Input.value(input);
-	const _184: boolean = looseEq$wasm_bindgen_JsValue(v, other);
-	const _188: boolean = wasm_bindgen_eq$cmp_PartialEq_wasm_bindgen_JsValue(v, other);
-	const args37 = [(f: rs.Formatter) => rs.fmtBool(_184, f), (f: rs.Formatter) => rs.fmtBool(_188, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["loose_eq ", args37[0], " eq ", args37[1], "\n"]), rs.fmtErrorDebug);
-	const args38 = [(f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(null, f), (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(undefined, f), (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(true, f), (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(false, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["constants ", args38[0], " ", args38[1], " ", args38[2], " ", args38[3], "\n"]), rs.fmtErrorDebug);
-	const part7 = fromBool$wasm_bindgen_JsValue(Input.flag(input));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["from bool ", (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(part7, f), "\n"]), rs.fmtErrorDebug);
+	const _161: boolean = looseEq$wasm_bindgen_JsValue(v, other);
+	const _165: boolean = wasm_bindgen_eq$cmp_PartialEq_wasm_bindgen_JsValue(v, other);
+	const args24 = [(f: rs.Formatter) => rs.fmtBool(_161, f), (f: rs.Formatter) => rs.fmtBool(_165, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["loose_eq ", args24[0], " eq ", args24[1], "\n"]), rs.fmtErrorDebug);
+	const _176: rs.JsValue = null;
+	const _178: rs.JsValue = undefined;
+	const _184: rs.Fmt = (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(_176, f);
+	const _180: rs.JsValue = true;
+	const _185: rs.Fmt = (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(_178, f);
+	const _182: rs.JsValue = false;
+	const args25 = [_184, _185, (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(_180, f), (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(_182, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["constants ", args25[0], " ", args25[1], " ", args25[2], " ", args25[3], "\n"]), rs.fmtErrorDebug);
+	const _193: rs.JsValue = fromBool$wasm_bindgen_JsValue(Input.flag(input));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["from bool ", (f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(_193, f), "\n"]), rs.fmtErrorDebug);
 }
 
 export function ops(input: Input.Input, out: rs.String): void {
@@ -509,9 +515,11 @@ export function ops(input: Input.Input, out: rs.String): void {
 		}
 		return wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Rem(Input.u32(input2), 50));
 	};
-	const _6: [rs.JsValue, rs.JsValue] = [_3(input), _3(input)];
-	const a: rs.JsValue = _6[0];
-	const b: rs.JsValue = _6[1];
+	const _8: [Input.Input] = [input];
+	const _6: rs.JsValue = _3(_8[0]);
+	const _9: rs.JsValue = _3(_8[0]);
+	const a: rs.JsValue = _6;
+	const b: rs.JsValue = _9;
 	if (!(isBigint$wasm_bindgen_JsValue(a) !== isBigint$wasm_bindgen_JsValue(b))) {
 		show(out, "add", wasm_bindgen_add$ops_Add_ref_wasm_bindgen_JsValue(a, b));
 		show(out, "sub", wasm_bindgen_sub$ops_Sub_ref_wasm_bindgen_JsValue(a, b));
@@ -528,18 +536,18 @@ export function ops(input: Input.Input, out: rs.String): void {
 			show(out, "unsigned_shr", wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(wasm_bindgen_unsignedShr$wasm_bindgen_JsValue(a, b)));
 			show(out, "pow", wasm_bindgen_pow$wasm_bindgen_JsValue(a, b));
 		}
-		const _126: boolean = wasm_bindgen_lt$wasm_bindgen_JsValue(a, b);
-		const _130: boolean = wasm_bindgen_le$wasm_bindgen_JsValue(a, b);
-		const _134: boolean = wasm_bindgen_gt$wasm_bindgen_JsValue(a, b);
-		const _138: boolean = wasm_bindgen_ge$wasm_bindgen_JsValue(a, b);
-		const args6 = [(f: rs.Formatter) => rs.fmtBool(_126, f), (f: rs.Formatter) => rs.fmtBool(_130, f), (f: rs.Formatter) => rs.fmtBool(_134, f), (f: rs.Formatter) => rs.fmtBool(_138, f)];
-		rs.resultUnwrap(rs.fmtWriteString(out, ["lt ", args6[0], " le ", args6[1], " gt ", args6[2], " ge ", args6[3], "\n"]), rs.fmtErrorDebug);
+		const _107: boolean = wasm_bindgen_lt$wasm_bindgen_JsValue(a, b);
+		const _111: boolean = wasm_bindgen_le$wasm_bindgen_JsValue(a, b);
+		const _115: boolean = wasm_bindgen_gt$wasm_bindgen_JsValue(a, b);
+		const _119: boolean = wasm_bindgen_ge$wasm_bindgen_JsValue(a, b);
+		const args4 = [(f: rs.Formatter) => rs.fmtBool(_107, f), (f: rs.Formatter) => rs.fmtBool(_111, f), (f: rs.Formatter) => rs.fmtBool(_115, f), (f: rs.Formatter) => rs.fmtBool(_119, f)];
+		rs.resultUnwrap(rs.fmtWriteString(out, ["lt ", args4[0], " le ", args4[1], " gt ", args4[2], " ge ", args4[3], "\n"]), rs.fmtErrorDebug);
 	} else {
 		show(out, "checked_div", wasm_bindgen_checkedDiv$wasm_bindgen_JsValue(a, b));
-		const _29: boolean = wasm_bindgen_lt$wasm_bindgen_JsValue(a, b);
-		const _33: boolean = looseEq$wasm_bindgen_JsValue(a, b);
-		const args5 = [(f: rs.Formatter) => rs.fmtBool(_29, f), (f: rs.Formatter) => rs.fmtBool(_33, f)];
-		rs.resultUnwrap(rs.fmtWriteString(out, ["mixed lt ", args5[0], " eq ", args5[1], "\n"]), rs.fmtErrorDebug);
+		const _25: boolean = wasm_bindgen_lt$wasm_bindgen_JsValue(a, b);
+		const _29: boolean = looseEq$wasm_bindgen_JsValue(a, b);
+		const args3 = [(f: rs.Formatter) => rs.fmtBool(_25, f), (f: rs.Formatter) => rs.fmtBool(_29, f)];
+		rs.resultUnwrap(rs.fmtWriteString(out, ["mixed lt ", args3[0], " eq ", args3[1], "\n"]), rs.fmtErrorDebug);
 	}
 }
 
@@ -549,38 +557,38 @@ export function classes(input: Input.Input, out: rs.String): void {
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _6;
 	while (iterStart++ < iterEnd) {
-		const _16: rs.JsValue = Input.value(input);
-		const _18: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
-		rs.jsAny(table).set(_16, _18) as rs.JsValue;
+		const _15: rs.JsValue = Input.value(input);
+		const _17: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
+		rs.jsAny(table).set(_15, _17) as rs.JsValue;
 	}
 	const key: rs.JsValue = Input.value(input);
-	const _25: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
-	rs.jsAny(table).set(key, _25) as rs.JsValue;
-	const part = option_map$1izrkip(((got: unknown): rs.f64 | undefined => {
+	const _24: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
+	rs.jsAny(table).set(key, _24) as rs.JsValue;
+	const _30: rs.u64 | undefined = option_map$1izrkip(((got: unknown): rs.f64 | undefined => {
 		return rs.jsIsNone(got) ? undefined : rs.jsToF64(got);
 	})(rs.jsAny(table).get(key)), (a0: rs.f64): rs.u64 => {
 		return rs.f64ToBits(a0);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["get ", (f: rs.Formatter) => rs.fmtOption(part, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
-	const _49: rs.JsValue = Input.value(input);
-	const part2 = option_map$1izrkip(((got2: unknown): rs.f64 | undefined => {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["get ", (f: rs.Formatter) => rs.fmtOption(_30, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
+	const _45: rs.JsValue = Input.value(input);
+	const _41: rs.u64 | undefined = option_map$1izrkip(((got2: unknown): rs.f64 | undefined => {
 		return rs.jsIsNone(got2) ? undefined : rs.jsToF64(got2);
-	})(rs.jsAny(table).get(_49)), (a02: rs.f64): rs.u64 => {
+	})(rs.jsAny(table).get(_45)), (a02: rs.f64): rs.u64 => {
 		return rs.f64ToBits(a02);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["get other ", (f: rs.Formatter) => rs.fmtOption(part2, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
-	const part3 = rs.jsToBool(rs.jsGlobal("Map").prototype.has.call(rs.jsAny(table), key));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["has ", (f: rs.Formatter) => rs.fmtBool(part3, f), "\n"]), rs.fmtErrorDebug);
-	const _71: rs.u32 = rs.jsToU32(rs.jsAny(table).size);
-	const _74: rs.u32 = rs.jsToU32(rs.jsAny(rs.jsDescriptor(rs.jsGlobal("Map").prototype, "size").get).call(table));
-	const _77: rs.u32 = rs.jsToU32(rs.jsAny(table).size);
-	const args22 = [(f: rs.Formatter) => rs.u32Display(_71, f), (f: rs.Formatter) => rs.u32Display(_74, f), (f: rs.Formatter) => rs.u32Display(_77, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["size ", args22[0], " ", args22[1], " ", args22[2], "\n"]), rs.fmtErrorDebug);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["get other ", (f: rs.Formatter) => rs.fmtOption(_41, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
+	const _53: boolean = rs.jsToBool(rs.jsGlobal("Map").prototype.has.call(rs.jsAny(table), key));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["has ", (f: rs.Formatter) => rs.fmtBool(_53, f), "\n"]), rs.fmtErrorDebug);
+	const _63: rs.u32 = rs.jsToU32(rs.jsAny(table).size);
+	const _66: rs.u32 = rs.jsToU32(rs.jsAny(rs.jsDescriptor(rs.jsGlobal("Map").prototype, "size").get).call(table));
+	const _69: rs.u32 = rs.jsToU32(rs.jsAny(table).size);
+	const args13 = [(f: rs.Formatter) => rs.u32Display(_63, f), (f: rs.Formatter) => rs.u32Display(_66, f), (f: rs.Formatter) => rs.u32Display(_69, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["size ", args13[0], " ", args13[1], " ", args13[2], "\n"]), rs.fmtErrorDebug);
 	const iter2: rs.JsValue = rs.jsAny(table)[rs.global.Symbol.iterator]() as rs.JsValue;
 	while (true) {
-		const _87: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsAny(iter2).next(), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-		if (_87.ok) {
-			const next: rs.JsValue = _87.value;
+		const _78: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsAny(iter2).next(), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+		if (_78.ok) {
+			const next: rs.JsValue = _78.value;
 			if (!rs.jsToBool(rs.jsAny(next).done)) {
 				show(out, "entry", rs.jsAny(next).value as rs.JsValue);
 			} else {
@@ -590,100 +598,98 @@ export function classes(input: Input.Input, out: rs.String): void {
 			break;
 		}
 	}
-	const _99: rs.ByteSlice = Input.slice(input);
-	const items: rs.JsValue = rs.jsGlobal("Array").from(rs.byteSliceView(_99)) as rs.JsValue;
+	const _89: rs.ByteSlice = Input.slice(input);
+	const items: rs.JsValue = rs.jsGlobal("Array").from(rs.byteSliceView(_89)) as rs.JsValue;
 	const parity: rs.JsValue = new (rs.jsGlobal("Function"))("x", "return x % 2") as rs.JsValue;
-	const part4 = rs.jsToU32(rs.jsAny(rs.jsGlobal("Map").groupBy(items, parity) as rs.JsValue).size);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["groups ", (f: rs.Formatter) => rs.u32Display(part4, f), "\n"]), rs.fmtErrorDebug);
-	const _120: string = "{\"x\":1.5,\"y\":2}";
-	const point: rs.JsValue = uncheckedInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Point(rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("JSON").parse(_120), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)));
-	const part5 = rs.f64ToBits(rs.jsToF64(rs.jsAny(point).x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["x ", (f: rs.Formatter) => rs.u64Debug(part5, f), "\n"]), rs.fmtErrorDebug);
-	const _135: rs.f64 = Input.f64(input);
-	rs.jsAny(point).x = _135;
-	const part6 = rs.f64ToBits(rs.jsToF64(rs.jsAny(point).x));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["x ", (f: rs.Formatter) => rs.u64Debug(part6, f), "\n"]), rs.fmtErrorDebug);
+	const _95: rs.u32 = rs.jsToU32(rs.jsAny(rs.jsGlobal("Map").groupBy(items, parity) as rs.JsValue).size);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["groups ", (f: rs.Formatter) => rs.u32Display(_95, f), "\n"]), rs.fmtErrorDebug);
+	const point: rs.JsValue = uncheckedInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Point(rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("JSON").parse("{\"x\":1.5,\"y\":2}"), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f)));
+	const _110: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(point).x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["x ", (f: rs.Formatter) => rs.u64Debug(_110, f), "\n"]), rs.fmtErrorDebug);
+	const _118: rs.f64 = Input.f64(input);
+	rs.jsAny(point).x = _118;
+	const _123: rs.u64 = rs.f64ToBits(rs.jsToF64(rs.jsAny(point).x));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["x ", (f: rs.Formatter) => rs.u64Debug(_123, f), "\n"]), rs.fmtErrorDebug);
 	const key2: rs.String = Input.text(input);
-	const _151: string = key2.v;
-	const _154: rs.JsValue = Input.value(input);
-	rs.jsAny(point)[_151] = _154;
-	const _156: string = "at";
-	const _160: string = key2.v;
-	show(out, _156, rs.jsAny(point)[_160] as rs.JsValue);
+	const _132: string = key2.v;
+	const _135: rs.JsValue = Input.value(input);
+	rs.jsAny(point)[_132] = _135;
+	const _140: string = key2.v;
+	show(out, "at", rs.jsAny(point)[_140] as rs.JsValue);
 	delete rs.jsAny(point)["y"];
 	show(out, "y", rs.jsAny(point)["y"] as rs.JsValue);
-	const part7 = rs.jsToString(rs.jsAny(point).toString());
-	rs.resultUnwrap(rs.fmtWriteString(out, ["describe ", (f: rs.Formatter) => rs.fmtStr(part7.v, f), "\n"]), rs.fmtErrorDebug);
-	const _188: rs.JsValue = point;
-	const part8 = rs.jsToVec(rs.jsGlobal("Object").keys(_188), (item3: unknown) => rs.jsToString(item3));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["keys ", (f: rs.Formatter) => rs.fmtList(part8.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
+	const _152: rs.String = rs.jsToString(rs.jsAny(point).toString());
+	rs.resultUnwrap(rs.fmtWriteString(out, ["describe ", (f: rs.Formatter) => rs.fmtStr(_152.v, f), "\n"]), rs.fmtErrorDebug);
+	const _162: rs.JsValue = point;
+	const _161: rs.Vec<rs.String> = rs.jsToVec(rs.jsGlobal("Object").keys(_162), (item3: unknown) => rs.jsToString(item3));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["keys ", (f: rs.Formatter) => rs.fmtList(_161.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 }
 
 export function statics(_1: Input.Input, out: rs.String): void {
-	const part = JsThreadLocal.with$f64_harness_statics_closure0_u64(imports_PI.force(), (pi: rs.f64): rs.u64 => {
+	const _7: rs.u64 = JsThreadLocal.with$f64_harness_statics_closure0_u64(imports_PI.force(), (pi: rs.f64): rs.u64 => {
 		return rs.f64ToBits(pi);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["pi ", (f: rs.Formatter) => rs.u64Debug(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = JsThreadLocal.with$Option_wasm_bindgen_JsValue_Option_T_is_some_wasm_bindgen_JsValue_bool(MISSING.force(), (a0: rs.JsValue | rs.None): boolean => {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["pi ", (f: rs.Formatter) => rs.u64Debug(_7, f), "\n"]), rs.fmtErrorDebug);
+	const _15: boolean = JsThreadLocal.with$Option_wasm_bindgen_JsValue_Option_T_is_some_wasm_bindgen_JsValue_bool(MISSING.force(), (a0: rs.JsValue | rs.None): boolean => {
 		return a0 !== rs.None;
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["missing ", (f: rs.Formatter) => rs.fmtBool(part2, f), "\n"]), rs.fmtErrorDebug);
-	const part3 = JsThreadLocal.with$js_sys_JsString_harness_statics_closure1_u32(GREETING.force(), (s: rs.JsValue): rs.u32 => {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["missing ", (f: rs.Formatter) => rs.fmtBool(_15, f), "\n"]), rs.fmtErrorDebug);
+	const _23: rs.u32 = JsThreadLocal.with$js_sys_JsString_harness_statics_closure1_u32(GREETING.force(), (s: rs.JsValue): rs.u32 => {
 		return rs.jsToU32(rs.jsAny(s).length);
 	});
-	rs.resultUnwrap(rs.fmtWriteString(out, ["greeting ", (f: rs.Formatter) => rs.u32Debug(part3, f), "\n"]), rs.fmtErrorDebug);
-	const _45: rs.JsValue = JsThreadLocal.with$js_sys_Object_Clone_clone_js_sys_Object_js_sys_Object(imports_GLOBAL.force(), (a02: rs.JsValue): rs.JsValue => {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["greeting ", (f: rs.Formatter) => rs.u32Debug(_23, f), "\n"]), rs.fmtErrorDebug);
+	const _34: rs.JsValue = JsThreadLocal.with$js_sys_Object_Clone_clone_js_sys_Object_js_sys_Object(imports_GLOBAL.force(), (a02: rs.JsValue): rs.JsValue => {
 		return a02;
 	});
-	const _48: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("Math");
-	const part4 = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").has(_45, _48), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["global ", (f: rs.Formatter) => rs.fmtBool(part4, f), "\n"]), rs.fmtErrorDebug);
+	const _37: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("Math");
+	const _32: boolean = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").has(_34, _37), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["global ", (f: rs.Formatter) => rs.fmtBool(_32, f), "\n"]), rs.fmtErrorDebug);
 	const vendored: rs.JsValue = new (rs.jsVendored("RustVendored", ["webkit"]))() as rs.JsValue;
-	const _60: rs.String = rs.jsToString(rs.jsAny(vendored).name());
-	const _63: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Vendored(wasm_bindgen_from$convert_From_ref_imports_Vendored_wasm_bindgen_JsValue(vendored));
-	const args15 = [(f: rs.Formatter) => rs.fmtStr(_60.v, f), (f: rs.Formatter) => rs.fmtBool(_63, f)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["vendored ", args15[0], " ", args15[1], "\n"]), rs.fmtErrorDebug);
+	const _46: rs.String = rs.jsToString(rs.jsAny(vendored).name());
+	const _49: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Vendored(wasm_bindgen_from$convert_From_ref_imports_Vendored_wasm_bindgen_JsValue(vendored));
+	const args10 = [(f: rs.Formatter) => rs.fmtStr(_46.v, f), (f: rs.Formatter) => rs.fmtBool(_49, f)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["vendored ", args10[0], " ", args10[1], "\n"]), rs.fmtErrorDebug);
 }
 
 export function logs(input: Input.Input, out: rs.String): void {
 	const _5: rs.JsValue = JsThreadLocal.with$js_sys_Object_Clone_clone_js_sys_Object_js_sys_Object(imports_GLOBAL.force(), (a0: rs.JsValue): rs.JsValue => {
 		return a0;
 	});
-	const _10: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("console");
-	const console: rs.JsValue = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(_5, _10), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
-	const _16: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
-	const original: rs.JsValue = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(console, _16), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _9: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("console");
+	const console: rs.JsValue = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(_5, _9), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _14: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
+	const original: rs.JsValue = rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").get(console, _14), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 	const logged: rs.JsValue = new (rs.jsGlobal("Array"))() as rs.JsValue;
-	const _21: rs.JsValue = new (rs.jsGlobal("Function"))("...args", "this.push(args.map(String).join(' '))") as rs.JsValue;
-	const _24: rs.JsValue = logged;
-	const capture: rs.JsValue = rs.jsAny(_21).bind(_24) as rs.JsValue;
-	const _31: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
-	const _33: rs.JsValue = capture;
-	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(console, _31, _33), (item3: unknown) => rs.jsToBool(item3), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _18: rs.JsValue = new (rs.jsGlobal("Function"))("...args", "this.push(args.map(String).join(' '))") as rs.JsValue;
+	const _19: rs.JsValue = logged;
+	const capture: rs.JsValue = rs.jsAny(_18).bind(_19) as rs.JsValue;
+	const _26: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
+	const _27: rs.JsValue = capture;
+	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(console, _26, _27), (item3: unknown) => rs.jsToBool(item3), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 	rs.jsGlobal("console").log();
 	undefined;
-	const _39: rs.JsValue = Input.value(input);
-	rs.jsGlobal("console").log(_39);
+	const _33: rs.JsValue = Input.value(input);
+	rs.jsGlobal("console").log(_33);
 	undefined;
-	const _42: rs.JsValue = Input.value(input);
-	const _44: rs.JsValue = wasm_bindgen_fromStr$wasm_bindgen_JsValue(Input.text(input).v);
-	rs.jsGlobal("console").log(_42, _44);
+	const _36: rs.JsValue = Input.value(input);
+	const _38: rs.JsValue = wasm_bindgen_fromStr$wasm_bindgen_JsValue(Input.text(input).v);
+	rs.jsGlobal("console").log(_36, _38);
 	undefined;
-	const _50: rs.JsValue = Input.value(input);
-	const _52: rs.JsValue = Input.value(input);
-	const _54: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(Input.u32(input));
-	const many: rs.JsValue = rs.jsGlobal("Array").of(_50, _52, _54) as rs.JsValue;
+	const _44: rs.JsValue = Input.value(input);
+	const _46: rs.JsValue = Input.value(input);
+	const _48: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(Input.u32(input));
+	const many: rs.JsValue = rs.jsGlobal("Array").of(_44, _46, _48) as rs.JsValue;
 	rs.jsSpreadMethod(rs.jsGlobal("console"), "log", [], many);
 	undefined;
-	const _62: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
-	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(console, _62, original), (item4: unknown) => rs.jsToBool(item4), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+	const _56: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("log");
+	rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(console, _56, original), (item4: unknown) => rs.jsToBool(item4), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 	const iter: ArrayIter.ArrayIter<rs.JsValue> = iter$js_sys_Array(logged);
 	while (true) {
-		const _69: rs.JsValue | rs.Done = ArrayIter.next$iter_Iterator_wasm_bindgen_JsValue(iter);
-		if (_69 === rs.DONE) {
+		const _62: rs.JsValue | rs.Done = ArrayIter.next$iter_Iterator_wasm_bindgen_JsValue(iter);
+		if (_62 === rs.DONE) {
 			break;
 		}
-		show(out, "logged", _69);
+		show(out, "logged", _62);
 	}
 }
 
@@ -698,31 +704,31 @@ export function caught(input: Input.Input, out: rs.String): void {
 		const error: rs.String | undefined = option_map$01bkz05(dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Error(e), (e4: rs.JsValue): rs.String => {
 			return js_sys_from$convert_From_js_sys_JsString_String(rs.jsAny(e4).message as rs.JsValue);
 		});
-		const _19: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_TypeError(e);
-		const args5 = [(f: rs.Formatter) => rs.fmtOption(error, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtBool(_19, f)];
-		rs.resultUnwrap(rs.fmtWriteString(out, ["threw ", args5[0], " type error ", args5[1], "\n"]), rs.fmtErrorDebug);
+		const _18: boolean = isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_TypeError(e);
+		const args3 = [(f: rs.Formatter) => rs.fmtOption(error, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtBool(_18, f)];
+		rs.resultUnwrap(rs.fmtWriteString(out, ["threw ", args3[0], " type error ", args3[1], "\n"]), rs.fmtErrorDebug);
 	}
-	const _31: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("length");
-	const _28: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("Reflect").get(v, _31), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_28.ok) {
-		show(out, "length", _28.value);
+	const _29: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("length");
+	const _26: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("Reflect").get(v, _29), (item2: unknown) => item2 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_26.ok) {
+		show(out, "length", _26.value);
 	} else {
-		show(out, "length threw", _28.error);
+		show(out, "length threw", _26.error);
 	}
-	const _40: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("Reflect").ownKeys(v), (item3: unknown) => item3 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_40.ok) {
-		const part = rs.jsToU32(rs.jsAny(_40.value).length);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["own keys ", (f: rs.Formatter) => rs.u32Display(part, f), "\n"]), rs.fmtErrorDebug);
+	const _35: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("Reflect").ownKeys(v), (item3: unknown) => item3 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_35.ok) {
+		const _42: rs.u32 = rs.jsToU32(rs.jsAny(_35.value).length);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["own keys ", (f: rs.Formatter) => rs.u32Display(_42, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		show(out, "own keys threw", _40.error);
+		show(out, "own keys threw", _35.error);
 	}
 }
 
 /** An import that throws without `catch`: the throw unwinds Rust and leaves the call. */
 export function throws(input: Input.Input, out: rs.String): void {
 	const bits: rs.i32 = rs.i32Sub(Input.u8(input) as rs.i32, 128);
-	const part = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(1)), 64, true) as rs.i64;
-	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n ", (f: rs.Formatter) => rs.i64Display(part, f), "\n"]), rs.fmtErrorDebug);
+	const v: rs.i64 = rs.jsToWide(rs.jsGlobal("BigInt").asIntN(bits, rs.jsBigInt(1)), 64, true) as rs.i64;
+	rs.resultUnwrap(rs.fmtWriteString(out, ["as_int_n ", (f: rs.Formatter) => rs.i64Display(v, f), "\n"]), rs.fmtErrorDebug);
 }
 
 export const DROPS: rs.Atomic<rs.u32> = /* @__PURE__ */ new rs.Atomic(0);
@@ -744,103 +750,103 @@ export function errorClass(out: rs.String, what: string, e: rs.JsValue): void {
 export function edges(input: Input.Input, out: rs.String): void {
 	let spread!: rs.JsValue;
 	let x!: rs.f64 | undefined;
-	const _9: rs.ByteSlice = Input.slice(input);
-	const part = rs.jsToByteVec(rs.jsSpreadMethod(rs.jsGlobal("Uint8Array"), "of", [], rs.byteSliceView(_9)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["bytes of ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
+	const _8: rs.ByteSlice = Input.slice(input);
+	const _7: rs.ByteVec = rs.jsToByteVec(rs.jsSpreadMethod(rs.jsGlobal("Uint8Array"), "of", [], rs.byteSliceView(_8)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["bytes of ", (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_7), f, rs.u8Debug), "\n"]), rs.fmtErrorDebug);
 	if (!Input.flag(input)) {
 		const like: rs.JsValue = new (rs.jsGlobal("Object"))() as rs.JsValue;
-		const _20: rs.JsValue = like;
-		const _23: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("length");
-		const _26: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
-		rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_20, _23, _26), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
-		const _29: rs.JsValue = like;
-		const _32: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("0");
-		const _35: rs.JsValue = Input.value(input);
-		rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_29, _32, _35), (item2: unknown) => rs.jsToBool(item2), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+		const _18: rs.JsValue = like;
+		const _21: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("length");
+		const _23: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
+		rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_18, _21, _23), (item: unknown) => rs.jsToBool(item), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+		const _26: rs.JsValue = like;
+		const _29: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("0");
+		const _31: rs.JsValue = Input.value(input);
+		rs.resultUnwrap(rs.jsCatch(() => rs.jsGlobal("Reflect").set(_26, _29, _31), (item2: unknown) => rs.jsToBool(item2), false) as rs.Result<boolean, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
 		spread = uncheckedInto$wasm_bindgen_JsCast_js_sys_Object_js_sys_Array(like);
 	} else {
-		const _16: rs.ByteSlice = Input.slice(input);
-		spread = rs.jsGlobal("Array").from(rs.byteSliceView(_16)) as rs.JsValue;
+		const _14: rs.ByteSlice = Input.slice(input);
+		spread = rs.jsGlobal("Array").from(rs.byteSliceView(_14)) as rs.JsValue;
 	}
-	const _38: rs.JsValue = spread;
-	const _37: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsSpreadMethod(rs.jsGlobal("Array"), "of", [], _38), (item3: unknown) => item3 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_37.ok) {
-		const part2 = rs.jsToU32(rs.jsAny(_37.value).length);
-		rs.resultUnwrap(rs.fmtWriteString(out, ["spread ", (f: rs.Formatter) => rs.u32Display(part2, f), "\n"]), rs.fmtErrorDebug);
+	const _34: rs.JsValue = spread;
+	const _33: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => rs.jsSpreadMethod(rs.jsGlobal("Array"), "of", [], _34), (item3: unknown) => item3 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_33.ok) {
+		const _40: rs.u32 = rs.jsToU32(rs.jsAny(_33.value).length);
+		rs.resultUnwrap(rs.fmtWriteString(out, ["spread ", (f: rs.Formatter) => rs.u32Display(_40, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "spread threw", _37.error);
+		errorClass(out, "spread threw", _33.error);
 	}
-	const _58: rs.Slice<rs.u32> = rs.sliceRange(rs.sliceFrom([Input.u32(input), Input.u32(input)]), 0, rs.u8Rem(Input.u8(input), 3) as rs.usize);
-	const part4 = rs.jsToU32(rs.jsSpreadMethod(rs.jsGlobal("rustFresh"), "of", [], rs.jsTyped(rs.global.Uint32Array, _58, false)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fresh of ", (f: rs.Formatter) => rs.u32Display(part4, f), "\n"]), rs.fmtErrorDebug);
-	const _76: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(16777215);
+	const _51: rs.Slice<rs.u32> = rs.sliceRange(rs.sliceFrom([Input.u32(input), Input.u32(input)]), 0, rs.u8Rem(Input.u8(input), 3) as rs.usize);
+	const fresh: rs.u32 = rs.jsToU32(rs.jsSpreadMethod(rs.jsGlobal("rustFresh"), "of", [], rs.jsTyped(rs.global.Uint32Array, _51, false)));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fresh of ", (f: rs.Formatter) => rs.u32Display(fresh, f), "\n"]), rs.fmtErrorDebug);
+	const _66: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(16777215);
 	const sentinel: rs.u8 | undefined = ((got: unknown): rs.u8 | undefined => {
 		return got === undefined ? undefined : rs.jsToU8(got);
-	})(rs.jsToOptionSmall(rs.jsGlobal("rustIdentity")(_76)));
-	const _79: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
+	})(rs.jsToOptionSmall(rs.jsGlobal("rustIdentity")(_66)));
+	const _69: rs.JsValue = fromF64$wasm_bindgen_JsValue(Input.f64(input));
 	const small: rs.u8 | undefined = ((got2: unknown): rs.u8 | undefined => {
 		return got2 === undefined ? undefined : rs.jsToU8(got2);
-	})(rs.jsToOptionSmall(rs.jsGlobal("rustIdentity")(_79)));
-	const args24 = [(f: rs.Formatter) => rs.fmtOption(sentinel, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(small, f, rs.u8Debug)];
-	rs.resultUnwrap(rs.fmtWriteString(out, ["u8 option ", args24[0], " ", args24[1], "\n"]), rs.fmtErrorDebug);
+	})(rs.jsToOptionSmall(rs.jsGlobal("rustIdentity")(_69)));
+	const args14 = [(f: rs.Formatter) => rs.fmtOption(sentinel, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(small, f, rs.u8Debug)];
+	rs.resultUnwrap(rs.fmtWriteString(out, ["u8 option ", args14[0], " ", args14[1], "\n"]), rs.fmtErrorDebug);
 	const v: rs.JsValue = Input.value(input);
-	const _94: rs.Result<rs.char, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("String")(v), (item4: unknown) => rs.jsToChar(item4), true) as rs.Result<rs.char, rs.JsValue>;
-	if (_94.ok) {
-		const arg = _94.value;
-		rs.resultUnwrap(rs.fmtWriteString(out, ["char ", (f: rs.Formatter) => rs.fmtCharDebug(arg, f), "\n"]), rs.fmtErrorDebug);
+	const _82: rs.Result<rs.char, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("String")(v), (item4: unknown) => rs.jsToChar(item4), true) as rs.Result<rs.char, rs.JsValue>;
+	if (_82.ok) {
+		const c: rs.char = _82.value;
+		rs.resultUnwrap(rs.fmtWriteString(out, ["char ", (f: rs.Formatter) => rs.fmtCharDebug(c, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "char threw", _94.error);
+		errorClass(out, "char threw", _82.error);
 	}
 	if (!Input.flag(input)) {
 		x = undefined;
 	} else {
 		x = Input.f64(input);
 	}
-	const part5 = ((got3: unknown): boolean | undefined => {
+	const _101: boolean | undefined = ((got3: unknown): boolean | undefined => {
 		return rs.jsIsNone(got3) ? undefined : !!got3;
 	})(rs.jsGlobal("Math").abs(((some: rs.f64 | undefined) => some === undefined ? undefined : some)(x)));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["abs flag ", (f: rs.Formatter) => rs.fmtOption(part5, f, rs.fmtBool), "\n"]), rs.fmtErrorDebug);
-	const _124: rs.Result<undefined, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustNoSuchFunction")(), (_item5: unknown) => undefined, false) as rs.Result<undefined, rs.JsValue>;
-	if (_124.ok) {
+	rs.resultUnwrap(rs.fmtWriteString(out, ["abs flag ", (f: rs.Formatter) => rs.fmtOption(_101, f, rs.fmtBool), "\n"]), rs.fmtErrorDebug);
+	const _107: rs.Result<undefined, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustNoSuchFunction")(), (_item5: unknown) => undefined, false) as rs.Result<undefined, rs.JsValue>;
+	if (_107.ok) {
 		rs.stringPushStr(out, "missing function called\n");
 		rs.resultUnwrap(rs.OK, rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "missing function threw", _124.error);
+		errorClass(out, "missing function threw", _107.error);
 	}
-	const _132: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => new (rs.jsGlobal("RustNoSuchClass"))(), (item6: unknown) => item6 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
-	if (_132.ok) {
+	const _114: rs.Result<rs.JsValue, rs.JsValue> = rs.jsCatch(() => new (rs.jsGlobal("RustNoSuchClass"))(), (item6: unknown) => item6 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>;
+	if (_114.ok) {
 		rs.stringPushStr(out, "missing class made\n");
 		rs.resultUnwrap(rs.OK, rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "missing class threw", _132.error);
+		errorClass(out, "missing class threw", _114.error);
 	}
 	const before: rs.u32 = rs.atomicLoad(DROPS, 0);
 	const owned: Owned.Owned = new Owned.Owned(Input.value(input));
 	show(out, "owned", owned.obj);
 	owned[Symbol.dispose]();
-	const part6 = rs.u32Sub(rs.atomicLoad(DROPS, 0), before);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["drops ", (f: rs.Formatter) => rs.u32Display(part6, f), "\n"]), rs.fmtErrorDebug);
+	const _129: rs.u32 = rs.u32Sub(rs.atomicLoad(DROPS, 0), before);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["drops ", (f: rs.Formatter) => rs.u32Display(_129, f), "\n"]), rs.fmtErrorDebug);
 	const v2: rs.JsValue = Input.value(input);
-	const _163: rs.Result<rs.u32, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustIdentity")(v2), (item7: unknown) => rs.jsToU32(item7), false) as rs.Result<rs.u32, rs.JsValue>;
-	if (_163.ok) {
-		const arg2 = _163.value;
-		rs.resultUnwrap(rs.fmtWriteString(out, ["u32 ", (f: rs.Formatter) => rs.u32Display(arg2, f), "\n"]), rs.fmtErrorDebug);
+	const _137: rs.Result<rs.u32, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustIdentity")(v2), (item7: unknown) => rs.jsToU32(item7), false) as rs.Result<rs.u32, rs.JsValue>;
+	if (_137.ok) {
+		const n: rs.u32 = _137.value;
+		rs.resultUnwrap(rs.fmtWriteString(out, ["u32 ", (f: rs.Formatter) => rs.u32Display(n, f), "\n"]), rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "u32 threw", _163.error);
+		errorClass(out, "u32 threw", _137.error);
 	}
-	const _181: rs.JsValue = Input.value(input);
-	const _179: rs.Result<rs.i16 | undefined, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustIdentity")(_181), (item8: unknown) => ((got4: unknown): rs.i16 | undefined => {
+	const _152: rs.JsValue = Input.value(input);
+	const _150: rs.Result<rs.i16 | undefined, rs.JsValue> = rs.jsCatch(() => rs.jsGlobal("rustIdentity")(_152), (item8: unknown) => ((got4: unknown): rs.i16 | undefined => {
 		return got4 === undefined ? undefined : rs.jsToI16(got4);
 	})(rs.jsToOptionSmall(item8)), false) as rs.Result<rs.i16 | undefined, rs.JsValue>;
-	if (_179.ok) {
-		const arg3 = _179.value;
-		rs.resultUnwrap(rs.fmtWriteString(out, ["i16 option ", (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.i16Debug), "\n"]), rs.fmtErrorDebug);
+	if (_150.ok) {
+		const n2: rs.i16 | undefined = _150.value;
+		rs.resultUnwrap(rs.fmtWriteString(out, ["i16 option ", (f: rs.Formatter) => rs.fmtOption(n2, f, rs.i16Debug), "\n"]), rs.fmtErrorDebug);
 	} else {
-		errorClass(out, "i16 option threw", _179.error);
+		errorClass(out, "i16 option threw", _150.error);
 	}
-	const _202: rs.JsValue = Input.value(input);
-	const part7 = rs.jsToU32(rs.jsGlobal("rustIdentity")(_202));
-	rs.resultUnwrap(rs.fmtWriteString(out, ["u32 of ", (f: rs.Formatter) => rs.u32Display(part7, f), "\n"]), rs.fmtErrorDebug);
+	const _169: rs.JsValue = Input.value(input);
+	const _167: rs.u32 = rs.jsToU32(rs.jsGlobal("rustIdentity")(_169));
+	rs.resultUnwrap(rs.fmtWriteString(out, ["u32 of ", (f: rs.Formatter) => rs.u32Display(_167, f), "\n"]), rs.fmtErrorDebug);
 }
 
 //# sourceMappingURL=harness.ts.map

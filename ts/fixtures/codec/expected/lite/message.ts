@@ -17,8 +17,9 @@ export function decodeSize(r: Decoder.Decoder, max: rs.usize): rs.usize | undefi
 		const size: rs.u64 = part as rs.u64;
 		const _8: rs.Result<rs.usize, rs.TryFromIntError> = rs.usizeTryFrom(size);
 		if (_8.ok) {
-			if (_8.value <= max) {
-				return _8.value;
+			const size2: rs.usize = _8.value;
+			if (size2 <= max) {
+				return size2;
 			}
 		}
 		out$usize.err = { tag: "MessageTooLarge", size: result_unwrapOr$0a2fg79(rs.usizeTryFrom(size), 4294967295), max } as DecodeError.DecodeError;

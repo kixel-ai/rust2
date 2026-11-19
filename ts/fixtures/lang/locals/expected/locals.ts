@@ -84,9 +84,9 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 	})(POLLING.get()));
 	rs.byteVecPush(out, ((p2: Polling.Polling): rs.u8 => {
-		const _64: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(p2.held);
-		const _06: rs.u8 = _64.value.length & 0xff;
-		rs.refRelease(_64);
+		const _6: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(p2.held);
+		const _06: rs.u8 = _6.value.length & 0xff;
+		rs.refRelease(_6);
 		return _06;
 	})(POLLING.get()));
 	rs.byteVecPush(out, withBorrow$0ff0ub1(HELD, (held: Noisy.Noisy | undefined): rs.u8 => {
@@ -97,82 +97,82 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, withBorrow$1p7azig(TALLY, (tally: rs.u32): rs.u8 => {
 		return tally & 0xff;
 	}));
-	const _26: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_26[0]._0 & 0xff, _26[0]._1 & 0xff, _26[1]._0 & 0xff, _26[1]._1 & 0xff)), undefined, true);
+	const _20: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_20[0]._0 & 0xff, _20[0]._1 & 0xff, _20[1]._0 & 0xff, _20[1]._1 & 0xff)), undefined, true);
 	rs.byteVecPush(out, serial(false));
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	for (const op of rs.byteSliceView(data)) {
-		const _46: rs.u8 = rs.u8Rem(op, 9);
-		if (_46 === 0) {
+		const _39: rs.u8 = rs.u8Rem(op, 9);
+		if (_39 === 0) {
 			((c4: rs.Cell<rs.u32>): undefined => {
 				rs.cellSet(c4, rs.u32WrappingAdd(c4.v, op as rs.u32));
 			})(COUNT.get());
 			rs.byteVecPush(out, ((a02: rs.Cell<rs.u32>): rs.u32 => {
 				return a02.v;
 			})(COUNT.get()) & 0xff);
-		} else if (_46 === 1) {
+		} else if (_39 === 1) {
 			((log7: rs.RefCell<rs.ByteVec>): undefined => {
-				const _513: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log7);
-				rs.byteVecPush(_513.value, op);
-				rs.refMutRelease(_513);
+				const _510: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log7);
+				rs.byteVecPush(_510.value, op);
+				rs.refMutRelease(_510);
 			})(LOG.get());
-		} else if (_46 === 2) {
+		} else if (_39 === 2) {
 			rs.byteVecPush(out, result_mapOr$12d9lqr(rs.Ok(((log6: rs.RefCell<rs.ByteVec>): rs.usize => {
-				const _512: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log6);
-				const _021: rs.usize = _512.value.length;
-				rs.refRelease(_512);
+				const _59: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log6);
+				const _021: rs.usize = _59.value.length;
+				rs.refRelease(_59);
 				return _021;
 			})(LOG.get())), 253, (n4: rs.usize): rs.u8 => {
 				return n4 & 0xff;
 			}));
-		} else if (_46 === 3) {
+		} else if (_39 === 3) {
 			rs.byteVecPush(out, ((c3: rs.Cell<rs.u32>): rs.u8 => {
 				return ((log5: rs.RefCell<rs.ByteVec>): rs.u8 => {
-					const _318: rs.u8 = c3.v & 0xff;
-					const _910: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log5);
-					const _78: rs.ByteVec = _910.value;
-					const _020: rs.u8 = _318 ^ _78.data[rs.idx(_78, 0)];
-					rs.refRelease(_910);
+					const _314: rs.u8 = c3.v & 0xff;
+					const _96: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log5);
+					const _710: rs.ByteVec = _96.value;
+					const _020: rs.u8 = _314 ^ _710.data[rs.idx(_710, 0)];
+					rs.refRelease(_96);
 					return _020;
 				})(LOG.get());
 			})(COUNT.get()));
-		} else if (_46 === 4) {
+		} else if (_39 === 4) {
 			const outer: [rs.u64, rs.u64] | undefined = ((p3: Polling.Polling): [rs.u64, rs.u64] | undefined => {
-				const _45: [rs.u64, rs.u64] | undefined = [op as rs.u64, 1];
-				return rs.cellReplace(p3.current, _45);
+				const _410: [rs.u64, rs.u64] | undefined = [op as rs.u64, 1];
+				return rs.cellReplace(p3.current, _410);
 			})(POLLING.get());
 			const len: rs.usize = ((p4: Polling.Polling): rs.usize => {
-				const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(p4.held);
-				rs.byteVecPush(_611.value, op);
-				rs.refMutRelease(_611);
+				const _67: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(p4.held);
+				rs.byteVecPush(_67.value, op);
+				rs.refMutRelease(_67);
 				const _1110: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(p4.held);
 				const _017: rs.usize = _1110.value.length;
 				rs.refRelease(_1110);
 				return _017;
 			})(POLLING.get());
-			rs.byteVecPush(out, option_mapOr$1idpb1d(outer, 253, (_23: [rs.u64, rs.u64]): rs.u8 => {
-				return rs.u64Low(_23[0]) & 0xff;
+			rs.byteVecPush(out, option_mapOr$1idpb1d(outer, 253, (_29: [rs.u64, rs.u64]): rs.u8 => {
+				return rs.u64Low(_29[0]) & 0xff;
 			}));
 			rs.byteVecPush(out, len & 0xff);
-		} else if (_46 === 5) {
+		} else if (_39 === 5) {
 			((held3: rs.RefCell<Noisy.Noisy | undefined>): undefined => {
-				const _316: Noisy.Noisy | undefined = new Noisy.Noisy(op, rs.arcClone(log));
-				const _94: rs.RefCell<Noisy.Noisy | undefined> = rs.refCellBorrowMut(held3);
-				rs.drop(_94.value);
-				_94.value = _316;
-				rs.refMutRelease(_94);
+				const _312: Noisy.Noisy | undefined = new Noisy.Noisy(op, rs.arcClone(log));
+				const _92: rs.RefCell<Noisy.Noisy | undefined> = rs.refCellBorrowMut(held3);
+				rs.drop(_92.value);
+				_92.value = _312;
+				rs.refMutRelease(_92);
 			})(HELD.get());
-		} else if (_46 === 6) {
+		} else if (_39 === 6) {
 			set$1ljkjlf(COUNT, rs.u32WrappingMul(get$0q7640n(COUNT), 3));
 			rs.byteVecPush(out, replace$143ou38(COUNT, op as rs.u32) & 0xff);
 			rs.byteVecPush(out, take$1ptr2t1(COUNT) & 0xff);
 			set$1ljkjlf(COUNT, rs.u32Add(op as rs.u32, 1));
-			const _103: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_103[0]._0 & 0xff, _103[0]._1 & 0xff, _103[1]._0 & 0xff, _103[1]._1 & 0xff)), undefined, true);
-			rs.byteVecPush(out, option_mapOr$0543jy8(thenSome$1qfl7tz(rs.u8Rem(op, 2) === 0, undefined), 253, (_22: undefined): rs.u8 => {
+			const _82: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_82[0]._0 & 0xff, _82[0]._1 & 0xff, _82[1]._0 & 0xff, _82[1]._1 & 0xff)), undefined, true);
+			rs.byteVecPush(out, option_mapOr$0543jy8(thenSome$1qfl7tz(rs.u8Rem(op, 2) === 0, undefined), 253, (_27: undefined): rs.u8 => {
 				return 1;
 			}));
-		} else if (_46 === 7) {
+		} else if (_39 === 7) {
 			rs.localKeyWithBorrowMut(LOG, (log3: rs.ByteVec): undefined => {
 				rs.byteVecPush(log3, op);
 			});
@@ -183,9 +183,8 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.localKeyRefCellSet(LOG, rs.byteVecFrom(Uint8Array.of(op, op)));
 			rs.iterExtendBytes(out, rs.byteVecIntoIter(take$1snv7rd(LOG)), undefined, true);
 			rs.localKeyRefCellSet(LOG, rs.byteVecFrom(Uint8Array.of(1, 2, 3)));
-			const _141: rs.LocalKey<rs.RefCell<Noisy.Noisy | undefined>> = HELD;
-			const _144: rs.Arc<rs.Mutex<rs.ByteVec>> = rs.arcClone(log);
-			rs.localKeyRefCellSet(_141, new Noisy.Noisy(op, _144), rs.drop);
+			const _114: rs.Arc<rs.Mutex<rs.ByteVec>> = rs.arcClone(log);
+			rs.localKeyRefCellSet(HELD, new Noisy.Noisy(op, _114), rs.drop);
 			rs.localKeyWithBorrowMutPlace(HELD, (held2: rs.Place<Noisy.Noisy | undefined>): undefined => {
 				rs.drop(held2.v);
 				held2.v = undefined;
@@ -212,44 +211,44 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			rs.byteVecPush(out, serial(false));
 		}
-		const _181: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_181.value))), undefined, true);
-		rs.mutexUnlock(_181);
-		const _188: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-		rs.byteVecClear(_188.value);
-		rs.mutexUnlock(_188);
+		const _144: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_144.value))), undefined, true);
+		rs.mutexUnlock(_144);
+		const _151: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		rs.byteVecClear(_151.value);
+		rs.mutexUnlock(_151);
 	}
 	((c5: rs.Cell<rs.u32>): undefined => {
 		rs.cellSet(c5, 7);
 	})(COUNT.get());
 	((tally5: rs.RefCell<rs.u32>): undefined => {
-		const _515: rs.RefCell<rs.u32> = rs.refCellBorrowMut(tally5);
-		_515.value = 0;
-		rs.refMutRelease(_515);
+		const _512: rs.RefCell<rs.u32> = rs.refCellBorrowMut(tally5);
+		_512.value = 0;
+		rs.refMutRelease(_512);
 	})(TALLY.get());
 	((log8: rs.RefCell<rs.ByteVec>): undefined => {
-		const _516: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log8);
-		rs.byteVecTruncate(_516.value, 3);
-		rs.refMutRelease(_516);
+		const _513: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log8);
+		rs.byteVecTruncate(_513.value, 3);
+		rs.refMutRelease(_513);
 	})(LOG.get());
 	((p5: Polling.Polling): undefined => {
 		rs.cellSet(p5.current, undefined as [rs.u64, rs.u64] | undefined);
-		const _911: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(p5.held);
-		rs.byteVecClear(_911.value);
-		rs.refMutRelease(_911);
+		const _97: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(p5.held);
+		rs.byteVecClear(_97.value);
+		rs.refMutRelease(_97);
 	})(POLLING.get());
 	rs.drop(((held4: rs.RefCell<Noisy.Noisy | undefined>): Noisy.Noisy | undefined => {
-		const _518: rs.RefCell<Noisy.Noisy | undefined> = rs.refCellBorrowMut(held4);
-		const taken = _518.value;
-		_518.value = undefined;
+		const _515: rs.RefCell<Noisy.Noisy | undefined> = rs.refCellBorrowMut(held4);
+		const taken = _515.value;
+		_515.value = undefined;
 		const _024: Noisy.Noisy | undefined = taken;
-		rs.refMutRelease(_518);
+		rs.refMutRelease(_515);
 		return _024;
 	})(HELD.get()));
 	serial(true);
-	const _208: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_208.value))), undefined, true);
-	rs.mutexUnlock(_208);
+	const _166: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_166.value))), undefined, true);
+	rs.mutexUnlock(_166);
 	log[Symbol.dispose]();
 }
 
@@ -306,8 +305,8 @@ export function keys(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_12 === 3) {
 			rs.cellSet(rs.cellOfPlace(key), RIGHT);
 		}
-		const _28: rs.u8 = rs.u8WrappingAdd(get$09fnt4b(key.v), op);
-		set$0e2h2hd(key.v, _28);
+		const _27: rs.u8 = rs.u8WrappingAdd(get$09fnt4b(key.v), op);
+		set$0e2h2hd(key.v, _27);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(get$09fnt4b(LEFT), get$09fnt4b(RIGHT))), undefined, true);
 	}
 	set$0e2h2hd(LEFT, 1);

@@ -39,8 +39,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Filter_it
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -67,8 +67,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Rev_slice
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -95,8 +95,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Skip_slic
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -123,8 +123,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Take_slic
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -151,8 +151,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -179,8 +179,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -207,8 +207,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -235,8 +235,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -263,8 +263,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -291,8 +291,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Skip_vec_IntoIter_
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -321,8 +321,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -349,8 +349,8 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 	const _17: Item.Item | undefined = rs.sliceFirst(rs.sliceFrom(items.items));
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(_17.log);
-		const part = items.items.length;
-		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+		const _30: rs.usize = items.items.length;
+		const _26: rs.String = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(_30, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}

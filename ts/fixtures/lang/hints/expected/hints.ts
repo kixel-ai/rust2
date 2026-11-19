@@ -42,13 +42,13 @@ export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void
  * `steps` has the item's bit set.
  */
 export function walk$array_IntoIter_u8_3(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -62,13 +62,13 @@ export function walk$array_IntoIter_u8_3(it: rs.Iter<rs.u8>, steps: rs.u8, out: 
  * `steps` has the item's bit set.
  */
 export function walk$collections_binary_heap_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -82,13 +82,13 @@ export function walk$collections_binary_heap_Iter_u8(it: rs.Iter<rs.u8>, steps: 
  * `steps` has the item's bit set.
  */
 export function walk$collections_btree_map_Iter_u8_u8(it: rs.Iter<[rs.u8, rs.u8]>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -102,13 +102,13 @@ export function walk$collections_btree_map_Iter_u8_u8(it: rs.Iter<[rs.u8, rs.u8]
  * `steps` has the item's bit set.
  */
 export function walk$collections_btree_map_Range_u8_u8(it: rs.Iter<[rs.u8, rs.u8]>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -122,13 +122,13 @@ export function walk$collections_btree_map_Range_u8_u8(it: rs.Iter<[rs.u8, rs.u8
  * `steps` has the item's bit set.
  */
 export function walk$collections_btree_map_Values_u8_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -142,13 +142,13 @@ export function walk$collections_btree_map_Values_u8_u8(it: rs.Iter<rs.u8>, step
  * `steps` has the item's bit set.
  */
 export function walk$collections_btree_set_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -162,13 +162,13 @@ export function walk$collections_btree_set_Iter_u8(it: rs.Iter<rs.u8>, steps: rs
  * `steps` has the item's bit set.
  */
 export function walk$collections_vec_deque_Drain_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -183,13 +183,13 @@ export function walk$collections_vec_deque_Drain_u8(it: rs.Iter<rs.u8>, steps: r
  * `steps` has the item's bit set.
  */
 export function walk$collections_vec_deque_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -203,13 +203,13 @@ export function walk$collections_vec_deque_Iter_u8(it: rs.Iter<rs.u8>, steps: rs
  * `steps` has the item's bit set.
  */
 export function walk$iter_Chain_iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure28_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -223,13 +223,13 @@ export function walk$iter_Chain_iter_Flatten_iter_Map_ops_Range_u64_hints_hints_
  * `steps` has the item's bit set.
  */
 export function walk$iter_Chain_ops_Range_u32_ops_Range_u32(it: rs.Iter<rs.u32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -243,13 +243,13 @@ export function walk$iter_Chain_ops_Range_u32_ops_Range_u32(it: rs.Iter<rs.u32>,
  * `steps` has the item's bit set.
  */
 export function walk$iter_Chain_ops_Range_u64_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -263,13 +263,13 @@ export function walk$iter_Chain_ops_Range_u64_ops_Range_u64(it: rs.Iter<rs.u64>,
  * `steps` has the item's bit set.
  */
 export function walk$iter_Cloned_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -283,13 +283,13 @@ export function walk$iter_Cloned_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8,
  * `steps` has the item's bit set.
  */
 export function walk$iter_Copied_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -303,13 +303,13 @@ export function walk$iter_Copied_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8,
  * `steps` has the item's bit set.
  */
 export function walk$iter_Empty_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -323,13 +323,13 @@ export function walk$iter_Empty_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.Byt
  * `steps` has the item's bit set.
  */
 export function walk$iter_Enumerate_ops_Range_u32(it: rs.Iter<[rs.usize, rs.u32]>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -343,13 +343,13 @@ export function walk$iter_Enumerate_ops_Range_u32(it: rs.Iter<[rs.usize, rs.u32]
  * `steps` has the item's bit set.
  */
 export function walk$iter_FilterMap_ops_Range_u64_hints_hints_closure2(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -363,13 +363,13 @@ export function walk$iter_FilterMap_ops_Range_u64_hints_hints_closure2(it: rs.It
  * `steps` has the item's bit set.
  */
 export function walk$iter_Filter_ops_Range_u64_hints_hints_closure1(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -383,13 +383,13 @@ export function walk$iter_Filter_ops_Range_u64_hints_hints_closure1(it: rs.Iter<
  * `steps` has the item's bit set.
  */
 export function walk$iter_FlatMap_ops_Range_u64_Option_u64_hints_hints_closure16(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -403,13 +403,13 @@ export function walk$iter_FlatMap_ops_Range_u64_Option_u64_hints_hints_closure16
  * `steps` has the item's bit set.
  */
 export function walk$iter_FlatMap_ops_Range_u64_array1_u64_hints_hints_closure10(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -423,13 +423,13 @@ export function walk$iter_FlatMap_ops_Range_u64_array1_u64_hints_hints_closure10
  * `steps` has the item's bit set.
  */
 export function walk$iter_FlatMap_ops_Range_u64_iter_Filter_option_IntoIter_u64_hints_hints_closure17_closure0_hints_hints_closure17(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -443,13 +443,13 @@ export function walk$iter_FlatMap_ops_Range_u64_iter_Filter_option_IntoIter_u64_
  * `steps` has the item's bit set.
  */
 export function walk$iter_FlatMap_ops_Range_u64_iter_Flatten_array_IntoIter_array2_u64_2_hints_hints_closure14(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -463,13 +463,13 @@ export function walk$iter_FlatMap_ops_Range_u64_iter_Flatten_array_IntoIter_arra
  * `steps` has the item's bit set.
  */
 export function walk$iter_FlatMap_ops_Range_u64_iter_Once_u64_iter_once_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -483,13 +483,13 @@ export function walk$iter_FlatMap_ops_Range_u64_iter_Once_u64_iter_once_u64(it: 
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure11(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -503,13 +503,13 @@ export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure11(i
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure12(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -523,13 +523,13 @@ export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure12(i
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure15(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -543,13 +543,13 @@ export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure15(i
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure9(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -563,13 +563,13 @@ export function walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure9(it
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_iter_Map_slice_Iter_u8_hints_hints_closure18(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -583,13 +583,13 @@ export function walk$iter_Flatten_iter_Map_slice_Iter_u8_hints_hints_closure18(i
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_slice_Chunks_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -603,13 +603,13 @@ export function walk$iter_Flatten_slice_Chunks_u8(it: rs.Iter<rs.u8>, steps: rs.
  * `steps` has the item's bit set.
  */
 export function walk$iter_Flatten_slice_Iter_array2_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -623,13 +623,13 @@ export function walk$iter_Flatten_slice_Iter_array2_u8(it: rs.Iter<rs.u8>, steps
  * `steps` has the item's bit set.
  */
 export function walk$iter_Fuse_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -643,13 +643,13 @@ export function walk$iter_Fuse_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, 
  * `steps` has the item's bit set.
  */
 export function walk$iter_Inspect_ops_Range_u64_hints_hints_closure8(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -663,13 +663,13 @@ export function walk$iter_Inspect_ops_Range_u64_hints_hints_closure8(it: rs.Iter
  * `steps` has the item's bit set.
  */
 export function walk$iter_Map_ops_Range_u64_hints_hints_closure7(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -683,13 +683,13 @@ export function walk$iter_Map_ops_Range_u64_hints_hints_closure7(it: rs.Iter<rs.
  * `steps` has the item's bit set.
  */
 export function walk$iter_Once_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -703,13 +703,13 @@ export function walk$iter_Once_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.By
  * `steps` has the item's bit set.
  */
 export function walk$iter_Rev_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -723,13 +723,13 @@ export function walk$iter_Rev_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, o
  * `steps` has the item's bit set.
  */
 export function walk$iter_StepBy_iter_Rev_iter_Zip_ops_Range_u32_ops_Range_u32(it: rs.Iter<[rs.u32, rs.u32]>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -743,13 +743,13 @@ export function walk$iter_StepBy_iter_Rev_iter_Zip_ops_Range_u32_ops_Range_u32(i
  * `steps` has the item's bit set.
  */
 export function walk$iter_StepBy_ops_Range_u32(it: rs.Iter<rs.u32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -763,13 +763,13 @@ export function walk$iter_StepBy_ops_Range_u32(it: rs.Iter<rs.u32>, steps: rs.u8
  * `steps` has the item's bit set.
  */
 export function walk$iter_StepBy_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -783,13 +783,13 @@ export function walk$iter_StepBy_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8,
  * `steps` has the item's bit set.
  */
 export function walk$iter_Take_ops_Range_u32(it: rs.Iter<rs.u32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -803,13 +803,13 @@ export function walk$iter_Take_ops_Range_u32(it: rs.Iter<rs.u32>, steps: rs.u8, 
  * `steps` has the item's bit set.
  */
 export function walk$iter_Zip_slice_Iter_u8_iter_Skip_slice_Iter_u8(it: rs.Iter<[rs.u8, rs.u8]>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -823,13 +823,13 @@ export function walk$iter_Zip_slice_Iter_u8_iter_Skip_slice_Iter_u8(it: rs.Iter<
  * `steps` has the item's bit set.
  */
 export function walk$mut_iter_Chain_ops_Range_u64_ops_Range_u64(it: rs.Iter<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, rs.iterBorrow(it).sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -843,13 +843,13 @@ export function walk$mut_iter_Chain_ops_Range_u64_ops_Range_u64(it: rs.Iter<rs.u
  * `steps` has the item's bit set.
  */
 export function walk$mut_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, rs.iterBorrow(it).sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -863,13 +863,13 @@ export function walk$mut_slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs
  * `steps` has the item's bit set.
  */
 export function walk$ops_RangeInclusive_i8(it: rs.RangeInclusive<rs.i8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -883,13 +883,13 @@ export function walk$ops_RangeInclusive_i8(it: rs.RangeInclusive<rs.i8>, steps: 
  * `steps` has the item's bit set.
  */
 export function walk$ops_RangeInclusive_u32(it: rs.RangeInclusive<rs.u32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -903,13 +903,13 @@ export function walk$ops_RangeInclusive_u32(it: rs.RangeInclusive<rs.u32>, steps
  * `steps` has the item's bit set.
  */
 export function walk$ops_RangeInclusive_u64(it: rs.RangeInclusive<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -923,13 +923,13 @@ export function walk$ops_RangeInclusive_u64(it: rs.RangeInclusive<rs.u64>, steps
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_i128(it: rs.Range<rs.i128>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -943,13 +943,13 @@ export function walk$ops_Range_i128(it: rs.Range<rs.i128>, steps: rs.u8, out: rs
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_i32(it: rs.Range<rs.i32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			it.start < it.end ? it.start++ : undefined;
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -963,13 +963,13 @@ export function walk$ops_Range_i32(it: rs.Range<rs.i32>, steps: rs.u8, out: rs.B
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_i64(it: rs.Range<rs.i64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -983,13 +983,13 @@ export function walk$ops_Range_i64(it: rs.Range<rs.i64>, steps: rs.u8, out: rs.B
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_u128(it: rs.Range<rs.u128>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1003,13 +1003,13 @@ export function walk$ops_Range_u128(it: rs.Range<rs.u128>, steps: rs.u8, out: rs
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_u32(it: rs.Range<rs.u32>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			it.start < it.end ? it.start++ : undefined;
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1023,13 +1023,13 @@ export function walk$ops_Range_u32(it: rs.Range<rs.u32>, steps: rs.u8, out: rs.B
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_u64(it: rs.Range<rs.u64>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1043,13 +1043,13 @@ export function walk$ops_Range_u64(it: rs.Range<rs.u64>, steps: rs.u8, out: rs.B
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_u8(it: rs.Range<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			it.start < it.end ? it.start++ : undefined;
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1063,13 +1063,13 @@ export function walk$ops_Range_u8(it: rs.Range<rs.u8>, steps: rs.u8, out: rs.Byt
  * `steps` has the item's bit set.
  */
 export function walk$ops_Range_usize(it: rs.Range<rs.usize>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			it.start < it.end ? it.start++ : undefined;
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1083,13 +1083,13 @@ export function walk$ops_Range_usize(it: rs.Range<rs.usize>, steps: rs.u8, out: 
  * `steps` has the item's bit set.
  */
 export function walk$option_IntoIter_ref_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1103,13 +1103,13 @@ export function walk$option_IntoIter_ref_u8(it: rs.Iter<rs.u8>, steps: rs.u8, ou
  * `steps` has the item's bit set.
  */
 export function walk$slice_ChunksExact_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1123,13 +1123,13 @@ export function walk$slice_ChunksExact_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u
  * `steps` has the item's bit set.
  */
 export function walk$slice_Chunks_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1143,13 +1143,13 @@ export function walk$slice_Chunks_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, ou
  * `steps` has the item's bit set.
  */
 export function walk$slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1163,13 +1163,13 @@ export function walk$slice_Iter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.Byt
  * `steps` has the item's bit set.
  */
 export function walk$slice_RChunksExact_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1183,13 +1183,13 @@ export function walk$slice_RChunksExact_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.
  * `steps` has the item's bit set.
  */
 export function walk$slice_RChunks_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1203,13 +1203,13 @@ export function walk$slice_RChunks_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, o
  * `steps` has the item's bit set.
  */
 export function walk$slice_Windows_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1223,13 +1223,13 @@ export function walk$slice_Windows_u8(it: rs.Iter<rs.ByteSlice>, steps: rs.u8, o
  * `steps` has the item's bit set.
  */
 export function walk$str_Bytes(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1243,13 +1243,13 @@ export function walk$str_Bytes(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec
  * `steps` has the item's bit set.
  */
 export function walk$str_Chars(it: rs.Iter<rs.char>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1263,13 +1263,13 @@ export function walk$str_Chars(it: rs.Iter<rs.char>, steps: rs.u8, out: rs.ByteV
  * `steps` has the item's bit set.
  */
 export function walk$string_Drain(it: rs.Iter<rs.char>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1284,13 +1284,13 @@ export function walk$string_Drain(it: rs.Iter<rs.char>, steps: rs.u8, out: rs.By
  * `steps` has the item's bit set.
  */
 export function walk$vec_Drain_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1305,13 +1305,13 @@ export function walk$vec_Drain_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.Byte
  * `steps` has the item's bit set.
  */
 export function walk$vec_IntoIter_u8(it: rs.Iter<rs.u8>, steps: rs.u8, out: rs.ByteVec): void {
-	let _12!: rs.u8;
+	let _11!: rs.u8;
 	put(out, it.sizeHint());
 	const _9: rs.u8 = rs.u8Rem(steps, 4);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = _9;
-	while ((_12 = iterStart++) < iterEnd) {
-		if ((rs.u8Shr(steps, rs.u8Add(2, _12)) & 1) === 0) {
+	while ((_11 = iterStart++) < iterEnd) {
+		if ((rs.u8Shr(steps, rs.u8Add(_11, 2)) & 1) === 0) {
 			rs.iterToOption(it.next());
 		} else {
 			rs.iterToOption(it.nextBack());
@@ -1718,180 +1718,178 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
-	const _10: rs.usize = rs.usizeRem(at(0) as rs.usize, 8);
-	if (!(_10 < 8)) {
-		rs.panic("index out of bounds: the len is " + 8 + " but the index is " + _10);
+	const _7: rs.usize = rs.usizeRem(at(([0] as [rs.usize])[0]) as rs.usize, 8);
+	if (!(_7 < 8)) {
+		rs.panic("index out of bounds: the len is " + 8 + " but the index is " + _7);
 	}
-	const _8: rs.u64 = [0, 1, 5, 2147483647, 2147483648, 4294967295, 4294967296, { hi: 0x10000000, lo: 0 } as rs.u64][_10];
-	const _19: rs.usize = rs.usizeRem(at(1) as rs.usize, 8);
-	if (!(_19 < 8)) {
-		rs.panic("index out of bounds: the len is " + 8 + " but the index is " + _19);
+	const n: rs.u64 = [0, 1, 5, 2147483647, 2147483648, 4294967295, 4294967296, { hi: 0x10000000, lo: 0 } as rs.u64][_7];
+	const _14: rs.usize = rs.usizeRem(at(([1] as [rs.usize])[0]) as rs.usize, 8);
+	if (!(_14 < 8)) {
+		rs.panic("index out of bounds: the len is " + 8 + " but the index is " + _14);
 	}
-	const _7: [rs.u64, rs.u64] = [_8, [0, 1, 5, 2147483647, 2147483648, 4294967295, 4294967296, { hi: 0x10000000, lo: 0 } as rs.u64][_19]];
-	const n: rs.u64 = _8;
-	const m: rs.u64 = _7[1];
-	const steps: rs.u8 = at(2);
+	const m: rs.u64 = [0, 1, 5, 2147483647, 2147483648, 4294967295, 4294967296, { hi: 0x10000000, lo: 0 } as rs.u64][_14];
+	const steps: rs.u8 = at(([2] as [rs.usize])[0]);
 	const arm: rs.u8 = steps >> 5;
-	const bytes: rs.ByteSlice = option_unwrapOr$0yvilko(rs.byteSliceGetRange(data, 3), rs.byteSliceFrom(Uint8Array.of()));
-	const _37: rs.u8 = rs.u8Rem(kind, 24);
-	if (_37 === 0) {
-		const _39: rs.u8 = rs.u8Rem(arm, 5);
-		if (_39 === 0) {
+	const bytes: rs.ByteSlice = option_unwrapOr$0yvilko(rs.byteSliceGetRange(data, new rs.RangeFrom(3, rs.usizeStep).start), rs.byteSliceFrom(Uint8Array.of()));
+	const _25: rs.u8 = rs.u8Rem(kind, 24);
+	if (_25 === 0) {
+		const _26: rs.u8 = rs.u8Rem(arm, 5);
+		if (_26 === 0) {
 			walk$ops_Range_u32(new rs.Range(0, u32Of(n)), steps, out);
-		} else if (_39 === 1) {
+		} else if (_26 === 1) {
 			walk$ops_Range_u32(new rs.Range(u32Of(m), u32Of(n)), steps, out);
-		} else if (_39 === 2) {
+		} else if (_26 === 2) {
 			walk$ops_Range_u8(new rs.Range(rs.u64Low(n) & 0xff, rs.u64Low(m) & 0xff), steps, out);
-		} else if (_39 === 3) {
+		} else if (_26 === 3) {
 			walk$ops_Range_i32(new rs.Range(rs.i32Neg(rs.u64Low(n) | 0), rs.u64Low(m) | 0), steps, out);
 		} else {
 			walk$ops_Range_usize(new rs.Range(0, rs.u64Low(n)), steps, out);
 		}
-	} else if (_37 === 1) {
-		const _56: rs.u8 = rs.u8Rem(arm, 4);
-		if (_56 === 0) {
+	} else if (_25 === 1) {
+		const _42: rs.u8 = rs.u8Rem(arm, 4);
+		if (_42 === 0) {
 			walk$ops_Range_u64(new rs.Range(0, n, rs.u64Step), steps, out);
-		} else if (_56 === 1) {
-			walk$ops_Range_u64(new rs.Range({ hi: 0x80000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x80000000, lo: 0 } as rs.u64, n), rs.u64Step), steps, out);
-		} else if (_56 === 2) {
+		} else if (_42 === 1) {
+			walk$ops_Range_u64(new rs.Range({ hi: 0x80000000, lo: 0 } as rs.u64, rs.u64Add(n, { hi: 0x80000000, lo: 0 } as rs.u64), rs.u64Step), steps, out);
+		} else if (_42 === 2) {
 			walk$ops_Range_i64(new rs.Range(rs.i64Neg(rs.i64Cast(n)), rs.i64Cast(m), rs.i64Step), steps, out);
 		} else {
-			walk$ops_Range_i64(new rs.Range({ hi: -0x80000000, lo: 0 } as rs.i64, rs.i64Add({ hi: -0x80000000, lo: 0 } as rs.i64, rs.i64Cast(n)), rs.i64Step), steps, out);
+			walk$ops_Range_i64(new rs.Range({ hi: -0x80000000, lo: 0 } as rs.i64, rs.i64Add(rs.i64Cast(n), { hi: -0x80000000, lo: 0 } as rs.i64), rs.i64Step), steps, out);
 		}
-	} else if (_37 === 2) {
-		const _77: rs.u8 = rs.u8Rem(arm, 3);
-		if (_77 === 0) {
-			walk$ops_Range_u128(new rs.Range(rs.u128Shl(1, 100), rs.u128Add(rs.u128Shl(1, 100), rs.u128Cast(n)), rs.u128Step), steps, out);
-		} else if (_77 === 1) {
-			walk$ops_Range_i128(new rs.Range(rs.i128Neg(rs.i128Shl(1, 100)), rs.i128Sub(rs.i128Cast(n), rs.i128Shl(1, 100)), rs.i128Step), steps, out);
+	} else if (_25 === 2) {
+		const _56: rs.u8 = rs.u8Rem(arm, 3);
+		if (_56 === 0) {
+			walk$ops_Range_u128(new rs.Range({ hi: 0x10, w2: 0, w1: 0, lo: 0 } as rs.u128, rs.u128Add(rs.u128Cast(n), { hi: 0x10, w2: 0, w1: 0, lo: 0 } as rs.u128), rs.u128Step), steps, out);
+		} else if (_56 === 1) {
+			walk$ops_Range_i128(new rs.Range({ hi: -0x10, w2: 0, w1: 0, lo: 0 } as rs.i128, rs.i128Sub(rs.i128Cast(n), { hi: 0x10, w2: 0, w1: 0, lo: 0 } as rs.i128), rs.i128Step), steps, out);
 		} else {
 			walk$ops_Range_i128(new rs.Range({ hi: -0x80000000, w2: 0, w1: 0, lo: 0 } as rs.i128, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128, rs.i128Step), steps, out);
 		}
-	} else if (_37 === 3) {
-		const _102: rs.u8 = rs.u8Rem(arm, 5);
-		if (_102 === 0) {
+	} else if (_25 === 3) {
+		const _65: rs.u8 = rs.u8Rem(arm, 5);
+		if (_65 === 0) {
 			walk$ops_RangeInclusive_u32(new rs.RangeInclusive(0, u32Of(n), rs.u32Step), steps, out);
-		} else if (_102 === 1) {
+		} else if (_65 === 1) {
 			walk$ops_RangeInclusive_u32(new rs.RangeInclusive(0, 4294967295, rs.u32Step), steps, out);
-		} else if (_102 === 2) {
+		} else if (_65 === 2) {
 			walk$ops_RangeInclusive_i8(new rs.RangeInclusive(-128, 127, rs.i8Step), steps, out);
-		} else if (_102 === 3) {
+		} else if (_65 === 3) {
 			walk$ops_RangeInclusive_u64(new rs.RangeInclusive(rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, n), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step), steps, out);
 		} else {
 			walk$ops_RangeInclusive_u32(new rs.RangeInclusive(u32Of(n), u32Of(m), rs.u32Step), steps, out);
 		}
-	} else if (_37 === 4) {
-		const _114: rs.u8 = rs.u8Rem(arm, 4);
-		if (_114 === 0) {
+	} else if (_25 === 4) {
+		const _76: rs.u8 = rs.u8Rem(arm, 4);
+		if (_76 === 0) {
 			walk$iter_Chain_ops_Range_u32_ops_Range_u32(rs.iterChain(new rs.Range(0, u32Of(rs.u64Min(n, 9))), new rs.Range(0, u32Of(m))), steps, out);
-		} else if (_114 === 1) {
+		} else if (_76 === 1) {
 			walk$iter_Chain_ops_Range_u64_ops_Range_u64(rs.iterChain(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step)), steps, out);
-		} else if (_114 === 2) {
+		} else if (_76 === 2) {
 			walk$iter_Chain_ops_Range_u32_ops_Range_u32(rs.iterChain(new rs.Range(0, u32Of(n)), new rs.Range(0, 4294967295)), steps, out);
 		} else {
-			const _131: Endless.Endless = { _0: n };
-			const _132: rs.usize = rs.usizeRem(rs.u64Low(n), 9);
-			walkFront$iter_Chain_iter_Take_hints_Endless_ops_Range_u64(rs.iterChain(rs.iterTake(rs.iterFrom(_131, Endless.next$iter_Iterator), _132), new rs.Range(0, m, rs.u64Step)), steps, out);
+			const _91: Endless.Endless = { _0: n };
+			const _92: rs.usize = rs.usizeRem(rs.u64Low(n), 9);
+			walkFront$iter_Chain_iter_Take_hints_Endless_ops_Range_u64(rs.iterChain(rs.iterTake(rs.iterFrom(_91, Endless.next$iter_Iterator), _92), new rs.Range(0, m, rs.u64Step)), steps, out);
 		}
-	} else if (_37 === 5) {
-		const _136: rs.u8 = rs.u8Rem(arm, 4);
-		if (_136 === 0) {
+	} else if (_25 === 5) {
+		const _95: rs.u8 = rs.u8Rem(arm, 4);
+		if (_95 === 0) {
 			walkFront$iter_Zip_ops_Range_u64_ops_Range_u64(rs.iterZip(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step), "len"), steps, out);
-		} else if (_136 === 1) {
-			const _142: Endless.Endless = { _0: n };
-			const _143: rs.Range<rs.u32> = new rs.Range(0, u32Of(m));
-			walkFront$iter_Zip_hints_Endless_ops_Range_u32(rs.iterZip(rs.iterFrom(_142, Endless.next$iter_Iterator), _143), steps, out);
-		} else if (_136 === 2) {
+		} else if (_95 === 1) {
+			const _100: Endless.Endless = { _0: n };
+			const _101: rs.Range<rs.u32> = new rs.Range(0, u32Of(m));
+			walkFront$iter_Zip_hints_Endless_ops_Range_u32(rs.iterZip(rs.iterFrom(_100, Endless.next$iter_Iterator), _101), steps, out);
+		} else if (_95 === 2) {
 			walk$iter_Zip_slice_Iter_u8_iter_Skip_slice_Iter_u8(rs.iterZip(rs.iterSlice(rs.byteSliceView(bytes)), rs.iterSkip(rs.iterSlice(rs.byteSliceView(bytes)), 1), [false, false]), steps, out);
 		} else {
 			walkFront$iter_Zip_ops_Range_u32_hints_Endless(rs.iterZip(new rs.Range(0, u32Of(n)), rs.iterFrom({ _0: n }, Endless.next$iter_Iterator)), steps, out);
 		}
-	} else if (_37 === 6) {
-		const _153: rs.u8 = rs.u8Rem(arm, 4);
-		if (_153 === 0) {
+	} else if (_25 === 6) {
+		const _111: rs.u8 = rs.u8Rem(arm, 4);
+		if (_111 === 0) {
 			walkFront$iter_Skip_ops_Range_u64(rs.iterSkip(new rs.Range(0, n, rs.u64Step), rs.u64Low(m)), steps, out);
-		} else if (_153 === 1) {
+		} else if (_111 === 1) {
 			walk$iter_Take_ops_Range_u32(rs.iterTake(new rs.Range(0, u32Of(n)), rs.u64Low(m)), steps, out);
-		} else if (_153 === 2) {
+		} else if (_111 === 2) {
 			walkFront$iter_Take_hints_Endless(rs.iterTake(rs.iterFrom({ _0: n }, Endless.next$iter_Iterator), rs.u64Low(m)), steps, out);
 		} else {
-			const _166: Endless.Endless = { _0: n };
-			const _167: rs.usize = rs.usizeRem(rs.u64Low(m), 9);
-			walkFront$iter_Skip_hints_Endless(rs.iterSkip(rs.iterFrom(_166, Endless.next$iter_Iterator), _167), steps, out);
+			const _123: Endless.Endless = { _0: n };
+			const _124: rs.usize = rs.usizeRem(rs.u64Low(m), 9);
+			walkFront$iter_Skip_hints_Endless(rs.iterSkip(rs.iterFrom(_123, Endless.next$iter_Iterator), _124), steps, out);
 		}
-	} else if (_37 === 7) {
-		const step: rs.usize = rs.usizeAdd(rs.usizeRem(at(1) as rs.usize, 7), 1);
-		const _178: rs.u8 = rs.u8Rem(arm, 4);
-		if (_178 === 0) {
+	} else if (_25 === 7) {
+		const step: rs.usize = rs.usizeAdd(rs.usizeRem(at(([1] as [rs.usize])[0]) as rs.usize, 7), 1);
+		const _132: rs.u8 = rs.u8Rem(arm, 4);
+		if (_132 === 0) {
 			walk$iter_StepBy_ops_Range_u32(rs.iterStepBy(new rs.Range(0, u32Of(n)), step, undefined, 4294967295), steps, out);
-		} else if (_178 === 1) {
+		} else if (_132 === 1) {
 			walkFront$iter_StepBy_ops_Range_u32(rs.iterStepBy(new rs.Range(0, u32Of(n)), step, undefined, 4294967295), steps, out);
-		} else if (_178 === 2) {
+		} else if (_132 === 2) {
 			walkFront$iter_StepBy_ops_Range_u64(rs.iterStepBy(new rs.Range(0, n, rs.u64Step), step), steps, out);
 		} else {
 			walk$iter_StepBy_slice_Iter_u8(rs.iterStepBy(rs.iterSlice(rs.byteSliceView(bytes)), step), steps, out);
 		}
-	} else if (_37 === 8) {
-		const _190: rs.u8 = rs.u8Rem(arm, 6);
-		if (_190 === 0) {
+	} else if (_25 === 8) {
+		const _143: rs.u8 = rs.u8Rem(arm, 6);
+		if (_143 === 0) {
 			walk$iter_Filter_ops_Range_u64_hints_hints_closure1(rs.iterFilter(new rs.Range(0, n, rs.u64Step), (i21: rs.u64): boolean => {
 				return rs.u64Rem(i21, 2) === 0;
 			}), steps, out);
-		} else if (_190 === 1) {
+		} else if (_143 === 1) {
 			walk$iter_FilterMap_ops_Range_u64_hints_hints_closure2(rs.iterFilterMap(new rs.Range(0, n, rs.u64Step), (i20: rs.u64): rs.u64 | undefined => {
 				return rs.u64CheckedSub(i20, 1);
 			}), steps, out);
-		} else if (_190 === 2) {
-			walkFront$iter_SkipWhile_ops_Range_u64_hints_hints_closure3(rs.iterSkipWhile(new rs.Range(0, n, rs.u64Step), (_253: rs.u64): boolean => {
-				return rs.u64Lt(_253, 2);
+		} else if (_143 === 2) {
+			walkFront$iter_SkipWhile_ops_Range_u64_hints_hints_closure3(rs.iterSkipWhile(new rs.Range(0, n, rs.u64Step), (_288: rs.u64): boolean => {
+				return rs.u64Lt(_288, 2);
 			}), steps, out);
-		} else if (_190 === 3) {
-			walkFront$iter_TakeWhile_ops_Range_u64_hints_hints_closure4(rs.iterTakeWhile(new rs.Range(0, n, rs.u64Step), (_252: rs.u64): boolean => {
-				return rs.u64Lt(_252, 1);
+		} else if (_143 === 3) {
+			walkFront$iter_TakeWhile_ops_Range_u64_hints_hints_closure4(rs.iterTakeWhile(new rs.Range(0, n, rs.u64Step), (_286: rs.u64): boolean => {
+				return rs.u64Lt(_286, 1);
 			}), steps, out);
-		} else if (_190 === 4) {
+		} else if (_143 === 4) {
 			walkFront$iter_MapWhile_ops_Range_u64_hints_hints_closure5(rs.iterMapWhile(new rs.Range(0, n, rs.u64Step), (i17: rs.u64): rs.u64 | undefined => {
 				return rs.u64CheckedSub(i17, 1);
 			}), steps, out);
 		} else {
-			walkFront$iter_Filter_hints_Endless_hints_hints_closure6(rs.iterFilter(rs.iterFrom({ _0: n }, Endless.next$iter_Iterator), (_250: rs.u64): boolean => {
+			walkFront$iter_Filter_hints_Endless_hints_hints_closure6(rs.iterFilter(rs.iterFrom({ _0: n }, Endless.next$iter_Iterator), (_285: rs.u64): boolean => {
 				return true;
 			}), steps, out);
 		}
-	} else if (_37 === 9) {
-		const _204: rs.u8 = rs.u8Rem(arm, 6);
-		if (_204 === 0) {
+	} else if (_25 === 9) {
+		const _156: rs.u8 = rs.u8Rem(arm, 6);
+		if (_156 === 0) {
 			walk$iter_Map_ops_Range_u64_hints_hints_closure7(rs.iterMap(new rs.Range(0, n, rs.u64Step), (i16: rs.u64): rs.u64 => {
 				return rs.u64Add(i16, 1);
 			}), steps, out);
-		} else if (_204 === 1) {
-			walk$iter_Inspect_ops_Range_u64_hints_hints_closure8(rs.iterInspect(new rs.Range(0, n, rs.u64Step), (_248: rs.u64): undefined => {}), steps, out);
-		} else if (_204 === 2) {
+		} else if (_156 === 1) {
+			walk$iter_Inspect_ops_Range_u64_hints_hints_closure8(rs.iterInspect(new rs.Range(0, n, rs.u64Step), (_270: rs.u64): undefined => {}), steps, out);
+		} else if (_156 === 2) {
 			walk$iter_Enumerate_ops_Range_u32(rs.iterEnumerate(new rs.Range(0, u32Of(n))), steps, out);
-		} else if (_204 === 3) {
+		} else if (_156 === 3) {
 			walk$iter_Rev_ops_Range_u64(rs.iterRev(new rs.Range(0, n, rs.u64Step)), steps, out);
-		} else if (_204 === 4) {
+		} else if (_156 === 4) {
 			walk$iter_Copied_slice_Iter_u8(rs.iterSlice(rs.byteSliceView(bytes)), steps, out);
 		} else {
 			walk$iter_Cloned_slice_Iter_u8(rs.iterCloned(rs.iterSlice(rs.byteSliceView(bytes))), steps, out);
 		}
-	} else if (_37 === 10) {
-		const _219: rs.u8 = rs.u8Rem(arm, 4);
-		if (_219 === 0) {
+	} else if (_25 === 10) {
+		const _170: rs.u8 = rs.u8Rem(arm, 4);
+		if (_170 === 0) {
 			walkFront$iter_Fuse_hints_Endless(rs.iterFuse(rs.iterFrom({ _0: n }, Endless.next$iter_Iterator)), steps, out);
-		} else if (_219 === 1) {
+		} else if (_170 === 1) {
 			walkFront$iter_Fuse_iter_Take_hints_Endless(rs.iterFuse(rs.iterTake(rs.iterFrom({ _0: n }, Endless.next$iter_Iterator), 2)), steps, out);
-		} else if (_219 === 2) {
+		} else if (_170 === 2) {
 			walk$iter_Fuse_ops_Range_u64(rs.iterFuse(new rs.Range(0, n, rs.u64Step), true), steps, out);
 		} else {
 			walkFront$iter_Fuse_hints_Countdown(rs.iterFuse(rs.iterFrom({ _0: rs.u64Low(n) & 0xff }, Countdown.next$iter_Iterator)), steps, out);
 		}
-	} else if (_37 === 11) {
+	} else if (_25 === 11) {
 		const it: rs.Peekable<rs.u64> = rs.iterPeekable(rs.iterChain(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step)));
 		put(out, it.sizeHint());
-		const _240: rs.u8 = rs.u8Rem(steps, 4);
+		const _190: rs.u8 = rs.u8Rem(steps, 4);
 		let iterStart: rs.u8 = 0;
-		const iterEnd: rs.u8 = _240;
+		const iterEnd: rs.u8 = _190;
 		while (iterStart++ < iterEnd) {
 			rs.peekablePeek(it);
 			put(out, it.sizeHint());
@@ -1903,72 +1901,72 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.peekablePeek(few);
 		put(out, few.sizeHint());
-	} else if (_37 === 12) {
-		const _267: rs.u8 = rs.u8Rem(arm, 7);
-		if (_267 === 0) {
+	} else if (_25 === 12) {
+		const _216: rs.u8 = rs.u8Rem(arm, 7);
+		if (_216 === 0) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure9(rs.iterFlatten(rs.iterMap(new rs.Range(0, n, rs.u64Step), (i15: rs.u64): rs.u64[] => {
 				return Array.from({ length: 3 }, (): rs.u64 => {
 					return i15;
 				});
 			}), (value: rs.u64[]) => rs.iterSlice(value), true, 3), steps, out);
-		} else if (_267 === 1) {
+		} else if (_216 === 1) {
 			walk$iter_FlatMap_ops_Range_u64_array1_u64_hints_hints_closure10(rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (i14: rs.u64): rs.u64[] => {
 				return [i14];
 			}, (value: rs.u64[]) => rs.iterSlice(value), true, 1, true), steps, out);
-		} else if (_267 === 2) {
+		} else if (_216 === 2) {
 			walk$iter_Flatten_slice_Chunks_u8(rs.iterFlatten(rs.byteSliceChunks(bytes, 2), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), steps, out);
-		} else if (_267 === 3) {
+		} else if (_216 === 3) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure11(rs.iterFlatten(rs.iterMap(new rs.Range(0, rs.u64Min(n, 9), rs.u64Step), (i13: rs.u64): rs.Range<rs.u64> => {
 				return new rs.Range(0, i13, rs.u64Step);
 			}), undefined, true), steps, out);
-		} else if (_267 === 5) {
-			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure12(rs.iterFlatten(rs.iterMap(new rs.Range(0, rs.u64Min(n, 9), rs.u64Step), (_247: rs.u64): Uint8Array => {
+		} else if (_216 === 5) {
+			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure12(rs.iterFlatten(rs.iterMap(new rs.Range(0, rs.u64Min(n, 9), rs.u64Step), (_268: rs.u64): Uint8Array => {
 				return Uint8Array.of();
 			}), (value: Uint8Array) => rs.iterSlice(value), true, 0, true), steps, out);
-		} else if (_267 === 6) {
+		} else if (_216 === 6) {
 			put(out, rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (_i12: rs.u64): rs.u64[] => {
 				return [];
 			}, (value: rs.u64[]) => rs.iterSlice(value), true, 0, true).sizeHint());
 		} else {
 			walk$iter_FlatMap_ops_Range_u64_iter_Flatten_array_IntoIter_array2_u64_2_hints_hints_closure14(rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (i11: rs.u64): rs.Iter<rs.u64> => {
-				const _514: rs.u64[] = Array.from({ length: 2 }, (): rs.u64 => {
+				const _511: rs.u64[] = Array.from({ length: 2 }, (): rs.u64 => {
 					return i11;
 				});
 				return rs.iterFlatten(rs.iterSlice(Array.from({ length: 2 }, (): rs.u64[] => {
-					return _514;
+					return _511;
 				})), (value: rs.u64[]) => rs.iterSlice(value), true, 2);
 			}, undefined, true), steps, out);
 		}
-	} else if (_37 === 13) {
-		const _290: rs.u8 = rs.u8Rem(arm, 6);
-		if (_290 === 0) {
+	} else if (_25 === 13) {
+		const _238: rs.u8 = rs.u8Rem(arm, 6);
+		if (_238 === 0) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure15(rs.iterFlatten(rs.iterMap(new rs.Range(0, n, rs.u64Step), (i10: rs.u64): rs.u64 | undefined => {
 				return rs.u64CheckedSub(i10, 2);
 			}), (value: rs.u64 | undefined) => rs.iterOption(value), true, undefined, true), steps, out);
-		} else if (_290 === 1) {
+		} else if (_238 === 1) {
 			walk$iter_FlatMap_ops_Range_u64_Option_u64_hints_hints_closure16(rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (i9: rs.u64): rs.u64 | undefined => {
 				return thenSome$0be218t(rs.u64Rem(i9, 2) === 0, i9);
 			}, (value: rs.u64 | undefined) => rs.iterOption(value), true, undefined, true), steps, out);
-		} else if (_290 === 2) {
+		} else if (_238 === 2) {
 			walk$iter_FlatMap_ops_Range_u64_iter_Once_u64_iter_once_u64(rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (a0: rs.u64): rs.Iter<rs.u64> => {
 				return rs.iterOnce(a0);
 			}, undefined, true, undefined, true), steps, out);
-		} else if (_290 === 3) {
+		} else if (_238 === 3) {
 			walk$iter_FlatMap_ops_Range_u64_iter_Filter_option_IntoIter_u64_hints_hints_closure17_closure0_hints_hints_closure17(rs.iterFlatMap(new rs.Range(0, n, rs.u64Step), (i7: rs.u64): rs.Iter<rs.u64> => {
 				return rs.iterFilter(rs.iterOption(i7), (i8: rs.u64): boolean => {
 					return rs.u64Rem(i8, 2) === 0;
 				});
 			}, undefined, true, undefined, true), steps, out);
-		} else if (_290 === 4) {
-			walk$iter_Flatten_iter_Map_slice_Iter_u8_hints_hints_closure18(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_245: rs.u8): Uint8Array => {
-				return Uint8Array.of(_245);
+		} else if (_238 === 4) {
+			walk$iter_Flatten_iter_Map_slice_Iter_u8_hints_hints_closure18(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_266: rs.u8): Uint8Array => {
+				return Uint8Array.of(_266);
 			}), (value: Uint8Array) => rs.iterSlice(value), true, 1, true), steps, out);
 		} else {
 			const s3 = rs.byteSliceView(bytes);
 			let front2 = 0;
 			let back2 = s3.length;
-			const f2 = (_244: rs.u8): Uint8Array => {
-				const b5: rs.u8 = _244;
+			const f2 = (_258: rs.u8): Uint8Array => {
+				const b5: rs.u8 = _258;
 				return Uint8Array.of(b5, b5);
 			};
 			const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(back2 - front2, 2);
@@ -1978,42 +1976,42 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(v2.items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);
 		}
-	} else if (_37 === 14) {
-		const _312: rs.u8 = rs.u8Rem(arm, 6);
-		if (_312 === 0) {
+	} else if (_25 === 14) {
+		const _259: rs.u8 = rs.u8Rem(arm, 6);
+		if (_259 === 0) {
 			walk$slice_Iter_u8(rs.iterSlice(rs.byteSliceView(bytes)), steps, out);
-		} else if (_312 === 1) {
+		} else if (_259 === 1) {
 			walk$vec_IntoIter_u8(rs.byteVecIntoIter(rs.byteSliceToByteVec(bytes)), steps, out);
-		} else if (_312 === 2) {
-			walk$array_IntoIter_u8_3(rs.iterSlice(Uint8Array.of(at(3), at(4), at(5))), steps, out);
-		} else if (_312 === 3) {
+		} else if (_259 === 2) {
+			walk$array_IntoIter_u8_3(rs.iterSlice(Uint8Array.of(at(([3] as [rs.usize])[0]), at(([4] as [rs.usize])[0]), at(([5] as [rs.usize])[0]))), steps, out);
+		} else if (_259 === 3) {
 			walk$option_IntoIter_ref_u8(rs.iterOption(rs.byteSliceFirst(bytes)), steps, out);
-		} else if (_312 === 4) {
+		} else if (_259 === 4) {
 			walk$iter_Once_u64(rs.iterOnce(n), steps, out);
 		} else {
 			rs.iterEmpty();
 			walk$iter_Empty_u8(rs.iterEmpty() as rs.Iter<rs.u8>, steps, out);
 		}
-	} else if (_37 === 15) {
-		const _332: rs.u8 = rs.u8Rem(arm, 6);
-		if (_332 === 5) {
+	} else if (_25 === 15) {
+		const _275: rs.u8 = rs.u8Rem(arm, 6);
+		if (_275 === 5) {
 			rs.iterFromFn((): rs.u8 | undefined => {
 				return undefined;
 			});
 			walkFront$iter_FromFn_hints_hints_closure20(rs.iterFromFn((): rs.u8 | undefined => {
 				return undefined;
 			}), steps, out);
-		} else if (_332 === 0) {
-			walkFront$iter_Successors_u64_hints_hints_closure21(rs.iterSuccessors(rs.u64Rem(n, 4), (_242: rs.u64): rs.u64 | undefined => {
-				return rs.u64CheckedSub(_242, 1);
+		} else if (_275 === 0) {
+			walkFront$iter_Successors_u64_hints_hints_closure21(rs.iterSuccessors(rs.u64Rem(n, 4), (_254: rs.u64): rs.u64 | undefined => {
+				return rs.u64CheckedSub(_254, 1);
 			}), steps, out);
-		} else if (_332 === 1) {
-			walkFront$iter_Successors_u8_hints_hints_closure22(rs.iterSuccessors(undefined as rs.u8 | undefined, (_237: rs.u8): rs.u8 | undefined => {
-				return _237;
+		} else if (_275 === 1) {
+			walkFront$iter_Successors_u8_hints_hints_closure22(rs.iterSuccessors(undefined as rs.u8 | undefined, (_251: rs.u8): rs.u8 | undefined => {
+				return _251;
 			}), steps, out);
-		} else if (_332 === 2) {
+		} else if (_275 === 2) {
 			walkFront$hints_Countdown({ _0: rs.u64Low(n) & 0xff }, steps, out);
-		} else if (_332 === 3) {
+		} else if (_275 === 3) {
 			const captured = n;
 			walkFront$iter_FromFn_hints_hints_closure23(rs.iterFromFn((): rs.u64 | undefined => {
 				return captured;
@@ -2023,32 +2021,32 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			walk$mut_slice_Iter_u8(it2, steps, out);
 			put(out, it2.sizeHint());
 		}
-	} else if (_37 === 16) {
-		const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
-			const _5: rs.usize = rs.u8Rem(_29, 4) as rs.usize;
+	} else if (_25 === 16) {
+		const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_213: rs.u8): rs.char => {
+			const _5: rs.usize = rs.u8Rem(_213, 4) as rs.usize;
 			if (!(_5 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _5);
 			}
 			return [97, 233, 128512, 2048][_5];
 		}));
-		const _355: rs.u8 = rs.u8Rem(arm, 4);
-		if (_355 === 0) {
+		const _295: rs.u8 = rs.u8Rem(arm, 4);
+		if (_295 === 0) {
 			walk$str_Chars(rs.strChars(s.v), steps, out);
-		} else if (_355 === 1) {
+		} else if (_295 === 1) {
 			walkFront$str_Split_char(rs.strSplit(s.v, "é"), steps, out);
-		} else if (_355 === 2) {
+		} else if (_295 === 2) {
 			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
 			const t: rs.String = rs.stringClone(s);
 			const s2 = rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)));
 			let front = 0;
 			let back = s2.length;
-			const f = (_231: rs.u8): rs.usize => {
-				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
-				if (!(_512 < 4)) {
-					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _512);
+			const f = (_215: rs.u8): rs.usize => {
+				const _510: rs.usize = rs.u8Rem(_215, 4) as rs.usize;
+				if (!(_510 < 4)) {
+					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _510);
 				}
-				return [1, 2, 4, 3][_512];
+				return [1, 2, 4, 3][_510];
 			};
 			let acc: rs.usize = 0;
 			while (!(front >= back)) {
@@ -2056,81 +2054,81 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			walk$string_Drain(rs.stringDrain(t, new rs.RangeFrom(acc, rs.usizeStep)), steps, out);
 		}
-	} else if (_37 === 17) {
-		const size: rs.usize = rs.usizeAdd(rs.usizeRem(at(1) as rs.usize, 4), 1);
-		const _388: rs.u8 = rs.u8Rem(arm, 5);
-		if (_388 === 0) {
+	} else if (_25 === 17) {
+		const size: rs.usize = rs.usizeAdd(rs.usizeRem(at(([1] as [rs.usize])[0]) as rs.usize, 4), 1);
+		const _324: rs.u8 = rs.u8Rem(arm, 5);
+		if (_324 === 0) {
 			walk$slice_Windows_u8(rs.byteSliceWindows(bytes, size), steps, out);
-		} else if (_388 === 1) {
+		} else if (_324 === 1) {
 			walk$slice_Chunks_u8(rs.byteSliceChunks(bytes, size), steps, out);
-		} else if (_388 === 2) {
+		} else if (_324 === 2) {
 			walk$slice_ChunksExact_u8(rs.byteSliceChunksExact(bytes, size), steps, out);
-		} else if (_388 === 3) {
+		} else if (_324 === 3) {
 			walk$slice_RChunks_u8(rs.byteSliceRchunks(bytes, size), steps, out);
 		} else {
 			walk$slice_RChunksExact_u8(rs.byteSliceRchunksExact(bytes, size), steps, out);
 		}
-	} else if (_37 === 18) {
-		const _396: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_27: rs.u8): [rs.u8, rs.u8] => {
-			const b2: rs.u8 = _27;
+	} else if (_25 === 18) {
+		const _331: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_212: rs.u8): [rs.u8, rs.u8] => {
+			const b2: rs.u8 = _212;
 			return [b2, b2] as [rs.u8, rs.u8];
 		});
-		const map: rs.HashMap<rs.u8, rs.u8> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u8>, _396, undefined, undefined, undefined, 469762048);
-		const _399: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(bytes));
-		const set: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, _399, undefined, undefined, 469762048);
-		const _401: rs.u8 = rs.u8Rem(arm, 5);
-		if (_401 === 0) {
+		const map: rs.HashMap<rs.u8, rs.u8> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.u8>, _331, undefined, undefined, undefined, 469762048);
+		const _334: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(bytes));
+		const set: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew() as rs.HashSet<rs.u8>, _334, undefined, undefined, 469762048);
+		const _336: rs.u8 = rs.u8Rem(arm, 5);
+		if (_336 === 0) {
 			walkFront$collections_hash_map_Iter_u8_u8(rs.hashIter(map), steps, out);
-		} else if (_401 === 1) {
+		} else if (_336 === 1) {
 			walkFront$collections_hash_map_Keys_u8_u8(rs.hashKeys(map), steps, out);
-		} else if (_401 === 2) {
+		} else if (_336 === 2) {
 			walkFront$collections_hash_set_Iter_u8(rs.hashKeys(set), steps, out);
-		} else if (_401 === 3) {
+		} else if (_336 === 3) {
 			walkFront$collections_hash_map_IntoIter_u8_u8(rs.hashIter(rs.hashClone(map, undefined, undefined)), steps, out);
 		} else {
 			walkFront$collections_hash_map_Drain_u8_u8(rs.hashDrain(rs.hashClone(map, undefined, undefined)), steps, out);
 		}
-	} else if (_37 === 19) {
-		const _417: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_26: rs.u8): [rs.u8, rs.u8] => {
-			const b: rs.u8 = _26;
+	} else if (_25 === 19) {
+		const _351: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_210: rs.u8): [rs.u8, rs.u8] => {
+			const b: rs.u8 = _210;
 			return [b, b] as [rs.u8, rs.u8];
 		});
-		const map2: rs.BTreeMap<rs.u8, rs.u8> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u8>, _417, true, undefined, undefined, undefined, 2, true);
-		const _420: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(bytes));
-		const set2: rs.BTreeSet<rs.u8> = rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _420, true, undefined, undefined, 1, true);
-		const _422: rs.u8 = rs.u8Rem(arm, 4);
-		if (_422 === 0) {
+		const map2: rs.BTreeMap<rs.u8, rs.u8> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u8>, _351, true, undefined, undefined, undefined, 2, true);
+		const _354: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(bytes));
+		const set2: rs.BTreeSet<rs.u8> = rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _354, true, undefined, undefined, 1, true);
+		const _356: rs.u8 = rs.u8Rem(arm, 4);
+		if (_356 === 0) {
 			walk$collections_btree_map_Iter_u8_u8(rs.btreeIter(map2), steps, out);
-		} else if (_422 === 1) {
-			const _428: rs.RangeFrom<rs.u8> = new rs.RangeFrom(at(3), rs.u8Step);
-			walk$collections_btree_map_Range_u8_u8(rs.btreeRange(map2, _428), steps, out);
-		} else if (_422 === 2) {
+		} else if (_356 === 1) {
+			const _361: rs.RangeFrom<rs.u8> = new rs.RangeFrom(at(([3] as [rs.usize])[0]), rs.u8Step);
+			walk$collections_btree_map_Range_u8_u8(rs.btreeRange(map2, _361), steps, out);
+		} else if (_356 === 2) {
 			walk$collections_btree_set_Iter_u8(rs.btreeKeys(set2), steps, out);
 		} else {
 			walk$collections_btree_map_Values_u8_u8(rs.btreeValues(map2), steps, out);
 		}
-	} else if (_37 === 20) {
+	} else if (_25 === 20) {
 		const deque: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.iterToVec(rs.iterSlice(rs.byteSliceView(bytes)), undefined, 1, true), 1, true) as rs.VecDeque<rs.u8>;
 		const v: rs.ByteVec = rs.byteSliceToByteVec(bytes);
 		const heap: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.iterToVec(rs.iterSlice(rs.byteSliceView(bytes)), undefined, 1, true), rs.le, rs.ge, rs.lt);
 		const half2: rs.usize = rs.usizeDiv(bytes.length, 2);
-		const _446: rs.u8 = rs.u8Rem(arm, 4);
-		if (_446 === 0) {
+		const _377: rs.u8 = rs.u8Rem(arm, 4);
+		if (_377 === 0) {
 			walk$collections_vec_deque_Iter_u8(rs.dequeIter(deque), steps, out);
-		} else if (_446 === 1) {
+		} else if (_377 === 1) {
 			walk$collections_vec_deque_Drain_u8(rs.dequeDrain(deque, new rs.RangeFrom(half2, rs.usizeStep)), steps, out);
-		} else if (_446 === 2) {
+		} else if (_377 === 2) {
 			walk$vec_Drain_u8(rs.byteVecDrain(v, { end: half2 }), steps, out);
 		} else {
 			walk$collections_binary_heap_Iter_u8(rs.heapIter(heap), steps, out);
 		}
-	} else if (_37 === 21) {
-		const _458: rs.u8 = rs.u8Rem(arm, 4);
-		if (_458 === 0) {
+	} else if (_25 === 21) {
+		const _388: rs.u8 = rs.u8Rem(arm, 4);
+		if (_388 === 0) {
 			walkFront$iter_Take_iter_Skip_iter_Chain_ops_Range_u64_ops_Range_u64(rs.iterTake(rs.iterSkip(rs.iterChain(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step)), 3), u32Of(n) as rs.usize), steps, out);
-		} else if (_458 === 1) {
+		} else if (_388 === 1) {
 			walk$iter_StepBy_iter_Rev_iter_Zip_ops_Range_u32_ops_Range_u32(rs.iterStepBy(rs.iterRev(rs.iterZip(new rs.Range(0, u32Of(rs.u64Min(n, 9))), new rs.Range(0, u32Of(rs.u64Min(m, 9))), [false, false])), 2), steps, out);
-		} else if (_458 === 2) {
+		} else if (_388 === 2) {
 			walk$iter_Chain_iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure28_ops_Range_u64(rs.iterChain(rs.iterFlatten(rs.iterMap(new rs.Range(0, n, rs.u64Step), (i4: rs.u64): rs.u64[] => {
 				return Array.from({ length: 2 }, (): rs.u64 => {
 					return i4;
@@ -2141,17 +2139,17 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return true;
 			})), steps, out);
 		}
-	} else if (_37 === 22) {
+	} else if (_25 === 22) {
 		const it3: rs.Iter<rs.u64> = rs.iterChain(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step));
 		walk$mut_iter_Chain_ops_Range_u64_ops_Range_u64(it3, steps, out);
 		put(out, it3.sizeHint());
 	} else {
-		const _492: rs.u8 = rs.u8Rem(arm, 3);
-		if (_492 === 0) {
+		const _421: rs.u8 = rs.u8Rem(arm, 3);
+		if (_421 === 0) {
 			walkFront$iter_Chain_iter_Map_iter_Zip_ops_Range_u64_ops_Range_u64_hints_hints_closure30_iter_Once_u64(rs.iterChain(rs.iterMap(rs.iterZip(new rs.Range(0, n, rs.u64Step), new rs.Range(0, m, rs.u64Step), "len"), (_2: [rs.u64, rs.u64]): rs.u64 => {
 				return _2[0];
 			}), rs.iterOnce(0)), steps, out);
-		} else if (_492 === 1) {
+		} else if (_421 === 1) {
 			walkFront$iter_Skip_iter_Flatten_iter_Map_ops_Range_u32_hints_hints_closure31(rs.iterSkip(rs.iterFlatten(rs.iterMap(new rs.Range(0, u32Of(n)), (i3: rs.u32): rs.u32[] => {
 				return Array.from({ length: 2 }, (): rs.u32 => {
 					return i3;
@@ -2207,51 +2205,64 @@ export function reserves(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 
 /** `reserves` of elements `make` makes. */
 export function typed$array275_u32_hints_reserves_closure5(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => rs.u32[], most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: rs.u32[] = make(7);
+	const seed: rs.u32[] = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u32[] = (i2: rs.u32): rs.u32[] => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2279,51 +2290,64 @@ export function typed$array275_u32_hints_reserves_closure5(kind: rs.u8, data: rs
 
 /** `reserves` of elements `make` makes. */
 export function typed$hints_Unit_hints_reserves_closure4(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => Unit.Unit, most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: Unit.Unit = make(7);
+	const seed: Unit.Unit = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => Unit.Unit = (i2: rs.u32): Unit.Unit => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2351,51 +2375,64 @@ export function typed$hints_Unit_hints_reserves_closure4(kind: rs.u8, data: rs.B
 
 /** `reserves` of elements `make` makes. */
 export function typed$tuple2_u64_u8_hints_reserves_closure3(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => [rs.u64, rs.u8], most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: [rs.u64, rs.u8] = make(7);
+	const seed: [rs.u64, rs.u8] = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => [rs.u64, rs.u8] = (i2: rs.u32): [rs.u64, rs.u8] => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2423,51 +2460,64 @@ export function typed$tuple2_u64_u8_hints_reserves_closure3(kind: rs.u8, data: r
 
 /** `reserves` of elements `make` makes. */
 export function typed$tuple3_u8_u8_u8_hints_reserves_closure2(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => [rs.u8, rs.u8, rs.u8], most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: [rs.u8, rs.u8, rs.u8] = make(7);
+	const seed: [rs.u8, rs.u8, rs.u8] = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => [rs.u8, rs.u8, rs.u8] = (i2: rs.u32): [rs.u8, rs.u8, rs.u8] => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2495,51 +2545,64 @@ export function typed$tuple3_u8_u8_u8_hints_reserves_closure2(kind: rs.u8, data:
 
 /** `reserves` of elements `make` makes. */
 export function typed$u32_hints_reserves_closure1(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => rs.u32, most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: rs.u32 = make(7);
+	const seed: rs.u32 = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u32 = (i2: rs.u32): rs.u32 => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2567,51 +2630,64 @@ export function typed$u32_hints_reserves_closure1(kind: rs.u8, data: rs.ByteSlic
 
 /** `reserves` of elements `make` makes. */
 export function typed$u8_hints_reserves_closure0(kind: rs.u8, data: rs.ByteSlice, make: (a0: rs.u32) => rs.u8, most: Most.Most, out: rs.ByteVec): void {
-	let _20!: [rs.u64, rs.u64];
 	let past!: rs.u64;
 	let count!: rs.u64;
+	let _81!: rs.u64;
+	let _82!: rs.u64;
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
 	const coll: rs.u8 = rs.u8Rem(kind, 13);
-	const _11: rs.usize = rs.usizeRem(at(2) as rs.usize, 5);
-	if (!(_11 < 5)) {
-		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
+	const _10: rs.usize = rs.usizeRem(at(([2] as [rs.usize])[0]) as rs.usize, 5);
+	if (!(_10 < 5)) {
+		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _10);
 	}
-	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_11];
+	const limit: rs.u8 = Uint8Array.of(0, 1, 4, 5, 8)[_10];
 	if (coll === 0 || coll === 1 || coll === 3 || coll === 5 || coll === 11 || coll === 12) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _17: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _17;
 	} else if (coll === 2 || coll === 4 || coll === 6) {
-		_20 = [2, most.vec] as [rs.u64, rs.u64];
+		const _18: rs.u64 = most.vec;
+		_81 = 2;
+		_82 = _18;
 	} else if (coll === 7) {
-		_20 = [0, most.vec] as [rs.u64, rs.u64];
+		const _19: rs.u64 = most.vec;
+		_81 = 0;
+		_82 = _19;
 	} else if (coll === 8) {
-		_20 = [0, most.set] as [rs.u64, rs.u64];
+		const _20: rs.u64 = most.set;
+		_81 = 0;
+		_82 = _20;
 	} else if (coll === 9) {
-		_20 = [1, most.map] as [rs.u64, rs.u64];
+		const _21: rs.u64 = most.map;
+		_81 = 1;
+		_82 = _21;
 	} else {
-		_20 = [0, most.pairs] as [rs.u64, rs.u64];
+		const _22: rs.u64 = most.pairs;
+		_81 = 0;
+		_82 = _22;
 	}
-	const held: rs.u64 = _20[0];
-	const most2: rs.u64 = _20[1];
+	const held: rs.u64 = _81;
+	const most2: rs.u64 = _82;
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		past = rs.u64Add(rs.u64Mul(rs.u64Sub(most2, held), 2), 1);
 	} else {
 		past = rs.u64Add(rs.u64Sub(most2, held), 1);
 	}
-	const shape: rs.u8 = rs.u8Rem(at(0), 5);
-	const _42: rs.u8 = rs.u8Rem(at(1), 4);
-	if (_42 === 0) {
+	const shape: rs.u8 = rs.u8Rem(at(([0] as [rs.usize])[0]), 5);
+	const _36: rs.u8 = rs.u8Rem(at(([1] as [rs.usize])[0]), 4);
+	if (_36 === 0) {
 		count = 3;
-	} else if (_42 === 1) {
+	} else if (_36 === 1) {
 		count = rs.u64Add(past, shape === 1 ? 1 : 0);
-	} else if (_42 === 2) {
+	} else if (_36 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
 	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
-	const seed: rs.u8 = make(7);
+	const seed: rs.u8 = make(([7] as [rs.u32])[0]);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u8 = (i2: rs.u32): rs.u8 => {
 		rs.cellSet(calls, rs.u8Add(calls.v, 1));
@@ -2700,7 +2776,7 @@ export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hi
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -2777,7 +2853,7 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -2854,7 +2930,7 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -2931,7 +3007,7 @@ export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3008,7 +3084,7 @@ export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hint
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3085,7 +3161,7 @@ export function fill$hints_Unit_iter_Filter_iter_Map_ops_RangeInclusive_u32_hint
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3162,7 +3238,7 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3239,7 +3315,7 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3316,7 +3392,7 @@ export function fill$hints_Unit_iter_Map_ops_RangeInclusive_u32_hints_typed_clos
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3393,7 +3469,7 @@ export function fill$hints_Unit_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3470,7 +3546,7 @@ export function fill$tuple2_u64_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_h
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3547,7 +3623,7 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3624,7 +3700,7 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3701,7 +3777,7 @@ export function fill$tuple2_u64_u8_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3778,7 +3854,7 @@ export function fill$tuple2_u64_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hin
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3855,7 +3931,7 @@ export function fill$tuple3_u8_u8_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -3932,7 +4008,7 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4009,7 +4085,7 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4086,7 +4162,7 @@ export function fill$tuple3_u8_u8_u8_iter_Map_ops_RangeInclusive_u32_hints_typed
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4163,7 +4239,7 @@ export function fill$tuple3_u8_u8_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_h
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4240,7 +4316,7 @@ export function fill$u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4317,7 +4393,7 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4394,7 +4470,7 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4471,7 +4547,7 @@ export function fill$u32_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u3
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4548,7 +4624,7 @@ export function fill$u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 		if (_53.ok) {
 			len = _53.value.items.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4625,7 +4701,7 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 		if (_53.ok) {
 			len = _53.value.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4702,7 +4778,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 		if (_53.ok) {
 			len = _53.value.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4779,7 +4855,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 		if (_53.ok) {
 			len = _53.value.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4856,7 +4932,7 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 		if (_53.ok) {
 			len = _53.value.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;
@@ -4933,7 +5009,7 @@ export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 		if (_53.ok) {
 			len = _53.value.length;
 		} else {
-			len = rs.usizeAdd(256, _53.error);
+			len = rs.usizeAdd(_53.error, 256);
 		}
 	}
 	const dst = out;

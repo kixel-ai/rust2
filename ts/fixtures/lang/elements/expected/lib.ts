@@ -4,6 +4,7 @@ import * as rs from "./rs.ts";
 import { vecs, arrays, segments, inline, edges, rawSlices, emptyParts } from "./elements.ts";
 import * as Inline from "./elements.Inline.ts";
 import { spares } from "./spare.ts";
+import * as Noted from "./spare.Noted.ts";
 
 export function copy$Option_tuple2_u8_u8(v: [rs.u8, rs.u8] | undefined): [rs.u8, rs.u8] | undefined {
 	return v === undefined ? v : copy$tuple2_u8_u8(v);
@@ -38,6 +39,10 @@ export function copy$mem_MaybeUninit_tuple2_u8_u32(v: [rs.u8, rs.u32]): [rs.u8, 
 	return [v[0], v[1]];
 }
 
+export function copy$spare_Noted(v: Noted.Noted): Noted.Noted {
+	return new Noted.Noted(v._0);
+}
+
 export function copy$tuple2_u8_u32(v: [rs.u8, rs.u32]): [rs.u8, rs.u32] {
 	return [v[0], v[1]];
 }
@@ -59,19 +64,19 @@ export function drop$elements_Inline_sync_Arc_u8(_1: Inline.Inline<rs.Arc<rs.u8>
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["elements::vecs", (_27: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["elements::vecs", (_22: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		vecs(data, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::arrays", (_28: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::arrays", (_23: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		arrays(data2, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::segments", (_29: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::segments", (_24: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		segments(data3, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::inline", (_210: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::inline", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		inline(data4, out4);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::edges", (_211: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::edges", (_26: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
 		edges(data5, out5);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::raw_slices", (_212: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::raw_slices", (_27: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
 		rawSlices(data6, out6);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::empty_parts", (_213: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["elements::empty_parts", (_28: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
 		emptyParts(data7, out7);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["spare::spares", spares as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

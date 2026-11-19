@@ -2,10 +2,27 @@
 
 import * as rs from "./rs.ts";
 import { iters, arrays, cloneFroms, repeats, sources } from "./clones.ts";
+import type * as Countdown from "./clones.Countdown.ts";
 import * as Kept from "./clones.Kept.ts";
 import * as Logged from "./clones.Logged.ts";
 import type * as Pair from "./clones.Pair.ts";
 import type * as Slot from "./clones.Slot.ts";
+
+export function copy$Option_array2_clones_Logged(v: Logged.Logged[] | undefined): Logged.Logged[] | undefined {
+	return v === undefined ? v : copy$array_clones_Logged(v);
+}
+
+export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
+	return rs.objectCopy(v);
+}
+
+export function copy$array_clones_Logged(v: Logged.Logged[]): Logged.Logged[] {
+	return v.map(copy$clones_Logged);
+}
+
+export function copy$clones_Countdown(v: Countdown.Countdown): Countdown.Countdown {
+	return { _0: v._0 };
+}
 
 export function copy$clones_Kept(v: Kept.Kept): Kept.Kept {
 	return new Kept.Kept(copy$clones_Logged(v._0));
@@ -13,6 +30,10 @@ export function copy$clones_Kept(v: Kept.Kept): Kept.Kept {
 
 export function copy$clones_Logged(v: Logged.Logged): Logged.Logged {
 	return new Logged.Logged(v.id, v.log);
+}
+
+export function copy$ops_RangeFrom_u8(v: rs.RangeFrom<rs.u8>): rs.RangeFrom<rs.u8> {
+	return rs.objectCopy(v);
 }
 
 export function drop$Vec_clones_Logged(value: rs.Vec<Logged.Logged>): void {

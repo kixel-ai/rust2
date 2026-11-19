@@ -227,131 +227,133 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u8FromBeBytes(buf);
 	};
-	const _8: [rs.u8, rs.u8, rs.u8] = [take(0), take(1), take(2 * 1)];
-	const a: rs.u8 = _8[0];
-	const b: rs.u8 = _8[1];
-	const c: rs.u8 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
+	const _8: rs.u8 = take(([0] as [rs.usize])[0]);
+	const _10: rs.u8 = take(([1] as [rs.usize])[0]);
+	const _12: rs.u8 = take(([2] as [rs.usize])[0]);
+	const a: rs.u8 = _8;
+	const b: rs.u8 = _10;
+	const c: rs.u8 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 1 as rs.usize);
 		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.u8SaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.u8SaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.u8SaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.u8Div(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.u8Rem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part36 = rs.u8SaturatingAdd(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 1) {
+		const part35 = rs.u8SaturatingSub(_8, _10);
+		_14(out, part35);
+	} else if (_15 === 2) {
+		const part34 = rs.u8SaturatingMul(_8, _10);
+		_14(out, part34);
+	} else if (_15 === 3) {
+		_14(out, rs.u8Div(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.u8Rem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, ~a & 0xff);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.u8 = a;
-		x = rs.u8SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.u8SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.u8SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.u8 = a;
-		x2 = rs.u8Div(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.u8 = a;
-		x3 = rs.u8Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.u8 = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.u8 = a;
-		x5 = rs.u8SaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, ~_8 & 0xff);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.u8 = _8;
+		x = rs.u8SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.u8SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.u8SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.u8 = _8;
+		x2 = rs.u8Div(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.u8 = _8;
+		x3 = rs.u8Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.u8 = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.u8 = _8;
+		const _90: rs.u8 = _10;
+		x5 = rs.u8SaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.u8SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.u8SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.u8SaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _90;
+		const _115: rs.u8 = _12;
+		x5 = x5 ^ _115;
+		_14(out, x5);
 		x5 = rs.u8Div(x5, b);
-		_20(out, x5);
-		x5 = rs.u8Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.u8SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.u8SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.u8SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b & 0xff);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.u8 = a;
+		_14(out, x5);
+		x5 = rs.u8Rem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.u8SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.u8SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.u8SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b & 0xff);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.u8 = _8;
 		x6 = rs.u8SaturatingAdd(x6, b);
 		x6 = rs.u8SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.u8Rem(a, b));
-		_20(out, rs.u8Div(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = a === b;
-		const _207: boolean = a !== b;
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.u8Rem(a, b));
+		_14(out, rs.u8Div(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = a === b;
+		const _197: boolean = a !== b;
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.u8 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.u8 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u8(a);
 		const word3 = rs.intWord(word2, 0);
@@ -368,24 +370,24 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u8(a), hashed$u8(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.u8> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.u8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _266, true, undefined, undefined, 1, true));
+		const _256: rs.Iter<rs.u8> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.u8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _256, true, undefined, undefined, 1, true));
 		while (true) {
-			const _271: rs.u8 | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.u8 | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.u8> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash8, rs.same)) as rs.HashSet<rs.u8>, _280, undefined, undefined, 469762048);
+		const _270: rs.Iter<rs.u8> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.u8> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash8, rs.same)) as rs.HashSet<rs.u8>, _270, undefined, undefined, 469762048);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.u8Display(a, f), (f: rs.Formatter) => rs.u8Debug(b, f), (f: rs.Formatter) => rs.u8LowerHex(a, f), (f: rs.Formatter) => rs.u8UpperHex(b, f), (f: rs.Formatter) => rs.u8Octal(c, f), (f: rs.Formatter) => rs.u8Binary(a, f), (f: rs.Formatter) => rs.u8Display(b, f), (f: rs.Formatter) => rs.u8LowerHex(c, f), (f: rs.Formatter) => rs.u8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.u8[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.u8Display(a, f), (f: rs.Formatter) => rs.u8Debug(b, f), (f: rs.Formatter) => rs.u8LowerHex(a, f), (f: rs.Formatter) => rs.u8UpperHex(b, f), (f: rs.Formatter) => rs.u8Octal(c, f), (f: rs.Formatter) => rs.u8Binary(a, f), (f: rs.Formatter) => rs.u8Display(b, f), (f: rs.Formatter) => rs.u8LowerHex(c, f), (f: rs.Formatter) => rs.u8Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.u8[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -393,7 +395,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.u8SaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -401,7 +403,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.u8SaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -409,7 +411,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.u8SaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -417,63 +419,66 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.u8SaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u8 = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.u8SaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u8 = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.u8SaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.u8>, Gauge.Gauge<rs.u8>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.u8> = _370[0];
-		const y: Gauge.Gauge<rs.u8> = _370[1];
-		const _378: Gauge.Gauge<rs.u8> = Gauge.default$Default_u8();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.u8> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.u8> = _354;
+		const y: Gauge.Gauge<rs.u8> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.u8> = Gauge.default$Default_u8();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u8(x7), hashed$num_Saturating_u8(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.u8> = copy$saturates_Gauge_u8(x7);
-		z._0 = rs.u8SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.u8 | undefined, rs.u8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.u8> = copy$saturates_Gauge_u8(_354);
+		z._0 = rs.u8SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.u8 = _8;
+		const _394: rs.u8 | undefined = rs.nonZero(_395);
+		const _397: rs.u8 = _10;
+		const _396: rs.u8 | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.u8SaturatingMul(_414[0], _414[1]);
+				const word5 = rs.u8SaturatingMul(_394, _396);
 				rs.byteVecReserve(dst3, 1 as rs.usize);
 				dst3.data[dst3.length + 0] = word5 & 255;
 				dst3.length = dst3.length + 1;
 			}
 		}
-		const part = rs.u8SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.u8SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.u8SaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.u8Div(a, b));
+		const part = rs.u8SaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.u8SaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.u8SaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.u8Div(_395, _397));
 	} else {
-		const _457: rs.u8 | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.u8 | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.u8SaturatingAdd(_457, b);
+			const word6 = rs.u8SaturatingAdd(_428, _10);
 			rs.byteVecReserve(dst4, 1 as rs.usize);
 			dst4.data[dst4.length + 0] = word6 & 255;
 			dst4.length = dst4.length + 1;
@@ -487,19 +492,21 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u16FromBeBytes(buf);
 	};
-	const _8: [rs.u16, rs.u16, rs.u16] = [take(0), take(2), take(2 * 2)];
-	const a: rs.u16 = _8[0];
-	const b: rs.u16 = _8[1];
-	const c: rs.u16 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
+	const _8: rs.u16 = take(([0] as [rs.usize])[0]);
+	const _10: rs.u16 = take(([2] as [rs.usize])[0]);
+	const _12: rs.u16 = take(([4] as [rs.usize])[0]);
+	const a: rs.u16 = _8;
+	const b: rs.u16 = _10;
+	const c: rs.u16 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 2 as rs.usize);
@@ -508,112 +515,112 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.u16SaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.u16SaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.u16SaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.u16Div(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.u16Rem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part36 = rs.u16SaturatingAdd(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 1) {
+		const part35 = rs.u16SaturatingSub(_8, _10);
+		_14(out, part35);
+	} else if (_15 === 2) {
+		const part34 = rs.u16SaturatingMul(_8, _10);
+		_14(out, part34);
+	} else if (_15 === 3) {
+		_14(out, rs.u16Div(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.u16Rem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, ~a & 0xffff);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.u16 = a;
-		x = rs.u16SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.u16SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.u16SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.u16 = a;
-		x2 = rs.u16Div(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.u16 = a;
-		x3 = rs.u16Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.u16 = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.u16 = a;
-		x5 = rs.u16SaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, ~_8 & 0xffff);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.u16 = _8;
+		x = rs.u16SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.u16SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.u16SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.u16 = _8;
+		x2 = rs.u16Div(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.u16 = _8;
+		x3 = rs.u16Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.u16 = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.u16 = _8;
+		const _90: rs.u16 = _10;
+		x5 = rs.u16SaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.u16SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.u16SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.u16SaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _90;
+		const _115: rs.u16 = _12;
+		x5 = x5 ^ _115;
+		_14(out, x5);
 		x5 = rs.u16Div(x5, b);
-		_20(out, x5);
-		x5 = rs.u16Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.u16SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.u16SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.u16SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b & 0xffff);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.u16 = a;
+		_14(out, x5);
+		x5 = rs.u16Rem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.u16SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.u16SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.u16SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b & 0xffff);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.u16 = _8;
 		x6 = rs.u16SaturatingAdd(x6, b);
 		x6 = rs.u16SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.u16Rem(a, b));
-		_20(out, rs.u16Div(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = a === b;
-		const _207: boolean = a !== b;
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.u16Rem(a, b));
+		_14(out, rs.u16Div(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = a === b;
+		const _197: boolean = a !== b;
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.u16 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.u16 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u16(a);
 		const word3 = rs.intWord(word2, 0);
@@ -630,24 +637,24 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u16(a), hashed$u16(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.u16> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.u16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, _266, true, undefined, undefined, 2, true));
+		const _256: rs.Iter<rs.u16> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.u16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, _256, true, undefined, undefined, 2, true));
 		while (true) {
-			const _271: rs.u16 | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.u16 | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.u16> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.u16> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash16, rs.same)) as rs.HashSet<rs.u16>, _280, undefined, undefined, 469762048);
+		const _270: rs.Iter<rs.u16> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.u16> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash16, rs.same)) as rs.HashSet<rs.u16>, _270, undefined, undefined, 469762048);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.u16Display(a, f), (f: rs.Formatter) => rs.u16Debug(b, f), (f: rs.Formatter) => rs.u16LowerHex(a, f), (f: rs.Formatter) => rs.u16UpperHex(b, f), (f: rs.Formatter) => rs.u16Octal(c, f), (f: rs.Formatter) => rs.u16Binary(a, f), (f: rs.Formatter) => rs.u16Display(b, f), (f: rs.Formatter) => rs.u16LowerHex(c, f), (f: rs.Formatter) => rs.u16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.u16[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.u16Display(a, f), (f: rs.Formatter) => rs.u16Debug(b, f), (f: rs.Formatter) => rs.u16LowerHex(a, f), (f: rs.Formatter) => rs.u16UpperHex(b, f), (f: rs.Formatter) => rs.u16Octal(c, f), (f: rs.Formatter) => rs.u16Binary(a, f), (f: rs.Formatter) => rs.u16Display(b, f), (f: rs.Formatter) => rs.u16LowerHex(c, f), (f: rs.Formatter) => rs.u16Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.u16[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -655,7 +662,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.u16SaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -663,7 +670,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.u16SaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -671,7 +678,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.u16SaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -679,46 +686,49 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.u16SaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u16 = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.u16SaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u16 = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.u16SaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.u16>, Gauge.Gauge<rs.u16>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.u16> = _370[0];
-		const y: Gauge.Gauge<rs.u16> = _370[1];
-		const _378: Gauge.Gauge<rs.u16> = Gauge.default$Default_u16();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.u16> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.u16> = _354;
+		const y: Gauge.Gauge<rs.u16> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.u16> = Gauge.default$Default_u16();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u16(x7), hashed$num_Saturating_u16(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.u16> = copy$saturates_Gauge_u16(x7);
-		z._0 = rs.u16SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.u16 | undefined, rs.u16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.u16> = copy$saturates_Gauge_u16(_354);
+		z._0 = rs.u16SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.u16 = _8;
+		const _394: rs.u16 | undefined = rs.nonZero(_395);
+		const _397: rs.u16 = _10;
+		const _396: rs.u16 | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.u16SaturatingMul(_414[0], _414[1]);
+				const word5 = rs.u16SaturatingMul(_394, _396);
 				rs.byteVecReserve(dst3, 2 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 8) & 255;
@@ -726,18 +736,18 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 2;
 			}
 		}
-		const part = rs.u16SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.u16SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.u16SaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.u16Div(a, b));
+		const part = rs.u16SaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.u16SaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.u16SaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.u16Div(_395, _397));
 	} else {
-		const _457: rs.u16 | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.u16 | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.u16SaturatingAdd(_457, b);
+			const word6 = rs.u16SaturatingAdd(_428, _10);
 			rs.byteVecReserve(dst4, 2 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 8) & 255;
@@ -753,19 +763,21 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u32FromBeBytes(buf);
 	};
-	const _8: [rs.u32, rs.u32, rs.u32] = [take(0), take(4), take(2 * 4)];
-	const a: rs.u32 = _8[0];
-	const b: rs.u32 = _8[1];
-	const c: rs.u32 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
+	const _8: rs.u32 = take(([0] as [rs.usize])[0]);
+	const _10: rs.u32 = take(([4] as [rs.usize])[0]);
+	const _12: rs.u32 = take(([8] as [rs.usize])[0]);
+	const a: rs.u32 = _8;
+	const b: rs.u32 = _10;
+	const c: rs.u32 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 4 as rs.usize);
@@ -776,112 +788,112 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.u32SaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.u32SaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.u32SaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.u32Div(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.u32Rem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part36 = rs.u32SaturatingAdd(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 1) {
+		const part35 = rs.u32SaturatingSub(_8, _10);
+		_14(out, part35);
+	} else if (_15 === 2) {
+		const part34 = rs.u32SaturatingMul(_8, _10);
+		_14(out, part34);
+	} else if (_15 === 3) {
+		_14(out, rs.u32Div(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.u32Rem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, ~a >>> 0);
-	} else if (_21 === 7) {
-		_20(out, (a & b) >>> 0);
-	} else if (_21 === 8) {
-		_20(out, (a | b) >>> 0);
-	} else if (_21 === 9) {
-		_20(out, (a ^ b) >>> 0);
-	} else if (_21 === 10) {
-		let x: rs.u32 = a;
-		x = rs.u32SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.u32SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.u32SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.u32 = a;
-		x2 = rs.u32Div(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.u32 = a;
-		x3 = rs.u32Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.u32 = a;
-		x4 = (x4 & b) >>> 0;
-		x4 = (x4 | c) >>> 0;
-		x4 = (x4 ^ b) >>> 0;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.u32 = a;
-		x5 = rs.u32SaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, ~_8 >>> 0);
+	} else if (_15 === 7) {
+		_14(out, (_8 & _10) >>> 0);
+	} else if (_15 === 8) {
+		_14(out, (_8 | _10) >>> 0);
+	} else if (_15 === 9) {
+		_14(out, (_8 ^ _10) >>> 0);
+	} else if (_15 === 10) {
+		let x: rs.u32 = _8;
+		x = rs.u32SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.u32SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.u32SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.u32 = _8;
+		x2 = rs.u32Div(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.u32 = _8;
+		x3 = rs.u32Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.u32 = _8;
+		x4 = (x4 & _10) >>> 0;
+		x4 = (x4 | _12) >>> 0;
+		x4 = (x4 ^ _10) >>> 0;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.u32 = _8;
+		const _90: rs.u32 = _10;
+		x5 = rs.u32SaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.u32SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.u32SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.u32SaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = (x5 & c) >>> 0;
-		x5 = (x5 | b) >>> 0;
-		x5 = (x5 ^ c) >>> 0;
-		_20(out, x5);
+		x5 = (x5 | _90) >>> 0;
+		const _115: rs.u32 = _12;
+		x5 = (x5 ^ _115) >>> 0;
+		_14(out, x5);
 		x5 = rs.u32Div(x5, b);
-		_20(out, x5);
-		x5 = rs.u32Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.u32SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.u32SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.u32SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b >>> 0);
-		_20(out, (a ^ c) >>> 0);
-		_20(out, (a & b) >>> 0);
-		_20(out, (a | c) >>> 0);
-		let x6: rs.u32 = a;
+		_14(out, x5);
+		x5 = rs.u32Rem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.u32SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.u32SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.u32SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b >>> 0);
+		_14(out, (a ^ c) >>> 0);
+		_14(out, (a & _10) >>> 0);
+		_14(out, (_8 | c) >>> 0);
+		let x6: rs.u32 = _8;
 		x6 = rs.u32SaturatingAdd(x6, b);
 		x6 = rs.u32SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.u32Rem(a, b));
-		_20(out, rs.u32Div(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = a === b;
-		const _207: boolean = a !== b;
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.u32Rem(a, b));
+		_14(out, rs.u32Div(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = a === b;
+		const _197: boolean = a !== b;
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.u32 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.u32 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u32(a);
 		const word3 = rs.intWord(word2, 0);
@@ -898,24 +910,24 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u32(a), hashed$u32(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.u32> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.u32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _266, true, undefined, undefined, 4, true));
+		const _256: rs.Iter<rs.u32> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.u32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _256, true, undefined, undefined, 4, true));
 		while (true) {
-			const _271: rs.u32 | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.u32 | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.u32> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.u32> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash32, rs.same)) as rs.HashSet<rs.u32>, _280, undefined, undefined, 234881024);
+		const _270: rs.Iter<rs.u32> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.u32> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash32, rs.same)) as rs.HashSet<rs.u32>, _270, undefined, undefined, 234881024);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.u32Display(a, f), (f: rs.Formatter) => rs.u32Debug(b, f), (f: rs.Formatter) => rs.u32LowerHex(a, f), (f: rs.Formatter) => rs.u32UpperHex(b, f), (f: rs.Formatter) => rs.u32Octal(c, f), (f: rs.Formatter) => rs.u32Binary(a, f), (f: rs.Formatter) => rs.u32Display(b, f), (f: rs.Formatter) => rs.u32LowerHex(c, f), (f: rs.Formatter) => rs.u32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.u32[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.u32Display(a, f), (f: rs.Formatter) => rs.u32Debug(b, f), (f: rs.Formatter) => rs.u32LowerHex(a, f), (f: rs.Formatter) => rs.u32UpperHex(b, f), (f: rs.Formatter) => rs.u32Octal(c, f), (f: rs.Formatter) => rs.u32Binary(a, f), (f: rs.Formatter) => rs.u32Display(b, f), (f: rs.Formatter) => rs.u32LowerHex(c, f), (f: rs.Formatter) => rs.u32Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.u32[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -923,7 +935,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.u32SaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -931,7 +943,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.u32SaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -939,7 +951,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.u32SaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -947,46 +959,49 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.u32SaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u32 = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.u32SaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u32 = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.u32SaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.u32>, Gauge.Gauge<rs.u32>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.u32> = _370[0];
-		const y: Gauge.Gauge<rs.u32> = _370[1];
-		const _378: Gauge.Gauge<rs.u32> = Gauge.default$Default_u32();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.u32> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.u32> = _354;
+		const y: Gauge.Gauge<rs.u32> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.u32> = Gauge.default$Default_u32();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u32(x7), hashed$num_Saturating_u32(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.u32> = copy$saturates_Gauge_u32(x7);
-		z._0 = rs.u32SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.u32 | undefined, rs.u32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.u32> = copy$saturates_Gauge_u32(_354);
+		z._0 = rs.u32SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.u32 = _8;
+		const _394: rs.u32 | undefined = rs.nonZero(_395);
+		const _397: rs.u32 = _10;
+		const _396: rs.u32 | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.u32SaturatingMul(_414[0], _414[1]);
+				const word5 = rs.u32SaturatingMul(_394, _396);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
@@ -996,18 +1011,18 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 4;
 			}
 		}
-		const part = rs.u32SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.u32SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.u32SaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.u32Div(a, b));
+		const part = rs.u32SaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.u32SaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.u32SaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.u32Div(_395, _397));
 	} else {
-		const _457: rs.u32 | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.u32 | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.u32SaturatingAdd(_457, b);
+			const word6 = rs.u32SaturatingAdd(_428, _10);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
@@ -1025,19 +1040,21 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u64FromBeBytes(buf);
 	};
-	const _8: [rs.u64, rs.u64, rs.u64] = [take(0), take(8), take(2 * 8)];
-	const a: rs.u64 = _8[0];
-	const b: rs.u64 = _8[1];
-	const c: rs.u64 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
+	const _8: rs.u64 = take(([0] as [rs.usize])[0]);
+	const _10: rs.u64 = take(([8] as [rs.usize])[0]);
+	const _12: rs.u64 = take(([16] as [rs.usize])[0]);
+	const a: rs.u64 = _8;
+	const b: rs.u64 = _10;
+	const c: rs.u64 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
 		const dst = out2;
 		const word = v;
 		const word2 = rs.intWord(word, 0);
@@ -1054,112 +1071,112 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.u64SaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.u64SaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.u64SaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.u64Div(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.u64Rem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part40 = rs.u64SaturatingAdd(_8, _10);
+		_14(out, part40);
+	} else if (_15 === 1) {
+		const part39 = rs.u64SaturatingSub(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 2) {
+		const part38 = rs.u64SaturatingMul(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 3) {
+		_14(out, rs.u64Div(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.u64Rem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, rs.u64Not(a));
-	} else if (_21 === 7) {
-		_20(out, rs.u64And(a, b));
-	} else if (_21 === 8) {
-		_20(out, rs.u64Or(a, b));
-	} else if (_21 === 9) {
-		_20(out, rs.u64Xor(a, b));
-	} else if (_21 === 10) {
-		let x: rs.u64 = a;
-		x = rs.u64SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.u64SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.u64SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.u64 = a;
-		x2 = rs.u64Div(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.u64 = a;
-		x3 = rs.u64Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.u64 = a;
-		x4 = rs.u64And(x4, b);
-		x4 = rs.u64Or(x4, c);
-		x4 = rs.u64Xor(x4, b);
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.u64 = a;
-		x5 = rs.u64SaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, rs.u64Not(_8));
+	} else if (_15 === 7) {
+		_14(out, rs.u64And(_8, _10));
+	} else if (_15 === 8) {
+		_14(out, rs.u64Or(_8, _10));
+	} else if (_15 === 9) {
+		_14(out, rs.u64Xor(_8, _10));
+	} else if (_15 === 10) {
+		let x: rs.u64 = _8;
+		x = rs.u64SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.u64SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.u64SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.u64 = _8;
+		x2 = rs.u64Div(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.u64 = _8;
+		x3 = rs.u64Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.u64 = _8;
+		x4 = rs.u64And(x4, _10);
+		x4 = rs.u64Or(x4, _12);
+		x4 = rs.u64Xor(x4, _10);
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.u64 = _8;
+		const _90: rs.u64 = _10;
+		x5 = rs.u64SaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.u64SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.u64SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.u64SaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = rs.u64And(x5, c);
-		x5 = rs.u64Or(x5, b);
-		x5 = rs.u64Xor(x5, c);
-		_20(out, x5);
+		x5 = rs.u64Or(x5, _90);
+		const _115: rs.u64 = _12;
+		x5 = rs.u64Xor(x5, _115);
+		_14(out, x5);
 		x5 = rs.u64Div(x5, b);
-		_20(out, x5);
-		x5 = rs.u64Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.u64SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.u64SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.u64SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, rs.u64Not(b));
-		_20(out, rs.u64Xor(a, c));
-		_20(out, rs.u64And(a, b));
-		_20(out, rs.u64Or(a, c));
-		let x6: rs.u64 = a;
+		_14(out, x5);
+		x5 = rs.u64Rem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.u64SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.u64SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.u64SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, rs.u64Not(b));
+		_14(out, rs.u64Xor(a, c));
+		_14(out, rs.u64And(a, _10));
+		_14(out, rs.u64Or(_8, c));
+		let x6: rs.u64 = _8;
 		x6 = rs.u64SaturatingAdd(x6, b);
 		x6 = rs.u64SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.u64Rem(a, b));
-		_20(out, rs.u64Div(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = rs.u64Eq(a, b);
-		const _207: boolean = !rs.u64Eq(a, b);
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.u64Rem(a, b));
+		_14(out, rs.u64Div(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = rs.u64Eq(a, b);
+		const _197: boolean = !rs.u64Eq(a, b);
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.u64 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.u64 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word4 = hashed$num_Saturating_u64(a);
 		const word5 = rs.intWord(word4, 0);
@@ -1176,24 +1193,24 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u64(a), hashed$u64(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.u64> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.u64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u64>, _266, true, undefined, undefined, 8, true));
+		const _256: rs.Iter<rs.u64> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.u64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u64>, _256, true, undefined, undefined, 8, true));
 		while (true) {
-			const _271: rs.u64 | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.u64 | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.u64> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.u64> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash64, rs.u64Eq)) as rs.HashSet<rs.u64>, _280, undefined, undefined, 117440512);
+		const _270: rs.Iter<rs.u64> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.u64> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash64, rs.u64Eq)) as rs.HashSet<rs.u64>, _270, undefined, undefined, 117440512);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.u64Display(a, f), (f: rs.Formatter) => rs.u64Debug(b, f), (f: rs.Formatter) => rs.u64LowerHex(a, f), (f: rs.Formatter) => rs.u64UpperHex(b, f), (f: rs.Formatter) => rs.u64Octal(c, f), (f: rs.Formatter) => rs.u64Binary(a, f), (f: rs.Formatter) => rs.u64Display(b, f), (f: rs.Formatter) => rs.u64LowerHex(c, f), (f: rs.Formatter) => rs.u64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.u64[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.u64Display(a, f), (f: rs.Formatter) => rs.u64Debug(b, f), (f: rs.Formatter) => rs.u64LowerHex(a, f), (f: rs.Formatter) => rs.u64UpperHex(b, f), (f: rs.Formatter) => rs.u64Octal(c, f), (f: rs.Formatter) => rs.u64Binary(a, f), (f: rs.Formatter) => rs.u64Display(b, f), (f: rs.Formatter) => rs.u64LowerHex(c, f), (f: rs.Formatter) => rs.u64Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.u64[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -1201,7 +1218,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.u64SaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -1209,7 +1226,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.u64SaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -1217,7 +1234,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.u64SaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -1225,46 +1242,49 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.u64SaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u64 = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.u64SaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u64 = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.u64SaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.u64>, Gauge.Gauge<rs.u64>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.u64> = _370[0];
-		const y: Gauge.Gauge<rs.u64> = _370[1];
-		const _378: Gauge.Gauge<rs.u64> = Gauge.default$Default_u64();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.u64> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.u64> = _354;
+		const y: Gauge.Gauge<rs.u64> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.u64> = Gauge.default$Default_u64();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u64(x7), hashed$num_Saturating_u64(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.u64> = copy$saturates_Gauge_u64(x7);
-		z._0 = rs.u64SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.u64 | undefined, rs.u64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.u64> = copy$saturates_Gauge_u64(_354);
+		z._0 = rs.u64SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.u64 = _8;
+		const _394: rs.u64 | undefined = rs.nonZero(_395);
+		const _397: rs.u64 = _10;
+		const _396: rs.u64 | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word7 = rs.u64SaturatingMul(_414[0], _414[1]);
+				const word7 = rs.u64SaturatingMul(_394, _396);
 				const word8 = rs.intWord(word7, 0);
 				const word9 = rs.intWord(word7, 32);
 				rs.byteVecReserve(dst3, 8 as rs.usize);
@@ -1280,18 +1300,18 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 8;
 			}
 		}
-		const part = rs.u64SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.u64SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.u64SaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.u64Div(a, b));
+		const part = rs.u64SaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.u64SaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.u64SaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.u64Div(_395, _397));
 	} else {
-		const _457: rs.u64 | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.u64 | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word10 = rs.u64SaturatingAdd(_457, b);
+			const word10 = rs.u64SaturatingAdd(_428, _10);
 			const word11 = rs.intWord(word10, 0);
 			const word12 = rs.intWord(word10, 32);
 			rs.byteVecReserve(dst4, 8 as rs.usize);
@@ -1315,19 +1335,21 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.u128FromBeBytes(buf);
 	};
-	const _8: [rs.u128, rs.u128, rs.u128] = [take(0), take(16), take(2 * 16)];
-	const a: rs.u128 = _8[0];
-	const b: rs.u128 = _8[1];
-	const c: rs.u128 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
+	const _8: rs.u128 = take(([0] as [rs.usize])[0]);
+	const _10: rs.u128 = take(([16] as [rs.usize])[0]);
+	const _12: rs.u128 = take(([32] as [rs.usize])[0]);
+	const a: rs.u128 = _8;
+	const b: rs.u128 = _10;
+	const c: rs.u128 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
 		const dst = out2;
 		const word = v;
 		const word2 = rs.intWord(word, 0);
@@ -1354,112 +1376,112 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.u128SaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.u128SaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.u128SaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.u128Div(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.u128Rem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part40 = rs.u128SaturatingAdd(_8, _10);
+		_14(out, part40);
+	} else if (_15 === 1) {
+		const part39 = rs.u128SaturatingSub(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 2) {
+		const part38 = rs.u128SaturatingMul(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 3) {
+		_14(out, rs.u128Div(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.u128Rem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, rs.u128Not(a));
-	} else if (_21 === 7) {
-		_20(out, rs.u128And(a, b));
-	} else if (_21 === 8) {
-		_20(out, rs.u128Or(a, b));
-	} else if (_21 === 9) {
-		_20(out, rs.u128Xor(a, b));
-	} else if (_21 === 10) {
-		let x: rs.u128 = a;
-		x = rs.u128SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.u128SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.u128SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.u128 = a;
-		x2 = rs.u128Div(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.u128 = a;
-		x3 = rs.u128Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.u128 = a;
-		x4 = rs.u128And(x4, b);
-		x4 = rs.u128Or(x4, c);
-		x4 = rs.u128Xor(x4, b);
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.u128 = a;
-		x5 = rs.u128SaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, rs.u128Not(_8));
+	} else if (_15 === 7) {
+		_14(out, rs.u128And(_8, _10));
+	} else if (_15 === 8) {
+		_14(out, rs.u128Or(_8, _10));
+	} else if (_15 === 9) {
+		_14(out, rs.u128Xor(_8, _10));
+	} else if (_15 === 10) {
+		let x: rs.u128 = _8;
+		x = rs.u128SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.u128SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.u128SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.u128 = _8;
+		x2 = rs.u128Div(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.u128 = _8;
+		x3 = rs.u128Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.u128 = _8;
+		x4 = rs.u128And(x4, _10);
+		x4 = rs.u128Or(x4, _12);
+		x4 = rs.u128Xor(x4, _10);
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.u128 = _8;
+		const _90: rs.u128 = _10;
+		x5 = rs.u128SaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.u128SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.u128SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.u128SaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = rs.u128And(x5, c);
-		x5 = rs.u128Or(x5, b);
-		x5 = rs.u128Xor(x5, c);
-		_20(out, x5);
+		x5 = rs.u128Or(x5, _90);
+		const _115: rs.u128 = _12;
+		x5 = rs.u128Xor(x5, _115);
+		_14(out, x5);
 		x5 = rs.u128Div(x5, b);
-		_20(out, x5);
-		x5 = rs.u128Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.u128SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.u128SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.u128SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, rs.u128Not(b));
-		_20(out, rs.u128Xor(a, c));
-		_20(out, rs.u128And(a, b));
-		_20(out, rs.u128Or(a, c));
-		let x6: rs.u128 = a;
+		_14(out, x5);
+		x5 = rs.u128Rem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.u128SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.u128SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.u128SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, rs.u128Not(b));
+		_14(out, rs.u128Xor(a, c));
+		_14(out, rs.u128And(a, _10));
+		_14(out, rs.u128Or(_8, c));
+		let x6: rs.u128 = _8;
 		x6 = rs.u128SaturatingAdd(x6, b);
 		x6 = rs.u128SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.u128Rem(a, b));
-		_20(out, rs.u128Div(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = rs.u128Eq(a, b);
-		const _207: boolean = !rs.u128Eq(a, b);
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.u128Rem(a, b));
+		_14(out, rs.u128Div(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = rs.u128Eq(a, b);
+		const _197: boolean = !rs.u128Eq(a, b);
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.u128 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.u128 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word6 = hashed$num_Saturating_u128(a);
 		const word7 = rs.intWord(word6, 0);
@@ -1476,24 +1498,24 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u128(a), hashed$u128(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.u128> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.u128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u128>, _266, true, undefined, undefined, 16, true));
+		const _256: rs.Iter<rs.u128> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.u128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u128>, _256, true, undefined, undefined, 16, true));
 		while (true) {
-			const _271: rs.u128 | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.u128 | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.u128> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.u128> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash128, rs.u128Eq)) as rs.HashSet<rs.u128>, _280, undefined, undefined, 58720256);
+		const _270: rs.Iter<rs.u128> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.u128> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hash128, rs.u128Eq)) as rs.HashSet<rs.u128>, _270, undefined, undefined, 58720256);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.u128Display(a, f), (f: rs.Formatter) => rs.u128Debug(b, f), (f: rs.Formatter) => rs.u128LowerHex(a, f), (f: rs.Formatter) => rs.u128UpperHex(b, f), (f: rs.Formatter) => rs.u128Octal(c, f), (f: rs.Formatter) => rs.u128Binary(a, f), (f: rs.Formatter) => rs.u128Display(b, f), (f: rs.Formatter) => rs.u128LowerHex(c, f), (f: rs.Formatter) => rs.u128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.u128[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.u128Display(a, f), (f: rs.Formatter) => rs.u128Debug(b, f), (f: rs.Formatter) => rs.u128LowerHex(a, f), (f: rs.Formatter) => rs.u128UpperHex(b, f), (f: rs.Formatter) => rs.u128Octal(c, f), (f: rs.Formatter) => rs.u128Binary(a, f), (f: rs.Formatter) => rs.u128Display(b, f), (f: rs.Formatter) => rs.u128LowerHex(c, f), (f: rs.Formatter) => rs.u128Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.u128[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -1501,7 +1523,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.u128SaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -1509,7 +1531,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.u128SaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -1517,7 +1539,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.u128SaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -1525,46 +1547,49 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.u128SaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.u128 = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.u128SaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.u128 = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.u128SaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.u128>, Gauge.Gauge<rs.u128>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.u128> = _370[0];
-		const y: Gauge.Gauge<rs.u128> = _370[1];
-		const _378: Gauge.Gauge<rs.u128> = Gauge.default$Default_u128();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.u128> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.u128> = _354;
+		const y: Gauge.Gauge<rs.u128> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.u128> = Gauge.default$Default_u128();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u128(x7), hashed$num_Saturating_u128(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.u128> = copy$saturates_Gauge_u128(x7);
-		z._0 = rs.u128SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.u128 | undefined, rs.u128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.u128> = copy$saturates_Gauge_u128(_354);
+		z._0 = rs.u128SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.u128 = _8;
+		const _394: rs.u128 | undefined = rs.nonZero(_395);
+		const _397: rs.u128 = _10;
+		const _396: rs.u128 | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word9 = rs.u128SaturatingMul(_414[0], _414[1]);
+				const word9 = rs.u128SaturatingMul(_394, _396);
 				const word10 = rs.intWord(word9, 0);
 				const word11 = rs.intWord(word9, 32);
 				const word12 = rs.intWord(word9, 64);
@@ -1590,18 +1615,18 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 16;
 			}
 		}
-		const part = rs.u128SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.u128SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.u128SaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.u128Div(a, b));
+		const part = rs.u128SaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.u128SaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.u128SaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.u128Div(_395, _397));
 	} else {
-		const _457: rs.u128 | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.u128 | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word14 = rs.u128SaturatingAdd(_457, b);
+			const word14 = rs.u128SaturatingAdd(_428, _10);
 			const word15 = rs.intWord(word14, 0);
 			const word16 = rs.intWord(word14, 32);
 			const word17 = rs.intWord(word14, 64);
@@ -1635,19 +1660,21 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.usizeFromBeBytes(buf);
 	};
-	const _8: [rs.usize, rs.usize, rs.usize] = [take(0), take(4), take(2 * 4)];
-	const a: rs.usize = _8[0];
-	const b: rs.usize = _8[1];
-	const c: rs.usize = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
+	const _8: rs.usize = take(([0] as [rs.usize])[0]);
+	const _10: rs.usize = take(([4] as [rs.usize])[0]);
+	const _12: rs.usize = take(([8] as [rs.usize])[0]);
+	const a: rs.usize = _8;
+	const b: rs.usize = _10;
+	const c: rs.usize = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 4 as rs.usize);
@@ -1658,112 +1685,112 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part41 = rs.usizeSaturatingAdd(a, b);
-		_20(out, part41);
-	} else if (_21 === 1) {
-		const part40 = rs.usizeSaturatingSub(a, b);
-		_20(out, part40);
-	} else if (_21 === 2) {
-		const part39 = rs.usizeSaturatingMul(a, b);
-		_20(out, part39);
-	} else if (_21 === 3) {
-		_20(out, rs.usizeDiv(a, b));
-	} else if (_21 === 4) {
-		_20(out, rs.usizeRem(a, b));
-	} else if (_21 === 5) {
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part36 = rs.usizeSaturatingAdd(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 1) {
+		const part35 = rs.usizeSaturatingSub(_8, _10);
+		_14(out, part35);
+	} else if (_15 === 2) {
+		const part34 = rs.usizeSaturatingMul(_8, _10);
+		_14(out, part34);
+	} else if (_15 === 3) {
+		_14(out, rs.usizeDiv(_8, _10));
+	} else if (_15 === 4) {
+		_14(out, rs.usizeRem(_8, _10));
+	} else if (_15 === 5) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 6) {
-		_20(out, ~a >>> 0);
-	} else if (_21 === 7) {
-		_20(out, (a & b) >>> 0);
-	} else if (_21 === 8) {
-		_20(out, (a | b) >>> 0);
-	} else if (_21 === 9) {
-		_20(out, (a ^ b) >>> 0);
-	} else if (_21 === 10) {
-		let x: rs.usize = a;
-		x = rs.usizeSaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.usizeSaturatingMul(x, c);
-		_20(out, x);
-		x = rs.usizeSaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.usize = a;
-		x2 = rs.usizeDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.usize = a;
-		x3 = rs.usizeRem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.usize = a;
-		x4 = (x4 & b) >>> 0;
-		x4 = (x4 | c) >>> 0;
-		x4 = (x4 ^ b) >>> 0;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.usize = a;
-		x5 = rs.usizeSaturatingAdd(x5, b);
-		_20(out, x5);
+	} else if (_15 === 6) {
+		_14(out, ~_8 >>> 0);
+	} else if (_15 === 7) {
+		_14(out, (_8 & _10) >>> 0);
+	} else if (_15 === 8) {
+		_14(out, (_8 | _10) >>> 0);
+	} else if (_15 === 9) {
+		_14(out, (_8 ^ _10) >>> 0);
+	} else if (_15 === 10) {
+		let x: rs.usize = _8;
+		x = rs.usizeSaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.usizeSaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.usizeSaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.usize = _8;
+		x2 = rs.usizeDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.usize = _8;
+		x3 = rs.usizeRem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.usize = _8;
+		x4 = (x4 & _10) >>> 0;
+		x4 = (x4 | _12) >>> 0;
+		x4 = (x4 ^ _10) >>> 0;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.usize = _8;
+		const _90: rs.usize = _10;
+		x5 = rs.usizeSaturatingAdd(x5, _90);
+		_14(out, x5);
 		x5 = rs.usizeSaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.usizeSaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.usizeSaturatingMul(x5, _90);
+		_14(out, x5);
 		x5 = (x5 & c) >>> 0;
-		x5 = (x5 | b) >>> 0;
-		x5 = (x5 ^ c) >>> 0;
-		_20(out, x5);
+		x5 = (x5 | _90) >>> 0;
+		const _115: rs.usize = _12;
+		x5 = (x5 ^ _115) >>> 0;
+		_14(out, x5);
 		x5 = rs.usizeDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.usizeRem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.usizeSaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.usizeSaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.usizeSaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b >>> 0);
-		_20(out, (a ^ c) >>> 0);
-		_20(out, (a & b) >>> 0);
-		_20(out, (a | c) >>> 0);
-		let x6: rs.usize = a;
+		_14(out, x5);
+		x5 = rs.usizeRem(x5, _115);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.usizeSaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.usizeSaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.usizeSaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b >>> 0);
+		_14(out, (a ^ c) >>> 0);
+		_14(out, (a & _10) >>> 0);
+		_14(out, (_8 | c) >>> 0);
+		let x6: rs.usize = _8;
 		x6 = rs.usizeSaturatingAdd(x6, b);
 		x6 = rs.usizeSaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.usizeRem(a, b));
-		_20(out, rs.usizeDiv(c, b));
-	} else if (_21 === 16) {
-		const _204: boolean = a === b;
-		const _207: boolean = a !== b;
-		const _210: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.usizeRem(a, b));
+		_14(out, rs.usizeDiv(c, b));
+	} else if (_15 === 16) {
+		const _194: boolean = a === b;
+		const _197: boolean = a !== b;
+		const _200: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _213: boolean = order !== undefined && order <= 0;
-		const _216: boolean = rs.cmp(a, b) === 1;
+		const _203: boolean = order !== undefined && order <= 0;
+		const _206: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_194, _197, _200, _203, _206, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _232: boolean | rs.Done = iter.next();
-			if (_232 === rs.DONE) {
+			const _222: boolean | rs.Done = iter.next();
+			if (_222 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _232 ? 1 : 0);
+			rs.byteVecPush(out, _222 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _250: rs.usize = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _251: rs.usize = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_usize(a);
 		const word3 = rs.intWord(word2, 0);
@@ -1780,24 +1807,24 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_usize(a), hashed$usize(a)) ? 1 : 0);
-		const _266: rs.Iter<rs.usize> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.usize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.usize>, _266, true, undefined, undefined, 4, true));
+		const _256: rs.Iter<rs.usize> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.usize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.usize>, _256, true, undefined, undefined, 4, true));
 		while (true) {
-			const _271: rs.usize | rs.Done = iter2.next();
-			if (_271 === rs.DONE) {
+			const _261: rs.usize | rs.Done = iter2.next();
+			if (_261 === rs.DONE) {
 				break;
 			}
-			_20(out, _271);
+			_14(out, _261);
 		}
-		const _280: rs.Iter<rs.usize> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.usize> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashUsize, rs.same)) as rs.HashSet<rs.usize>, _280, undefined, undefined, 234881024);
+		const _270: rs.Iter<rs.usize> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.usize> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashUsize, rs.same)) as rs.HashSet<rs.usize>, _270, undefined, undefined, 234881024);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.usizeDisplay(a, f), (f: rs.Formatter) => rs.usizeDebug(b, f), (f: rs.Formatter) => rs.usizeLowerHex(a, f), (f: rs.Formatter) => rs.usizeUpperHex(b, f), (f: rs.Formatter) => rs.usizeOctal(c, f), (f: rs.Formatter) => rs.usizeBinary(a, f), (f: rs.Formatter) => rs.usizeDisplay(b, f), (f: rs.Formatter) => rs.usizeLowerHex(c, f), (f: rs.Formatter) => rs.usizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
-		const all: rs.usize[] = [a, b, c];
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.usizeDisplay(a, f), (f: rs.Formatter) => rs.usizeDebug(b, f), (f: rs.Formatter) => rs.usizeLowerHex(a, f), (f: rs.Formatter) => rs.usizeUpperHex(b, f), (f: rs.Formatter) => rs.usizeOctal(c, f), (f: rs.Formatter) => rs.usizeBinary(a, f), (f: rs.Formatter) => rs.usizeDisplay(b, f), (f: rs.Formatter) => rs.usizeLowerHex(c, f), (f: rs.Formatter) => rs.usizeDebug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
+		const all: rs.usize[] = [_8, _10, _12];
 		const s = all;
 		let front = 0;
 		let back = s.length;
@@ -1805,7 +1832,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front >= back)) {
 			acc = rs.usizeSaturatingAdd(acc, s[front++]);
 		}
-		_20(out, acc);
+		_14(out, acc);
 		const s2 = all;
 		let front2 = 0;
 		let back2 = s2.length;
@@ -1813,7 +1840,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front2 >= back2)) {
 			acc2 = rs.usizeSaturatingAdd(acc2, s2[front2++]);
 		}
-		_20(out, acc2);
+		_14(out, acc2);
 		const s3 = all;
 		let front3 = 0;
 		let back3 = s3.length;
@@ -1821,7 +1848,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front3 >= back3)) {
 			acc3 = rs.usizeSaturatingMul(acc3, s3[front3++]);
 		}
-		_20(out, acc3);
+		_14(out, acc3);
 		const s4 = all;
 		let front4 = 0;
 		let back4 = s4.length;
@@ -1829,46 +1856,49 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		while (!(front4 >= back4)) {
 			acc4 = rs.usizeSaturatingMul(acc4, s4[front4++]);
 		}
-		_20(out, acc4);
-		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front5 = 0;
 		let back5 = s5.length;
 		let acc5: rs.usize = 0;
 		while (!(front5 >= back5)) {
 			acc5 = rs.usizeSaturatingAdd(acc5, s5[front5++]);
 		}
-		_20(out, acc5);
-		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		_14(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, { end: 0 }.end));
 		let front6 = 0;
 		let back6 = s6.length;
 		let acc6: rs.usize = 1;
 		while (!(front6 >= back6)) {
 			acc6 = rs.usizeSaturatingMul(acc6, s6[front6++]);
 		}
-		_20(out, acc6);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _370: [Gauge.Gauge<rs.usize>, Gauge.Gauge<rs.usize>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.usize> = _370[0];
-		const y: Gauge.Gauge<rs.usize> = _370[1];
-		const _378: Gauge.Gauge<rs.usize> = Gauge.default$Default_usize();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+		_14(out, acc6);
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _354: Gauge.Gauge<rs.usize> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.usize> = _354;
+		const y: Gauge.Gauge<rs.usize> = new Gauge.Gauge(_10);
+		const _360: Gauge.Gauge<rs.usize> = Gauge.default$Default_usize();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(_360, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_usize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_usize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_usize(x7), hashed$num_Saturating_usize(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.usize> = copy$saturates_Gauge_usize(x7);
-		z._0 = rs.usizeSaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _414: [rs.usize | undefined, rs.usize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_414[0] !== undefined) {
-			if (_414[1] !== undefined) {
+		const z: Gauge.Gauge<rs.usize> = copy$saturates_Gauge_usize(_354);
+		z._0 = rs.usizeSaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _395: rs.usize = _8;
+		const _394: rs.usize | undefined = rs.nonZero(_395);
+		const _397: rs.usize = _10;
+		const _396: rs.usize | undefined = rs.nonZero(_397);
+		if (_394 !== undefined) {
+			if (_396 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.usizeSaturatingMul(_414[0], _414[1]);
+				const word5 = rs.usizeSaturatingMul(_394, _396);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
@@ -1878,18 +1908,18 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 4;
 			}
 		}
-		const part = rs.usizeSaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.usizeSaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.usizeSaturatingSub(a, b);
-		_20(out, part3);
-		_20(out, rs.usizeDiv(a, b));
+		const part = rs.usizeSaturatingMul(_395, _397);
+		_14(out, part);
+		const part2 = rs.usizeSaturatingAdd(_395, _397);
+		_14(out, part2);
+		const part3 = rs.usizeSaturatingSub(_395, _397);
+		_14(out, part3);
+		_14(out, rs.usizeDiv(_395, _397));
 	} else {
-		const _457: rs.usize | undefined = rs.nonZero(a);
-		if (_457 !== undefined) {
+		const _428: rs.usize | undefined = rs.nonZero(_8);
+		if (_428 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.usizeSaturatingAdd(_457, b);
+			const word6 = rs.usizeSaturatingAdd(_428, _10);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
@@ -1907,138 +1937,140 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.i8FromBeBytes(buf);
 	};
-	const _8: [rs.i8, rs.i8, rs.i8] = [take(0), take(1), take(2 * 1)];
-	const a: rs.i8 = _8[0];
-	const b: rs.i8 = _8[1];
-	const c: rs.i8 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
+	const _8: rs.i8 = take(([0] as [rs.usize])[0]);
+	const _10: rs.i8 = take(([1] as [rs.usize])[0]);
+	const _12: rs.i8 = take(([2] as [rs.usize])[0]);
+	const a: rs.i8 = _8;
+	const b: rs.i8 = _10;
+	const c: rs.i8 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 1 as rs.usize);
 		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.i8SaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.i8SaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.i8SaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.i8SaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.i8Rem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.i8SaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.i8SaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.i8SaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, ~a);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.i8 = a;
-		x = rs.i8SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.i8SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.i8SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.i8 = a;
-		x2 = rs.i8SaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.i8 = a;
-		x3 = rs.i8Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.i8 = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.i8 = a;
-		x5 = rs.i8SaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part39 = rs.i8SaturatingAdd(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 1) {
+		const part38 = rs.i8SaturatingSub(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 2) {
+		const part37 = rs.i8SaturatingMul(_8, _10);
+		_14(out, part37);
+	} else if (_15 === 3) {
+		const part36 = rs.i8SaturatingDiv(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 4) {
+		_14(out, rs.i8Rem(_8, _10));
+	} else if (_15 === 5) {
+		const part32 = rs.i8SaturatingSub(0, _8);
+		_14(out, part32);
+		const part33 = rs.i8SaturatingSub(0, b);
+		_14(out, part33);
+		const part34 = rs.i8SaturatingSub(0, _8);
+		_14(out, part34);
+	} else if (_15 === 6) {
+		_14(out, ~_8);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.i8 = _8;
+		x = rs.i8SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.i8SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.i8SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.i8 = _8;
+		x2 = rs.i8SaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.i8 = _8;
+		x3 = rs.i8Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.i8 = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.i8 = _8;
+		const _105: rs.i8 = _10;
+		x5 = rs.i8SaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.i8SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.i8SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.i8SaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _105;
+		const _130: rs.i8 = _12;
+		x5 = x5 ^ _130;
+		_14(out, x5);
 		x5 = rs.i8SaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.i8Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.i8SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.i8SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.i8SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.i8 = a;
+		_14(out, x5);
+		x5 = rs.i8Rem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.i8SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.i8SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.i8SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.i8 = _8;
 		x6 = rs.i8SaturatingAdd(x6, b);
 		x6 = rs.i8SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.i8Rem(a, b));
-		const part20 = rs.i8SaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = a === b;
-		const _222: boolean = a !== b;
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.i8Rem(a, b));
+		const part19 = rs.i8SaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = a === b;
+		const _212: boolean = a !== b;
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.i8 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.i8 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i8(a);
 		const word3 = rs.intWord(word2, 0);
@@ -2055,65 +2087,68 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i8(a), hashed$i8(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.i8> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.i8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i8>, _281, true, undefined, undefined, 1, true));
+		const _271: rs.Iter<rs.i8> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.i8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i8>, _271, true, undefined, undefined, 1, true));
 		while (true) {
-			const _286: rs.i8 | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.i8 | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.i8> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.i8> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI8, rs.same)) as rs.HashSet<rs.i8>, _295, undefined, undefined, 469762048);
+		const _285: rs.Iter<rs.i8> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.i8> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI8, rs.same)) as rs.HashSet<rs.i8>, _285, undefined, undefined, 469762048);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.i8Display(a, f), (f: rs.Formatter) => rs.i8Debug(b, f), (f: rs.Formatter) => rs.i8LowerHex(a, f), (f: rs.Formatter) => rs.i8UpperHex(b, f), (f: rs.Formatter) => rs.i8Octal(c, f), (f: rs.Formatter) => rs.i8Binary(a, f), (f: rs.Formatter) => rs.i8Display(b, f), (f: rs.Formatter) => rs.i8LowerHex(c, f), (f: rs.Formatter) => rs.i8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.i8Display(a, f), (f: rs.Formatter) => rs.i8Debug(b, f), (f: rs.Formatter) => rs.i8LowerHex(a, f), (f: rs.Formatter) => rs.i8UpperHex(b, f), (f: rs.Formatter) => rs.i8Octal(c, f), (f: rs.Formatter) => rs.i8Binary(a, f), (f: rs.Formatter) => rs.i8Display(b, f), (f: rs.Formatter) => rs.i8LowerHex(c, f), (f: rs.Formatter) => rs.i8Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.i8>, Gauge.Gauge<rs.i8>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.i8> = _344[0];
-		const y: Gauge.Gauge<rs.i8> = _344[1];
-		const _352: Gauge.Gauge<rs.i8> = Gauge.default$Default_i8();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.i8> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.i8> = _330;
+		const y: Gauge.Gauge<rs.i8> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.i8> = Gauge.default$Default_i8();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i8(x7), hashed$num_Saturating_i8(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.i8> = copy$saturates_Gauge_i8(x7);
-		z._0 = rs.i8SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.i8 | undefined, rs.i8 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.i8> = copy$saturates_Gauge_i8(_330);
+		z._0 = rs.i8SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.i8 = _8;
+		const _370: rs.i8 | undefined = rs.nonZero(_371);
+		const _373: rs.i8 = _10;
+		const _372: rs.i8 | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.i8SaturatingMul(_388[0], _388[1]);
+				const word5 = rs.i8SaturatingMul(_370, _372);
 				rs.byteVecReserve(dst3, 1 as rs.usize);
 				dst3.data[dst3.length + 0] = word5 & 255;
 				dst3.length = dst3.length + 1;
 			}
 		}
-		const part = rs.i8SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.i8SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.i8SaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.i8SaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.i8SaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.i8SaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.i8SaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.i8SaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.i8 | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.i8 | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.i8SaturatingSub(0, _431);
+			const word6 = rs.i8SaturatingSub(0, _404);
 			rs.byteVecReserve(dst4, 1 as rs.usize);
 			dst4.data[dst4.length + 0] = word6 & 255;
 			dst4.length = dst4.length + 1;
@@ -2127,19 +2162,21 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.i16FromBeBytes(buf);
 	};
-	const _8: [rs.i16, rs.i16, rs.i16] = [take(0), take(2), take(2 * 2)];
-	const a: rs.i16 = _8[0];
-	const b: rs.i16 = _8[1];
-	const c: rs.i16 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
+	const _8: rs.i16 = take(([0] as [rs.usize])[0]);
+	const _10: rs.i16 = take(([2] as [rs.usize])[0]);
+	const _12: rs.i16 = take(([4] as [rs.usize])[0]);
+	const a: rs.i16 = _8;
+	const b: rs.i16 = _10;
+	const c: rs.i16 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 2 as rs.usize);
@@ -2148,119 +2185,119 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.i16SaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.i16SaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.i16SaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.i16SaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.i16Rem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.i16SaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.i16SaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.i16SaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, ~a);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.i16 = a;
-		x = rs.i16SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.i16SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.i16SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.i16 = a;
-		x2 = rs.i16SaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.i16 = a;
-		x3 = rs.i16Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.i16 = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.i16 = a;
-		x5 = rs.i16SaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part39 = rs.i16SaturatingAdd(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 1) {
+		const part38 = rs.i16SaturatingSub(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 2) {
+		const part37 = rs.i16SaturatingMul(_8, _10);
+		_14(out, part37);
+	} else if (_15 === 3) {
+		const part36 = rs.i16SaturatingDiv(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 4) {
+		_14(out, rs.i16Rem(_8, _10));
+	} else if (_15 === 5) {
+		const part32 = rs.i16SaturatingSub(0, _8);
+		_14(out, part32);
+		const part33 = rs.i16SaturatingSub(0, b);
+		_14(out, part33);
+		const part34 = rs.i16SaturatingSub(0, _8);
+		_14(out, part34);
+	} else if (_15 === 6) {
+		_14(out, ~_8);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.i16 = _8;
+		x = rs.i16SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.i16SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.i16SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.i16 = _8;
+		x2 = rs.i16SaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.i16 = _8;
+		x3 = rs.i16Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.i16 = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.i16 = _8;
+		const _105: rs.i16 = _10;
+		x5 = rs.i16SaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.i16SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.i16SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.i16SaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _105;
+		const _130: rs.i16 = _12;
+		x5 = x5 ^ _130;
+		_14(out, x5);
 		x5 = rs.i16SaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.i16Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.i16SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.i16SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.i16SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.i16 = a;
+		_14(out, x5);
+		x5 = rs.i16Rem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.i16SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.i16SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.i16SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.i16 = _8;
 		x6 = rs.i16SaturatingAdd(x6, b);
 		x6 = rs.i16SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.i16Rem(a, b));
-		const part20 = rs.i16SaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = a === b;
-		const _222: boolean = a !== b;
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.i16Rem(a, b));
+		const part19 = rs.i16SaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = a === b;
+		const _212: boolean = a !== b;
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.i16 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.i16 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i16(a);
 		const word3 = rs.intWord(word2, 0);
@@ -2277,47 +2314,50 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i16(a), hashed$i16(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.i16> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.i16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i16>, _281, true, undefined, undefined, 2, true));
+		const _271: rs.Iter<rs.i16> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.i16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i16>, _271, true, undefined, undefined, 2, true));
 		while (true) {
-			const _286: rs.i16 | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.i16 | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.i16> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.i16> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI16, rs.same)) as rs.HashSet<rs.i16>, _295, undefined, undefined, 469762048);
+		const _285: rs.Iter<rs.i16> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.i16> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI16, rs.same)) as rs.HashSet<rs.i16>, _285, undefined, undefined, 469762048);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.i16Display(a, f), (f: rs.Formatter) => rs.i16Debug(b, f), (f: rs.Formatter) => rs.i16LowerHex(a, f), (f: rs.Formatter) => rs.i16UpperHex(b, f), (f: rs.Formatter) => rs.i16Octal(c, f), (f: rs.Formatter) => rs.i16Binary(a, f), (f: rs.Formatter) => rs.i16Display(b, f), (f: rs.Formatter) => rs.i16LowerHex(c, f), (f: rs.Formatter) => rs.i16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.i16Display(a, f), (f: rs.Formatter) => rs.i16Debug(b, f), (f: rs.Formatter) => rs.i16LowerHex(a, f), (f: rs.Formatter) => rs.i16UpperHex(b, f), (f: rs.Formatter) => rs.i16Octal(c, f), (f: rs.Formatter) => rs.i16Binary(a, f), (f: rs.Formatter) => rs.i16Display(b, f), (f: rs.Formatter) => rs.i16LowerHex(c, f), (f: rs.Formatter) => rs.i16Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.i16>, Gauge.Gauge<rs.i16>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.i16> = _344[0];
-		const y: Gauge.Gauge<rs.i16> = _344[1];
-		const _352: Gauge.Gauge<rs.i16> = Gauge.default$Default_i16();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.i16> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.i16> = _330;
+		const y: Gauge.Gauge<rs.i16> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.i16> = Gauge.default$Default_i16();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i16(x7), hashed$num_Saturating_i16(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.i16> = copy$saturates_Gauge_i16(x7);
-		z._0 = rs.i16SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.i16 | undefined, rs.i16 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.i16> = copy$saturates_Gauge_i16(_330);
+		z._0 = rs.i16SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.i16 = _8;
+		const _370: rs.i16 | undefined = rs.nonZero(_371);
+		const _373: rs.i16 = _10;
+		const _372: rs.i16 | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.i16SaturatingMul(_388[0], _388[1]);
+				const word5 = rs.i16SaturatingMul(_370, _372);
 				rs.byteVecReserve(dst3, 2 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 8) & 255;
@@ -2325,19 +2365,19 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 2;
 			}
 		}
-		const part = rs.i16SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.i16SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.i16SaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.i16SaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.i16SaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.i16SaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.i16SaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.i16SaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.i16 | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.i16 | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.i16SaturatingSub(0, _431);
+			const word6 = rs.i16SaturatingSub(0, _404);
 			rs.byteVecReserve(dst4, 2 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 8) & 255;
@@ -2353,19 +2393,21 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.i32FromBeBytes(buf);
 	};
-	const _8: [rs.i32, rs.i32, rs.i32] = [take(0), take(4), take(2 * 4)];
-	const a: rs.i32 = _8[0];
-	const b: rs.i32 = _8[1];
-	const c: rs.i32 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
+	const _8: rs.i32 = take(([0] as [rs.usize])[0]);
+	const _10: rs.i32 = take(([4] as [rs.usize])[0]);
+	const _12: rs.i32 = take(([8] as [rs.usize])[0]);
+	const a: rs.i32 = _8;
+	const b: rs.i32 = _10;
+	const c: rs.i32 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 4 as rs.usize);
@@ -2376,119 +2418,119 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.i32SaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.i32SaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.i32SaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.i32SaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.i32Rem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.i32SaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.i32SaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.i32SaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, ~a);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.i32 = a;
-		x = rs.i32SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.i32SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.i32SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.i32 = a;
-		x2 = rs.i32SaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.i32 = a;
-		x3 = rs.i32Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.i32 = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.i32 = a;
-		x5 = rs.i32SaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part39 = rs.i32SaturatingAdd(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 1) {
+		const part38 = rs.i32SaturatingSub(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 2) {
+		const part37 = rs.i32SaturatingMul(_8, _10);
+		_14(out, part37);
+	} else if (_15 === 3) {
+		const part36 = rs.i32SaturatingDiv(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 4) {
+		_14(out, rs.i32Rem(_8, _10));
+	} else if (_15 === 5) {
+		const part32 = rs.i32SaturatingSub(0, _8);
+		_14(out, part32);
+		const part33 = rs.i32SaturatingSub(0, b);
+		_14(out, part33);
+		const part34 = rs.i32SaturatingSub(0, _8);
+		_14(out, part34);
+	} else if (_15 === 6) {
+		_14(out, ~_8);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.i32 = _8;
+		x = rs.i32SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.i32SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.i32SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.i32 = _8;
+		x2 = rs.i32SaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.i32 = _8;
+		x3 = rs.i32Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.i32 = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.i32 = _8;
+		const _105: rs.i32 = _10;
+		x5 = rs.i32SaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.i32SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.i32SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.i32SaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _105;
+		const _130: rs.i32 = _12;
+		x5 = x5 ^ _130;
+		_14(out, x5);
 		x5 = rs.i32SaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.i32Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.i32SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.i32SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.i32SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.i32 = a;
+		_14(out, x5);
+		x5 = rs.i32Rem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.i32SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.i32SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.i32SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.i32 = _8;
 		x6 = rs.i32SaturatingAdd(x6, b);
 		x6 = rs.i32SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.i32Rem(a, b));
-		const part20 = rs.i32SaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = a === b;
-		const _222: boolean = a !== b;
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.i32Rem(a, b));
+		const part19 = rs.i32SaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = a === b;
+		const _212: boolean = a !== b;
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.i32 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.i32 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i32(a);
 		const word3 = rs.intWord(word2, 0);
@@ -2505,47 +2547,50 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i32(a), hashed$i32(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.i32> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.i32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i32>, _281, true, undefined, undefined, 4, true));
+		const _271: rs.Iter<rs.i32> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.i32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i32>, _271, true, undefined, undefined, 4, true));
 		while (true) {
-			const _286: rs.i32 | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.i32 | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.i32> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.i32> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI32, rs.same)) as rs.HashSet<rs.i32>, _295, undefined, undefined, 234881024);
+		const _285: rs.Iter<rs.i32> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.i32> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI32, rs.same)) as rs.HashSet<rs.i32>, _285, undefined, undefined, 234881024);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.i32Display(a, f), (f: rs.Formatter) => rs.i32Debug(b, f), (f: rs.Formatter) => rs.i32LowerHex(a, f), (f: rs.Formatter) => rs.i32UpperHex(b, f), (f: rs.Formatter) => rs.i32Octal(c, f), (f: rs.Formatter) => rs.i32Binary(a, f), (f: rs.Formatter) => rs.i32Display(b, f), (f: rs.Formatter) => rs.i32LowerHex(c, f), (f: rs.Formatter) => rs.i32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.i32Display(a, f), (f: rs.Formatter) => rs.i32Debug(b, f), (f: rs.Formatter) => rs.i32LowerHex(a, f), (f: rs.Formatter) => rs.i32UpperHex(b, f), (f: rs.Formatter) => rs.i32Octal(c, f), (f: rs.Formatter) => rs.i32Binary(a, f), (f: rs.Formatter) => rs.i32Display(b, f), (f: rs.Formatter) => rs.i32LowerHex(c, f), (f: rs.Formatter) => rs.i32Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.i32>, Gauge.Gauge<rs.i32>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.i32> = _344[0];
-		const y: Gauge.Gauge<rs.i32> = _344[1];
-		const _352: Gauge.Gauge<rs.i32> = Gauge.default$Default_i32();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.i32> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.i32> = _330;
+		const y: Gauge.Gauge<rs.i32> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.i32> = Gauge.default$Default_i32();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i32(x7), hashed$num_Saturating_i32(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.i32> = copy$saturates_Gauge_i32(x7);
-		z._0 = rs.i32SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.i32 | undefined, rs.i32 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.i32> = copy$saturates_Gauge_i32(_330);
+		z._0 = rs.i32SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.i32 = _8;
+		const _370: rs.i32 | undefined = rs.nonZero(_371);
+		const _373: rs.i32 = _10;
+		const _372: rs.i32 | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.i32SaturatingMul(_388[0], _388[1]);
+				const word5 = rs.i32SaturatingMul(_370, _372);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
@@ -2555,19 +2600,19 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 4;
 			}
 		}
-		const part = rs.i32SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.i32SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.i32SaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.i32SaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.i32SaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.i32SaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.i32SaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.i32SaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.i32 | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.i32 | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.i32SaturatingSub(0, _431);
+			const word6 = rs.i32SaturatingSub(0, _404);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
@@ -2585,19 +2630,21 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.i64FromBeBytes(buf);
 	};
-	const _8: [rs.i64, rs.i64, rs.i64] = [take(0), take(8), take(2 * 8)];
-	const a: rs.i64 = _8[0];
-	const b: rs.i64 = _8[1];
-	const c: rs.i64 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
+	const _8: rs.i64 = take(([0] as [rs.usize])[0]);
+	const _10: rs.i64 = take(([8] as [rs.usize])[0]);
+	const _12: rs.i64 = take(([16] as [rs.usize])[0]);
+	const a: rs.i64 = _8;
+	const b: rs.i64 = _10;
+	const c: rs.i64 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
 		const dst = out2;
 		const word = v;
 		const word2 = rs.intWord(word, 0);
@@ -2614,119 +2661,119 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.i64SaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.i64SaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.i64SaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.i64SaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.i64Rem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.i64SaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.i64SaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.i64SaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, rs.i64Not(a));
-	} else if (_21 === 7) {
-		_20(out, rs.i64And(a, b));
-	} else if (_21 === 8) {
-		_20(out, rs.i64Or(a, b));
-	} else if (_21 === 9) {
-		_20(out, rs.i64Xor(a, b));
-	} else if (_21 === 10) {
-		let x: rs.i64 = a;
-		x = rs.i64SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.i64SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.i64SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.i64 = a;
-		x2 = rs.i64SaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.i64 = a;
-		x3 = rs.i64Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.i64 = a;
-		x4 = rs.i64And(x4, b);
-		x4 = rs.i64Or(x4, c);
-		x4 = rs.i64Xor(x4, b);
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.i64 = a;
-		x5 = rs.i64SaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part43 = rs.i64SaturatingAdd(_8, _10);
+		_14(out, part43);
+	} else if (_15 === 1) {
+		const part42 = rs.i64SaturatingSub(_8, _10);
+		_14(out, part42);
+	} else if (_15 === 2) {
+		const part41 = rs.i64SaturatingMul(_8, _10);
+		_14(out, part41);
+	} else if (_15 === 3) {
+		const part40 = rs.i64SaturatingDiv(_8, _10);
+		_14(out, part40);
+	} else if (_15 === 4) {
+		_14(out, rs.i64Rem(_8, _10));
+	} else if (_15 === 5) {
+		const part36 = rs.i64SaturatingSub(0, _8);
+		_14(out, part36);
+		const part37 = rs.i64SaturatingSub(0, b);
+		_14(out, part37);
+		const part38 = rs.i64SaturatingSub(0, _8);
+		_14(out, part38);
+	} else if (_15 === 6) {
+		_14(out, rs.i64Not(_8));
+	} else if (_15 === 7) {
+		_14(out, rs.i64And(_8, _10));
+	} else if (_15 === 8) {
+		_14(out, rs.i64Or(_8, _10));
+	} else if (_15 === 9) {
+		_14(out, rs.i64Xor(_8, _10));
+	} else if (_15 === 10) {
+		let x: rs.i64 = _8;
+		x = rs.i64SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.i64SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.i64SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.i64 = _8;
+		x2 = rs.i64SaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.i64 = _8;
+		x3 = rs.i64Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.i64 = _8;
+		x4 = rs.i64And(x4, _10);
+		x4 = rs.i64Or(x4, _12);
+		x4 = rs.i64Xor(x4, _10);
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.i64 = _8;
+		const _105: rs.i64 = _10;
+		x5 = rs.i64SaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.i64SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.i64SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.i64SaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = rs.i64And(x5, c);
-		x5 = rs.i64Or(x5, b);
-		x5 = rs.i64Xor(x5, c);
-		_20(out, x5);
+		x5 = rs.i64Or(x5, _105);
+		const _130: rs.i64 = _12;
+		x5 = rs.i64Xor(x5, _130);
+		_14(out, x5);
 		x5 = rs.i64SaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.i64Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.i64SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.i64SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.i64SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, rs.i64Not(b));
-		_20(out, rs.i64Xor(a, c));
-		_20(out, rs.i64And(a, b));
-		_20(out, rs.i64Or(a, c));
-		let x6: rs.i64 = a;
+		_14(out, x5);
+		x5 = rs.i64Rem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.i64SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.i64SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.i64SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, rs.i64Not(b));
+		_14(out, rs.i64Xor(a, c));
+		_14(out, rs.i64And(a, _10));
+		_14(out, rs.i64Or(_8, c));
+		let x6: rs.i64 = _8;
 		x6 = rs.i64SaturatingAdd(x6, b);
 		x6 = rs.i64SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.i64Rem(a, b));
-		const part20 = rs.i64SaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = rs.i64Eq(a, b);
-		const _222: boolean = !rs.i64Eq(a, b);
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.i64Rem(a, b));
+		const part19 = rs.i64SaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = rs.i64Eq(a, b);
+		const _212: boolean = !rs.i64Eq(a, b);
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.i64 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.i64 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word4 = hashed$num_Saturating_i64(a);
 		const word5 = rs.intWord(word4, 0);
@@ -2743,47 +2790,50 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i64(a), hashed$i64(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.i64> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.i64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i64>, _281, true, undefined, undefined, 8, true));
+		const _271: rs.Iter<rs.i64> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.i64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i64>, _271, true, undefined, undefined, 8, true));
 		while (true) {
-			const _286: rs.i64 | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.i64 | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.i64> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.i64> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI64, rs.i64Eq)) as rs.HashSet<rs.i64>, _295, undefined, undefined, 117440512);
+		const _285: rs.Iter<rs.i64> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.i64> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI64, rs.i64Eq)) as rs.HashSet<rs.i64>, _285, undefined, undefined, 117440512);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.i64Display(a, f), (f: rs.Formatter) => rs.i64Debug(b, f), (f: rs.Formatter) => rs.i64LowerHex(a, f), (f: rs.Formatter) => rs.i64UpperHex(b, f), (f: rs.Formatter) => rs.i64Octal(c, f), (f: rs.Formatter) => rs.i64Binary(a, f), (f: rs.Formatter) => rs.i64Display(b, f), (f: rs.Formatter) => rs.i64LowerHex(c, f), (f: rs.Formatter) => rs.i64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.i64Display(a, f), (f: rs.Formatter) => rs.i64Debug(b, f), (f: rs.Formatter) => rs.i64LowerHex(a, f), (f: rs.Formatter) => rs.i64UpperHex(b, f), (f: rs.Formatter) => rs.i64Octal(c, f), (f: rs.Formatter) => rs.i64Binary(a, f), (f: rs.Formatter) => rs.i64Display(b, f), (f: rs.Formatter) => rs.i64LowerHex(c, f), (f: rs.Formatter) => rs.i64Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.i64>, Gauge.Gauge<rs.i64>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.i64> = _344[0];
-		const y: Gauge.Gauge<rs.i64> = _344[1];
-		const _352: Gauge.Gauge<rs.i64> = Gauge.default$Default_i64();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.i64> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.i64> = _330;
+		const y: Gauge.Gauge<rs.i64> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.i64> = Gauge.default$Default_i64();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i64(x7), hashed$num_Saturating_i64(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.i64> = copy$saturates_Gauge_i64(x7);
-		z._0 = rs.i64SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.i64 | undefined, rs.i64 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.i64> = copy$saturates_Gauge_i64(_330);
+		z._0 = rs.i64SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.i64 = _8;
+		const _370: rs.i64 | undefined = rs.nonZero(_371);
+		const _373: rs.i64 = _10;
+		const _372: rs.i64 | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word7 = rs.i64SaturatingMul(_388[0], _388[1]);
+				const word7 = rs.i64SaturatingMul(_370, _372);
 				const word8 = rs.intWord(word7, 0);
 				const word9 = rs.intWord(word7, 32);
 				rs.byteVecReserve(dst3, 8 as rs.usize);
@@ -2799,19 +2849,19 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 8;
 			}
 		}
-		const part = rs.i64SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.i64SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.i64SaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.i64SaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.i64SaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.i64SaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.i64SaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.i64SaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.i64 | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.i64 | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word10 = rs.i64SaturatingSub(0, _431);
+			const word10 = rs.i64SaturatingSub(0, _404);
 			const word11 = rs.intWord(word10, 0);
 			const word12 = rs.intWord(word10, 32);
 			rs.byteVecReserve(dst4, 8 as rs.usize);
@@ -2835,19 +2885,21 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.i128FromBeBytes(buf);
 	};
-	const _8: [rs.i128, rs.i128, rs.i128] = [take(0), take(16), take(2 * 16)];
-	const a: rs.i128 = _8[0];
-	const b: rs.i128 = _8[1];
-	const c: rs.i128 = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
+	const _8: rs.i128 = take(([0] as [rs.usize])[0]);
+	const _10: rs.i128 = take(([16] as [rs.usize])[0]);
+	const _12: rs.i128 = take(([32] as [rs.usize])[0]);
+	const a: rs.i128 = _8;
+	const b: rs.i128 = _10;
+	const c: rs.i128 = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
 		const dst = out2;
 		const word = v;
 		const word2 = rs.intWord(word, 0);
@@ -2874,119 +2926,119 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.i128SaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.i128SaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.i128SaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.i128SaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.i128Rem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.i128SaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.i128SaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.i128SaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, rs.i128Not(a));
-	} else if (_21 === 7) {
-		_20(out, rs.i128And(a, b));
-	} else if (_21 === 8) {
-		_20(out, rs.i128Or(a, b));
-	} else if (_21 === 9) {
-		_20(out, rs.i128Xor(a, b));
-	} else if (_21 === 10) {
-		let x: rs.i128 = a;
-		x = rs.i128SaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.i128SaturatingMul(x, c);
-		_20(out, x);
-		x = rs.i128SaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.i128 = a;
-		x2 = rs.i128SaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.i128 = a;
-		x3 = rs.i128Rem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.i128 = a;
-		x4 = rs.i128And(x4, b);
-		x4 = rs.i128Or(x4, c);
-		x4 = rs.i128Xor(x4, b);
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.i128 = a;
-		x5 = rs.i128SaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part43 = rs.i128SaturatingAdd(_8, _10);
+		_14(out, part43);
+	} else if (_15 === 1) {
+		const part42 = rs.i128SaturatingSub(_8, _10);
+		_14(out, part42);
+	} else if (_15 === 2) {
+		const part41 = rs.i128SaturatingMul(_8, _10);
+		_14(out, part41);
+	} else if (_15 === 3) {
+		const part40 = rs.i128SaturatingDiv(_8, _10);
+		_14(out, part40);
+	} else if (_15 === 4) {
+		_14(out, rs.i128Rem(_8, _10));
+	} else if (_15 === 5) {
+		const part36 = rs.i128SaturatingSub(0, _8);
+		_14(out, part36);
+		const part37 = rs.i128SaturatingSub(0, b);
+		_14(out, part37);
+		const part38 = rs.i128SaturatingSub(0, _8);
+		_14(out, part38);
+	} else if (_15 === 6) {
+		_14(out, rs.i128Not(_8));
+	} else if (_15 === 7) {
+		_14(out, rs.i128And(_8, _10));
+	} else if (_15 === 8) {
+		_14(out, rs.i128Or(_8, _10));
+	} else if (_15 === 9) {
+		_14(out, rs.i128Xor(_8, _10));
+	} else if (_15 === 10) {
+		let x: rs.i128 = _8;
+		x = rs.i128SaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.i128SaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.i128SaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.i128 = _8;
+		x2 = rs.i128SaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.i128 = _8;
+		x3 = rs.i128Rem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.i128 = _8;
+		x4 = rs.i128And(x4, _10);
+		x4 = rs.i128Or(x4, _12);
+		x4 = rs.i128Xor(x4, _10);
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.i128 = _8;
+		const _105: rs.i128 = _10;
+		x5 = rs.i128SaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.i128SaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.i128SaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.i128SaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = rs.i128And(x5, c);
-		x5 = rs.i128Or(x5, b);
-		x5 = rs.i128Xor(x5, c);
-		_20(out, x5);
+		x5 = rs.i128Or(x5, _105);
+		const _130: rs.i128 = _12;
+		x5 = rs.i128Xor(x5, _130);
+		_14(out, x5);
 		x5 = rs.i128SaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.i128Rem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.i128SaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.i128SaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.i128SaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, rs.i128Not(b));
-		_20(out, rs.i128Xor(a, c));
-		_20(out, rs.i128And(a, b));
-		_20(out, rs.i128Or(a, c));
-		let x6: rs.i128 = a;
+		_14(out, x5);
+		x5 = rs.i128Rem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.i128SaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.i128SaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.i128SaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, rs.i128Not(b));
+		_14(out, rs.i128Xor(a, c));
+		_14(out, rs.i128And(a, _10));
+		_14(out, rs.i128Or(_8, c));
+		let x6: rs.i128 = _8;
 		x6 = rs.i128SaturatingAdd(x6, b);
 		x6 = rs.i128SaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.i128Rem(a, b));
-		const part20 = rs.i128SaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = rs.i128Eq(a, b);
-		const _222: boolean = !rs.i128Eq(a, b);
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.i128Rem(a, b));
+		const part19 = rs.i128SaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = rs.i128Eq(a, b);
+		const _212: boolean = !rs.i128Eq(a, b);
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.i128 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.i128 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word6 = hashed$num_Saturating_i128(a);
 		const word7 = rs.intWord(word6, 0);
@@ -3003,47 +3055,50 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i128(a), hashed$i128(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.i128> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.i128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i128>, _281, true, undefined, undefined, 16, true));
+		const _271: rs.Iter<rs.i128> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.i128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i128>, _271, true, undefined, undefined, 16, true));
 		while (true) {
-			const _286: rs.i128 | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.i128 | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.i128> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.i128> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI128, rs.i128Eq)) as rs.HashSet<rs.i128>, _295, undefined, undefined, 58720256);
+		const _285: rs.Iter<rs.i128> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.i128> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashI128, rs.i128Eq)) as rs.HashSet<rs.i128>, _285, undefined, undefined, 58720256);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.i128Display(a, f), (f: rs.Formatter) => rs.i128Debug(b, f), (f: rs.Formatter) => rs.i128LowerHex(a, f), (f: rs.Formatter) => rs.i128UpperHex(b, f), (f: rs.Formatter) => rs.i128Octal(c, f), (f: rs.Formatter) => rs.i128Binary(a, f), (f: rs.Formatter) => rs.i128Display(b, f), (f: rs.Formatter) => rs.i128LowerHex(c, f), (f: rs.Formatter) => rs.i128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.i128Display(a, f), (f: rs.Formatter) => rs.i128Debug(b, f), (f: rs.Formatter) => rs.i128LowerHex(a, f), (f: rs.Formatter) => rs.i128UpperHex(b, f), (f: rs.Formatter) => rs.i128Octal(c, f), (f: rs.Formatter) => rs.i128Binary(a, f), (f: rs.Formatter) => rs.i128Display(b, f), (f: rs.Formatter) => rs.i128LowerHex(c, f), (f: rs.Formatter) => rs.i128Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.i128>, Gauge.Gauge<rs.i128>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.i128> = _344[0];
-		const y: Gauge.Gauge<rs.i128> = _344[1];
-		const _352: Gauge.Gauge<rs.i128> = Gauge.default$Default_i128();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.i128> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.i128> = _330;
+		const y: Gauge.Gauge<rs.i128> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.i128> = Gauge.default$Default_i128();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i128(x7), hashed$num_Saturating_i128(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.i128> = copy$saturates_Gauge_i128(x7);
-		z._0 = rs.i128SaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.i128 | undefined, rs.i128 | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.i128> = copy$saturates_Gauge_i128(_330);
+		z._0 = rs.i128SaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.i128 = _8;
+		const _370: rs.i128 | undefined = rs.nonZero(_371);
+		const _373: rs.i128 = _10;
+		const _372: rs.i128 | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word9 = rs.i128SaturatingMul(_388[0], _388[1]);
+				const word9 = rs.i128SaturatingMul(_370, _372);
 				const word10 = rs.intWord(word9, 0);
 				const word11 = rs.intWord(word9, 32);
 				const word12 = rs.intWord(word9, 64);
@@ -3069,19 +3124,19 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 16;
 			}
 		}
-		const part = rs.i128SaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.i128SaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.i128SaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.i128SaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.i128SaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.i128SaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.i128SaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.i128SaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.i128 | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.i128 | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word14 = rs.i128SaturatingSub(0, _431);
+			const word14 = rs.i128SaturatingSub(0, _404);
 			const word15 = rs.intWord(word14, 0);
 			const word16 = rs.intWord(word14, 32);
 			const word17 = rs.intWord(word14, 64);
@@ -3115,19 +3170,21 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
-			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
-			if (_10 === rs.DONE) {
+			const _102: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
+			if (_102 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_102[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _102[0])), 0);
 		}
 		return rs.isizeFromBeBytes(buf);
 	};
-	const _8: [rs.isize, rs.isize, rs.isize] = [take(0), take(4), take(2 * 4)];
-	const a: rs.isize = _8[0];
-	const b: rs.isize = _8[1];
-	const c: rs.isize = _8[2];
-	const _20: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
+	const _8: rs.isize = take(([0] as [rs.usize])[0]);
+	const _10: rs.isize = take(([4] as [rs.usize])[0]);
+	const _12: rs.isize = take(([8] as [rs.usize])[0]);
+	const a: rs.isize = _8;
+	const b: rs.isize = _10;
+	const c: rs.isize = _12;
+	const _14: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
 		const dst = out2;
 		const word = v;
 		rs.byteVecReserve(dst, 4 as rs.usize);
@@ -3138,119 +3195,119 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
-	const _21: rs.u8 = rs.u8Rem(kind, 24);
-	if (_21 === 0) {
-		const part44 = rs.isizeSaturatingAdd(a, b);
-		_20(out, part44);
-	} else if (_21 === 1) {
-		const part43 = rs.isizeSaturatingSub(a, b);
-		_20(out, part43);
-	} else if (_21 === 2) {
-		const part42 = rs.isizeSaturatingMul(a, b);
-		_20(out, part42);
-	} else if (_21 === 3) {
-		const part41 = rs.isizeSaturatingDiv(a, b);
-		_20(out, part41);
-	} else if (_21 === 4) {
-		_20(out, rs.isizeRem(a, b));
-	} else if (_21 === 5) {
-		const part37 = rs.isizeSaturatingSub(0, a);
-		_20(out, part37);
-		const part38 = rs.isizeSaturatingSub(0, b);
-		_20(out, part38);
-		const part39 = rs.isizeSaturatingSub(0, a);
-		_20(out, part39);
-	} else if (_21 === 6) {
-		_20(out, ~a);
-	} else if (_21 === 7) {
-		_20(out, a & b);
-	} else if (_21 === 8) {
-		_20(out, a | b);
-	} else if (_21 === 9) {
-		_20(out, a ^ b);
-	} else if (_21 === 10) {
-		let x: rs.isize = a;
-		x = rs.isizeSaturatingAdd(x, b);
-		_20(out, x);
-		x = rs.isizeSaturatingMul(x, c);
-		_20(out, x);
-		x = rs.isizeSaturatingSub(x, b);
-		_20(out, x);
-	} else if (_21 === 11) {
-		let x2: rs.isize = a;
-		x2 = rs.isizeSaturatingDiv(x2, b);
-		_20(out, x2);
-	} else if (_21 === 12) {
-		let x3: rs.isize = a;
-		x3 = rs.isizeRem(x3, b);
-		_20(out, x3);
-	} else if (_21 === 13) {
-		let x4: rs.isize = a;
-		x4 = x4 & b;
-		x4 = x4 | c;
-		x4 = x4 ^ b;
-		_20(out, x4);
-	} else if (_21 === 14) {
-		let x5: rs.isize = a;
-		x5 = rs.isizeSaturatingAdd(x5, b);
-		_20(out, x5);
+	const _15: rs.u8 = rs.u8Rem(kind, 24);
+	if (_15 === 0) {
+		const part39 = rs.isizeSaturatingAdd(_8, _10);
+		_14(out, part39);
+	} else if (_15 === 1) {
+		const part38 = rs.isizeSaturatingSub(_8, _10);
+		_14(out, part38);
+	} else if (_15 === 2) {
+		const part37 = rs.isizeSaturatingMul(_8, _10);
+		_14(out, part37);
+	} else if (_15 === 3) {
+		const part36 = rs.isizeSaturatingDiv(_8, _10);
+		_14(out, part36);
+	} else if (_15 === 4) {
+		_14(out, rs.isizeRem(_8, _10));
+	} else if (_15 === 5) {
+		const part32 = rs.isizeSaturatingSub(0, _8);
+		_14(out, part32);
+		const part33 = rs.isizeSaturatingSub(0, b);
+		_14(out, part33);
+		const part34 = rs.isizeSaturatingSub(0, _8);
+		_14(out, part34);
+	} else if (_15 === 6) {
+		_14(out, ~_8);
+	} else if (_15 === 7) {
+		_14(out, _8 & _10);
+	} else if (_15 === 8) {
+		_14(out, _8 | _10);
+	} else if (_15 === 9) {
+		_14(out, _8 ^ _10);
+	} else if (_15 === 10) {
+		let x: rs.isize = _8;
+		x = rs.isizeSaturatingAdd(x, _10);
+		_14(out, x);
+		x = rs.isizeSaturatingMul(x, _12);
+		_14(out, x);
+		x = rs.isizeSaturatingSub(x, _10);
+		_14(out, x);
+	} else if (_15 === 11) {
+		let x2: rs.isize = _8;
+		x2 = rs.isizeSaturatingDiv(x2, _10);
+		_14(out, x2);
+	} else if (_15 === 12) {
+		let x3: rs.isize = _8;
+		x3 = rs.isizeRem(x3, _10);
+		_14(out, x3);
+	} else if (_15 === 13) {
+		let x4: rs.isize = _8;
+		x4 = x4 & _10;
+		x4 = x4 | _12;
+		x4 = x4 ^ _10;
+		_14(out, x4);
+	} else if (_15 === 14) {
+		let x5: rs.isize = _8;
+		const _105: rs.isize = _10;
+		x5 = rs.isizeSaturatingAdd(x5, _105);
+		_14(out, x5);
 		x5 = rs.isizeSaturatingSub(x5, c);
-		_20(out, x5);
-		x5 = rs.isizeSaturatingMul(x5, b);
-		_20(out, x5);
+		_14(out, x5);
+		x5 = rs.isizeSaturatingMul(x5, _105);
+		_14(out, x5);
 		x5 = x5 & c;
-		x5 = x5 | b;
-		x5 = x5 ^ c;
-		_20(out, x5);
+		x5 = x5 | _105;
+		const _130: rs.isize = _12;
+		x5 = x5 ^ _130;
+		_14(out, x5);
 		x5 = rs.isizeSaturatingDiv(x5, b);
-		_20(out, x5);
-		x5 = rs.isizeRem(x5, c);
-		_20(out, x5);
-	} else if (_21 === 15) {
-		const part11 = rs.isizeSaturatingAdd(a, b);
-		_20(out, part11);
-		const part12 = rs.isizeSaturatingSub(a, b);
-		_20(out, part12);
-		const part13 = rs.isizeSaturatingMul(a, c);
-		_20(out, part13);
-		_20(out, ~b);
-		_20(out, a ^ c);
-		_20(out, a & b);
-		_20(out, a | c);
-		let x6: rs.isize = a;
+		_14(out, x5);
+		x5 = rs.isizeRem(x5, _130);
+		_14(out, x5);
+	} else if (_15 === 15) {
+		const part10 = rs.isizeSaturatingAdd(a, _10);
+		_14(out, part10);
+		const part11 = rs.isizeSaturatingSub(_8, b);
+		_14(out, part11);
+		const part12 = rs.isizeSaturatingMul(a, c);
+		_14(out, part12);
+		_14(out, ~b);
+		_14(out, a ^ c);
+		_14(out, a & _10);
+		_14(out, _8 | c);
+		let x6: rs.isize = _8;
 		x6 = rs.isizeSaturatingAdd(x6, b);
 		x6 = rs.isizeSaturatingMul(x6, c);
-		_20(out, x6);
-		_20(out, rs.isizeRem(a, b));
-		const part20 = rs.isizeSaturatingDiv(c, b);
-		_20(out, part20);
-	} else if (_21 === 16) {
-		const _219: boolean = a === b;
-		const _222: boolean = a !== b;
-		const _225: boolean = rs.cmp(a, b) === -1;
+		_14(out, x6);
+		_14(out, rs.isizeRem(a, b));
+		const part19 = rs.isizeSaturatingDiv(c, b);
+		_14(out, part19);
+	} else if (_15 === 16) {
+		const _209: boolean = a === b;
+		const _212: boolean = a !== b;
+		const _215: boolean = rs.cmp(a, b) === -1;
 		const order = rs.cmp(a, b);
-		const _228: boolean = order !== undefined && order <= 0;
-		const _231: boolean = rs.cmp(a, b) === 1;
+		const _218: boolean = order !== undefined && order <= 0;
+		const _221: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_209, _212, _215, _218, _221, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
-			const _247: boolean | rs.Done = iter.next();
-			if (_247 === rs.DONE) {
+			const _237: boolean | rs.Done = iter.next();
+			if (_237 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _247 ? 1 : 0);
+			rs.byteVecPush(out, _237 ? 1 : 0);
 		}
-		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part8);
-		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part9);
-		const _265: rs.isize = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
-		const _266: rs.isize = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part10 = rs.ordClamp(a, _265, _266, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part10);
-	} else if (_21 === 17) {
+		const part7 = rs.ordMax(_8, _10, rs.cmpLt(rs.cmp));
+		_14(out, part7);
+		const part8 = rs.ordMin(_8, _12, rs.cmpLt(rs.cmp));
+		_14(out, part8);
+		const part9 = rs.ordClamp(_8, rs.ordMin(_10, _12, rs.cmpLt(rs.cmp)), rs.ordMax(_10, _12, rs.cmpLt(rs.cmp)), rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_14(out, part9);
+	} else if (_15 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_isize(a);
 		const word3 = rs.intWord(word2, 0);
@@ -3267,47 +3324,50 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_isize(a), hashed$isize(a)) ? 1 : 0);
-		const _281: rs.Iter<rs.isize> = rs.iterSlice([a, b, c, a]);
-		const iter2: rs.Iter<rs.isize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.isize>, _281, true, undefined, undefined, 4, true));
+		const _271: rs.Iter<rs.isize> = rs.iterSlice([_8, _10, _12, _8]);
+		const iter2: rs.Iter<rs.isize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.isize>, _271, true, undefined, undefined, 4, true));
 		while (true) {
-			const _286: rs.isize | rs.Done = iter2.next();
-			if (_286 === rs.DONE) {
+			const _276: rs.isize | rs.Done = iter2.next();
+			if (_276 === rs.DONE) {
 				break;
 			}
-			_20(out, _286);
+			_14(out, _276);
 		}
-		const _295: rs.Iter<rs.isize> = rs.iterSlice([a, b]);
-		const seen: rs.HashSet<rs.isize> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashIsize, rs.same)) as rs.HashSet<rs.isize>, _295, undefined, undefined, 234881024);
+		const _285: rs.Iter<rs.isize> = rs.iterSlice([_8, _10]);
+		const seen: rs.HashSet<rs.isize> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashIsize, rs.same)) as rs.HashSet<rs.isize>, _285, undefined, undefined, 234881024);
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
-	} else if (_21 === 18) {
-		const args6 = [(f: rs.Formatter) => rs.isizeDisplay(a, f), (f: rs.Formatter) => rs.isizeDebug(b, f), (f: rs.Formatter) => rs.isizeLowerHex(a, f), (f: rs.Formatter) => rs.isizeUpperHex(b, f), (f: rs.Formatter) => rs.isizeOctal(c, f), (f: rs.Formatter) => rs.isizeBinary(a, f), (f: rs.Formatter) => rs.isizeDisplay(b, f), (f: rs.Formatter) => rs.isizeLowerHex(c, f), (f: rs.Formatter) => rs.isizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
-	} else if (_21 === 19) {
+	} else if (_15 === 18) {
+		const args7 = [(f: rs.Formatter) => rs.isizeDisplay(a, f), (f: rs.Formatter) => rs.isizeDebug(b, f), (f: rs.Formatter) => rs.isizeLowerHex(a, f), (f: rs.Formatter) => rs.isizeUpperHex(b, f), (f: rs.Formatter) => rs.isizeOctal(c, f), (f: rs.Formatter) => rs.isizeBinary(a, f), (f: rs.Formatter) => rs.isizeDisplay(b, f), (f: rs.Formatter) => rs.isizeLowerHex(c, f), (f: rs.Formatter) => rs.isizeDebug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3], " ", args7[4], " ", args7[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args7[6]), " ", rs.fmtSpec({ alternate: true }, args7[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args7[8]), " ", rs.fmtSpec({ plus: true }, args7[6])]).v));
+	} else if (_15 === 19) {
 		rs.byteVecPush(out, 0);
-	} else if (_21 === 20) {
-		_20(out, 0);
-		_20(out, a);
-		_20(out, a);
-	} else if (_21 === 21) {
-		const _344: [Gauge.Gauge<rs.isize>, Gauge.Gauge<rs.isize>] = [new Gauge.Gauge(a), new Gauge.Gauge(b)];
-		const x7: Gauge.Gauge<rs.isize> = _344[0];
-		const y: Gauge.Gauge<rs.isize> = _344[1];
-		const _352: Gauge.Gauge<rs.isize> = Gauge.default$Default_isize();
-		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
+	} else if (_15 === 20) {
+		_14(out, 0);
+		_14(out, a);
+		_14(out, _8);
+	} else if (_15 === 21) {
+		const _330: Gauge.Gauge<rs.isize> = new Gauge.Gauge(_8);
+		const x7: Gauge.Gauge<rs.isize> = _330;
+		const y: Gauge.Gauge<rs.isize> = new Gauge.Gauge(_10);
+		const _336: Gauge.Gauge<rs.isize> = Gauge.default$Default_isize();
+		const args6 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(_336, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_isize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_isize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_isize(x7), hashed$num_Saturating_isize(a)) ? 1 : 0);
-		const z: Gauge.Gauge<rs.isize> = copy$saturates_Gauge_isize(x7);
-		z._0 = rs.isizeSaturatingSub(z._0, y._0);
-		_20(out, z._0);
-	} else if (_21 === 22) {
-		const _388: [rs.isize | undefined, rs.isize | undefined] = [rs.nonZero(a), rs.nonZero(b)];
-		if (_388[0] !== undefined) {
-			if (_388[1] !== undefined) {
+		const z: Gauge.Gauge<rs.isize> = copy$saturates_Gauge_isize(_330);
+		z._0 = rs.isizeSaturatingSub(z._0, _10);
+		_14(out, z._0);
+	} else if (_15 === 22) {
+		const _371: rs.isize = _8;
+		const _370: rs.isize | undefined = rs.nonZero(_371);
+		const _373: rs.isize = _10;
+		const _372: rs.isize | undefined = rs.nonZero(_373);
+		if (_370 !== undefined) {
+			if (_372 !== undefined) {
 				const dst3 = out;
-				const word5 = rs.isizeSaturatingMul(_388[0], _388[1]);
+				const word5 = rs.isizeSaturatingMul(_370, _372);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
 				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
@@ -3317,19 +3377,19 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst3.length = dst3.length + 4;
 			}
 		}
-		const part = rs.isizeSaturatingMul(a, b);
-		_20(out, part);
-		const part2 = rs.isizeSaturatingAdd(a, b);
-		_20(out, part2);
-		const part3 = rs.isizeSaturatingSub(a, b);
-		_20(out, part3);
-		const part4 = rs.isizeSaturatingDiv(a, b);
-		_20(out, part4);
+		const part = rs.isizeSaturatingMul(_371, _373);
+		_14(out, part);
+		const part2 = rs.isizeSaturatingAdd(_371, _373);
+		_14(out, part2);
+		const part3 = rs.isizeSaturatingSub(_371, _373);
+		_14(out, part3);
+		const part4 = rs.isizeSaturatingDiv(_371, _373);
+		_14(out, part4);
 	} else {
-		const _431: rs.isize | undefined = rs.nonZero(a);
-		if (_431 !== undefined) {
+		const _404: rs.isize | undefined = rs.nonZero(_8);
+		if (_404 !== undefined) {
 			const dst4 = out;
-			const word6 = rs.isizeSaturatingSub(0, _431);
+			const word6 = rs.isizeSaturatingSub(0, _404);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
 			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;

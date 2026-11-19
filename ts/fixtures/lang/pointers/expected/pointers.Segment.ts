@@ -14,27 +14,36 @@ export interface Segment {
 }
 
 function new_(): Segment {
-	let _6!: rs.usize;
+	let _5!: rs.usize;
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
 		return (new Lent.Lent((new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
-	let iterStart: rs.usize = 0;
-	const iterEnd: rs.usize = 4;
-	while ((_6 = iterStart++) < iterEnd) {
-		const at: rs.usize = _6;
+	const iter: rs.Range<rs.usize> = new rs.Range(0, 4);
+	while (true) {
+		const _5Some: boolean = iter.start < iter.end;
+		if (_5Some) {
+			_5 = iter.start++;
+		}
+		if (!_5Some) {
+			break;
+		}
+		const at: rs.usize = _5;
 		if (!(at < 4)) {
 			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + at);
 		}
-		const _15: Lent.Lent<[rs.u8, rs.u8]>[] = slots;
-		const _13: Lent.Lent<[rs.u8, rs.u8]> = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
-		const object = _15[at];
-		const value = _13;
+		const _14: Lent.Lent<[rs.u8, rs.u8]>[] = slots;
+		const _12: Lent.Lent<[rs.u8, rs.u8]> = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
+		const uninit = _14[at];
+		const object = uninit;
+		const value = _12;
 		const cell = object._0;
 		rs.ptrWrite(object, value);
 		if (cell !== undefined) {
 			object._0 = cell;
 			rs.ptrWrite(cell.v, value._0.v);
 		}
+		undefined;
+		uninit;
 	}
 	return { filled: 0, slots };
 }

@@ -44,12 +44,12 @@ export function read$cycles_Countdown_cycles_cycles_closure4(it: Countdown.Count
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -95,12 +95,12 @@ export function read$iter_Chain_slice_Iter_u8_iter_Take_iter_Rev_slice_Iter_u8_c
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -146,12 +146,12 @@ export function read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -197,12 +197,12 @@ export function read$iter_Cycle_vec_IntoIter_cycles_Logged_cycles_owned_closure6
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n, rs.drop);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: Logged.Logged): boolean => {
 				return nth(item3);
 			}, rs.drop);
@@ -251,12 +251,12 @@ export function read$iter_Empty_u8_cycles_cycles_closure3(it: rs.Iter<rs.u8>, st
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -302,12 +302,12 @@ export function read$iter_Enumerate_slice_Iter_u8_cycles_cycles_closure9(it: rs.
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: [rs.usize, rs.u8]): boolean => {
 				return nth(item3);
 			});
@@ -353,12 +353,12 @@ export function read$iter_Filter_iter_Map_iter_Take_slice_Iter_u8_cycles_closure
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -405,12 +405,12 @@ export function read$iter_Filter_slice_Iter_u8_cycles_cycles_closure8_cycles_cyc
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -456,12 +456,12 @@ export function read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(it: rs.
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -507,12 +507,12 @@ export function read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(it: rs.P
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -558,12 +558,12 @@ export function read$iter_Skip_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -609,12 +609,12 @@ export function read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(it: rs.Ite
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -660,12 +660,12 @@ export function read$iter_Take_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -711,12 +711,12 @@ export function read$ops_RangeInclusive_u8_cycles_cycles_closure6(it: rs.RangeIn
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -762,12 +762,12 @@ export function read$ops_RangeInclusive_u8_cycles_cycles_closure7(it: rs.RangeIn
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -813,12 +813,12 @@ export function read$ops_Range_u8_cycles_cycles_closure5(it: rs.Range<rs.u8>, st
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -864,12 +864,12 @@ export function read$option_IntoIter_u8_cycles_cycles_closure2(it: rs.Iter<rs.u8
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -915,12 +915,12 @@ export function read$slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<rs.u8>, st
 			left = rs.usizeWrappingSub(left, 1);
 			return hit;
 		};
-		const _36: rs.u8 = step & 3;
-		if (_36 === 0) {
+		const _31: rs.u8 = step & 3;
+		if (_31 === 0) {
 			item = rs.iterToOption(it2.next());
-		} else if (_36 === 1) {
+		} else if (_31 === 1) {
 			item = rs.iterNth(it2, n);
-		} else if (_36 === 2) {
+		} else if (_31 === 2) {
 			item = rs.iterFind(it2, (item3: rs.u8): boolean => {
 				return nth(item3);
 			});
@@ -945,9 +945,9 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.usize = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.u8 => {
 		return rs.u8Rem(_2, 5);
 	}) as rs.usize;
-	const steps: rs.ByteSlice = option_unwrapOr$0yvilko(rs.byteSliceGetRange(data, 1), rs.byteSliceFrom(Uint8Array.of()));
-	const _12: rs.u8 = rs.u8Rem(kind, 6);
-	if (_12 === 0) {
+	const steps: rs.ByteSlice = option_unwrapOr$0yvilko(rs.byteSliceGetRange(data, new rs.RangeFrom(1, rs.usizeStep).start), rs.byteSliceFrom(Uint8Array.of()));
+	const _10: rs.u8 = rs.u8Rem(kind, 6);
+	if (_10 === 0) {
 		const it: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		rs.iterNth(it, n);
 		read$slice_Iter_u8_cycles_cycles_closure1(it, steps, (x19: rs.u8): rs.u8 => {
@@ -960,23 +960,24 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		read$slice_Iter_u8_cycles_cycles_closure1(it2, steps, (x20: rs.u8): rs.u8 => {
 			return x20;
 		}, out);
-		read$slice_Iter_u8_cycles_cycles_closure1(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0))), steps, (x21: rs.u8): rs.u8 => {
+		read$slice_Iter_u8_cycles_cycles_closure1(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end))), steps, (x21: rs.u8): rs.u8 => {
 			return x21;
 		}, out);
 		read$iter_Take_slice_Iter_u8_cycles_cycles_closure1(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x22: rs.u8): rs.u8 => {
 			return x22;
 		}, out);
-		read$option_IntoIter_u8_cycles_cycles_closure2(rs.iterOption(n & 0xff), steps, (x23: rs.u8): rs.u8 => {
+		const _31: rs.u8 = n & 0xff;
+		read$option_IntoIter_u8_cycles_cycles_closure2(rs.iterOption(_31), steps, (x23: rs.u8): rs.u8 => {
 			return x23;
 		}, out);
 		rs.iterEmpty();
 		read$iter_Empty_u8_cycles_cycles_closure3(rs.iterEmpty() as rs.Iter<rs.u8>, steps, (x24: rs.u8): rs.u8 => {
 			return x24;
 		}, out);
-		read$cycles_Countdown_cycles_cycles_closure4({ _0: rs.u8Mul(n & 0xff, 2) }, steps, (x25: rs.u8): rs.u8 => {
+		read$cycles_Countdown_cycles_cycles_closure4({ _0: rs.u8Mul(_31, 2) }, steps, (x25: rs.u8): rs.u8 => {
 			return x25;
 		}, out);
-	} else if (_12 === 1) {
+	} else if (_10 === 1) {
 		const lo: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8);
 		const hi: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 9), 12);
 		read$ops_Range_u8_cycles_cycles_closure5(new rs.Range(lo, hi), steps, (x9: rs.u8): rs.u8 => {
@@ -993,32 +994,34 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		read$ops_RangeInclusive_u8_cycles_cycles_closure7(range, steps, (x11: rs.u8): rs.u8 => {
 			return x11;
 		}, out);
-		read$iter_Filter_slice_Iter_u8_cycles_cycles_closure8_cycles_cycles_closure1(rs.iterFilter(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): boolean => {
-			return rs.u8Rem(_25, 3) !== 0;
+		read$iter_Filter_slice_Iter_u8_cycles_cycles_closure8_cycles_cycles_closure1(rs.iterFilter(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): boolean => {
+			return rs.u8Rem(_28, 3) !== 0;
 		}), steps, (x13: rs.u8): rs.u8 => {
 			return x13;
 		}, out);
 		read$iter_Chain_slice_Iter_u8_iter_Take_iter_Rev_slice_Iter_u8_cycles_cycles_closure1(rs.iterChain(rs.iterSlice(rs.byteSliceView(data)), rs.iterTake(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), 2)), steps, (x14: rs.u8): rs.u8 => {
 			return x14;
 		}, out);
-		read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(rs.iterStepBy(rs.iterSlice(rs.byteSliceView(data)), rs.usizeAdd(n, 1)), steps, (x15: rs.u8): rs.u8 => {
+		const _70: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		const _71: rs.usize = rs.usizeAdd(n, 1);
+		read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(rs.iterStepBy(_70, _71), steps, (x15: rs.u8): rs.u8 => {
 			return x15;
 		}, out);
 		read$iter_Skip_slice_Iter_u8_cycles_cycles_closure1(rs.iterSkip(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x16: rs.u8): rs.u8 => {
 			return x16;
 		}, out);
-		read$iter_Enumerate_slice_Iter_u8_cycles_cycles_closure9(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), steps, (_29: [rs.usize, rs.u8]): rs.u8 => {
-			return (_29[0] & 0xff) ^ _29[1];
+		read$iter_Enumerate_slice_Iter_u8_cycles_cycles_closure9(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), steps, (_211: [rs.usize, rs.u8]): rs.u8 => {
+			return (_211[0] & 0xff) ^ _211[1];
 		}, out);
 		const peeked: rs.Peekable<rs.u8> = rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data)));
 		rs.peekablePeek(peeked);
 		read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(peeked, steps, (x17: rs.u8): rs.u8 => {
 			return x17;
 		}, out);
-		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rs.iterFlatten(rs.byteSliceChunks(data, rs.usizeAdd(n, 1)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), steps, (x18: rs.u8): rs.u8 => {
+		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rs.iterFlatten(rs.byteSliceChunks(data, _71), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), steps, (x18: rs.u8): rs.u8 => {
 			return x18;
 		}, out);
-	} else if (_12 === 2) {
+	} else if (_10 === 2) {
 		const m: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0), 40) as rs.usize;
 		rs.iterExtendBytes(out, rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(data))), m), "next");
 		rs.byteVecPush(out, rs.ownedCount(rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(data))), m)) & 0xff);
@@ -1030,22 +1033,22 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), "next");
 		rs.iterExtendBytes(out, rs.iterTake(rs.iterStepBy(rs.iterSkip(rs.iterCycle(new rs.RangeInclusive(1, 3, rs.u8Step)), n), 2), m), "next");
 		rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(data))), m), "next")), undefined, true);
-		rs.byteVecPush(out, rs.iterAny(rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(data))), m), (_23: rs.u8): boolean => {
-			return _23 === 7;
+		rs.byteVecPush(out, rs.iterAny(rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(data))), m), (_25: rs.u8): boolean => {
+			return _25 === 7;
 		}) ? 1 : 0);
-		rs.byteVecPush(out, rs.ownedCount(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0))))) & 0xff);
-		rs.iterExtendBytes(out, rs.iterOption(rs.iterLast(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))))), undefined, true);
-		rs.iterExtendBytes(out, rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))), m), "next");
+		rs.byteVecPush(out, rs.ownedCount(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end))))) & 0xff);
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterLast(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end)))))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterTake(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end)))), m), "next");
 		const at: rs.Arc<rs.Cell<rs.u8>> = new rs.Arc(new rs.Cell(0));
 		const make = (captured: rs.Arc<rs.Cell<rs.u8>>): () => rs.u8 | undefined => {
 			return rs.closure(rs.cloning((): rs.u8 | undefined => {
 				const a2: rs.u8 = captured.value.v;
 				rs.cellSet(captured.value, rs.u8WrappingAdd(a2, 1));
-				const _1110: rs.usize = rs.u8Rem(a2, 5) as rs.usize;
-				if (!(_1110 < 5)) {
-					rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _1110);
+				const _11: rs.usize = rs.u8Rem(a2, 5) as rs.usize;
+				if (!(_11 < 5)) {
+					rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _11);
 				}
-				return thenSome$0quywni([true, false, true, false, false][_1110], a2);
+				return thenSome$0quywni([true, false, true, false, false][_11], a2);
 			}, () => make(((a0: rs.Arc<rs.Cell<rs.u8>>): rs.Arc<rs.Cell<rs.u8>> => {
 				return rs.arcClone(a0);
 			})(captured))), (): void => {
@@ -1055,9 +1058,9 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const pausing: rs.Iter<rs.u8> = rs.iterFromFn(make(at));
 		rs.byteVecPush(out, rs.ownedCount(rs.iterTake(rs.iterCycle(pausing.clone({ v: rs.closureClone }), { v: rs.closureClone }), m)) & 0xff);
 		const it3: rs.Iter<rs.u8> = rs.iterCycle(pausing.clone({ v: rs.closureClone }), { v: rs.closureClone });
-		const _180: rs.usize = rs.usizeRem(m, 9);
+		const _166: rs.usize = rs.usizeRem(m, 9);
 		let iterStart: rs.usize = 0;
-		const iterEnd: rs.usize = _180;
+		const iterEnd: rs.usize = _166;
 		while (iterStart++ < iterEnd) {
 			rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.iterToOption(it3.next()), 238, (x7: rs.u8): rs.u8 => {
 				return x7;
@@ -1068,9 +1071,9 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u8WrappingAdd(a3, x8);
 		}, true));
 		rs.drop(it3);
-	} else if (_12 === 3) {
+	} else if (_10 === 3) {
 		closures(data, steps, out);
-	} else if (_12 === 4) {
+	} else if (_10 === 4) {
 		owned(data, n, steps, out);
 	} else {
 		const it4: rs.Iter<rs.u8> = rs.iterCycle(rs.iterSlice(rs.byteSliceView(data)));
@@ -1086,12 +1089,12 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const step: rs.u8 = s[front++];
-			const _215: rs.u8 = step & 3;
-			if (_215 === 0) {
+			const _200: rs.u8 = step & 3;
+			if (_200 === 0) {
 				item = rs.iterToOption(it4.next());
-			} else if (_215 === 1) {
+			} else if (_200 === 1) {
 				item = rs.iterToOption(clone.next());
-			} else if (_215 === 2) {
+			} else if (_200 === 2) {
 				item = rs.iterNth(it4, rs.usizeRem(step >> 2 as rs.usize, 9));
 			} else {
 				item = rs.iterNth(clone, rs.usizeRem(step >> 2 as rs.usize, 9));
@@ -1100,11 +1103,11 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return x2;
 			}));
 		}
-		rs.byteVecPush(out, rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))).clone().sizeHint()[0] & 0xff);
+		rs.byteVecPush(out, rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end)))).clone().sizeHint()[0] & 0xff);
 		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(it4.clone(), steps, (x3: rs.u8): rs.u8 => {
 			return x3;
 		}, out);
-		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))), steps, (x4: rs.u8): rs.u8 => {
+		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, { end: 0 }.end)))), steps, (x4: rs.u8): rs.u8 => {
 			return x4;
 		}, out);
 	}
@@ -1119,8 +1122,8 @@ export function closures(data: rs.ByteSlice, steps: rs.ByteSlice, out: rs.ByteVe
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
-	const tag: Logged.Logged = logged(16);
-	const _13: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3);
+	const tag: Logged.Logged = logged(([16] as [rs.u8])[0]);
+	const _12: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3);
 	const make = (captured: Logged.Logged): (a0: rs.u8) => rs.u8 => {
 		return rs.closure(rs.cloning((_2: rs.u8): rs.u8 => {
 			return Logged.called(captured, _2);
@@ -1128,23 +1131,30 @@ export function closures(data: rs.ByteSlice, steps: rs.ByteSlice, out: rs.ByteVe
 			captured[Symbol.dispose]();
 		});
 	};
-	const it: rs.Iter<rs.u8> = rs.iterMap(_13, make(tag));
+	const it: rs.Iter<rs.u8> = rs.iterMap(_12, make(tag));
 	it.next();
 	const it2: rs.Iter<rs.u8> = rs.iterCycle(it, { f: rs.closureClone });
 	flush(log.value, out);
-	let iterStart: rs.i32 = 0;
-	const iterEnd: rs.i32 = 7;
-	while (iterStart++ < iterEnd) {
+	const iter: rs.Range<rs.i32> = new rs.Range(0, 7);
+	while (true) {
+		const _24Some: boolean = iter.start < iter.end;
+		if (_24Some) {
+			iter.start++;
+		}
+		if (!_24Some) {
+			break;
+		}
 		rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(it2.next())), undefined, true);
 	}
 	flush(log.value, out);
-	let left: rs.usize = rs.usizeRem(data.length, 5);
-	rs.iterExtendBytes(out, rs.iterOption(rs.iterFind(it2, (_22: rs.u8): boolean => {
+	const _34: rs.usize = data.length;
+	let left: rs.usize = rs.usizeRem(_34, 5);
+	rs.iterExtendBytes(out, rs.iterOption(rs.iterFind(it2, (_23: rs.u8): boolean => {
 		left = rs.usizeWrappingSub(left, 1);
 		return left === 4294967295;
 	})), undefined, true);
 	flush(log.value, out);
-	let left2: rs.usize = rs.usizeRem(data.length, 7);
+	let left2: rs.usize = rs.usizeRem(_34, 7);
 	rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.iterPosition(it2, (_25: rs.u8): boolean => {
 		left2 = rs.usizeWrappingSub(left2, 1);
 		return left2 === 4294967295;
@@ -1156,24 +1166,22 @@ export function closures(data: rs.ByteSlice, steps: rs.ByteSlice, out: rs.ByteVe
 	flush(log.value, out);
 	rs.drop(it2);
 	flush(log.value, out);
-	const _71: [Logged.Logged, rs.u8] = [logged(32), 0];
-	const tag2: Logged.Logged = _71[0];
-	const count: rs.u8 = 0;
-	const _76: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4);
+	const tag2: Logged.Logged = logged(([32] as [rs.u8])[0]);
+	const _67: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4);
 	const make2 = (captured2: rs.u8, captured3: Logged.Logged): (a0: rs.u8) => rs.u8 => {
-		return rs.closure(rs.cloning((_27: rs.u8): rs.u8 => {
-			const x2: rs.u8 = _27;
+		return rs.closure(rs.cloning((_26: rs.u8): rs.u8 => {
+			const x2: rs.u8 = _26;
 			captured2 = rs.u8WrappingAdd(captured2, 1);
 			return Logged.called(captured3, x2) ^ captured2;
 		}, () => make2(captured2, Logged.clone$Clone(captured3))), (): void => {
 			captured3[Symbol.dispose]();
 		});
 	};
-	const it3: rs.Iter<rs.u8> = rs.iterMap(_76, make2(count, tag2));
-	const gate: Logged.Logged = logged(48);
+	const it3: rs.Iter<rs.u8> = rs.iterMap(_67, make2(0, tag2));
+	const gate: Logged.Logged = logged(([48] as [rs.u8])[0]);
 	const make3 = (captured4: Logged.Logged): (a0: rs.u8) => boolean => {
-		return rs.closure(rs.cloning((_28: rs.u8): boolean => {
-			return (Logged.called(captured4, _28) & 3) !== 0;
+		return rs.closure(rs.cloning((_27: rs.u8): boolean => {
+			return (Logged.called(captured4, _27) & 3) !== 0;
 		}, () => make3(Logged.clone$Clone(captured4))), (): void => {
 			captured4[Symbol.dispose]();
 		});
@@ -1182,8 +1190,8 @@ export function closures(data: rs.ByteSlice, steps: rs.ByteSlice, out: rs.ByteVe
 		return x4;
 	}, out);
 	flush(log.value, out);
-	const left3: rs.Arc<rs.Cell<rs.usize>> = new rs.Arc(new rs.Cell(rs.usizeRem(data.length, 4)));
-	const tag3: Logged.Logged = logged(56);
+	const left3: rs.Arc<rs.Cell<rs.usize>> = new rs.Arc(new rs.Cell(rs.usizeRem(_34, 4)));
+	const tag3: Logged.Logged = logged(([56] as [rs.u8])[0]);
 	const make4 = (captured5: rs.Arc<rs.Cell<rs.usize>>, captured6: Logged.Logged): () => rs.u8 | undefined => {
 		return rs.closure(rs.cloning((): rs.u8 | undefined => {
 			const _29: rs.usize | undefined = rs.usizeCheckedSub(captured5.value.v, 1);

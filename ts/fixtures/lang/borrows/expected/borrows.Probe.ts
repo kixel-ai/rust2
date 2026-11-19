@@ -27,9 +27,9 @@ export function fmt$fmt_Debug(self: Probe, f: rs.Formatter): rs.Result<undefined
 	const _13: rs.Result<rs.RefCell<Probe>, rs.BorrowMutError> = rs.refCellTryBorrowMut(cell.value);
 	const exclusive: boolean = _13.ok;
 	drop$Result_cell_RefMut_borrows_Probe_cell_BorrowMutError(_13);
-	const _19: boolean = rs.fmtAlternate(f);
-	const args3 = [(f: rs.Formatter) => rs.fmtBool(shared, f), (f: rs.Formatter) => rs.fmtBool(exclusive, f), (f: rs.Formatter) => rs.fmtBool(_19, f)];
-	const _0: rs.Result<undefined, rs.FmtError> = rs.fmtWriteFmt(f, [args3[0], " ", args3[1], " ", args3[2]]);
+	const _18: boolean = rs.fmtAlternate(f);
+	const args2 = [(f: rs.Formatter) => rs.fmtBool(shared, f), (f: rs.Formatter) => rs.fmtBool(exclusive, f), (f: rs.Formatter) => rs.fmtBool(_18, f)];
+	const _0: rs.Result<undefined, rs.FmtError> = rs.fmtWriteFmt(f, [args2[0], " ", args2[1], " ", args2[2]]);
 	cell[Symbol.dispose]();
 	return _0;
 }

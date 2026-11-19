@@ -115,16 +115,19 @@ export function isZero(self: Timestamp): boolean {
  * value would exceed `2^61 - 1`.
  */
 export function convert(self: Timestamp, newScale: Timescale.Timescale): rs.Result<Timestamp, TimeOverflow.TimeOverflow> {
-	if (!rs.u64Eq(self.scale._0, newScale._0)) {
-		const _8: rs.u128 | undefined = rs.u128CheckedMul(rs.u128Cast(self.value), rs.u128Cast(newScale._0));
+	const _5: rs.u64 = self.scale._0;
+	const _4: rs.u64 = _5;
+	const _7: rs.u64 = newScale._0;
+	if (!rs.u64Eq(_4, _7)) {
+		const _8: rs.u128 | undefined = rs.u128CheckedMul(rs.u128Cast(self.value), rs.u128Cast(_7));
 		if (_8 === undefined) {
 			return rs.Err({});
 		}
-		const _16: rs.u64 | undefined = bounded(rs.u128Div(_8, rs.u128Cast(self.scale._0)), { hi: 0x1fffffff, lo: 0xffffffff } as rs.u64);
-		if (_16 === undefined) {
+		const _15: rs.u64 | undefined = bounded(rs.u128Div(_8, rs.u128Cast(_5)), { hi: 0x1fffffff, lo: 0xffffffff } as rs.u64);
+		if (_15 === undefined) {
 			return rs.Err({});
 		}
-		return rs.Ok({ value: _16, scale: newScale });
+		return rs.Ok({ value: _15, scale: newScale });
 	}
 	return rs.Ok(self);
 }
@@ -200,14 +203,14 @@ export function fmt$fmt_Debug(self: Timestamp, f: rs.Formatter): rs.Result<undef
 			if (!rs.u128IsMultipleOf(nanos, 1000)) {
 				return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(nanos, f), "ns"]);
 			}
-			const part3 = rs.u128Div(nanos, 1000);
-			return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part3, f), "µs"]);
+			const _22: rs.u128 = rs.u128Div(nanos, 1000);
+			return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(_22, f), "µs"]);
 		}
-		const part2 = rs.u128Div(nanos, 1000000);
-		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part2, f), "ms"]);
+		const _15: rs.u128 = rs.u128Div(nanos, 1000000);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(_15, f), "ms"]);
 	}
-	const part = rs.u128Div(nanos, 1000000000);
-	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part, f), "s"]);
+	const _8: rs.u128 = rs.u128Div(nanos, 1000000000);
+	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(_8, f), "s"]);
 }
 
 export function partialCmp$cmp_PartialOrd(self: Timestamp, other: Timestamp): rs.Ordering | undefined {

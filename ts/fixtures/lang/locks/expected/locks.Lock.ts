@@ -14,13 +14,11 @@ export function fmt$fmt_Debug(self: Lock, f: rs.Formatter): rs.Result<undefined,
 	if (_3.ok) {
 		const guard: rs.Mutex<rs.u32> = _3.value;
 		const _9: rs.DebugTuple = rs.fmtDebugTuple(f, "Lock");
-		const _12: rs.u32 = guard.value;
-		_0 = rs.debugTupleFinish(rs.debugTupleField(_9, (f: rs.Formatter) => rs.u32Debug(_12, f)));
+		const _11: rs.u32 = guard.value;
+		_0 = rs.debugTupleFinish(rs.debugTupleField(_9, (f: rs.Formatter) => rs.u32Debug(_11, f)));
 		rs.mutexUnlock(guard);
 	} else {
-		const _16: rs.DebugTuple = rs.fmtDebugTuple(f, "Lock");
-		const _19: string = "<locked>";
-		_0 = rs.debugTupleFinish(rs.debugTupleField(_16, (f: rs.Formatter) => rs.fmtStr(_19, f)));
+		_0 = rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, "Lock"), (f: rs.Formatter) => rs.fmtStr("<locked>", f)));
 	}
 	if (!_3.ok) {
 		drop$Result_sync_MutexGuard_u32_sync_TryLockError_sync_MutexGuard_u32(_3);

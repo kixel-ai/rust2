@@ -54,7 +54,7 @@ export function ensureGuardNode$maps_Logged_maps_Logged(head: rs.Place<Node.Node
 		const _16: Node.Node<Logged.Logged, Logged.Logged> = p;
 		_16.links.at0 = _13.next;
 		_16.links.at4 = _13.prev;
-		head.v = p;
+		head.v = p as Node.Node<Logged.Logged, Logged.Logged> | undefined;
 	}
 }
 
@@ -67,7 +67,7 @@ export function ensureGuardNode$maps_Logged_unit(head: rs.Place<Node.Node<Logged
 		const _16: Node.Node<Logged.Logged, undefined> = p;
 		_16.links.at0 = _13.next;
 		_16.links.at4 = _13.prev;
-		head.v = p;
+		head.v = p as Node.Node<Logged.Logged, undefined> | undefined;
 	}
 }
 
@@ -80,7 +80,7 @@ export function ensureGuardNode$sync_Arc_str_u32(head: rs.Place<Node.Node<rs.Arc
 		const _16: Node.Node<rs.Arc<string>, rs.u32> = p;
 		_16.links.at0 = _13.next;
 		_16.links.at4 = _13.prev;
-		head.v = p;
+		head.v = p as Node.Node<rs.Arc<string>, rs.u32> | undefined;
 	}
 }
 
@@ -93,7 +93,7 @@ export function ensureGuardNode$u16_maps_Logged(head: rs.Place<Node.Node<rs.u16,
 		const _16: Node.Node<rs.u16, Logged.Logged> = p;
 		_16.links.at0 = _13.next;
 		_16.links.at4 = _13.prev;
-		head.v = p;
+		head.v = p as Node.Node<rs.u16, Logged.Logged> | undefined;
 	}
 }
 
@@ -106,7 +106,7 @@ export function ensureGuardNode$u16_u32(head: rs.Place<Node.Node<rs.u16, rs.u32>
 		const _16: Node.Node<rs.u16, rs.u32> = p;
 		_16.links.at0 = _13.next;
 		_16.links.at4 = _13.prev;
-		head.v = p;
+		head.v = p as Node.Node<rs.u16, rs.u32> | undefined;
 	}
 }
 

@@ -18,8 +18,8 @@ export class Shown {
 
 export function fmt$fmt_Debug(self: Shown, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	Guard.note(self._0, "shown");
-	const part = Guard.id(self._0);
-	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u32Display(part, f)]);
+	const _7: rs.u32 = Guard.id(self._0);
+	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u32Display(_7, f)]);
 }
 
 //# sourceMappingURL=inside.Shown.ts.map

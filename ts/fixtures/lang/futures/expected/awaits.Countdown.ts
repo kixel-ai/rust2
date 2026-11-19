@@ -30,7 +30,7 @@ export function next$iter_Iterator(self: Countdown): Noted.Noted | rs.Done {
 
 export function drop$ops_Drop(self: Countdown): void {
 	const _5: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(self._1.value);
-	rs.byteVecPush(_5.value, 192 | self._0);
+	rs.byteVecPush(_5.value, self._0 | 192);
 	rs.refMutRelease(_5);
 }
 

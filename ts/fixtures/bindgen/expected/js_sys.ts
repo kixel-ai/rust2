@@ -104,12 +104,13 @@ export function from$convert_From_js_sys_JsString_String(s: rs.JsValue): rs.Stri
  * different than the length of the provided `dst` array.
  */
 export function copyTo$js_sys_Uint8Array(self: rs.JsValue, dst: rs.ByteSlice): void {
-	const _5: rs.usize = rs.jsToU32(rs.jsAny(self).length) as rs.usize;
-	const _8: rs.usize = dst.length;
-	if (!(_5 === _8)) {
-		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_5, f), (f: rs.Formatter) => rs.usizeDebug(_8, f), undefined as rs.Arguments | undefined);
+	const _4: rs.usize = rs.jsToU32(rs.jsAny(self).length) as rs.usize;
+	const _7: rs.usize = dst.length;
+	if (!(_4 === _7)) {
+		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_4, f), (f: rs.Formatter) => rs.usizeDebug(_7, f), undefined as rs.Arguments | undefined);
 	} else {
 		rs.jsGlobal("Uint8Array").prototype.set.call(rs.byteSliceView(dst), self);
+		undefined;
 	}
 }
 

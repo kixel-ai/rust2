@@ -15,7 +15,7 @@ export function LOG$init(): rs.Cell<[rs.u32, rs.u32]> {
 /** Forgets what an earlier case logged, which its panic may have left. */
 export function begin(): void {
 	((log: rs.Cell<[rs.u32, rs.u32]>): undefined => {
-		rs.ptrWrite(log.v, [2166136261, 0]);
+		rs.ptrWrite(log.v, [2166136261, 0] as [rs.u32, rs.u32]);
 	})(LOG.get());
 }
 
@@ -24,16 +24,20 @@ export function note(what: rs.u8, a: rs.u16, b: rs.u16): void {
 		const _52: [rs.u32, rs.u32] = copy$tuple2_u32_u32(log.v);
 		let hash: rs.u32 = _52[0];
 		const count: rs.u32 = _52[1];
-		const iter: rs.Iter<rs.u8> = rs.iterSlice(Uint8Array.of(what, a & 0xff, (a >> 8) & 0xff, b & 0xff, (b >> 8) & 0xff));
+		const _8: rs.u8 = what;
+		const _10: rs.u16 = a;
+		const _11: rs.u8 = (_10 >> 8) & 0xff;
+		const _14: rs.u16 = b;
+		const iter: rs.Iter<rs.u8> = rs.iterSlice(Uint8Array.of(_8, _10 & 0xff, _11, _14 & 0xff, (_14 >> 8) & 0xff));
 		while (true) {
-			const _24: rs.u8 | rs.Done = iter.next();
-			if (_24 === rs.DONE) {
+			const _18: rs.u8 | rs.Done = iter.next();
+			if (_18 === rs.DONE) {
 				break;
 			}
-			hash = rs.u32WrappingMul((hash ^ _24 as rs.u32) >>> 0, 16777619);
+			hash = rs.u32WrappingMul((hash ^ _18 as rs.u32) >>> 0, 16777619);
 		}
-		const _33: [rs.u32, rs.u32] = [hash, rs.u32Add(count, 1)];
-		rs.ptrWrite(log.v, _33);
+		const _27: [rs.u32, rs.u32] = [hash, rs.u32Add(count, 1)];
+		rs.ptrWrite(log.v, _27);
 	})(LOG.get());
 }
 
@@ -42,7 +46,7 @@ export function put$Cell_u32(v: rs.Slice<Item.Item<rs.Cell<rs.u32>>>, out: rs.By
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -70,7 +74,7 @@ export function put$array10_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -98,7 +102,7 @@ export function put$array1100_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.Byte
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -126,7 +130,7 @@ export function put$array22_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -154,7 +158,7 @@ export function put$array30_u32(v: rs.Slice<Item.Item<rs.u32[]>>, out: rs.ByteVe
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -182,7 +186,7 @@ export function put$sorts_Held(v: rs.Slice<Item.Item<Held.Held>>, out: rs.ByteVe
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -210,7 +214,7 @@ export function put$unit(v: rs.Slice<Item.Item<undefined>>, out: rs.ByteVec): vo
 	const _5: [rs.u32, rs.u32] = ((log: rs.Cell<[rs.u32, rs.u32]>): [rs.u32, rs.u32] => {
 		const pointer = log.v;
 		const old = rs.objectCopy(pointer);
-		rs.ptrWrite(pointer, [2166136261, 0]);
+		rs.ptrWrite(pointer, [2166136261, 0] as [rs.u32, rs.u32]);
 		return old;
 	})(LOG.get());
 	const hash: rs.u32 = _5[0];
@@ -239,7 +243,7 @@ export function put$unit(v: rs.Slice<Item.Item<undefined>>, out: rs.ByteVec): vo
  */
 export function sorts(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	begin();
-	const _7: rs.usize = rs.usizeRem(kind as rs.usize, rs.sliceFrom([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097]).length);
+	const _7: rs.usize = rs.usizeRem(kind as rs.usize, 20);
 	if (!(_7 < 20)) {
 		rs.panic("index out of bounds: the len is " + 20 + " but the index is " + _7);
 	}
@@ -809,22 +813,22 @@ export function sorted$unit_sorts_sorts_closure0(keys: rs.Slice<rs.u16>, pad: ()
  */
 export function disorders(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	begin();
-	const _8: rs.usize = rs.usizeRem(kind as rs.usize, rs.sliceFrom([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097]).length);
+	const _8: rs.usize = rs.usizeRem(kind as rs.usize, 20);
 	if (!(_8 < 20)) {
 		rs.panic("index out of bounds: the len is " + 20 + " but the index is " + _8);
 	}
 	const keys_: rs.Vec<rs.u16> = keys(rs.min([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097][_8], 300), data.data, data.start, data.length);
 	const stable: boolean = rs.u8Rem(rs.u8Div(kind, 20), 2) === 0;
-	const _21: rs.u8 = rs.u8Rem(rs.u8Div(kind, 40), 4);
-	if (_21 === 0) {
+	const _15: rs.u8 = rs.u8Rem(rs.u8Div(kind, 40), 4);
+	if (_15 === 0) {
 		disordered$unit_sorts_disorders_closure0(rs.sliceFrom(keys_.items), stable, (): undefined => {}, data, out);
-	} else if (_21 === 1) {
+	} else if (_15 === 1) {
 		disordered$array10_u32_sorts_disorders_closure1(rs.sliceFrom(keys_.items), stable, (): rs.u32[] => {
 			return Array.from({ length: 10 }, (): rs.u32 => {
 				return 0;
 			});
 		}, data, out);
-	} else if (_21 === 2) {
+	} else if (_15 === 2) {
 		disordered$array30_u32_sorts_disorders_closure2(rs.sliceFrom(keys_.items), stable, (): rs.u32[] => {
 			return Array.from({ length: 30 }, (): rs.u32 => {
 				return 0;
@@ -944,25 +948,25 @@ export function disordered$unit_sorts_disorders_closure0(keys: rs.Slice<rs.u16>,
  */
 export function btrees(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	begin();
-	const _8: rs.usize = rs.usizeRem(kind as rs.usize, rs.sliceFrom([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097]).length);
+	const _8: rs.usize = rs.usizeRem(kind as rs.usize, 20);
 	if (!(_8 < 20)) {
 		rs.panic("index out of bounds: the len is " + 20 + " but the index is " + _8);
 	}
 	const keys_: rs.Vec<rs.u16> = keys(rs.min([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097][_8], 300), dataData, dataStart, dataLen);
-	const _17: rs.Iter<Item.Item<undefined>> = rs.vecIntoIter(items$unit_sorts_btrees_closure0(rs.sliceFrom(keys_.items), (): undefined => {}));
-	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollectKeys(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeSet<Item.Item<undefined>>, rs.iterToVec(_17, "next", 4, true, 4).items, 4, true, Item.lt$cmp_PartialOrd_unit, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
-	const _27: rs.Iter<[Item.Item<undefined>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$unit_sorts_btrees_closure1(rs.sliceFrom(keys_.items), (): undefined => {})), (x: Item.Item<undefined>): [Item.Item<undefined>, rs.u16] => {
+	const _13: rs.Iter<Item.Item<undefined>> = rs.vecIntoIter(items$unit_sorts_btrees_closure0(rs.sliceFrom(keys_.items), (): undefined => {}));
+	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollectKeys(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeSet<Item.Item<undefined>>, rs.iterToVec(_13, "next", 4, true, 4).items, 4, true, Item.lt$cmp_PartialOrd_unit, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
+	const _23: rs.Iter<[Item.Item<undefined>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$unit_sorts_btrees_closure1(rs.sliceFrom(keys_.items), (): undefined => {})), (x: Item.Item<undefined>): [Item.Item<undefined>, rs.u16] => {
 		return [x, x.tag] as [Item.Item<undefined>, rs.u16];
 	});
-	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeMap<Item.Item<undefined>, rs.u16>, rs.iterToVec(_27, undefined, 6, true).items, 6, true, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
-	const _38: rs.Iter<[Item.Item<rs.u32[]>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$array30_u32_sorts_btrees_closure3(rs.sliceFrom(keys_.items), (): rs.u32[] => {
+	put$unit(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_unit) as rs.BTreeMap<Item.Item<undefined>, rs.u16>, rs.iterToVec(_23, undefined, 6, true).items, 6, true, Item.eq$cmp_PartialEq_unit)), undefined, 4, true).items), out);
+	const _34: rs.Iter<[Item.Item<rs.u32[]>, rs.u16]> = rs.iterMap(rs.vecIntoIter(items$array30_u32_sorts_btrees_closure3(rs.sliceFrom(keys_.items), (): rs.u32[] => {
 		return Array.from({ length: 30 }, (): rs.u32 => {
 			return 0;
 		});
 	})), (x2: Item.Item<rs.u32[]>): [Item.Item<rs.u32[]>, rs.u16] => {
 		return [x2, x2.tag] as [Item.Item<rs.u32[]>, rs.u16];
 	});
-	put$array30_u32(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_array30_u32) as rs.BTreeMap<Item.Item<rs.u32[]>, rs.u16>, rs.iterToVec(_38, undefined, 128, true).items, 128, true, Item.eq$cmp_PartialEq_array30_u32)), undefined, 124, true).items), out);
+	put$array30_u32(rs.sliceFrom(rs.iterToVec(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Item.cmp$cmp_Ord_array30_u32) as rs.BTreeMap<Item.Item<rs.u32[]>, rs.u16>, rs.iterToVec(_34, undefined, 128, true).items, 128, true, Item.eq$cmp_PartialEq_array30_u32)), undefined, 124, true).items), out);
 }
 
 //# sourceMappingURL=sorts.ts.map

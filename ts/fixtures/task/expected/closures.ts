@@ -158,9 +158,10 @@ export class closuresFuture {
 																b14: {
 																	if (this.#state === 0) {
 																		this.#saved$4 = false;
-																		const _3: [rs.u32, Log.Log] = [Guard.id(this.#guard), Log.clone$Clone(Guard.log(this.#guard))];
-																		this.#id = _3[0];
-																		this.#log = _3[1];
+																		const _3: rs.u32 = Guard.id(this.#guard);
+																		const _5: Log.Log = Log.clone$Clone(Guard.log(this.#guard));
+																		this.#id = _3;
+																		this.#log = _5;
 																		this.#seen = new rs.Vec();
 																		this.#reads = 0;
 																		this.#next = (scale: rs.u64): rs.Future<rs.u64 | undefined> => {
@@ -214,9 +215,9 @@ export class closuresFuture {
 																		}
 																		break b0;
 																	}
-																	const _16: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
-																	if (_16 !== rs.Pending) {
-																		this.#first = _16;
+																	const _15: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
+																	if (_15 !== rs.Pending) {
+																		this.#first = _15;
 																		rs.drop(this.#awaitee);
 																		this.#awaitee = new twiceFuture$closures_closures_closure0_closure0(this.#next);
 																	} else {
@@ -224,9 +225,9 @@ export class closuresFuture {
 																		return rs.Pending;
 																	}
 																}
-																const _27: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
-																if (_27 !== rs.Pending) {
-																	this.#second = _27;
+																const _26: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
+																if (_26 !== rs.Pending) {
+																	this.#second = _26;
 																	rs.drop(this.#awaitee);
 																	this.#count = this.#reads;
 																	const make2 = (captured: rs.u32): (a0: rs.u32) => rs.Future<rs.u32> => {
@@ -241,9 +242,9 @@ export class closuresFuture {
 																	return rs.Pending;
 																}
 															}
-															const _39: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
-															if (_39 !== rs.Pending) {
-																const once: rs.u32 = _39;
+															const _38: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
+															if (_38 !== rs.Pending) {
+																const once: rs.u32 = _38;
 																rs.drop(this.#awaitee$2);
 																this.#copy = rs.closureClone(this.#tally);
 																this.#saved = once;
@@ -253,9 +254,9 @@ export class closuresFuture {
 																return rs.Pending;
 															}
 														}
-														const _52: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
-														if (_52 !== rs.Pending) {
-															this.#saved$2 = _52;
+														const _51: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
+														if (_51 !== rs.Pending) {
+															this.#saved$2 = _51;
 															rs.drop(this.#awaitee$2);
 															this.#awaitee$2 = this.#tally(1000);
 														} else {
@@ -263,30 +264,30 @@ export class closuresFuture {
 															return rs.Pending;
 														}
 													}
-													const _64: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
-													if (_64 !== rs.Pending) {
-														const result4: rs.u32 = _64;
+													const _63: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
+													if (_63 !== rs.Pending) {
+														const result4: rs.u32 = _63;
 														rs.drop(this.#awaitee$2);
 														this.#tallied = [this.#saved, this.#saved$2, result4] as [rs.u32, rs.u32, rs.u32];
 														const arg = this.#seen;
-														const _87: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, (value: rs.u64 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug));
+														const _86: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, (value: rs.u64 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug));
 														const arg2 = this.#first;
-														const _88: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg2, f, rs.u64Debug);
+														const _87: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg2, f, rs.u64Debug);
 														const arg3 = this.#second;
-														const _89: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.u64Debug);
+														const _88: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.u64Debug);
 														const arg4 = this.#reads;
-														const _90: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg4, f);
+														const _89: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg4, f);
 														const arg5 = this.#tallied;
-														const _91: rs.Fmt = (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(arg5[0], f), (f: rs.Formatter) => rs.u32Debug(arg5[1], f), (f: rs.Formatter) => rs.u32Debug(arg5[2], f)], f);
+														const _90: rs.Fmt = (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(arg5[0], f), (f: rs.Formatter) => rs.u32Debug(arg5[1], f), (f: rs.Formatter) => rs.u32Debug(arg5[2], f)], f);
 														const arg6 = this.#count;
-														const args9 = [_87, _88, _89, _90, _91, (f: rs.Formatter) => rs.u32Display(arg6, f)];
-														const _74: string = rs.fmtFormat(["seen ", args9[0], " first ", args9[1], " second ", args9[2], " reads ", args9[3], " tallied ", args9[4], " count ", args9[5]]).v;
-														Guard.note(this.#guard, _74);
+														const args9 = [_86, _87, _88, _89, _90, (f: rs.Formatter) => rs.u32Display(arg6, f)];
+														const _73: string = rs.fmtFormat(["seen ", args9[0], " first ", args9[1], " second ", args9[2], " reads ", args9[3], " tallied ", args9[4], " count ", args9[5]]).v;
+														Guard.note(this.#guard, _73);
 														const captured2 = Guard.new(rs.u32Add(this.#id, 500), Log.clone$Clone(this.#log));
 														this.#awaitee$3 = new callOnceFuture$closures_closures_closure0_closure2(rs.closure(rs.byMove((rx: Consumer.Consumer): rs.Future<rs.u64> => {
 															return new closuresFuture$closure2_closure0(rx, captured2);
-														}, (_22: Consumer.Consumer): rs.Future<rs.u64> => {
-															return new closuresFuture$closure2_closure0_once(_22, captured2);
+														}, (_25: Consumer.Consumer): rs.Future<rs.u64> => {
+															return new closuresFuture$closure2_closure0_once(_25, captured2);
 														}), (): void => {
 															captured2[Symbol.dispose]();
 														}), this.#rx);
@@ -295,13 +296,13 @@ export class closuresFuture {
 														return rs.Pending;
 													}
 												}
-												const _105: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-												if (_105 !== rs.Pending) {
-													this.#third = _105;
+												const _103: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+												if (_103 !== rs.Pending) {
+													this.#third = _103;
 													rs.drop(this.#awaitee$3);
 													const arg7 = this.#third;
-													const _115: string = rs.fmtFormat(["third ", (f: rs.Formatter) => rs.u64Display(arg7, f)]).v;
-													Guard.note(this.#guard, _115);
+													const _113: string = rs.fmtFormat(["third ", (f: rs.Formatter) => rs.u64Display(arg7, f)]).v;
+													Guard.note(this.#guard, _113);
 													this.#lent = Guard.new(rs.u32Add(this.#id, 600), Log.clone$Clone(this.#log));
 													this.#peek = (value3: rs.u64): rs.Future<rs.u64> => {
 														return new closuresFuture$closure3_closure0(value3, this.#lent);
@@ -312,9 +313,9 @@ export class closuresFuture {
 													return rs.Pending;
 												}
 											}
-											const _135: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-											if (_135 !== rs.Pending) {
-												this.#fourth = _135;
+											const _132: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+											if (_132 !== rs.Pending) {
+												this.#fourth = _132;
 												rs.drop(this.#awaitee$3);
 												this.#awaitee$3 = new throughFnFuture$ref_closures_closures_closure0_closure3_closures_closures_closure0_closure3_closure0(this.#peek, 5);
 											} else {
@@ -322,11 +323,11 @@ export class closuresFuture {
 												return rs.Pending;
 											}
 										}
-										const _146: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-										if (_146 !== rs.Pending) {
-											const result7: rs.u64 = _146;
+										const _143: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+										if (_143 !== rs.Pending) {
+											const result7: rs.u64 = _143;
 											rs.drop(this.#awaitee$3);
-											this.#fourth = rs.u64Add(this.#fourth, result7);
+											this.#fourth = rs.u64Add(result7, this.#fourth);
 											this.#awaitee$3 = new throughFnFuture$closures_closures_closure0_closure4_closures_closures_closure0_closure4_closure0((value4: rs.u64): rs.Future<rs.u64> => {
 												return new closuresFuture$closure4_closure0(value4);
 											}, 6);
@@ -335,11 +336,11 @@ export class closuresFuture {
 											return rs.Pending;
 										}
 									}
-									const _158: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-									if (_158 !== rs.Pending) {
-										const result8: rs.u64 = _158;
+									const _154: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+									if (_154 !== rs.Pending) {
+										const result8: rs.u64 = _154;
 										rs.drop(this.#awaitee$3);
-										this.#fourth = rs.u64Add(this.#fourth, result8);
+										this.#fourth = rs.u64Add(result8, this.#fourth);
 										const captured3 = Guard.new(rs.u32Add(this.#id, 700), Log.clone$Clone(this.#log));
 										this.#awaitee$2 = rs.closure((): rs.Future<rs.u32> => {
 											return new closuresFuture$closure5_closure0(captured3);
@@ -351,9 +352,9 @@ export class closuresFuture {
 										return rs.Pending;
 									}
 								}
-								const _178: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
-								if (_178 !== rs.Pending) {
-									const result9: rs.u32 = _178;
+								const _173: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
+								if (_173 !== rs.Pending) {
+									const result9: rs.u32 = _173;
 									rs.drop(this.#awaitee$2);
 									this.#add = adder(result9 as rs.u64);
 									const last: Guard.Guard = Guard.new(rs.u32Add(this.#id, 800), Log.clone$Clone(this.#log));
@@ -361,8 +362,8 @@ export class closuresFuture {
 									const captured4 = last;
 									this.#finish = rs.closure(rs.byMove((value5: rs.u64): rs.Future<rs.u64> => {
 										return new closuresFuture$closure6_closure0(value5, captured4);
-									}, (_26: rs.u64): rs.Future<rs.u64> => {
-										return new closuresFuture$closure6_closure0_once(_26, captured4);
+									}, (_28: rs.u64): rs.Future<rs.u64> => {
+										return new closuresFuture$closure6_closure0_once(_28, captured4);
 									}), (): void => {
 										captured4[Symbol.dispose]();
 									});
@@ -372,9 +373,9 @@ export class closuresFuture {
 									return rs.Pending;
 								}
 							}
-							const _195: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-							if (_195 !== rs.Pending) {
-								this.#fifth = _195;
+							const _190: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+							if (_190 !== rs.Pending) {
+								this.#fifth = _190;
 								rs.drop(this.#awaitee$3);
 								this.#awaitee$3 = new callFuture$closures_closures_closure0_closure6(this.#finish, 20);
 							} else {
@@ -382,11 +383,11 @@ export class closuresFuture {
 								return rs.Pending;
 							}
 						}
-						const _206: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-						if (_206 !== rs.Pending) {
-							const result11: rs.u64 = _206;
+						const _201: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+						if (_201 !== rs.Pending) {
+							const result11: rs.u64 = _201;
 							rs.drop(this.#awaitee$3);
-							this.#fifth = rs.u64Add(this.#fifth, result11);
+							this.#fifth = rs.u64Add(result11, this.#fifth);
 							this.#saved$4 = false;
 							this.#saved$3 = this.#finish;
 							this.#awaitee = new recvFuture$kio_Consumer(this.#rx);
@@ -395,33 +396,33 @@ export class closuresFuture {
 							return rs.Pending;
 						}
 					}
-					const _221: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
-					if (_221 !== rs.Pending) {
-						const result12: rs.u64 | undefined = _221;
+					const _216: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
+					if (_216 !== rs.Pending) {
+						const result12: rs.u64 | undefined = _216;
 						rs.drop(this.#awaitee);
-						const _217: rs.u64 = option_unwrapOr$15hbiwd(result12, 0);
-						this.#awaitee$3 = new throughFnOnceFuture$closures_closures_closure0_closure6_closures_closures_closure0_closure6_closure0(this.#saved$3, _217);
+						const _212: rs.u64 = option_unwrapOr$15hbiwd(result12, 0);
+						this.#awaitee$3 = new throughFnOnceFuture$closures_closures_closure0_closure6_closures_closures_closure0_closure6_closure0(this.#saved$3, _212);
 					} else {
 						this.#state = 15;
 						return rs.Pending;
 					}
 				}
-				const _229: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-				if (_229 !== rs.Pending) {
-					const result13: rs.u64 = _229;
+				const _224: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+				if (_224 !== rs.Pending) {
+					const result13: rs.u64 = _224;
 					rs.drop(this.#awaitee$3);
-					this.#fifth = rs.u64Add(this.#fifth, result13);
+					this.#fifth = rs.u64Add(result13, this.#fifth);
 					const arg8 = this.#fourth;
-					const _249: rs.Fmt = (f: rs.Formatter) => rs.u64Display(arg8, f);
+					const _244: rs.Fmt = (f: rs.Formatter) => rs.u64Display(arg8, f);
 					const arg9 = this.#fifth;
-					const args11 = [_249, (f: rs.Formatter) => rs.u64Display(arg9, f)];
-					const _240: string = rs.fmtFormat(["fourth ", args11[0], " fifth ", args11[1]]).v;
-					Guard.note(this.#guard, _240);
+					const args11 = [_244, (f: rs.Formatter) => rs.u64Display(arg9, f)];
+					const _235: string = rs.fmtFormat(["fourth ", args11[0], " fifth ", args11[1]]).v;
+					Guard.note(this.#guard, _235);
 					const captured5 = Guard.new(rs.u32Add(this.#id, 900), Log.clone$Clone(this.#log));
 					this.#awaitee$3 = new callOnceFuture$boxed_Box_closures_closures_closure0_closure7(rs.closure(rs.byMove((rx2: Consumer.Consumer): rs.Future<rs.u64> => {
 						return new closuresFuture$closure7_closure0(rx2, captured5);
-					}, (_29: Consumer.Consumer): rs.Future<rs.u64> => {
-						return new closuresFuture$closure7_closure0_once(_29, captured5);
+					}, (_215: Consumer.Consumer): rs.Future<rs.u64> => {
+						return new closuresFuture$closure7_closure0_once(_215, captured5);
 					}), (): void => {
 						captured5[Symbol.dispose]();
 					}), this.#rx);
@@ -430,14 +431,13 @@ export class closuresFuture {
 					return rs.Pending;
 				}
 			}
-			const _264: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
-			if (_264 !== rs.Pending) {
-				this.#sixth = _264;
+			const _258: rs.Poll<rs.u64> = this.#awaitee$3.poll(_2);
+			if (_258 !== rs.Pending) {
+				this.#sixth = _258;
 				rs.drop(this.#awaitee$3);
-				const _274: [Guard.Guard, Guard.Guard, Guard.Guard] = [Guard.new(rs.u32Add(this.#id, 1000), Log.clone$Clone(this.#log)), Guard.new(rs.u32Add(this.#id, 1100), Log.clone$Clone(this.#log)), Guard.new(rs.u32Add(this.#id, 1200), Log.clone$Clone(this.#log))];
-				const made: Guard.Guard = _274[0];
-				const erased: Guard.Guard = _274[1];
-				this.#unpolled = _274[2];
+				const made: Guard.Guard = Guard.new(rs.u32Add(this.#id, 1000), Log.clone$Clone(this.#log));
+				const erased: Guard.Guard = Guard.new(rs.u32Add(this.#id, 1100), Log.clone$Clone(this.#log));
+				this.#unpolled = Guard.new(rs.u32Add(this.#id, 1200), Log.clone$Clone(this.#log));
 				const captured6 = made;
 				this.#slot = undefined as rs.Future<undefined> | undefined;
 				const make: () => rs.Future<undefined> = rs.closure(rs.byMove((): rs.Future<undefined> => {
@@ -466,9 +466,9 @@ export class closuresFuture {
 				return rs.Pending;
 			}
 		}
-		const _304: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
-		if (_304 !== rs.Pending) {
-			const seventh: rs.u32 = _304;
+		const _294: rs.Poll<rs.u32> = this.#awaitee$2.poll(_2);
+		if (_294 !== rs.Pending) {
+			const seventh: rs.u32 = _294;
 			rs.drop(this.#awaitee$2);
 			const captured8 = this.#unpolled;
 			rs.drop(erase$closures_closures_closure0_closure10_closures_closures_closure0_closure10_closure0(rs.closure(rs.byMove((): rs.Future<rs.u32> => {
@@ -480,16 +480,16 @@ export class closuresFuture {
 			}))());
 			const arg10 = this.#sixth;
 			const args12 = [(f: rs.Formatter) => rs.u64Display(arg10, f), (f: rs.Formatter) => rs.u32Display(seventh, f)];
-			const _319: string = rs.fmtFormat(["sixth ", args12[0], " seventh ", args12[1]]).v;
-			Guard.note(this.#guard, _319);
-			const _360: rs.u64 = rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(option_unwrapOr$15hbiwd(this.#first, 0), option_unwrapOr$15hbiwd(this.#second, 0)), this.#third), this.#fourth), this.#fifth), this.#sixth);
+			const _308: string = rs.fmtFormat(["sixth ", args12[0], " seventh ", args12[1]]).v;
+			Guard.note(this.#guard, _308);
+			const _337: rs.u64 = rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(option_unwrapOr$15hbiwd(this.#first, 0), option_unwrapOr$15hbiwd(this.#second, 0)), this.#third), this.#fourth), this.#fifth), this.#sixth);
 			this.#saved$4 = false;
 			this.#lent[Symbol.dispose]();
 			this.#log[Symbol.dispose]();
 			this.#guard[Symbol.dispose]();
 			this.#rx[Symbol.dispose]();
 			this.#state = 1;
-			return _360;
+			return _337;
 		}
 		this.#state = 18;
 		return rs.Pending;
@@ -555,7 +555,7 @@ export class closuresFuture$closure1_closure0 {
 
 	poll(_2: rs.Context): rs.Poll<rs.u32> {
 		if (this.#state === 0) {
-			this.#count.v = rs.u32Add(this.#count.v, this.#by);
+			this.#count.v = rs.u32Add(this.#by, this.#count.v);
 			const _0: rs.Poll<rs.u32> = this.#count.v;
 			this.#state = 1;
 			return _0;
@@ -589,10 +589,11 @@ export class closuresFuture$closure2_closure0 {
 		}
 		const _7: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
 		if (_7 !== rs.Pending) {
-			const value: rs.u64 | undefined = _7;
+			const result: rs.u64 | undefined = _7;
+			const value: rs.u64 | undefined = result;
 			rs.drop(this.#awaitee);
 			Guard.note(this.#owned, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v);
-			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(value, 0);
+			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(result, 0);
 			this.#state = 1;
 			return _0;
 		}
@@ -629,14 +630,15 @@ export class closuresFuture$closure2_closure0_once {
 		}
 		const _7: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
 		if (_7 !== rs.Pending) {
-			const value: rs.u64 | undefined = _7;
+			const result: rs.u64 | undefined = _7;
+			const value: rs.u64 | undefined = result;
 			rs.drop(this.#awaitee);
 			const _17: string = rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v;
 			Guard.note(this.#owned, _17);
-			const _29: rs.u64 = option_unwrapOr$15hbiwd(value, 0);
+			const _27: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
 			this.#owned[Symbol.dispose]();
 			this.#state = 1;
-			return _29;
+			return _27;
 		}
 		this.#state = 3;
 		return rs.Pending;
@@ -792,10 +794,11 @@ export class closuresFuture$closure7_closure0 {
 		}
 		const _7: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
 		if (_7 !== rs.Pending) {
-			const value: rs.u64 | undefined = _7;
+			const result: rs.u64 | undefined = _7;
+			const value: rs.u64 | undefined = result;
 			rs.drop(this.#awaitee);
 			Guard.note(this.#boxed, rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v);
-			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(value, 0);
+			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(result, 0);
 			this.#state = 1;
 			return _0;
 		}
@@ -832,14 +835,15 @@ export class closuresFuture$closure7_closure0_once {
 		}
 		const _7: rs.Poll<rs.u64 | undefined> = this.#awaitee.poll(_2);
 		if (_7 !== rs.Pending) {
-			const value: rs.u64 | undefined = _7;
+			const result: rs.u64 | undefined = _7;
+			const value: rs.u64 | undefined = result;
 			rs.drop(this.#awaitee);
 			const _17: string = rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v;
 			Guard.note(this.#boxed, _17);
-			const _29: rs.u64 = option_unwrapOr$15hbiwd(value, 0);
+			const _27: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
 			this.#boxed[Symbol.dispose]();
 			this.#state = 1;
-			return _29;
+			return _27;
 		}
 		this.#state = 3;
 		return rs.Pending;
@@ -1038,7 +1042,7 @@ export class twiceFuture$closures_closures_closure0_closure0 {
 				rs.drop(this.#awaitee);
 				const _19: rs.u64 | undefined = result2;
 				if (_19 !== undefined) {
-					_35 = rs.u64Add(this.#saved, _19);
+					_35 = rs.u64Add(_19, this.#saved);
 				} else {
 					_35 = undefined;
 				}

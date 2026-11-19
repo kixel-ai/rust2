@@ -2,6 +2,15 @@
 
 import * as rs from "./rs.ts";
 import { ends } from "./ends.ts";
+import type * as Flicker from "./ends.Flicker.ts";
+
+export function copy$ends_Flicker(v: Flicker.Flicker): Flicker.Flicker {
+	return { _0: v._0 };
+}
+
+export function copy$ops_Range_u8(v: rs.Range<rs.u8>): rs.Range<rs.u8> {
+	return rs.objectCopy(v);
+}
 
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo

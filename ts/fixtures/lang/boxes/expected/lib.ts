@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { boxes, places, impls } from "./boxes.ts";
-import type * as Logged from "./boxes.Logged.ts";
+import * as Logged from "./boxes.Logged.ts";
 
 export function copy$array_tuple2_u8_u16(v: [rs.u8, rs.u16][]): [rs.u8, rs.u16][] {
 	return v.map(copy$tuple2_u8_u16);
@@ -14,6 +14,14 @@ export function copy$array_u16(v: rs.u16[]): rs.u16[] {
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$boxes_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v.id, v.log);
+}
+
+export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
+	return rs.objectCopy(v);
 }
 
 export function copy$tuple2_u8_u16(v: [rs.u8, rs.u16]): [rs.u8, rs.u16] {

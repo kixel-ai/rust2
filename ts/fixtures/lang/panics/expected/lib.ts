@@ -7,10 +7,10 @@ import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called
 import * as Inherits from "./located.Inherits.ts";
 import * as Own from "./located.Own.ts";
 import { wrapped, called as panics_called, awaited, raised } from "./panics.ts";
-import type * as Point from "./panics.Point.ts";
+import * as Logged from "./panics.Logged.ts";
 
-export function copy$panics_Point(v: Point.Point): Point.Point {
-	return { x: v.x, y: v.y };
+export function copy$panics_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v._0, v._1);
 }
 
 export function drop$Result_u8_boxed_Box_dyn_Any_marker_Send(_1: rs.Result<rs.u8, Any.Any>): void {

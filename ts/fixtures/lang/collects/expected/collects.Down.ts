@@ -23,9 +23,9 @@ export function next$iter_Iterator(self: Down): rs.u8 | rs.Done {
 	const _6: rs.String = rs.fmtFormat(["next ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
-	const _15: rs.u8 | undefined = rs.u8CheckedSub(self.n, 1);
-	if (_15 !== undefined) {
-		self.n = _15;
+	const _13: rs.u8 | undefined = rs.u8CheckedSub(self.n, 1);
+	if (_13 !== undefined) {
+		self.n = _13;
 		return self.n;
 	}
 	return rs.DONE;

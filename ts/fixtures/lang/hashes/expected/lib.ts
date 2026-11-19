@@ -30,19 +30,19 @@ export function drop$tuple2_u8_hashes_Noisy(_1: [rs.u8, Noisy.Noisy]): void {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["hashes::values", values as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::random", (_27: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["hashes::values", values as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::random", (_22: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		random(data, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::bytes", (_28: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::bytes", (_23: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		bytes(data2, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::own", (_29: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::own", (_24: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		own(data3, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::copied", (_210: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::copied", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		hashes_copied(data4, out4);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::maps", (_211: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::maps", (_26: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
 		maps(data5, out5);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::equal", (_212: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::equal", (_27: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
 		equal(data6, out6);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::defaults", (_213: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hashes::defaults", (_28: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
 		defaults(data7, out7);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

@@ -18,7 +18,7 @@ export function next$iter_Iterator(self: Gaps): rs.u8 | undefined | rs.Done {
 		if (!(b === 0)) {
 			return b;
 		}
-		return undefined;
+		return rs.iterFromOption(undefined, rs.None);
 	}
 	return rs.DONE;
 }

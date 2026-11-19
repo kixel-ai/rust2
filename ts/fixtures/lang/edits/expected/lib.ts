@@ -2,9 +2,14 @@
 
 import * as rs from "./rs.ts";
 import { edits, bytes, values, resizes, extracts } from "./edits.ts";
+import type * as Named from "./edits.Named.ts";
 
 export function copy$Option_array2_u16(v: rs.u16[] | undefined): rs.u16[] | undefined {
 	return v === undefined ? v : copy$array_u16(v);
+}
+
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
 }
 
 export function copy$array_u16(v: rs.u16[]): rs.u16[] {
@@ -13,6 +18,10 @@ export function copy$array_u16(v: rs.u16[]): rs.u16[] {
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$edits_Named(v: Named.Named): Named.Named {
+	return { id: v.id, name: copy$String(v.name) };
 }
 
 export function copy$tuple2_u8_u16(v: [rs.u8, rs.u16]): [rs.u8, rs.u16] {

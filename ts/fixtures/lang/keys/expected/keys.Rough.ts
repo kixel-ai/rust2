@@ -16,13 +16,14 @@ export function eq$cmp_PartialEq(self: Rough, other: Rough): boolean {
 
 export function partialCmp$cmp_PartialOrd(self: Rough, other: Rough): rs.Ordering | undefined {
 	let _3!: boolean;
-	if (!(self._0 > 200)) {
+	const _5: rs.u8 = self._0;
+	if (!(_5 > 200)) {
 		_3 = other._0 > 200;
 	} else {
 		_3 = true;
 	}
 	if (!_3) {
-		return rs.cmp(rs.u8Div(self._0, 4), rs.u8Div(other._0, 4));
+		return rs.cmp(rs.u8Div(_5, 4), rs.u8Div(other._0, 4));
 	}
 	return undefined;
 }

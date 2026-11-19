@@ -31,10 +31,11 @@ export function hashInto(h: Hasher.Hasher, data: rs.ByteSlice, keys: rs.Slice<Dy
 	for (const _7 of rs.byteSliceView(data)) {
 		h.writeU8$Hasher(_7);
 	}
-	h.writeU16$Hasher(data.length & 0xffff);
+	const _14: rs.usize = data.length;
+	h.writeU16$Hasher(_14 & 0xffff);
 	h.writeU32$Hasher(305419896);
 	h.writeU64$Hasher({ hi: 0xffffffff, lo: 0xfffffffe } as rs.u64);
-	h.writeU128$Hasher(rs.u128Shl(1, 100));
+	h.writeU128$Hasher({ hi: 0x10, w2: 0, w1: 0, lo: 0 } as rs.u128);
 	h.writeUsize$Hasher(7);
 	h.writeI8$Hasher(-1);
 	h.writeI16$Hasher(-2);
@@ -45,9 +46,9 @@ export function hashInto(h: Hasher.Hasher, data: rs.ByteSlice, keys: rs.Slice<Dy
 	let h2: Hasher.Hasher = h;
 	rs.hashBytes(data, new rs.OwnHasher(rs.place(() => h2, (value) => h2 = value), hasher$mut_dyn_hash_Hasher));
 	rs.hashStr("str", new rs.OwnHasher(rs.place(() => h2, (value2) => h2 = value2), hasher$mut_dyn_hash_Hasher));
-	rs.hashTuple([rs.hashUsize, rs.hash32])([data.length, 120] as [rs.usize, rs.char], new rs.OwnHasher(rs.place(() => h2, (value3) => h2 = value3), hasher$mut_dyn_hash_Hasher));
-	for (const _43 of rs.sliceItems(keys)) {
-		_43.dynHash$DynHash(h2);
+	rs.hashTuple([rs.hashUsize, rs.hash32])([_14, 120] as [rs.usize, rs.char], new rs.OwnHasher(rs.place(() => h2, (value3) => h2 = value3), hasher$mut_dyn_hash_Hasher));
+	for (const _36 of rs.sliceItems(keys)) {
+		_36.dynHash$DynHash(h2);
 	}
 	return h2.finish$Hasher();
 }
@@ -57,8 +58,8 @@ export function render(w: fmt_Write.Write, n: rs.u8, s: string): rs.Result<undef
 	if (w.writeFmt$Write(["[", (f: rs.Formatter) => rs.u8Display(n, f)]).ok) {
 		if (w.writeChar$Write(233).ok) {
 			if (w.writeStr$Write(s).ok) {
-				const args6 = [(f: rs.Formatter) => rs.fmtPad(f, s), (f: rs.Formatter) => rs.u8LowerHex(n, f)];
-				if (w.writeFmt$Write([rs.fmtSpec({ align: ">", width: 5 }, args6[0]), "|", rs.fmtSpec({ alternate: true }, args6[1]), "]"]).ok) {
+				const args4 = [(f: rs.Formatter) => rs.fmtPad(f, s), (f: rs.Formatter) => rs.u8LowerHex(n, f)];
+				if (w.writeFmt$Write([rs.fmtSpec({ align: ">", width: 5 }, args4[0]), "|", rs.fmtSpec({ alternate: true }, args4[1]), "]"]).ok) {
 					return w.writeFmt$Write(["!"]);
 				}
 				return rs.Err(new rs.FmtError());
@@ -79,118 +80,117 @@ export function twice$dyn_fmt_Write(w: fmt_Write.Write, s: string): rs.Result<un
 }
 
 export function stds(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _78!: Hasher.Hasher;
-	let _255!: fmt_Write.Write;
+	let _71!: Hasher.Hasher;
+	let _234!: fmt_Write.Write;
 	if (data.length >= 2) {
-		const _10: [rs.u8, rs.u8] = [data.data[data.start], data.data[data.start + 1]];
-		const a: rs.u8 = _10[0];
-		const b: rs.u8 = _10[1];
+		const _9: rs.u8 = data.data[data.start];
+		const b: rs.u8 = data.data[data.start + 1];
 		const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
-		const key: Key.Key = { id: (((a as rs.u16) << 8) & 0xffff) | b as rs.u16, name: rs.strCowIntoOwned(rs.stringFromUtf8Lossy(rs.byteSliceRange(data, 2))), tags: rs.byteSliceToByteVec(rs.byteSliceRange(data, 2)) };
-		const keys: DynHash.DynHash[] = [new of$stds_Key(key), new of$u8(a), new of$ref_str("k")];
+		const key: Key.Key = { id: (((_9 as rs.u16) << 8) & 0xffff) | b as rs.u16, name: rs.strCowIntoOwned(rs.stringFromUtf8Lossy(rs.byteSliceRange(data, 2))), tags: rs.byteSliceToByteVec(rs.byteSliceRange(data, 2)) };
+		const keys: DynHash.DynHash[] = [new of$stds_Key(key), new of$u8(_9), new of$ref_str("k")];
 		const std: rs.Hasher = rs.hasher();
 		const fnv: Fnv.Fnv = new Fnv.Fnv({ hi: 0xcbf29ce4, lo: 0x84222325 } as rs.u64, rs.arcClone(log));
 		const sum: stds_Sum.Sum = { _0: b as rs.u32 };
-		const _48: Hasher.Hasher = new of$hash_DefaultHasher(std);
+		const _42: Hasher.Hasher = new of$hash_DefaultHasher(std);
+		const _44: rs.Slice<DynHash.DynHash> = rs.sliceFrom(keys);
+		const _41: rs.u64 = hashInto(_42, rs.byteSliceRange(data, 2), _44);
+		const _48: Hasher.Hasher = new of$stds_Fnv(fnv);
 		const _50: rs.Slice<DynHash.DynHash> = rs.sliceFrom(keys);
 		const _47: rs.u64 = hashInto(_48, rs.byteSliceRange(data, 2), _50);
-		const _54: Hasher.Hasher = new of$stds_Fnv(fnv);
+		const _54: Hasher.Hasher = new of$stds_Sum(sum);
 		const _56: rs.Slice<DynHash.DynHash> = rs.sliceFrom(keys);
 		const _53: rs.u64 = hashInto(_54, rs.byteSliceRange(data, 2), _56);
-		const _60: Hasher.Hasher = new of$stds_Sum(sum);
-		const _62: rs.Slice<DynHash.DynHash> = rs.sliceFrom(keys);
-		const _59: rs.u64 = hashInto(_60, rs.byteSliceRange(data, 2), _62);
-		const _66: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _70: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_47, f);
-		const _71: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_53, f);
-		const _72: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_59, f);
+		const _60: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const _64: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_41, f);
+		const _65: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_47, f);
+		const _66: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_53, f);
 		const arg = sum._0;
-		const args17 = [_70, _71, _72, (f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_66.value), f, rs.u8Debug)];
-		const _43: rs.String = rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4], " "]);
-		rs.refRelease(_66);
-		put(out, _43.v);
-		const _79: rs.u8 = rs.u8Rem(a, 3);
-		if (_79 === 0) {
-			_78 = new of$hash_DefaultHasher(rs.hasher());
-		} else if (_79 === 1) {
-			_78 = new of$stds_Fnv(new Fnv.Fnv(b as rs.u64, rs.arcClone(log)));
+		const args9 = [_64, _65, _66, (f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_60.value), f, rs.u8Debug)];
+		const _38: rs.String = rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2], " ", args9[3], " ", args9[4], " "]);
+		rs.refRelease(_60);
+		put(out, _38.v);
+		const _72: rs.u8 = rs.u8Rem(_9, 3);
+		if (_72 === 0) {
+			_71 = new of$hash_DefaultHasher(rs.hasher());
+		} else if (_72 === 1) {
+			_71 = new of$stds_Fnv(new Fnv.Fnv(b as rs.u64, rs.arcClone(log)));
 		} else {
-			_78 = new of$stds_Sum({ _0: a as rs.u32 });
+			_71 = new of$stds_Sum({ _0: _9 as rs.u32 });
 		}
-		let boxed: Hasher.Hasher = _78;
+		let boxed: Hasher.Hasher = _71;
 		boxed.writeU8$Hasher(b);
 		const native: rs.Hasher = rs.hasher();
 		Key.dynHash$stds_DynHash(key, new of$hash_DefaultHasher(native));
-		const _100: [rs.u8, rs.String] = [a, key.name];
-		let _103: rs.Hasher = native;
-		rs.hashTuple([rs.hash8, rs.hashStr])(_100, new rs.OwnHasher(rs.place(() => _103, (value2) => _103 = value2), hasher$mut_hash_DefaultHasher));
+		const _92: [rs.u8, rs.String] = [_9, key.name];
+		let _95: rs.Hasher = native;
+		rs.hashTuple([rs.hash8, rs.hashStr])(_92, new rs.OwnHasher(rs.place(() => _95, (value2) => _95 = value2), hasher$mut_hash_DefaultHasher));
 		Key.hash$Hash_boxed_Box_dyn_hash_Hasher(key, rs.place(() => boxed, (value18) => boxed = value18));
-		const sum2: stds_Sum.Sum = { _0: a as rs.u32 };
-		let _112: stds_Sum.Sum = sum2;
-		Key.hash$Hash_mut_stds_Sum(key, rs.place(() => _112, (value19) => _112 = value19));
-		const _121: rs.u64 = boxed.finish$Hasher();
-		const _124: rs.u64 = rs.hashFinish(native);
-		const _128: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_121, f);
-		const _129: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_124, f);
+		const sum2: stds_Sum.Sum = { _0: _9 as rs.u32 };
+		let _104: stds_Sum.Sum = sum2;
+		Key.hash$Hash_mut_stds_Sum(key, rs.place(() => _104, (value19) => _104 = value19));
+		const _112: rs.u64 = boxed.finish$Hasher();
+		const _115: rs.u64 = rs.hashFinish(native);
+		const _119: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_112, f);
+		const _120: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_115, f);
 		const arg2 = sum2._0;
-		const args18 = [_128, _129, (f: rs.Formatter) => rs.u32Display(arg2, f)];
-		put(out, rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]).v);
+		const args10 = [_119, _120, (f: rs.Formatter) => rs.u32Display(arg2, f)];
+		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]).v);
 		rs.drop(boxed);
-		const _143: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _139: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_143.value), f, rs.u8Debug), " "]);
-		rs.refRelease(_143);
-		put(out, _139.v);
+		const _132: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const _129: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_132.value), f, rs.u8Debug), " "]);
+		rs.refRelease(_132);
+		put(out, _129.v);
 		fnv[Symbol.dispose]();
-		const _160: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _156: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_160.value), f, rs.u8Debug), " "]);
-		rs.refRelease(_160);
-		put(out, _156.v);
-		const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-		rs.byteVecClear(_170.value);
-		rs.refMutRelease(_170);
+		const _147: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const _144: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_147.value), f, rs.u8Debug), " "]);
+		rs.refRelease(_147);
+		put(out, _144.v);
+		const _156: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecClear(_156.value);
+		rs.refMutRelease(_156);
 		const text: rs.String = rs.strCowIntoOwned(rs.stringFromUtf8Lossy(rs.byteSliceRange(data, 2)));
 		const s: rs.String = rs.stringFrom("s:");
-		const written: rs.Result<undefined, rs.FmtError> = render(new of$String(s), a, text.v);
+		const written: rs.Result<undefined, rs.FmtError> = render(new of$String(s), _9, text.v);
 		const upper: Upper.Upper = new Upper.Upper(rs.stringNew(), rs.u8Rem(b, 32) as rs.usize, rs.arcClone(log));
-		const failed: rs.Result<undefined, rs.FmtError> = render(new of$stds_Upper(upper), a, text.v);
+		const failed: rs.Result<undefined, rs.FmtError> = render(new of$stds_Upper(upper), _9, text.v);
 		const counter: Counter.Counter = { _0: 0 };
 		const counted: rs.Result<undefined, rs.FmtError> = render(new of$stds_Counter(counter), b, text.v);
 		const again: rs.Result<undefined, rs.FmtError> = twice$dyn_fmt_Write(new of$String(s), "+");
 		let inner: rs.String = s;
 		const again2: rs.Result<undefined, rs.FmtError> = result_and$0302lm8(again, render(new ofPlace$mut_String(rs.place(() => inner, (value20) => inner = value20)), b, "&"));
-		const _219: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _228: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, s.v);
-		const _229: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(written, f, rs.fmtUnit, rs.fmtErrorDebug);
+		const _201: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const _210: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, s.v);
+		const _211: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(written, f, rs.fmtUnit, rs.fmtErrorDebug);
 		const arg3 = upper.s;
-		const _230: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, arg3.v);
-		const _231: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(failed, f, rs.fmtUnit, rs.fmtErrorDebug);
+		const _212: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, arg3.v);
+		const _213: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(failed, f, rs.fmtUnit, rs.fmtErrorDebug);
 		const arg4 = counter._0;
-		const args21 = [_228, _229, _230, _231, (f: rs.Formatter) => rs.usizeDisplay(arg4, f), (f: rs.Formatter) => rs.fmtResult(counted, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtResult(again2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_219.value), f, rs.u8Debug)];
-		const _213: rs.String = rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4], " ", args21[5], " ", args21[6], " ", args21[7], " "]);
-		rs.refRelease(_219);
-		put(out, _213.v);
-		const _246: Rendered.Rendered = { _0: a };
-		const _248: Rendered.Rendered = { _0: b };
-		const args22 = [(f: rs.Formatter) => Rendered.fmt$fmt_Display(_246, f), (f: rs.Formatter) => Rendered.fmt$fmt_Display(_248, f)];
-		put(out, rs.fmtFormat([args22[0], " ", rs.fmtSpec({ align: ">", width: 12 }, args22[1]), " "]).v);
+		const args13 = [_210, _211, _212, _213, (f: rs.Formatter) => rs.usizeDisplay(arg4, f), (f: rs.Formatter) => rs.fmtResult(counted, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtResult(again2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_201.value), f, rs.u8Debug)];
+		const _196: rs.String = rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3], " ", args13[4], " ", args13[5], " ", args13[6], " ", args13[7], " "]);
+		rs.refRelease(_201);
+		put(out, _196.v);
+		const _226: Rendered.Rendered = { _0: _9 };
+		const _228: Rendered.Rendered = { _0: b };
+		const args14 = [(f: rs.Formatter) => Rendered.fmt$fmt_Display(_226, f), (f: rs.Formatter) => Rendered.fmt$fmt_Display(_228, f)];
+		put(out, rs.fmtFormat([args14[0], " ", rs.fmtSpec({ align: ">", width: 12 }, args14[1]), " "]).v);
 		if (rs.u8Rem(b, 2) === 0) {
-			_255 = new of$stds_Counter({ _0: a as rs.usize });
+			_234 = new of$stds_Counter({ _0: _9 as rs.usize });
 		} else {
-			_255 = new of$stds_Upper(new Upper.Upper(rs.stringFrom("x"), 64, rs.arcClone(log)));
+			_234 = new of$stds_Upper(new Upper.Upper(rs.stringFrom("x"), 64, rs.arcClone(log)));
 		}
-		const boxed2: fmt_Write.Write = _255;
+		const boxed2: fmt_Write.Write = _234;
 		const written2: rs.Result<undefined, rs.FmtError> = render(boxed2, b, "b");
 		rs.drop(boxed2);
-		const _278: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const args23 = [(f: rs.Formatter) => rs.fmtResult(written2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_278.value), f, rs.u8Debug)];
-		const _274: rs.String = rs.fmtFormat([args23[0], " ", args23[1], " "]);
-		rs.refRelease(_278);
-		put(out, _274.v);
+		const _254: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const args15 = [(f: rs.Formatter) => rs.fmtResult(written2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_254.value), f, rs.u8Debug)];
+		const _251: rs.String = rs.fmtFormat([args15[0], " ", args15[1], " "]);
+		rs.refRelease(_254);
+		put(out, _251.v);
 		upper[Symbol.dispose]();
-		const _297: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _293: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_297.value), f, rs.u8Debug)]);
-		rs.refRelease(_297);
-		put(out, _293.v);
+		const _271: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+		const _268: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_271.value), f, rs.u8Debug)]);
+		rs.refRelease(_271);
+		put(out, _268.v);
 		log[Symbol.dispose]();
 	}
 }

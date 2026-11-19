@@ -127,31 +127,31 @@ export class of$counts_Noisy {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["counts::arcs", (_210: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
+	return rs.vecFrom([["counts::arcs", (_29: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): undefined => {
 		arcs(data, out);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::rcs", (_211: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::rcs", (_210: rs.u8, data2: rs.ByteSlice, out2: rs.ByteVec): undefined => {
 		rcs(data2, out2);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cyclic_arcs", (_212: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cyclic_arcs", (_211: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		cyclicArcs(data3, out3);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cyclic_rcs", (_213: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cyclic_rcs", (_212: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		cyclicRcs(data4, out4);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::unique_arcs", (_214: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::unique_arcs", (_213: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
 		uniqueArcs(data5, out5);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::unique_rcs", (_215: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::unique_rcs", (_214: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
 		uniqueRcs(data6, out6);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cloned_arcs", (_216: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cloned_arcs", (_215: rs.u8, data7: rs.ByteSlice, out7: rs.ByteVec): undefined => {
 		clonedArcs(data7, out7);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cloned_rcs", (_217: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::cloned_rcs", (_216: rs.u8, data8: rs.ByteSlice, out8: rs.ByteVec): undefined => {
 		clonedRcs(data8, out8);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::copies", (_218: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::copies", (_217: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
 		copies(data9, out9);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::addressed_arcs", (_219: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::addressed_arcs", (_218: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
 		addressedArcs(data10, out10);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::addressed_rcs", (_220: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::addressed_rcs", (_219: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
 		addressedRcs(data11, out11);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::pointed_arcs", (_221: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::pointed_arcs", (_220: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
 		pointedArcs(data12, out12);
-	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::pointed_rcs", (_222: rs.u8, data13: rs.ByteSlice, out13: rs.ByteVec): undefined => {
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["counts::pointed_rcs", (_221: rs.u8, data13: rs.ByteSlice, out13: rs.ByteVec): undefined => {
 		pointedRcs(data13, out13);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }

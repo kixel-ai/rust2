@@ -30,15 +30,15 @@ export interface Scanner {
 }
 
 export function take(self: Scanner, n: rs.usize): rs.ByteSlice | undefined {
-	const _10Data: Uint8Array = self.bufData;
-	const _10Start: number = self.bufStart;
-	const _10Len: number = self.bufLen;
-	if (n <= _10Len) {
-		self.bufData = _10Data;
-		self.bufStart = _10Start + n;
-		self.bufLen = _10Len - n;
+	const _7Data: Uint8Array = self.bufData;
+	const _7Start: number = self.bufStart;
+	const _7Len: number = self.bufLen;
+	if (n <= _7Len) {
+		self.bufData = _7Data;
+		self.bufStart = _7Start + n;
+		self.bufLen = _7Len - n;
 		self.read = rs.usizeAdd(self.read, n);
-		return new rs.ByteSlice(_10Data, _10Start, n);
+		return new rs.ByteSlice(_7Data, _7Start, n);
 	}
 	return undefined;
 }

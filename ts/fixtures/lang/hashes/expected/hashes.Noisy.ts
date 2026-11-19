@@ -18,7 +18,7 @@ export class Noisy {
 
 export function clone$Clone(self: Noisy): Noisy {
 	event(67, self._0);
-	return new Noisy(self._0);
+	return self;
 }
 
 export function drop$ops_Drop(self: Noisy): void {

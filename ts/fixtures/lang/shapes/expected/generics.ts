@@ -29,15 +29,12 @@ import type * as Head from "./generics.Head.ts";
 import * as Holder from "./generics.Holder.ts";
 import * as Kept from "./generics.Kept.ts";
 import * as Layer from "./generics.Layer.ts";
-import type * as Lends from "./generics.Lends.ts";
 import type * as Lent from "./generics.Lent.ts";
 import type * as Linked from "./generics.Linked.ts";
 import type * as Looped from "./generics.Looped.ts";
-import type * as Marked from "./generics.Marked.ts";
 import * as Node from "./generics.Node.ts";
 import * as Odd from "./generics.Odd.ts";
 import * as Parked from "./generics.Parked.ts";
-import type * as Paths from "./generics.Paths.ts";
 import type * as Peel from "./generics.Peel.ts";
 import * as Pile from "./generics.Pile.ts";
 import * as Ping from "./generics.Ping.ts";
@@ -74,14 +71,15 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
-	const point: Wrap.Wrap<Point.Point> = copy$generics_Wrap_shapes_Point(Wrap.new$shapes_Point({ x: at(0) as rs.i32, y: -2 }));
+	const point: Wrap.Wrap<Point.Point> = copy$generics_Wrap_shapes_Point(Wrap.new$shapes_Point({ x: at(([0] as [rs.usize])[0]) as rs.i32, y: -2 }));
 	Wrap.bump$shapes_Point(point);
-	const byte: Wrap.Wrap<rs.u8> = copy$generics_Wrap_u8(Wrap.new$u8(at(1)));
+	const byte: Wrap.Wrap<rs.u8> = copy$generics_Wrap_u8(Wrap.new$u8(at(([1] as [rs.usize])[0])));
 	Wrap.bump$u8(byte);
 	Wrap.bump$u8(byte);
-	const nested: Wrap.Wrap<Wrap.Wrap<Pair.Pair>> = Wrap.new$generics_Wrap_fmt_Pair(Wrap.new$fmt_Pair({ _0: at(2), _1: -3 }));
-	const meters: Wrap.Wrap<Meters.Meters> = new Wrap.Wrap({ _0: at(3) as rs.u64 }, at(4));
-	const shape: Wrap.Wrap<Shape.Shape> = Wrap.new$shapes_Shape({ tag: "Rect", corner: Wrap.intoInner$shapes_Point(point), width: at(5) as rs.u16, height: 3 } as Shape.Shape);
+	const nested: Wrap.Wrap<Wrap.Wrap<Pair.Pair>> = Wrap.new$generics_Wrap_fmt_Pair(Wrap.new$fmt_Pair({ _0: at(([2] as [rs.usize])[0]), _1: -3 }));
+	const _24: Meters.Meters = { _0: at(([3] as [rs.usize])[0]) as rs.u64 };
+	const meters: Wrap.Wrap<Meters.Meters> = new Wrap.Wrap(_24, at(([4] as [rs.usize])[0]));
+	const shape: Wrap.Wrap<Shape.Shape> = Wrap.new$shapes_Shape({ tag: "Rect", corner: Wrap.intoInner$shapes_Point(point), width: at(([5] as [rs.usize])[0]) as rs.u16, height: 3 } as Shape.Shape);
 	const args13 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
 	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]).v);
 	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f))]).v);
@@ -127,39 +125,39 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	Wrap.describe$shapes_Area_shapes_Meters(meters, out);
 	Wrap.describe$shapes_Area_shapes_Shape(shape, out);
 	const mapped: Wrap.Wrap<Pair.Pair> = Wrap.map$u8_fmt_Pair_generics_methods_closure1(byte, (b: rs.u8): Pair.Pair => {
-		return { _0: b, _1: at(6) as rs.i64 };
+		return { _0: b, _1: at(([6] as [rs.usize])[0]) as rs.i64 };
 	});
-	const _119: Wrap.Wrap<Pair.Pair> = Wrap.new$fmt_Pair({ _0: at(1), _1: 0 });
-	const _116: boolean = Wrap.eq$cmp_PartialEq_fmt_Pair(mapped, _119);
-	const args15 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_fmt_Pair(mapped, f), (f: rs.Formatter) => rs.fmtBool(_116, f)];
-	put(out, rs.fmtFormat([args15[0], " ", args15[1]]).v);
-	const iter: rs.Iter<Either.Either<rs.u8, Point.Point>> = rs.iterSlice(copy$array_generics_Either_u8_shapes_Point([{ tag: "Left", _0: at(7) } as Either.Either<rs.u8, Point.Point>, { tag: "Right", value: Point.new(1, -1) } as Either.Either<rs.u8, Point.Point>, { tag: "Neither" } as Either.Either<rs.u8, Point.Point>]));
+	const _108: Wrap.Wrap<Pair.Pair> = Wrap.new$fmt_Pair({ _0: at(([1] as [rs.usize])[0]), _1: 0 });
+	const _105: boolean = Wrap.eq$cmp_PartialEq_fmt_Pair(mapped, _108);
+	const args17 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_fmt_Pair(mapped, f), (f: rs.Formatter) => rs.fmtBool(_105, f)];
+	put(out, rs.fmtFormat([args17[0], " ", args17[1]]).v);
+	const iter: rs.Iter<Either.Either<rs.u8, Point.Point>> = rs.iterSlice(copy$array_generics_Either_u8_shapes_Point([{ tag: "Left", _0: at(([7] as [rs.usize])[0]) } as Either.Either<rs.u8, Point.Point>, { tag: "Right", value: Point.new(1, -1) } as Either.Either<rs.u8, Point.Point>, { tag: "Neither" } as Either.Either<rs.u8, Point.Point>]));
 	while (true) {
-		const _140: Either.Either<rs.u8, Point.Point> | rs.Done = iter.next();
-		if (_140 === rs.DONE) {
+		const _126: Either.Either<rs.u8, Point.Point> | rs.Done = iter.next();
+		if (_126 === rs.DONE) {
 			break;
 		}
-		const either: Either.Either<rs.u8, Point.Point> = _140;
+		const either: Either.Either<rs.u8, Point.Point> = _126;
 		const flipped: Either.Either<Point.Point, rs.u8> = Either.flip$u8_shapes_Point(either);
-		const _153: rs.u8 | undefined = Either.left$u8_shapes_Point(either);
-		const _156: Point.Point | undefined = Either.left$shapes_Point_u8(flipped);
-		const args16 = [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_shapes_Point(either, f), (f: rs.Formatter) => Either.fmt$fmt_Debug_shapes_Point_u8(flipped, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_156, f, (value: Point.Point, f: rs.Formatter) => Point.fmt$fmt_Debug(value, f))];
-		put(out, rs.fmtFormat([args16[0], " ", rs.fmtSpec({ alternate: true }, args16[1]), " ", args16[2], " ", args16[3]]).v);
+		const _138: rs.u8 | undefined = Either.left$u8_shapes_Point(either);
+		const _141: Point.Point | undefined = Either.left$shapes_Point_u8(flipped);
+		const args19 = [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_shapes_Point(either, f), (f: rs.Formatter) => Either.fmt$fmt_Debug_shapes_Point_u8(flipped, f), (f: rs.Formatter) => rs.fmtOption(_138, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_141, f, (value: Point.Point, f: rs.Formatter) => Point.fmt$fmt_Debug(value, f))];
+		put(out, rs.fmtFormat([args19[0], " ", rs.fmtSpec({ alternate: true }, args19[1]), " ", args19[2], " ", args19[3]]).v);
 	}
 	const list: Wrap.Wrap<rs.Vec<rs.u16>> = new Wrap.Wrap(new rs.Vec(), 1);
-	const _171: rs.u16 = at(10) as rs.u16;
-	list.value.items.push(_171);
+	const _155: rs.u16 = at(([10] as [rs.usize])[0]) as rs.u16;
+	list.value.items.push(_155);
 	Wrap.bump$Vec_u16(list);
 	const none: Wrap.Wrap<rs.u8 | undefined> = new Wrap.Wrap(undefined, 0);
 	const some: Wrap.Wrap<rs.u8 | undefined> = Wrap.new$Option_u8(rs.byteSliceGet(data, 11));
 	const err: Wrap.Wrap<rs.Result<rs.u8, Shape.Shape>> = new Wrap.Wrap(rs.Err({ tag: "Dot" } as Shape.Shape), 2);
-	const _193: rs.u8 = option_unwrapOr$1fr498u(Wrap.get$Option_u8(none), some.count);
-	const args17 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rs.Formatter) => rs.u8Debug(_193, f)];
-	put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4]]).v);
-	const tagged: Tagged.Tagged<Either.Either<rs.u8, rs.u16>, rs.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rs.u8, rs.u16>, Wrap.new$i16(rs.i16Sub(at(8) as rs.i16, 100)), rs.vecFrom([Wrap.new$i16(-1), Wrap.new$i16(at(9) as rs.i16)].slice()));
-	const _237: Wrap.Wrap<rs.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
-	const args18 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_237, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
-	put(out, rs.fmtFormat([args18[0], " ", args18[1]]).v);
+	const _174: rs.u8 = option_unwrapOr$1fr498u(Wrap.get$Option_u8(none), some.count);
+	const args21 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rs.Formatter) => rs.u8Debug(_174, f)];
+	put(out, rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4]]).v);
+	const tagged: Tagged.Tagged<Either.Either<rs.u8, rs.u16>, rs.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rs.u8, rs.u16>, Wrap.new$i16(rs.i16Sub(at(([8] as [rs.usize])[0]) as rs.i16, 100)), rs.vecFrom([Wrap.new$i16(-1), Wrap.new$i16(at(([9] as [rs.usize])[0]) as rs.i16)].slice()));
+	const _214: Wrap.Wrap<rs.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
+	const args24 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_214, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
+	put(out, rs.fmtFormat([args24[0], " ", args24[1]]).v);
 	const dst4 = out;
 	const word8 = tagged.inner.value;
 	rs.byteVecReserve(dst4, 2 as rs.usize);
@@ -228,7 +226,7 @@ export function fill$u8(run: rs.ByteSlice, item: rs.u8): void {
  * `u16`, then [`Runs`] and [`Run`] of values that drop, in the order of their fields.
  */
 export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _266!: rs.Cow<Ticked.Ticked>;
+	let _246!: rs.Cow<Ticked.Ticked>;
 	let run3!: Run.Run<Ticked.Ticked>;
 	const s = rs.byteSliceView(data);
 	let front = 0;
@@ -255,34 +253,33 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x4 = s2[front2++];
 		Runs.push$u8(runs, x4);
 	}
-	const _44: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs.pairs as rs.Vec<Uint8Array>).items, rs.byteSliceFrom));
-	if (_44 !== undefined) {
-		fill$u8(_44, n);
+	const _43: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs.pairs as rs.Vec<Uint8Array>).items, rs.byteSliceFrom));
+	if (_43 !== undefined) {
+		fill$u8(_43, n);
 	}
-	fill$u8(rs.byteSliceRange(rs.byteSliceFrom(runs.array as Uint8Array), 1), 7);
+	fill$u8(rs.byteSliceRange(rs.byteSliceFrom(runs.array as Uint8Array), new rs.RangeFrom(1, rs.usizeStep).start), 7);
 	const taken3 = runs.list as rs.ByteVec;
 	(runs.list as rs.ByteVec) = new rs.ByteVec();
 	const taken: rs.ByteVec = taken3;
-	const _59: rs.ByteSlice = rs.byteVecSlice(taken);
-	const lent: Lends.Lends<rs.u8> = { run: _59, last: ((a0: rs.ByteSlice): rs.u8 | undefined => {
+	const _56: rs.ByteSlice = rs.byteVecSlice(taken);
+	const last: rs.u8 | undefined = ((a0: rs.ByteSlice): rs.u8 | undefined => {
 		return rs.byteSliceLast(a0);
-	}) as (a0: rs.SliceOf<rs.u8>) => rs.Ptr<rs.u8> | undefined };
-	const last: rs.u8 | undefined = (lent.last as (a0: rs.ByteSlice) => rs.u8 | undefined)(runs.view as rs.ByteSlice);
-	const _65: rs.Place<rs.u8> | undefined = rs.sliceLastMut(_59);
-	if (_65 !== undefined) {
-		_65.v = n;
+	})(runs.view as rs.ByteSlice);
+	const _61: rs.Place<rs.u8> | undefined = rs.sliceLastMut(_56);
+	if (_61 !== undefined) {
+		_61.v = n;
 	}
-	fill$u8(_59, 3);
+	fill$u8(_56, 3);
 	const run: Run.Run<rs.u8> = Runs.run$u8(runs);
 	const fixed: Fixed.Fixed<rs.u8> = new Fixed.Fixed(Uint8Array.of(n, n), 1);
 	const copy: Fixed.Fixed<rs.u8> = copy$generics_Fixed_u8(fixed);
 	(copy.pair as Uint8Array)[0] = 9;
 	const swapped: Fixed.Fixed<rs.u8> = swapped$u8(copy$generics_Fixed_u8(copy));
-	const _88: rs.usize = Runs.total$u8(runs);
-	const _91: boolean = Runs.eq$cmp_PartialEq_u8(runs, before);
-	const _95: rs.u8 | undefined = Run.first$u8(run);
-	const args5 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_88, f), (f: rs.Formatter) => rs.fmtBool(_91, f), (f: rs.Formatter) => rs.fmtOption(_95, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7], " ", args5[8], " ", args5[9], " ", args5[10]]).v);
+	const _81: rs.usize = Runs.total$u8(runs);
+	const _84: boolean = Runs.eq$cmp_PartialEq_u8(runs, before);
+	const _88: rs.u8 | undefined = Run.first$u8(run);
+	const args3 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_81, f), (f: rs.Formatter) => rs.fmtBool(_84, f), (f: rs.Formatter) => rs.fmtOption(_88, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4], " ", args3[5], " ", args3[6], " ", args3[7], " ", args3[8], " ", args3[9], " ", args3[10]]).v);
 	const s3 = rs.byteSliceView(data);
 	let front3 = 0;
 	let back3 = s3.length;
@@ -311,34 +308,33 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x6 = s4[front4++];
 		Runs.push$u16(runs2, x6);
 	}
-	const _160: rs.Slice<rs.u16> | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items, rs.sliceFrom));
-	if (_160 !== undefined) {
-		fill$u16(_160, n2);
+	const _151: rs.Slice<rs.u16> | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items, rs.sliceFrom));
+	if (_151 !== undefined) {
+		fill$u16(_151, n2);
 	}
-	fill$u16(rs.sliceRange(rs.sliceFrom(runs2.array as rs.u16[]), 1), 7 as rs.u16);
+	fill$u16(rs.sliceRange(rs.sliceFrom(runs2.array as rs.u16[]), new rs.RangeFrom(1, rs.usizeStep).start), 7 as rs.u16);
 	const taken4 = runs2.list as rs.Vec<rs.u16>;
 	(runs2.list as rs.Vec<rs.u16>) = new rs.Vec();
 	const taken2: rs.Vec<rs.u16> = taken4;
-	const _175: rs.Slice<rs.u16> = rs.sliceFrom(taken2.items);
-	const lent2: Lends.Lends<rs.u16> = { run: _175, last: ((a02: rs.Slice<rs.u16>): rs.u16 | undefined => {
+	const _164: rs.Slice<rs.u16> = rs.sliceFrom(taken2.items);
+	const last2: rs.u16 | undefined = ((a02: rs.Slice<rs.u16>): rs.u16 | undefined => {
 		return rs.sliceLast(a02);
-	}) as (a0: rs.SliceOf<rs.u16>) => rs.Ptr<rs.u16> | undefined };
-	const last2: rs.u16 | undefined = (lent2.last as (a0: rs.Slice<rs.u16>) => rs.u16 | undefined)(runs2.view as rs.Slice<rs.u16>);
-	const _181: rs.Place<rs.u16> | undefined = rs.sliceLastMut(_175);
-	if (_181 !== undefined) {
-		_181.v = n2;
+	})(runs2.view as rs.Slice<rs.u16>);
+	const _169: rs.Place<rs.u16> | undefined = rs.sliceLastMut(_164);
+	if (_169 !== undefined) {
+		_169.v = n2;
 	}
-	fill$u16(_175, 3 as rs.u16);
+	fill$u16(_164, 3 as rs.u16);
 	const run2: Run.Run<rs.u16> = Runs.run$u16(runs2);
 	const fixed2: Fixed.Fixed<rs.u16> = new Fixed.Fixed([n2, n2], 1);
 	const copy2: Fixed.Fixed<rs.u16> = copy$generics_Fixed_u16(fixed2);
 	(copy2.pair as rs.u16[])[0] = 9 as rs.u16;
 	const swapped2: Fixed.Fixed<rs.u16> = swapped$u16(copy$generics_Fixed_u16(copy2));
-	const _204: rs.usize = Runs.total$u16(runs2);
-	const _207: boolean = Runs.eq$cmp_PartialEq_u16(runs2, before2);
-	const _211: rs.u16 | undefined = Run.first$u16(run2);
-	const args6 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rs.Formatter) => rs.fmtList(taken2.items, f, rs.u16Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rs.Formatter) => rs.usizeDisplay(_204, f), (f: rs.Formatter) => rs.fmtBool(_207, f), (f: rs.Formatter) => rs.fmtOption(_211, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtOption(last2, f, rs.u16Debug)];
-	put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", args6[6], " ", args6[7], " ", args6[8], " ", args6[9], " ", args6[10]]).v);
+	const _189: rs.usize = Runs.total$u16(runs2);
+	const _192: boolean = Runs.eq$cmp_PartialEq_u16(runs2, before2);
+	const _196: rs.u16 | undefined = Run.first$u16(run2);
+	const args4 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rs.Formatter) => rs.fmtList(taken2.items, f, rs.u16Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rs.Formatter) => rs.usizeDisplay(_189, f), (f: rs.Formatter) => rs.fmtBool(_192, f), (f: rs.Formatter) => rs.fmtOption(_196, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtOption(last2, f, rs.u16Debug)];
+	put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " ", args4[6], " ", args4[7], " ", args4[8], " ", args4[9], " ", args4[10]]).v);
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));
@@ -353,31 +349,32 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v3.items.push(y3);
 	}
 	const ticks: rs.Vec<Ticked.Ticked> = v3;
-	const _246: Ticked.Ticked[] = [tick(1), tick(2), tick(3)];
-	const _256: rs.Vec<Ticked.Ticked> = rs.vecFrom(ticks.items.map(Ticked.clone$Clone));
-	const _258: rs.Slice<Ticked.Ticked> = rs.sliceFrom(ticks.items);
-	const _260: rs.Slice<Ticked.Ticked> = rs.sliceFrom([tick(4)]);
-	if (rs.usizeRem(data.length, 2) === 0) {
-		_266 = new rs.Borrowed(rs.sliceFrom(ticks.items));
+	const _230: Ticked.Ticked[] = [tick(([1] as [rs.u8])[0]), tick(([2] as [rs.u8])[0]), tick(([3] as [rs.u8])[0])];
+	const _237: rs.Vec<Ticked.Ticked> = rs.vecFrom(ticks.items.map(Ticked.clone$Clone));
+	const _239: rs.Slice<Ticked.Ticked> = rs.sliceFrom(ticks.items);
+	const _241: rs.Slice<Ticked.Ticked> = rs.sliceFrom([tick(([4] as [rs.u8])[0])]);
+	const _248: rs.usize = data.length;
+	if (rs.usizeRem(_248, 2) === 0) {
+		_246 = new rs.Borrowed(rs.sliceFrom(ticks.items));
 	} else {
-		_266 = rs.vecFrom([tick(7)]);
+		_246 = rs.vecFrom([tick(([7] as [rs.u8])[0])]);
 	}
-	new Runs.Runs(_246, _256, _258, _260, _266, rs.vecFrom([[tick(5), tick(6)]]) as rs.Vec<rs.ArrayOf<Ticked.Ticked>>, option_map$0ggarad(rs.byteSliceFirst(data), (_210: rs.u8): rs.Vec<Ticked.Ticked> => {
-		return rs.vecFrom([tick(~_210 & 0xff)]);
+	new Runs.Runs(_230, _237, _239, _241, _246, rs.vecFrom([[tick(([5] as [rs.u8])[0]), tick(([6] as [rs.u8])[0])]]) as rs.Vec<rs.ArrayOf<Ticked.Ticked>>, option_map$0ggarad(rs.byteSliceFirst(data), (_29: rs.u8): rs.Vec<Ticked.Ticked> => {
+		return rs.vecFrom([tick(~_29 & 0xff)]);
 	}))[Symbol.dispose]();
-	const _292: rs.usize = rs.usizeRem(data.length, 3);
-	if (_292 === 0) {
-		run3 = { tag: "Listed", _0: rs.vecFrom([tick(8)]) } as Run.Run<Ticked.Ticked>;
-	} else if (_292 === 1) {
-		run3 = { tag: "Fixed", array: [tick(9), tick(10)] } as Run.Run<Ticked.Ticked>;
+	const _268: rs.usize = rs.usizeRem(_248, 3);
+	if (_268 === 0) {
+		run3 = { tag: "Listed", _0: rs.vecFrom([tick(([8] as [rs.u8])[0])]) } as Run.Run<Ticked.Ticked>;
+	} else if (_268 === 1) {
+		run3 = { tag: "Fixed", array: [tick(([9] as [rs.u8])[0]), tick(([10] as [rs.u8])[0])] } as Run.Run<Ticked.Ticked>;
 	} else {
 		run3 = { tag: "Empty" } as Run.Run<Ticked.Ticked>;
 	}
-	drop$generics_Run_generics_Ticked(run3);
+	drop$generics_Run_generics_Ticked(run3 as Run.Run<Ticked.Ticked>);
 	rs.dropVec(ticks);
-	const _315: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_315.value))), undefined, true);
-	rs.refRelease(_315);
+	const _286: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_286.value))), undefined, true);
+	rs.refRelease(_286);
 	log[Symbol.dispose]();
 }
 
@@ -387,124 +384,145 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const parked: Parked.Parked<undefined> = Parked.new$unit();
-	const iterS: Uint8Array = rs.byteSliceView(data);
-	let iterI: number = 0;
+	for (const b of rs.byteSliceView(data)) {
+		b >> 4 as rs.usize;
+		const _13: rs.u8 = rs.u8Rem(b, 4);
+		if (_13 === 0) {
+			rs.byteVecPush(out, Parked.park$unit(parked, undefined) ? 1 : 0);
+		} else if (_13 === 1) {
+			rs.byteVecPush(out, isPending$1yqrsts(Parked.ready$unit(parked, undefined)) ? 1 : 0);
+		} else if (_13 === 2) {
+			const _27: undefined | rs.None = thenSome$1n1oy1h((b & 4) !== 0, undefined);
+			rs.byteVecPush(out, Parked.send$unit(parked, _27) !== rs.None ? 1 : 0);
+		} else {
+			const _32: [undefined | rs.None, undefined | rs.None] = Parked.disarm$unit(parked);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_32[0] !== rs.None ? 1 : 0, _32[1] !== rs.None ? 1 : 0)), undefined, true);
+		}
+	}
+	const again: boolean = parked.parked === undefined as undefined | rs.None;
+	const _49: undefined | rs.None = parked.parked;
+	const _50: rs.Poll<undefined> = parked.ready;
+	const _51: undefined | rs.None = Parked.send$unit(parked, rs.None);
+	const was2: undefined | rs.None = _49;
+	const ready: rs.Poll<undefined> = _50;
+	const _64: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(was2, f, rs.fmtUnit, rs.None);
+	const sent2: undefined | rs.None = _51;
+	const args5 = [_64, (f: rs.Formatter) => rs.fmtPoll(ready, f, rs.fmtUnit), (f: rs.Formatter) => rs.fmtOption(sent2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtBool(again, f)];
+	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3]]).v);
+	const parked2: Parked.Parked<rs.u8 | undefined> = Parked.new$Option_u8();
+	const iterS2: Uint8Array = rs.byteSliceView(data);
+	let iterI2: number = 0;
 	while (true) {
-		const _8: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-		const _3: undefined[] = [undefined];
-		if (_8 === rs.DONE) {
+		const _74: rs.u8 | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
+		const items: Array<rs.u8 | undefined> = [undefined, 1, 2];
+		if (_74 === rs.DONE) {
 			break;
 		}
-		const b: rs.u8 = _8;
-		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom(_3).length);
-		if (!(_12 < 1)) {
-			rs.panic("index out of bounds: the len is " + 1 + " but the index is " + _12);
+		const b2: rs.u8 = _74;
+		const _79: rs.usize = rs.usizeRem(b2 >> 4 as rs.usize, 3);
+		if (!(_79 < 3)) {
+			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _79);
 		}
-		const _22: rs.u8 = rs.u8Rem(b, 4);
-		if (_22 === 0) {
-			rs.byteVecPush(out, Parked.park$unit(parked, undefined) ? 1 : 0);
-		} else if (_22 === 1) {
-			rs.byteVecPush(out, isPending$1yqrsts(Parked.ready$unit(parked, undefined)) ? 1 : 0);
-		} else if (_22 === 2) {
-			const _37: undefined | rs.None = thenSome$1n1oy1h((b & 4) !== 0, undefined);
-			rs.byteVecPush(out, Parked.send$unit(parked, _37) !== rs.None ? 1 : 0);
-		} else {
-			const _42: [undefined | rs.None, undefined | rs.None] = Parked.disarm$unit(parked);
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_42[0] !== rs.None ? 1 : 0, _42[1] !== rs.None ? 1 : 0)), undefined, true);
-		}
-	}
-	const again: boolean = parked.parked === undefined;
-	const _61: [undefined | rs.None, rs.Poll<undefined>, undefined | rs.None] = [parked.parked, parked.ready, Parked.send$unit(parked, rs.None)];
-	const was2: undefined | rs.None = _61[0];
-	const ready: rs.Poll<undefined> = _61[1];
-	const sent2: undefined | rs.None = _61[2];
-	const args9 = [(f: rs.Formatter) => rs.fmtOption(was2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtPoll(ready, f, rs.fmtUnit), (f: rs.Formatter) => rs.fmtOption(sent2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtBool(again, f)];
-	put(out, rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2], " ", args9[3]]).v);
-	const items: Array<rs.u8 | undefined> = [undefined, 1, 2];
-	const parked2: Parked.Parked<rs.u8 | undefined> = Parked.new$Option_u8();
-	for (const b2 of rs.byteSliceView(data)) {
-		const _98: rs.usize = rs.usizeRem(b2 >> 4 as rs.usize, rs.sliceFrom(items).length);
-		if (!(_98 < 3)) {
-			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _98);
-		}
-		const item: rs.u8 | undefined = items[_98];
-		const _108: rs.u8 = rs.u8Rem(b2, 4);
-		if (_108 === 0) {
+		const item: rs.u8 | undefined = (items as Array<rs.u8 | undefined>)[_79];
+		const _83: rs.u8 = rs.u8Rem(b2, 4);
+		if (_83 === 0) {
 			rs.byteVecPush(out, Parked.park$Option_u8(parked2, item) ? 1 : 0);
-		} else if (_108 === 1) {
+		} else if (_83 === 1) {
 			rs.byteVecPush(out, isPending$07fnw8g(Parked.ready$Option_u8(parked2, item)) ? 1 : 0);
-		} else if (_108 === 2) {
-			const _123: rs.u8 | undefined | rs.None = thenSome$1ctlqen((b2 & 4) !== 0, item);
-			rs.byteVecPush(out, Parked.send$Option_u8(parked2, _123) !== rs.None ? 1 : 0);
+		} else if (_83 === 2) {
+			const _97: rs.u8 | undefined | rs.None = thenSome$1ctlqen((b2 & 4) !== 0, item);
+			rs.byteVecPush(out, Parked.send$Option_u8(parked2, _97) !== rs.None ? 1 : 0);
 		} else {
-			const _128: [rs.u8 | undefined | rs.None, rs.u8 | undefined | rs.None] = Parked.disarm$Option_u8(parked2);
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_128[0] !== rs.None ? 1 : 0, _128[1] !== rs.None ? 1 : 0)), undefined, true);
+			const _102: [rs.u8 | undefined | rs.None, rs.u8 | undefined | rs.None] = Parked.disarm$Option_u8(parked2);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_102[0] !== rs.None ? 1 : 0, _102[1] !== rs.None ? 1 : 0)), undefined, true);
 		}
 	}
-	const again2: boolean = parked2.parked === items[0] as rs.u8 | undefined | rs.None;
-	const _148: [rs.u8 | undefined | rs.None, rs.Poll<rs.u8 | undefined>, rs.u8 | undefined | rs.None] = [parked2.parked, parked2.ready, Parked.send$Option_u8(parked2, rs.None)];
-	const was4: rs.u8 | undefined | rs.None = _148[0];
-	const ready2: rs.Poll<rs.u8 | undefined> = _148[1];
-	const sent4: rs.u8 | undefined | rs.None = _148[2];
-	const args10 = [(f: rs.Formatter) => rs.fmtOption(was4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtPoll(ready2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtOption(sent4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtBool(again2, f)];
-	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3]]).v);
-	const items2: rs.Poll<rs.u8>[] = [rs.Pending, 1];
+	const again2: boolean = parked2.parked === undefined as rs.u8 | undefined | rs.None;
+	const _119: rs.u8 | undefined | rs.None = parked2.parked;
+	const _120: rs.Poll<rs.u8 | undefined> = parked2.ready;
+	const _121: rs.u8 | undefined | rs.None = Parked.send$Option_u8(parked2, rs.None);
+	const was4: rs.u8 | undefined | rs.None = _119;
+	const ready2: rs.Poll<rs.u8 | undefined> = _120;
+	const _134: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(was4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const sent4: rs.u8 | undefined | rs.None = _121;
+	const args6 = [_134, (f: rs.Formatter) => rs.fmtPoll(ready2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtOption(sent4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtBool(again2, f)];
+	put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3]]).v);
 	const parked3: Parked.Parked<rs.Poll<rs.u8>> = Parked.new$task_Poll_u8();
-	for (const b3 of rs.byteSliceView(data)) {
-		const _184: rs.usize = rs.usizeRem(b3 >> 4 as rs.usize, rs.sliceFrom(items2).length);
-		if (!(_184 < 2)) {
-			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _184);
+	const iterS3: Uint8Array = rs.byteSliceView(data);
+	let iterI3: number = 0;
+	while (true) {
+		const _144: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
+		const items2: rs.Poll<rs.u8>[] = [rs.Pending, 1];
+		if (_144 === rs.DONE) {
+			break;
 		}
-		const item2: rs.Poll<rs.u8> = items2[_184];
-		const _194: rs.u8 = rs.u8Rem(b3, 4);
-		if (_194 === 0) {
+		const b3: rs.u8 = _144;
+		const _149: rs.usize = rs.usizeRem(b3 >> 4 as rs.usize, 2);
+		if (!(_149 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _149);
+		}
+		const item2: rs.Poll<rs.u8> = (items2 as rs.Poll<rs.u8>[])[_149];
+		const _153: rs.u8 = rs.u8Rem(b3, 4);
+		if (_153 === 0) {
 			rs.byteVecPush(out, Parked.park$task_Poll_u8(parked3, item2) ? 1 : 0);
-		} else if (_194 === 1) {
+		} else if (_153 === 1) {
 			rs.byteVecPush(out, isPending$1imonrp(Parked.ready$task_Poll_u8(parked3, item2)) ? 1 : 0);
-		} else if (_194 === 2) {
-			const _209: rs.Poll<rs.u8> | undefined = thenSome$19pue01((b3 & 4) !== 0, item2);
-			rs.byteVecPush(out, Parked.send$task_Poll_u8(parked3, _209) !== undefined ? 1 : 0);
+		} else if (_153 === 2) {
+			const _167: rs.Poll<rs.u8> | undefined = thenSome$19pue01((b3 & 4) !== 0, item2);
+			rs.byteVecPush(out, Parked.send$task_Poll_u8(parked3, _167) !== undefined ? 1 : 0);
 		} else {
-			const _214: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | undefined] = Parked.disarm$task_Poll_u8(parked3);
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_214[0] !== undefined ? 1 : 0, _214[1] !== undefined ? 1 : 0)), undefined, true);
+			const _172: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | undefined] = Parked.disarm$task_Poll_u8(parked3);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_172[0] !== undefined ? 1 : 0, _172[1] !== undefined ? 1 : 0)), undefined, true);
 		}
 	}
-	const _227 = items2[0] as rs.Poll<rs.u8> | undefined;
-	const again3: boolean = rs.eqOption(poll_eq$1qrb1lw)(parked3.parked, _227);
-	const _234: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | rs.OuterPending, rs.Poll<rs.u8> | undefined] = [parked3.parked, parked3.ready, Parked.send$task_Poll_u8(parked3, undefined)];
-	const was6: rs.Poll<rs.u8> | undefined = _234[0];
-	const ready3: rs.Poll<rs.u8> | rs.OuterPending = _234[1];
-	const sent6: rs.Poll<rs.u8> | undefined = _234[2];
-	const args11 = [(f: rs.Formatter) => rs.fmtOption(was6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtPoll(ready3, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending), (f: rs.Formatter) => rs.fmtOption(sent6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtBool(again3, f)];
-	put(out, rs.fmtFormat([args11[0], " ", args11[1], " ", args11[2], " ", args11[3]]).v);
-	const items3: Uint8Array = Uint8Array.of(3, 4);
+	const again3: boolean = rs.eqOption(poll_eq$1qrb1lw)(parked3.parked, rs.Pending as rs.Poll<rs.u8> | undefined);
+	const _189: rs.Poll<rs.u8> | undefined = parked3.parked;
+	const _190: rs.Poll<rs.u8> | rs.OuterPending = parked3.ready;
+	const _191: rs.Poll<rs.u8> | undefined = Parked.send$task_Poll_u8(parked3, undefined);
+	const was6: rs.Poll<rs.u8> | undefined = _189;
+	const ready3: rs.Poll<rs.u8> | rs.OuterPending = _190;
+	const _204: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(was6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug));
+	const sent6: rs.Poll<rs.u8> | undefined = _191;
+	const args7 = [_204, (f: rs.Formatter) => rs.fmtPoll(ready3, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending), (f: rs.Formatter) => rs.fmtOption(sent6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtBool(again3, f)];
+	put(out, rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], " ", args7[3]]).v);
 	const parked4: Parked.Parked<rs.u8> = Parked.new$u8();
-	for (const b4 of rs.byteSliceView(data)) {
-		const _268: rs.usize = rs.usizeRem(b4 >> 4 as rs.usize, rs.byteSliceFrom(items3).length);
-		if (!(_268 < 2)) {
-			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _268);
+	const iterS4: Uint8Array = rs.byteSliceView(data);
+	let iterI4: number = 0;
+	while (true) {
+		const _214: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
+		const items3: Uint8Array = Uint8Array.of(3, 4);
+		if (_214 === rs.DONE) {
+			break;
 		}
-		const item3: rs.u8 = items3[_268];
-		const _278: rs.u8 = rs.u8Rem(b4, 4);
-		if (_278 === 0) {
+		const b4: rs.u8 = _214;
+		const _219: rs.usize = rs.usizeRem(b4 >> 4 as rs.usize, 2);
+		if (!(_219 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _219);
+		}
+		const item3: rs.u8 = items3[_219];
+		const _223: rs.u8 = rs.u8Rem(b4, 4);
+		if (_223 === 0) {
 			rs.byteVecPush(out, Parked.park$u8(parked4, item3) ? 1 : 0);
-		} else if (_278 === 1) {
+		} else if (_223 === 1) {
 			rs.byteVecPush(out, isPending$189w6zf(Parked.ready$u8(parked4, item3)) ? 1 : 0);
-		} else if (_278 === 2) {
-			const _293: rs.u8 | undefined = thenSome$0quywni((b4 & 4) !== 0, item3);
-			rs.byteVecPush(out, Parked.send$u8(parked4, _293) !== undefined ? 1 : 0);
+		} else if (_223 === 2) {
+			const _237: rs.u8 | undefined = thenSome$0quywni((b4 & 4) !== 0, item3);
+			rs.byteVecPush(out, Parked.send$u8(parked4, _237) !== undefined ? 1 : 0);
 		} else {
-			const _298: [rs.u8 | undefined, rs.u8 | undefined] = Parked.disarm$u8(parked4);
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_298[0] !== undefined ? 1 : 0, _298[1] !== undefined ? 1 : 0)), undefined, true);
+			const _242: [rs.u8 | undefined, rs.u8 | undefined] = Parked.disarm$u8(parked4);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_242[0] !== undefined ? 1 : 0, _242[1] !== undefined ? 1 : 0)), undefined, true);
 		}
 	}
-	const again4: boolean = parked4.parked === items3[0];
-	const _318: [rs.u8 | undefined, rs.Poll<rs.u8>, rs.u8 | undefined] = [parked4.parked, parked4.ready, Parked.send$u8(parked4, undefined)];
-	const was8: rs.u8 | undefined = _318[0];
-	const ready4: rs.Poll<rs.u8> = _318[1];
-	const sent8: rs.u8 | undefined = _318[2];
-	const args12 = [(f: rs.Formatter) => rs.fmtOption(was8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(ready4, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sent8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(again4, f)];
-	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3]]).v);
+	const again4: boolean = parked4.parked === 3 as rs.u8 | undefined;
+	const _259: rs.u8 | undefined = parked4.parked;
+	const _260: rs.Poll<rs.u8> = parked4.ready;
+	const _261: rs.u8 | undefined = Parked.send$u8(parked4, undefined);
+	const was8: rs.u8 | undefined = _259;
+	const ready4: rs.Poll<rs.u8> = _260;
+	const _274: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(was8, f, rs.u8Debug);
+	const sent8: rs.u8 | undefined = _261;
+	const args8 = [_274, (f: rs.Formatter) => rs.fmtPoll(ready4, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sent8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(again4, f)];
+	put(out, rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " ", args8[3]]).v);
 }
 
 /**
@@ -513,7 +531,7 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
  * and at a store that is no array.
  */
 export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _428!: rs.u8;
+	let _377!: rs.u8;
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -529,25 +547,24 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (Drained.next$array4_u8(drain) !== undefined) {
 		count = rs.usizeAdd(count, 1);
 	}
-	const _21: rs.u8 = ((b5: rs.u8): rs.u8 => {
+	const _19: rs.u8 = ((b5: rs.u8): rs.u8 => {
 		return b5;
 	})(1);
 	const part = rs.usizeDiv(items.length, 2);
-	const batch: Batch.Batch<Uint8Array, rs.u8> = new Batch.Batch(Drained.new$array4_u8(_21, rs.byteSliceRange(rs.byteVecSlice(items), part)), 0);
+	const batch: Batch.Batch<Uint8Array, rs.u8> = new Batch.Batch(Drained.new$array4_u8(_19, rs.byteSliceRange(rs.byteVecSlice(items), part)), 0);
 	const half: rs.u8 | undefined = Batch.take$array4_u8(batch);
-	const _46: rs.usize = count;
+	const _39: rs.usize = count;
 	const arg = drain.last;
-	const _49: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg, f, rs.u8Debug);
+	const _42: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg, f, rs.u8Debug);
 	const arg2 = drain.first;
-	const _50: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(arg2, f);
-	const _51: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_46, f);
-	const _52: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(4, f);
-	const _53: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half, f, rs.u8Debug);
+	const _463: rs.usize = 4;
+	const _43: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(arg2, f);
+	const _46: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half, f, rs.u8Debug);
 	const arg3 = batch.drain.last;
-	const _54: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.u8Debug);
+	const _47: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.u8Debug);
 	const arg4 = batch.taken;
-	const args19 = [_49, _50, _51, _52, _53, _54, (f: rs.Formatter) => rs.u8Display(arg4, f)];
-	put(out, rs.fmtFormat([args19[0], " ", args19[1], " ", args19[2], " ", args19[3], " ", args19[4], " ", args19[5], " ", args19[6]]).v);
+	const args10 = [_42, _43, (f: rs.Formatter) => rs.usizeDisplay(_39, f), (f: rs.Formatter) => rs.usizeDisplay(_463, f), _46, _47, (f: rs.Formatter) => rs.u8Display(arg4, f)];
+	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " ", args10[4], " ", args10[5], " ", args10[6]]).v);
 	const s2 = rs.byteSliceView(data);
 	let front2 = 0;
 	let back2 = s2.length;
@@ -564,48 +581,47 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (Drained.next$array2_u16(drain2) !== undefined) {
 		count2 = rs.usizeAdd(count2, 1);
 	}
-	const _76: rs.u16 = ((b8: rs.u8): rs.u16 => {
+	const _66: rs.u16 = ((b8: rs.u8): rs.u16 => {
 		return rs.u16Mul(b8 as rs.u16, 257);
 	})(1);
 	const part2 = rs.usizeDiv(items2.items.length, 2);
-	const batch2: Batch.Batch<rs.u16[], rs.u16> = new Batch.Batch(Drained.new$array2_u16(_76, rs.sliceRange(rs.sliceFrom(items2.items), part2)), 0);
+	const batch2: Batch.Batch<rs.u16[], rs.u16> = new Batch.Batch(Drained.new$array2_u16(_66, rs.sliceRange(rs.sliceFrom(items2.items), part2)), 0);
 	const half2: rs.u16 | undefined = Batch.take$array2_u16(batch2);
-	const _101: rs.usize = count2;
+	const _86: rs.usize = count2;
 	const arg5 = drain2.last;
-	const _104: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg5, f, rs.u16Debug);
+	const _89: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg5, f, rs.u16Debug);
 	const arg6 = drain2.first;
-	const _105: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(arg6, f);
-	const _106: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_101, f);
-	const _107: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(2, f);
-	const _108: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half2, f, rs.u16Debug);
+	const _462: rs.usize = 2;
+	const _90: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(arg6, f);
+	const _93: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half2, f, rs.u16Debug);
 	const arg7 = batch2.drain.last;
-	const _109: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg7, f, rs.u16Debug);
+	const _94: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg7, f, rs.u16Debug);
 	const arg8 = batch2.taken;
-	const args20 = [_104, _105, _106, _107, _108, _109, (f: rs.Formatter) => rs.u8Display(arg8, f)];
-	put(out, rs.fmtFormat([args20[0], " ", args20[1], " ", args20[2], " ", args20[3], " ", args20[4], " ", args20[5], " ", args20[6]]).v);
+	const args11 = [_89, _90, (f: rs.Formatter) => rs.usizeDisplay(_86, f), (f: rs.Formatter) => rs.usizeDisplay(_462, f), _93, _94, (f: rs.Formatter) => rs.u8Display(arg8, f)];
+	put(out, rs.fmtFormat([args11[0], " ", args11[1], " ", args11[2], " ", args11[3], " ", args11[4], " ", args11[5], " ", args11[6]]).v);
 	const items3: rs.Vec<undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): undefined => {}), undefined, 0, true);
-	((_26: rs.u8): undefined => {})(90);
+	((_22: rs.u8): undefined => {})(90);
 	const drain3: Drained.Drained<undefined[], undefined> = Drained.new$array3_unit(undefined, rs.sliceFrom(items3.items));
 	let count3: rs.usize = 0;
 	while (Drained.next$array3_unit(drain3) !== rs.None) {
 		count3 = rs.usizeAdd(count3, 1);
 	}
-	((_210: rs.u8): undefined => {})(1);
+	((_26: rs.u8): undefined => {})(1);
 	const part3 = rs.usizeDiv(items3.items.length, 2);
 	const batch3: Batch.Batch<undefined[], undefined> = new Batch.Batch(Drained.new$array3_unit(undefined, rs.sliceRange(rs.sliceFrom(items3.items), part3)), 0);
 	const half3: undefined | rs.None = Batch.take$array3_unit(batch3);
-	const _156: rs.usize = count3;
+	const _133: rs.usize = count3;
 	const arg9 = drain3.last;
-	const _159: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg9, f, rs.fmtUnit, rs.None);
-	const _160: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(undefined, f);
-	const _161: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_156, f);
-	const _162: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(3, f);
-	const _163: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half3, f, rs.fmtUnit, rs.None);
-	const arg10 = batch3.drain.last;
-	const _164: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg10, f, rs.fmtUnit, rs.None);
-	const arg11 = batch3.taken;
-	const args21 = [_159, _160, _161, _162, _163, _164, (f: rs.Formatter) => rs.u8Display(arg11, f)];
-	put(out, rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4], " ", args21[5], " ", args21[6]]).v);
+	const _136: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg9, f, rs.fmtUnit, rs.None);
+	const arg10 = drain3.first;
+	const _461: rs.usize = 3;
+	const _137: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(arg10, f);
+	const _140: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half3, f, rs.fmtUnit, rs.None);
+	const arg11 = batch3.drain.last;
+	const _141: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg11, f, rs.fmtUnit, rs.None);
+	const arg12 = batch3.taken;
+	const args12 = [_136, _137, (f: rs.Formatter) => rs.usizeDisplay(_133, f), (f: rs.Formatter) => rs.usizeDisplay(_461, f), _140, _141, (f: rs.Formatter) => rs.u8Display(arg12, f)];
+	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4], " ", args12[5], " ", args12[6]]).v);
 	const s3 = rs.byteSliceView(data);
 	let front3 = 0;
 	let back3 = s3.length;
@@ -623,25 +639,24 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (Drained.next$array1_Option_u8(drain4) !== rs.None) {
 		count4 = rs.usizeAdd(count4, 1);
 	}
-	const _186: rs.u8 | undefined = ((b11: rs.u8): rs.u8 | undefined => {
+	const _160: rs.u8 | undefined = ((b11: rs.u8): rs.u8 | undefined => {
 		return thenSome$0quywni(rs.u8Rem(b11, 3) !== 0, b11);
 	})(1);
 	const part4 = rs.usizeDiv(items4.items.length, 2);
-	const batch4: Batch.Batch<Array<rs.u8 | undefined>, rs.u8 | undefined> = new Batch.Batch(Drained.new$array1_Option_u8(_186, rs.sliceRange(rs.sliceFrom(items4.items), part4)), 0);
+	const batch4: Batch.Batch<Array<rs.u8 | undefined>, rs.u8 | undefined> = new Batch.Batch(Drained.new$array1_Option_u8(_160, rs.sliceRange(rs.sliceFrom(items4.items), part4)), 0);
 	const half4: rs.u8 | undefined | rs.None = Batch.take$array1_Option_u8(batch4);
-	const _211: rs.usize = count4;
-	const arg12 = drain4.last;
-	const _214: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg12, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
-	const arg13 = drain4.first;
-	const _215: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg13, f, rs.u8Debug);
-	const _216: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_211, f);
-	const _217: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(1, f);
-	const _218: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
-	const arg14 = batch4.drain.last;
-	const _219: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg14, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
-	const arg15 = batch4.taken;
-	const args22 = [_214, _215, _216, _217, _218, _219, (f: rs.Formatter) => rs.u8Display(arg15, f)];
-	put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2], " ", args22[3], " ", args22[4], " ", args22[5], " ", args22[6]]).v);
+	const _180: rs.usize = count4;
+	const arg13 = drain4.last;
+	const _183: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg13, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg14 = drain4.first;
+	const _460: rs.usize = 1;
+	const _184: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg14, f, rs.u8Debug);
+	const _187: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg15 = batch4.drain.last;
+	const _188: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg15, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg16 = batch4.taken;
+	const args13 = [_183, _184, (f: rs.Formatter) => rs.usizeDisplay(_180, f), (f: rs.Formatter) => rs.usizeDisplay(_460, f), _187, _188, (f: rs.Formatter) => rs.u8Display(arg16, f)];
+	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3], " ", args13[4], " ", args13[5], " ", args13[6]]).v);
 	const s4 = rs.byteSliceView(data);
 	let front4 = 0;
 	let back4 = s4.length;
@@ -658,120 +673,122 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (Drained.next$generics_Flags(drain5) !== undefined) {
 		count5 = rs.usizeAdd(count5, 1);
 	}
-	const _241: boolean = ((b14: rs.u8): boolean => {
+	const _207: boolean = ((b14: rs.u8): boolean => {
 		return (b14 & 1) !== 0;
 	})(1);
 	const part5 = rs.usizeDiv(items5.items.length, 2);
-	const batch5: Batch.Batch<Flags.Flags, boolean> = new Batch.Batch(Drained.new$generics_Flags(_241, rs.sliceRange(rs.sliceFrom(items5.items), part5)), 0);
+	const batch5: Batch.Batch<Flags.Flags, boolean> = new Batch.Batch(Drained.new$generics_Flags(_207, rs.sliceRange(rs.sliceFrom(items5.items), part5)), 0);
 	const half5: boolean | undefined = Batch.take$generics_Flags(batch5);
-	const _266: rs.usize = count5;
-	const arg16 = drain5.last;
-	const _269: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg16, f, rs.fmtBool);
-	const arg17 = drain5.first;
-	const _270: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(arg17, f);
-	const _271: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_266, f);
-	const _272: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(8, f);
-	const _273: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half5, f, rs.fmtBool);
-	const arg18 = batch5.drain.last;
-	const _274: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg18, f, rs.fmtBool);
-	const arg19 = batch5.taken;
-	const args23 = [_269, _270, _271, _272, _273, _274, (f: rs.Formatter) => rs.u8Display(arg19, f)];
-	put(out, rs.fmtFormat([args23[0], " ", args23[1], " ", args23[2], " ", args23[3], " ", args23[4], " ", args23[5], " ", args23[6]]).v);
+	const _227: rs.usize = count5;
+	const arg17 = drain5.last;
+	const _230: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg17, f, rs.fmtBool);
+	const arg18 = drain5.first;
+	const _459: rs.usize = 8;
+	const _231: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(arg18, f);
+	const _234: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half5, f, rs.fmtBool);
+	const arg19 = batch5.drain.last;
+	const _235: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg19, f, rs.fmtBool);
+	const arg20 = batch5.taken;
+	const args14 = [_230, _231, (f: rs.Formatter) => rs.usizeDisplay(_227, f), (f: rs.Formatter) => rs.usizeDisplay(_459, f), _234, _235, (f: rs.Formatter) => rs.u8Display(arg20, f)];
+	put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " ", args14[6]]).v);
 	const ahead: Ahead.Ahead<Flags.Flags, rs.Iter<rs.u8>, rs.u8, boolean> = new Ahead.Ahead(rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), new rs.Vec(), option_map$132wgz4(rs.byteSliceFirst(data), (b15: rs.u8): boolean => {
 		return (b15 & 2) !== 0;
 	}) as rs.OptionOf<boolean>);
 	const repeats: rs.usize = Ahead.repeats$generics_Flags_slice_Iter_u8(ahead);
-	const part6 = ahead.seen as rs.Vec<rs.u8>;
-	const _297: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats, f);
-	const _298: rs.Fmt = (f: rs.Formatter) => rs.fmtList(part6.items, f, rs.u8Debug);
-	const arg20 = ahead.stored;
-	const args24 = [_297, _298, (f: rs.Formatter) => rs.fmtOption(arg20, f, rs.fmtBool)];
-	put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2]]).v);
+	const _256: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats, f);
+	const arg21 = ahead.seen as rs.Vec<rs.u8>;
+	const _257: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg21.items, f, rs.u8Debug);
+	const arg22 = ahead.stored;
+	const args15 = [_256, _257, (f: rs.Formatter) => rs.fmtOption(arg22, f, rs.fmtBool)];
+	put(out, rs.fmtFormat([args15[0], " ", args15[1], " ", args15[2]]).v);
 	const ahead2: Ahead.Ahead<rs.u16[], rs.Iter<rs.u8>, rs.u8, rs.u16> = new Ahead.Ahead(rs.iterPeekable(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b16: rs.u8): rs.u8 => {
 		return rs.u8Rem(b16, 4);
-	})), new rs.ByteVec(), option_map$0ydco3f(rs.byteSliceLast(data), (_212: rs.u8): rs.u16 => {
-		return _212 as rs.u16;
+	})), new rs.ByteVec(), option_map$0ydco3f(rs.byteSliceLast(data), (_27: rs.u8): rs.u16 => {
+		return _27 as rs.u16;
 	}) as rs.OptionOf<rs.u16>);
 	const repeats2: rs.usize = Ahead.repeats$array1_u16_iter_Map_slice_Iter_u8_generics_projections_closure1(ahead2);
-	const part7 = ahead2.seen as rs.ByteVec;
-	const _322: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats2, f);
-	const _323: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part7), f, rs.u8Debug);
-	const arg21 = ahead2.stored;
-	const args25 = [_322, _323, (f: rs.Formatter) => rs.fmtOption(arg21, f, rs.u16Debug)];
-	put(out, rs.fmtFormat([args25[0], " ", args25[1], " ", args25[2]]).v);
+	const _279: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats2, f);
+	const arg23 = ahead2.seen as rs.ByteVec;
+	const _280: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(arg23), f, rs.u8Debug);
+	const arg24 = ahead2.stored;
+	const args16 = [_279, _280, (f: rs.Formatter) => rs.fmtOption(arg24, f, rs.u16Debug)];
+	put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2]]).v);
 	let pile: Pile.Pile<Uint8Array, rs.u8> = { tag: "Empty" };
 	let flags: Pile.Pile<Flags.Flags, boolean> = { tag: "Empty" };
 	for (const b of rs.byteSliceView(data)) {
 		pile = Pile.push$array2_u8(pile, b);
 		flags = Pile.push$generics_Flags(flags, b > 127);
 	}
-	const _342: [rs.ByteVec, rs.Vec<boolean>] = [new rs.ByteVec(), new rs.Vec()];
-	const bytes: rs.ByteVec = _342[0];
-	const bits: rs.Vec<boolean> = _342[1];
+	const _298: rs.ByteVec = new rs.ByteVec();
+	const _299: rs.Vec<boolean> = new rs.Vec();
+	const bytes: rs.ByteVec = _298;
+	const bits: rs.Vec<boolean> = _299;
 	Pile.items$array2_u8(pile, bytes);
 	Pile.items$generics_Flags(flags, bits);
-	const args26 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(bytes), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(bits.items, f, rs.fmtBool)];
-	put(out, rs.fmtFormat([args26[0], " ", args26[1]]).v);
+	const args17 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(bytes), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(bits.items, f, rs.fmtBool)];
+	put(out, rs.fmtFormat([args17[0], " ", args17[1]]).v);
 	const deep: Deep.Deep<Uint8Array[], rs.u8> = Deep.new$array3_array2_u8(rs.byteSliceFirst(data));
-	const units: Deep.Deep<undefined[][], undefined> = Deep.new$array4_array2_unit(option_map$057a36e(rs.byteSliceGet(data, 1), (_213: rs.u8): undefined => {}));
-	const arg22 = deep.inner;
-	const _383: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg22, f, rs.u8Debug);
-	const arg23 = deep.len;
-	const _384: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg23, f);
-	const arg24 = units.inner;
-	const _385: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg24, f, rs.fmtUnit, rs.None);
-	const arg25 = units.len;
-	const args27 = [_383, _384, _385, (f: rs.Formatter) => rs.usizeDisplay(arg25, f)];
-	put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2], " ", args27[3]]).v);
+	const units: Deep.Deep<undefined[][], undefined> = Deep.new$array4_array2_unit(option_map$057a36e(rs.byteSliceGet(data, 1), (_28: rs.u8): undefined => {}));
+	const arg25 = deep.inner;
+	const _335: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg25, f, rs.u8Debug);
+	const arg26 = deep.len;
+	const _336: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg26, f);
+	const arg27 = units.inner;
+	const _337: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg27, f, rs.fmtUnit, rs.None);
+	const arg28 = units.len;
+	const args18 = [_335, _336, _337, (f: rs.Formatter) => rs.usizeDisplay(arg28, f)];
+	put(out, rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " ", args18[3]]).v);
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id2: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id2, rs.arcClone(log));
 	};
 	for (const b2 of rs.byteSliceView(data)) {
-		new Kept.Kept(tick(b2), {}, rs.vecFrom([tick(b2 ^ 1), tick(b2 ^ 2)]), then$1qflv5x(rs.u8Rem(b2, 2) === 0, (): Ticked.Ticked => {
+		const _352: Ticked.Ticked = tick(b2);
+		const _355: rs.Vec<Ticked.Ticked> = rs.vecFrom([tick(b2 ^ 1), tick(b2 ^ 2)]);
+		const _367: rs.u8 = rs.u8Rem(b2, 2);
+		new Kept.Kept(_352, {}, _355, then$1qflv5x(_367 === 0, (): Ticked.Ticked => {
 			return tick(b2 ^ 3);
 		}) as rs.OptionOf<Ticked.Ticked>)[Symbol.dispose]();
 		let ticks: Pile.Pile<Ticks.Ticks, Ticked.Ticked> = { tag: "Empty" };
-		const _425: rs.u8 = rs.u8Rem(b2, 3);
+		const _375: rs.u8 = rs.u8Rem(b2, 3);
 		let iterStart: rs.u8 = 0;
-		const iterEnd: rs.u8 = _425;
-		while ((_428 = iterStart++) < iterEnd) {
-			ticks = { tag: "Linked", item: tick(_428), next: ticks } as Pile.Pile<Ticks.Ticks, Ticked.Ticked>;
+		const iterEnd: rs.u8 = _375;
+		while ((_377 = iterStart++) < iterEnd) {
+			ticks = { tag: "Linked", item: tick(_377), next: ticks as Pile.Pile<Ticks.Ticks, Ticked.Ticked> } as Pile.Pile<Ticks.Ticks, Ticked.Ticked>;
 		}
-		const _441: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-		rs.byteVecPush(_441.value, 254);
-		rs.refMutRelease(_441);
-		drop$generics_Pile_generics_Ticks(ticks);
-		const _447: Uint8Array = Uint8Array.of(b2);
-		const _448: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(b2));
-		const kept2: Kept.Kept<Uint8Array, rs.u8> = new Kept.Kept(b2, _447, _448, undefined as rs.OptionOf<rs.u8>);
-		const _454: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-		const _458: rs.u8 = kept2.item;
-		const _459: rs.u8 = kept2.store[0];
+		const _390: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecPush(_390.value, 254);
+		rs.refMutRelease(_390);
+		drop$generics_Pile_generics_Ticks(ticks as Pile.Pile<Ticks.Ticks, Ticked.Ticked>);
+		const _396: Uint8Array = Uint8Array.of(b2);
+		const _397: rs.ByteVec = rs.byteVecFrom(_396);
+		const kept2: Kept.Kept<Uint8Array, rs.u8> = new Kept.Kept(b2, _396, _397, undefined as rs.OptionOf<rs.u8>);
+		const _402: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		const _406: rs.u8 = kept2.item;
+		const _407: rs.u8 = kept2.store[0];
 		const slice6 = kept2.rest as rs.ByteVec;
-		rs.iterExtendBytes(_454.value, rs.iterSlice(Uint8Array.of(_458, _459, slice6.data[rs.idx(slice6, 0)])), undefined, true);
-		rs.refMutRelease(_454);
+		rs.iterExtendBytes(_402.value, rs.iterSlice(Uint8Array.of(_406, _407, slice6.data[rs.idx(slice6, 0)])), undefined, true);
+		rs.refMutRelease(_402);
 		const owner: Ticked.Ticked = tick(b2 ^ 4);
-		const _472: rs.Vec<Ticked.Ticked> = rs.vecFrom([owner]);
-		const _475: Ticked.Ticked | undefined = thenSome$0tbnivw(rs.u8Rem(b2, 2) === 1, owner);
-		const lent: rs.Arc<Kept.Kept<Lent.Lent, Ticked.Ticked>> = new rs.Arc(new Kept.Kept(owner, { _0: undefined }, _472, _475 as rs.OptionOf<Ticked.Ticked>));
-		const _483: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-		rs.byteVecPush(_483.value, lent.value.item.id);
-		rs.refMutRelease(_483);
+		const _418: rs.Vec<Ticked.Ticked> = rs.vecFrom([owner]);
+		const _421: Ticked.Ticked | undefined = thenSome$0tbnivw(_367 === 1, owner);
+		const lent: rs.Arc<Kept.Kept<Lent.Lent, Ticked.Ticked>> = new rs.Arc(new Kept.Kept(owner, { _0: undefined }, _418, _421 as rs.OptionOf<Ticked.Ticked>));
+		const _427: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecPush(_427.value, lent.value.item.id);
+		rs.refMutRelease(_427);
 		rs.arcDrop(lent);
-		const _493: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-		rs.byteVecPush(_493.value, 253);
-		rs.refMutRelease(_493);
+		const _437: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecPush(_437.value, 253);
+		rs.refMutRelease(_437);
 		owner[Symbol.dispose]();
 	}
-	const marked: Marked.Marked<Paths.Paths> = { marker: undefined, maybe: undefined, count: data.length & 0xff };
-	const bytes2: Marked.Marked<Uint8Array> = { marker: undefined, maybe: undefined, count: ~marked.count & 0xff };
-	const _506: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-	rs.iterExtendBytes(_506.value, rs.iterSlice(Uint8Array.of(marked.count, bytes2.count)), undefined, true);
-	rs.refMutRelease(_506);
-	const _517: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_517.value))), undefined, true);
-	rs.refRelease(_517);
+	const _441: rs.u8 = data.length & 0xff;
+	const _447: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+	rs.iterExtendBytes(_447.value, rs.iterSlice(Uint8Array.of(_441, ~_441 & 0xff)), undefined, true);
+	rs.refMutRelease(_447);
+	const _456: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_456.value))), undefined, true);
+	rs.refRelease(_456);
 	log[Symbol.dispose]();
 }
 
@@ -791,11 +808,11 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let even: Even.Even<Flags.Flags, rs.Iter<rs.u8>, boolean, rs.u8> = { tag: "End" };
 	const iter: rs.Iter<rs.u8> = rs.iterRev(rs.iterSlice(rs.byteSliceView(data)));
 	while (true) {
-		const _30: rs.u8 | rs.Done = iter.next();
-		if (_30 === rs.DONE) {
+		const _28: rs.u8 | rs.Done = iter.next();
+		if (_28 === rs.DONE) {
 			break;
 		}
-		even = { tag: "Next", _0: (_30 & 1) !== 0, _1: new Odd.Odd(rs.iterToOption(seen.next()) as rs.OptionOf<rs.u8>, even) } as Even.Even<Flags.Flags, rs.Iter<rs.u8>, boolean, rs.u8>;
+		even = { tag: "Next", _0: (_28 & 1) !== 0, _1: new Odd.Odd(rs.iterToOption(seen.next()) as rs.OptionOf<rs.u8>, even) } as Even.Even<Flags.Flags, rs.Iter<rs.u8>, boolean, rs.u8>;
 	}
 	const walked: rs.String = rs.stringNew();
 	Even.walk$generics_Flags_vec_IntoIter_u8(even, walked);
@@ -817,19 +834,19 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 		count--;
 		const i: rs.usize = count;
 		const b2: rs.u8 = x;
-		const _61: boolean = b2 > 64;
-		const _63: rs.Place<Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined> = rs.place(() => swap, (value) => swap = value);
-		const taken = _63.v;
-		_63.v = undefined;
-		const inner: Swap.Swap<Flags.Flags, rs.u16[], boolean, rs.u16> = new Swap.Swap(_61, taken);
+		const _59: boolean = b2 > 64;
+		const _61: rs.Place<Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined> = rs.place(() => swap, (value) => swap = value);
+		const taken = _61.v;
+		_61.v = undefined;
+		const inner: Swap.Swap<Flags.Flags, rs.u16[], boolean, rs.u16> = new Swap.Swap(_59, taken);
 		if (rs.usizeRem(i, 2) === 0) {
 			swap = new Swap.Swap(((b2 as rs.u16) << 4) & 0xffff, inner);
 		}
 	}
 	const shown: rs.String = rs.stringNew();
-	const _78: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = swap;
-	if (_78 !== undefined) {
-		Swap.show$array1_u16_generics_Flags(_78, shown);
+	const _73: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = swap;
+	if (_73 !== undefined) {
+		Swap.show$array1_u16_generics_Flags(_73, shown);
 	}
 	put(out, shown.v);
 	const arg = new Ghost.Ghost(option_map$057a36e(rs.byteSliceFirst(data), (_23: rs.u8): undefined => {}), undefined).item;
@@ -847,14 +864,14 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let copse!: Copse.Copse<Tail.Tail, rs.u8>;
 	let grown!: [rs.u8, boolean | undefined];
 	let sown!: [rs.u8, boolean | undefined];
-	let _302!: Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+	let _261!: Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));
 	};
 	let held: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> | undefined = undefined;
 	for (const _11 of rs.byteSliceView(data)) {
-		held = new Carried.Carried(tick(_11), option_map$00jdj9f(held, (a0: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped>): Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> => {
+		held = new Carried.Carried(tick(_11), option_map$00jdj9f(held as Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> | undefined, (a0: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped>): Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> => {
 			return a0;
 		}) as rs.OptionOf<Carried.Carried$generics_Looped>);
 	}
@@ -868,7 +885,7 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _33: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 	rs.byteVecPush(_33.value, depth);
 	rs.refMutRelease(_33);
-	rs.drop(held);
+	rs.drop(held as Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> | undefined);
 	const s = rs.byteSliceView(data);
 	let front = 0;
 	let back = s.length;
@@ -901,50 +918,52 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(ids2, next2.id);
 		at2 = option_asDeref$1z13rqi(next2.next);
 	}
-	const node: Node.Node<Tail.Tail, rs.u8> = new Node.Node(data.length & 0xff, option_map$1htvaju(rs.byteSliceFirst(data), (_2: rs.u8): Node.Node<Head.Head, Node.Node$generics_Tail> => {
+	const _72: rs.usize = data.length;
+	const _71: rs.u8 = _72 & 0xff;
+	const node: Node.Node<Tail.Tail, rs.u8> = new Node.Node(_71, option_map$1htvaju(rs.byteSliceFirst(data), (_2: rs.u8): Node.Node<Head.Head, Node.Node$generics_Tail> => {
 		return new Node.Node(new Node.Node(_2, undefined), undefined);
 	}));
 	const held2: rs.u8 | undefined = option_map$1es1113(node.next, (n: Node.Node<Head.Head, Node.Node$generics_Tail>): rs.u8 => {
 		return n.item.item;
 	});
-	const _91: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids2), f, rs.u8Debug);
+	const _88: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids2), f, rs.u8Debug);
 	const arg = node.item;
-	const args22 = [_91, (f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtOption(held2, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2]]).v);
+	const args12 = [_88, (f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtOption(held2, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2]]).v);
 	const uninit: Uninit.Uninit<rs.u8> = { slot: new generics_Slot.Slot(option_map$1yjmt5m(rs.byteSliceFirst(data), (_22: rs.u8): rs.u8 => {
 		return _22;
 	}) as rs.OptionOf<rs.u8>) };
-	const part = uninit.slot.value !== undefined;
-	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(part, f)]).v);
-	const holder: Holder.Holder = Holder.new(data.length & 0xff, option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0));
+	const _103: boolean = uninit.slot.value !== undefined;
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(_103, f)]).v);
+	const holder: Holder.Holder = Holder.new(_71, option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0));
 	const held3: [rs.u8, rs.u8 | undefined] | undefined = option_map$14wqhyc(holder.get.holder$Get(), (h: Holder.Holder): [rs.u8, rs.u8 | undefined] => {
 		const _09: [rs.u8, rs.u8 | undefined] = [h.id, h.get.get$Get() as rs.u8 | undefined];
 		h[Symbol.dispose]();
 		return _09;
 	});
-	const _132: rs.u8 | undefined = holder.get.get$Get() as rs.u8 | undefined;
+	const _123: rs.u8 | undefined = holder.get.get$Get() as rs.u8 | undefined;
 	const arg2 = holder.id;
-	const args24 = [(f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => rs.fmtOption(_132, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(held3, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))];
-	put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2]]).v);
-	const _143: rs.u8 | undefined = rs.byteSliceFirst(data);
+	const args14 = [(f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => rs.fmtOption(_123, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(held3, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))];
+	put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2]]).v);
+	const _132: rs.u8 | undefined = rs.byteSliceFirst(data);
 	const twig: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail> = new Twig.Twig(undefined, { tag: "Item", _0: 5 } as Grove.Grove<Tail.Tail, rs.u8>);
-	if (_143 === undefined) {
-		grove = { tag: "Item", _0: data.length & 0xff } as Grove.Grove<Tail.Tail, rs.u8>;
+	if (_132 === undefined) {
+		grove = { tag: "Item", _0: _71 } as Grove.Grove<Tail.Tail, rs.u8>;
 	} else {
-		const b2: rs.u8 = _143;
+		const b2: rs.u8 = _132;
 		grove = { tag: "Branch", _0: new Twig.Twig(thenSome$0epplxd(rs.u8Rem(b2, 2) === 0, twig), b2) } as Grove.Grove<Tail.Tail, rs.u8>;
 	}
-	const _155: rs.u8 | undefined = rs.byteSliceLast(data);
+	const _140: rs.u8 | undefined = rs.byteSliceLast(data);
 	const shoot: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail> = new Shoot.Shoot(undefined, { tag: "Item", _0: 6 } as Copse.Copse<Tail.Tail, rs.u8>);
-	if (_155 === undefined) {
+	if (_140 === undefined) {
 		copse = { tag: "Item", _0: 0 } as Copse.Copse<Tail.Tail, rs.u8>;
 	} else {
-		const b3: rs.u8 = _155;
+		const b3: rs.u8 = _140;
 		copse = { tag: "Branch", _0: new Shoot.Shoot(thenSome$0czqe00(rs.u8Rem(b3, 2) === 1, shoot), ~b3 & 0xff) } as Copse.Copse<Tail.Tail, rs.u8>;
 	}
-	const _165: Grove.Grove<Tail.Tail, rs.u8> = grove;
-	if (_165.tag === "Branch") {
-		grown = [_165._0.item, option_map$1i2swnz(_165._0.next, (t: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail>): boolean => {
+	const _149: Grove.Grove<Tail.Tail, rs.u8> = grove;
+	if (_149.tag === "Branch") {
+		grown = [_149._0.item, option_map$1i2swnz(_149._0.next, (t: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail>): boolean => {
 			if (t.item.tag === "Item") {
 				if (t.item._0 === 5) {
 					return true;
@@ -953,13 +972,13 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return false;
 		})] as [rs.u8, boolean | undefined];
 	} else {
-		grown = [_165._0, undefined] as [rs.u8, boolean | undefined];
+		grown = [_149._0, undefined] as [rs.u8, boolean | undefined];
 	}
-	const _175: Copse.Copse<Tail.Tail, rs.u8> = copse;
-	if (_175.tag === "Item") {
-		sown = [_175._0, undefined] as [rs.u8, boolean | undefined];
+	const _158: Copse.Copse<Tail.Tail, rs.u8> = copse;
+	if (_158.tag === "Item") {
+		sown = [_158._0, undefined] as [rs.u8, boolean | undefined];
 	} else {
-		sown = [_175._0.item, option_map$1avgfgw(_175._0.next, (s3: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): boolean => {
+		sown = [_158._0.item, option_map$1avgfgw(_158._0.next, (s3: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): boolean => {
 			if (s3.item.tag === "Item") {
 				if (s3.item._0 === 6) {
 					return true;
@@ -968,16 +987,20 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return false;
 		})] as [rs.u8, boolean | undefined];
 	}
-	const args25 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(grown[0], f), (f: rs.Formatter) => rs.fmtOption(grown[1], f, rs.fmtBool)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(sown[0], f), (f: rs.Formatter) => rs.fmtOption(sown[1], f, rs.fmtBool)], f)];
-	put(out, rs.fmtFormat([args25[0], " ", args25[1]]).v);
-	const under: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> = new Layer.Layer(true, undefined);
-	const layer: Layer.Layer<Top.Top, rs.u16, boolean> = new Layer.Layer(((option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u16) << 4) & 0xffff, thenSome$0bd8znh(rs.usizeRem(data.length, 2) === 1, under));
+	const _172: [rs.u8, boolean | undefined] = grown;
+	const _173: [rs.u8, boolean | undefined] = sown;
+	const args15 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_172[0], f), (f: rs.Formatter) => rs.fmtOption(_172[1], f, rs.fmtBool)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_173[0], f), (f: rs.Formatter) => rs.fmtOption(_173[1], f, rs.fmtBool)], f)];
+	put(out, rs.fmtFormat([args15[0], " ", args15[1]]).v);
+	const _179: rs.u16 = ((option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u16) << 4) & 0xffff;
+	const _186: rs.usize = rs.usizeRem(_72, 2);
+	const _184: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> | undefined = thenSome$0bd8znh(_186 === 1, new Layer.Layer(true, undefined));
+	const layer: Layer.Layer<Top.Top, rs.u16, boolean> = new Layer.Layer(_179, _184);
 	const s4 = rs.byteSliceView(data);
 	let front3 = 0;
 	let back3 = s4.length;
 	const f5 = undefined as Counted.Counted<Counted.Counted$0> | undefined;
-	const f6 = (next5: Counted.Counted<Counted.Counted$0> | undefined, _311: rs.u8): Counted.Counted<Counted.Counted$0> | undefined => {
-		return new Counted.Counted(_311, option_map$0xoixq7(next5, (a03: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> => {
+	const f6 = (next5: Counted.Counted<Counted.Counted$0> | undefined, _39: rs.u8): Counted.Counted<Counted.Counted$0> | undefined => {
+		return new Counted.Counted(_39, option_map$0xoixq7(next5, (a03: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> => {
 			return a03;
 		}) as rs.OptionOf<Counted.Counted$0>);
 	};
@@ -990,27 +1013,29 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), (c2: Counted.Counted<Counted.Counted$0>): rs.u8 => {
 		return c2.id;
 	});
-	const _228: [boolean, boolean] | undefined = option_map$1a3j889(layer.under, (u: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>): [boolean, boolean] => {
+	const _202: [boolean, boolean] | undefined = option_map$1a3j889(_184, (u: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>): [boolean, boolean] => {
 		return [u.item, u.under !== undefined] as [boolean, boolean];
 	});
 	const arg3 = layer.item;
-	const args26 = [(f: rs.Formatter) => rs.u16Display(arg3, f), (f: rs.Formatter) => rs.fmtOption(_228, f, (value: [boolean, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(count, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args26[0], " ", args26[1], " ", args26[2]]).v);
-	const wide: generics_Wide.Wide<rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8> = generics_Wide.new$u8(data.length & 0xff);
-	const _250: boolean = wide.next === undefined;
+	const args16 = [(f: rs.Formatter) => rs.u16Display(arg3, f), (f: rs.Formatter) => rs.fmtOption(_202, f, (value: [boolean, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(count, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2]]).v);
+	const wide: generics_Wide.Wide<rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8, rs.u8> = generics_Wide.new$u8(_71);
+	const _219: boolean = wide.next === undefined;
 	const arg4 = wide.a0;
-	const _253: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg4, f);
+	const _222: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg4, f);
 	const arg5 = wide.a129;
-	const args27 = [_253, (f: rs.Formatter) => rs.u8Display(arg5, f), (f: rs.Formatter) => rs.fmtBool(_250, f)];
-	put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2]]).v);
+	const args17 = [_222, (f: rs.Formatter) => rs.u8Display(arg5, f), (f: rs.Formatter) => rs.fmtBool(_219, f)];
+	put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2]]).v);
 	const made: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> = new Sibling.Sibling(7, undefined);
-	const sibling: Sibling.Sibling<rs.u8, rs.u16, rs.u8> = new Sibling.Sibling(((option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0) as rs.u16) << 3) & 0xffff, thenSome$0rdxccx(rs.usizeRem(data.length, 3) === 0, made));
-	const _281: [rs.u8, boolean] | undefined = option_map$0e9v36n(sibling.next, (s5: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): [rs.u8, boolean] => {
+	const _227: rs.u16 = ((option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0) as rs.u16) << 3) & 0xffff;
+	const _232: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> | undefined = thenSome$0rdxccx(rs.usizeRem(_72, 3) === 0, made);
+	const sibling: Sibling.Sibling<rs.u8, rs.u16, rs.u8> = new Sibling.Sibling(_227, _232);
+	const _243: [rs.u8, boolean] | undefined = option_map$0e9v36n(_232, (s5: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): [rs.u8, boolean] => {
 		return [s5.item, s5.next === undefined] as [rs.u8, boolean];
 	});
 	const arg6 = sibling.item;
-	const args28 = [(f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => rs.fmtOption(_281, f, (value: [rs.u8, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f))];
-	put(out, rs.fmtFormat([args28[0], " ", args28[1]]).v);
+	const args18 = [(f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => rs.fmtOption(_243, f, (value: [rs.u8, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f))];
+	put(out, rs.fmtFormat([args18[0], " ", args18[1]]).v);
 	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
 	const s6: Uint8Array = rs.byteSliceView(data);
 	let front4: number = 0;
@@ -1021,11 +1046,11 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const i: rs.usize = count2++;
 		const b4: rs.u8 = x4;
 		if (rs.usizeRem(i, 3) === 0) {
-			_302 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+			_261 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		} else {
-			_302 = { tag: "Hit", _0: ~b4 & 0xff, _1: ping } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+			_261 = { tag: "Hit", _0: ~b4 & 0xff, _1: ping } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		}
-		ping = new Ping.Ping(b4, _302 as rs.OptionOf<Pong.Pong$generics_Rally>);
+		ping = new Ping.Ping(b4, _261 as rs.OptionOf<Pong.Pong$generics_Rally>);
 	}
 	const ids3: rs.ByteVec = new rs.ByteVec();
 	Ping.ids$generics_Rally(ping, ids3);
@@ -1036,14 +1061,14 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return tick(~_25 & 0xff);
 	}) as rs.OptionOf<Ticked.Ticked>) as rs.OptionOf<Forked.Forked$generics_Depth_24>);
 	const fork: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1> = new Forked.Forked(0, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>);
-	if (rs.usizeRem(data.length, 2) === 0) {
-		const _342: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined = new Forked.Forked(1, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>);
+	if (_186 === 0) {
+		const _292: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined = new Forked.Forked(1, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>);
 		rs.drop(fork.left);
-		fork.left = _342;
+		fork.left = _292 as Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined;
 	}
 	const ids4: [rs.u8, rs.u8 | undefined, rs.u8] = [fork.id, option_map$1747o3c(fork.left, (f7: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2>): rs.u8 => {
 		return f7.id;
-	}), below.id];
+	}), 23];
 	const right: [rs.u8, rs.u8 | undefined, rs.u8 | undefined] | undefined = option_map$1mvacy3(below.right, (f8: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_0, Ticked.Ticked>): [rs.u8, rs.u8 | undefined, rs.u8 | undefined] => {
 		return [f8.id, option_map$1ug09xc(f8.left, (f9: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1>): rs.u8 => {
 			return f9.id;
@@ -1051,13 +1076,13 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return t2.id;
 		})] as [rs.u8, rs.u8 | undefined, rs.u8 | undefined];
 	});
-	const args30 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(ids4[0], f), (f: rs.Formatter) => rs.fmtOption(ids4[1], f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(ids4[2], f)], f), (f: rs.Formatter) => rs.fmtOption(right, f, (value: [rs.u8, rs.u8 | undefined, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(value[2], f, rs.u8Debug)], f))];
-	put(out, rs.fmtFormat([args30[0], " ", args30[1]]).v);
+	const args20 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(ids4[0], f), (f: rs.Formatter) => rs.fmtOption(ids4[1], f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(ids4[2], f)], f), (f: rs.Formatter) => rs.fmtOption(right, f, (value: [rs.u8, rs.u8 | undefined, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(value[2], f, rs.u8Debug)], f))];
+	put(out, rs.fmtFormat([args20[0], " ", args20[1]]).v);
 	below[Symbol.dispose]();
 	fork[Symbol.dispose]();
-	const _378: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_378.value))), undefined, true);
-	rs.refRelease(_378);
+	const _323: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_323.value))), undefined, true);
+	rs.refRelease(_323);
 	holder[Symbol.dispose]();
 	log[Symbol.dispose]();
 }

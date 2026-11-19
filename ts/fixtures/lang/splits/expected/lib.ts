@@ -3,6 +3,10 @@
 import * as rs from "./rs.ts";
 import { splits } from "./splits.ts";
 
+export function copy$ops_Range_usize(v: rs.Range<rs.usize>): rs.Range<rs.usize> {
+	return rs.objectCopy(v);
+}
+
 export const out$tuple2_ref_slice_u8_ref_slice_u8: { p_0Data: Uint8Array; p_0Start: number; p_0Len: number; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { p_0Data: undefined as never, p_0Start: undefined as never, p_0Len: undefined as never, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
 
 export const out$tuple3_u8_u16_ref_slice_u8: { err: unknown; p_1: rs.u16; p_2Data: Uint8Array; p_2Start: number; p_2Len: number } = { err: undefined, p_1: undefined as never, p_2Data: undefined as never, p_2Start: undefined as never, p_2Len: undefined as never };
