@@ -13,6 +13,7 @@
 
 pub(crate) mod ir;
 mod parse;
+pub(crate) mod go;
 pub(crate) mod python;
 
 use std::collections::BTreeMap;
@@ -341,6 +342,11 @@ impl Transcript {
 	/// `language`'s name for the type `ty`.
 	pub(crate) fn type_name(&self, language: &str, ty: &Type) -> &str {
 		self.named(language, &format!("type {}", self.rust(ty)))
+	}
+
+	/// `language`'s name for each item, by its key.
+	pub(crate) fn names(&self, language: &str) -> &BTreeMap<String, String> {
+		&self.names[language]
 	}
 
 	/// `language`'s name for the item `key` names, such as `const api::LIMIT`.
