@@ -770,15 +770,6 @@ struct Built {
 	native: Vec<String>,
 }
 
-/// The shared library of the crate `name`, which Python, Kotlin, and Dart load.
-fn shared(name: &str) -> String {
-	match (cfg!(windows), cfg!(target_os = "macos")) {
-		(true, _) => format!("{name}.dll"),
-		(_, true) => format!("lib{name}.dylib"),
-		_ => format!("lib{name}.so"),
-	}
-}
-
 /// Emit, census, export, and build the crate of `shapes` named `name`.
 fn build(name: &str, shapes: &[Shape]) -> Built {
 	let krate = emit(name, shapes);
@@ -803,7 +794,7 @@ fn build(name: &str, shapes: &[Shape]) -> Built {
 	// own, and is copied beside the Python.
 	let python = krate.dir.join("glue-python");
 	build(&python, "python");
-	let lib = shared(name);
+	let lib = super::shared(name);
 	super::step::copy(&python.join("debug").join(&lib), &out.join("python").join(&lib));
 	let built = build(&target, "kotlin,dart");
 	let native = String::from_utf8_lossy(&built.stderr)
@@ -1563,7 +1554,7 @@ fn round_trip(built: &Built, language: &str) {
 		"dart" => {
 			let main = dir.join("main.dart");
 			step::write(&main, dart(built, calls));
-			let lib = built.lib.join(shared(&name));
+			let lib = built.lib.join(super::shared(&name));
 			let dill = super::dart_compile(&name, &dir, &built.out.join("dart"), &lib, &main);
 			run(&mut super::dart_run(&dill, &[]))
 		}

@@ -6,6 +6,8 @@
 //! The reject fixture's export must fail at each item it cannot export, and generated
 //! type shapes round-trip in every language ([`shapes`]).
 
+#[path = "fixtures/corpus.rs"]
+mod corpus;
 #[path = "fixtures/protocol.rs"]
 mod protocol;
 #[path = "fixtures/shapes.rs"]
@@ -54,6 +56,15 @@ fn cargo() -> Command {
 	let mut cmd = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
 	cmd.env("PATH", step::path());
 	cmd
+}
+
+/// The shared library a crate of the lib `name` builds.
+fn shared(name: &str) -> String {
+	match (cfg!(windows), cfg!(target_os = "macos")) {
+		(true, _) => format!("{name}.dll"),
+		(_, true) => format!("lib{name}.dylib"),
+		_ => format!("lib{name}.so"),
+	}
 }
 
 fn run(cmd: &mut Command) -> Output {
@@ -722,10 +733,12 @@ fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
 		reads: &[src, &link.include, &link.staticlib],
 		writes: &[exe],
 	};
-	step.run(&mut cxx_command(link, standard, plain, src, exe));
+	step.run(&mut cxx_command(link, standard, plain, src, exe, true));
 }
 
-fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+/// The C++ compile of `src` against `link` into `exe`, linked or, for a library
+/// whose host lacks the symbols it calls, compiled to an object nothing links.
+fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path, linked: bool) -> Command {
 	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
@@ -748,9 +761,14 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		});
 		let mut obj = OsString::from("-Fo");
 		obj.push(exe.with_extension("obj"));
+		cmd.arg("-I").arg(include).arg(src).arg(obj);
+		if !linked {
+			cmd.arg("-c");
+			return cmd;
+		}
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
-		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
+		cmd.arg(out);
 		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
@@ -771,11 +789,13 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		"-I",
 	])
 	.arg(include)
-	.arg(src)
-	.arg(&link.staticlib)
-	.args(link.native)
-	.arg("-o")
-	.arg(exe);
+	.arg(src);
+	if linked {
+		cmd.arg(&link.staticlib).args(link.native);
+	} else {
+		cmd.arg("-c");
+	}
+	cmd.arg("-o").arg(exe);
 	cmd
 }
 
@@ -2031,6 +2051,30 @@ fn api_dart_protocol_nightly() {
 /// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
 fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+	let (mut cmd, kernel) = dart_kernel(name, dir, package, lib, main);
+	// The snapshot names the library by path, so a change to it rebuilds nothing.
+	let step = Step {
+		stamp: &step::stamp(&kernel.dill),
+		reads: &[main, package, &kernel.config, &kernel.assets, &kernel.version],
+		writes: &[&kernel.dill],
+	};
+	step.run(&mut cmd);
+	kernel.dill
+}
+
+/// What a Dart kernel compile reads and writes besides its program and package.
+struct Kernel {
+	config: PathBuf,
+	assets: PathBuf,
+	/// The SDK's version file, which keys a rebuild on the SDK.
+	version: PathBuf,
+	dill: PathBuf,
+}
+
+/// The compile of `main` to a kernel snapshot in `dir`, against the package `name` at
+/// `package` and its native library `lib`, with the package config and native assets it
+/// reads written.
+fn dart_kernel(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> (Command, Kernel) {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -2063,26 +2107,24 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 		),
 	);
 	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
-	// The snapshot names the library by path, so a change to it rebuilds nothing.
-	let step = Step {
-		stamp: &step::stamp(&dill),
-		reads: &[main, package, &config, &assets, &sdk.join("version")],
-		writes: &[&dill],
+	let mut cmd = Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")));
+	cmd.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
+		.arg("--platform")
+		.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
+		.arg("--packages")
+		.arg(&config)
+		.arg("--native-assets")
+		.arg(&assets)
+		.arg("-o")
+		.arg(&dill)
+		.arg(main);
+	let kernel = Kernel {
+		config,
+		assets,
+		version: sdk.join("version"),
+		dill,
 	};
-	step.run(
-		Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
-			.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
-			.arg("--platform")
-			.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
-			.arg("--packages")
-			.arg(&config)
-			.arg("--native-assets")
-			.arg(&assets)
-			.arg("-o")
-			.arg(&dill)
-			.arg(main),
-	);
-	dill
+	(cmd, kernel)
 }
 
 /// The Dart VM running a kernel snapshot, with asserts on.

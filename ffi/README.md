@@ -106,7 +106,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `fn` and inherent `pub` methods | functions named through their type |
 | an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the config names each by the object's path |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
-| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message; a `()` error, as once_cell's `race::OnceBool::set` returns, is refused, having no value to raise |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust, and when its future borrows the arguments, the future owns them as an `async fn`'s does, holding each in place until it drops |
@@ -1320,6 +1320,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
+That list is checked by collecting again with it: it holds what Swift alone refuses, and
+not an instance only refused items named, which nothing names once they are left out.
 It ignores the config's `exclude`, but lists each exclude that leaves out an item that
 would export, and fails on it, so the list holds only what the export refuses. It also
 fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
@@ -1454,6 +1456,8 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
+just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
@@ -1515,6 +1519,16 @@ the nightly does. `KNOWN` lists what a binding still gets wrong, each with the q
 fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
 on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
 until the sampler covers it.
+The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
+crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
+building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
+<crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
+its glue, C and C++ programs including its headers (compiled, not linked, since a crate
+may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
+built; a panic, an error, or a binding that does not build fails it, a refusal not.
+Its `KNOWN` lists the crates it fails on today, each with the quest that fixes it or why
+none can, which it skips. The nightly runs it in four shards, `CORPUS_SHARD=i/4`, and each writes a report
+of every crate's refusals and failures.
 The protocol tests run random sequences of borrows, exclusive lends, moves, drops, frees,
 polls, and cancels over the api fixture's checked types, on the thread that made a value
 and another, against `tests/protocol/model.rs`: an executable model of what this README
