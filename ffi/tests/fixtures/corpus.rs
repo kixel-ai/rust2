@@ -196,6 +196,7 @@ fn nightly() {
 	if let Ok(shard) = std::env::var("CORPUS_SHARD") {
 		let (i, n) = shard.split_once('/').expect("CORPUS_SHARD is i/n");
 		let (i, n): (usize, usize) = (i.parse().unwrap(), n.parse().unwrap());
+		assert!(n > 0 && (1..=n).contains(&i), "CORPUS_SHARD is i/n with 1 <= i <= n");
 		chosen = (chosen.into_iter().enumerate())
 			.filter(|(k, _)| k % n == i - 1)
 			.map(|(_, krate)| krate)

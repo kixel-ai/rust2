@@ -770,7 +770,6 @@ struct Built {
 	native: Vec<String>,
 }
 
-/// The shared library of the crate `name`, which Python, Kotlin, and Dart load.
 /// Emit, census, export, and build the crate of `shapes` named `name`.
 fn build(name: &str, shapes: &[Shape]) -> Built {
 	let krate = emit(name, shapes);

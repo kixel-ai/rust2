@@ -4524,8 +4524,11 @@ pub mod clash {
 		}
 	}
 
-	/// Nothing, from a parameter named `_`, which Kotlin reserves, as utf8parse's has.
-	pub fn ignore(_: u8) {}
+	/// `arg1`, beside a parameter named `_`, which no language can pass a value to, as
+	/// utf8parse's has; the `_` is named apart from `arg1`.
+	pub fn ignore(_: u8, arg1: u8, _: u8) -> u8 {
+		arg1
+	}
 
 	/// A seed, whose own `default` C names apart from `Default`'s, as rustc-hash's `FxHasher`
 	/// has, while C++ escapes both to `default_`.

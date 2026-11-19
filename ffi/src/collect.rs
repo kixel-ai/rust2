@@ -23,7 +23,7 @@ use rustc_middle::ty::{
 	self, CallerBoundsIterator as _, GenericArgKind, Ty, TyCtxt, TypeSuperVisitable, TypeVisitable, TypeVisitableExt,
 	TypeVisitor, TypingEnv,
 };
-use rustc_span::{DUMMY_SP, Span, sym};
+use rustc_span::{DUMMY_SP, Ident, Span, kw, sym};
 use rustc_trait_selection::infer::InferCtxtExt;
 use rustc_trait_selection::traits::ObligationCtxt;
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
@@ -3432,13 +3432,18 @@ impl<'tcx> Collector<'tcx> {
 				continue;
 			}
 			// A parameter Rust leaves unnamed, `_`, is named by its place, as no language
-			// can pass a value to `_`.
-			let name = names
-				.get(i)
-				.copied()
-				.flatten()
-				.filter(|ident| ident.name != rustc_span::symbol::kw::Underscore)
-				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
+			// can pass a value to `_`, and apart from every name the others take.
+			let named = |ident: Option<Ident>| ident.filter(|ident| ident.name != kw::Underscore);
+			let name = match named(names.get(i).copied().flatten()) {
+				Some(ident) => ident.to_string(),
+				None => {
+					let mut name = format!("arg{i}");
+					while (names.iter()).any(|&other| named(other).is_some_and(|other| other.as_str() == name)) {
+						name.push('_');
+					}
+					name
+				}
+			};
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
 				if matches!(kind, TaskKind::Made { .. }) {
 					holds_send &= self.is_send(ty.peel_refs(), env);

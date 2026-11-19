@@ -260,8 +260,21 @@ fn census_config(
 	loop {
 		config.sort();
 		config.dedup();
-		// Each round leaves out at least as much as the last, so a config seen before is the last.
-		if config.is_empty() || seen.contains(&config) {
+		// A config the last round checked and left as it was holds.
+		if config.is_empty() || seen.last() == Some(&config) {
+			return config;
+		}
+		// A round drops a dead exclude as well as adding a refusal, so rounds may cycle,
+		// which no config ends: a bug of the collector's, as a refusal must not come and go.
+		if let Some(earlier) = seen.iter().find(|earlier| **earlier == config) {
+			let last = seen.last().expect("a repeat follows a round");
+			let moving: Vec<&String> = (earlier.iter().filter(|p| !last.contains(p)))
+				.chain(last.iter().filter(|p| !earlier.contains(p)))
+				.collect();
+			tcx.dcx().err(format!(
+				"rust2-ffi: the census's exclude never settles, as rounds of it cycle on {}",
+				moving.iter().map(|p| format!("`{p}`")).collect::<Vec<_>>().join(", ")
+			));
 			return config;
 		}
 		seen.push(config.clone());
