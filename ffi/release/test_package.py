@@ -171,6 +171,11 @@ class Go(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 package.check_major(module, version)
 
+    def test_zip_root_of_a_nested_module(self):
+        self.assertEqual(package.zip_root("example.com/api/v2@v2.0.0-rc.1/rt/rt.go"), ("example.com/api/v2", "v2.0.0-rc.1"))
+        with self.assertRaises(SystemExit):
+            package.zip_root("rt/rt.go")
+
     def test_escapes_capitals(self):
         self.assertEqual(package.escape("github.com/Azure/x"), "github.com/!azure/x")
 

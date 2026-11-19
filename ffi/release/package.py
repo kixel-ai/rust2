@@ -691,6 +691,14 @@ def go_module(info, export, libs, out):
     ])
 
 
+def zip_root(name):
+    """The module and version a file of a module zip, `<module>@<version>/<path>`, is under."""
+    match = re.match(r"([^@]+)@(v[^/]+)/", name)
+    if match is None:
+        raise SystemExit(f"{name} is in no module's zip")
+    return match.groups()
+
+
 def consume_go(proxy, check, native):
     """Build and run a check program, or else an import of the runtime, against the module
     unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS."""
@@ -699,8 +707,8 @@ def consume_go(proxy, check, native):
         raise SystemExit(f"expected one module zip in {proxy}, found {zips}")
     with tempfile.TemporaryDirectory() as work, zipfile.ZipFile(zips[0]) as z:
         work = Path(work)
-        prefix = z.namelist()[0].split("/", 1)[0]
-        module, version = prefix.rsplit("@", 1)
+        module, version = zip_root(z.namelist()[0])
+        prefix = f"{module}@{version}"
         z.extractall(work / "mod")
         consumer = work / "consumer"
         consumer.mkdir()
