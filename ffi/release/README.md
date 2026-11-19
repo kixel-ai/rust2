@@ -117,14 +117,16 @@ holding exactly the files it would upload, and anyone with the commit can check 
   that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Apple
   builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with `/Brepro`.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
-  With `reproduce: true`, every build host builds a second time, from a new export, and
-  `package.py same` fails unless each wheel and static library, the Go module's included, matches byte for byte; rust2
-  turns it on for its api fixture. It doubles the build, so a large crate may leave it to a
+  With `reproduce: true`, every build host builds a second time, from a new export at the same
+  path, and `package.py same` fails unless each wheel and static library, the Go module's
+  included, matches byte for byte; rust2 turns it on for its api fixture. It doubles the build, so a large crate may leave it to a
   nightly.
 - **Not yet.** The exporter writes the crate's absolute path into the generated crate's
   version, which cargo hashes into every symbol, so a rebuild must keep the crate at the
   same path, as a rerun does
-  ([planned](/quest/m1/ffi-packaging/relocatable.md)).
+  ([planned](/quest/m1/ffi-packaging/relocatable.md)). So must the export directory of a
+  Windows GNU library, which is the Go module's: dlltool names the import library's symbols
+  after the path of the target directory, which no `--remap-path-prefix` reaches.
 
 **Attestations and SBOM.** `package.py build` writes `sbom.cdx.json`, a CycloneDX SBOM of
 the crates the binding links (normal dependencies, platform-neutral, with each registry
