@@ -3514,7 +3514,7 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v6.items.push(x5 as rs.u32);
 	}
 	const nums3: rs.Vec<rs.u32> = v6;
-	if (rs.sliceFrom(nums3.items).length >= 2) {
+	if (nums3.items.length >= 2) {
 		const first: rs.Place<rs.u32> = rs.arrayAsPtr(nums3.items, rs.idx(nums3.items, 0));
 		rs.byteVecPush(out, rs.ptrOffsetFrom(rs.arrayAsPtr(nums3.items, rs.idx(nums3.items, rs.usizeSub(nums3.items.length, 1))), first) & 0xff);
 		const _148: rs.usize = nums3.items.length;

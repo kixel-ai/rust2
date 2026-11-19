@@ -23,6 +23,7 @@ use crate::ir::{
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
+const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
@@ -415,6 +416,7 @@ impl Crate<'_> {
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("src/rt/thread.rs"), THREAD);
+		output.file(&out.join("src/rt/future.rs"), FUTURE);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		for (path, header) in &cpp.files {
 			output.file(&out.join("include").join(path), header);
@@ -460,6 +462,8 @@ impl Crate<'_> {
 		for (path, text) in go.files {
 			output.file(&go_dir.join(path), &text);
 		}
+		// The header the packages include, inside their module, as a module's zip holds it.
+		output.file(&go_dir.join("rt").join(format!("{}.h", self.abi.prefix)), &header);
 		// Cargo names a path package's units by its name, version, and path in its
 		// workspace, the same for every export of one facade, and judges them fresh by
 		// mtimes, which an unchanged file keeps. So two exports in one target directory
@@ -503,7 +507,7 @@ fn module_path(path: &Path) -> Result<String, String> {
 		.output()
 		.map_err(|err| match err.kind() {
 			std::io::ErrorKind::NotFound => format!(
-				"the go command is not on PATH: the export reads the module of {}, above --out, with `go mod edit -json`",
+				"the go command is not on PATH: the export reads the module of {} with `go mod edit -json`",
 				path.display()
 			),
 			_ => format!("running go mod edit -json {}: {err}", path.display()),
@@ -544,10 +548,30 @@ fn resolve(path: &Path) -> Result<PathBuf, String> {
 	Ok(out)
 }
 
-/// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
-/// module `prefix`, with the `go.mod` declaring it there.
+/// The import path of `<out>/go`, from the `go.mod` of the module it is in, as Go finds it:
+/// its own, which the export keeps as it is, or one above it; or else the module `prefix`,
+/// with the `go.mod` declaring it there. The `go.mod` to write in `go/` comes with it.
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
 	let out = resolve(out)?;
+	let default = format!("module {prefix}\n\ngo 1.24\n");
+	let own = out.join("go").join("go.mod");
+	if own.is_file() {
+		let text = std::fs::read_to_string(&own).map_err(|err| format!("reading {}: {err}", own.display()))?;
+		// One in the form the export writes, as the release builder writes it too, needs no
+		// go command to read.
+		let plain = (text.strip_prefix("module "))
+			.and_then(|rest| rest.strip_suffix("\n\ngo 1.24\n"))
+			.filter(|path| {
+				!path.is_empty()
+					&& !path.contains("//")
+					&& path.chars().all(|c| c.is_ascii_alphanumeric() || "._~/-".contains(c))
+			});
+		let module = match plain {
+			Some(path) => path.to_string(),
+			None => module_path(&own)?,
+		};
+		return Ok((module, Some(text)));
+	}
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {
@@ -562,7 +586,7 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 			.collect();
 		return Ok((format!("{module}/{}", rest.join("/")), None));
 	}
-	Ok((prefix.to_string(), Some(format!("module {prefix}\n\ngo 1.24\n"))))
+	Ok((prefix.to_string(), Some(default)))
 }
 
 struct Gen<'a> {

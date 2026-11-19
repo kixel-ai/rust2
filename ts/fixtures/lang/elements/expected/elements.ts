@@ -246,12 +246,12 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, _97.data[_97.start]);
 		const a: rs.u32[] = [n as rs.u32, 1, 2, 3];
 		const base: rs.Place<rs.u32> = rs.sliceAsPtr(rs.sliceFrom(a));
-		const part: rs.Slice<rs.u32> = rs.sliceRange(rs.sliceFrom(a), 1, 3);
-		rs.idx(part, 1);
-		const at2: rs.Place<rs.u32> = rs.arrayAsPtr(part.data, part.start + 1);
+		const slice: rs.Slice<rs.u32> = rs.sliceFrom(a);
+		rs.rangeCheck(slice.length, 1, 3);
+		const at2: rs.Place<rs.u32> = rs.arrayAsPtr(slice.data, slice.start + 2);
 		rs.byteVecPush(out, rs.ptrOffsetFrom(at2, base) & 0xff);
 		at2.v = rs.u32Add(at2.v, 5);
-		const got: rs.Place<rs.u32> = rs.optionUnwrap(rs.sliceGetMut(part, 0));
+		const got: rs.Place<rs.u32> = rs.optionUnwrap(rs.sliceGetMut(new rs.Slice(slice.data, slice.start + 1, 3 - 1), 0));
 		rs.byteVecPush(out, rs.ptrOffsetFrom(got, base) & 0xff);
 		rs.byteVecPush(out, rs.ptrAdd(got, -1).v & 0xff);
 		rs.byteVecPush(out, rs.ptrOffsetFrom(rs.sliceAsPtr(rs.ptrSlice(rs.ptrAdd(at2, 1), 0)), base) & 0xff);
@@ -367,9 +367,12 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.idx(p, 1);
 	const slice4 = p.deref();
 	rs.byteVecPush(out, slice4.data[slice4.start + 1] & 0xff);
-	const tail: rs.Slice<rs.u32> = rs.sliceRange(p.deref(), 1);
-	rs.idx(tail, 0);
-	tail.data[tail.start] = 9;
+	const slice5: rs.Slice<rs.u32> = p.deref();
+	rs.rangeCheck(slice5.length, 1, slice5.length);
+	if (0 >= slice5.length - 1) {
+		rs.panic("index out of bounds: the len is " + (slice5.length - 1) + " but the index is " + 0);
+	}
+	slice5.data[slice5.start + 1] = 9;
 	const s = rs.sliceItems(p.deref());
 	let front = 0;
 	let back2 = s.length;

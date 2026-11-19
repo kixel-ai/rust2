@@ -146,7 +146,8 @@ func script() {
 	waitGroup := newPending()
 	group := result(func() *net.GroupConsumer { return must(subscriber.RecvGroup(waitGroup)) })
 	<-waitGroup.waiting
-	writer := must(track.AppendGroup())
+	// The track is untimed, so its group's start is a bare key.
+	writer := must(track.AppendGroup(net.TimestampUnscaled(0)))
 	first := within(group, "a group's arrival wakes the receive")
 	expect(must(first.Index()) == 0, "the first group is 0")
 
@@ -154,25 +155,28 @@ func script() {
 	waitFrame := newPending()
 	frame := result(func() *net.FrameFrame { return must(first.ReadFrame(waitFrame)) })
 	<-waitFrame.waiting
-	expect(writer.WriteFrame(nil, rt.NewBytes([]byte("hello"))) == nil, "a frame writes")
+	expect(writer.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes([]byte("hello"))) == nil, "a frame writes")
 	hello := within(frame, "a frame's arrival wakes the read")
 	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
-	expect(must(hello.TimestampGet()) == nil, "an untimed frame has no timestamp")
+	expect(must(must(hello.TimestampGet()).Scale()) == nil, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value Go copies, which allocates nothing. The track is
-	// untimed, so a timestamped frame is refused.
+	// A timestamp is a handle a call borrows, so Go keeps it. The track is
+	// untimed, so a timed frame is refused.
 	at := must(net.TimestampFromMillis(1500))
-	expect(at.AsSecs() == 1, "1500 ms is 1 s")
-	err = writer.WriteFrame(&at, rt.NewBytes([]byte("late")))
+	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
+	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(at.AsSecs() == 1, "a copied timestamp stays usable")
+	expect(must(at.AsSecs()) == 1, "a lent timestamp stays usable")
+	at.Close()
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	world := append([]byte{0xff}, "world"...)
-	expect(writer.WriteFrame(nil, rt.NewBytes(world)) == nil, "the last frame writes")
-	expect(writer.Finish() == nil, "a group finishes")
+	expect(writer.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes(world)) == nil, "the last frame writes")
+	// Finishing takes the writer, and closing the finished group it returns leaves it
+	// finished.
+	must(writer.Finish()).Close()
 	last := must(first.ReadFrame(ctx))
 	expect(last != nil && bytes.Equal(must(last.PayloadGet()).Copy(), world), "the last frame reads")
 	expect(must(first.ReadFrame(ctx)) == nil, "a finished group reads nil")
@@ -199,9 +203,9 @@ func script() {
 	scoped.Close()
 	patterns.Close()
 
-	// A broadcast the origin creates is stamped with its path, which its info lends. Each
+	// A broadcast the origin routes is stamped with its path, which its info lends. Each
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
-	publication := must(origin.CreateBroadcast("room/alice"))
+	publication := must(origin.Route("room/alice", net.OriginRouteOptionsDefault()))
 	created := must(publication.Broadcast())
 	path := must(must(created.Info()).PathGet())
 	created.Close()
@@ -248,15 +252,12 @@ func script() {
 	expect(errors.As(err, &muxErr) && err.Error() != "", "a truncated head's error has a message")
 
 	// A subscription's ranges, from any iterable of them: a slice.
-	groups := net.TrackRangeGroups(rt.BoundsU64{
-		Start: rt.BoundU64{Kind: rt.BoundIncluded, Value: 2},
-		End:   rt.BoundU64{Kind: rt.BoundExcluded, Value: 6},
-	})
-	ranges := []net.TrackRange{net.TrackRangeLive(), groups}
+	var end net.TrackAnchor = net.TrackAnchorTime{V0: 6}
+	ranges := []net.TrackRange{net.TrackRangeLive(), {Start: net.TrackAnchorTime{V0: 2}, End: &end}}
 	ranged := must(must(net.TrackSubscriptionDefault().WithRanges(ranges)).RangesGet())
 	expect(slices.EqualFunc(ranged, ranges, func(a, b net.TrackRange) bool { return a.Equal(b) }), "a subscription keeps its ranges")
-	expect(groups.Start == net.TrackAnchorAbsolute{V0: 2}, "groups start at their first")
-	expect(groups.End != nil && *groups.End == net.TrackAnchorAbsolute{V0: 6}, "groups end before their end")
+	expect(len(ranged) == 2 && ranged[1].Start == net.TrackAnchorTime{V0: 2}, "a range starts at its first time")
+	expect(len(ranged) == 2 && ranged[1].End != nil && *ranged[1].End == net.TrackAnchorTime{V0: 6}, "a range ends at its last time")
 
 	// A catalog at moq-mux's untyped extension, from the config Go builds, whose generic
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -283,7 +284,7 @@ func script() {
 	// A value Go parses is published as the track's latest, which a subscriber reads back
 	// as JSON text.
 	on := must(serdejson.JsonParse(`{"on": true}`))
-	expect(status.Update(on, net.TimestampNow()) == nil, "a JSON snapshot updates")
+	expect(status.Update(on, must(net.TimestampFromMillis(1))) == nil, "a JSON snapshot updates")
 	on.Close()
 	latest := must(must(must(status.Consume()).RecvGroup(ctx)).ReadFrame(ctx))
 	expect(latest != nil && string(must(latest.PayloadGet()).Copy()) == `{"on":true}`, "a subscriber reads the latest value")
@@ -325,16 +326,15 @@ func script() {
 	expect(slices.Equal(must(must(connect.TlsGet()).FingerprintGet()), []string{"ab:cd"}), "a TLS config keeps its fingerprints")
 	home := must(connect.UrlGet())
 	connect.Close()
-	versions := net.VersionsDefault()
-	tokens := must(net.NewAuthTokens(nil))
-	dial := must(tokens.Dial(home, versions))
-	dialed := must(dial.UrlGet())
-	expect(must(dialed.Equal(home)), "a dial keeps its URL")
-	expect(dialed.String() == "https://relay.example:4443/demo", "a URL prints as Rust's")
+	// A client dialing it, which takes the URL by value, so Go hands it a clone.
+	dialing := must(net.NewClient().WithUrl(must(home.Clone())))
+	dialed := must(dialing.Url())
+	expect(dialed != nil && must(dialed.Equal(home)), "a client keeps its URL")
+	expect(dialed != nil && dialed.String() == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	dialed.Close()
-	dial.Close()
-	tokens.Close()
+	dialing.Close()
 	home.Close()
+	versions := net.VersionsDefault()
 	// A `Vec<String>`, as a slice.
 	expect(len(net.ALPNS()) > 0, "a constant slice crosses as a slice")
 	alpns := must(versions.Alpns())
@@ -371,12 +371,11 @@ func session() {
 	defer cancel()
 
 	served := tokio.Spawn()
-	live := must(served.CreateBroadcast("live"))
-	expect(live.Announce(net.OriginRouteDefault()) == nil, "a broadcast announces")
+	live := must(served.Route("live", net.OriginRouteOptionsDefault()))
 	liveTrack := must(must(live.Broadcast()).CreateTrack("video", nil))
-	liveGroup := must(liveTrack.AppendGroup())
-	expect(liveGroup.WriteFrame(nil, rt.NewBytes([]byte("hello"))) == nil, "a served frame writes")
-	expect(liveGroup.Finish() == nil, "a served group finishes")
+	liveGroup := must(liveTrack.AppendGroup(net.TimestampUnscaled(0)))
+	expect(liveGroup.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes([]byte("hello"))) == nil, "a served frame writes")
+	must(liveGroup.Finish()).Close()
 
 	serverConfig := tokio.ServerConfigDefault()
 	listen := must(serverConfig.ListenGet())
