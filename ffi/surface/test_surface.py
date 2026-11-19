@@ -174,8 +174,10 @@ class Marker {
 	::api::detail::unique raw_;
 	explicit Marker(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {}
 	friend struct ::api::detail::access;
+	friend bool operator!=(const Marker &a, const Marker &b) { return !(a == b); }
 
 public:
+	friend bool operator<(const Marker &a, const Marker &b);
 	Marker(Marker &&other) noexcept = default;
 	Marker &operator=(Marker &&other) noexcept = default;
 	static ::api::Marker new_(const char *s = "{;}");
@@ -201,6 +203,8 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "\tinline constexpr ::std::uint64_t LIMIT = API_LIMIT;",
             "\tusing Choice = ::std::variant<Choice_Empty, Choice_Picked>;",
             "\tclass Marker {",
+            "\t\tfriend bool operator!=(const Marker &a, const Marker &b);",
+            "\t\tfriend bool operator<(const Marker &a, const Marker &b);",
             "\t\tMarker(Marker &&other) noexcept = default;",
             "\t\tMarker &operator=(Marker &&other) noexcept = default;",
             '\t\tstatic ::api::Marker new_(const char *s = "{;}");',

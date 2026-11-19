@@ -265,7 +265,7 @@ class Braced:
             elif c in ")]" or c == "}" and depth > 0:
                 depth -= 1
             elif depth == 0 and c == ";":
-                if public:
+                if public or self.friend(masked[hs:i]):
                     self.declaration(code[hs:i], masked[hs:i], level, kind)
                 i = hs = i + 1
                 continue
@@ -292,7 +292,7 @@ class Braced:
                     if self.lang == "cpp" and i < end and masked[i] == ";":
                         i = hs = i + 1
                     continue
-                if public:
+                if public or self.friend(hmask):
                     self.declaration(header, hmask, level, kind)
                 i = hs = j + 1
                 continue
@@ -301,6 +301,12 @@ class Braced:
             i += 1
         if masked[hs:end].strip():
             raise Malformed(f"a declaration without its end: {squash(code[hs:end])[:80]}")
+
+    def friend(self, hmask):
+        """Whether a C++ declaration is a friend function, which a caller finds by its arguments
+        whatever access section declares it, unlike a friend type."""
+        return self.lang == "cpp" and re.match(r"friend\s+(?!(?:struct|class|union)\b)", squash(hmask)) is not None \
+            and first(hmask, re.compile(r"\(")) is not None
 
     def nested(self, hmask):
         """The kind of scope a `{` after `hmask` opens, or None for a body."""
@@ -347,7 +353,7 @@ class Braced:
         if not head:
             return
         if self.lang == "cpp":
-            if head.startswith("friend ") or head.startswith("static_assert"):
+            if head.startswith("friend ") and not self.friend(hmask) or head.startswith("static_assert"):
                 return
             if kind == "namespace" and qualified(hmask):
                 return

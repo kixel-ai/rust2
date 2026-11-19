@@ -131,6 +131,8 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Local {
 		RUST2_FFI_UNCONSUMED Local(Local &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Local &operator=(Local &&other) noexcept = default;
+		friend bool operator==(const Local &a__, const Local &b_);
+		friend bool operator!=(const Local &a__, const Local &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		static Local default_();
 		static ::api::Local new_();
@@ -350,6 +352,8 @@ namespace api {
 		RUST2_FFI_UNCONSUMED Name(Name &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Name &operator=(Name &&other) noexcept = default;
 		RUST2_FFI_CALLABLE Name clone() const;
+		friend bool operator==(const Name &a__, const Name &b_);
+		friend bool operator!=(const Name &a__, const Name &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Name owned(::api::input text);
 		RUST2_FFI_CALLABLE ::api::buf as_str() const;
@@ -383,6 +387,8 @@ namespace api {
 		Gap &operator=(Gap &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Gap(const Gap &other) = default;
 		Gap &operator=(const Gap &other) = default;
+		friend bool operator==(const Gap &a__, const Gap &b_);
+		friend bool operator!=(const Gap &a__, const Gap &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Gap new_(::std::uint64_t wide, ::std::uint8_t narrow);
 		RUST2_FFI_CALLABLE ::std::uint64_t sum() const;
@@ -400,6 +406,8 @@ namespace api {
 		RUST2_FFI_UNCONSUMED Mark(Mark &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Mark &operator=(Mark &&other) noexcept = default;
 		RUST2_FFI_CALLABLE Mark clone() const;
+		friend bool operator==(const Mark &a__, const Mark &b_);
+		friend bool operator!=(const Mark &a__, const Mark &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Mark of(::std::uint64_t count);
 		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
@@ -430,6 +438,8 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Tally {
 		RUST2_FFI_UNCONSUMED Tally(Tally &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Tally &operator=(Tally &&other) noexcept = default;
+		friend bool operator==(const Tally &a__, const Tally &b_);
+		friend bool operator!=(const Tally &a__, const Tally &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static Tally default_();
 		static ::api::Tally new_();
@@ -495,6 +505,8 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE c {
 		RUST2_FFI_UNCONSUMED c(c &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		c &operator=(c &&other) noexcept = default;
+		friend bool operator==(const c &a__, const c &b_);
+		friend bool operator!=(const c &a__, const c &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::c new_(::std::uint8_t value);
 	};
@@ -503,6 +515,8 @@ namespace api {
 		Key &operator=(Key &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Key(const Key &other) = default;
 		Key &operator=(const Key &other) = default;
+		friend bool operator==(const Key &a__, const Key &b_);
+		friend bool operator!=(const Key &a__, const Key &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Key new_(::api::input name);
@@ -555,6 +569,8 @@ namespace api {
 		::std::uint64_t total() const;
 	};
 	class Stamp {
+		friend bool operator==(const Stamp &a__, const Stamp &b_);
+		friend bool operator!=(const Stamp &a__, const Stamp &b_);
 		::api::buf debug() const;
 		static ::api::Stamp from_millis(::std::uint64_t millis);
 		::std::uint64_t secs() const;
@@ -579,6 +595,8 @@ namespace api {
 	struct Point {
 		::std::int32_t x;
 		::std::int32_t y;
+		friend bool operator==(const Point &a__, const Point &b_);
+		friend bool operator!=(const Point &a__, const Point &b_);
 		::api::buf debug() const;
 		static Point default_();
 		::api::Point offset(::std::int32_t dx, ::std::int32_t dy) const;
@@ -587,10 +605,14 @@ namespace api {
 		::api::buf name;
 		::std::optional<::api::Point> at;
 		::std::optional<::api::duration> ttl;
+		friend bool operator==(const Label &a__, const Label &b_);
+		friend bool operator!=(const Label &a__, const Label &b_);
 		::api::buf debug() const;
 	};
 	struct Note {
 		::std::optional<::api::buf> text;
+		friend bool operator==(const Note &a__, const Note &b_);
+		friend bool operator!=(const Note &a__, const Note &b_);
 		::api::buf debug() const;
 		static Note default_();
 	};
@@ -606,11 +628,15 @@ namespace api {
 		::std::int8_t offset;
 		::std::size_t len;
 		::std::uint16_t tag;
+		friend bool operator==(const Reading &a__, const Reading &b_);
+		friend bool operator!=(const Reading &a__, const Reading &b_);
 		::api::buf debug() const;
 		::std::optional<::api::Reading> next() const;
 	};
 	struct Packaged {
 		::std::uint32_t api;
+		friend bool operator==(const Packaged &a__, const Packaged &b_);
+		friend bool operator!=(const Packaged &a__, const Packaged &b_);
 		::api::buf debug() const;
 		::api::Point point() const;
 		::api::Shape shape() const;
@@ -618,21 +644,29 @@ namespace api {
 	struct Atlas {
 		::std::vector<::std::tuple<::api::buf, ::api::Point>> points;
 		::std::vector<::std::uint32_t> ids;
+		friend bool operator==(const Atlas &a__, const Atlas &b_);
+		friend bool operator!=(const Atlas &a__, const Atlas &b_);
 		::api::buf debug() const;
 		::api::Atlas with(::api::input name, const ::api::Point &at) const;
 	};
 	struct Span {
 		::std::tuple<::std::uint32_t, ::std::uint32_t> bounds;
 		::std::optional<::std::tuple<::api::buf, ::api::Shape>> named;
+		friend bool operator==(const Span &a__, const Span &b_);
+		friend bool operator!=(const Span &a__, const Span &b_);
 		::api::buf debug() const;
 	};
 	struct Window {
 		::api::range_u64 range;
 		::api::bound_u64 end;
+		friend bool operator==(const Window &a__, const Window &b_);
+		friend bool operator!=(const Window &a__, const Window &b_);
 		::api::buf debug() const;
 		bool contains(::std::uint64_t n) const;
 	};
 	class Ticket {
+		friend bool operator==(const Ticket &a__, const Ticket &b_);
+		friend bool operator!=(const Ticket &a__, const Ticket &b_);
 		::api::buf debug() const;
 		static ::api::Ticket new_(::std::uint32_t number);
 		::std::uint32_t number() const;
@@ -641,16 +675,22 @@ namespace api {
 	struct Seat {
 		::api::Mark mark;
 		::std::uint32_t row;
+		friend bool operator==(const Seat &a__, const Seat &b_);
+		friend bool operator!=(const Seat &a__, const Seat &b_);
 		::api::buf debug() const;
 		::std::uint64_t count() const;
 	};
 	class Moment {
+		friend bool operator==(const Moment &a__, const Moment &b_);
+		friend bool operator!=(const Moment &a__, const Moment &b_);
 		::api::buf debug() const;
 		static ::std::optional<::api::Moment> new_(::std::uint64_t ticks, ::std::uint64_t rate);
 		::std::uint64_t millis() const;
 		::api::Moment after(::std::uint64_t ticks) const;
 	};
 	class LongArray {
+		friend bool operator==(const LongArray &a__, const LongArray &b_);
+		friend bool operator!=(const LongArray &a__, const LongArray &b_);
 		::api::buf debug() const;
 		static ::api::LongArray new_(::std::uint64_t low, ::std::uint64_t high);
 		::std::uint64_t c__() const;
@@ -658,17 +698,25 @@ namespace api {
 	};
 	struct JvmField {
 		::std::uint32_t n;
+		friend bool operator==(const JvmField &a__, const JvmField &b_);
+		friend bool operator!=(const JvmField &a__, const JvmField &b_);
 		::api::buf debug() const;
 	};
 	struct JvmStatic {
 		::std::uint32_t n;
+		friend bool operator==(const JvmStatic &a__, const JvmStatic &b_);
+		friend bool operator!=(const JvmStatic &a__, const JvmStatic &b_);
 		::api::buf debug() const;
 	};
 	struct OptIn {
 		::std::uint32_t n;
+		friend bool operator==(const OptIn &a__, const OptIn &b_);
+		friend bool operator!=(const OptIn &a__, const OptIn &b_);
 		::api::buf debug() const;
 	};
 	class Wide {
+		friend bool operator==(const Wide &a__, const Wide &b_);
+		friend bool operator!=(const Wide &a__, const Wide &b_);
 		::api::buf debug() const;
 		static ::api::Wide new_(::std::uint64_t seed);
 		::std::uint64_t sum() const;
@@ -676,9 +724,13 @@ namespace api {
 	struct Clocked {
 		::api::Moment at;
 		::std::uint32_t count;
+		friend bool operator==(const Clocked &a__, const Clocked &b_);
+		friend bool operator!=(const Clocked &a__, const Clocked &b_);
 		::api::buf debug() const;
 	};
 	class Hits {
+		friend bool operator==(const Hits &a__, const Hits &b_);
+		friend bool operator!=(const Hits &a__, const Hits &b_);
 		::api::buf debug() const;
 		static Hits default_();
 		::std::uint64_t hits_get() const;
@@ -690,6 +742,8 @@ namespace api {
 		bool eq_(const ::api::Hits &other);
 	};
 	class Extent {
+		friend bool operator==(const Extent &a__, const Extent &b_);
+		friend bool operator!=(const Extent &a__, const Extent &b_);
 		::api::buf debug() const;
 		::std::uint64_t start_get() const;
 		void start_set(::std::uint64_t value);
@@ -700,12 +754,16 @@ namespace api {
 	struct Pair_Size_u8 {
 		::api::Size left;
 		::std::uint8_t right;
+		friend bool operator==(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
+		friend bool operator!=(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
 		::api::buf debug() const;
 		::api::Pair_u8_Size swap() const;
 	};
 	struct Pair_non_zero_u16 {
 		::std::uint16_t left;
 		::std::uint16_t right;
+		friend bool operator==(const Pair_non_zero_u16 &a__, const Pair_non_zero_u16 &b_);
+		friend bool operator!=(const Pair_non_zero_u16 &a__, const Pair_non_zero_u16 &b_);
 		::api::buf debug() const;
 		::api::Pair_non_zero_u16 swap() const;
 		bool even() const;
@@ -713,6 +771,8 @@ namespace api {
 	struct Pair_u32 {
 		::std::uint32_t left;
 		::std::uint32_t right;
+		friend bool operator==(const Pair_u32 &a__, const Pair_u32 &b_);
+		friend bool operator!=(const Pair_u32 &a__, const Pair_u32 &b_);
 		::api::buf debug() const;
 		::api::Pair_u32 swap() const;
 		bool even() const;
@@ -722,51 +782,75 @@ namespace api {
 	struct Pair_u8_Size {
 		::std::uint8_t left;
 		::api::Size right;
+		friend bool operator==(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
+		friend bool operator!=(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		::api::buf debug() const;
 	};
 	struct Right_u8 {
 		::std::uint8_t value;
+		friend bool operator==(const Right_u8 &a__, const Right_u8 &b_);
+		friend bool operator!=(const Right_u8 &a__, const Right_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct Left_Right_u8 {
 		::api::Right_u8 value;
+		friend bool operator==(const Left_Right_u8 &a__, const Left_Right_u8 &b_);
+		friend bool operator!=(const Left_Right_u8 &a__, const Left_Right_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct Left_u8 {
 		::std::uint8_t value;
+		friend bool operator==(const Left_u8 &a__, const Left_u8 &b_);
+		friend bool operator!=(const Left_u8 &a__, const Left_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct Right_Left_u8 {
 		::api::Left_u8 value;
+		friend bool operator==(const Right_Left_u8 &a__, const Right_Left_u8 &b_);
+		friend bool operator!=(const Right_Left_u8 &a__, const Right_Left_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct Inner_u8 {
 		::std::uint8_t value;
+		friend bool operator==(const Inner_u8 &a__, const Inner_u8 &b_);
+		friend bool operator!=(const Inner_u8 &a__, const Inner_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct Boxed_u16 {
 		::std::uint16_t value;
+		friend bool operator==(const Boxed_u16 &a__, const Boxed_u16 &b_);
+		friend bool operator!=(const Boxed_u16 &a__, const Boxed_u16 &b_);
 		::api::buf debug() const;
 	};
 	struct Boxed_u8 {
 		::std::uint8_t value;
+		friend bool operator==(const Boxed_u8 &a__, const Boxed_u8 &b_);
+		friend bool operator!=(const Boxed_u8 &a__, const Boxed_u8 &b_);
 		::api::buf debug() const;
 	};
 	struct LogCount {
 		::std::uint32_t kept;
+		friend bool operator==(const LogCount &a__, const LogCount &b_);
+		friend bool operator!=(const LogCount &a__, const LogCount &b_);
 		::api::buf debug() const;
 	};
 	struct Wrap_u32 {
 		::std::uint32_t value;
+		friend bool operator==(const Wrap_u32 &a__, const Wrap_u32 &b_);
+		friend bool operator!=(const Wrap_u32 &a__, const Wrap_u32 &b_);
 		::api::buf debug() const;
 	};
 	struct PolarTurn {
 		::std::uint8_t whole;
+		friend bool operator==(const PolarTurn &a__, const PolarTurn &b_);
+		friend bool operator!=(const PolarTurn &a__, const PolarTurn &b_);
 		::api::buf debug() const;
 	};
 	struct Peer {
 		::api::socket_addr addr;
 		::std::vector<::api::buf> names;
+		friend bool operator==(const Peer &a__, const Peer &b_);
+		friend bool operator!=(const Peer &a__, const Peer &b_);
 		::api::buf debug() const;
 		::std::vector<::api::buf> aliases() const;
 		::api::Peer next(::api::input name) const;
@@ -775,6 +859,8 @@ namespace api {
 		::std::vector<::std::int32_t> other;
 		::std::uint8_t a;
 		::std::uint8_t b;
+		friend bool operator==(const Shadowed &a__, const Shadowed &b_);
+		friend bool operator!=(const Shadowed &a__, const Shadowed &b_);
 		::api::buf debug() const;
 	};
 	struct Numbers {
@@ -788,6 +874,8 @@ namespace api {
 		::std::vector<float> f32s;
 		::std::vector<double> f64s;
 		::std::optional<::std::vector<::std::int32_t>> some;
+		friend bool operator==(const Numbers &a__, const Numbers &b_);
+		friend bool operator!=(const Numbers &a__, const Numbers &b_);
 		::api::buf debug() const;
 		static ::api::Numbers edges();
 		static ::api::Numbers zero(bool negative);
@@ -796,38 +884,54 @@ namespace api {
 	struct Measure {
 		double value;
 		::api::Numbers numbers;
+		friend bool operator==(const Measure &a__, const Measure &b_);
+		friend bool operator!=(const Measure &a__, const Measure &b_);
 		::api::buf debug() const;
 		static ::api::Measure new_(double value_, bool negative);
 	};
 	struct Limits_bytes {
 		::api::buf low;
 		::api::buf high;
+		friend bool operator==(const Limits_bytes &a__, const Limits_bytes &b_);
+		friend bool operator!=(const Limits_bytes &a__, const Limits_bytes &b_);
 		::api::buf debug() const;
 	};
 	struct Limits_duration {
 		::api::duration low;
 		::api::duration high;
+		friend bool operator==(const Limits_duration &a__, const Limits_duration &b_);
+		friend bool operator!=(const Limits_duration &a__, const Limits_duration &b_);
 		::api::buf debug() const;
 	};
 	struct Page {
 		::std::uint32_t size;
+		friend bool operator==(const Page &a__, const Page &b_);
+		friend bool operator!=(const Page &a__, const Page &b_);
 		::api::buf debug() const;
 		static Page default_();
 	};
 	struct Booth {
 		::api::Mark mark;
+		friend bool operator==(const Booth &a__, const Booth &b_);
+		friend bool operator!=(const Booth &a__, const Booth &b_);
 		::api::buf debug() const;
 	};
 	struct Cancelled {
 		::std::uint8_t step;
+		friend bool operator==(const Cancelled &a__, const Cancelled &b_);
+		friend bool operator!=(const Cancelled &a__, const Cancelled &b_);
 		::api::buf debug() const;
 	};
 	struct StartSeekable {
 		::std::uint64_t at;
+		friend bool operator==(const StartSeekable &a__, const StartSeekable &b_);
+		friend bool operator!=(const StartSeekable &a__, const StartSeekable &b_);
 		::api::buf debug() const;
 	};
 	struct DoubleArray {
 		::std::uint32_t len;
+		friend bool operator==(const DoubleArray &a__, const DoubleArray &b_);
+		friend bool operator!=(const DoubleArray &a__, const DoubleArray &b_);
 		::api::buf debug() const;
 	};
 	struct NonZeros {
@@ -845,31 +949,45 @@ namespace api {
 	};
 	struct a {
 		::std::uint8_t b;
+		friend bool operator==(const a &a__, const a &b_);
+		friend bool operator!=(const a &a__, const a &b_);
 		::api::buf debug() const;
 	};
 	struct Qualifiers {
 		double api;
 		double kotlin;
+		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
 	};
 	struct polar_Point {
 		::std::uint8_t turns;
 		::std::uint32_t distance;
+		friend bool operator==(const polar_Point &a__, const polar_Point &b_);
+		friend bool operator!=(const polar_Point &a__, const polar_Point &b_);
 		::api::buf debug() const;
 	};
 	struct polar_Turn {
 		::std::uint8_t part;
+		friend bool operator==(const polar_Turn &a__, const polar_Turn &b_);
+		friend bool operator!=(const polar_Turn &a__, const polar_Turn &b_);
 		::api::buf debug() const;
 	};
 	struct clash_Tone {
 		::std::uint16_t hz;
+		friend bool operator==(const clash_Tone &a__, const clash_Tone &b_);
+		friend bool operator!=(const clash_Tone &a__, const clash_Tone &b_);
 		::api::buf debug() const;
 	};
 	struct clash_TONE {
 		::std::uint8_t db;
+		friend bool operator==(const clash_TONE &a__, const clash_TONE &b_);
+		friend bool operator!=(const clash_TONE &a__, const clash_TONE &b_);
 		::api::buf debug() const;
 	};
 	struct clash_Span {
 		::std::uint32_t width;
+		friend bool operator==(const clash_Span &a__, const clash_Span &b_);
+		friend bool operator!=(const clash_Span &a__, const clash_Span &b_);
 		::api::buf to_string() const;
 		::api::buf debug() const;
 		::std::uint32_t width_() const;
@@ -1394,6 +1512,8 @@ namespace api {
 	struct Size {
 		::std::uint32_t width;
 		::std::uint32_t height;
+		friend bool operator==(const Size &a__, const Size &b_);
+		friend bool operator!=(const Size &a__, const Size &b_);
 		::api::buf debug() const;
 	};
 	inline bool operator==(const Size &a__, const Size &b_);
@@ -1826,6 +1946,8 @@ namespace api {
 		Instant &operator=(Instant &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Instant(const Instant &other) = default;
 		Instant &operator=(const Instant &other) = default;
+		friend bool operator==(const Instant &a__, const Instant &b_);
+		friend bool operator!=(const Instant &a__, const Instant &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 	};
@@ -1870,6 +1992,8 @@ namespace api {
 	};
 	struct tls_policy_Lifetime {
 		::std::uint32_t seconds;
+		friend bool operator==(const tls_policy_Lifetime &a__, const tls_policy_Lifetime &b_);
+		friend bool operator!=(const tls_policy_Lifetime &a__, const tls_policy_Lifetime &b_);
 		::api::buf debug() const;
 	};
 	inline bool operator==(const tls_policy_Lifetime &a__, const tls_policy_Lifetime &b_);
@@ -1904,6 +2028,8 @@ namespace api {
 		Url &operator=(Url &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Url(const Url &other) = default;
 		Url &operator=(const Url &other) = default;
+		friend bool operator==(const Url &a__, const Url &b_);
+		friend bool operator!=(const Url &a__, const Url &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf to_string() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;

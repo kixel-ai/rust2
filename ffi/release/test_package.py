@@ -91,6 +91,16 @@ class Changes(unittest.TestCase):
         text = package.changes(old, new, "0.4.11")
         self.assertEqual(text, "## API changes since 0.4.11\n\n### Removed\n\n- fn `moq::close`\n"
                                "\n### Added\n\n- fn `moq::seek`\n- struct `moq::Group`\n")
+        # An object added before the one a function's task makes moves its index too.
+        def obj(name):
+            return {**record(name), "fields": None}
+        def poll(i):
+            return {**function("poll", None), "task": {"at": 0, "kind": {"Made": {"object": i, "make": "new"}}}}
+        old = api([], [poll(0)])
+        old["api"]["objects"] = [obj("Waiter")]
+        new = api([], [poll(1)])
+        new["api"]["objects"] = [obj("Clock"), obj("Waiter")]
+        self.assertEqual(package.changes(old, new, "0.4.11"), "## API changes since 0.4.11\n\n### Added\n\n- type `moq::Clock`\n")
 
     def test_accessors_and_nested_targets(self):
         def method(name, access):

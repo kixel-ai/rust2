@@ -71,6 +71,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_Catalog(hang_Catalog &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_Catalog &operator=(hang_Catalog &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_Catalog clone() const;
+		friend bool operator==(const hang_Catalog &a, const hang_Catalog &b);
+		friend bool operator!=(const hang_Catalog &a, const hang_Catalog &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_Catalog default_();
 		RUST2_FFI_CALLABLE ::moq::hang_catalog_Video video_get() const;
@@ -118,6 +120,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_stats_Snapshot(hang_stats_Snapshot &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_stats_Snapshot &operator=(hang_stats_Snapshot &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_stats_Snapshot clone() const;
+		friend bool operator==(const hang_stats_Snapshot &a, const hang_stats_Snapshot &b);
+		friend bool operator!=(const hang_stats_Snapshot &a, const hang_stats_Snapshot &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_stats_Snapshot default_();
 		RUST2_FFI_CALLABLE ::moq::hang_stats_Transport transport_get() const;
@@ -129,6 +133,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_stats_Snapshot_string(hang_stats_Snapshot_string &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_stats_Snapshot_string &operator=(hang_stats_Snapshot_string &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_stats_Snapshot_string clone() const;
+		friend bool operator==(const hang_stats_Snapshot_string &a, const hang_stats_Snapshot_string &b);
+		friend bool operator!=(const hang_stats_Snapshot_string &a, const hang_stats_Snapshot_string &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_stats_Snapshot_string default_();
 		RUST2_FFI_CALLABLE ::moq::hang_stats_Transport transport_get() const;
@@ -142,6 +148,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_stats_Rendition(hang_stats_Rendition &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_stats_Rendition &operator=(hang_stats_Rendition &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_stats_Rendition clone() const;
+		friend bool operator==(const hang_stats_Rendition &a, const hang_stats_Rendition &b);
+		friend bool operator!=(const hang_stats_Rendition &a, const hang_stats_Rendition &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_stats_Rendition default_();
 		RUST2_FFI_CALLABLE ::std::uint64_t frames_get() const;
@@ -159,6 +167,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_stats_Transport(hang_stats_Transport &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_stats_Transport &operator=(hang_stats_Transport &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_stats_Transport clone() const;
+		friend bool operator==(const hang_stats_Transport &a, const hang_stats_Transport &b);
+		friend bool operator!=(const hang_stats_Transport &a, const hang_stats_Transport &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_stats_Transport default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::duration> rtt_get() const;
@@ -176,6 +186,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_echo_Snapshot(hang_echo_Snapshot &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_echo_Snapshot &operator=(hang_echo_Snapshot &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_echo_Snapshot clone() const;
+		friend bool operator==(const hang_echo_Snapshot &a, const hang_echo_Snapshot &b);
+		friend bool operator!=(const hang_echo_Snapshot &a, const hang_echo_Snapshot &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_echo_Snapshot default_();
 		RUST2_FFI_CALLABLE ::moq::hang_stats_Transport transport_get() const;
@@ -187,6 +199,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_echo_Snapshot_string(hang_echo_Snapshot_string &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_echo_Snapshot_string &operator=(hang_echo_Snapshot_string &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_echo_Snapshot_string clone() const;
+		friend bool operator==(const hang_echo_Snapshot_string &a, const hang_echo_Snapshot_string &b);
+		friend bool operator!=(const hang_echo_Snapshot_string &a, const hang_echo_Snapshot_string &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_echo_Snapshot_string default_();
 		RUST2_FFI_CALLABLE ::moq::hang_stats_Transport transport_get() const;
@@ -200,6 +214,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_echo_Rendition(hang_echo_Rendition &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_echo_Rendition &operator=(hang_echo_Rendition &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_echo_Rendition clone() const;
+		friend bool operator==(const hang_echo_Rendition &a, const hang_echo_Rendition &b);
+		friend bool operator!=(const hang_echo_Rendition &a, const hang_echo_Rendition &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_echo_Rendition default_();
 		RUST2_FFI_CALLABLE ::std::uint64_t frames_get() const;
@@ -227,6 +243,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_echo_Arrival(hang_echo_Arrival &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_echo_Arrival &operator=(hang_echo_Arrival &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_echo_Arrival clone() const;
+		friend bool operator==(const hang_echo_Arrival &a, const hang_echo_Arrival &b);
+		friend bool operator!=(const hang_echo_Arrival &a, const hang_echo_Arrival &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::Timestamp timestamp_get() const;
 		RUST2_FFI_CALLABLE void timestamp_set(const ::moq::Timestamp &value);
@@ -238,6 +256,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Observer(hang_health_Observer &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Observer &operator=(hang_health_Observer &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Observer clone() const;
+		friend bool operator==(const hang_health_Observer &a, const hang_health_Observer &b);
+		friend bool operator!=(const hang_health_Observer &a, const hang_health_Observer &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::Path path_get() const;
 		RUST2_FFI_CALLABLE void path_set(::moq::Path value);
@@ -249,6 +269,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Report_echo_Snapshot_string(hang_health_Report_echo_Snapshot_string &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Report_echo_Snapshot_string &operator=(hang_health_Report_echo_Snapshot_string &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Report_echo_Snapshot_string clone() const;
+		friend bool operator==(const hang_health_Report_echo_Snapshot_string &a, const hang_health_Report_echo_Snapshot_string &b);
+		friend bool operator!=(const hang_health_Report_echo_Snapshot_string &a, const hang_health_Report_echo_Snapshot_string &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Observer observer_get() const;
 		RUST2_FFI_CALLABLE void observer_set(::moq::hang_health_Observer value);
@@ -260,6 +282,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Report_stats_Snapshot_string(hang_health_Report_stats_Snapshot_string &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Report_stats_Snapshot_string &operator=(hang_health_Report_stats_Snapshot_string &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Report_stats_Snapshot_string clone() const;
+		friend bool operator==(const hang_health_Report_stats_Snapshot_string &a, const hang_health_Report_stats_Snapshot_string &b);
+		friend bool operator!=(const hang_health_Report_stats_Snapshot_string &a, const hang_health_Report_stats_Snapshot_string &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Observer observer_get() const;
 		RUST2_FFI_CALLABLE void observer_set(::moq::hang_health_Observer value);
@@ -271,6 +295,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Thresholds(hang_health_Thresholds &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Thresholds &operator=(hang_health_Thresholds &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Thresholds clone() const;
+		friend bool operator==(const hang_health_Thresholds &a, const hang_health_Thresholds &b);
+		friend bool operator!=(const hang_health_Thresholds &a, const hang_health_Thresholds &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_health_Thresholds default_();
 		RUST2_FFI_CALLABLE ::moq::duration stale_get() const;
@@ -286,6 +312,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_TransportThresholds(hang_health_TransportThresholds &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_TransportThresholds &operator=(hang_health_TransportThresholds &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_TransportThresholds clone() const;
+		friend bool operator==(const hang_health_TransportThresholds &a, const hang_health_TransportThresholds &b);
+		friend bool operator!=(const hang_health_TransportThresholds &a, const hang_health_TransportThresholds &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Limits_duration rtt_get() const;
 		RUST2_FFI_CALLABLE void rtt_set(const ::moq::hang_health_Limits_duration &value);
@@ -298,6 +326,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_PublisherThresholds(hang_health_PublisherThresholds &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_PublisherThresholds &operator=(hang_health_PublisherThresholds &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_PublisherThresholds clone() const;
+		friend bool operator==(const hang_health_PublisherThresholds &a, const hang_health_PublisherThresholds &b);
+		friend bool operator!=(const hang_health_PublisherThresholds &a, const hang_health_PublisherThresholds &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Limits_f64 skipped_get() const;
 		RUST2_FFI_CALLABLE void skipped_set(const ::moq::hang_health_Limits_f64 &value);
@@ -306,6 +336,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_ViewerThresholds(hang_health_ViewerThresholds &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_ViewerThresholds &operator=(hang_health_ViewerThresholds &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_ViewerThresholds clone() const;
+		friend bool operator==(const hang_health_ViewerThresholds &a, const hang_health_ViewerThresholds &b);
+		friend bool operator!=(const hang_health_ViewerThresholds &a, const hang_health_ViewerThresholds &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Limits_f64 late_get() const;
 		RUST2_FFI_CALLABLE void late_set(const ::moq::hang_health_Limits_f64 &value);
@@ -318,6 +350,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Evidence(hang_health_Evidence &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Evidence &operator=(hang_health_Evidence &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Evidence clone() const;
+		friend bool operator==(const hang_health_Evidence &a, const hang_health_Evidence &b);
+		friend bool operator!=(const hang_health_Evidence &a, const hang_health_Evidence &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::hang_health_Input input_get() const;
 		RUST2_FFI_CALLABLE void input_set(::moq::hang_health_Input value);
@@ -330,6 +364,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Connection(hang_health_Connection &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Connection &operator=(hang_health_Connection &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Connection clone() const;
+		friend bool operator==(const hang_health_Connection &a, const hang_health_Connection &b);
+		friend bool operator!=(const hang_health_Connection &a, const hang_health_Connection &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_health_Connection default_();
 		RUST2_FFI_CALLABLE ::moq::hang_health_Verdict verdict_get() const;
@@ -347,6 +383,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_health_Rendition(hang_health_Rendition &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_health_Rendition &operator=(hang_health_Rendition &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_health_Rendition clone() const;
+		friend bool operator==(const hang_health_Rendition &a, const hang_health_Rendition &b);
+		friend bool operator!=(const hang_health_Rendition &a, const hang_health_Rendition &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_health_Rendition default_();
 		RUST2_FFI_CALLABLE ::moq::hang_health_Verdict verdict_get() const;
@@ -370,6 +408,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Audio(hang_catalog_Audio &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Audio &operator=(hang_catalog_Audio &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Audio clone() const;
+		friend bool operator==(const hang_catalog_Audio &a, const hang_catalog_Audio &b);
+		friend bool operator!=(const hang_catalog_Audio &a, const hang_catalog_Audio &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Audio default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::hang_catalog_AudioConfig>> renditions_get() const;
@@ -384,6 +424,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_AudioConfig(hang_catalog_AudioConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_AudioConfig &operator=(hang_catalog_AudioConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_AudioConfig clone() const;
+		friend bool operator==(const hang_catalog_AudioConfig &a, const hang_catalog_AudioConfig &b);
+		friend bool operator!=(const hang_catalog_AudioConfig &a, const hang_catalog_AudioConfig &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::path_Relative> broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::std::optional<::moq::path_Relative> value);
@@ -422,6 +464,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Binary(hang_catalog_Binary &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Binary &operator=(hang_catalog_Binary &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Binary clone() const;
+		friend bool operator==(const hang_catalog_Binary &a, const hang_catalog_Binary &b);
+		friend bool operator!=(const hang_catalog_Binary &a, const hang_catalog_Binary &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Binary default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::hang_catalog_BinaryConfig>> tracks_get() const;
@@ -434,6 +478,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_BinaryConfig(hang_catalog_BinaryConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_BinaryConfig &operator=(hang_catalog_BinaryConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_BinaryConfig clone() const;
+		friend bool operator==(const hang_catalog_BinaryConfig &a, const hang_catalog_BinaryConfig &b);
+		friend bool operator!=(const hang_catalog_BinaryConfig &a, const hang_catalog_BinaryConfig &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::path_Relative> broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::std::optional<::moq::path_Relative> value);
@@ -459,6 +505,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Container(hang_catalog_Container &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Container &operator=(hang_catalog_Container &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Container clone() const;
+		friend bool operator==(const hang_catalog_Container &a, const hang_catalog_Container &b);
+		friend bool operator!=(const hang_catalog_Container &a, const hang_catalog_Container &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Container default_();
 	};
@@ -466,6 +514,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Contribution(hang_catalog_Contribution &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Contribution &operator=(hang_catalog_Contribution &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Contribution clone() const;
+		friend bool operator==(const hang_catalog_Contribution &a, const hang_catalog_Contribution &b);
+		friend bool operator!=(const hang_catalog_Contribution &a, const hang_catalog_Contribution &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::path_Relative broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::moq::path_Relative value);
@@ -477,6 +527,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Echo(hang_catalog_Echo &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Echo &operator=(hang_catalog_Echo &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Echo clone() const;
+		friend bool operator==(const hang_catalog_Echo &a, const hang_catalog_Echo &b);
+		friend bool operator!=(const hang_catalog_Echo &a, const hang_catalog_Echo &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::path_Relative path_get() const;
 		RUST2_FFI_CALLABLE void path_set(::moq::path_Relative value);
@@ -486,6 +538,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Json(hang_catalog_Json &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Json &operator=(hang_catalog_Json &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Json clone() const;
+		friend bool operator==(const hang_catalog_Json &a, const hang_catalog_Json &b);
+		friend bool operator!=(const hang_catalog_Json &a, const hang_catalog_Json &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Json default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::hang_catalog_JsonConfig>> tracks_get() const;
@@ -498,6 +552,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_JsonConfig(hang_catalog_JsonConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_JsonConfig &operator=(hang_catalog_JsonConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_JsonConfig clone() const;
+		friend bool operator==(const hang_catalog_JsonConfig &a, const hang_catalog_JsonConfig &b);
+		friend bool operator!=(const hang_catalog_JsonConfig &a, const hang_catalog_JsonConfig &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::path_Relative> broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::std::optional<::moq::path_Relative> value);
@@ -523,6 +579,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_M2ts(hang_catalog_M2ts &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_M2ts &operator=(hang_catalog_M2ts &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_M2ts clone() const;
+		friend bool operator==(const hang_catalog_M2ts &a, const hang_catalog_M2ts &b);
+		friend bool operator!=(const hang_catalog_M2ts &a, const hang_catalog_M2ts &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::buf track_get() const;
 		RUST2_FFI_CALLABLE void track_set(::moq::input value);
@@ -536,6 +594,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Media(hang_catalog_Media &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Media &operator=(hang_catalog_Media &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Media clone() const;
+		friend bool operator==(const hang_catalog_Media &a, const hang_catalog_Media &b);
+		friend bool operator!=(const hang_catalog_Media &a, const hang_catalog_Media &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Media default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::hang_catalog_Clock> clock_get() const;
@@ -549,6 +609,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Join(hang_catalog_Join &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Join &operator=(hang_catalog_Join &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Join clone() const;
+		friend bool operator==(const hang_catalog_Join &a, const hang_catalog_Join &b);
+		friend bool operator!=(const hang_catalog_Join &a, const hang_catalog_Join &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::duration interval_get() const;
 		RUST2_FFI_CALLABLE void interval_set(::moq::duration value);
@@ -558,6 +620,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Stats(hang_catalog_Stats &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Stats &operator=(hang_catalog_Stats &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Stats clone() const;
+		friend bool operator==(const hang_catalog_Stats &a, const hang_catalog_Stats &b);
+		friend bool operator!=(const hang_catalog_Stats &a, const hang_catalog_Stats &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::buf track_get() const;
 		RUST2_FFI_CALLABLE void track_set(::moq::input value);
@@ -567,6 +631,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Text(hang_catalog_Text &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Text &operator=(hang_catalog_Text &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Text clone() const;
+		friend bool operator==(const hang_catalog_Text &a, const hang_catalog_Text &b);
+		friend bool operator!=(const hang_catalog_Text &a, const hang_catalog_Text &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Text default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::hang_catalog_TextConfig>> renditions_get() const;
@@ -579,6 +645,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_TextConfig(hang_catalog_TextConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_TextConfig &operator=(hang_catalog_TextConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_TextConfig clone() const;
+		friend bool operator==(const hang_catalog_TextConfig &a, const hang_catalog_TextConfig &b);
+		friend bool operator!=(const hang_catalog_TextConfig &a, const hang_catalog_TextConfig &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::path_Relative> broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::std::optional<::moq::path_Relative> value);
@@ -606,6 +674,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Color(hang_catalog_Color &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Color &operator=(hang_catalog_Color &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Color clone() const;
+		friend bool operator==(const hang_catalog_Color &a, const hang_catalog_Color &b);
+		friend bool operator!=(const hang_catalog_Color &a, const hang_catalog_Color &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Color default_();
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint8_t> primaries_get() const;
@@ -625,6 +695,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Projection(hang_catalog_Projection &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Projection &operator=(hang_catalog_Projection &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Projection clone() const;
+		friend bool operator==(const hang_catalog_Projection &a, const hang_catalog_Projection &b);
+		friend bool operator!=(const hang_catalog_Projection &a, const hang_catalog_Projection &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Projection default_();
 	};
@@ -632,6 +704,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_Video(hang_catalog_Video &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Video &operator=(hang_catalog_Video &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_Video clone() const;
+		friend bool operator==(const hang_catalog_Video &a, const hang_catalog_Video &b);
+		friend bool operator!=(const hang_catalog_Video &a, const hang_catalog_Video &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Video default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::hang_catalog_VideoConfig>> renditions_get() const;
@@ -653,6 +727,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_VideoProperties(hang_catalog_VideoProperties &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_VideoProperties &operator=(hang_catalog_VideoProperties &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_VideoProperties clone() const;
+		friend bool operator==(const hang_catalog_VideoProperties &a, const hang_catalog_VideoProperties &b);
+		friend bool operator!=(const hang_catalog_VideoProperties &a, const hang_catalog_VideoProperties &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_VideoProperties default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::hang_catalog_Display> display_get() const;
@@ -666,6 +742,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_catalog_VideoConfig(hang_catalog_VideoConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_VideoConfig &operator=(hang_catalog_VideoConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_catalog_VideoConfig clone() const;
+		friend bool operator==(const hang_catalog_VideoConfig &a, const hang_catalog_VideoConfig &b);
+		friend bool operator!=(const hang_catalog_VideoConfig &a, const hang_catalog_VideoConfig &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::path_Relative> broadcast_get() const;
 		RUST2_FFI_CALLABLE void broadcast_set(::std::optional<::moq::path_Relative> value);
@@ -721,19 +799,27 @@ namespace moq {
 	struct hang_health_Limits_f64 {
 		double degraded;
 		double unhealthy;
+		friend bool operator==(const hang_health_Limits_f64 &a, const hang_health_Limits_f64 &b);
+		friend bool operator!=(const hang_health_Limits_f64 &a, const hang_health_Limits_f64 &b);
 		::moq::buf debug() const;
 	};
 	struct hang_health_Limits_duration {
 		::moq::duration degraded;
 		::moq::duration unhealthy;
+		friend bool operator==(const hang_health_Limits_duration &a, const hang_health_Limits_duration &b);
+		friend bool operator!=(const hang_health_Limits_duration &a, const hang_health_Limits_duration &b);
 		::moq::buf debug() const;
 	};
 	struct hang_catalog_AAC {
 		::std::uint8_t profile;
+		friend bool operator==(const hang_catalog_AAC &a, const hang_catalog_AAC &b);
+		friend bool operator!=(const hang_catalog_AAC &a, const hang_catalog_AAC &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
 	class hang_catalog_Clock {
+		friend bool operator==(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
+		friend bool operator!=(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
 		::moq::buf debug() const;
 		::moq::Timestamp wall_get() const;
 		void wall_set(const ::moq::Timestamp &value);
@@ -741,6 +827,8 @@ namespace moq {
 		::moq::result<::moq::clock_Wall, ::moq::hang_Error> wall_clock(const ::moq::Timestamp &pts) const;
 	};
 	class hang_catalog_Priorities {
+		friend bool operator==(const hang_catalog_Priorities &a, const hang_catalog_Priorities &b);
+		friend bool operator!=(const hang_catalog_Priorities &a, const hang_catalog_Priorities &b);
 		::moq::buf debug() const;
 		::std::int8_t catalog_get() const;
 		void catalog_set(::std::int8_t value);
@@ -764,6 +852,8 @@ namespace moq {
 		::std::uint8_t transfer_characteristics;
 		::std::uint8_t matrix_coefficients;
 		bool full_range;
+		friend bool operator==(const hang_catalog_AV1 &a, const hang_catalog_AV1 &b);
+		friend bool operator!=(const hang_catalog_AV1 &a, const hang_catalog_AV1 &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static hang_catalog_AV1 default_();
@@ -772,6 +862,8 @@ namespace moq {
 	struct hang_catalog_Chromaticity {
 		double x;
 		double y;
+		friend bool operator==(const hang_catalog_Chromaticity &a, const hang_catalog_Chromaticity &b);
+		friend bool operator!=(const hang_catalog_Chromaticity &a, const hang_catalog_Chromaticity &b);
 		::moq::buf debug() const;
 	};
 	struct hang_catalog_Mastering {
@@ -781,11 +873,15 @@ namespace moq {
 		::moq::hang_catalog_Chromaticity white;
 		double max_luminance;
 		double min_luminance;
+		friend bool operator==(const hang_catalog_Mastering &a, const hang_catalog_Mastering &b);
+		friend bool operator!=(const hang_catalog_Mastering &a, const hang_catalog_Mastering &b);
 		::moq::buf debug() const;
 	};
 	struct hang_catalog_ContentLight {
 		::std::uint16_t max_cll;
 		::std::uint16_t max_fall;
+		friend bool operator==(const hang_catalog_ContentLight &a, const hang_catalog_ContentLight &b);
+		friend bool operator!=(const hang_catalog_ContentLight &a, const hang_catalog_ContentLight &b);
 		::moq::buf debug() const;
 	};
 	struct hang_catalog_H264 {
@@ -793,6 +889,8 @@ namespace moq {
 		::std::uint8_t profile;
 		::std::uint8_t constraints;
 		::std::uint8_t level;
+		friend bool operator==(const hang_catalog_H264 &a, const hang_catalog_H264 &b);
+		friend bool operator!=(const hang_catalog_H264 &a, const hang_catalog_H264 &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
@@ -804,6 +902,8 @@ namespace moq {
 		bool tier_flag;
 		::std::uint8_t level_idc;
 		::std::array<::std::uint8_t, 6> constraint_flags;
+		friend bool operator==(const hang_catalog_H265 &a, const hang_catalog_H265 &b);
+		friend bool operator!=(const hang_catalog_H265 &a, const hang_catalog_H265 &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
@@ -816,6 +916,8 @@ namespace moq {
 		::std::uint8_t transfer_characteristics;
 		::std::uint8_t matrix_coefficients;
 		bool full_range;
+		friend bool operator==(const hang_catalog_VP9 &a, const hang_catalog_VP9 &b);
+		friend bool operator!=(const hang_catalog_VP9 &a, const hang_catalog_VP9 &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static hang_catalog_VP9 default_();
@@ -823,6 +925,8 @@ namespace moq {
 	struct hang_catalog_Display {
 		::std::uint32_t width;
 		::std::uint32_t height;
+		friend bool operator==(const hang_catalog_Display &a, const hang_catalog_Display &b);
+		friend bool operator!=(const hang_catalog_Display &a, const hang_catalog_Display &b);
 		::moq::buf debug() const;
 	};
 	struct hang_container_Frame {
@@ -1032,6 +1136,8 @@ namespace moq {
 		clock_Clock &operator=(clock_Clock &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED clock_Clock(const clock_Clock &other) = default;
 		clock_Clock &operator=(const clock_Clock &other) = default;
+		friend bool operator==(const clock_Clock &a, const clock_Clock &b);
+		friend bool operator!=(const clock_Clock &a, const clock_Clock &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::clock_Clock current();
 		RUST2_FFI_CALLABLE ::moq::clock_Instant now() const;
@@ -1107,6 +1213,8 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::coop_Budget_poll_yield_future poll_yield();
 	};
 	class clock_Instant {
+		friend bool operator==(const clock_Instant &a, const clock_Instant &b);
+		friend bool operator!=(const clock_Instant &a, const clock_Instant &b);
 		::moq::buf debug() const;
 		static ::moq::clock_Instant ZERO();
 		static ::moq::clock_Instant now();
@@ -1120,10 +1228,14 @@ namespace moq {
 		static ::moq::clock_Instant from_std(const ::moq::Instant &at);
 	};
 	class clock_Elapsed {
+		friend bool operator==(const clock_Elapsed &a, const clock_Elapsed &b);
+		friend bool operator!=(const clock_Elapsed &a, const clock_Elapsed &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
 	class clock_Wall {
+		friend bool operator==(const clock_Wall &a, const clock_Wall &b);
+		friend bool operator!=(const clock_Wall &a, const clock_Wall &b);
 		::moq::buf debug() const;
 		static ::moq::clock_Wall UNIX_EPOCH();
 		static ::moq::clock_Wall now();
@@ -1250,6 +1362,8 @@ namespace moq {
 		mp4_atom_Codec &operator=(mp4_atom_Codec &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mp4_atom_Codec(const mp4_atom_Codec &other) = default;
 		mp4_atom_Codec &operator=(const mp4_atom_Codec &other) = default;
+		friend bool operator==(const mp4_atom_Codec &a, const mp4_atom_Codec &b);
+		friend bool operator!=(const mp4_atom_Codec &a, const mp4_atom_Codec &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Visual> visual() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Audio> audio() const;
@@ -1259,6 +1373,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Trak(mp4_atom_Trak &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Trak &operator=(mp4_atom_Trak &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Trak clone() const;
+		friend bool operator==(const mp4_atom_Trak &a, const mp4_atom_Trak &b);
+		friend bool operator!=(const mp4_atom_Trak &a, const mp4_atom_Trak &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Trak default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Tkhd tkhd_get() const;
@@ -1280,6 +1396,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Avc1(mp4_atom_Avc1 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Avc1 &operator=(mp4_atom_Avc1 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Avc1 clone() const;
+		friend bool operator==(const mp4_atom_Avc1 &a, const mp4_atom_Avc1 &b);
+		friend bool operator!=(const mp4_atom_Avc1 &a, const mp4_atom_Avc1 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Avc1 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1303,6 +1421,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Avc3(mp4_atom_Avc3 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Avc3 &operator=(mp4_atom_Avc3 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Avc3 clone() const;
+		friend bool operator==(const mp4_atom_Avc3 &a, const mp4_atom_Avc3 &b);
+		friend bool operator!=(const mp4_atom_Avc3 &a, const mp4_atom_Avc3 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Avc3 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1326,6 +1446,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Jpeg(mp4_atom_Jpeg &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Jpeg &operator=(mp4_atom_Jpeg &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Jpeg clone() const;
+		friend bool operator==(const mp4_atom_Jpeg &a, const mp4_atom_Jpeg &b);
+		friend bool operator!=(const mp4_atom_Jpeg &a, const mp4_atom_Jpeg &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Jpeg default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1345,6 +1467,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Hev1(mp4_atom_Hev1 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Hev1 &operator=(mp4_atom_Hev1 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Hev1 clone() const;
+		friend bool operator==(const mp4_atom_Hev1 &a, const mp4_atom_Hev1 &b);
+		friend bool operator!=(const mp4_atom_Hev1 &a, const mp4_atom_Hev1 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Hev1 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1370,6 +1494,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Hvc1(mp4_atom_Hvc1 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Hvc1 &operator=(mp4_atom_Hvc1 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Hvc1 clone() const;
+		friend bool operator==(const mp4_atom_Hvc1 &a, const mp4_atom_Hvc1 &b);
+		friend bool operator!=(const mp4_atom_Hvc1 &a, const mp4_atom_Hvc1 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Hvc1 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1397,6 +1523,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Vp08(mp4_atom_Vp08 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Vp08 &operator=(mp4_atom_Vp08 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Vp08 clone() const;
+		friend bool operator==(const mp4_atom_Vp08 &a, const mp4_atom_Vp08 &b);
+		friend bool operator!=(const mp4_atom_Vp08 &a, const mp4_atom_Vp08 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Vp08 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1416,6 +1544,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Vp09(mp4_atom_Vp09 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Vp09 &operator=(mp4_atom_Vp09 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Vp09 clone() const;
+		friend bool operator==(const mp4_atom_Vp09 &a, const mp4_atom_Vp09 &b);
+		friend bool operator!=(const mp4_atom_Vp09 &a, const mp4_atom_Vp09 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Vp09 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1435,6 +1565,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Av01(mp4_atom_Av01 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Av01 &operator=(mp4_atom_Av01 &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Av01 clone() const;
+		friend bool operator==(const mp4_atom_Av01 &a, const mp4_atom_Av01 &b);
+		friend bool operator!=(const mp4_atom_Av01 &a, const mp4_atom_Av01 &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Av01 default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Visual visual_get() const;
@@ -1458,6 +1590,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Tx3g(mp4_atom_Tx3g &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Tx3g &operator=(mp4_atom_Tx3g &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Tx3g clone() const;
+		friend bool operator==(const mp4_atom_Tx3g &a, const mp4_atom_Tx3g &b);
+		friend bool operator!=(const mp4_atom_Tx3g &a, const mp4_atom_Tx3g &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Tx3g default_();
 		RUST2_FFI_CALLABLE ::std::uint16_t data_reference_index_get() const;
@@ -1481,6 +1615,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Meta(mp4_atom_Meta &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Meta &operator=(mp4_atom_Meta &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Meta clone() const;
+		friend bool operator==(const mp4_atom_Meta &a, const mp4_atom_Meta &b);
+		friend bool operator!=(const mp4_atom_Meta &a, const mp4_atom_Meta &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Hdlr hdlr_get() const;
 		RUST2_FFI_CALLABLE void hdlr_set(const ::moq::mp4_atom_Hdlr &value);
@@ -1527,6 +1663,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Mdia(mp4_atom_Mdia &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Mdia &operator=(mp4_atom_Mdia &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Mdia clone() const;
+		friend bool operator==(const mp4_atom_Mdia &a, const mp4_atom_Mdia &b);
+		friend bool operator!=(const mp4_atom_Mdia &a, const mp4_atom_Mdia &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Mdia default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Mdhd mdhd_get() const;
@@ -1540,6 +1678,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Udta(mp4_atom_Udta &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Udta &operator=(mp4_atom_Udta &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Udta clone() const;
+		friend bool operator==(const mp4_atom_Udta &a, const mp4_atom_Udta &b);
+		friend bool operator!=(const mp4_atom_Udta &a, const mp4_atom_Udta &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Udta default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Chpl> chpl_get() const;
@@ -1557,6 +1697,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Visual(mp4_atom_Visual &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Visual &operator=(mp4_atom_Visual &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Visual clone() const;
+		friend bool operator==(const mp4_atom_Visual &a, const mp4_atom_Visual &b);
+		friend bool operator!=(const mp4_atom_Visual &a, const mp4_atom_Visual &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Visual default_();
 		RUST2_FFI_CALLABLE ::std::uint16_t data_reference_index_get() const;
@@ -1580,6 +1722,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Spatial(mp4_atom_Spatial &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Spatial &operator=(mp4_atom_Spatial &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Spatial clone() const;
+		friend bool operator==(const mp4_atom_Spatial &a, const mp4_atom_Spatial &b);
+		friend bool operator!=(const mp4_atom_Spatial &a, const mp4_atom_Spatial &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Spatial default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_St3d> st3d_get() const;
@@ -1598,6 +1742,8 @@ namespace moq {
 		mp4_atom_Any &operator=(mp4_atom_Any &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mp4_atom_Any(const mp4_atom_Any &other) = default;
 		mp4_atom_Any &operator=(const mp4_atom_Any &other) = default;
+		friend bool operator==(const mp4_atom_Any &a, const mp4_atom_Any &b);
+		friend bool operator!=(const mp4_atom_Any &a, const mp4_atom_Any &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_FourCC kind() const;
 	};
@@ -1605,6 +1751,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Minf(mp4_atom_Minf &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Minf &operator=(mp4_atom_Minf &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Minf clone() const;
+		friend bool operator==(const mp4_atom_Minf &a, const mp4_atom_Minf &b);
+		friend bool operator!=(const mp4_atom_Minf &a, const mp4_atom_Minf &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Minf default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Vmhd> vmhd_get() const;
@@ -1627,6 +1775,8 @@ namespace moq {
 		mp4_atom_Compressor &operator=(mp4_atom_Compressor &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mp4_atom_Compressor(const mp4_atom_Compressor &other) = default;
 		mp4_atom_Compressor &operator=(const mp4_atom_Compressor &other) = default;
+		friend bool operator==(const mp4_atom_Compressor &a, const mp4_atom_Compressor &b);
+		friend bool operator!=(const mp4_atom_Compressor &a, const mp4_atom_Compressor &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Compressor default_();
 	};
@@ -1634,6 +1784,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Sv3d(mp4_atom_Sv3d &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Sv3d &operator=(mp4_atom_Sv3d &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Sv3d clone() const;
+		friend bool operator==(const mp4_atom_Sv3d &a, const mp4_atom_Sv3d &b);
+		friend bool operator!=(const mp4_atom_Sv3d &a, const mp4_atom_Sv3d &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Sv3d default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Svhd> svhd_get() const;
@@ -1647,6 +1799,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Vexu(mp4_atom_Vexu &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Vexu &operator=(mp4_atom_Vexu &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Vexu clone() const;
+		friend bool operator==(const mp4_atom_Vexu &a, const mp4_atom_Vexu &b);
+		friend bool operator!=(const mp4_atom_Vexu &a, const mp4_atom_Vexu &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Vexu default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1664,6 +1818,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Iprp(mp4_atom_Iprp &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Iprp &operator=(mp4_atom_Iprp &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Iprp clone() const;
+		friend bool operator==(const mp4_atom_Iprp &a, const mp4_atom_Iprp &b);
+		friend bool operator!=(const mp4_atom_Iprp &a, const mp4_atom_Iprp &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Iprp default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Ipco ipco_get() const;
@@ -1675,6 +1831,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Ipco(mp4_atom_Ipco &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Ipco &operator=(mp4_atom_Ipco &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Ipco clone() const;
+		friend bool operator==(const mp4_atom_Ipco &a, const mp4_atom_Ipco &b);
+		friend bool operator!=(const mp4_atom_Ipco &a, const mp4_atom_Ipco &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Ipco default_();
 		RUST2_FFI_CALLABLE ::std::vector<::moq::mp4_atom_Any> properties_get() const;
@@ -1684,6 +1842,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Moov(mp4_atom_Moov &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Moov &operator=(mp4_atom_Moov &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Moov clone() const;
+		friend bool operator==(const mp4_atom_Moov &a, const mp4_atom_Moov &b);
+		friend bool operator!=(const mp4_atom_Moov &a, const mp4_atom_Moov &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Moov default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Mvhd mvhd_get() const;
@@ -1703,6 +1863,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Stbl(mp4_atom_Stbl &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Stbl &operator=(mp4_atom_Stbl &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Stbl clone() const;
+		friend bool operator==(const mp4_atom_Stbl &a, const mp4_atom_Stbl &b);
+		friend bool operator!=(const mp4_atom_Stbl &a, const mp4_atom_Stbl &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Stbl default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Stsd stsd_get() const;
@@ -1738,6 +1900,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Stsd(mp4_atom_Stsd &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Stsd &operator=(mp4_atom_Stsd &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Stsd clone() const;
+		friend bool operator==(const mp4_atom_Stsd &a, const mp4_atom_Stsd &b);
+		friend bool operator!=(const mp4_atom_Stsd &a, const mp4_atom_Stsd &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Stsd default_();
 		RUST2_FFI_CALLABLE ::std::vector<::moq::mp4_atom_Codec> codecs_get() const;
@@ -1748,6 +1912,8 @@ namespace moq {
 		mp4_atom_Nmhd &operator=(mp4_atom_Nmhd &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mp4_atom_Nmhd(const mp4_atom_Nmhd &other) = default;
 		mp4_atom_Nmhd &operator=(const mp4_atom_Nmhd &other) = default;
+		friend bool operator==(const mp4_atom_Nmhd &a, const mp4_atom_Nmhd &b);
+		friend bool operator!=(const mp4_atom_Nmhd &a, const mp4_atom_Nmhd &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Nmhd default_();
 	};
@@ -1756,6 +1922,8 @@ namespace moq {
 		mp4_atom_Sthd &operator=(mp4_atom_Sthd &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mp4_atom_Sthd(const mp4_atom_Sthd &other) = default;
 		mp4_atom_Sthd &operator=(const mp4_atom_Sthd &other) = default;
+		friend bool operator==(const mp4_atom_Sthd &a, const mp4_atom_Sthd &b);
+		friend bool operator!=(const mp4_atom_Sthd &a, const mp4_atom_Sthd &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Sthd default_();
 	};
@@ -1763,6 +1931,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Moof(mp4_atom_Moof &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Moof &operator=(mp4_atom_Moof &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Moof clone() const;
+		friend bool operator==(const mp4_atom_Moof &a, const mp4_atom_Moof &b);
+		friend bool operator!=(const mp4_atom_Moof &a, const mp4_atom_Moof &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Moof default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Mfhd mfhd_get() const;
@@ -1774,6 +1944,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Traf(mp4_atom_Traf &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Traf &operator=(mp4_atom_Traf &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Traf clone() const;
+		friend bool operator==(const mp4_atom_Traf &a, const mp4_atom_Traf &b);
+		friend bool operator!=(const mp4_atom_Traf &a, const mp4_atom_Traf &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Traf default_();
 		RUST2_FFI_CALLABLE ::moq::mp4_atom_Tfhd tfhd_get() const;
@@ -1803,6 +1975,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Proj(mp4_atom_Proj &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Proj &operator=(mp4_atom_Proj &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Proj clone() const;
+		friend bool operator==(const mp4_atom_Proj &a, const mp4_atom_Proj &b);
+		friend bool operator!=(const mp4_atom_Proj &a, const mp4_atom_Proj &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Proj default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Prhd> prhd_get() const;
@@ -1816,6 +1990,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_VexuProj(mp4_atom_VexuProj &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_VexuProj &operator=(mp4_atom_VexuProj &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_VexuProj clone() const;
+		friend bool operator==(const mp4_atom_VexuProj &a, const mp4_atom_VexuProj &b);
+		friend bool operator!=(const mp4_atom_VexuProj &a, const mp4_atom_VexuProj &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_VexuProj default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1831,6 +2007,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Eyes(mp4_atom_Eyes &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Eyes &operator=(mp4_atom_Eyes &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Eyes clone() const;
+		friend bool operator==(const mp4_atom_Eyes &a, const mp4_atom_Eyes &b);
+		friend bool operator!=(const mp4_atom_Eyes &a, const mp4_atom_Eyes &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Eyes default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1850,6 +2028,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Pack(mp4_atom_Pack &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Pack &operator=(mp4_atom_Pack &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Pack clone() const;
+		friend bool operator==(const mp4_atom_Pack &a, const mp4_atom_Pack &b);
+		friend bool operator!=(const mp4_atom_Pack &a, const mp4_atom_Pack &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Pack default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1863,6 +2043,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Cams(mp4_atom_Cams &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Cams &operator=(mp4_atom_Cams &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Cams clone() const;
+		friend bool operator==(const mp4_atom_Cams &a, const mp4_atom_Cams &b);
+		friend bool operator!=(const mp4_atom_Cams &a, const mp4_atom_Cams &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Cams default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1876,6 +2058,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mp4_atom_Cmfy(mp4_atom_Cmfy &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mp4_atom_Cmfy &operator=(mp4_atom_Cmfy &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mp4_atom_Cmfy clone() const;
+		friend bool operator==(const mp4_atom_Cmfy &a, const mp4_atom_Cmfy &b);
+		friend bool operator!=(const mp4_atom_Cmfy &a, const mp4_atom_Cmfy &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mp4_atom_Cmfy default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mp4_atom_Must> must_get() const;
@@ -1886,11 +2070,15 @@ namespace moq {
 		RUST2_FFI_CALLABLE void unknown_set(::std::vector<::moq::mp4_atom_Any> value);
 	};
 	class mp4_atom_FourCC {
+		friend bool operator==(const mp4_atom_FourCC &a, const mp4_atom_FourCC &b);
+		friend bool operator!=(const mp4_atom_FourCC &a, const mp4_atom_FourCC &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static ::moq::mp4_atom_FourCC new_(const ::std::array<::std::uint8_t, 4> &value);
 	};
 	class mp4_atom_FixedPoint_u16 {
+		friend bool operator==(const mp4_atom_FixedPoint_u16 &a, const mp4_atom_FixedPoint_u16 &b);
+		friend bool operator!=(const mp4_atom_FixedPoint_u16 &a, const mp4_atom_FixedPoint_u16 &b);
 		::moq::buf debug() const;
 		static mp4_atom_FixedPoint_u16 default_();
 		static ::moq::mp4_atom_FixedPoint_u16 new_(::std::uint16_t int_, ::std::uint16_t dec);
@@ -1902,9 +2090,13 @@ namespace moq {
 		::std::uint16_t channel_count;
 		::std::uint16_t sample_size;
 		::moq::mp4_atom_FixedPoint_u16 sample_rate;
+		friend bool operator==(const mp4_atom_Audio &a, const mp4_atom_Audio &b);
+		friend bool operator!=(const mp4_atom_Audio &a, const mp4_atom_Audio &b);
 		::moq::buf debug() const;
 	};
 	class mp4_atom_u24 {
+		friend bool operator==(const mp4_atom_u24 &a, const mp4_atom_u24 &b);
+		friend bool operator!=(const mp4_atom_u24 &a, const mp4_atom_u24 &b);
 		::moq::buf debug() const;
 		static mp4_atom_u24 default_();
 	};
@@ -1913,6 +2105,8 @@ namespace moq {
 		::std::uint8_t freq_index;
 		::std::uint8_t chan_conf;
 		::moq::buf raw;
+		friend bool operator==(const mp4_atom_esds_DecoderSpecific &a, const mp4_atom_esds_DecoderSpecific &b);
+		friend bool operator!=(const mp4_atom_esds_DecoderSpecific &a, const mp4_atom_esds_DecoderSpecific &b);
 		::moq::buf debug() const;
 		static mp4_atom_esds_DecoderSpecific default_();
 	};
@@ -1924,10 +2118,14 @@ namespace moq {
 		::std::uint32_t max_bitrate;
 		::std::uint32_t avg_bitrate;
 		::std::optional<::moq::mp4_atom_esds_DecoderSpecific> dec_specific;
+		friend bool operator==(const mp4_atom_esds_DecoderConfig &a, const mp4_atom_esds_DecoderConfig &b);
+		friend bool operator!=(const mp4_atom_esds_DecoderConfig &a, const mp4_atom_esds_DecoderConfig &b);
 		::moq::buf debug() const;
 		static mp4_atom_esds_DecoderConfig default_();
 	};
 	class mp4_atom_esds_SLConfig {
+		friend bool operator==(const mp4_atom_esds_SLConfig &a, const mp4_atom_esds_SLConfig &b);
+		friend bool operator!=(const mp4_atom_esds_SLConfig &a, const mp4_atom_esds_SLConfig &b);
 		::moq::buf debug() const;
 		static mp4_atom_esds_SLConfig default_();
 	};
@@ -1939,11 +2137,15 @@ namespace moq {
 		::std::uint8_t stream_priority;
 		::moq::mp4_atom_esds_DecoderConfig dec_config;
 		::moq::mp4_atom_esds_SLConfig sl_config;
+		friend bool operator==(const mp4_atom_esds_EsDescriptor &a, const mp4_atom_esds_EsDescriptor &b);
+		friend bool operator!=(const mp4_atom_esds_EsDescriptor &a, const mp4_atom_esds_EsDescriptor &b);
 		::moq::buf debug() const;
 		static mp4_atom_esds_EsDescriptor default_();
 	};
 	struct mp4_atom_Esds {
 		::moq::mp4_atom_esds_EsDescriptor es_desc;
+		friend bool operator==(const mp4_atom_Esds &a, const mp4_atom_Esds &b);
+		friend bool operator!=(const mp4_atom_Esds &a, const mp4_atom_Esds &b);
 		::moq::buf debug() const;
 		static mp4_atom_Esds default_();
 	};
@@ -1951,6 +2153,8 @@ namespace moq {
 		::std::uint32_t buffer_size_db;
 		::std::uint32_t max_bitrate;
 		::std::uint32_t avg_bitrate;
+		friend bool operator==(const mp4_atom_Btrt &a, const mp4_atom_Btrt &b);
+		friend bool operator!=(const mp4_atom_Btrt &a, const mp4_atom_Btrt &b);
 		::moq::buf debug() const;
 		static mp4_atom_Btrt default_();
 		static ::moq::result<::moq::mp4_atom_Btrt, ::moq::buf> new_(::std::uint32_t buffer_size_db_, ::std::uint32_t max_bitrate_, ::std::uint32_t avg_bitrate_);
@@ -1960,6 +2164,8 @@ namespace moq {
 		::std::uint32_t clock_resolution;
 		::std::int32_t clock_drift_rate;
 		::moq::mp4_atom_ClockType clock_type;
+		friend bool operator==(const mp4_atom_Taic &a, const mp4_atom_Taic &b);
+		friend bool operator!=(const mp4_atom_Taic &a, const mp4_atom_Taic &b);
 		::moq::buf debug() const;
 		static mp4_atom_Taic default_();
 		static ::moq::result<::moq::mp4_atom_Taic, ::moq::buf> new_(::std::uint64_t time_uncertainty_, ::std::uint32_t clock_resolution_, ::std::int32_t clock_drift_rate_, ::moq::mp4_atom_ClockType clock_type_);
@@ -1969,10 +2175,14 @@ namespace moq {
 		::moq::mp4_atom_Esds esds;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
 		::std::optional<::moq::mp4_atom_Taic> taic;
+		friend bool operator==(const mp4_atom_Mp4a &a, const mp4_atom_Mp4a &b);
+		friend bool operator!=(const mp4_atom_Mp4a &a, const mp4_atom_Mp4a &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Mp3 {
 		::moq::mp4_atom_Audio audio;
+		friend bool operator==(const mp4_atom_Mp3 &a, const mp4_atom_Mp3 &b);
+		friend bool operator!=(const mp4_atom_Mp3 &a, const mp4_atom_Mp3 &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_OpusChannelMapping {
@@ -1980,6 +2190,8 @@ namespace moq {
 		::std::uint8_t stream_count;
 		::std::uint8_t coupled_count;
 		::moq::buf channel_mapping;
+		friend bool operator==(const mp4_atom_OpusChannelMapping &a, const mp4_atom_OpusChannelMapping &b);
+		friend bool operator!=(const mp4_atom_OpusChannelMapping &a, const mp4_atom_OpusChannelMapping &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Dops {
@@ -1988,12 +2200,16 @@ namespace moq {
 		::std::uint32_t input_sample_rate;
 		::std::int16_t output_gain;
 		::std::optional<::moq::mp4_atom_OpusChannelMapping> channel_mapping;
+		friend bool operator==(const mp4_atom_Dops &a, const mp4_atom_Dops &b);
+		friend bool operator!=(const mp4_atom_Dops &a, const mp4_atom_Dops &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Opus {
 		::moq::mp4_atom_Audio audio;
 		::moq::mp4_atom_Dops dops;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Opus &a, const mp4_atom_Opus &b);
+		friend bool operator!=(const mp4_atom_Opus &a, const mp4_atom_Opus &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_FlacMetadataBlock_StreamInfo {
@@ -2027,11 +2243,15 @@ namespace moq {
 	};
 	struct mp4_atom_Dfla {
 		::std::vector<::moq::mp4_atom_FlacMetadataBlock> blocks;
+		friend bool operator==(const mp4_atom_Dfla &a, const mp4_atom_Dfla &b);
+		friend bool operator!=(const mp4_atom_Dfla &a, const mp4_atom_Dfla &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Flac {
 		::moq::mp4_atom_Audio audio;
 		::moq::mp4_atom_Dfla dfla;
+		friend bool operator==(const mp4_atom_Flac &a, const mp4_atom_Flac &b);
+		friend bool operator!=(const mp4_atom_Flac &a, const mp4_atom_Flac &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ac3SpecificBox {
@@ -2041,11 +2261,15 @@ namespace moq {
 		::std::uint8_t acmod;
 		bool lfeon;
 		::std::uint8_t bit_rate_code;
+		friend bool operator==(const mp4_atom_Ac3SpecificBox &a, const mp4_atom_Ac3SpecificBox &b);
+		friend bool operator!=(const mp4_atom_Ac3SpecificBox &a, const mp4_atom_Ac3SpecificBox &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ac3 {
 		::moq::mp4_atom_Audio audio;
 		::moq::mp4_atom_Ac3SpecificBox dac3;
+		friend bool operator==(const mp4_atom_Ac3 &a, const mp4_atom_Ac3 &b);
+		friend bool operator!=(const mp4_atom_Ac3 &a, const mp4_atom_Ac3 &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ec3IndependentSubstream {
@@ -2057,26 +2281,36 @@ namespace moq {
 		bool lfeon;
 		::std::uint8_t num_dep_sub;
 		::std::optional<::std::uint16_t> chan_loc;
+		friend bool operator==(const mp4_atom_Ec3IndependentSubstream &a, const mp4_atom_Ec3IndependentSubstream &b);
+		friend bool operator!=(const mp4_atom_Ec3IndependentSubstream &a, const mp4_atom_Ec3IndependentSubstream &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ec3SpecificBox {
 		::std::uint16_t data_rate;
 		::std::vector<::moq::mp4_atom_Ec3IndependentSubstream> substreams;
+		friend bool operator==(const mp4_atom_Ec3SpecificBox &a, const mp4_atom_Ec3SpecificBox &b);
+		friend bool operator!=(const mp4_atom_Ec3SpecificBox &a, const mp4_atom_Ec3SpecificBox &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Eac3 {
 		::moq::mp4_atom_Audio audio;
 		::moq::mp4_atom_Ec3SpecificBox dec3;
+		friend bool operator==(const mp4_atom_Eac3 &a, const mp4_atom_Eac3 &b);
+		friend bool operator!=(const mp4_atom_Eac3 &a, const mp4_atom_Eac3 &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_PcmC {
 		bool big_endian;
 		::std::uint8_t sample_size;
+		friend bool operator==(const mp4_atom_PcmC &a, const mp4_atom_PcmC &b);
+		friend bool operator!=(const mp4_atom_PcmC &a, const mp4_atom_PcmC &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_ExplicitSpeakerPosition {
 		::std::int16_t azimuth;
 		::std::int8_t elevation;
+		friend bool operator==(const mp4_atom_ExplicitSpeakerPosition &a, const mp4_atom_ExplicitSpeakerPosition &b);
+		friend bool operator!=(const mp4_atom_ExplicitSpeakerPosition &a, const mp4_atom_ExplicitSpeakerPosition &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_SpeakerPosition_Standard {
@@ -2098,6 +2332,8 @@ namespace moq {
 		::std::optional<::std::uint8_t> object_count;
 		::std::optional<::std::uint8_t> format_ordering;
 		::std::optional<::std::uint8_t> base_channel_count;
+		friend bool operator==(const mp4_atom_Chnl &a, const mp4_atom_Chnl &b);
+		friend bool operator!=(const mp4_atom_Chnl &a, const mp4_atom_Chnl &b);
 		::moq::buf debug() const;
 		static ::moq::result<::moq::mp4_atom_Chnl, ::moq::buf> decode_body_with_channel_count(::moq::buf &buf_, ::std::uint16_t channel_count);
 	};
@@ -2106,6 +2342,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Ipcm &a, const mp4_atom_Ipcm &b);
+		friend bool operator!=(const mp4_atom_Ipcm &a, const mp4_atom_Ipcm &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2114,6 +2352,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Fpcm &a, const mp4_atom_Fpcm &b);
+		friend bool operator!=(const mp4_atom_Fpcm &a, const mp4_atom_Fpcm &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2122,6 +2362,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Sowt &a, const mp4_atom_Sowt &b);
+		friend bool operator!=(const mp4_atom_Sowt &a, const mp4_atom_Sowt &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2130,6 +2372,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Twos &a, const mp4_atom_Twos &b);
+		friend bool operator!=(const mp4_atom_Twos &a, const mp4_atom_Twos &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2138,6 +2382,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Lpcm &a, const mp4_atom_Lpcm &b);
+		friend bool operator!=(const mp4_atom_Lpcm &a, const mp4_atom_Lpcm &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2146,6 +2392,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_In24 &a, const mp4_atom_In24 &b);
+		friend bool operator!=(const mp4_atom_In24 &a, const mp4_atom_In24 &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2154,6 +2402,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_In32 &a, const mp4_atom_In32 &b);
+		friend bool operator!=(const mp4_atom_In32 &a, const mp4_atom_In32 &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2162,6 +2412,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Fl32 &a, const mp4_atom_Fl32 &b);
+		friend bool operator!=(const mp4_atom_Fl32 &a, const mp4_atom_Fl32 &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2170,6 +2422,8 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Fl64 &a, const mp4_atom_Fl64 &b);
+		friend bool operator!=(const mp4_atom_Fl64 &a, const mp4_atom_Fl64 &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
@@ -2178,19 +2432,27 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_PcmC> pcmc;
 		::std::optional<::moq::mp4_atom_Chnl> chnl;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_S16l &a, const mp4_atom_S16l &b);
+		friend bool operator!=(const mp4_atom_S16l &a, const mp4_atom_S16l &b);
 		::moq::buf debug() const;
 		::std::optional<::moq::mp4_atom_PcmFormat> format() const;
 	};
 	struct mp4_atom_PlainText {
 		::std::uint16_t data_reference_index;
+		friend bool operator==(const mp4_atom_PlainText &a, const mp4_atom_PlainText &b);
+		friend bool operator!=(const mp4_atom_PlainText &a, const mp4_atom_PlainText &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_VttC {
 		::moq::buf config;
+		friend bool operator==(const mp4_atom_VttC &a, const mp4_atom_VttC &b);
+		friend bool operator!=(const mp4_atom_VttC &a, const mp4_atom_VttC &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Vlab {
 		::moq::buf source_label;
+		friend bool operator==(const mp4_atom_Vlab &a, const mp4_atom_Vlab &b);
+		friend bool operator!=(const mp4_atom_Vlab &a, const mp4_atom_Vlab &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Wvtt {
@@ -2198,11 +2460,15 @@ namespace moq {
 		::moq::mp4_atom_VttC config;
 		::std::optional<::moq::mp4_atom_Vlab> label;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Wvtt &a, const mp4_atom_Wvtt &b);
+		friend bool operator!=(const mp4_atom_Wvtt &a, const mp4_atom_Wvtt &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_AmrSampleEntry {
 		::std::uint16_t data_reference_index;
 		::std::uint16_t timescale;
+		friend bool operator==(const mp4_atom_AmrSampleEntry &a, const mp4_atom_AmrSampleEntry &b);
+		friend bool operator!=(const mp4_atom_AmrSampleEntry &a, const mp4_atom_AmrSampleEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Damr {
@@ -2211,19 +2477,27 @@ namespace moq {
 		::std::uint16_t mode_set;
 		::std::uint8_t mode_change_period;
 		::std::uint8_t frames_per_sample;
+		friend bool operator==(const mp4_atom_Damr &a, const mp4_atom_Damr &b);
+		friend bool operator!=(const mp4_atom_Damr &a, const mp4_atom_Damr &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Samr {
 		::moq::mp4_atom_AmrSampleEntry amrsampleentry;
 		::moq::mp4_atom_Damr damr;
+		friend bool operator==(const mp4_atom_Samr &a, const mp4_atom_Samr &b);
+		friend bool operator!=(const mp4_atom_Samr &a, const mp4_atom_Samr &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_MetaData {
 		::std::uint16_t data_reference_index;
+		friend bool operator==(const mp4_atom_MetaData &a, const mp4_atom_MetaData &b);
+		friend bool operator!=(const mp4_atom_MetaData &a, const mp4_atom_MetaData &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_TxtC {
 		::moq::buf text_config;
+		friend bool operator==(const mp4_atom_TxtC &a, const mp4_atom_TxtC &b);
+		friend bool operator!=(const mp4_atom_TxtC &a, const mp4_atom_TxtC &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Mett {
@@ -2232,6 +2506,8 @@ namespace moq {
 		::moq::buf mime_format;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
 		::std::optional<::moq::mp4_atom_TxtC> txtc;
+		friend bool operator==(const mp4_atom_Mett &a, const mp4_atom_Mett &b);
+		friend bool operator!=(const mp4_atom_Mett &a, const mp4_atom_Mett &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Metx {
@@ -2240,14 +2516,20 @@ namespace moq {
 		::moq::buf namespace_;
 		::moq::buf schema_location;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Metx &a, const mp4_atom_Metx &b);
+		friend bool operator!=(const mp4_atom_Metx &a, const mp4_atom_Metx &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Uri {
 		::moq::buf the_uri;
+		friend bool operator==(const mp4_atom_Uri &a, const mp4_atom_Uri &b);
+		friend bool operator!=(const mp4_atom_Uri &a, const mp4_atom_Uri &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_UriI {
 		::moq::buf uri_initialization_data;
+		friend bool operator==(const mp4_atom_UriI &a, const mp4_atom_UriI &b);
+		friend bool operator!=(const mp4_atom_UriI &a, const mp4_atom_UriI &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Urim {
@@ -2255,32 +2537,44 @@ namespace moq {
 		::moq::mp4_atom_Uri the_label;
 		::std::optional<::moq::mp4_atom_UriI> init;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Urim &a, const mp4_atom_Urim &b);
+		friend bool operator!=(const mp4_atom_Urim &a, const mp4_atom_Urim &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Camm {
 		::moq::mp4_atom_MetaData metadata;
+		friend bool operator==(const mp4_atom_Camm &a, const mp4_atom_Camm &b);
+		friend bool operator!=(const mp4_atom_Camm &a, const mp4_atom_Camm &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_SchemeIdEntry {
 		::moq::buf scheme_id_uri;
 		::moq::buf value;
 		bool atleast_once;
+		friend bool operator==(const mp4_atom_SchemeIdEntry &a, const mp4_atom_SchemeIdEntry &b);
+		friend bool operator!=(const mp4_atom_SchemeIdEntry &a, const mp4_atom_SchemeIdEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Silb {
 		::std::vector<::moq::mp4_atom_SchemeIdEntry> schemes;
 		bool other_schemes;
+		friend bool operator==(const mp4_atom_Silb &a, const mp4_atom_Silb &b);
+		friend bool operator!=(const mp4_atom_Silb &a, const mp4_atom_Silb &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Evte {
 		::moq::mp4_atom_MetaData metadata;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
 		::std::optional<::moq::mp4_atom_Silb> silb;
+		friend bool operator==(const mp4_atom_Evte &a, const mp4_atom_Evte &b);
+		friend bool operator!=(const mp4_atom_Evte &a, const mp4_atom_Evte &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Keyd {
 		::moq::mp4_atom_FourCC key_namespace;
 		::moq::buf key_value;
+		friend bool operator==(const mp4_atom_Keyd &a, const mp4_atom_Keyd &b);
+		friend bool operator!=(const mp4_atom_Keyd &a, const mp4_atom_Keyd &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_DataType_WellKnown {
@@ -2295,14 +2589,20 @@ namespace moq {
 	};
 	struct mp4_atom_Dtyp {
 		::moq::mp4_atom_DataType data_type;
+		friend bool operator==(const mp4_atom_Dtyp &a, const mp4_atom_Dtyp &b);
+		friend bool operator!=(const mp4_atom_Dtyp &a, const mp4_atom_Dtyp &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Loca {
 		::moq::buf locale;
+		friend bool operator==(const mp4_atom_Loca &a, const mp4_atom_Loca &b);
+		friend bool operator!=(const mp4_atom_Loca &a, const mp4_atom_Loca &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Setu {
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_Setu &a, const mp4_atom_Setu &b);
+		friend bool operator!=(const mp4_atom_Setu &a, const mp4_atom_Setu &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_MebxKey {
@@ -2311,15 +2611,21 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_Dtyp> dtyp;
 		::std::optional<::moq::mp4_atom_Loca> loca;
 		::std::optional<::moq::mp4_atom_Setu> setu;
+		friend bool operator==(const mp4_atom_MebxKey &a, const mp4_atom_MebxKey &b);
+		friend bool operator!=(const mp4_atom_MebxKey &a, const mp4_atom_MebxKey &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Mebx {
 		::moq::mp4_atom_MetaData metadata;
 		::std::vector<::moq::mp4_atom_MebxKey> keys;
 		::std::optional<::moq::mp4_atom_Btrt> btrt;
+		friend bool operator==(const mp4_atom_Mebx &a, const mp4_atom_Mebx &b);
+		friend bool operator!=(const mp4_atom_Mebx &a, const mp4_atom_Mebx &b);
 		::moq::buf debug() const;
 	};
 	class mp4_atom_FixedPoint_u8 {
+		friend bool operator==(const mp4_atom_FixedPoint_u8 &a, const mp4_atom_FixedPoint_u8 &b);
+		friend bool operator!=(const mp4_atom_FixedPoint_u8 &a, const mp4_atom_FixedPoint_u8 &b);
 		::moq::buf debug() const;
 		static mp4_atom_FixedPoint_u8 default_();
 		static ::moq::mp4_atom_FixedPoint_u8 new_(::std::uint8_t int_, ::std::uint8_t dec);
@@ -2336,6 +2642,8 @@ namespace moq {
 		::std::int32_t x;
 		::std::int32_t y;
 		::std::int32_t w;
+		friend bool operator==(const mp4_atom_Matrix &a, const mp4_atom_Matrix &b);
+		friend bool operator!=(const mp4_atom_Matrix &a, const mp4_atom_Matrix &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static mp4_atom_Matrix default_();
@@ -2354,10 +2662,14 @@ namespace moq {
 		::moq::mp4_atom_Matrix matrix;
 		::moq::mp4_atom_FixedPoint_u16 width;
 		::moq::mp4_atom_FixedPoint_u16 height;
+		friend bool operator==(const mp4_atom_Tkhd &a, const mp4_atom_Tkhd &b);
+		friend bool operator!=(const mp4_atom_Tkhd &a, const mp4_atom_Tkhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Tkhd default_();
 	};
 	class mp4_atom_FixedPoint_i16 {
+		friend bool operator==(const mp4_atom_FixedPoint_i16 &a, const mp4_atom_FixedPoint_i16 &b);
+		friend bool operator!=(const mp4_atom_FixedPoint_i16 &a, const mp4_atom_FixedPoint_i16 &b);
 		::moq::buf debug() const;
 		static mp4_atom_FixedPoint_i16 default_();
 		static ::moq::mp4_atom_FixedPoint_i16 new_(::std::int16_t int_, ::std::int16_t dec);
@@ -2368,16 +2680,22 @@ namespace moq {
 		::std::uint64_t segment_duration;
 		::std::optional<::std::uint64_t> media_time;
 		::moq::mp4_atom_FixedPoint_i16 media_rate;
+		friend bool operator==(const mp4_atom_ElstEntry &a, const mp4_atom_ElstEntry &b);
+		friend bool operator!=(const mp4_atom_ElstEntry &a, const mp4_atom_ElstEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_ElstEntry default_();
 	};
 	struct mp4_atom_Elst {
 		::std::vector<::moq::mp4_atom_ElstEntry> entries;
+		friend bool operator==(const mp4_atom_Elst &a, const mp4_atom_Elst &b);
+		friend bool operator!=(const mp4_atom_Elst &a, const mp4_atom_Elst &b);
 		::moq::buf debug() const;
 		static mp4_atom_Elst default_();
 	};
 	struct mp4_atom_Edts {
 		::std::optional<::moq::mp4_atom_Elst> elst;
+		friend bool operator==(const mp4_atom_Edts &a, const mp4_atom_Edts &b);
+		friend bool operator!=(const mp4_atom_Edts &a, const mp4_atom_Edts &b);
 		::moq::buf debug() const;
 		static mp4_atom_Edts default_();
 	};
@@ -2385,16 +2703,22 @@ namespace moq {
 		::moq::mp4_atom_SencBoxVersion version;
 		bool use_subsamples;
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_Senc &a, const mp4_atom_Senc &b);
+		friend bool operator!=(const mp4_atom_Senc &a, const mp4_atom_Senc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Senc default_();
 	};
 	struct mp4_atom_TrackReferenceTypeBox {
 		::moq::mp4_atom_FourCC reference_type;
 		::std::vector<::std::uint32_t> track_ids;
+		friend bool operator==(const mp4_atom_TrackReferenceTypeBox &a, const mp4_atom_TrackReferenceTypeBox &b);
+		friend bool operator!=(const mp4_atom_TrackReferenceTypeBox &a, const mp4_atom_TrackReferenceTypeBox &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Tref {
 		::std::vector<::moq::mp4_atom_TrackReferenceTypeBox> track_reference_type_boxes;
+		friend bool operator==(const mp4_atom_Tref &a, const mp4_atom_Tref &b);
+		friend bool operator!=(const mp4_atom_Tref &a, const mp4_atom_Tref &b);
 		::moq::buf debug() const;
 		static mp4_atom_Tref default_();
 	};
@@ -2403,6 +2727,8 @@ namespace moq {
 		::std::uint8_t bit_depth_luma;
 		::std::uint8_t bit_depth_chroma;
 		::std::vector<::moq::buf> sequence_parameter_sets_ext;
+		friend bool operator==(const mp4_atom_AvccExt &a, const mp4_atom_AvccExt &b);
+		friend bool operator!=(const mp4_atom_AvccExt &a, const mp4_atom_AvccExt &b);
 		::moq::buf debug() const;
 		static mp4_atom_AvccExt default_();
 	};
@@ -2415,6 +2741,8 @@ namespace moq {
 		::std::vector<::moq::buf> sequence_parameter_sets;
 		::std::vector<::moq::buf> picture_parameter_sets;
 		::std::optional<::moq::mp4_atom_AvccExt> ext;
+		friend bool operator==(const mp4_atom_Avcc &a, const mp4_atom_Avcc &b);
+		friend bool operator!=(const mp4_atom_Avcc &a, const mp4_atom_Avcc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Avcc default_();
 		static ::moq::result<::moq::mp4_atom_Avcc, ::moq::buf> new_(::moq::input sps, ::moq::input pps);
@@ -2422,6 +2750,8 @@ namespace moq {
 	struct mp4_atom_Pasp {
 		::std::uint32_t h_spacing;
 		::std::uint32_t v_spacing;
+		friend bool operator==(const mp4_atom_Pasp &a, const mp4_atom_Pasp &b);
+		friend bool operator!=(const mp4_atom_Pasp &a, const mp4_atom_Pasp &b);
 		::moq::buf debug() const;
 		static mp4_atom_Pasp default_();
 		static ::moq::result<::moq::mp4_atom_Pasp, ::moq::buf> new_(::std::uint32_t h_spacing_, ::std::uint32_t v_spacing_);
@@ -2429,6 +2759,8 @@ namespace moq {
 	struct mp4_atom_Fiel {
 		::std::uint8_t field_count;
 		::std::uint8_t field_order;
+		friend bool operator==(const mp4_atom_Fiel &a, const mp4_atom_Fiel &b);
+		friend bool operator!=(const mp4_atom_Fiel &a, const mp4_atom_Fiel &b);
 		::moq::buf debug() const;
 		static mp4_atom_Fiel default_();
 		static ::moq::result<::moq::mp4_atom_Fiel, ::moq::buf> new_(::std::uint8_t field_count_, ::std::uint8_t field_order_);
@@ -2437,6 +2769,8 @@ namespace moq {
 		bool completeness;
 		::std::uint8_t nal_unit_type;
 		::std::vector<::moq::buf> nalus;
+		friend bool operator==(const mp4_atom_HvcCArray &a, const mp4_atom_HvcCArray &b);
+		friend bool operator!=(const mp4_atom_HvcCArray &a, const mp4_atom_HvcCArray &b);
 		::moq::buf debug() const;
 		static mp4_atom_HvcCArray default_();
 	};
@@ -2459,6 +2793,8 @@ namespace moq {
 		bool temporal_id_nested;
 		::std::uint8_t length_size_minus_one;
 		::std::vector<::moq::mp4_atom_HvcCArray> arrays;
+		friend bool operator==(const mp4_atom_Hvcc &a, const mp4_atom_Hvcc &b);
+		friend bool operator!=(const mp4_atom_Hvcc &a, const mp4_atom_Hvcc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Hvcc default_();
 		static ::moq::mp4_atom_Hvcc new_();
@@ -2471,6 +2807,8 @@ namespace moq {
 		bool temporal_id_nested;
 		::std::uint8_t length_size_minus_one;
 		::std::vector<::moq::mp4_atom_HvcCArray> arrays;
+		friend bool operator==(const mp4_atom_Lhvc &a, const mp4_atom_Lhvc &b);
+		friend bool operator!=(const mp4_atom_Lhvc &a, const mp4_atom_Lhvc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Lhvc default_();
 	};
@@ -2478,6 +2816,8 @@ namespace moq {
 		bool all_ref_pics_intra;
 		bool intra_pred_used;
 		::std::uint8_t max_ref_per_pic;
+		friend bool operator==(const mp4_atom_Ccst &a, const mp4_atom_Ccst &b);
+		friend bool operator!=(const mp4_atom_Ccst &a, const mp4_atom_Ccst &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ccst default_();
 	};
@@ -2491,6 +2831,8 @@ namespace moq {
 		::std::uint8_t transfer_characteristics;
 		::std::uint8_t matrix_coefficients;
 		::moq::buf codec_initialization_data;
+		friend bool operator==(const mp4_atom_VpcC &a, const mp4_atom_VpcC &b);
+		friend bool operator!=(const mp4_atom_VpcC &a, const mp4_atom_VpcC &b);
 		::moq::buf debug() const;
 		static mp4_atom_VpcC default_();
 	};
@@ -2506,6 +2848,8 @@ namespace moq {
 		::std::uint8_t chroma_sample_position;
 		::std::optional<::std::uint8_t> initial_presentation_delay;
 		::moq::buf config_obus;
+		friend bool operator==(const mp4_atom_Av1c &a, const mp4_atom_Av1c &b);
+		friend bool operator!=(const mp4_atom_Av1c &a, const mp4_atom_Av1c &b);
 		::moq::buf debug() const;
 		static mp4_atom_Av1c default_();
 	};
@@ -2514,36 +2858,50 @@ namespace moq {
 		::std::uint8_t green;
 		::std::uint8_t blue;
 		::std::uint8_t alpha;
+		friend bool operator==(const mp4_atom_RgbaColor &a, const mp4_atom_RgbaColor &b);
+		friend bool operator!=(const mp4_atom_RgbaColor &a, const mp4_atom_RgbaColor &b);
 		::moq::buf debug() const;
 		static mp4_atom_RgbaColor default_();
 	};
 	struct mp4_atom_FontEntry {
 		::std::uint16_t font_id;
 		::moq::buf font;
+		friend bool operator==(const mp4_atom_FontEntry &a, const mp4_atom_FontEntry &b);
+		friend bool operator!=(const mp4_atom_FontEntry &a, const mp4_atom_FontEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_FontEntry default_();
 	};
 	struct mp4_atom_Ftab {
 		::std::vector<::moq::mp4_atom_FontEntry> font_entries;
+		friend bool operator==(const mp4_atom_Ftab &a, const mp4_atom_Ftab &b);
+		friend bool operator!=(const mp4_atom_Ftab &a, const mp4_atom_Ftab &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ftab default_();
 	};
 	struct mp4_atom_Disp {
 		::std::int16_t disparity_shift_in_16th_pel;
+		friend bool operator==(const mp4_atom_Disp &a, const mp4_atom_Disp &b);
+		friend bool operator!=(const mp4_atom_Disp &a, const mp4_atom_Disp &b);
 		::moq::buf debug() const;
 		static mp4_atom_Disp default_();
 	};
 	struct mp4_atom_Component {
 		::std::uint16_t component_type;
 		::std::optional<::moq::buf> component_type_uri;
+		friend bool operator==(const mp4_atom_Component &a, const mp4_atom_Component &b);
+		friend bool operator!=(const mp4_atom_Component &a, const mp4_atom_Component &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Cmpd {
 		::std::vector<::moq::mp4_atom_Component> components;
+		friend bool operator==(const mp4_atom_Cmpd &a, const mp4_atom_Cmpd &b);
+		friend bool operator!=(const mp4_atom_Cmpd &a, const mp4_atom_Cmpd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Cmpd default_();
 	};
 	class mp4_atom_FixedPoint_i8 {
+		friend bool operator==(const mp4_atom_FixedPoint_i8 &a, const mp4_atom_FixedPoint_i8 &b);
+		friend bool operator!=(const mp4_atom_FixedPoint_i8 &a, const mp4_atom_FixedPoint_i8 &b);
 		::moq::buf debug() const;
 		static mp4_atom_FixedPoint_i8 default_();
 		static ::moq::mp4_atom_FixedPoint_i8 new_(::std::int8_t int_, ::std::int8_t dec);
@@ -2553,6 +2911,8 @@ namespace moq {
 	struct mp4_atom_Hdlr {
 		::moq::mp4_atom_FourCC handler;
 		::moq::buf name;
+		friend bool operator==(const mp4_atom_Hdlr &a, const mp4_atom_Hdlr &b);
+		friend bool operator!=(const mp4_atom_Hdlr &a, const mp4_atom_Hdlr &b);
 		::moq::buf debug() const;
 		static mp4_atom_Hdlr default_();
 	};
@@ -2562,28 +2922,38 @@ namespace moq {
 		::std::uint32_t timescale;
 		::std::uint64_t duration;
 		::moq::buf language;
+		friend bool operator==(const mp4_atom_Mdhd &a, const mp4_atom_Mdhd &b);
+		friend bool operator!=(const mp4_atom_Mdhd &a, const mp4_atom_Mdhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mdhd default_();
 	};
 	struct mp4_atom_ChplEntry {
 		::std::uint64_t start;
 		::moq::buf title;
+		friend bool operator==(const mp4_atom_ChplEntry &a, const mp4_atom_ChplEntry &b);
+		friend bool operator!=(const mp4_atom_ChplEntry &a, const mp4_atom_ChplEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Chpl {
 		::std::vector<::moq::mp4_atom_ChplEntry> entries;
+		friend bool operator==(const mp4_atom_Chpl &a, const mp4_atom_Chpl &b);
+		friend bool operator!=(const mp4_atom_Chpl &a, const mp4_atom_Chpl &b);
 		::moq::buf debug() const;
 		static mp4_atom_Chpl default_();
 	};
 	struct mp4_atom_Cprt {
 		::moq::buf language;
 		::moq::buf notice;
+		friend bool operator==(const mp4_atom_Cprt &a, const mp4_atom_Cprt &b);
+		friend bool operator!=(const mp4_atom_Cprt &a, const mp4_atom_Cprt &b);
 		::moq::buf debug() const;
 		static mp4_atom_Cprt default_();
 	};
 	struct mp4_atom_Kind {
 		::moq::buf scheme_uri;
 		::moq::buf value;
+		friend bool operator==(const mp4_atom_Kind &a, const mp4_atom_Kind &b);
+		friend bool operator!=(const mp4_atom_Kind &a, const mp4_atom_Kind &b);
 		::moq::buf debug() const;
 		static mp4_atom_Kind default_();
 	};
@@ -2592,21 +2962,29 @@ namespace moq {
 		::moq::mp4_atom_FourCC criteria;
 		::moq::buf language;
 		::moq::buf rating_info;
+		friend bool operator==(const mp4_atom_Rtng &a, const mp4_atom_Rtng &b);
+		friend bool operator!=(const mp4_atom_Rtng &a, const mp4_atom_Rtng &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_PcmFormat {
 		bool big_endian;
 		::std::uint16_t sample_size;
 		bool float_;
+		friend bool operator==(const mp4_atom_PcmFormat &a, const mp4_atom_PcmFormat &b);
+		friend bool operator!=(const mp4_atom_PcmFormat &a, const mp4_atom_PcmFormat &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_St3d {
 		::std::uint8_t stereo_mode;
+		friend bool operator==(const mp4_atom_St3d &a, const mp4_atom_St3d &b);
+		friend bool operator!=(const mp4_atom_St3d &a, const mp4_atom_St3d &b);
 		::moq::buf debug() const;
 		static mp4_atom_St3d default_();
 	};
 	struct mp4_atom_Hfov {
 		::std::uint32_t field_of_view;
+		friend bool operator==(const mp4_atom_Hfov &a, const mp4_atom_Hfov &b);
+		friend bool operator!=(const mp4_atom_Hfov &a, const mp4_atom_Hfov &b);
 		::moq::buf debug() const;
 		static mp4_atom_Hfov default_();
 	};
@@ -2615,22 +2993,30 @@ namespace moq {
 		::std::uint8_t component_bit_depth_minus_one;
 		::std::uint8_t component_format;
 		::std::uint8_t component_align_size;
+		friend bool operator==(const mp4_atom_UncompressedComponent &a, const mp4_atom_UncompressedComponent &b);
+		friend bool operator!=(const mp4_atom_UncompressedComponent &a, const mp4_atom_UncompressedComponent &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ftyp {
 		::moq::mp4_atom_FourCC major_brand;
 		::std::uint32_t minor_version;
 		::std::vector<::moq::mp4_atom_FourCC> compatible_brands;
+		friend bool operator==(const mp4_atom_Ftyp &a, const mp4_atom_Ftyp &b);
+		friend bool operator!=(const mp4_atom_Ftyp &a, const mp4_atom_Ftyp &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Styp {
 		::moq::mp4_atom_FourCC major_brand;
 		::std::uint32_t minor_version;
 		::std::vector<::moq::mp4_atom_FourCC> compatible_brands;
+		friend bool operator==(const mp4_atom_Styp &a, const mp4_atom_Styp &b);
+		friend bool operator!=(const mp4_atom_Styp &a, const mp4_atom_Styp &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Pitm {
 		::std::uint32_t item_id;
+		friend bool operator==(const mp4_atom_Pitm &a, const mp4_atom_Pitm &b);
+		friend bool operator!=(const mp4_atom_Pitm &a, const mp4_atom_Pitm &b);
 		::moq::buf debug() const;
 		static mp4_atom_Pitm default_();
 	};
@@ -2638,6 +3024,8 @@ namespace moq {
 		::std::uint64_t item_reference_index;
 		::std::uint64_t offset;
 		::std::uint64_t length;
+		friend bool operator==(const mp4_atom_ItemLocationExtent &a, const mp4_atom_ItemLocationExtent &b);
+		friend bool operator!=(const mp4_atom_ItemLocationExtent &a, const mp4_atom_ItemLocationExtent &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_ItemLocation {
@@ -2646,10 +3034,14 @@ namespace moq {
 		::std::uint16_t data_reference_index;
 		::std::uint64_t base_offset;
 		::std::vector<::moq::mp4_atom_ItemLocationExtent> extents;
+		friend bool operator==(const mp4_atom_ItemLocation &a, const mp4_atom_ItemLocation &b);
+		friend bool operator!=(const mp4_atom_ItemLocation &a, const mp4_atom_ItemLocation &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Iloc {
 		::std::vector<::moq::mp4_atom_ItemLocation> item_locations;
+		friend bool operator==(const mp4_atom_Iloc &a, const mp4_atom_Iloc &b);
+		friend bool operator!=(const mp4_atom_Iloc &a, const mp4_atom_Iloc &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_ItemInfoEntry {
@@ -2661,15 +3053,21 @@ namespace moq {
 		::std::optional<::moq::buf> content_encoding;
 		::std::optional<::moq::buf> item_uri_type;
 		bool item_not_in_presentation;
+		friend bool operator==(const mp4_atom_ItemInfoEntry &a, const mp4_atom_ItemInfoEntry &b);
+		friend bool operator!=(const mp4_atom_ItemInfoEntry &a, const mp4_atom_ItemInfoEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Iinf {
 		::std::vector<::moq::mp4_atom_ItemInfoEntry> item_infos;
+		friend bool operator==(const mp4_atom_Iinf &a, const mp4_atom_Iinf &b);
+		friend bool operator!=(const mp4_atom_Iinf &a, const mp4_atom_Iinf &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Auxc {
 		::moq::buf aux_type;
 		::moq::buf aux_subtype;
+		friend bool operator==(const mp4_atom_Auxc &a, const mp4_atom_Auxc &b);
+		friend bool operator!=(const mp4_atom_Auxc &a, const mp4_atom_Auxc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Auxc default_();
 	};
@@ -2682,16 +3080,22 @@ namespace moq {
 		::std::uint32_t horiz_off_d;
 		::std::int32_t vert_off_n;
 		::std::uint32_t vert_off_d;
+		friend bool operator==(const mp4_atom_Clap &a, const mp4_atom_Clap &b);
+		friend bool operator!=(const mp4_atom_Clap &a, const mp4_atom_Clap &b);
 		::moq::buf debug() const;
 		static mp4_atom_Clap default_();
 	};
 	struct mp4_atom_Imir {
 		::std::uint8_t axis;
+		friend bool operator==(const mp4_atom_Imir &a, const mp4_atom_Imir &b);
+		friend bool operator!=(const mp4_atom_Imir &a, const mp4_atom_Imir &b);
 		::moq::buf debug() const;
 		static mp4_atom_Imir default_();
 	};
 	struct mp4_atom_Irot {
 		::std::uint8_t angle;
+		friend bool operator==(const mp4_atom_Irot &a, const mp4_atom_Irot &b);
+		friend bool operator!=(const mp4_atom_Irot &a, const mp4_atom_Irot &b);
 		::moq::buf debug() const;
 		static mp4_atom_Irot default_();
 	};
@@ -2700,39 +3104,53 @@ namespace moq {
 		::std::uint16_t target_width_denominator;
 		::std::uint16_t target_height_numerator;
 		::std::uint16_t target_height_denominator;
+		friend bool operator==(const mp4_atom_Iscl &a, const mp4_atom_Iscl &b);
+		friend bool operator!=(const mp4_atom_Iscl &a, const mp4_atom_Iscl &b);
 		::moq::buf debug() const;
 		static mp4_atom_Iscl default_();
 	};
 	struct mp4_atom_Ispe {
 		::std::uint32_t width;
 		::std::uint32_t height;
+		friend bool operator==(const mp4_atom_Ispe &a, const mp4_atom_Ispe &b);
+		friend bool operator!=(const mp4_atom_Ispe &a, const mp4_atom_Ispe &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ispe default_();
 	};
 	struct mp4_atom_Pixi {
 		::moq::buf bits_per_channel;
+		friend bool operator==(const mp4_atom_Pixi &a, const mp4_atom_Pixi &b);
+		friend bool operator!=(const mp4_atom_Pixi &a, const mp4_atom_Pixi &b);
 		::moq::buf debug() const;
 		static mp4_atom_Pixi default_();
 	};
 	struct mp4_atom_Rref {
 		::std::vector<::moq::mp4_atom_FourCC> reference_types;
+		friend bool operator==(const mp4_atom_Rref &a, const mp4_atom_Rref &b);
+		friend bool operator!=(const mp4_atom_Rref &a, const mp4_atom_Rref &b);
 		::moq::buf debug() const;
 		static mp4_atom_Rref default_();
 	};
 	struct mp4_atom_PropertyAssociation {
 		bool essential;
 		::std::uint16_t property_index;
+		friend bool operator==(const mp4_atom_PropertyAssociation &a, const mp4_atom_PropertyAssociation &b);
+		friend bool operator!=(const mp4_atom_PropertyAssociation &a, const mp4_atom_PropertyAssociation &b);
 		::moq::buf debug() const;
 		static mp4_atom_PropertyAssociation default_();
 	};
 	struct mp4_atom_PropertyAssociations {
 		::std::uint32_t item_id;
 		::std::vector<::moq::mp4_atom_PropertyAssociation> associations;
+		friend bool operator==(const mp4_atom_PropertyAssociations &a, const mp4_atom_PropertyAssociations &b);
+		friend bool operator!=(const mp4_atom_PropertyAssociations &a, const mp4_atom_PropertyAssociations &b);
 		::moq::buf debug() const;
 		static mp4_atom_PropertyAssociations default_();
 	};
 	struct mp4_atom_Ipma {
 		::std::vector<::moq::mp4_atom_PropertyAssociations> item_properties;
+		friend bool operator==(const mp4_atom_Ipma &a, const mp4_atom_Ipma &b);
+		friend bool operator!=(const mp4_atom_Ipma &a, const mp4_atom_Ipma &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ipma default_();
 	};
@@ -2740,38 +3158,54 @@ namespace moq {
 		::moq::mp4_atom_FourCC reference_type;
 		::std::uint32_t from_item_id;
 		::std::vector<::std::uint32_t> to_item_ids;
+		friend bool operator==(const mp4_atom_Reference &a, const mp4_atom_Reference &b);
+		friend bool operator!=(const mp4_atom_Reference &a, const mp4_atom_Reference &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Iref {
 		::std::vector<::moq::mp4_atom_Reference> references;
+		friend bool operator==(const mp4_atom_Iref &a, const mp4_atom_Iref &b);
+		friend bool operator!=(const mp4_atom_Iref &a, const mp4_atom_Iref &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Idat {
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_Idat &a, const mp4_atom_Idat &b);
+		friend bool operator!=(const mp4_atom_Idat &a, const mp4_atom_Idat &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Name {
 		::moq::buf _0;
+		friend bool operator==(const mp4_atom_Name &a, const mp4_atom_Name &b);
+		friend bool operator!=(const mp4_atom_Name &a, const mp4_atom_Name &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Year {
 		::moq::buf _0;
+		friend bool operator==(const mp4_atom_Year &a, const mp4_atom_Year &b);
+		friend bool operator!=(const mp4_atom_Year &a, const mp4_atom_Year &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Covr {
 		::moq::buf _0;
+		friend bool operator==(const mp4_atom_Covr &a, const mp4_atom_Covr &b);
+		friend bool operator!=(const mp4_atom_Covr &a, const mp4_atom_Covr &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Desc {
 		::std::uint16_t country_indicator;
 		::std::uint16_t language_indicator;
 		::moq::buf text;
+		friend bool operator==(const mp4_atom_Desc &a, const mp4_atom_Desc &b);
+		friend bool operator!=(const mp4_atom_Desc &a, const mp4_atom_Desc &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Tool {
 		::std::uint16_t country_indicator;
 		::std::uint16_t language_indicator;
 		::moq::buf text;
+		friend bool operator==(const mp4_atom_Tool &a, const mp4_atom_Tool &b);
+		friend bool operator!=(const mp4_atom_Tool &a, const mp4_atom_Tool &b);
 		::moq::buf debug() const;
 		static ::moq::result<::moq::mp4_atom_Tool, ::moq::buf> new_(::std::uint16_t country_indicator_, ::std::uint16_t language_indicator_, ::moq::input text_);
 	};
@@ -2779,6 +3213,8 @@ namespace moq {
 		::std::uint16_t country_indicator;
 		::std::uint16_t language_indicator;
 		::moq::buf text;
+		friend bool operator==(const mp4_atom_Copyright &a, const mp4_atom_Copyright &b);
+		friend bool operator!=(const mp4_atom_Copyright &a, const mp4_atom_Copyright &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_IlstDataValue_Reserved {
@@ -2819,6 +3255,8 @@ namespace moq {
 		::std::uint16_t country_indicator;
 		::std::uint16_t language_indicator;
 		::moq::mp4_atom_IlstDataValue value;
+		friend bool operator==(const mp4_atom_IlstData &a, const mp4_atom_IlstData &b);
+		friend bool operator!=(const mp4_atom_IlstData &a, const mp4_atom_IlstData &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Ilst {
@@ -2829,16 +3267,22 @@ namespace moq {
 		::std::optional<::moq::mp4_atom_Tool> ctoo;
 		::std::optional<::moq::mp4_atom_Copyright> cprt;
 		::std::vector<::std::tuple<::std::uint32_t, ::moq::mp4_atom_IlstData>> mdta;
+		friend bool operator==(const mp4_atom_Ilst &a, const mp4_atom_Ilst &b);
+		friend bool operator!=(const mp4_atom_Ilst &a, const mp4_atom_Ilst &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ilst default_();
 	};
 	struct mp4_atom_KeyEntry {
 		::moq::mp4_atom_FourCC key_namespace;
 		::moq::buf key_value;
+		friend bool operator==(const mp4_atom_KeyEntry &a, const mp4_atom_KeyEntry &b);
+		friend bool operator!=(const mp4_atom_KeyEntry &a, const mp4_atom_KeyEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Keys {
 		::std::vector<::moq::mp4_atom_KeyEntry> entries;
+		friend bool operator==(const mp4_atom_Keys &a, const mp4_atom_Keys &b);
+		friend bool operator!=(const mp4_atom_Keys &a, const mp4_atom_Keys &b);
 		::moq::buf debug() const;
 		static mp4_atom_Keys default_();
 	};
@@ -2851,6 +3295,8 @@ namespace moq {
 		::moq::mp4_atom_FixedPoint_u8 volume;
 		::moq::mp4_atom_Matrix matrix;
 		::std::uint32_t next_track_id;
+		friend bool operator==(const mp4_atom_Mvhd &a, const mp4_atom_Mvhd &b);
+		friend bool operator!=(const mp4_atom_Mvhd &a, const mp4_atom_Mvhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mvhd default_();
 	};
@@ -2858,28 +3304,38 @@ namespace moq {
 		bool hidden;
 		::std::uint32_t profile_version;
 		::moq::buf apid;
+		friend bool operator==(const mp4_atom_Ainf &a, const mp4_atom_Ainf &b);
+		friend bool operator!=(const mp4_atom_Ainf &a, const mp4_atom_Ainf &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ainf default_();
 	};
 	struct mp4_atom_Zeroed {
 		::std::size_t size;
+		friend bool operator==(const mp4_atom_Zeroed &a, const mp4_atom_Zeroed &b);
+		friend bool operator!=(const mp4_atom_Zeroed &a, const mp4_atom_Zeroed &b);
 		::moq::buf debug() const;
 		static mp4_atom_Zeroed default_();
 		static ::moq::mp4_atom_Zeroed new_(::std::size_t size_);
 	};
 	struct mp4_atom_Skip {
 		::moq::mp4_atom_Zeroed zeroed;
+		friend bool operator==(const mp4_atom_Skip &a, const mp4_atom_Skip &b);
+		friend bool operator!=(const mp4_atom_Skip &a, const mp4_atom_Skip &b);
 		::moq::buf debug() const;
 		static mp4_atom_Skip default_();
 	};
 	struct mp4_atom_SttsEntry {
 		::std::uint32_t sample_count;
 		::std::uint32_t sample_delta;
+		friend bool operator==(const mp4_atom_SttsEntry &a, const mp4_atom_SttsEntry &b);
+		friend bool operator!=(const mp4_atom_SttsEntry &a, const mp4_atom_SttsEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_SttsEntry default_();
 	};
 	struct mp4_atom_Stts {
 		::std::vector<::moq::mp4_atom_SttsEntry> entries;
+		friend bool operator==(const mp4_atom_Stts &a, const mp4_atom_Stts &b);
+		friend bool operator!=(const mp4_atom_Stts &a, const mp4_atom_Stts &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stts default_();
 	};
@@ -2887,11 +3343,15 @@ namespace moq {
 		::std::uint32_t first_chunk;
 		::std::uint32_t samples_per_chunk;
 		::std::uint32_t sample_description_index;
+		friend bool operator==(const mp4_atom_StscEntry &a, const mp4_atom_StscEntry &b);
+		friend bool operator!=(const mp4_atom_StscEntry &a, const mp4_atom_StscEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_StscEntry default_();
 	};
 	struct mp4_atom_Stsc {
 		::std::vector<::moq::mp4_atom_StscEntry> entries;
+		friend bool operator==(const mp4_atom_Stsc &a, const mp4_atom_Stsc &b);
+		friend bool operator!=(const mp4_atom_Stsc &a, const mp4_atom_Stsc &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stsc default_();
 	};
@@ -2904,21 +3364,29 @@ namespace moq {
 	};
 	struct mp4_atom_Stsz {
 		::moq::mp4_atom_StszSamples samples;
+		friend bool operator==(const mp4_atom_Stsz &a, const mp4_atom_Stsz &b);
+		friend bool operator!=(const mp4_atom_Stsz &a, const mp4_atom_Stsz &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stsz default_();
 	};
 	struct mp4_atom_Stss {
 		::std::vector<::std::uint32_t> entries;
+		friend bool operator==(const mp4_atom_Stss &a, const mp4_atom_Stss &b);
+		friend bool operator!=(const mp4_atom_Stss &a, const mp4_atom_Stss &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stss default_();
 	};
 	struct mp4_atom_Stco {
 		::std::vector<::std::uint32_t> entries;
+		friend bool operator==(const mp4_atom_Stco &a, const mp4_atom_Stco &b);
+		friend bool operator!=(const mp4_atom_Stco &a, const mp4_atom_Stco &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stco default_();
 	};
 	struct mp4_atom_Co64 {
 		::std::vector<::std::uint64_t> entries;
+		friend bool operator==(const mp4_atom_Co64 &a, const mp4_atom_Co64 &b);
+		friend bool operator!=(const mp4_atom_Co64 &a, const mp4_atom_Co64 &b);
 		::moq::buf debug() const;
 		static mp4_atom_Co64 default_();
 	};
@@ -2928,29 +3396,39 @@ namespace moq {
 		::std::int64_t greatest_decode_to_display_delta;
 		::std::int64_t composition_start_time;
 		::std::int64_t composition_end_time;
+		friend bool operator==(const mp4_atom_Cslg &a, const mp4_atom_Cslg &b);
+		friend bool operator!=(const mp4_atom_Cslg &a, const mp4_atom_Cslg &b);
 		::moq::buf debug() const;
 		static mp4_atom_Cslg default_();
 	};
 	struct mp4_atom_CttsEntry {
 		::std::uint32_t sample_count;
 		::std::int64_t sample_offset;
+		friend bool operator==(const mp4_atom_CttsEntry &a, const mp4_atom_CttsEntry &b);
+		friend bool operator!=(const mp4_atom_CttsEntry &a, const mp4_atom_CttsEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_CttsEntry default_();
 	};
 	struct mp4_atom_Ctts {
 		::std::vector<::moq::mp4_atom_CttsEntry> entries;
+		friend bool operator==(const mp4_atom_Ctts &a, const mp4_atom_Ctts &b);
+		friend bool operator!=(const mp4_atom_Ctts &a, const mp4_atom_Ctts &b);
 		::moq::buf debug() const;
 		static mp4_atom_Ctts default_();
 	};
 	struct mp4_atom_SbgpEntry {
 		::std::uint32_t sample_count;
 		::std::uint32_t group_description_index;
+		friend bool operator==(const mp4_atom_SbgpEntry &a, const mp4_atom_SbgpEntry &b);
+		friend bool operator!=(const mp4_atom_SbgpEntry &a, const mp4_atom_SbgpEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Sbgp {
 		::moq::mp4_atom_FourCC grouping_type;
 		::std::optional<::std::uint32_t> grouping_type_parameter;
 		::std::vector<::moq::mp4_atom_SbgpEntry> entries;
+		friend bool operator==(const mp4_atom_Sbgp &a, const mp4_atom_Sbgp &b);
+		friend bool operator!=(const mp4_atom_Sbgp &a, const mp4_atom_Sbgp &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_AnySampleGroupEntry_DirectReferenceSampleList {
@@ -2964,6 +3442,8 @@ namespace moq {
 	struct mp4_atom_SgpdEntry {
 		::std::optional<::std::uint32_t> description_length;
 		::moq::mp4_atom_AnySampleGroupEntry entry;
+		friend bool operator==(const mp4_atom_SgpdEntry &a, const mp4_atom_SgpdEntry &b);
+		friend bool operator!=(const mp4_atom_SgpdEntry &a, const mp4_atom_SgpdEntry &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Sgpd {
@@ -2974,6 +3454,8 @@ namespace moq {
 		bool static_mapping;
 		bool essential;
 		::std::vector<::moq::mp4_atom_SgpdEntry> entries;
+		friend bool operator==(const mp4_atom_Sgpd &a, const mp4_atom_Sgpd &b);
+		friend bool operator!=(const mp4_atom_Sgpd &a, const mp4_atom_Sgpd &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_SubsSubsampleSize_U16 {
@@ -2987,29 +3469,39 @@ namespace moq {
 		::std::uint8_t priority;
 		bool discardable;
 		::moq::buf codec_specific_parameters;
+		friend bool operator==(const mp4_atom_SubsSubsample &a, const mp4_atom_SubsSubsample &b);
+		friend bool operator!=(const mp4_atom_SubsSubsample &a, const mp4_atom_SubsSubsample &b);
 		::moq::buf debug() const;
 		static mp4_atom_SubsSubsample default_();
 	};
 	struct mp4_atom_SubsEntry {
 		::std::uint32_t sample_delta;
 		::std::vector<::moq::mp4_atom_SubsSubsample> subsamples;
+		friend bool operator==(const mp4_atom_SubsEntry &a, const mp4_atom_SubsEntry &b);
+		friend bool operator!=(const mp4_atom_SubsEntry &a, const mp4_atom_SubsEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_SubsEntry default_();
 	};
 	struct mp4_atom_Subs {
 		::std::array<::std::uint8_t, 3> flags;
 		::std::vector<::moq::mp4_atom_SubsEntry> entries;
+		friend bool operator==(const mp4_atom_Subs &a, const mp4_atom_Subs &b);
+		friend bool operator!=(const mp4_atom_Subs &a, const mp4_atom_Subs &b);
 		::moq::buf debug() const;
 		static mp4_atom_Subs default_();
 	};
 	struct mp4_atom_AuxInfo {
 		::moq::mp4_atom_FourCC aux_info_type;
 		::std::uint32_t aux_info_type_parameter;
+		friend bool operator==(const mp4_atom_AuxInfo &a, const mp4_atom_AuxInfo &b);
+		friend bool operator!=(const mp4_atom_AuxInfo &a, const mp4_atom_AuxInfo &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Saio {
 		::std::optional<::moq::mp4_atom_AuxInfo> aux_info;
 		::std::vector<::std::uint64_t> offsets;
+		friend bool operator==(const mp4_atom_Saio &a, const mp4_atom_Saio &b);
+		friend bool operator!=(const mp4_atom_Saio &a, const mp4_atom_Saio &b);
 		::moq::buf debug() const;
 		static mp4_atom_Saio default_();
 	};
@@ -3018,17 +3510,23 @@ namespace moq {
 		::std::uint8_t default_sample_info_size;
 		::std::uint32_t sample_count;
 		::moq::buf sample_info_size;
+		friend bool operator==(const mp4_atom_Saiz &a, const mp4_atom_Saiz &b);
+		friend bool operator!=(const mp4_atom_Saiz &a, const mp4_atom_Saiz &b);
 		::moq::buf debug() const;
 		static mp4_atom_Saiz default_();
 	};
 	struct mp4_atom_Url {
 		::moq::buf location;
+		friend bool operator==(const mp4_atom_Url &a, const mp4_atom_Url &b);
+		friend bool operator!=(const mp4_atom_Url &a, const mp4_atom_Url &b);
 		::moq::buf debug() const;
 		static mp4_atom_Url default_();
 	};
 	struct mp4_atom_Urn {
 		::moq::buf name;
 		::moq::buf location;
+		friend bool operator==(const mp4_atom_Urn &a, const mp4_atom_Urn &b);
+		friend bool operator!=(const mp4_atom_Urn &a, const mp4_atom_Urn &b);
 		::moq::buf debug() const;
 		static mp4_atom_Urn default_();
 	};
@@ -3044,11 +3542,15 @@ namespace moq {
 	};
 	struct mp4_atom_Dref {
 		::std::vector<::moq::mp4_atom_DrefEntry> entries;
+		friend bool operator==(const mp4_atom_Dref &a, const mp4_atom_Dref &b);
+		friend bool operator!=(const mp4_atom_Dref &a, const mp4_atom_Dref &b);
 		::moq::buf debug() const;
 		static mp4_atom_Dref default_();
 	};
 	struct mp4_atom_Dinf {
 		::moq::mp4_atom_Dref dref;
+		friend bool operator==(const mp4_atom_Dinf &a, const mp4_atom_Dinf &b);
+		friend bool operator!=(const mp4_atom_Dinf &a, const mp4_atom_Dinf &b);
 		::moq::buf debug() const;
 		static mp4_atom_Dinf default_();
 	};
@@ -3057,11 +3559,15 @@ namespace moq {
 		::std::uint16_t avg_pdu_size;
 		::std::uint32_t max_bitrate;
 		::std::uint32_t avg_bitrate;
+		friend bool operator==(const mp4_atom_Hmhd &a, const mp4_atom_Hmhd &b);
+		friend bool operator!=(const mp4_atom_Hmhd &a, const mp4_atom_Hmhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Hmhd default_();
 	};
 	struct mp4_atom_Smhd {
 		::moq::mp4_atom_FixedPoint_i8 balance;
+		friend bool operator==(const mp4_atom_Smhd &a, const mp4_atom_Smhd &b);
+		friend bool operator!=(const mp4_atom_Smhd &a, const mp4_atom_Smhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Smhd default_();
 	};
@@ -3069,17 +3575,23 @@ namespace moq {
 		::std::uint16_t red;
 		::std::uint16_t green;
 		::std::uint16_t blue;
+		friend bool operator==(const mp4_atom_RgbColor &a, const mp4_atom_RgbColor &b);
+		friend bool operator!=(const mp4_atom_RgbColor &a, const mp4_atom_RgbColor &b);
 		::moq::buf debug() const;
 		static mp4_atom_RgbColor default_();
 	};
 	struct mp4_atom_Vmhd {
 		::std::uint16_t graphics_mode;
 		::moq::mp4_atom_RgbColor op_color;
+		friend bool operator==(const mp4_atom_Vmhd &a, const mp4_atom_Vmhd &b);
+		friend bool operator!=(const mp4_atom_Vmhd &a, const mp4_atom_Vmhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Vmhd default_();
 	};
 	struct mp4_atom_Mehd {
 		::std::uint64_t fragment_duration;
+		friend bool operator==(const mp4_atom_Mehd &a, const mp4_atom_Mehd &b);
+		friend bool operator!=(const mp4_atom_Mehd &a, const mp4_atom_Mehd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mehd default_();
 	};
@@ -3089,12 +3601,16 @@ namespace moq {
 		::std::uint32_t default_sample_duration;
 		::std::uint32_t default_sample_size;
 		::std::uint32_t default_sample_flags;
+		friend bool operator==(const mp4_atom_Trex &a, const mp4_atom_Trex &b);
+		friend bool operator!=(const mp4_atom_Trex &a, const mp4_atom_Trex &b);
 		::moq::buf debug() const;
 		static mp4_atom_Trex default_();
 	};
 	struct mp4_atom_Mvex {
 		::std::optional<::moq::mp4_atom_Mehd> mehd;
 		::std::vector<::moq::mp4_atom_Trex> trex;
+		friend bool operator==(const mp4_atom_Mvex &a, const mp4_atom_Mvex &b);
+		friend bool operator!=(const mp4_atom_Mvex &a, const mp4_atom_Mvex &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mvex default_();
 	};
@@ -3112,10 +3628,14 @@ namespace moq {
 		::moq::buf scheme_id_uri;
 		::moq::buf value;
 		::moq::buf message_data;
+		friend bool operator==(const mp4_atom_Emsg &a, const mp4_atom_Emsg &b);
+		friend bool operator!=(const mp4_atom_Emsg &a, const mp4_atom_Emsg &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Mfhd {
 		::std::uint32_t sequence_number;
+		friend bool operator==(const mp4_atom_Mfhd &a, const mp4_atom_Mfhd &b);
+		friend bool operator!=(const mp4_atom_Mfhd &a, const mp4_atom_Mfhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mfhd default_();
 	};
@@ -3128,11 +3648,15 @@ namespace moq {
 		::std::optional<::std::uint32_t> default_sample_flags;
 		bool duration_is_empty;
 		bool default_base_is_moof;
+		friend bool operator==(const mp4_atom_Tfhd &a, const mp4_atom_Tfhd &b);
+		friend bool operator!=(const mp4_atom_Tfhd &a, const mp4_atom_Tfhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Tfhd default_();
 	};
 	struct mp4_atom_Tfdt {
 		::std::uint64_t base_media_decode_time;
+		friend bool operator==(const mp4_atom_Tfdt &a, const mp4_atom_Tfdt &b);
+		friend bool operator!=(const mp4_atom_Tfdt &a, const mp4_atom_Tfdt &b);
 		::moq::buf debug() const;
 		static mp4_atom_Tfdt default_();
 	};
@@ -3141,6 +3665,8 @@ namespace moq {
 		::std::optional<::std::uint32_t> size;
 		::std::optional<::std::uint32_t> flags;
 		::std::optional<::std::int64_t> cts;
+		friend bool operator==(const mp4_atom_TrunEntry &a, const mp4_atom_TrunEntry &b);
+		friend bool operator!=(const mp4_atom_TrunEntry &a, const mp4_atom_TrunEntry &b);
 		::moq::buf debug() const;
 		static mp4_atom_TrunEntry default_();
 	};
@@ -3154,15 +3680,21 @@ namespace moq {
 	struct mp4_atom_Trun {
 		::std::optional<::std::int32_t> data_offset;
 		::moq::mp4_atom_TrunSamples samples;
+		friend bool operator==(const mp4_atom_Trun &a, const mp4_atom_Trun &b);
+		friend bool operator!=(const mp4_atom_Trun &a, const mp4_atom_Trun &b);
 		::moq::buf debug() const;
 		static mp4_atom_Trun default_();
 	};
 	struct mp4_atom_Mdat {
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_Mdat &a, const mp4_atom_Mdat &b);
+		friend bool operator!=(const mp4_atom_Mdat &a, const mp4_atom_Mdat &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Free {
 		::moq::mp4_atom_Zeroed zeroed;
+		friend bool operator==(const mp4_atom_Free &a, const mp4_atom_Free &b);
+		friend bool operator!=(const mp4_atom_Free &a, const mp4_atom_Free &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_SegmentReference {
@@ -3172,6 +3704,8 @@ namespace moq {
 		bool starts_with_sap;
 		::std::uint8_t sap_type;
 		::std::uint32_t sap_delta_time;
+		friend bool operator==(const mp4_atom_SegmentReference &a, const mp4_atom_SegmentReference &b);
+		friend bool operator!=(const mp4_atom_SegmentReference &a, const mp4_atom_SegmentReference &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Sidx {
@@ -3180,6 +3714,8 @@ namespace moq {
 		::std::uint64_t earliest_presentation_time;
 		::std::uint64_t first_offset;
 		::std::vector<::moq::mp4_atom_SegmentReference> references;
+		friend bool operator==(const mp4_atom_Sidx &a, const mp4_atom_Sidx &b);
+		friend bool operator!=(const mp4_atom_Sidx &a, const mp4_atom_Sidx &b);
 		::moq::buf debug() const;
 		static mp4_atom_Sidx default_();
 	};
@@ -3188,6 +3724,8 @@ namespace moq {
 		::std::uint64_t ntp_timestamp;
 		::std::uint64_t media_time;
 		::moq::mp4_atom_ReferenceTime utc_time_semantics;
+		friend bool operator==(const mp4_atom_Prft &a, const mp4_atom_Prft &b);
+		friend bool operator!=(const mp4_atom_Prft &a, const mp4_atom_Prft &b);
 		::moq::buf debug() const;
 		static mp4_atom_Prft default_();
 	};
@@ -3197,42 +3735,58 @@ namespace moq {
 		::std::uint32_t traf_number;
 		::std::uint32_t trun_number;
 		::std::uint32_t sample_delta;
+		friend bool operator==(const mp4_atom_FragmentInfo &a, const mp4_atom_FragmentInfo &b);
+		friend bool operator!=(const mp4_atom_FragmentInfo &a, const mp4_atom_FragmentInfo &b);
 		::moq::buf debug() const;
 		static mp4_atom_FragmentInfo default_();
 	};
 	struct mp4_atom_Tfra {
 		::std::uint32_t track_id;
 		::std::vector<::moq::mp4_atom_FragmentInfo> entries;
+		friend bool operator==(const mp4_atom_Tfra &a, const mp4_atom_Tfra &b);
+		friend bool operator!=(const mp4_atom_Tfra &a, const mp4_atom_Tfra &b);
 		::moq::buf debug() const;
 		static mp4_atom_Tfra default_();
 	};
 	struct mp4_atom_Mfro {
 		::std::uint32_t parent_size;
+		friend bool operator==(const mp4_atom_Mfro &a, const mp4_atom_Mfro &b);
+		friend bool operator!=(const mp4_atom_Mfro &a, const mp4_atom_Mfro &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mfro default_();
 	};
 	struct mp4_atom_Mfra {
 		::std::vector<::moq::mp4_atom_Tfra> tfra;
 		::moq::mp4_atom_Mfro mfro;
+		friend bool operator==(const mp4_atom_Mfra &a, const mp4_atom_Mfra &b);
+		friend bool operator!=(const mp4_atom_Mfra &a, const mp4_atom_Mfra &b);
 		::moq::buf debug() const;
 		static mp4_atom_Mfra default_();
 	};
 	struct mp4_atom_Svhd {
 		::moq::buf metadata_source;
+		friend bool operator==(const mp4_atom_Svhd &a, const mp4_atom_Svhd &b);
+		friend bool operator!=(const mp4_atom_Svhd &a, const mp4_atom_Svhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Svhd default_();
 	};
 	struct mp4_atom_Must {
 		::std::vector<::moq::mp4_atom_FourCC> required_box_types;
+		friend bool operator==(const mp4_atom_Must &a, const mp4_atom_Must &b);
+		friend bool operator!=(const mp4_atom_Must &a, const mp4_atom_Must &b);
 		::moq::buf debug() const;
 		static mp4_atom_Must default_();
 	};
 	struct mp4_atom_C2pa {
 		::moq::buf box_purpose;
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_C2pa &a, const mp4_atom_C2pa &b);
+		friend bool operator!=(const mp4_atom_C2pa &a, const mp4_atom_C2pa &b);
 		::moq::buf debug() const;
 	};
 	class mp4_atom_ExtendedType {
+		friend bool operator==(const mp4_atom_ExtendedType &a, const mp4_atom_ExtendedType &b);
+		friend bool operator!=(const mp4_atom_ExtendedType &a, const mp4_atom_ExtendedType &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static mp4_atom_ExtendedType default_();
@@ -3242,11 +3796,15 @@ namespace moq {
 		::std::int32_t pose_yaw_degrees;
 		::std::int32_t pose_pitch_degrees;
 		::std::int32_t pose_roll_degrees;
+		friend bool operator==(const mp4_atom_Prhd &a, const mp4_atom_Prhd &b);
+		friend bool operator!=(const mp4_atom_Prhd &a, const mp4_atom_Prhd &b);
 		::moq::buf debug() const;
 		static mp4_atom_Prhd default_();
 	};
 	struct mp4_atom_Prji {
 		::moq::mp4_atom_FourCC projection_kind;
+		friend bool operator==(const mp4_atom_Prji &a, const mp4_atom_Prji &b);
+		friend bool operator!=(const mp4_atom_Prji &a, const mp4_atom_Prji &b);
 		::moq::buf debug() const;
 		static ::moq::mp4_atom_FourCC RECTILINEAR();
 		static ::moq::mp4_atom_FourCC EQUIRECTANGULAR();
@@ -3259,16 +3817,22 @@ namespace moq {
 		bool has_additional_views;
 		bool has_right_eye_view;
 		bool has_left_eye_view;
+		friend bool operator==(const mp4_atom_Stri &a, const mp4_atom_Stri &b);
+		friend bool operator!=(const mp4_atom_Stri &a, const mp4_atom_Stri &b);
 		::moq::buf debug() const;
 		static mp4_atom_Stri default_();
 	};
 	struct mp4_atom_Hero {
 		::std::uint8_t hero_eye_indicator;
+		friend bool operator==(const mp4_atom_Hero &a, const mp4_atom_Hero &b);
+		friend bool operator!=(const mp4_atom_Hero &a, const mp4_atom_Hero &b);
 		::moq::buf debug() const;
 		static mp4_atom_Hero default_();
 	};
 	struct mp4_atom_Pkin {
 		::moq::mp4_atom_FourCC view_packing_kind;
+		friend bool operator==(const mp4_atom_Pkin &a, const mp4_atom_Pkin &b);
+		friend bool operator!=(const mp4_atom_Pkin &a, const mp4_atom_Pkin &b);
 		::moq::buf debug() const;
 		static ::moq::mp4_atom_FourCC SIDE_BY_SIDE();
 		static ::moq::mp4_atom_FourCC OVER_UNDER();
@@ -3278,12 +3842,16 @@ namespace moq {
 		::std::uint32_t projection_bounds_bottom;
 		::std::uint32_t projection_bounds_left;
 		::std::uint32_t projection_bounds_right;
+		friend bool operator==(const mp4_atom_Equi &a, const mp4_atom_Equi &b);
+		friend bool operator!=(const mp4_atom_Equi &a, const mp4_atom_Equi &b);
 		::moq::buf debug() const;
 		static mp4_atom_Equi default_();
 	};
 	struct mp4_atom_Cbmp {
 		::std::uint32_t layout;
 		::std::uint32_t padding;
+		friend bool operator==(const mp4_atom_Cbmp &a, const mp4_atom_Cbmp &b);
+		friend bool operator!=(const mp4_atom_Cbmp &a, const mp4_atom_Cbmp &b);
 		::moq::buf debug() const;
 		static mp4_atom_Cbmp default_();
 	};
@@ -3291,15 +3859,21 @@ namespace moq {
 		::std::uint32_t crc;
 		::moq::mp4_atom_FourCC encoding_four_cc;
 		::moq::buf data;
+		friend bool operator==(const mp4_atom_Mshp &a, const mp4_atom_Mshp &b);
+		friend bool operator!=(const mp4_atom_Mshp &a, const mp4_atom_Mshp &b);
 		::moq::buf debug() const;
 	};
 	struct mp4_atom_Blin {
 		::std::uint32_t baseline_value;
+		friend bool operator==(const mp4_atom_Blin &a, const mp4_atom_Blin &b);
+		friend bool operator!=(const mp4_atom_Blin &a, const mp4_atom_Blin &b);
 		::moq::buf debug() const;
 		static mp4_atom_Blin default_();
 	};
 	struct mp4_atom_Dadj {
 		::std::int32_t disparity_adjustment;
+		friend bool operator==(const mp4_atom_Dadj &a, const mp4_atom_Dadj &b);
+		friend bool operator!=(const mp4_atom_Dadj &a, const mp4_atom_Dadj &b);
 		::moq::buf debug() const;
 		static mp4_atom_Dadj default_();
 	};
@@ -3735,6 +4309,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_Catalog_Extra(hang_Catalog_Extra &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_Catalog_Extra &operator=(hang_Catalog_Extra &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_Catalog_Extra clone() const;
+		friend bool operator==(const hang_Catalog_Extra &a, const hang_Catalog_Extra &b);
+		friend bool operator!=(const hang_Catalog_Extra &a, const hang_Catalog_Extra &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_Catalog_Extra default_();
 		RUST2_FFI_CALLABLE ::moq::hang_catalog_Video video_get() const;
@@ -3773,6 +4349,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED hang_Catalog_Ext(hang_Catalog_Ext &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_Catalog_Ext &operator=(hang_Catalog_Ext &&other) noexcept = default;
 		RUST2_FFI_CALLABLE hang_Catalog_Ext clone() const;
+		friend bool operator==(const hang_Catalog_Ext &a, const hang_Catalog_Ext &b);
+		friend bool operator!=(const hang_Catalog_Ext &a, const hang_Catalog_Ext &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_Catalog_Ext default_();
 		RUST2_FFI_CALLABLE ::moq::hang_catalog_Video video_get() const;
@@ -3812,6 +4390,8 @@ namespace moq {
 		mux_Clock &operator=(mux_Clock &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED mux_Clock(const mux_Clock &other) = default;
 		mux_Clock &operator=(const mux_Clock &other) = default;
+		friend bool operator==(const mux_Clock &a, const mux_Clock &b);
+		friend bool operator!=(const mux_Clock &a, const mux_Clock &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_Clock default_();
 		static ::moq::Timescale TIMESCALE();
@@ -3902,6 +4482,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_catalog_Estimate(mux_catalog_Estimate &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_catalog_Estimate &operator=(mux_catalog_Estimate &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_catalog_Estimate clone() const;
+		friend bool operator==(const mux_catalog_Estimate &a, const mux_catalog_Estimate &b);
+		friend bool operator!=(const mux_catalog_Estimate &a, const mux_catalog_Estimate &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_catalog_Estimate default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::duration> jitter_get() const;
@@ -4383,6 +4965,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_catalog_VideoHint(mux_catalog_VideoHint &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_catalog_VideoHint &operator=(mux_catalog_VideoHint &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_catalog_VideoHint clone() const;
+		friend bool operator==(const mux_catalog_VideoHint &a, const mux_catalog_VideoHint &b);
+		friend bool operator!=(const mux_catalog_VideoHint &a, const mux_catalog_VideoHint &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_catalog_VideoHint default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::hang_catalog_VideoCodec> codec_get() const;
@@ -5462,6 +6046,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_import_AudioInit(mux_import_AudioInit &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_import_AudioInit &operator=(mux_import_AudioInit &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_import_AudioInit clone() const;
+		friend bool operator==(const mux_import_AudioInit &a, const mux_import_AudioInit &b);
+		friend bool operator!=(const mux_import_AudioInit &a, const mux_import_AudioInit &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::mux_import_AudioFormat format_get() const;
 		RUST2_FFI_CALLABLE void format_set(::moq::mux_import_AudioFormat value);
@@ -5479,6 +6065,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_import_ContainerInit(mux_import_ContainerInit &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_import_ContainerInit &operator=(mux_import_ContainerInit &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_import_ContainerInit clone() const;
+		friend bool operator==(const mux_import_ContainerInit &a, const mux_import_ContainerInit &b);
+		friend bool operator!=(const mux_import_ContainerInit &a, const mux_import_ContainerInit &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::mux_import_ContainerFormat format_get() const;
 		RUST2_FFI_CALLABLE void format_set(::moq::mux_import_ContainerFormat value);
@@ -5490,6 +6078,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_import_VideoInit(mux_import_VideoInit &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_import_VideoInit &operator=(mux_import_VideoInit &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_import_VideoInit clone() const;
+		friend bool operator==(const mux_import_VideoInit &a, const mux_import_VideoInit &b);
+		friend bool operator!=(const mux_import_VideoInit &a, const mux_import_VideoInit &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::mux_import_VideoFormat format_get() const;
 		RUST2_FFI_CALLABLE void format_set(::moq::mux_import_VideoFormat value);
@@ -5630,6 +6220,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_rate_Policy(mux_rate_Policy &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_rate_Policy &operator=(mux_rate_Policy &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_rate_Policy clone() const;
+		friend bool operator==(const mux_rate_Policy &a, const mux_rate_Policy &b);
+		friend bool operator!=(const mux_rate_Policy &a, const mux_rate_Policy &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::bandwidth_Rate max_get() const;
 		RUST2_FFI_CALLABLE void max_set(const ::moq::bandwidth_Rate &value);
@@ -5748,6 +6340,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_catalog_hang_Extra(mux_catalog_hang_Extra &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_catalog_hang_Extra &operator=(mux_catalog_hang_Extra &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_catalog_hang_Extra clone() const;
+		friend bool operator==(const mux_catalog_hang_Extra &a, const mux_catalog_hang_Extra &b);
+		friend bool operator!=(const mux_catalog_hang_Extra &a, const mux_catalog_hang_Extra &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_catalog_hang_Extra default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Json> get(::moq::input name) const;
@@ -5993,6 +6587,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_codec_opus_Config(mux_codec_opus_Config &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_codec_opus_Config &operator=(mux_codec_opus_Config &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_codec_opus_Config clone() const;
+		friend bool operator==(const mux_codec_opus_Config &a, const mux_codec_opus_Config &b);
+		friend bool operator!=(const mux_codec_opus_Config &a, const mux_codec_opus_Config &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t sample_rate_get() const;
 		RUST2_FFI_CALLABLE void sample_rate_set(::std::uint32_t value);
@@ -6194,6 +6790,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_Ext(mux_container_ts_Ext &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_Ext &operator=(mux_container_ts_Ext &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_Ext clone() const;
+		friend bool operator==(const mux_container_ts_Ext &a, const mux_container_ts_Ext &b);
+		friend bool operator!=(const mux_container_ts_Ext &a, const mux_container_ts_Ext &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_Ext default_();
 		RUST2_FFI_CALLABLE ::moq::mux_container_ts_Mpegts mpegts_get() const;
@@ -6203,6 +6801,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_Mpegts(mux_container_ts_Mpegts &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_Mpegts &operator=(mux_container_ts_Mpegts &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_Mpegts clone() const;
+		friend bool operator==(const mux_container_ts_Mpegts &a, const mux_container_ts_Mpegts &b);
+		friend bool operator!=(const mux_container_ts_Mpegts &a, const mux_container_ts_Mpegts &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_Mpegts default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::buf, ::moq::mux_container_ts_Track>> tracks_get() const;
@@ -6221,6 +6821,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_PesPacket(mux_container_ts_PesPacket &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_PesPacket &operator=(mux_container_ts_PesPacket &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_PesPacket clone() const;
+		friend bool operator==(const mux_container_ts_PesPacket &a, const mux_container_ts_PesPacket &b);
+		friend bool operator!=(const mux_container_ts_PesPacket &a, const mux_container_ts_PesPacket &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_PesPacket default_();
 		RUST2_FFI_CALLABLE ::std::uint8_t stream_type_get() const;
@@ -6231,6 +6833,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_Program(mux_container_ts_Program &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_Program &operator=(mux_container_ts_Program &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_Program clone() const;
+		friend bool operator==(const mux_container_ts_Program &a, const mux_container_ts_Program &b);
+		friend bool operator!=(const mux_container_ts_Program &a, const mux_container_ts_Program &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_Program default_();
 		RUST2_FFI_CALLABLE ::std::uint16_t transport_stream_id_get() const;
@@ -6244,6 +6848,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_SiEntry(mux_container_ts_SiEntry &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_SiEntry &operator=(mux_container_ts_SiEntry &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_SiEntry clone() const;
+		friend bool operator==(const mux_container_ts_SiEntry &a, const mux_container_ts_SiEntry &b);
+		friend bool operator!=(const mux_container_ts_SiEntry &a, const mux_container_ts_SiEntry &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_SiEntry default_();
 		RUST2_FFI_CALLABLE ::moq::buf track_get() const;
@@ -6255,6 +6861,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_Track(mux_container_ts_Track &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_Track &operator=(mux_container_ts_Track &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_Track clone() const;
+		friend bool operator==(const mux_container_ts_Track &a, const mux_container_ts_Track &b);
+		friend bool operator!=(const mux_container_ts_Track &a, const mux_container_ts_Track &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_Track default_();
 		RUST2_FFI_CALLABLE ::std::uint16_t pid_get() const;
@@ -6271,6 +6879,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_Verbatim(mux_container_ts_Verbatim &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_Verbatim &operator=(mux_container_ts_Verbatim &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_Verbatim clone() const;
+		friend bool operator==(const mux_container_ts_Verbatim &a, const mux_container_ts_Verbatim &b);
+		friend bool operator!=(const mux_container_ts_Verbatim &a, const mux_container_ts_Verbatim &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_Verbatim default_();
 		RUST2_FFI_CALLABLE ::std::uint8_t stream_type_get() const;
@@ -6445,6 +7055,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_stats_Report(mux_container_ts_stats_Report &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_stats_Report &operator=(mux_container_ts_stats_Report &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_stats_Report clone() const;
+		friend bool operator==(const mux_container_ts_stats_Report &a, const mux_container_ts_stats_Report &b);
+		friend bool operator!=(const mux_container_ts_stats_Report &a, const mux_container_ts_stats_Report &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_stats_Report default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mux_container_ts_stats_Snapshot> mpegts_get() const;
@@ -6456,6 +7068,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_stats_Snapshot(mux_container_ts_stats_Snapshot &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_stats_Snapshot &operator=(mux_container_ts_stats_Snapshot &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_stats_Snapshot clone() const;
+		friend bool operator==(const mux_container_ts_stats_Snapshot &a, const mux_container_ts_stats_Snapshot &b);
+		friend bool operator!=(const mux_container_ts_stats_Snapshot &a, const mux_container_ts_stats_Snapshot &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_stats_Snapshot default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::std::uint16_t, ::moq::mux_container_ts_stats_Stream>> streams_get() const;
@@ -6486,6 +7100,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_stats_Stream(mux_container_ts_stats_Stream &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_stats_Stream &operator=(mux_container_ts_stats_Stream &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_stats_Stream clone() const;
+		friend bool operator==(const mux_container_ts_stats_Stream &a, const mux_container_ts_stats_Stream &b);
+		friend bool operator!=(const mux_container_ts_stats_Stream &a, const mux_container_ts_stats_Stream &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_stats_Stream default_();
 		RUST2_FFI_CALLABLE ::moq::buf track_get() const;
@@ -6519,6 +7135,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_stats_Export(mux_container_ts_stats_Export &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_stats_Export &operator=(mux_container_ts_stats_Export &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_stats_Export clone() const;
+		friend bool operator==(const mux_container_ts_stats_Export &a, const mux_container_ts_stats_Export &b);
+		friend bool operator!=(const mux_container_ts_stats_Export &a, const mux_container_ts_stats_Export &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_stats_Export default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::std::uint16_t, ::moq::mux_container_ts_stats_Stream>> streams_get() const;
@@ -6530,6 +7148,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED mux_container_ts_stats_Release(mux_container_ts_stats_Release &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		mux_container_ts_stats_Release &operator=(mux_container_ts_stats_Release &&other) noexcept = default;
 		RUST2_FFI_CALLABLE mux_container_ts_stats_Release clone() const;
+		friend bool operator==(const mux_container_ts_stats_Release &a, const mux_container_ts_stats_Release &b);
+		friend bool operator!=(const mux_container_ts_stats_Release &a, const mux_container_ts_stats_Release &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static mux_container_ts_stats_Release default_();
 		RUST2_FFI_CALLABLE ::std::uint64_t dropped_get() const;
@@ -6565,12 +7185,16 @@ namespace moq {
 	struct mux_container_TimestampRewind {
 		::moq::Timestamp timestamp;
 		::moq::Timestamp floor;
+		friend bool operator==(const mux_container_TimestampRewind &a, const mux_container_TimestampRewind &b);
+		friend bool operator!=(const mux_container_TimestampRewind &a, const mux_container_TimestampRewind &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
 	struct mux_select_Selected {
 		::std::vector<::moq::buf> video;
 		::std::vector<::moq::buf> audio;
+		friend bool operator==(const mux_select_Selected &a, const mux_select_Selected &b);
+		friend bool operator!=(const mux_select_Selected &a, const mux_select_Selected &b);
 		::moq::buf debug() const;
 		static mux_select_Selected default_();
 		static ::moq::mux_select_Selected of_Extra(const ::moq::hang_Catalog_Extra &catalog);
@@ -6578,6 +7202,8 @@ namespace moq {
 		static ::moq::mux_select_Selected of_unit(const ::moq::hang_Catalog &catalog);
 	};
 	class mux_timeline_Transition {
+		friend bool operator==(const mux_timeline_Transition &a, const mux_timeline_Transition &b);
+		friend bool operator!=(const mux_timeline_Transition &a, const mux_timeline_Transition &b);
 		::moq::buf debug() const;
 	};
 	struct mux_timeline_Audio {
@@ -6603,6 +7229,8 @@ namespace moq {
 		::std::uint32_t bits_per_sample;
 		::std::uint64_t total_samples;
 		::std::array<::std::uint8_t, 16> md5;
+		friend bool operator==(const mux_codec_flac_Config &a, const mux_codec_flac_Config &b);
+		friend bool operator!=(const mux_codec_flac_Config &a, const mux_codec_flac_Config &b);
 		::moq::buf debug() const;
 		static ::moq::result<::moq::mux_codec_flac_Config, ::moq::mux_codec_flac_Error> parse_stream_info(::moq::buf &buf_);
 		static ::moq::result<::moq::mux_codec_flac_Config, ::moq::mux_codec_flac_Error> parse(::moq::buf &buf_);
@@ -6624,6 +7252,8 @@ namespace moq {
 		static ::moq::result<::moq::mux_codec_mp3_Config, ::moq::mux_codec_mp3_Error> parse(::moq::input data);
 	};
 	class mux_codec_opus_Mapping {
+		friend bool operator==(const mux_codec_opus_Mapping &a, const mux_codec_opus_Mapping &b);
+		friend bool operator!=(const mux_codec_opus_Mapping &a, const mux_codec_opus_Mapping &b);
 		::moq::buf debug() const;
 		::std::uint8_t family() const;
 		::std::uint8_t streams() const;
@@ -6652,6 +7282,8 @@ namespace moq {
 	struct mux_container_ts_Descriptor {
 		::std::uint8_t tag;
 		::moq::buf data;
+		friend bool operator==(const mux_container_ts_Descriptor &a, const mux_container_ts_Descriptor &b);
+		friend bool operator!=(const mux_container_ts_Descriptor &a, const mux_container_ts_Descriptor &b);
 		::moq::buf debug() const;
 	};
 	class mux_container_fmp4_fragment_Config {
@@ -6997,6 +7629,8 @@ namespace moq {
 		Instance &operator=(Instance &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Instance(const Instance &other) = default;
 		Instance &operator=(const Instance &other) = default;
+		friend bool operator==(const Instance &a, const Instance &b);
+		friend bool operator!=(const Instance &a, const Instance &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7009,6 +7643,8 @@ namespace moq {
 		Path &operator=(Path &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Path(const Path &other) = default;
 		Path &operator=(const Path &other) = default;
+		friend bool operator==(const Path &a, const Path &b);
+		friend bool operator!=(const Path &a, const Path &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7105,6 +7741,8 @@ namespace moq {
 		Version &operator=(Version &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Version(const Version &other) = default;
 		Version &operator=(const Version &other) = default;
+		friend bool operator==(const Version &a, const Version &b);
+		friend bool operator!=(const Version &a, const Version &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7133,6 +7771,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED Hops(Hops &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Hops &operator=(Hops &&other) noexcept = default;
 		RUST2_FFI_CALLABLE Hops clone() const;
+		friend bool operator==(const Hops &a, const Hops &b);
+		friend bool operator!=(const Hops &a, const Hops &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static Hops default_();
 		static ::moq::Hops new_();
@@ -7175,6 +7815,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED auth_Grant(auth_Grant &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		auth_Grant &operator=(auth_Grant &&other) noexcept = default;
 		RUST2_FFI_CALLABLE auth_Grant clone() const;
+		friend bool operator==(const auth_Grant &a, const auth_Grant &b);
+		friend bool operator!=(const auth_Grant &a, const auth_Grant &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static auth_Grant default_();
 		RUST2_FFI_CALLABLE ::moq::Patterns publish_get() const;
@@ -7201,6 +7843,8 @@ namespace moq {
 		auth_Credential &operator=(auth_Credential &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED auth_Credential(const auth_Credential &other) = default;
 		auth_Credential &operator=(const auth_Credential &other) = default;
+		friend bool operator==(const auth_Credential &a, const auth_Credential &b);
+		friend bool operator!=(const auth_Credential &a, const auth_Credential &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::auth_Watch grant() const;
 		RUST2_FFI_CALLABLE ::moq::auth_Credential_closed_future closed() const;
@@ -7218,6 +7862,8 @@ namespace moq {
 		auth_Token &operator=(auth_Token &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED auth_Token(const auth_Token &other) = default;
 		auth_Token &operator=(const auth_Token &other) = default;
+		friend bool operator==(const auth_Token &a, const auth_Token &b);
+		friend bool operator!=(const auth_Token &a, const auth_Token &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::buf as_str() const;
 	};
@@ -7243,6 +7889,8 @@ namespace moq {
 		goaway_Goaway &operator=(goaway_Goaway &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED goaway_Goaway(const goaway_Goaway &other) = default;
 		goaway_Goaway &operator=(const goaway_Goaway &other) = default;
+		friend bool operator==(const goaway_Goaway &a, const goaway_Goaway &b);
+		friend bool operator!=(const goaway_Goaway &a, const goaway_Goaway &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static goaway_Goaway default_();
 		static ::moq::goaway_Goaway new_();
@@ -7262,6 +7910,8 @@ namespace moq {
 		path_Relative &operator=(path_Relative &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED path_Relative(const path_Relative &other) = default;
 		path_Relative &operator=(const path_Relative &other) = default;
+		friend bool operator==(const path_Relative &a, const path_Relative &b);
+		friend bool operator!=(const path_Relative &a, const path_Relative &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7310,6 +7960,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED session_Stats(session_Stats &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		session_Stats &operator=(session_Stats &&other) noexcept = default;
 		RUST2_FFI_CALLABLE session_Stats clone() const;
+		friend bool operator==(const session_Stats &a, const session_Stats &b);
+		friend bool operator!=(const session_Stats &a, const session_Stats &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static session_Stats default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::duration> rtt_get() const;
@@ -7336,6 +7988,8 @@ namespace moq {
 		stats_Tier &operator=(stats_Tier &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED stats_Tier(const stats_Tier &other) = default;
 		stats_Tier &operator=(const stats_Tier &other) = default;
+		friend bool operator==(const stats_Tier &a, const stats_Tier &b);
+		friend bool operator!=(const stats_Tier &a, const stats_Tier &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7349,6 +8003,8 @@ namespace moq {
 		stats_Snapshot &operator=(stats_Snapshot &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED stats_Snapshot(const stats_Snapshot &other) = default;
 		stats_Snapshot &operator=(const stats_Snapshot &other) = default;
+		friend bool operator==(const stats_Snapshot &a, const stats_Snapshot &b);
+		friend bool operator!=(const stats_Snapshot &a, const stats_Snapshot &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static stats_Snapshot default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::moq::stats_Tier, ::moq::stats_Message, ::moq::stats_Totals>> control() const;
@@ -7705,6 +8361,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED datagram_Info(datagram_Info &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		datagram_Info &operator=(datagram_Info &&other) noexcept = default;
 		RUST2_FFI_CALLABLE datagram_Info clone() const;
+		friend bool operator==(const datagram_Info &a, const datagram_Info &b);
+		friend bool operator!=(const datagram_Info &a, const datagram_Info &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static datagram_Info default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timescale> timescale_get() const;
@@ -7884,6 +8542,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED track_Info(track_Info &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		track_Info &operator=(track_Info &&other) noexcept = default;
 		RUST2_FFI_CALLABLE track_Info clone() const;
+		friend bool operator==(const track_Info &a, const track_Info &b);
+		friend bool operator!=(const track_Info &a, const track_Info &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static track_Info default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timescale> timescale_get() const;
@@ -7953,6 +8613,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED track_Subscription(track_Subscription &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		track_Subscription &operator=(track_Subscription &&other) noexcept = default;
 		RUST2_FFI_CALLABLE track_Subscription clone() const;
+		friend bool operator==(const track_Subscription &a, const track_Subscription &b);
+		friend bool operator!=(const track_Subscription &a, const track_Subscription &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static track_Subscription default_();
 		RUST2_FFI_CALLABLE ::std::int8_t priority_get() const;
@@ -8100,6 +8762,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED origin_Route(origin_Route &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		origin_Route &operator=(origin_Route &&other) noexcept = default;
 		RUST2_FFI_CALLABLE origin_Route clone() const;
+		friend bool operator==(const origin_Route &a, const origin_Route &b);
+		friend bool operator!=(const origin_Route &a, const origin_Route &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static origin_Route default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Instance> instance_get() const;
@@ -8159,10 +8823,14 @@ namespace moq {
 		virtual ~transport_Metrics() = default;
 	};
 	class TimeOverflow {
+		friend bool operator==(const TimeOverflow &a, const TimeOverflow &b);
+		friend bool operator!=(const TimeOverflow &a, const TimeOverflow &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 	};
 	class Timescale {
+		friend bool operator==(const Timescale &a, const Timescale &b);
+		friend bool operator!=(const Timescale &a, const Timescale &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static ::moq::Timescale SECOND();
@@ -8173,6 +8841,8 @@ namespace moq {
 		::std::uint64_t as_u64() const;
 	};
 	class Timestamp {
+		friend bool operator==(const Timestamp &a, const Timestamp &b);
+		friend bool operator!=(const Timestamp &a, const Timestamp &b);
 		::moq::buf debug() const;
 		static ::moq::Timestamp ZERO();
 		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> new_(::std::uint64_t value, const ::moq::Timescale &scale);
@@ -8198,9 +8868,13 @@ namespace moq {
 		::std::uint64_t sequence;
 		::std::optional<::moq::Timestamp> timestamp;
 		::moq::buf payload;
+		friend bool operator==(const Datagram &a, const Datagram &b);
+		friend bool operator!=(const Datagram &a, const Datagram &b);
 		::moq::buf debug() const;
 	};
 	class Hop {
+		friend bool operator==(const Hop &a, const Hop &b);
+		friend bool operator!=(const Hop &a, const Hop &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static ::moq::Hop UNKNOWN();
@@ -8209,6 +8883,8 @@ namespace moq {
 		::std::uint64_t id() const;
 	};
 	class setup_Extensions {
+		friend bool operator==(const setup_Extensions &a, const setup_Extensions &b);
+		friend bool operator!=(const setup_Extensions &a, const setup_Extensions &b);
 		::moq::buf debug() const;
 		static setup_Extensions default_();
 		bool auth_get() const;
@@ -8221,15 +8897,21 @@ namespace moq {
 	struct setup_Token {
 		::std::uint64_t kind;
 		::moq::buf value;
+		friend bool operator==(const setup_Token &a, const setup_Token &b);
+		friend bool operator!=(const setup_Token &a, const setup_Token &b);
 		::moq::buf debug() const;
 	};
 	class session_Limits {
+		friend bool operator==(const session_Limits &a, const session_Limits &b);
+		friend bool operator!=(const session_Limits &a, const session_Limits &b);
 		::moq::buf debug() const;
 		static session_Limits default_();
 		::std::size_t announces_get() const;
 		void announces_set(::std::size_t value);
 	};
 	class stats_Content {
+		friend bool operator==(const stats_Content &a, const stats_Content &b);
+		friend bool operator!=(const stats_Content &a, const stats_Content &b);
 		::moq::buf debug() const;
 		static stats_Content default_();
 		::std::uint64_t bytes_get() const;
@@ -8240,6 +8922,8 @@ namespace moq {
 		void groups_set(::std::uint64_t value);
 	};
 	class stats_Traffic {
+		friend bool operator==(const stats_Traffic &a, const stats_Traffic &b);
+		friend bool operator!=(const stats_Traffic &a, const stats_Traffic &b);
 		::moq::buf debug() const;
 		static stats_Traffic default_();
 		::std::uint64_t announces_started_get() const;
@@ -8276,6 +8960,8 @@ namespace moq {
 		bool is_idle() const;
 	};
 	class stats_Presence {
+		friend bool operator==(const stats_Presence &a, const stats_Presence &b);
+		friend bool operator!=(const stats_Presence &a, const stats_Presence &b);
 		::moq::buf debug() const;
 		static stats_Presence default_();
 		::moq::stats_Refusals sessions_refused_get() const;
@@ -8304,6 +8990,8 @@ namespace moq {
 		::std::uint64_t active() const;
 	};
 	class stats_Totals {
+		friend bool operator==(const stats_Totals &a, const stats_Totals &b);
+		friend bool operator!=(const stats_Totals &a, const stats_Totals &b);
 		::moq::buf debug() const;
 		static stats_Totals default_();
 		::std::uint64_t tx_get() const;
@@ -8312,6 +9000,8 @@ namespace moq {
 		void rx_set(::std::uint64_t value);
 	};
 	class stats_Failures {
+		friend bool operator==(const stats_Failures &a, const stats_Failures &b);
+		friend bool operator!=(const stats_Failures &a, const stats_Failures &b);
 		::moq::buf debug() const;
 		static stats_Failures default_();
 		::std::uint64_t idle_timeout_get() const;
@@ -8327,6 +9017,8 @@ namespace moq {
 		bool regressed(const ::moq::stats_Failures &previous) const;
 	};
 	class stats_Refusals {
+		friend bool operator==(const stats_Refusals &a, const stats_Refusals &b);
+		friend bool operator!=(const stats_Refusals &a, const stats_Refusals &b);
 		::moq::buf debug() const;
 		static stats_Refusals default_();
 		::std::uint64_t refused_get() const;
@@ -8346,6 +9038,8 @@ namespace moq {
 		bool regressed(const ::moq::stats_Refusals &previous) const;
 	};
 	class transport_ReceiveWindow {
+		friend bool operator==(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
+		friend bool operator!=(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
 		::moq::buf debug() const;
 		::std::uint64_t connection_get() const;
 		void connection_set(::std::uint64_t value);
@@ -8354,6 +9048,8 @@ namespace moq {
 		static ::moq::transport_ReceiveWindow new_(::std::uint64_t connection, ::std::uint64_t stream);
 	};
 	class bandwidth_Rate {
+		friend bool operator==(const bandwidth_Rate &a, const bandwidth_Rate &b);
+		friend bool operator!=(const bandwidth_Rate &a, const bandwidth_Rate &b);
 		::moq::buf debug() const;
 		static bandwidth_Rate default_();
 		static ::moq::bandwidth_Rate ZERO();
@@ -8371,11 +9067,15 @@ namespace moq {
 	};
 	struct group_Info {
 		::std::uint64_t sequence;
+		friend bool operator==(const group_Info &a, const group_Info &b);
+		friend bool operator!=(const group_Info &a, const group_Info &b);
 		::moq::buf debug() const;
 	};
 	struct track_Delay {
 		::std::optional<::moq::duration> min;
 		::std::optional<::moq::duration> max;
+		friend bool operator==(const track_Delay &a, const track_Delay &b);
+		friend bool operator!=(const track_Delay &a, const track_Delay &b);
 		::moq::buf debug() const;
 		static track_Delay default_();
 		::moq::track_Delay with_min(const ::std::optional<::moq::duration> &min_) const;
@@ -8384,6 +9084,8 @@ namespace moq {
 	struct track_Position {
 		::std::uint64_t group;
 		::std::uint64_t frame;
+		friend bool operator==(const track_Position &a, const track_Position &b);
+		friend bool operator!=(const track_Position &a, const track_Position &b);
 		::moq::buf debug() const;
 		static track_Position default_();
 		static ::moq::track_Position group_(::std::uint64_t group_);
@@ -8403,12 +9105,16 @@ namespace moq {
 	struct track_Range {
 		::moq::track_Anchor start;
 		::std::optional<::moq::track_Anchor> end;
+		friend bool operator==(const track_Range &a, const track_Range &b);
+		friend bool operator!=(const track_Range &a, const track_Range &b);
 		::moq::buf debug() const;
 		static ::moq::track_Range live();
 		static ::moq::track_Range oldest();
 		static ::moq::track_Range groups(const ::moq::bounds_u64 &groups);
 	};
 	class origin_Cost {
+		friend bool operator==(const origin_Cost &a, const origin_Cost &b);
+		friend bool operator!=(const origin_Cost &a, const origin_Cost &b);
 		::moq::buf debug() const;
 		static origin_Cost default_();
 		static ::moq::origin_Cost new_(::std::uint64_t cost);
@@ -8417,12 +9123,16 @@ namespace moq {
 		static ::moq::origin_Cost DRAIN();
 	};
 	class origin_HopLimit {
+		friend bool operator==(const origin_HopLimit &a, const origin_HopLimit &b);
+		friend bool operator!=(const origin_HopLimit &a, const origin_HopLimit &b);
 		::moq::buf debug() const;
 		static origin_HopLimit default_();
 		static ::std::optional<::moq::origin_HopLimit> new_(::std::size_t max);
 		::std::size_t get() const;
 	};
 	class origin_Preference {
+		friend bool operator==(const origin_Preference &a, const origin_Preference &b);
+		friend bool operator!=(const origin_Preference &a, const origin_Preference &b);
 		::moq::buf debug() const;
 		static origin_Preference default_();
 		static ::moq::origin_Preference new_(::std::int8_t preference);
@@ -8677,6 +9387,8 @@ namespace moq {
 		Pattern &operator=(Pattern &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Pattern(const Pattern &other) = default;
 		Pattern &operator=(const Pattern &other) = default;
+		friend bool operator==(const Pattern &a, const Pattern &b);
+		friend bool operator!=(const Pattern &a, const Pattern &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -8704,6 +9416,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED Patterns(Patterns &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Patterns &operator=(Patterns &&other) noexcept = default;
 		RUST2_FFI_CALLABLE Patterns clone() const;
+		friend bool operator==(const Patterns &a, const Patterns &b);
+		friend bool operator!=(const Patterns &a, const Patterns &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static Patterns default_();
@@ -8725,6 +9439,8 @@ namespace moq {
 		Specificity &operator=(Specificity &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Specificity(const Specificity &other) = default;
 		Specificity &operator=(const Specificity &other) = default;
+		friend bool operator==(const Specificity &a, const Specificity &b);
+		friend bool operator!=(const Specificity &a, const Specificity &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -8796,6 +9512,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED moq_quic_Limits(moq_quic_Limits &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		moq_quic_Limits &operator=(moq_quic_Limits &&other) noexcept = default;
 		RUST2_FFI_CALLABLE moq_quic_Limits clone() const;
+		friend bool operator==(const moq_quic_Limits &a, const moq_quic_Limits &b);
+		friend bool operator!=(const moq_quic_Limits &a, const moq_quic_Limits &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static moq_quic_Limits default_();
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint64_t> max_streams_get() const;
@@ -8835,6 +9553,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED moq_quic_crypto_HandshakeData(moq_quic_crypto_HandshakeData &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		moq_quic_crypto_HandshakeData &operator=(moq_quic_crypto_HandshakeData &&other) noexcept = default;
 		RUST2_FFI_CALLABLE moq_quic_crypto_HandshakeData clone() const;
+		friend bool operator==(const moq_quic_crypto_HandshakeData &a, const moq_quic_crypto_HandshakeData &b);
+		friend bool operator!=(const moq_quic_crypto_HandshakeData &a, const moq_quic_crypto_HandshakeData &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::buf> alpn_get() const;
 		RUST2_FFI_CALLABLE void alpn_set(::std::optional<::moq::input> value);
@@ -8938,6 +9658,8 @@ namespace moq {
 		moq_quic_Error &operator=(moq_quic_Error &&other) noexcept = default;
 	};
 	class moq_quic_VarInt {
+		friend bool operator==(const moq_quic_VarInt &a, const moq_quic_VarInt &b);
+		friend bool operator!=(const moq_quic_VarInt &a, const moq_quic_VarInt &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static moq_quic_VarInt default_();
@@ -8948,6 +9670,8 @@ namespace moq {
 		void encode(::moq::buf &output) const;
 	};
 	class moq_quic_stream_Id {
+		friend bool operator==(const moq_quic_stream_Id &a, const moq_quic_stream_Id &b);
+		friend bool operator!=(const moq_quic_stream_Id &a, const moq_quic_stream_Id &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static ::moq::moq_quic_stream_Id new_(::moq::moq_quic_Side initiator, ::moq::moq_quic_stream_Dir dir, ::std::uint64_t index);
@@ -8966,6 +9690,8 @@ namespace moq {
 		void ios_set(::std::uint64_t value);
 	};
 	class moq_quic_CreditStats {
+		friend bool operator==(const moq_quic_CreditStats &a, const moq_quic_CreditStats &b);
+		friend bool operator!=(const moq_quic_CreditStats &a, const moq_quic_CreditStats &b);
 		::moq::buf debug() const;
 		static moq_quic_CreditStats default_();
 		::std::uint64_t leased_get() const;
@@ -10476,6 +11202,8 @@ namespace moq {
 	struct rustls_client_TicketRequest {
 		::std::uint8_t new_session_count;
 		::std::uint8_t resumption_count;
+		friend bool operator==(const rustls_client_TicketRequest &a, const rustls_client_TicketRequest &b);
+		friend bool operator!=(const rustls_client_TicketRequest &a, const rustls_client_TicketRequest &b);
 		::moq::buf debug() const;
 	};
 	struct rustls_crypto_hpke_HpkePublicKey {
@@ -10525,6 +11253,8 @@ namespace moq {
 		rustls_pki_types_CertificateDer &operator=(rustls_pki_types_CertificateDer &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED rustls_pki_types_CertificateDer(const rustls_pki_types_CertificateDer &other) = default;
 		rustls_pki_types_CertificateDer &operator=(const rustls_pki_types_CertificateDer &other) = default;
+		friend bool operator==(const rustls_pki_types_CertificateDer &a, const rustls_pki_types_CertificateDer &b);
+		friend bool operator!=(const rustls_pki_types_CertificateDer &a, const rustls_pki_types_CertificateDer &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::rustls_pki_types_CertificateDer from_slice(::moq::input bytes);
@@ -10534,6 +11264,8 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED rustls_pki_types_TrustAnchor(rustls_pki_types_TrustAnchor &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		rustls_pki_types_TrustAnchor &operator=(rustls_pki_types_TrustAnchor &&other) noexcept = default;
 		RUST2_FFI_CALLABLE rustls_pki_types_TrustAnchor clone() const;
+		friend bool operator==(const rustls_pki_types_TrustAnchor &a, const rustls_pki_types_TrustAnchor &b);
+		friend bool operator!=(const rustls_pki_types_TrustAnchor &a, const rustls_pki_types_TrustAnchor &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		RUST2_FFI_CALLABLE ::moq::rustls_pki_types_Der subject_get() const;
@@ -10549,6 +11281,8 @@ namespace moq {
 		rustls_pki_types_Der &operator=(rustls_pki_types_Der &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED rustls_pki_types_Der(const rustls_pki_types_Der &other) = default;
 		rustls_pki_types_Der &operator=(const rustls_pki_types_Der &other) = default;
+		friend bool operator==(const rustls_pki_types_Der &a, const rustls_pki_types_Der &b);
+		friend bool operator!=(const rustls_pki_types_Der &a, const rustls_pki_types_Der &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::rustls_pki_types_Der from_slice(::moq::input der);
@@ -10650,6 +11384,8 @@ namespace moq {
 		Instant &operator=(Instant &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Instant(const Instant &other) = default;
 		Instant &operator=(const Instant &other) = default;
+		friend bool operator==(const Instant &a, const Instant &b);
+		friend bool operator!=(const Instant &a, const Instant &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -10723,6 +11459,8 @@ namespace moq {
 		tokio_Duration &operator=(tokio_Duration &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED tokio_Duration(const tokio_Duration &other) = default;
 		tokio_Duration &operator=(const tokio_Duration &other) = default;
+		friend bool operator==(const tokio_Duration &a, const tokio_Duration &b);
+		friend bool operator!=(const tokio_Duration &a, const tokio_Duration &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -11145,6 +11883,8 @@ namespace moq {
 		moq_tokio_Addrs &operator=(moq_tokio_Addrs &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_Addrs(const moq_tokio_Addrs &other) = default;
 		moq_tokio_Addrs &operator=(const moq_tokio_Addrs &other) = default;
+		friend bool operator==(const moq_tokio_Addrs &a, const moq_tokio_Addrs &b);
+		friend bool operator!=(const moq_tokio_Addrs &a, const moq_tokio_Addrs &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::moq_tokio_Addrs new_(::moq::moq_tokio_connect_Addr addr);
 		RUST2_FFI_CONSUMES ::moq::moq_tokio_Addrs or_(::moq::moq_tokio_connect_Addr addr) &&;
@@ -11409,6 +12149,8 @@ namespace moq {
 		moq_tokio_connect_Addr &operator=(moq_tokio_connect_Addr &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_connect_Addr(const moq_tokio_connect_Addr &other) = default;
 		moq_tokio_connect_Addr &operator=(const moq_tokio_connect_Addr &other) = default;
+		friend bool operator==(const moq_tokio_connect_Addr &a, const moq_tokio_connect_Addr &b);
+		friend bool operator!=(const moq_tokio_connect_Addr &a, const moq_tokio_connect_Addr &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::moq_tokio_connect_Addr new_(::moq::Url url);
 		static ::moq::result<::moq::moq_tokio_connect_Addr, ::moq::moq_tokio_connect_Error> pinned(::moq::Url url, const ::std::vector<::moq::socket_addr> &addrs);
@@ -11420,6 +12162,8 @@ namespace moq {
 		moq_tokio_quic_ServerId &operator=(moq_tokio_quic_ServerId &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_quic_ServerId(const moq_tokio_quic_ServerId &other) = default;
 		moq_tokio_quic_ServerId &operator=(const moq_tokio_quic_ServerId &other) = default;
+		friend bool operator==(const moq_tokio_quic_ServerId &a, const moq_tokio_quic_ServerId &b);
+		friend bool operator!=(const moq_tokio_quic_ServerId &a, const moq_tokio_quic_ServerId &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -11523,6 +12267,8 @@ namespace moq {
 		moq_tokio_quic_driver_send_Error &operator=(moq_tokio_quic_driver_send_Error &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_quic_driver_send_Error(const moq_tokio_quic_driver_send_Error &other) = default;
 		moq_tokio_quic_driver_send_Error &operator=(const moq_tokio_quic_driver_send_Error &other) = default;
+		friend bool operator==(const moq_tokio_quic_driver_send_Error &a, const moq_tokio_quic_driver_send_Error &b);
+		friend bool operator!=(const moq_tokio_quic_driver_send_Error &a, const moq_tokio_quic_driver_send_Error &b);
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -11543,6 +12289,8 @@ namespace moq {
 		moq_tokio_quic_driver_send_Offset &operator=(moq_tokio_quic_driver_send_Offset &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_quic_driver_send_Offset(const moq_tokio_quic_driver_send_Offset &other) = default;
 		moq_tokio_quic_driver_send_Offset &operator=(const moq_tokio_quic_driver_send_Offset &other) = default;
+		friend bool operator==(const moq_tokio_quic_driver_send_Offset &a, const moq_tokio_quic_driver_send_Offset &b);
+		friend bool operator!=(const moq_tokio_quic_driver_send_Offset &a, const moq_tokio_quic_driver_send_Offset &b);
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
 	class RUST2_FFI_CONSUMABLE moq_tokio_quic_driver_recv_Error {
@@ -11550,6 +12298,8 @@ namespace moq {
 		moq_tokio_quic_driver_recv_Error &operator=(moq_tokio_quic_driver_recv_Error &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED moq_tokio_quic_driver_recv_Error(const moq_tokio_quic_driver_recv_Error &other) = default;
 		moq_tokio_quic_driver_recv_Error &operator=(const moq_tokio_quic_driver_recv_Error &other) = default;
+		friend bool operator==(const moq_tokio_quic_driver_recv_Error &a, const moq_tokio_quic_driver_recv_Error &b);
+		friend bool operator!=(const moq_tokio_quic_driver_recv_Error &a, const moq_tokio_quic_driver_recv_Error &b);
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -11651,6 +12401,8 @@ namespace moq {
 		Url &operator=(Url &&other) noexcept = default;
 		RUST2_FFI_UNCONSUMED Url(const Url &other) = default;
 		Url &operator=(const Url &other) = default;
+		friend bool operator==(const Url &a, const Url &b);
+		friend bool operator!=(const Url &a, const Url &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;

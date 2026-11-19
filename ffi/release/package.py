@@ -544,6 +544,8 @@ def api_items(api):
                     return {key: name(kind, inner)}
                 if key == "Callback" and isinstance(inner, list) and inner and isinstance(inner[0], int):
                     return {key: [name("callbacks", inner[0]), *resolve(inner[1:])]}
+                if key == "Made" and isinstance(inner, dict) and isinstance(inner.get("object"), int):
+                    return {key: {**resolve(inner), "object": name("objects", inner["object"])}}
             return {k: resolve(v) for k, v in value.items() if k not in ("docs", "span", "methods")}
         if isinstance(value, list):
             return [resolve(v) for v in value]
