@@ -500,14 +500,18 @@ impl Scope<'_> {
 					"IpAddr" => Type::IpAddr(Family::Any),
 					"Ipv4Addr" => Type::IpAddr(Family::V4),
 					"Ipv6Addr" => Type::IpAddr(Family::V6),
-					"Option" => match arg() {
+					"Option" => {
 						// Each `None` but the innermost is the same value in a binding that
-						// marks one level apart, as the web's `rt.None` does.
-						Type::Option(inner) if matches!(*inner, Type::Option(_)) => {
+						// marks one level apart, as the web's `rt.None` does, which no `Box`
+						// or reference between them keeps apart.
+						let inner = arg();
+						if let Type::Option(middle) = inner.base()
+							&& matches!(middle.base(), Type::Option(_))
+						{
 							fail(ty, "an option of an option of an option")
 						}
-						inner => Type::Option(Box::new(inner)),
-					},
+						Type::Option(Box::new(inner))
+					}
 					"Box" => Type::Box(Box::new(arg())),
 					"Vec" => match arg() {
 						Type::Int(Int::U8) => Type::Vec,

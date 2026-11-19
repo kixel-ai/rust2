@@ -4044,6 +4044,10 @@ fn transcript_refusals() {
 			"let x: Option<Option<Option<u32>>> = None; println!(\"{}\", x.is_none());",
 			"an option of an option of an option",
 		),
+		(
+			"let x: Option<Box<Option<Option<u32>>>> = None; println!(\"{}\", x.is_some());",
+			"an option of an option of an option",
+		),
 		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
 		(
 			"for n in [1u8] { let x = n; println!(\"{x}\"); }",
