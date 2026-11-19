@@ -175,6 +175,8 @@ class Marker {
 	explicit Marker(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {}
 	friend struct ::api::detail::access;
 	friend bool operator!=(const Marker &a, const Marker &b) { return !(a == b); }
+	template <class F> friend bool operator<=(const Marker &a, F b) { return true; }
+	template <class F> friend void ::api::detail::spawn(Marker &, F);
 
 public:
 	friend bool operator<(const Marker &a, const Marker &b);
@@ -204,6 +206,7 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "\tusing Choice = ::std::variant<Choice_Empty, Choice_Picked>;",
             "\tclass Marker {",
             "\t\tfriend bool operator!=(const Marker &a, const Marker &b);",
+            "\t\ttemplate <class F> friend bool operator<=(const Marker &a, F b);",
             "\t\tfriend bool operator<(const Marker &a, const Marker &b);",
             "\t\tMarker(Marker &&other) noexcept = default;",
             "\t\tMarker &operator=(Marker &&other) noexcept = default;",

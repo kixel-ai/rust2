@@ -177,6 +177,12 @@ def template(masked):
     raise Malformed("an unclosed template parameter list")
 
 
+def friended(masked):
+    """A C++ declaration after its `template <...>` prefix, if it is a friend, or None."""
+    rest = squash(masked[template(masked):])
+    return rest if rest.startswith("friend ") else None
+
+
 def assignment(masked):
     """Where a declaration's value or expression body starts, if it has one."""
     top = set(depth0(masked))
@@ -303,10 +309,14 @@ class Braced:
             raise Malformed(f"a declaration without its end: {squash(code[hs:end])[:80]}")
 
     def friend(self, hmask):
-        """Whether a C++ declaration is a friend function, which a caller finds by its arguments
-        whatever access section declares it, unlike a friend type."""
-        return self.lang == "cpp" and re.match(r"friend\s+(?!(?:struct|class|union)\b)", squash(hmask)) is not None \
-            and first(hmask, re.compile(r"\(")) is not None
+        """Whether a C++ declaration declares a function as a friend, which a caller finds by
+        its arguments whatever access section declares it, unlike a friend type or a function
+        declared elsewhere, such as `detail::spawn`."""
+        if self.lang != "cpp" or not friended(hmask):
+            return False
+        paren = first(hmask, re.compile(r"\("))
+        return paren is not None and re.match(r"friend\s+(?:struct|class|union)\b", friended(hmask)) is None \
+            and "::" not in hmask[:paren].split()[-1]
 
     def nested(self, hmask):
         """The kind of scope a `{` after `hmask` opens, or None for a body."""
@@ -353,7 +363,7 @@ class Braced:
         if not head:
             return
         if self.lang == "cpp":
-            if head.startswith("friend ") and not self.friend(hmask) or head.startswith("static_assert"):
+            if (friended(hmask) and not self.friend(hmask)) or head.startswith("static_assert"):
                 return
             if kind == "namespace" and qualified(hmask):
                 return

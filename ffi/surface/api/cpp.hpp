@@ -1672,7 +1672,6 @@ namespace api {
 		task(task &&other) noexcept : node_(::std::exchange(other.node_, nullptr));
 		task &operator=(task &&other) noexcept;
 		~task();
-		template <class Op, class Exec, class F> friend void detail::spawn(task &, typename Op::raw *, Exec, F);
 	};
 	template <class Op> class future {
 		using output = typename Op::output;
