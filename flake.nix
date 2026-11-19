@@ -98,7 +98,8 @@
           quest-cli = quest.packages.${system}.default;
           # std checked once per toolchain for the TypeScript driver's target, with the
           # profile translation reads its MIR at, as the sysroot rust2-ts takes instead of
-          # checking std with -Zbuild-std in every target directory. Offline, from the
+          # checking std with -Zbuild-std in every target directory, and for the web
+          # binding's, whose MIR rust2-ffi walks for what the web lacks. Offline, from the
           # crates rust-src vendors.
           rust2-ts-std = pkgs.stdenv.mkDerivation {
             name = "rust2-ts-std";
@@ -110,15 +111,17 @@
               printf '[package]\nname = "sysroot"\nversion = "0.0.0"\nedition = "2024"\n' > Cargo.toml
               touch src/lib.rs
               # The crates ts/src/cli.rs's STD names.
-              cargo check --offline --target wasm32-unknown-unknown -Zbuild-std=core,alloc,std,panic_abort \
+              cargo check --offline --target wasm32-unknown-unknown --target wasm32-wasip1 -Zbuild-std=core,alloc,std,panic_abort \
                 --config "source.crates-io.replace-with = 'vendored'" \
                 --config "source.vendored.directory = '${tsToolchain}/lib/rustlib/src/rust/library/vendor'" \
                 --config ${./ts/src/profile.toml}
             '';
             installPhase = ''
-              lib=$out/lib/rustlib/wasm32-unknown-unknown/lib
-              mkdir -p $lib
-              find target/wasm32-unknown-unknown -name 'lib*.rmeta' ! -name 'libsysroot-*' -exec cp -t $lib {} +
+              for target in wasm32-unknown-unknown wasm32-wasip1; do
+                lib=$out/lib/rustlib/$target/lib
+                mkdir -p $lib
+                find target/$target -name 'lib*.rmeta' ! -name 'libsysroot-*' -exec cp -t $lib {} +
+              done
             '';
           };
           # The driver links its nightly's rustc libraries, and runs cargo from it too.

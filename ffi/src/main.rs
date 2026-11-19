@@ -10,6 +10,8 @@
 extern crate rustc_abi;
 extern crate rustc_ast;
 extern crate rustc_attr_ir;
+extern crate rustc_attr_parsing;
+extern crate rustc_crate_store;
 extern crate rustc_data_structures;
 extern crate rustc_driver;
 extern crate rustc_errors;
@@ -17,10 +19,13 @@ extern crate rustc_hir;
 extern crate rustc_infer;
 extern crate rustc_interface;
 extern crate rustc_lexer;
+extern crate rustc_metadata;
 extern crate rustc_middle;
 extern crate rustc_parse;
 extern crate rustc_session;
 extern crate rustc_span;
+extern crate rustc_structures;
+extern crate rustc_symbol_mangling;
 extern crate rustc_trait_selection;
 
 mod abi;
@@ -40,6 +45,7 @@ mod lock;
 mod merge;
 mod python;
 mod swift;
+mod wasm;
 mod web;
 
 use std::process::ExitCode;

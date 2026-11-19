@@ -69,6 +69,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		target: Some(TARGET),
 		args: &cargo,
 		env: &env,
+		target_dir: None,
+		dir: None,
 	}
 	.run()
 }

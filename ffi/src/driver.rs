@@ -37,7 +37,11 @@ pub(crate) fn run(args: Vec<String>) -> ExitCode {
 			}
 		};
 	}
-	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
+	rust2_driver::rustc::run("rust2-ffi", args, |args, added| {
+		crate::wasm::flags(args, added)?;
+		if let Some(walk) = crate::wasm::Walk::for_args(args)? {
+			return Ok(Some(Box::new(walk)));
+		}
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
 }
@@ -206,7 +210,9 @@ impl Callbacks for Export {
 				));
 			}
 		}
-		// Refusals still let the export go on to report each clash, but write nothing.
+		// Refusals still let the export go on to report each clash, but write nothing. Those
+		// of the CLI's later steps, the lockfile's and the web target's walk, come once the
+		// export is written, which they check.
 		let target = merge::Target {
 			names: None,
 			package: self.facade.name.clone(),

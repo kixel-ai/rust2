@@ -65,9 +65,10 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   crate with no source change. Rejected: the binding's classes for both, as the other
   languages' bindings have; a surface per route.
 - Open, with no owner yet: the gate's own deliverable, moq-net running in a browser
-  through rust2-wasm, needs a transport adapter over WebTransport, and
-  [the refusal](/quest/m2/wasm/refuse.md) refuses a crate that imports browser APIs
-  through wasm-bindgen. moq's tree plans none of it. Plan it with moq's tree before the gate's
+  through rust2-wasm, needs a transport adapter over WebTransport, and the export
+  [refuses](/ffi/README.md#typescript-web) a crate that calls browser APIs through
+  wasm-bindgen, whose imports on `wasm32-wasip1` compile to stubs that panic rather than
+  to `__wbindgen_placeholder__` imports. moq's tree plans none of it. Plan it with moq's tree before the gate's
   last child lands.
 
 Decided with the maintainer on 2026-11-16, on

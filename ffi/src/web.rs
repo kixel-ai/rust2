@@ -40,6 +40,25 @@ pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/web.rs");
 /// the binding implements with web APIs.
 pub(crate) const TARGET: &str = "wasm32-wasip1";
 
+/// The WASI functions the runtime implements with web APIs: each method of its `wasi`
+/// object, so the export refuses what `load` would by the same list.
+pub fn wasi() -> &'static [&'static str] {
+	static WASI: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+	WASI.get_or_init(|| {
+		let start = RUNTIME
+			.find("\nconst wasi = {\n")
+			.expect("rt.ts declares its WASI functions");
+		let body = &RUNTIME[start..];
+		let body = &body[..body.find("\n};\n").expect("rt.ts closes its WASI functions")];
+		// A method at the object's own level: one tab, its name, then its parameters.
+		(body.lines())
+			.filter_map(|line| line.strip_prefix('\t'))
+			.filter_map(|line| line.split_once('(').map(|(name, _)| name))
+			.filter(|name| !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+			.collect()
+	})
+}
+
 /// What the generator writes: each TypeScript file by its name under `web/`, and the Rust
 /// glue the crate's `web` feature builds.
 pub(crate) struct Output {
