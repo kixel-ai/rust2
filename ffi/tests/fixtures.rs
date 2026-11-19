@@ -716,16 +716,18 @@ fn api_kotlin() {
 	let api = api();
 	let classes = scratch().join("api").join("kotlin");
 	let jar = PathBuf::from(coroutines());
+	let script = kotlin_transcript();
 	let step = Step {
 		stamp: &step::stamp(&classes),
 		reads: &[
 			&api.out.join("kotlin").join("api.kt"),
 			&manifest_dir().join("tests").join("api.kt"),
+			&script,
 			&jar,
 		],
 		writes: &[&classes],
 	};
-	step.run(&mut kotlinc(&api.out, &classes));
+	step.run(&mut kotlinc(&api.out, &script, &classes));
 	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
 		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
@@ -831,7 +833,7 @@ fn api_android() {
 	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
 	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
-	run(kotlinc(&out, &jar).arg("-include-runtime"));
+	run(kotlinc(&out, &kotlin_transcript(), &jar).arg("-include-runtime"));
 	run(Command::new("jar")
 		.arg("xf")
 		.arg(coroutines())
@@ -889,13 +891,21 @@ fn api_android() {
 	kotlin(&api.transcript, &art);
 }
 
-/// kotlinc compiling the generated Kotlin with `tests/api.kt` into `dest`.
-fn kotlinc(out: &Path, dest: &Path) -> Command {
+/// The transcript as Kotlin, written beside the scratch directory's other files, whose
+/// `transcript()` `tests/api.kt`'s script calls.
+fn kotlin_transcript() -> PathBuf {
+	generated("kotlin", "Transcript.kt", &transcript::kotlin::emit(transcript())).join("Transcript.kt")
+}
+
+/// kotlinc compiling the generated Kotlin with `tests/api.kt` and the transcript `script`
+/// into `dest`.
+fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
 		.arg(out.join("kotlin").join("api.kt"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
+		.arg(script)
 		.arg("-d")
 		.arg(dest);
 	cmd
@@ -923,7 +933,8 @@ fn newest(dir: &Path) -> PathBuf {
 }
 
 /// `tests/api.kt`'s script, run by `vm` with each argument list, prints the native
-/// transcript; then its futures, what the GC frees, and each contract it fails loud on.
+/// transcript; then its futures, what the GC frees, what only its types bound, and each
+/// contract it fails loud on.
 fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	let kt = run(&mut vm(&[]));
 	assert_eq!(
@@ -934,6 +945,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
 	run(&mut vm(&["clash"]));
+	run(&mut vm(&["checks"]));
 	for (case, message) in [
 		("moved", "IllegalStateException: Counter is closed"),
 		("boxed moved", "IllegalStateException: Node is closed"),
