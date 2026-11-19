@@ -159,6 +159,8 @@ static void run(struct step *s) {
 	else if (OP("draft_commit")) VALUE(api_Draft_commit(at(a), &status));
 	else if (OP("receipt_count")) VALUE(api_Receipt_count(at(a), &status));
 	else if (OP("receipt_clone")) made = api_Receipt_clone(at(b), &status);
+	else if (OP("tallied")) VALUE(api_tallied(at(a), &status));
+	else if (OP("stored")) VALUE(api_stored(at(a), &status));
 	else if (OP("tally_new")) slots[a] = api_Tally_new();
 	else if (OP("tally_bump")) VALUE(api_Tally_bump(at(a), &status));
 	else if (OP("bump_later")) made = api_Tally_bump_later(at(b), &status);

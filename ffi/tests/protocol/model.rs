@@ -215,6 +215,10 @@ pub enum Op {
 	ReceiptCount(usize),
 	/// `Receipt::clone` into the first slot, sharing the lend.
 	ReceiptClone(usize, usize),
+	/// `tallied`: moves the receipt into a call that ends its lend as it returns.
+	Tallied(usize),
+	/// `stored`: a call that could keep the receipt past it, which its lend refuses.
+	Stored(usize),
 	TallyNew(usize),
 	TallyBump(usize),
 	/// `Tally::bump_later` into the first slot.
@@ -361,6 +365,8 @@ impl Step {
 			Op::DraftCommit(h) => format!("draft_commit {h}"),
 			Op::ReceiptCount(h) => format!("receipt_count {h}"),
 			Op::ReceiptClone(to, h) => format!("receipt_clone {to} {h}"),
+			Op::Tallied(h) => format!("tallied {h}"),
+			Op::Stored(h) => format!("stored {h}"),
 			Op::TallyNew(h) => format!("tally_new {h}"),
 			Op::TallyBump(h) => format!("tally_bump {h}"),
 			Op::BumpLater(to, h) => format!("bump_later {to} {h}"),
@@ -584,13 +590,13 @@ impl Model {
 		self.lender(h)
 	}
 
-	/// An exclusive borrow of `h`, or a move out of it when `moving`, for a call or future.
-	fn exclusive(&mut self, h: usize, thread: usize, moving: bool) -> Result<(), Status> {
+	/// An exclusive borrow of `h`, or a move out of it, for a call or future.
+	fn exclusive(&mut self, h: usize, thread: usize) -> Result<(), Status> {
 		self.own(h, thread)?;
 		let slot = &self.slots[h];
-		// A lent handle is never borrowed exclusively nor moved out; a lend's holder moves
-		// out only into the call that ends it, which `ending` ops check apart.
-		if slot.lender.is_some() || (moving && matches!(slot.kind, Kind::Draft | Kind::Receipt) && !slot.gone) {
+		// A lent handle is never borrowed exclusively nor moved out. A lend's holder moves
+		// out only into the call that ends it, which [`Self::ending`] checks.
+		if slot.lender.is_some() {
 			return Err(Status::Lent);
 		}
 		if slot.gone {
@@ -599,6 +605,21 @@ impl Model {
 		if slot.shared > 0 || slot.exclusive > 0 {
 			return Err(Status::Borrowed);
 		}
+		Ok(())
+	}
+
+	/// A move of a lend's holder into the call that ends its lend: the one move it makes.
+	fn ending(&mut self, h: usize, thread: usize) -> Result<(), Status> {
+		self.own(h, thread)?;
+		let slot = &self.slots[h];
+		if slot.gone {
+			return Err(Status::Moved);
+		}
+		if slot.shared > 0 || slot.exclusive > 0 {
+			return Err(Status::Borrowed);
+		}
+		self.changed(h);
+		self.slots[h].gone = true;
 		Ok(())
 	}
 
@@ -690,7 +711,7 @@ impl Model {
 				Outcome::Value(self.slots[h].n)
 			}
 			Op::CounterAdd(h, n) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				let v = self.slots[h].n + n;
 				if v > LIMIT {
@@ -700,7 +721,7 @@ impl Model {
 				Outcome::Value(v)
 			}
 			Op::CounterIntoSum(h, n) => {
-				self.exclusive(h, thread, true)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				self.slots[h].gone = true;
 				Outcome::Value(self.slots[h].n + n)
@@ -716,7 +737,7 @@ impl Model {
 				self.shared(h, thread)?;
 				// The receiver's borrow stands while the other is checked.
 				self.slots[h].shared += 1;
-				let other = o.map(|o| self.exclusive(o, thread, false)).transpose();
+				let other = o.map(|o| self.exclusive(o, thread)).transpose();
 				self.slots[h].shared -= 1;
 				other?;
 				match o {
@@ -758,7 +779,7 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::LedgerEdit(to, h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				if self.slots[h].sealed {
 					return Ok(Outcome::Error);
@@ -774,13 +795,13 @@ impl Model {
 				Outcome::Value(self.slots[h].n)
 			}
 			Op::LedgerSeal(h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				self.slots[h].sealed = true;
 				Outcome::Ok
 			}
 			Op::LedgerReceipt(to, h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				self.slots[h].exclusive += 1;
 				let mut slot = Slot::new(Kind::Receipt, Owner::Any);
@@ -789,7 +810,7 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::DraftWrite(h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				self.slots[h].edited = true;
 				let ledger = self.slots[h].ledger.expect("a draft's ledger");
@@ -802,16 +823,7 @@ impl Model {
 				Outcome::Value(self.slots[ledger].lines)
 			}
 			Op::DraftCommit(h) => {
-				// A move into the call that ends the lend: the one move a lend's holder makes.
-				self.own(h, thread)?;
-				if self.slots[h].gone {
-					return Err(Status::Moved);
-				}
-				if self.slots[h].shared > 0 || self.slots[h].exclusive > 0 {
-					return Err(Status::Borrowed);
-				}
-				self.changed(h);
-				self.slots[h].gone = true;
+				self.ending(h, thread)?;
 				let ledger = self.slots[h].ledger.expect("a draft's ledger");
 				self.release(Release::Draft {
 					ledger,
@@ -819,6 +831,14 @@ impl Model {
 				});
 				Outcome::Value(self.slots[ledger].n)
 			}
+			Op::Tallied(h) => {
+				self.ending(h, thread)?;
+				let ledger = self.slots[h].ledger.expect("a receipt's ledger");
+				self.release(Release::Receipt { ledger });
+				Outcome::Value(self.slots[ledger].n)
+			}
+			// Refused by its signature alone, whatever the receipt's state.
+			Op::Stored(_) => return Err(Status::Lent),
 			Op::ReceiptCount(h) => {
 				self.shared(h, thread)?;
 				let ledger = self.slots[h].ledger.expect("a receipt's ledger");
@@ -843,7 +863,7 @@ impl Model {
 				Outcome::Value(self.slots[h].n)
 			}
 			Op::BumpLater(to, h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.slots[h].exclusive += 1;
 				let mut slot = Slot::new(Kind::BumpLater, here);
 				slot.holds_exclusive = Some(h);
@@ -872,7 +892,7 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::LocalLater(to, h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.slots[h].exclusive += 1;
 				let mut slot = Slot::new(Kind::LocalLater, self.slots[h].owner);
 				slot.holds_exclusive = Some(h);
@@ -891,7 +911,7 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::MetersClear(h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				// The first meter is new, so a handle lent from it next counts from zero.
 				self.slots[h].n = 0;
@@ -909,7 +929,7 @@ impl Model {
 				Outcome::Value(self.slots[at].n)
 			}
 			Op::MeterReset(h) => {
-				self.exclusive(h, thread, false)?;
+				self.exclusive(h, thread)?;
 				self.changed(h);
 				self.slots[h].n = 0;
 				Outcome::Ok
@@ -1190,8 +1210,10 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 		}
 		4 => {
 			let h = rng.pick(&of(&[Kind::Receipt]))?;
-			match rng.below(2) {
+			match rng.below(5) {
 				0 if making => Op::ReceiptClone(next, h),
+				1 => Op::Tallied(h),
+				2 => Op::Stored(h),
 				_ => Op::ReceiptCount(h),
 			}
 		}
