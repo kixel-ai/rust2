@@ -1593,6 +1593,7 @@ const TSCONFIG: &str = r#"{
 #[test]
 fn api_dart() {
 	let api = api();
+	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
 	let generated = api.out.join("dart");
 	let step = Step {
@@ -1602,12 +1603,21 @@ fn api_dart() {
 	};
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
+	// The entry beside the script imports the test as a package, as the script does, so
+	// both name the one library.
+	let main = scripts.join("main.dart");
+	step::write(
+		&main,
+		"import 'package:api_test/api.dart' as test;\n\nFuture<void> main(List<String> args) => test.main(args);\n",
+	);
+	let tests = manifest_dir().join("tests");
 	let exe = dart_compile(
 		"api",
 		&dir,
 		&generated,
 		&lib,
-		&manifest_dir().join("tests").join("api.dart"),
+		&main,
+		&[("api_test", &tests), ("transcript", &scripts)],
 	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
@@ -1615,7 +1625,7 @@ fn api_dart() {
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
+	for case in ["checks", "futures", "owned", "closed", "bytes", "bounds"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	for (case, message) in [
@@ -1662,7 +1672,7 @@ fn api_dart() {
 		&main,
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	);
-	let exe = dart_compile("api", &contract, &package, &lib, &main);
+	let exe = dart_compile("api", &contract, &package, &lib, &main, &[]);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1675,7 +1685,8 @@ fn api_dart() {
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
 /// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+/// Each of `others` is a package of its own, by its name and its directory.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path, others: &[(&str, &Path)]) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -1683,12 +1694,16 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 		.expect("dart is in the SDK's bin")
 		.to_path_buf();
 	let config = dir.join("package_config.json");
-	let root = url(package);
+	let packages: Vec<String> = std::iter::once((name, package))
+		.chain(others.iter().copied())
+		.map(|(name, root)| {
+			let root = url(root);
+			format!("{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}")
+		})
+		.collect();
 	step::write(
 		&config,
-		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
-		),
+		format!("{{\"configVersion\": 2, \"packages\": [{}]}}\n", packages.join(", ")),
 	);
 	let os = match std::env::consts::OS {
 		"macos" => "macos",
@@ -1709,9 +1724,12 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 	);
 	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
 	// The snapshot names the library by path, so a change to it rebuilds nothing.
+	let version = sdk.join("version");
+	let mut reads: Vec<&Path> = vec![main, package, &config, &assets, &version];
+	reads.extend(others.iter().map(|(_, root)| *root));
 	let step = Step {
 		stamp: &step::stamp(&dill),
-		reads: &[main, package, &config, &assets, &sdk.join("version")],
+		reads: &reads,
 		writes: &[&dill],
 	};
 	step.run(
