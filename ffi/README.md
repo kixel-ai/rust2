@@ -1491,10 +1491,11 @@ The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
 <crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
-its glue, C and C++ programs including its headers, its Kotlin, Python, Swift, Go, and
-Dart built; a panic, an error, or a binding that does not build fails it, a refusal not.
-Its `KNOWN` lists the crates it fails on today, each with the quest that fixes it, which
-it skips. The nightly runs it in four shards, `CORPUS_SHARD=i/4`, and each writes a report
+its glue, C and C++ programs including its headers (compiled, not linked, since a crate
+may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
+built; a panic, an error, or a binding that does not build fails it, a refusal not.
+Its `KNOWN` lists the crates it fails on today, each with the quest that fixes it or why
+none can, which it skips. The nightly runs it in four shards, `CORPUS_SHARD=i/4`, and each writes a report
 of every crate's refusals and failures.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again

@@ -1223,7 +1223,7 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
-		let mut data: Vec<String> = e.variants.iter().map(|v| pascal(&v.name)).collect();
+		let mut data: Vec<String> = e.variants.iter().map(|v| kw(&pascal(&v.name))).collect();
 		let fields: BTreeSet<String> = e
 			.variants
 			.iter()
@@ -1234,7 +1234,7 @@ impl<'a> Gen<'a> {
 		self.methods(&e.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		// Each variant's class is bound on the enum's once made, after the enum's own.
 		for variant in &e.variants {
-			let vname = pascal(&abi::snake(&variant.name));
+			let vname = kw(&pascal(&abi::snake(&variant.name)));
 			body.native
 				.push(format!("\t{vname}: _typing.TypeAlias = \"_{name}_{vname}\"\n"));
 		}
@@ -1251,7 +1251,7 @@ impl<'a> Gen<'a> {
 		let mut reads = Vec::new();
 		let mut writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = pascal(&variant.name);
+			let vname = kw(&pascal(&variant.name));
 			let class = format!("_{name}_{vname}");
 			let key = abi::payload(&c, &variant.name);
 			let tv = self.register(&key, class.clone());

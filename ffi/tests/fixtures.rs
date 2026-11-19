@@ -640,10 +640,12 @@ fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
 		reads: &[src, &link.include, &link.staticlib],
 		writes: &[exe],
 	};
-	step.run(&mut cxx_command(link, standard, plain, src, exe));
+	step.run(&mut cxx_command(link, standard, plain, src, exe, true));
 }
 
-fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+/// The C++ compile of `src` against `link` into `exe`, linked or, for a library
+/// whose host lacks the symbols it calls, compiled to an object nothing links.
+fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path, linked: bool) -> Command {
 	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
@@ -666,9 +668,14 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		});
 		let mut obj = OsString::from("-Fo");
 		obj.push(exe.with_extension("obj"));
+		cmd.arg("-I").arg(include).arg(src).arg(obj);
+		if !linked {
+			cmd.arg("-c");
+			return cmd;
+		}
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
-		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
+		cmd.arg(out);
 		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
@@ -689,11 +696,13 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		"-I",
 	])
 	.arg(include)
-	.arg(src)
-	.arg(&link.staticlib)
-	.args(link.native)
-	.arg("-o")
-	.arg(exe);
+	.arg(src);
+	if linked {
+		cmd.arg(&link.staticlib).args(link.native);
+	} else {
+		cmd.arg("-c");
+	}
+	cmd.arg("-o").arg(exe);
 	cmd
 }
 

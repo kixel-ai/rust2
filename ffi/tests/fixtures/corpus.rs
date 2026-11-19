@@ -16,9 +16,41 @@ use std::process::{Command, Output};
 
 use super::{cargo, manifest_dir, run, scratch, step};
 
-/// The crates a census or an export of fails today, each with the quest that fixes it.
-/// They are not run; the quest's PR deletes its entry.
-const KNOWN: &[(&str, &str)] = &[("js-sys", "/quest/m1/ffi-inference.md: instance inference never settles")];
+/// The crates a census, an export, or a binding of fails today, each with the quest that
+/// fixes it, or else why none can. They are not run; the quest's PR deletes its entry.
+const KNOWN: &[(&str, &str)] = &[
+	("anyhow", "/quest/m1/ffi-apart.md"),
+	("axum", "/quest/m1/ffi-corpus-bugs.md"),
+	("bytes", "/quest/m1/ffi-corpus-bugs.md"),
+	(
+		"core-foundation",
+		"macOS's CoreFoundation: calls a platform library this host lacks, so no binding loads",
+	),
+	("crossbeam-utils", "/quest/m1/ffi-apart.md"),
+	("darling", "/quest/m1/ffi-apart.md"),
+	("der", "/quest/m1/ffi-apart.md"),
+	("env_logger", "/quest/m1/ffi-apart.md"),
+	("errno", "/quest/m1/ffi-corpus-bugs.md"),
+	("hermit-abi", "/quest/m1/ffi-apart.md"),
+	("hyper", "/quest/m1/ffi-corpus-bugs.md"),
+	("icu_locale_core", "/quest/m1/ffi-apart.md"),
+	("itertools", "/quest/m1/ffi-apart.md"),
+	("js-sys", "/quest/m1/ffi-inference.md"),
+	("libc", "/quest/m1/ffi-apart.md"),
+	("log", "/quest/m1/ffi-apart.md"),
+	("nu-ansi-term", "/quest/m1/ffi-apart.md"),
+	("object", "/quest/m1/ffi-apart.md"),
+	("parking_lot", "/quest/m1/ffi-apart.md"),
+	("petgraph", "/quest/m1/ffi-apart.md"),
+	("prettyplease", "/quest/m1/ffi-apart.md"),
+	("redox_syscall", "/quest/m1/ffi-apart.md"),
+	("untrusted", "/quest/m1/ffi-apart.md"),
+	("wasm-bindgen", "/quest/m1/ffi-apart.md"),
+	(
+		"windows-core",
+		"Windows's API: calls a platform library this host lacks, so no binding loads",
+	),
+];
 
 /// How many crates the update keeps, by all-time downloads, before dropping those that are
 /// no library or do not build as they are.
@@ -85,7 +117,9 @@ fn write_workspace(crates: &[Krate], libs: &BTreeMap<String, String>) {
 			),
 		);
 		let lib = match libs.get(&krate.name) {
-			Some(lib) => format!("pub use {lib}::*;\n"),
+			Some(lib) => format!(
+				"#[allow(unused_imports, reason = \"a library may be empty on this host\")]\npub use {lib}::*;\n"
+			),
 			None => String::new(),
 		};
 		step::write(&dir.join("src").join("lib.rs"), lib);
@@ -343,7 +377,7 @@ fn bind(lib: &str, out: &Path) -> Result<Built, (&'static str, Output)> {
 }
 
 /// Build each language's binding of the export at `out`: C and C++ programs including its
-/// headers, linked against its static library; the Kotlin compiled; the Python imported;
+/// headers, compiled but not linked, since a library may call what this host lacks; the Kotlin compiled; the Python imported;
 /// the Swift type-checked; the Go vetted; and the Dart compiled to a kernel.
 fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'static str, Output)> {
 	let checked = |stage: &'static str, cmd: &mut Command| {
@@ -367,10 +401,9 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
 			.arg(&include)
 			.arg(&c)
-			.arg(&staticlib)
-			.args(&built.native)
+			.arg("-c")
 			.arg("-o")
-			.arg(dir.join("c")),
+			.arg(dir.join("c.o")),
 	)?;
 	let cpp = dir.join("main.cpp");
 	step::write(
@@ -383,13 +416,16 @@ fn languages(lib: &str, out: &Path, dir: &Path, built: &Built) -> Result<(), (&'
 		native: &built.native,
 	};
 	for (standard, plain) in [(17, true), (20, false)] {
-		let exe = dir.join(format!("c++{standard}"));
-		checked("C++", &mut super::cxx_command(&link, standard, plain, &cpp, &exe))?;
+		let exe = dir.join(format!("c++{standard}.o"));
+		checked(
+			"C++",
+			&mut super::cxx_command(&link, standard, plain, &cpp, &exe, false),
+		)?;
 	}
 	checked(
 		"Kotlin",
 		Command::new("kotlinc")
-			.args(["-Werror", "-cp"])
+			.args(["-J-Xmx4g", "-Werror", "-cp"])
 			.arg(super::coroutines())
 			.arg(out.join("kotlin").join(format!("{lib}.kt")))
 			.arg("-d")

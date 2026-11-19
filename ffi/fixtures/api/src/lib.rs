@@ -4498,6 +4498,35 @@ pub mod clash {
 		}
 	}
 
+	/// A message of any type, named as prost-types' is, which Swift reads as a keyword.
+	#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+	pub struct Any {
+		pub type_url: String,
+	}
+
+	/// An `Any` of `type_url`.
+	pub fn any(type_url: String) -> Any {
+		Any { type_url }
+	}
+
+	/// A candidate, whose variant `None` Python reads as a keyword, as aho-corasick's has.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Candidate {
+		None,
+		Match(u8),
+	}
+
+	/// The candidate of `at`, none for zero.
+	pub fn candidate(at: u8) -> Candidate {
+		match at {
+			0 => Candidate::None,
+			at => Candidate::Match(at),
+		}
+	}
+
+	/// Nothing, from a parameter named `_`, which Kotlin reserves, as utf8parse's has.
+	pub fn ignore(_: u8) {}
+
 	/// A seed, whose own `default` C names apart from `Default`'s, as rustc-hash's `FxHasher`
 	/// has, while C++ escapes both to `default_`.
 	pub struct Seed {
@@ -4513,6 +4542,12 @@ pub mod clash {
 
 		pub fn value(&self) -> u32 {
 			self.value
+		}
+
+		/// Whether it is not zero, by a name Dart's type of the result takes, as fastrand's
+		/// `bool` is.
+		pub fn bool(&self) -> bool {
+			self.value != 0
 		}
 	}
 

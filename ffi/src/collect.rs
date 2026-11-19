@@ -3431,10 +3431,13 @@ impl<'tcx> Collector<'tcx> {
 				units.push(i - first);
 				continue;
 			}
+			// A parameter Rust leaves unnamed, `_`, is named by its place, as no language
+			// can pass a value to `_`.
 			let name = names
 				.get(i)
 				.copied()
 				.flatten()
+				.filter(|ident| ident.name != rustc_span::symbol::kw::Underscore)
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
 				if matches!(kind, TaskKind::Made { .. }) {

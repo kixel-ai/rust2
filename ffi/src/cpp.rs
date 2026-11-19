@@ -2035,8 +2035,20 @@ fn init(ty: &Type) -> &'static str {
 	}
 }
 
-/// C++ comments holding `docs`, each line indented by `indent`, or nothing for none.
+/// C++ comments holding `docs`, each line indented by `indent`, or nothing for none. A line
+/// ending in a backslash, as a string continued in clap's examples does, would continue a
+/// `///` comment onto the next line, so such docs are a block comment instead.
 fn docs(docs: &str, indent: &str) -> String {
+	if docs.lines().any(|line| line.ends_with('\\')) {
+		let docs = docs.replace("*/", "* /").replace("/*", "/ *");
+		let body: String = (docs.lines())
+			.map(|line| match line.is_empty() {
+				true => format!("{indent} *\n"),
+				false => format!("{indent} * {line}\n"),
+			})
+			.collect();
+		return format!("{indent}/**\n{body}{indent} */\n");
+	}
 	docs.lines()
 		.map(|line| match line.is_empty() {
 			true => format!("{indent}///\n"),
@@ -2172,6 +2184,12 @@ pub(crate) fn escape(name: &str) -> String {
 mod tests {
 	use super::{Header, escape, kept_apart, parameter};
 	use crate::ir::Traits;
+
+	#[test]
+	fn a_trailing_backslash_ends_no_line_comment() {
+		assert_eq!(super::docs("a\nb", "\t"), "\t/// a\n\t/// b\n");
+		assert_eq!(super::docs("x \\\n\ny */", ""), "/**\n * x \\\n *\n * y * /\n */\n");
+	}
 
 	#[test]
 	fn methods_keep_apart_from_trait_members() {
