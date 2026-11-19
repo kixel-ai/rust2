@@ -31,3 +31,7 @@ moq pins, as soon as possible (rejected: after the pin).
 Public API: breaking for C++ callers passing `std::vector` lvalues to numeric slice
 parameters only where no implicit conversion applies; C and C++ callers that drop a
 must-use return now get a warning, an error under `-Werror`.
+
+## Required
+
+- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API

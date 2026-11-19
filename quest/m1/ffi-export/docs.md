@@ -25,3 +25,7 @@ Decided with the maintainer on 2026-11-18: ✅ in this epic, since deprecations 
 links are part of the generated API moq adopts (rejected: after the pin).
 
 Public API: generated docs and deprecation attributes in every binding.
+
+## Required
+
+- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API

@@ -20,8 +20,8 @@ with no Rust change and nothing reports it. `.github/workflows/bindings.yml` nev
 `--baseline`.
 
 Decided with the maintainer on 2026-11-18: ✅ a child of this epic, so the checks are in
-place before moq pins (rejected: after the pin). Land it before the other breaking
-children of the 2026-11-18 audit, so each of their PRs shows its diff in the surface files.
+place before moq pins (rejected: after the pin). The other breaking children of the
+2026-11-18 audit require it, so each of their PRs shows its diff in the surface files.
 
 Recommended: prefer each language's own tool where one exists (Kotlin's `abiValidation`,
 `swift api-digester`), else a sorted, normalized dump the generator already has in hand.

@@ -24,3 +24,7 @@ Java keyword, value classes, and `suspend` stay Kotlin-shaped, and
 it).
 
 Public API: added `Bytes(ByteBuffer)` and `copyInto`; annotations visible to Java.
+
+## Required
+
+- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API
