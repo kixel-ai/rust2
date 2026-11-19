@@ -175,7 +175,10 @@ impl Scope<'_> {
 					// whose evaluation could be seen, such as a call, would run once per use,
 					// not once before the loop as Rust runs it.
 					if !spelled(item) {
-						fail(item, "a for loop over an element other than a literal, a local, or a value built of them")
+						fail(
+							item,
+							"a for loop over an element other than a literal, a local, or a value built of them",
+						)
 					}
 					self.vars.push(Var::Alias(name.ident.to_string(), item.clone()));
 					let body = self.block(&f.body.stmts);
@@ -1515,7 +1518,10 @@ impl Scope<'_> {
 		// Rust evaluates the default before it looks at the option, which a binding that
 		// evaluates only the arm taken would skip.
 		if !pure(&none) {
-			fail(none_syn, "a map_or default other than a literal, a local, or a value built of them")
+			fail(
+				none_syn,
+				"a map_or default other than a literal, a local, or a value built of them",
+			)
 		}
 		let [p] = c.inputs.iter().collect::<Vec<_>>()[..] else {
 			fail(c, "a map_or closure of one parameter")
@@ -1643,8 +1649,12 @@ fn pure(e: &Expr) -> bool {
 		| Kind::Var(_)
 		| Kind::Const(_)
 		| Kind::Bound(_, None) => true,
-		Kind::Some(inner) | Kind::Bound(_, Some(inner)) | Kind::Field(inner, _) | Kind::Element(inner, _) => pure(inner),
-		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => items.iter().all(pure),
+		Kind::Some(inner) | Kind::Bound(_, Some(inner)) | Kind::Field(inner, _) | Kind::Element(inner, _) => {
+			pure(inner)
+		}
+		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => {
+			items.iter().all(pure)
+		}
 		Kind::Binary(_, a, b) => pure(a) && pure(b),
 		Kind::Format(pieces) => pieces.iter().all(|p| match p {
 			Piece::Text(_) => true,
@@ -1666,7 +1676,9 @@ fn spelled(expr: &syn::Expr) -> bool {
 		syn::Expr::Group(g) => spelled(&g.expr),
 		syn::Expr::Reference(r) => spelled(&r.expr),
 		syn::Expr::Unary(u) => spelled(&u.expr),
-		syn::Expr::Index(i) => spelled(&i.expr) && matches!(&*i.index, syn::Expr::Range(r) if r.start.is_none() && r.end.is_none()),
+		syn::Expr::Index(i) => {
+			spelled(&i.expr) && matches!(&*i.index, syn::Expr::Range(r) if r.start.is_none() && r.end.is_none())
+		}
 		syn::Expr::Array(a) => all(a.elems.iter()),
 		syn::Expr::Tuple(t) => all(t.elems.iter()),
 		syn::Expr::Struct(s) => s.rest.is_none() && all(s.fields.iter().map(|f| &f.expr)),
@@ -1676,7 +1688,9 @@ fn spelled(expr: &syn::Expr) -> bool {
 				if p.path.segments.last().is_some_and(|s| s.ident.to_string().starts_with(char::is_uppercase)));
 			constructor && all(c.args.iter())
 		}
-		syn::Expr::MethodCall(m) => CONVERSIONS.contains(&m.method.to_string().as_str()) && m.args.is_empty() && spelled(&m.receiver),
+		syn::Expr::MethodCall(m) => {
+			CONVERSIONS.contains(&m.method.to_string().as_str()) && m.args.is_empty() && spelled(&m.receiver)
+		}
 		_ => false,
 	}
 }
@@ -1705,12 +1719,20 @@ fn sum(l: Num, r: Num) -> Option<Num> {
 /// `n as` an integer of `bits` bits: its two's complement truncated to them, then read as
 /// signed or unsigned.
 fn truncated(n: Num, bits: u32, signed: bool) -> Num {
-	let raw = if n.negative { n.magnitude.wrapping_neg() } else { n.magnitude };
+	let raw = if n.negative {
+		n.magnitude.wrapping_neg()
+	} else {
+		n.magnitude
+	};
 	let raw = if bits == 128 { raw } else { raw & ((1u128 << bits) - 1) };
 	match signed && raw >> (bits - 1) & 1 == 1 {
 		true => Num {
 			negative: true,
-			magnitude: if bits == 128 { raw.wrapping_neg() } else { (1u128 << bits) - raw },
+			magnitude: if bits == 128 {
+				raw.wrapping_neg()
+			} else {
+				(1u128 << bits) - raw
+			},
 		},
 		false => Num {
 			negative: false,
@@ -1934,11 +1956,14 @@ fn folds_like_rust() {
 			[$((stringify!($e), $e as i128)),*]
 		};
 	}
-	#[allow(clippy::identity_op, clippy::cast_lossless, overflowing_literals)]
+	#[allow(
+		clippy::unnecessary_cast,
+		reason = "each case is the expression the folder reads, casts and all"
+	)]
 	let cases = cases![
 		-1isize + 2,
 		256u16 as u8 as u64,
-		300 as u8,
+		300i32 as u8,
 		-1i64 as u64,
 		u64::MAX as i64,
 		u128::MAX as i64,
