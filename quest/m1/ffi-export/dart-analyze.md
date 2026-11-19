@@ -16,7 +16,3 @@ Decided with the maintainer on 2026-11-18: ✅ in this epic, since fixing lints 
 or retype generated API (rejected: after the pin).
 
 Public API: whatever renames the analyzer's fixes need, if any.
-
-## Required
-
-- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API

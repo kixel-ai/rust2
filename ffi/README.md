@@ -275,6 +275,17 @@ break, export without `--baseline` and commit the `api.json` it writes. Its span
 to the workspace and cargo's home, as a staged API's are, so a removed item's error points
 where it was while its file is unchanged.
 
+The lock compares the API and the names each generator gives it, not the signatures each
+language renders, so a generator change alone, such as a Kotlin type for a Rust one, passes
+it. rust2 locks those too: [`surface/`](surface) holds each binding's API as its language
+renders it, for the api fixture and moq's stand-in, and `just ci` fails where a generator
+renders another. `just ffi surface` rewrites them; a PR changing any binding's API commits
+the diff. Each is the language's own reading where one needs no build: Python's `ast` for
+the `.pyi` a type checker sees, `go doc -all` for Go, `tsc`'s declarations for the web
+binding. C, C++, Kotlin, Swift, and Dart are an outline of the generated source: each
+public declaration up to its body, without comments or private members. The files are x86_64
+Linux's exports, as the merge queue runs on, since a header names its targets.
+
 ## The C ABI
 
 - **Handles** are `Arc`s, and a call borrows the value as Rust's receiver or parameter
