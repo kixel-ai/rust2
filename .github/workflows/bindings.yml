@@ -496,7 +496,7 @@ jobs:
           WEB_EXAMPLE: ${{ inputs.web-example }}
           WEB_CHECK: ${{ inputs.web-check }}
         run: |
-          if [[ "$WEB_MANIFEST" == "$MANIFEST" ]]; then
+          if [[ "$(realpath -m "source/$WEB_MANIFEST")" == "$(realpath -m "source/$MANIFEST")" ]]; then
             if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
               echo "::error::web-features and web-example are for a web crate apart from manifest-path's: set features and example"
               exit 1
