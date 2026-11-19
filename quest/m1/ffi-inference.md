@@ -7,6 +7,8 @@ other crate of the corpus, and js-sys leaves `KNOWN` in `ffi/tests/fixtures/corp
 
 ## Plan
 
+Kept by the maintainer on 2026-11-19, in the pick of [#878](https://github.com/kixel-ai/rust2/pull/878).
+
 Found by [the corpus](/ffi/tests/fixtures/corpus.rs) on 2026-11-19: js-sys's census ran
 two hours without finishing. `Collector::infer` repeats until no round adds an instance,
 and each round names every instance's members anew. js-sys's generic types (`Array<T>`,

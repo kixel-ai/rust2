@@ -9,6 +9,8 @@ rather than reported, since that check's error has no span.
 
 ## Plan
 
+Kept by the maintainer on 2026-11-19, in the pick of [#878](https://github.com/kixel-ai/rust2/pull/878).
+
 Found by [the corpus](/ffi/tests/fixtures/corpus.rs) on 2026-11-19, after its PR named apart
 C++'s `default` and trait members, Python's keyword variants, Dart's core types, and
 Kotlin's `_` parameter. What remains, by generator:

@@ -6,6 +6,8 @@ errno, bytes, axum, and hyper bind and leave `KNOWN` in `ffi/tests/fixtures/corp
 
 ## Plan
 
+Kept by the maintainer on 2026-11-19, in the pick of [#878](https://github.com/kixel-ai/rust2/pull/878).
+
 Found by [the corpus](/ffi/tests/fixtures/corpus.rs) on 2026-11-19:
 
 - errno: C++ lifts `__errno_location`'s result as an `Errno` where its declaration returns
