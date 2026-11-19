@@ -36,6 +36,12 @@ pub struct Profile {
 	pub polls: bool,
 	/// Steps whose check fails, which a surface that aborts on one never runs.
 	pub failures: bool,
+	/// Futures made only as they are awaited, as an `async def` or a blocking call makes
+	/// them: a step making one only names its arguments, and its await makes it there,
+	/// checks and borrows included, then runs it to its end. Never with `polls`.
+	pub lazy: bool,
+	/// `_drop` amid the steps, which a binding with no `close()` cannot make.
+	pub drops: bool,
 }
 
 impl Profile {
@@ -47,12 +53,42 @@ impl Profile {
 		frees: true,
 		polls: true,
 		failures: true,
+		lazy: false,
+		drops: true,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
 	pub const MIRI: Self = Self {
 		homes: false,
 		..Self::C
+	};
+
+	/// Python's: an object frees once its last reference goes, as `del` lets go of it
+	/// under CPython's counting, and there is no `close()`. A future is an `async def`,
+	/// made as it is awaited, and an awaited one runs to its end in that step.
+	pub const PYTHON: Self = Self {
+		threads: true,
+		homes: false,
+		homed: false,
+		frees: true,
+		polls: false,
+		failures: true,
+		lazy: true,
+		drops: false,
+	};
+
+	/// Go's: a goroutine moves between threads, so every value that is not `Send` is made
+	/// on a home; the collector frees in its own time, so `Close()`, which drops, ends
+	/// each object; and a future is a blocking call, made and run to its end in one step.
+	pub const GO: Self = Self {
+		threads: true,
+		homes: false,
+		homed: true,
+		frees: false,
+		polls: false,
+		failures: true,
+		lazy: true,
+		drops: true,
 	};
 }
 
@@ -391,6 +427,8 @@ struct Slot {
 	/// A future's borrows: shared slots and an exclusive one.
 	holds_shared: Vec<usize>,
 	holds_exclusive: Option<usize>,
+	/// A lazy future's making step, until its await makes it.
+	unmade: Option<Op>,
 }
 
 impl Slot {
@@ -414,6 +452,7 @@ impl Slot {
 			adopted: false,
 			holds_shared: Vec::new(),
 			holds_exclusive: None,
+			unmade: None,
 		}
 	}
 }
@@ -423,6 +462,9 @@ impl Slot {
 struct Model {
 	/// Whether every value that is not `Send` is made on a home.
 	homed: bool,
+	/// Whether a future is made only as it is awaited, and whether this step is that await.
+	lazy: bool,
+	making: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -433,9 +475,11 @@ struct Model {
 }
 
 impl Model {
-	fn new(homed: bool) -> Self {
+	fn new(profile: Profile) -> Self {
 		Self {
-			homed,
+			homed: profile.homed,
+			lazy: profile.lazy,
+			making: false,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -447,6 +491,19 @@ impl Model {
 	fn add(&mut self, slot: Slot) -> usize {
 		self.slots.push(slot);
 		self.slots.len() - 1
+	}
+
+	/// Put a made future in slot `to`: a new one, or the lazy one its await makes.
+	fn place(&mut self, to: usize, slot: Slot) {
+		match to == self.slots.len() {
+			true => {
+				self.add(slot);
+			}
+			false => {
+				assert!(self.making, "only an await fills a slot made before");
+				self.slots[to] = slot;
+			}
+		}
 	}
 
 	/// Run what other threads queued for `thread`.
@@ -581,6 +638,20 @@ impl Model {
 			true => Owner::Home,
 			false => Owner::Thread(thread),
 		};
+		if self.lazy && !self.making {
+			let kind = match op {
+				Op::PlusLater(..) => Some(Kind::PlusLater),
+				Op::BumpLater(..) => Some(Kind::BumpLater),
+				Op::LocalLater(..) => Some(Kind::LocalLater),
+				_ => None,
+			};
+			if let Some(kind) = kind {
+				let mut slot = Slot::new(kind, Owner::Any);
+				slot.unmade = Some(op);
+				self.add(slot);
+				return Ok(Outcome::Ok);
+			}
+		}
 		Ok(match op {
 			Op::CounterNew(h, n) => {
 				let mut slot = Slot::new(Kind::Counter, Owner::Any);
@@ -653,7 +724,7 @@ impl Model {
 					self.slots[o].shared += 1;
 					slot.holds_shared.push(o);
 				}
-				assert_eq!(self.add(slot), to);
+				self.place(to, slot);
 				Outcome::Ok
 			}
 			Op::LedgerNew(h) => {
@@ -750,7 +821,7 @@ impl Model {
 				self.slots[h].exclusive += 1;
 				let mut slot = Slot::new(Kind::BumpLater, here);
 				slot.holds_exclusive = Some(h);
-				assert_eq!(self.add(slot), to);
+				self.place(to, slot);
 				Outcome::Ok
 			}
 			Op::LocalNew(h, homed) => {
@@ -779,7 +850,7 @@ impl Model {
 				self.slots[h].exclusive += 1;
 				let mut slot = Slot::new(Kind::LocalLater, self.slots[h].owner);
 				slot.holds_exclusive = Some(h);
-				assert_eq!(self.add(slot), to);
+				self.place(to, slot);
 				Outcome::Ok
 			}
 			Op::MetersNew(h) => {
@@ -840,7 +911,8 @@ impl Model {
 				let slot = &mut self.slots[h];
 				slot.freed = true;
 				if slot.kind.future() {
-					if !slot.done {
+					// A lazy future never awaited made nothing to drop.
+					if !slot.done && slot.unmade.take().is_none() {
 						self.drop_value(h, thread);
 					}
 					return Ok(Outcome::Ok);
@@ -853,6 +925,16 @@ impl Model {
 				Outcome::Ok
 			}
 			Op::Await(f) => {
+				if let Some(make) = self.slots[f].unmade.take() {
+					self.making = true;
+					let made = self.run(thread, make);
+					self.making = false;
+					if let Err(status) = made {
+						// The await raised at once: nothing is left to run.
+						self.slots[f].done = true;
+						return Err(status);
+					}
+				}
 				let mut outcome = self.run(thread, Op::Poll(f))?;
 				while outcome == Outcome::Pending {
 					outcome = self.run(thread, Op::Poll(f))?;
@@ -937,7 +1019,9 @@ const LIVE: usize = 8;
 /// a drain of each thread, so nothing is left for a thread's exit to drop.
 pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 	let mut rng = Rng(seed);
-	let mut model = Model::new(profile.homed);
+	assert!(!(profile.lazy && profile.polls), "a lazy future is only awaited");
+	assert!(profile.frees || profile.drops, "the cleanup frees or drops each object");
+	let mut model = Model::new(profile);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
 		let expect = model.step(thread, op);
@@ -994,6 +1078,11 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 	] {
 		for h in live(&model, kinds) {
 			let thread = home(&model, h);
+			// A lazy future never awaited made nothing: making it now could only fail.
+			if !(profile.frees || model.slots[h].unmade.is_none()) {
+				model.slots[h].freed = true;
+				continue;
+			}
 			push(&mut model, &mut steps, thread, end(h));
 			// Ended, whether freed or awaited or dropped.
 			model.slots[h].freed = true;
@@ -1120,7 +1209,7 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 			let f = rng.pick(&futures)?;
 			if profile.polls { Op::Poll(f) } else { Op::Await(f) }
 		}
-		11 => Op::Drop(rng.pick(&objects)?),
+		11 if profile.drops => Op::Drop(rng.pick(&objects)?),
 		12 if profile.frees => {
 			let h = rng.pick(&live)?;
 			let slot = &model.slots[h];
