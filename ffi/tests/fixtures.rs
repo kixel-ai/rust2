@@ -2373,7 +2373,9 @@ fn relative_target() {
 			"the census does not fail on `field@Retry::{exclude}`:\n{stderr}"
 		);
 		assert!(
-			!errors.iter().any(|error| error.contains(&format!("exclude `Retry::{exclude}`"))),
+			!errors
+				.iter()
+				.any(|error| error.contains(&format!("exclude `Retry::{exclude}`"))),
 			"the census fails on `Retry::{exclude}`:\n{stderr}"
 		);
 	}
@@ -2785,9 +2787,15 @@ fn lock() {
 	let path = dir.join("respelled.json");
 	std::fs::write(&path, serde_json::to_vec(&respelled).unwrap()).unwrap();
 	let args = ["--baseline".as_ref(), path.as_os_str()];
-	let output = exporter("lock", &dir.join("respelled"), &targets, &args, &["--features", "added"])
-		.output()
-		.unwrap();
+	let output = exporter(
+		"lock",
+		&dir.join("respelled"),
+		&targets,
+		&args,
+		&["--features", "added"],
+	)
+	.output()
+	.unwrap();
 	assert!(
 		output.status.success(),
 		"respelling a native exception type broke the baseline:\n{}",
