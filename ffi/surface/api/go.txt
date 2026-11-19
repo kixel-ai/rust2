@@ -1,0 +1,1841 @@
+package api // import "api/api"
+
+CONSTANTS
+const FAR int64 = 9223372036854775807
+const LIMIT uint64 = 1000
+
+FUNCTIONS
+func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
+func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
+func Alpn(config *p_tls.Config) (string, error)
+func AlpnLent(config *p_tls.Config) (string, error)
+func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)
+func ApplyU32(pair PairU32, f func(uint32) uint32) uint32
+func Area(size p_dep.Size) uint64
+func AreaScaledPoint(self *p_dep.Area, by Point) (uint64, error)
+func Attempt(check func() error) error
+func BeatVtable_() unsafe.Pointer
+func Beats(beat Beat) (uint32, error)
+func Below(n uint64, limit uint64) (uint64, error)
+func BoothCount(booth Booth) (uint64, error)
+func BoxedFloats(items []float64) []float64
+func BoxedName(boxed *Counter) (*string, error)
+func BoxedTuple(bytes p_rt.Bytes) p_rt.Bytes
+func Breadth(limits LimitsDuration) p_rt.Duration
+func BumpBoth(a *Tally, b *Tally) (uint32, error)
+func BumpEither(first *Local, second *Local) (uint32, error)
+func ByteLen(ctx context.Context, bytes p_rt.Bytes) (uint, error)
+func Capacities22(a *Batch2, b *Batch2) (uint, error)
+func Capacities24(a *Batch2, b *Batch) (uint, error)
+func Capacities42(a *Batch, b *Batch2) (uint, error)
+func Capacities44(a *Batch, b *Batch) (uint, error)
+func CertDer(cert *p_tls.Cert) (p_rt.Bytes, error)
+func CertLen(cert *p_tls.Cert) (uint, error)
+func Certify(der p_rt.Bytes) *p_tls.Cert
+func ChainLen(chain []*p_tls.Cert) (uint, error)
+func Choose(choice Choice) (uint64, error)
+func Chunks(bytes p_rt.Bytes, size uint) []p_rt.Bytes
+func ClashAudioEncoderFinish() uint8
+func ClashAudioEncoderFinish_() uint8
+func ClashListed(java []uint32, kotlin *uint32) [][]uint32
+func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
+func Coordinates(point *Point) int32
+func Corner(unit bool) (p_rt.Tuple2[uint32, uint32], error)
+func CornerLater(ctx context.Context) (p_rt.Tuple2[uint32, uint32], error)
+func Count(range_ p_rt.BoundsU64) uint
+func Counted(ctx context.Context, n uint32, count func(uint32)) (uint32, error)
+func Crammed(a Moment, b Moment, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64, n119 uint64, n120 uint64, n121 uint64, n122 uint64, n123 uint64) uint64
+func Cross(left LeftRightU8, right RightLeftU8) uint8
+func Crowded(reading Reading, a Stamp, b Stamp, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64) (uint64, error)
+func Describe(event Event) (string, error)
+func DescribeNonZeros(nonZeros NonZeros) (string, error)
+func Digit(r *p_rt.Bytes) (uint8, error)
+func Divide(a uint64, b uint64) (uint64, uint64, error)
+func Doubled(value **uint32) **uint32
+func DoubledI64(items []int64) []int64
+func DoubledTtl(ttl p_rt.Duration) p_rt.Duration
+func Drain2(batch *Batch2) (uint64, error)
+func Drain4(batch *Batch) (uint64, error)
+func Drive(ctx context.Context, start Moment, poll func(Moment, *Waiter) (*Moment, error)) (string, error)
+func Dropped() uint32
+func Each(steps uint32, visit func(uint32)) uint32
+func Either(text *string) (uint, error)
+func EitherLater(ctx context.Context, text *string) (uint, error)
+func Emit(log Log, lines p_rt.Bytes) uint32
+func EmitFromThread(log Log, lines p_rt.Bytes) (uint32, error)
+func EmitLater(ctx context.Context, log Log, lines p_rt.Bytes) (uint32, error)
+func Encode(value *p_serdejson.Json) (string, error)
+func End(limit uint64) p_rt.BoundU64
+func Ends(limit uint64) (p_rt.BoundU64, p_rt.BoundU64)
+func Entries(entries []p_rt.Tuple2[string, *p_serdejson.Json], tag string) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
+func Erased(receipt *Receipt) (uint32, error)
+func Excuse(note p_rt.Bytes, entry p_rt.Tuple2[p_rt.Bytes, *Refusal]) (uint, error)
+func Extended(duration p_rt.Duration, by p_rt.Duration) *p_rt.Duration
+func Failure(message string) (*p_core.IoError, error)
+func FailureKind(error_ *p_core.IoError) (string, error)
+func FailureMessage(error_ *p_core.IoError) (string, error)
+func FartherHop(hops PairNonZeroU16) (uint16, error)
+func File(dir string, name string) (string, error)
+func Fill2(ctx context.Context, batch *Batch2, v uint32) ([]uint32, error)
+func Fill4(ctx context.Context, batch *Batch, v uint32) ([]uint32, error)
+func Filter(lines p_rt.Bytes, keep func(uint8, string) bool) uint32
+func Find(haystack p_rt.Bytes, needle p_rt.Bytes) *p_rt.Tuple2[uint, uint]
+func Fingerprint(hex string) ([4]byte, error)
+func FirstOf(items []string) (*string, error)
+func Flip(ip p_rt.IpAddr) p_rt.IpAddr
+func GREETINGS() []string
+func Greet(name string, shape Shape) (string, error)
+func Grow(area *p_dep.Area, by uint32) (*p_dep.Area, error)
+func Halved(ctx context.Context, n uint32) (*uint32, error)
+func Halves(span Span) (p_rt.Tuple2[uint32, uint32], p_rt.Tuple2[uint32, uint32], error)
+func HasInstant(at *p_std.Instant) (bool, error)
+func HasText(note Note) (bool, error)
+func Heft(marked p_rt.Tuple2[*Mark, p_rt.Bytes], lent Parcel, moved p_rt.Tuple2[*Counter, p_rt.Bytes]) (uint64, error)
+func HeldCount(held **Counter) (*uint64, error)
+func Hex(payload p_rt.Bytes) string
+func Host(url *p_url.Url) (*string, error)
+func IsFamily(family Family) bool
+func IsKept(status Status) bool
+func JniOne() uint32
+func JoinWords(words []string) (string, error)
+func Joined(parts []p_rt.Bytes) p_rt.Bytes
+func JvmSum(field JvmField, method JvmStatic, opt OptIn) uint32
+func KeepPoint(kept Point) int32
+func KeeperPoint(keeper Point) int32
+func KeptCounter(from *Counter) (uint64, error)
+func KeptOrPoint(kept *Point) int32
+func KeptPoint(from Point) uint64
+func KeptPolarPoint(from PolarPoint) uint64
+func KeptSize(from p_dep.Size) uint64
+func KeptWrapU32(from WrapU32) uint64
+func Lasting(draft *Draft) (bool, error)
+func Later(at *p_std.Instant, by p_rt.Duration) (*p_std.Instant, error)
+func LayerName(layer Label) (string, error)
+func Least(sets [][]uint32) [][]uint32
+func Len(payload p_rt.Bytes) uint
+func LentBack(value p_rt.Bytes) p_rt.Bytes
+func Less(value uint32, value2 uint32) uint32
+func LocalLater(ctx context.Context, n uint32) (uint32, error)
+func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
+func LocalsDropped() uint32
+func LogCounts(log Log, level uint8, counter *Counter, more []*Counter) (uint32, error)
+func LogLater(ctx context.Context, log Log) (bool, error)
+func LogOnDrop(ctx context.Context, log Log) error
+func LogVtable_() unsafe.Pointer
+func LogWaker(log Log) (func(), error)
+func Longest(words []string) (uint, error)
+func Louder(filter *p_tracingcore.Level) *p_tracingcore.Level
+func Made(n uint32, make_ func(uint32) string) string
+func Marked(apiMarked *Mark) (uint64, error)
+func Named(name string) (*string, error)
+func NextChar(c rune) (*rune, error)
+func NextHop(hop *uint64) (*uint64, error)
+func NextIps(v4 p_rt.Ipv4Addr, v6 p_rt.Ipv6Addr) (p_rt.Ipv4Addr, p_rt.Ipv6Addr)
+func Nexts(v4 p_rt.SocketAddrV4, v6 p_rt.SocketAddrV6) (p_rt.SocketAddrV4, p_rt.SocketAddrV6)
+func Now() *p_std.Instant
+func Nudge(point *Point, by int32)
+func NudgeBy(point *Point, refusal *Refusal) error
+func OfferedLen(alpns []p_rt.Bytes) uint
+func Offset(by func() uint32, byData uint32) uint32
+func OnFirstThread() bool
+func PRIMES() []uint32
+func Parents(paths []string) ([]*string, error)
+func ParseCert(text string) (uint32, error)
+func ParseLater(ctx context.Context, text string) (uint32, error)
+func Peek(tally *Tally, peek func(*Tally) uint32) (uint32, error)
+func PointerBits(platform Platform) uint32
+func PollTripled(ctx context.Context, n uint32) (uint32, error)
+func Port(text string) (uint16, error)
+func Ports(addrs []p_rt.SocketAddr) []uint16
+func Prefixed(payload p_rt.Bytes, prefix *p_rt.Bytes) p_rt.Bytes
+func PushCounted(entry *p_rt.Tuple2[p_rt.Bytes, uint32], byte_ uint8) uint32
+func PutNumber(value uint32, buf *p_rt.Bytes)
+func QueuedHex(queued p_rt.Bytes) string
+func Reach(start uint32, end uint32) uint32
+func ReadLen(reader p_rt.Bytes) uint64
+func ReadingBump(reading **Reading) error
+func ReadingDebug(n uint32) string
+func Reasons(pairs []p_rt.Tuple2[*Counter, *Refusal], last *p_rt.Tuple2[*Counter, *Refusal]) (string, error)
+func Refuse(reason string) (uint32, error)
+func Relay(log Log, refusals []*Refusal) (uint32, error)
+func ReportNonZeroU16(pair PairNonZeroU16, log Log) (uint32, error)
+func ReportU32(pair PairU32, log Log) uint32
+func Resolve(base *p_url.Url, path string) (*p_url.Url, error)
+func Resolved(resolver *p_tls.Resolver) (string, error)
+func Resolver(name string) (*p_tls.Resolver, error)
+func Resume(alpn string, seconds uint32) (*p_tls.Session, error)
+func ReturnValues(point *Point, fail bool) (string, *p_rt.Tuple4[uint8, int16, uint32, uint64], []p_rt.Bytes, error)
+func RootedName(rooted Label) (string, error)
+func Rows(points []Point) []p_rt.Tuple3[string, Shape, Point]
+func Same(a float64, b float64) int32
+func SameChar(v rune) (rune, error)
+func SameDuration(v p_rt.Duration) p_rt.Duration
+func SameIpAddr(v p_rt.IpAddr) p_rt.IpAddr
+func SameIsize(v int) int
+func SamePath(v string) (string, error)
+func SameSocketAddr(v p_rt.SocketAddr) p_rt.SocketAddr
+func SameSocketAddrV4(v p_rt.SocketAddrV4) p_rt.SocketAddrV4
+func SameSocketAddrV6(v p_rt.SocketAddrV6) p_rt.SocketAddrV6
+func SameString(v string) (string, error)
+func SameU128(v p_rt.U128) p_rt.U128
+func SameU64(v uint64) uint64
+func SameUsize(v uint) uint
+func SampleHex(sample p_rt.Bytes) string
+func Scaled(v p_rt.U128, by uint64) *p_rt.U128
+func SecondLater(w235 p_rt.Duration) p_rt.Duration
+func Sections(entries []p_rt.Tuple2[string, *p_serdejson.Json]) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
+func Secure(alpn string) (*p_tls.Config, error)
+func SeedsCounterCounter(from *Counter) (uint64, error)
+func SeedsCounterPoint(from Point) uint64
+func SeedsCounterPolarPoint(from PolarPoint) uint64
+func SeedsCounterSize(from p_dep.Size) uint64
+func SeedsCounterWrapU32(from WrapU32) uint64
+func SeedsPointCounter(from *Counter) (uint64, error)
+func SeedsPointPoint(from Point) uint64
+func SeedsPointPolarPoint(from PolarPoint) uint64
+func SeedsPointSize(from p_dep.Size) uint64
+func SeedsPointWrapU32(from WrapU32) uint64
+func SeekTo(file io.ReadSeeker, at uint64) (uint64, error)
+func Sentence(words *[]string) (string, error)
+func Shift(by func() uint32, cBy uint32) uint32
+func Since(later *p_std.Instant, earlier *p_std.Instant) (p_rt.Duration, error)
+func Span_(start uint32, end uint32) uint32
+func Spell(filter *p_tracingcore.Level) string
+func Spend(e *Counter, it *Counter) (uint64, error)
+func SplitLast(items []int32) ([]int32, uint32)
+func Spread(n uint64) *p_rt.Tuple4[uint8, int16, uint32, uint64]
+func Stored(receipt *Receipt) (uint32, error)
+func StoredText(stored string) (string, error)
+func Stray() string
+func SumAll(items []uint32) uint32
+func SumLists(a []int32, b *[]int32, c *[]int32) int32
+func SumU32(items []uint32) uint64
+func SummedUpReceipt(totaled *Receipt) (uint32, error)
+func Sums(rows [][]uint32) []uint32
+func Swapped(pair p_rt.Tuple2[string, uint32]) (uint32, string, error)
+func Tagged(doc *p_serdejson.Json, tag string) (*p_serdejson.Json, error)
+func Tail(file io.ReadSeeker, len_ uint64) (p_rt.Bytes, uint64, error)
+func Tallied(receipt *Receipt) (uint32, error)
+func TallyLogCount(log Log) uint32
+func TickName(tick Label) (string, error)
+func TicketClones() uint32
+func Tickets(entries []p_rt.Tuple2[string, Ticket]) ([]p_rt.Tuple2[string, Ticket], error)
+func TimedHex(payload p_rt.Bytes) string
+func TimedText(value *p_serdejson.Json) (string, error)
+func Title(formal bool) *string
+func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
+func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
+func Total(range_ p_rt.RangeU64) uint64
+func Verify(cert *p_tls.Cert) (uint32, error)
+func VisitStray(visit func(string))
+func WaiterPollFuture(ctx context.Context, future func(context.Context)) error
+func Walk(steps uint64, visit func(*Cursor) uint64) uint64
+func WasmLog(log Log) error
+func WasmOnly() (uint32, error)
+func WasmTake(counter *Counter) (uint64, error)
+func Watch(gauge *Gauge, watch func(*Gauge) uint64) (uint64, error)
+func WeighAllCounter(items []*Counter) (uint64, error)
+func WeighPoint(from Point) uint32
+func Widen(range_ p_rt.RangeU64, by uint64) p_rt.RangeU64
+func Widths(n uint64) (uint8, int16, uint32, uint64)
+func Wind(whole PolarTurn, part Polar_Turn) uint32
+func Within(ctx context.Context, polls uint32, future func(context.Context)) error
+func Words(text string) ([]string, error)
+func Worth(some *[]*Counter, boxed []*Counter) (uint64, error)
+func Yielded(ctx context.Context, value uint32) (uint32, error)
+
+TYPES
+type A struct {
+	B uint8
+}
+func (self A) Equal(other A) bool
+func (self A) GoString() string
+type Array interface {
+}
+type ArrayU8x4 struct {
+	V0 uint8
+}
+type Atlas struct {
+	Points []p_rt.Tuple2[string, Point]
+	Ids    []uint32
+}
+func (self Atlas) Equal(other Atlas) (bool, error)
+func (self Atlas) GoString() string
+func (self Atlas) With(name string, at Point) (Atlas, error)
+type B interface {
+	GoString() string
+	Equal(other B) bool
+}
+type BOne struct {
+}
+func (self BOne) Equal(other B) bool
+func (self BOne) GoString() string
+type BTwo struct {
+	V0 uint8
+}
+func (self BTwo) Equal(other B) bool
+func (self BTwo) GoString() string
+type Batch struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBatch() *Batch
+func (self *Batch) Capacity() (uint, error)
+func (self *Batch) Close() error
+func (self *Batch) Push(v uint32) (bool, error)
+type Batch2 struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBatch2() *Batch2
+func Pair() *Batch2
+func (self *Batch2) Capacity() (uint, error)
+func (self *Batch2) Close() error
+func (self *Batch2) Push(v uint32) (bool, error)
+type Beat interface {
+	Beat() uint32
+}
+type Berth struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBerth(at *uint32) *Berth
+func (self *Berth) At() (*uint32, error)
+func (self *Berth) Clone() (*Berth, error)
+func (self *Berth) Close() error
+func (self *Berth) GoString() string
+type Board struct {
+	Handle_ *p_rt.Handle_
+}
+func NewBoard(counters []p_rt.Tuple2[string, *Counter]) (*Board, error)
+func (self *Board) Best() (*Counter, error)
+func (self *Board) Close() error
+func (self *Board) IntoCounters() ([]p_rt.Tuple2[string, *Counter], error)
+func (self *Board) Ranked() ([]p_rt.Tuple2[string, *Counter], error)
+type Booth struct {
+	Mark *Mark
+}
+func (self Booth) Equal(other Booth) (bool, error)
+func (self Booth) GoString() string
+type BoxedU16 struct {
+	Value uint16
+}
+func BOXED() BoxedU16
+func (self BoxedU16) Equal(other BoxedU16) bool
+func (self BoxedU16) GoString() string
+type BoxedU8 struct {
+	Value uint8
+}
+func Keeps(log Log) BoxedU8
+func (self BoxedU8) Equal(other BoxedU8) bool
+func (self BoxedU8) GoString() string
+type Builtin interface {
+	Equal(other Builtin) bool
+}
+type BuiltinAny struct {
+	V0 []int32
+}
+func (self BuiltinAny) Equal(other Builtin) bool
+type BuiltinBoolean struct {
+	V0 float64
+}
+func (self BuiltinBoolean) Equal(other Builtin) bool
+type BuiltinInt struct {
+	V0 float64
+}
+func (self BuiltinInt) Equal(other Builtin) bool
+type BuiltinNative struct {
+	V0 float64
+}
+func (self BuiltinNative) Equal(other Builtin) bool
+type C struct {
+	Handle_ *p_rt.Handle_
+}
+func NewC(value uint8) *C
+func (self *C) Close() error
+func (self *C) Equal(other *C) (bool, error)
+func (self *C) GoString() string
+type CancellationError struct {
+	Code uint32
+}
+type Cancelled struct {
+	Step uint8
+}
+func (self Cancelled) Equal(other Cancelled) bool
+func (self Cancelled) GoString() string
+type Channel struct {
+	Handle_ *p_rt.Handle_
+}
+func ChannelDefault() *Channel
+func NewChannel() *Channel
+func (self *Channel) Clear() error
+func (self *Channel) Clone() (*Channel, error)
+func (self *Channel) Close() error
+func (self *Channel) Itemized(ctx context.Context, items *[]uint32) (uint, error)
+func (self *Channel) Listen(cx func()) error
+func (self *Channel) Notify(waker func()) error
+func (self *Channel) PollMeasure(ctx context.Context, extra uint) (uint, error)
+func (self *Channel) PollTake(ctx context.Context) (p_rt.Bytes, error)
+func (self *Channel) Recv(ctx context.Context) (p_rt.Bytes, error)
+func (self *Channel) RecvNonempty(ctx context.Context) (p_rt.Bytes, error)
+func (self *Channel) RecvSized(ctx context.Context) (p_rt.Bytes, uint, error)
+func (self *Channel) Send(payload p_rt.Bytes) error
+func (self *Channel) SendFromThread(payload p_rt.Bytes) error
+func (self *Channel) SendLater(ctx context.Context, payload p_rt.Bytes) error
+func (self *Channel) Tagged(ctx context.Context, tag string) (string, error)
+type Choice interface {
+}
+type ChoiceEmpty struct {
+}
+type ChoicePicked struct {
+	V0 *Mark
+}
+type Clash interface {
+	GoString() string
+	Equal(other Clash) (bool, error)
+	Point() (*Point, error)
+	Bytes() (p_rt.Bytes, error)
+	Reading(kotlin uint32) (Reading, error)
+	Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+	Tagged(ctx context.Context, tag string) (string, error)
+	Stamp(kotlin uint64) (Stamp, error)
+	Moment(kotlin uint64) (Moment, error)
+	Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+}
+func ClashAfter(ctx context.Context, first func(context.Context), kotlin float64) (Clash, error)
+func ClashAt(api Point) Clash
+func ClashOf(value float64) Clash
+type ClashAny struct {
+}
+func (self ClashAny) Bytes() (p_rt.Bytes, error)
+func (self ClashAny) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashAny) Equal(other Clash) (bool, error)
+func (self ClashAny) GoString() string
+func (self ClashAny) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashAny) Moment(kotlin uint64) (Moment, error)
+func (self ClashAny) Point() (*Point, error)
+func (self ClashAny) Reading(kotlin uint32) (Reading, error)
+func (self ClashAny) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashAny) Tagged(ctx context.Context, tag string) (string, error)
+type ClashBoolean struct {
+	V0 bool
+}
+func (self ClashBoolean) Bytes() (p_rt.Bytes, error)
+func (self ClashBoolean) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashBoolean) Equal(other Clash) (bool, error)
+func (self ClashBoolean) GoString() string
+func (self ClashBoolean) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashBoolean) Moment(kotlin uint64) (Moment, error)
+func (self ClashBoolean) Point() (*Point, error)
+func (self ClashBoolean) Reading(kotlin uint32) (Reading, error)
+func (self ClashBoolean) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashBoolean) Tagged(ctx context.Context, tag string) (string, error)
+type ClashBytes struct {
+	V0 p_rt.Bytes
+}
+func (self ClashBytes) Bytes() (p_rt.Bytes, error)
+func (self ClashBytes) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashBytes) Equal(other Clash) (bool, error)
+func (self ClashBytes) GoString() string
+func (self ClashBytes) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashBytes) Moment(kotlin uint64) (Moment, error)
+func (self ClashBytes) Point() (*Point, error)
+func (self ClashBytes) Reading(kotlin uint32) (Reading, error)
+func (self ClashBytes) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashBytes) Tagged(ctx context.Context, tag string) (string, error)
+type ClashDouble struct {
+	V0 float64
+}
+func (self ClashDouble) Bytes() (p_rt.Bytes, error)
+func (self ClashDouble) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashDouble) Equal(other Clash) (bool, error)
+func (self ClashDouble) GoString() string
+func (self ClashDouble) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashDouble) Moment(kotlin uint64) (Moment, error)
+func (self ClashDouble) Point() (*Point, error)
+func (self ClashDouble) Reading(kotlin uint32) (Reading, error)
+func (self ClashDouble) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashDouble) Tagged(ctx context.Context, tag string) (string, error)
+type ClashEvent struct {
+	V0 Event
+}
+func (self ClashEvent) Bytes() (p_rt.Bytes, error)
+func (self ClashEvent) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashEvent) Equal(other Clash) (bool, error)
+func (self ClashEvent) GoString() string
+func (self ClashEvent) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashEvent) Moment(kotlin uint64) (Moment, error)
+func (self ClashEvent) Point() (*Point, error)
+func (self ClashEvent) Reading(kotlin uint32) (Reading, error)
+func (self ClashEvent) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashEvent) Tagged(ctx context.Context, tag string) (string, error)
+type ClashFloat struct {
+	V0 float32
+}
+func (self ClashFloat) Bytes() (p_rt.Bytes, error)
+func (self ClashFloat) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashFloat) Equal(other Clash) (bool, error)
+func (self ClashFloat) GoString() string
+func (self ClashFloat) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashFloat) Moment(kotlin uint64) (Moment, error)
+func (self ClashFloat) Point() (*Point, error)
+func (self ClashFloat) Reading(kotlin uint32) (Reading, error)
+func (self ClashFloat) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashFloat) Tagged(ctx context.Context, tag string) (string, error)
+type ClashInt struct {
+	V0 int32
+}
+func (self ClashInt) Bytes() (p_rt.Bytes, error)
+func (self ClashInt) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashInt) Equal(other Clash) (bool, error)
+func (self ClashInt) GoString() string
+func (self ClashInt) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashInt) Moment(kotlin uint64) (Moment, error)
+func (self ClashInt) Point() (*Point, error)
+func (self ClashInt) Reading(kotlin uint32) (Reading, error)
+func (self ClashInt) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashInt) Tagged(ctx context.Context, tag string) (string, error)
+type ClashMoment struct {
+	V0 Moment
+}
+func (self ClashMoment) Bytes() (p_rt.Bytes, error)
+func (self ClashMoment) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashMoment) Equal(other Clash) (bool, error)
+func (self ClashMoment) GoString() string
+func (self ClashMoment) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashMoment) Moment(kotlin uint64) (Moment, error)
+func (self ClashMoment) Point() (*Point, error)
+func (self ClashMoment) Reading(kotlin uint32) (Reading, error)
+func (self ClashMoment) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashMoment) Tagged(ctx context.Context, tag string) (string, error)
+type ClashMut struct {
+}
+func (self ClashMut) Bytes() (p_rt.Bytes, error)
+func (self ClashMut) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashMut) Equal(other Clash) (bool, error)
+func (self ClashMut) GoString() string
+func (self ClashMut) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashMut) Moment(kotlin uint64) (Moment, error)
+func (self ClashMut) Point() (*Point, error)
+func (self ClashMut) Reading(kotlin uint32) (Reading, error)
+func (self ClashMut) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashMut) Tagged(ctx context.Context, tag string) (string, error)
+type ClashNative struct {
+	V0 uint32
+}
+func (self ClashNative) Bytes() (p_rt.Bytes, error)
+func (self ClashNative) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashNative) Equal(other Clash) (bool, error)
+func (self ClashNative) GoString() string
+func (self ClashNative) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashNative) Moment(kotlin uint64) (Moment, error)
+func (self ClashNative) Point() (*Point, error)
+func (self ClashNative) Reading(kotlin uint32) (Reading, error)
+func (self ClashNative) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashNative) Tagged(ctx context.Context, tag string) (string, error)
+type ClashPair struct {
+	V0 uint8
+	V1 uint8
+}
+func (self ClashPair) Bytes() (p_rt.Bytes, error)
+func (self ClashPair) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashPair) Equal(other Clash) (bool, error)
+func (self ClashPair) GoString() string
+func (self ClashPair) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashPair) Moment(kotlin uint64) (Moment, error)
+func (self ClashPair) Point() (*Point, error)
+func (self ClashPair) Reading(kotlin uint32) (Reading, error)
+func (self ClashPair) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashPair) Tagged(ctx context.Context, tag string) (string, error)
+type ClashPoint struct {
+	V0 Point
+}
+func (self ClashPoint) Bytes() (p_rt.Bytes, error)
+func (self ClashPoint) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashPoint) Equal(other Clash) (bool, error)
+func (self ClashPoint) GoString() string
+func (self ClashPoint) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashPoint) Moment(kotlin uint64) (Moment, error)
+func (self ClashPoint) Point() (*Point, error)
+func (self ClashPoint) Reading(kotlin uint32) (Reading, error)
+func (self ClashPoint) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashPoint) Tagged(ctx context.Context, tag string) (string, error)
+type ClashShape struct {
+	V0 Shape
+}
+func (self ClashShape) Bytes() (p_rt.Bytes, error)
+func (self ClashShape) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashShape) Equal(other Clash) (bool, error)
+func (self ClashShape) GoString() string
+func (self ClashShape) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashShape) Moment(kotlin uint64) (Moment, error)
+func (self ClashShape) Point() (*Point, error)
+func (self ClashShape) Reading(kotlin uint32) (Reading, error)
+func (self ClashShape) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashShape) Tagged(ctx context.Context, tag string) (string, error)
+type ClashSpan struct {
+	Width uint32
+}
+func (self ClashSpan) Equal(other ClashSpan) bool
+func (self ClashSpan) GoString() string
+func (self ClashSpan) String() string
+func (self ClashSpan) ToString() string
+func (self ClashSpan) Width_() uint32
+type ClashStamp struct {
+	V0 int64
+}
+func (self ClashStamp) Bytes() (p_rt.Bytes, error)
+func (self ClashStamp) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashStamp) Equal(other Clash) (bool, error)
+func (self ClashStamp) GoString() string
+func (self ClashStamp) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashStamp) Moment(kotlin uint64) (Moment, error)
+func (self ClashStamp) Point() (*Point, error)
+func (self ClashStamp) Reading(kotlin uint32) (Reading, error)
+func (self ClashStamp) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashStamp) Tagged(ctx context.Context, tag string) (string, error)
+type ClashStore struct {
+	Handle_ *p_rt.Handle_
+}
+func NewClashStore(count uint32) *ClashStore
+func (self *ClashStore) Close() error
+func (self *ClashStore) Close_() (uint32, error)
+func (self *ClashStore) Free() (uint32, error)
+type ClashString struct {
+	V0 string
+}
+func (self ClashString) Bytes() (p_rt.Bytes, error)
+func (self ClashString) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashString) Equal(other Clash) (bool, error)
+func (self ClashString) GoString() string
+func (self ClashString) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashString) Moment(kotlin uint64) (Moment, error)
+func (self ClashString) Point() (*Point, error)
+func (self ClashString) Reading(kotlin uint32) (Reading, error)
+func (self ClashString) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashString) Tagged(ctx context.Context, tag string) (string, error)
+type ClashTone struct {
+	Hz uint16
+}
+func ClashAudible(tone ClashTone) (ClashTone, error)
+func (self ClashTone) Equal(other ClashTone) bool
+func (self ClashTone) GoString() string
+type ClashTone_ struct {
+	Db uint8
+}
+func (self ClashTone_) Equal(other ClashTone_) bool
+func (self ClashTone_) GoString() string
+type ClashUnit struct {
+}
+func (self ClashUnit) Bytes() (p_rt.Bytes, error)
+func (self ClashUnit) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashUnit) Equal(other Clash) (bool, error)
+func (self ClashUnit) GoString() string
+func (self ClashUnit) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashUnit) Moment(kotlin uint64) (Moment, error)
+func (self ClashUnit) Point() (*Point, error)
+func (self ClashUnit) Reading(kotlin uint32) (Reading, error)
+func (self ClashUnit) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashUnit) Tagged(ctx context.Context, tag string) (string, error)
+type ClashWaker struct {
+}
+func (self ClashWaker) Bytes() (p_rt.Bytes, error)
+func (self ClashWaker) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashWaker) Equal(other Clash) (bool, error)
+func (self ClashWaker) GoString() string
+func (self ClashWaker) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashWaker) Moment(kotlin uint64) (Moment, error)
+func (self ClashWaker) Point() (*Point, error)
+func (self ClashWaker) Reading(kotlin uint32) (Reading, error)
+func (self ClashWaker) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashWaker) Tagged(ctx context.Context, tag string) (string, error)
+type Clocked struct {
+	At    Moment
+	Count uint32
+}
+func ClockedAfter(clocked Clocked, ticks uint64) Clocked
+func (self Clocked) Equal(other Clocked) bool
+func (self Clocked) GoString() string
+type Codecs struct {
+	Handle_ *p_rt.Handle_
+}
+func CodecsDefault() *Codecs
+func NewCodecs() *Codecs
+func (self *Codecs) Close() error
+func (self *Codecs) Ids() (uint32, error)
+func (self *Codecs) ListGet() ([]*p_tls.Codec, error)
+func (self *Codecs) ListSet(value []*p_tls.Codec) error
+type Core struct {
+	Id uint32
+}
+type Counter struct {
+	Handle_ *p_rt.Handle_
+}
+func BoxedCounter(name *string) (*Counter, error)
+func CounterDefault() *Counter
+func CounterSeededCounter(name string, from *Counter) (*Counter, error)
+func CounterSeededPoint(name string, from Point) (*Counter, error)
+func CounterSeededPolarPoint(name string, from PolarPoint) (*Counter, error)
+func CounterSeededSize(name string, from p_dep.Size) (*Counter, error)
+func CounterSeededWrapU32(name string, from WrapU32) (*Counter, error)
+func Counters(names []string) ([]*Counter, error)
+func NewCounter(name string, start uint64) (*Counter, error)
+func Numbered(names []string) ([]*Counter, error)
+func Only(counter *Counter) (*Counter, error)
+func ReturnMoved(counter *Counter, fail bool) (*Counter, error)
+func (self *Counter) Add(n uint64) (uint64, error)
+func (self *Counter) AddTo(other_ *Counter) (bool, error)
+func (self *Counter) Clamped(low *Counter, high *Counter) (uint64, error)
+func (self *Counter) Clone() (*Counter, error)
+func (self *Counter) Close() error
+func (self *Counter) Edited() (bool, error)
+func (self *Counter) Get() (uint64, error)
+func (self *Counter) GoString() string
+func (self *Counter) IntoLabel(at *Point) (Label, error)
+func (self *Counter) IntoSum(close_ uint64) (uint64, error)
+func (self *Counter) Is(name string) (bool, error)
+func (self *Counter) Name() (string, error)
+func (self *Counter) Offset(handle uint64, h uint64) (uint64, error)
+func (self *Counter) Plus(other_ *Counter) (uint64, error)
+func (self *Counter) PlusLater(ctx context.Context, other_ *Counter) (uint64, error)
+func (self *Counter) Rename(name string) error
+func (self *Counter) Split(at uint64) (*Counter, *Counter, error)
+func (self *Counter) Sub(n uint64) (uint64, error)
+type Cursor struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Cursor) At() (uint64, error)
+func (self *Cursor) Close() error
+type Der struct {
+	Handle_ *p_rt.Handle_
+}
+func DerFromSlice(bytes p_rt.Bytes) *Der
+func (self *Der) Bytes() (p_rt.Bytes, error)
+func (self *Der) Close() error
+type Digest struct {
+	Handle_ *p_rt.Handle_
+}
+func NewDigest() *Digest
+func (self *Digest) Close() error
+func (self *Digest) Flipped(mask [4]byte) ([4]byte, error)
+func (self *Digest) SumGet() ([4]byte, error)
+func (self *Digest) SumSet(value [4]byte) error
+type DoubleArray struct {
+	Len uint32
+}
+func (self DoubleArray) Equal(other DoubleArray) bool
+func (self DoubleArray) GoString() string
+type Draft struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Draft) Close() error
+func (self *Draft) Commit() (uint32, error)
+func (self *Draft) Describe() (string, error)
+func (self *Draft) Edited() (bool, error)
+func (self *Draft) Lines() (uint32, error)
+func (self *Draft) TitleGet() (string, error)
+func (self *Draft) TitleSet(value string) error
+func (self *Draft) Write(line string) error
+type Error interface {
+	String() string
+	GoString() string
+	Equal(other Error) bool
+	Error() string
+}
+type ErrorOverflow struct {
+}
+func (self ErrorOverflow) Equal(other Error) bool
+func (self ErrorOverflow) Error() string
+func (self ErrorOverflow) GoString() string
+func (self ErrorOverflow) String() string
+type ErrorUnderflow struct {
+	By uint64
+}
+func (self ErrorUnderflow) Equal(other Error) bool
+func (self ErrorUnderflow) Error() string
+func (self ErrorUnderflow) GoString() string
+func (self ErrorUnderflow) String() string
+type Event interface {
+	GoString() string
+	Equal(other Event) (bool, error)
+}
+type EventDone struct {
+}
+func (self EventDone) Equal(other Event) (bool, error)
+func (self EventDone) GoString() string
+type EventMoved struct {
+	V0 Point
+}
+func (self EventMoved) Equal(other Event) (bool, error)
+func (self EventMoved) GoString() string
+type EventNamed struct {
+	Name string
+}
+func (self EventNamed) Equal(other Event) (bool, error)
+func (self EventNamed) GoString() string
+type Extent struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func NewExtent(start uint64, len_ uint64) Extent
+func (self Extent) End() uint64
+func (self Extent) Equal(other Extent) bool
+func (self Extent) GoString() string
+func (self *Extent) Slide(by uint64) uint64
+func (self Extent) StartGet() uint64
+func (self *Extent) StartSet(value uint64)
+type Family int32
+const (
+	FamilyNative Family = 0
+	FamilyWasm   Family = 1
+)
+func (self Family) Equal(other Family) bool
+func (self Family) GoString() string
+type FiledReceipt struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *FiledReceipt) Clone() (*FiledReceipt, error)
+func (self *FiledReceipt) Close() error
+func (self *FiledReceipt) Count() (uint32, error)
+type Gap struct {
+	Handle_ *p_rt.Handle_
+}
+func NewGap(wide uint64, narrow uint8) *Gap
+func (self *Gap) Clone() (*Gap, error)
+func (self *Gap) Close() error
+func (self *Gap) Equal(other *Gap) (bool, error)
+func (self *Gap) GoString() string
+func (self *Gap) Sum() (uint64, error)
+type Gauge struct {
+	Handle_ *p_rt.Handle_
+}
+func NewGauge(level uint64) *Gauge
+func (self *Gauge) Clone() (*Gauge, error)
+func (self *Gauge) Close() error
+func (self *Gauge) IntoLevel() (uint64, error)
+func (self *Gauge) Later(ctx context.Context) (uint64, error)
+func (self *Gauge) Level() (uint64, error)
+func (self *Gauge) Reaches(ctx context.Context, this uint64) (bool, error)
+func (self *Gauge) Set(level uint64) error
+type Handle struct {
+	Handle_ *p_rt.Handle_
+}
+func HandleLater(ctx context.Context, count uint32) (*Handle, error)
+func NewHandle(count uint32) *Handle
+func (self *Handle) Close() error
+func (self *Handle) Count() (uint32, error)
+type Hasher struct {
+	Seed uint8
+}
+type Hits struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func HitsDefault() Hits
+func HitsOf(hits uint64, misses uint64) Hits
+func (self *Hits) Add(other_ Hits)
+func (self *Hits) Eq(other_ Hits) bool
+func (self Hits) Equal(other Hits) bool
+func (self Hits) GoString() string
+func (self Hits) HitsGet() uint64
+func (self *Hits) HitsSet(value uint64)
+func (self Hits) MissesGet() uint64
+func (self *Hits) MissesSet(value uint64)
+type InnerU8 struct {
+	Value uint8
+}
+func (self InnerU8) Equal(other InnerU8) bool
+func (self InnerU8) GoString() string
+type Journal struct {
+	Handle_ *p_rt.Handle_
+}
+func NewJournal(sink Log) *Journal
+func (self *Journal) Close() error
+func (self *Journal) Redirect(sink Log) error
+func (self *Journal) Write(line string) (bool, error)
+type JvmField struct {
+	N uint32
+}
+func (self JvmField) Equal(other JvmField) bool
+func (self JvmField) GoString() string
+type JvmStatic struct {
+	N uint32
+}
+func (self JvmStatic) Equal(other JvmStatic) bool
+func (self JvmStatic) GoString() string
+type Key struct {
+	Handle_ *p_rt.Handle_
+}
+func NewKey(name string) (*Key, error)
+func (self *Key) Clone() (*Key, error)
+func (self *Key) Close() error
+func (self *Key) Equal(other *Key) (bool, error)
+func (self *Key) GoString() string
+func (self *Key) HashOf() (uint64, error)
+type Label struct {
+	Name string
+	At   *Point
+	Ttl  *p_rt.Duration
+}
+func (self Label) Equal(other Label) (bool, error)
+func (self Label) GoString() string
+type Labelled interface {
+	GoString() string
+	Equal(other Labelled) bool
+}
+func SameLabelled(labelled Labelled) Labelled
+type LabelledBare struct {
+}
+func (self LabelledBare) Equal(other Labelled) bool
+func (self LabelledBare) GoString() string
+type LabelledTagged struct {
+	Tag uint32
+}
+func (self LabelledTagged) Equal(other Labelled) bool
+func (self LabelledTagged) GoString() string
+type Latch struct {
+	Handle_ *p_rt.Handle_
+}
+func LatchDefault() *Latch
+func (self *Latch) Clone() (*Latch, error)
+func (self *Latch) Close() error
+func (self *Latch) Get() (*uint32, error)
+func (self *Latch) Set(value uint32) (bool, error)
+type Layered struct {
+	Handle_ *p_rt.Handle_
+}
+func NewLayered() *Layered
+func (self *Layered) Close() error
+func (self *Layered) Lines() (uint32, error)
+func (self *Layered) TitleGet() (string, error)
+type Ledger struct {
+	Handle_ *p_rt.Handle_
+}
+func LedgerDefault() *Ledger
+func NewLedger() *Ledger
+func (self *Ledger) Close() error
+func (self *Ledger) Edit() (*Draft, error)
+func (self *Ledger) FileReceipt(item *Receipt) (*FiledReceipt, error)
+func (self *Ledger) Noted() (*Receipt, error)
+func (self *Ledger) Published() (uint32, error)
+func (self *Ledger) Receipt() (*Receipt, error)
+func (self *Ledger) Seal() error
+func (self *Ledger) Slip() (*Slip, error)
+func (self *Ledger) Title() (string, error)
+type LeftRightU8 struct {
+	Value RightU8
+}
+func (self LeftRightU8) Equal(other LeftRightU8) bool
+func (self LeftRightU8) GoString() string
+type LeftU8 struct {
+	Value uint8
+}
+func (self LeftU8) Equal(other LeftU8) bool
+func (self LeftU8) GoString() string
+type LimitsBytes struct {
+	Low  p_rt.Bytes
+	High p_rt.Bytes
+}
+func ByteLimits(low p_rt.Bytes, high p_rt.Bytes) LimitsBytes
+func (self LimitsBytes) Equal(other LimitsBytes) bool
+func (self LimitsBytes) GoString() string
+type LimitsDuration struct {
+	Low  p_rt.Duration
+	High p_rt.Duration
+}
+func (self LimitsDuration) Equal(other LimitsDuration) bool
+func (self LimitsDuration) GoString() string
+type Local struct {
+	Handle_ *p_rt.Handle_
+}
+func LocalAfter(ctx context.Context) (*Local, error)
+func LocalDefault() *Local
+func LocalOrNew(local *Local) (*Local, error)
+func LocalOrNewLater(ctx context.Context, local *Local) (*Local, error)
+func NewLocal() *Local
+func (self *Local) Bump() (uint32, error)
+func (self *Local) Close() error
+func (self *Local) Equal(other *Local) (bool, error)
+func (self *Local) Later(ctx context.Context) (uint32, error)
+func (self *Local) OnOwnThread() (bool, error)
+func (self *Local) PollCount(ctx context.Context) (uint32, error)
+func (self *Local) Share() (*Local, error)
+func (self *Local) ThreadNumber() (uint64, error)
+func (self *Local) Visit(f func() uint32) (uint32, error)
+type LocalWaiter struct {
+	Handle_ *p_rt.Handle_
+}
+func NewLocalWaiter(waker func()) *LocalWaiter
+func (self *LocalWaiter) Close() error
+type Log interface {
+	Log(level uint8, line string) bool
+}
+type LogCount struct {
+	Kept uint32
+}
+func (self LogCount) Equal(other LogCount) bool
+func (self LogCount) GoString() string
+type LogThread struct {
+	Handle_ *p_rt.Handle_
+}
+func NewLogThread(log Log, line string) (*LogThread, error)
+func (self *LogThread) Close() error
+func (self *LogThread) Join() (bool, error)
+type Logger struct {
+	Handle_ *p_rt.Handle_
+}
+func NewLogger(sink Log) *Logger
+func (self *Logger) Close() error
+func (self *Logger) Write(line string) (bool, error)
+func (self *Logger) WriteFromThread(line string) (bool, error)
+type LongArray struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func NewLongArray(low uint64, high uint64) LongArray
+func (self LongArray) Also(f func(uint64))
+func (self LongArray) C() uint64
+func (self LongArray) Equal(other LongArray) bool
+func (self LongArray) GoString() string
+type Mark struct {
+	Handle_ *p_rt.Handle_
+}
+func MarkOf(count uint64) *Mark
+func (self *Mark) Add(by uint64) error
+func (self *Mark) Clone() (*Mark, error)
+func (self *Mark) Close() error
+func (self *Mark) Count() (uint64, error)
+func (self *Mark) Equal(other *Mark) (bool, error)
+func (self *Mark) GoString() string
+type Marker struct {
+	Handle_ *p_rt.Handle_
+}
+func NewMarker(label string, x int32, y int32) (*Marker, error)
+func (self *Marker) Close() error
+func (self *Marker) Label() (string, error)
+func (self *Marker) Offset(dx int32, dy int32) (Point, error)
+func (self *Marker) XGet() (int32, error)
+func (self *Marker) XSet(value int32) error
+func (self *Marker) YGet() (int32, error)
+func (self *Marker) YSet(value int32) error
+type Measure struct {
+	Value   float64
+	Numbers Numbers
+}
+func NewMeasure(value float64, negative bool) Measure
+func (self Measure) Equal(other Measure) bool
+func (self Measure) GoString() string
+type Message struct {
+	Handle_ *p_rt.Handle_
+}
+func NewMessage(stamp *Stamp, payload p_rt.Bytes) *Message
+func (self *Message) Clone() (*Message, error)
+func (self *Message) Close() error
+func (self *Message) GoString() string
+func (self *Message) PayloadGet() (p_rt.Bytes, error)
+func (self *Message) PayloadSet(value p_rt.Bytes) error
+func (self *Message) Sent() (bool, error)
+func (self *Message) StampGet() (*Stamp, error)
+func (self *Message) StampSet(value *Stamp) error
+type Meter struct {
+	Handle_ *p_rt.Handle_
+}
+func MeterDefault() *Meter
+func (self *Meter) Add(n uint64) (uint64, error)
+func (self *Meter) Close() error
+func (self *Meter) Count() (uint64, error)
+func (self *Meter) Reset() error
+type Meters struct {
+	Handle_ *p_rt.Handle_
+}
+func MetersDefault() *Meters
+func NewMeters() *Meters
+func (self *Meters) Clear() error
+func (self *Meters) Close() error
+func (self *Meters) First() (*Meter, error)
+func (self *Meters) LastGet() (*Meter, error)
+func (self *Meters) LastSet(value *Meter) error
+func (self *Meters) SpareGet() (*Meter, error)
+func (self *Meters) SpareSet(value *Meter) error
+type Moment struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func MomentAt(ticks uint64, rate uint64) (Moment, error)
+func NewMoment(ticks uint64, rate uint64) *Moment
+func Shifted(moment Moment, shift func(Moment) Moment) Moment
+func (self Moment) After(ticks uint64) Moment
+func (self Moment) Equal(other Moment) bool
+func (self Moment) GoString() string
+func (self Moment) Millis() uint64
+type Name struct {
+	Handle_ *p_rt.Handle_
+}
+func Longer(a *Name, b *Name) (*Name, error)
+func NameBorrowed(text string) (*Name, error)
+func NameOwned(text string) (*Name, error)
+func Unnamed() *Name
+func (self *Name) AsStr() (string, error)
+func (self *Name) Clone() (*Name, error)
+func (self *Name) Close() error
+func (self *Name) Equal(other *Name) (bool, error)
+func (self *Name) GoString() string
+func (self *Name) Join(other_ *Name) (*Name, error)
+func (self *Name) Rename(text string) error
+func (self *Name) Shares(other_ *Name) (bool, error)
+type Node struct {
+	Handle_ *p_rt.Handle_
+}
+func NewNode(value uint64, next *Node) (*Node, error)
+func (self *Node) Close() error
+func (self *Node) GoString() string
+func (self *Node) Push(value uint64) error
+func (self *Node) Sum() (uint64, error)
+func (self *Node) ValueGet() (uint64, error)
+func (self *Node) ValueSet(value uint64) error
+type NonZeros struct {
+	U8    uint8
+	U16   uint16
+	U32   uint32
+	U64   uint64
+	Usize uint
+	I8    int8
+	I16   int16
+	I32   int32
+	I64   int64
+	Isize int
+}
+func NewNonZeros() NonZeros
+func (self NonZeros) GoString() string
+type Note struct {
+	Text *string
+}
+func NoteDefault() Note
+func (self Note) Equal(other Note) (bool, error)
+func (self Note) GoString() string
+type Numbers struct {
+	U16s []uint16
+	U32s []uint32
+	U64s []uint64
+	I8s  []int8
+	I16s []int16
+	I32s []int32
+	I64s []int64
+	F32s []float32
+	F64s []float64
+	Some *[]int32
+}
+func NumbersEdges() Numbers
+func NumbersZero(negative bool) Numbers
+func (self Numbers) Equal(other Numbers) bool
+func (self Numbers) GoString() string
+func (self Numbers) Reversed() Numbers
+type OptIn struct {
+	N uint32
+}
+func (self OptIn) Equal(other OptIn) bool
+func (self OptIn) GoString() string
+type OuterInnerU8 struct {
+	Handle_ *p_rt.Handle_
+}
+func NewOuterInnerU8(value uint8) *OuterInnerU8
+func (self *OuterInnerU8) Close() error
+func (self *OuterInnerU8) Get() (uint8, error)
+type Packaged struct {
+	Api uint32
+}
+func (self Packaged) Equal(other Packaged) bool
+func (self Packaged) GoString() string
+func (self Packaged) Point() Point
+func (self Packaged) Shape() Shape
+type Packet struct {
+	Seq     uint32
+	Payload p_rt.Bytes
+}
+func NextPacket(packet Packet) Packet
+type PadU16 struct {
+	Handle_ *p_rt.Handle_
+}
+func PadU16Wide() *PadU16
+func (self *PadU16) Close() error
+func (self *PadU16) Describe() (string, error)
+func (self *PadU16) Tag() (uint16, error)
+func (self *PadU16) Title() (uint16, error)
+type PadU8 struct {
+	Handle_ *p_rt.Handle_
+}
+func PadU8Small() *PadU8
+func (self *PadU8) Close() error
+func (self *PadU8) Describe() (string, error)
+func (self *PadU8) Lines() (uint32, error)
+func (self *PadU8) TitleGet() (string, error)
+type Page struct {
+	Size uint32
+}
+func NewPage() (Page, error)
+func PageDefault() (Page, error)
+func (self Page) Equal(other Page) (bool, error)
+func (self Page) GoString() string
+type PairNonZeroU16 struct {
+	Left  uint16
+	Right uint16
+}
+func (self PairNonZeroU16) Equal(other PairNonZeroU16) (bool, error)
+func (self PairNonZeroU16) Even() (bool, error)
+func (self PairNonZeroU16) GoString() string
+func (self PairNonZeroU16) Swap() (PairNonZeroU16, error)
+type PairSizeU8 struct {
+	Left  p_dep.Size
+	Right uint8
+}
+func Tag(size p_dep.Size, tag uint8) PairSizeU8
+func (self PairSizeU8) Equal(other PairSizeU8) bool
+func (self PairSizeU8) GoString() string
+func (self PairSizeU8) Swap() PairU8Size
+type PairU32 struct {
+	Left  uint32
+	Right uint32
+}
+func (self PairU32) BesideSize(right p_dep.Size) PairU8Size
+func (self PairU32) Equal(other PairU32) bool
+func (self PairU32) Even() bool
+func (self PairU32) GoString() string
+func (self PairU32) Sum() uint32
+func (self PairU32) Swap() PairU32
+type PairU8Size struct {
+	Left  uint8
+	Right p_dep.Size
+}
+func (self PairU8Size) Equal(other PairU8Size) bool
+func (self PairU8Size) GoString() string
+type Parcel struct {
+	Mark    *Mark
+	Payload p_rt.Bytes
+}
+type Peer struct {
+	Addr  p_rt.SocketAddr
+	Names []string
+}
+func (self Peer) Aliases() ([]string, error)
+func (self Peer) Equal(other Peer) (bool, error)
+func (self Peer) GoString() string
+func (self Peer) Next(name string) (Peer, error)
+type Placement interface {
+}
+func NewPlacement() Placement
+type PlacementAnywhere struct {
+}
+type PlacementPinned struct {
+	V0 Core
+}
+type Platform interface {
+}
+func NewPlatform() Platform
+type PlatformNative struct {
+	V0 uint32
+}
+type PlatformWasm struct {
+	Bits uint32
+}
+type Point struct {
+	X int32
+	Y int32
+}
+func PointDefault() Point
+func Summed(points []Point) Point
+func (self Point) Equal(other Point) bool
+func (self Point) GoString() string
+func (self Point) Offset(dx int32, dy int32) Point
+type PolarPoint struct {
+	Turns    uint8
+	Distance uint32
+}
+func NewPolarPoint(distance uint32) *PolarPoint
+func (self PolarPoint) Equal(other PolarPoint) bool
+func (self PolarPoint) GoString() string
+type PolarTurn struct {
+	Whole uint8
+}
+func (self PolarTurn) Equal(other PolarTurn) bool
+func (self PolarTurn) GoString() string
+type Polar_Turn struct {
+	Part uint8
+}
+func (self Polar_Turn) Equal(other Polar_Turn) bool
+func (self Polar_Turn) GoString() string
+type Qualifiers struct {
+	Api    float64
+	Kotlin float64
+}
+func (self Qualifiers) Equal(other Qualifiers) bool
+type Reading struct {
+	Ok     bool
+	Level  float32
+	Ratio  float64
+	Mark   rune
+	Shape  Shape
+	At     Point
+	Note   string
+	Count  uint64
+	Offset int8
+	Len    uint
+	Tag    uint16
+}
+func NewReading(n uint32) *Reading
+func ReadingEcho(reading *Reading) (*Reading, error)
+func (self Reading) Equal(other Reading) (bool, error)
+func (self Reading) GoString() string
+func (self Reading) Next() (*Reading, error)
+type Receipt struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Receipt) Clone() (*Receipt, error)
+func (self *Receipt) Close() error
+func (self *Receipt) Count() (uint32, error)
+type Refusal struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Refusal) Close() error
+func (self *Refusal) Error() string
+func (self *Refusal) GoString() string
+func (self *Refusal) String() string
+type Registry struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRegistry(first *Counter) (*Registry, error)
+func RegistryDefault() *Registry
+func (self *Registry) Close() error
+func (self *Registry) Edit(edit func(*Counter) bool) (bool, error)
+func (self *Registry) FirstGet() (*Counter, error)
+func (self *Registry) FirstSet(value *Counter) error
+func (self *Registry) Last() (*Counter, error)
+func (self *Registry) Push(counter *Counter) error
+type Resolving struct {
+	Handle_ *p_rt.Handle_
+}
+func NewResolving(name string) (*Resolving, error)
+func (self *Resolving) Close() error
+func (self *Resolving) V0Get() (*p_tls.Resolver, error)
+func (self *Resolving) V0Set(value *p_tls.Resolver) error
+type Retry struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRetry(limit *uint32) *Retry
+func (self *Retry) Close() error
+func (self *Retry) Delay() (uint32, error)
+func (self *Retry) Limit() (uint32, error)
+func (self *Retry) LimitGet() (*uint32, error)
+func (self *Retry) LimitSet(value *uint32) error
+func (self *Retry) SetLimit(limit uint32) error
+type RightLeftU8 struct {
+	Value LeftU8
+}
+func (self RightLeftU8) Equal(other RightLeftU8) bool
+func (self RightLeftU8) GoString() string
+type RightU8 struct {
+	Value uint8
+}
+func (self RightU8) Equal(other RightU8) bool
+func (self RightU8) GoString() string
+type Score struct {
+	Bytes_ [1]uint64
+	Made_ bool
+}
+func ScoreOf(count uint64) Score
+func (self *Score) Absorb(other_ *Score) (uint64, uint64)
+func (self *Score) Add(other_ Score)
+func (self Score) Count() uint64
+func (self Score) Doubled() Score
+func (self Score) GoString() string
+func (self *Score) Note(mark *Mark) (uint64, error)
+func (self *Score) Take() uint64
+type Seat struct {
+	Mark *Mark
+	Row  uint32
+}
+func NewSeat(mark *Mark, row uint32) (Seat, error)
+func (self Seat) Count() (uint64, error)
+func (self Seat) Equal(other Seat) (bool, error)
+func (self Seat) GoString() string
+type Shadowed struct {
+	Other []int32
+	A     uint8
+	B     uint8
+}
+func (self Shadowed) Equal(other Shadowed) bool
+func (self Shadowed) GoString() string
+type Shape int32
+const (
+	ShapeCircle Shape = 1
+	ShapeSquare Shape = 4
+)
+func ShapeALL() []Shape
+func ShapeBOTH() []Shape
+func (self Shape) Equal(other Shape) bool
+func (self Shape) GoString() string
+type Sheet struct {
+	Handle_ *p_rt.Handle_
+}
+func NewSheet() *Sheet
+func SheetDefault() *Sheet
+func (self *Sheet) Clone() (*Sheet, error)
+func (self *Sheet) Close() error
+func (self *Sheet) Describe() (string, error)
+func (self *Sheet) GoString() string
+func (self *Sheet) Lines() (uint32, error)
+func (self *Sheet) TitleGet() (string, error)
+func (self *Sheet) TitleSet(value string) error
+func (self *Sheet) Write(line string) error
+type Site struct {
+	Handle_ *p_rt.Handle_
+}
+func NewSite(home *p_url.Url) (*Site, error)
+func (self *Site) Close() error
+func (self *Site) HomeGet() (*p_url.Url, error)
+func (self *Site) HomeSet(value *p_url.Url) error
+type Slip struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Slip) Clone() (*Slip, error)
+func (self *Slip) Close() error
+func (self *Slip) Count() (uint32, error)
+func (self *Slip) GlobalGet() (*Receipt, error)
+func (self *Slip) GlobalSet(value *Receipt) error
+func (self *Slip) ReceiptGet() (*Receipt, error)
+func (self *Slip) ReceiptSet(value *Receipt) error
+type SlotU32 struct {
+	Handle_ *p_rt.Handle_
+}
+func NewSlotU32(value uint32) *SlotU32
+func Wide_(value uint32) *SlotU32
+func (self *SlotU32) Close() error
+type SlotU8 struct {
+	Handle_ *p_rt.Handle_
+}
+func NewSlotU8(value uint8) *SlotU8
+func (self *SlotU8) Close() error
+func (self *SlotU8) Value() (uint16, error)
+type Span struct {
+	Bounds p_rt.Tuple2[uint32, uint32]
+	Named  *p_rt.Tuple2[string, Shape]
+}
+func (self Span) Equal(other Span) (bool, error)
+func (self Span) GoString() string
+type Spawned struct {
+	Handle_ *p_rt.Handle_
+}
+func NewSpawned(task func() uint32) (*Spawned, error)
+func (self *Spawned) Close() error
+func (self *Spawned) Join() (uint32, error)
+type Stack struct {
+	Handle_ *p_rt.Handle_
+}
+func NewStack() *Stack
+func StackDefault() *Stack
+func (self *Stack) Close() error
+func (self *Stack) Depth() (uint, error)
+func (self *Stack) DepthPastCounter(from *Counter) (uint64, error)
+func (self *Stack) DepthPastPoint(from Point) (uint64, error)
+func (self *Stack) DepthPastSize(from p_dep.Size) (uint64, error)
+func (self *Stack) DepthPastWrapU32(from WrapU32) (uint64, error)
+func (self *Stack) GoString() string
+func (self *Stack) Pop() (*Counter, error)
+func (self *Stack) Push(item *Counter) error
+type Stage interface {
+	GoString() string
+	Equal(other Stage) bool
+}
+func Advance(stage Stage) Stage
+type StageDone struct {
+}
+func (self StageDone) Equal(other Stage) bool
+func (self StageDone) GoString() string
+type StageInit struct {
+	V0 uint32
+}
+func (self StageInit) Equal(other Stage) bool
+func (self StageInit) GoString() string
+type Stamp struct {
+	Bytes_ [1]uint64
+	Made_ bool
+}
+func StampAt(millis uint64) (Stamp, error)
+func StampFromMillis(millis uint64) Stamp
+func (self Stamp) Equal(other Stamp) bool
+func (self Stamp) GoString() string
+func (self Stamp) Later(other_ Stamp) bool
+func (self Stamp) Secs() uint64
+func (self Stamp) Whole() Stamp
+type Stamped struct {
+	At    Stamp
+	Count uint32
+}
+func (self Stamped) Total() uint64
+type StartSeekable struct {
+	At uint64
+}
+func (self StartSeekable) Equal(other StartSeekable) bool
+func (self StartSeekable) GoString() string
+type Status int32
+const (
+	StatusMoved Status = 0
+	StatusKept  Status = 1
+)
+func (self Status) Equal(other Status) bool
+func (self Status) GoString() string
+type Tallies struct {
+	Handle_ *p_rt.Handle_
+}
+func NewTallies() *Tallies
+func TalliesDefault() *Tallies
+func (self *Tallies) Close() error
+func (self *Tallies) First() (*Tally, error)
+type Tally struct {
+	Handle_ *p_rt.Handle_
+}
+func NewTally() *Tally
+func TallyDefault() *Tally
+func (self *Tally) Bump() (uint32, error)
+func (self *Tally) BumpLater(ctx context.Context) (uint32, error)
+func (self *Tally) Close() error
+func (self *Tally) Equal(other *Tally) (bool, error)
+func (self *Tally) GoString() string
+type Ticket struct {
+	Bytes_ [1]uint32
+	Made_ bool
+}
+func NewTicket(number uint32) Ticket
+func Reissue(ticket Ticket, swap func(Ticket) Ticket) Ticket
+func ReissueLent(ticket Ticket, swap func(Ticket) Ticket) Ticket
+func (self Ticket) Equal(other Ticket) bool
+func (self Ticket) GoString() string
+func (self Ticket) Number() uint32
+type Token struct {
+	Handle_ *p_rt.Handle_
+}
+func NewToken(id uint32) *Token
+func (self *Token) Clone() (*Token, error)
+func (self *Token) Close() error
+func (self *Token) IdGet() (uint32, error)
+func (self *Token) IdSet(value uint32) error
+func (self *Token) Twice() ([]*Token, error)
+type Trail struct {
+	Handle_ *p_rt.Handle_
+}
+func NewTrail(points []Point, names []string) (*Trail, error)
+func (self *Trail) Beyond(x int32) ([]Point, error)
+func (self *Trail) Bytes() (p_rt.Bytes, error)
+func (self *Trail) Close() error
+func (self *Trail) Drain() ([]Label, error)
+func (self *Trail) Iter() ([]Point, error)
+func (self *Trail) Labels() ([]Label, error)
+func (self *Trail) Names() ([]string, error)
+func (self *Trail) Points() ([]Point, error)
+type VecClashTone int32
+const (
+	VecClashToneError_ VecClashTone = 0
+)
+func (self VecClashTone) Equal(other VecClashTone) bool
+func (self VecClashTone) GoString() string
+type VecClashToneError struct {
+	Value []ClashTone
+}
+func (e VecClashToneError) Error() string
+type Verbosity struct {
+	Handle_ *p_rt.Handle_
+}
+func NewVerbosity(level p_tracingcore.Level) *Verbosity
+func (self *Verbosity) Close() error
+func (self *Verbosity) Filter() (*p_tracingcore.Level, error)
+func (self *Verbosity) LevelGet() (p_tracingcore.Level, error)
+func (self *Verbosity) LevelSet(value p_tracingcore.Level) error
+type Waiter struct {
+	Handle_ *p_rt.Handle_
+}
+func NewWaiter(waker func()) *Waiter
+func (self *Waiter) Close() error
+func (self *Waiter) Context() (func(), error)
+func (self *Waiter) Waker() (func(), error)
+type Weighted struct {
+	Score  Score
+	Weight uint32
+}
+func (self Weighted) Total() uint64
+type Wide struct {
+	Bytes_ [128]uint64
+	Made_ bool
+}
+func NewWide(seed uint64) Wide
+func (self Wide) Equal(other Wide) bool
+func (self Wide) GoString() string
+func (self Wide) Sum() uint64
+type Window struct {
+	Range p_rt.RangeU64
+	End   p_rt.BoundU64
+}
+func (self Window) Contains(n uint64) bool
+func (self Window) Equal(other Window) bool
+func (self Window) GoString() string
+type Worker struct {
+	Handle_ *p_rt.Handle_
+}
+func NewWorker(id uint32) (*Worker, error)
+func (self *Worker) Close() error
+func (self *Worker) Id() (uint32, error)
+type WrapU32 struct {
+	Value uint32
+}
+func (self WrapU32) Equal(other WrapU32) bool
+func (self WrapU32) GoString() string
+
+package core // import "api/core"
+
+TYPES
+type IoError struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *IoError) Close() error
+
+package dep // import "api/dep"
+
+TYPES
+type Area struct {
+	Handle_ *p_rt.Handle_
+}
+func NewArea(size Size) *Area
+func (self *Area) Clone() (*Area, error)
+func (self *Area) Close() error
+func (self *Area) GoString() string
+func (self *Area) Pixels() (uint64, error)
+func (self *Area) Size() (Size, error)
+type Size struct {
+	Width  uint32
+	Height uint32
+}
+func (self Size) Equal(other Size) bool
+func (self Size) GoString() string
+
+package rt // import "api/rt"
+
+VARIABLES
+var ErrBorrowed = errors.New("borrowed")
+var ErrClosed = errors.New("closed")
+var ErrInvalid = errors.New("invalid")
+
+FUNCTIONS
+func BytesBuf_(b Bytes) (unsafe.Pointer, int, any)
+func BytesTake_(b Bytes) (unsafe.Pointer, int, unsafe.Pointer)
+func GoCall_() unsafe.Pointer
+func GoPoll_() unsafe.Pointer
+func GoRead_() unsafe.Pointer
+func GoRelease_() unsafe.Pointer
+func GoSeek_() unsafe.Pointer
+func Invalid_(what string) error
+func LiftWaker_(p unsafe.Pointer) func()
+func On_(on uint64, what string)
+func Pollable_(parent context.Context, run func(context.Context)) io.Closer
+func Reader_(r io.ReadSeeker) any
+func Status_(status int32, what string) error
+func Supported_(on uint64, what string) error
+
+TYPES
+type Bound int32
+const (
+	BoundUnbounded Bound = 0
+	BoundIncluded  Bound = 1
+	BoundExcluded  Bound = 2
+)
+type BoundU64 struct {
+	Kind  Bound
+	Value uint64
+}
+type BoundsU64 struct {
+	Start BoundU64
+	End   BoundU64
+}
+type BoundsU64Error struct {
+	Value BoundsU64
+}
+func (e BoundsU64Error) Error() string
+type Bytes struct {
+}
+func LiftBytes_(p unsafe.Pointer) Bytes
+func NewBytes(b []byte) Bytes
+func (b Bytes) At(i int) byte
+func (b Bytes) Copy() []byte
+func (b Bytes) CopyTo(dst []byte) int
+func (b Bytes) Len() int
+func (b *Bytes) Read(p []byte) (int, error)
+func (b Bytes) Slice(i, j int) Bytes
+func (b *Bytes) WriteTo(w io.Writer) (int64, error)
+type Duration struct {
+}
+func DurationOf(d time.Duration) (Duration, error)
+func NewDuration(secs uint64, nanos uint32) (Duration, error)
+func (d Duration) Nanos() uint32
+func (d Duration) Secs() uint64
+func (d Duration) Std() (time.Duration, error)
+type Handle_ struct {
+}
+func (h *Handle_) Close() error
+func (h *Handle_) Closed() error
+func (h *Handle_) Contend() (unsafe.Pointer, Slot_)
+func (h *Handle_) Count() unsafe.Pointer
+func (h *Handle_) End()
+func (h *Handle_) Hold() (unsafe.Pointer, Slot_)
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string)
+func (h *Handle_) Moved()
+func (h *Handle_) Own()
+func (h *Handle_) Release(s Slot_)
+func (h *Handle_) Uncount()
+func (h *Handle_) Unlist(s Slot_)
+type IpAddr struct {
+}
+func IpAddrFromV4(ip Ipv4Addr) IpAddr
+func IpAddrFromV6(ip Ipv6Addr) IpAddr
+func IpAddrOf(ip netip.Addr) (IpAddr, error)
+func (a IpAddr) Netip() netip.Addr
+func (a IpAddr) V4() (Ipv4Addr, bool)
+func (a IpAddr) V6() (Ipv6Addr, bool)
+type Ipv4Addr [4]byte
+func Ipv4AddrOf(ip netip.Addr) (Ipv4Addr, error)
+func (ip Ipv4Addr) Netip() netip.Addr
+type Ipv6Addr [16]byte
+func Ipv6AddrOf(ip netip.Addr) (Ipv6Addr, error)
+func (ip Ipv6Addr) Netip() netip.Addr
+type RangeU64 struct {
+	Start uint64
+	End   uint64
+}
+type Slot_ struct {
+}
+func (s Slot_) Counted() bool
+type SocketAddr struct {
+}
+func SocketAddrFromV4(a SocketAddrV4) SocketAddr
+func SocketAddrFromV6(a SocketAddrV6) SocketAddr
+func SocketAddrOf(a netip.AddrPort) (SocketAddr, error)
+func (a SocketAddr) Netip() (netip.AddrPort, error)
+func (a SocketAddr) V4() (SocketAddrV4, bool)
+func (a SocketAddr) V6() (SocketAddrV6, bool)
+type SocketAddrV4 struct {
+	IP   Ipv4Addr
+	Port uint16
+}
+func SocketAddrV4Of(a netip.AddrPort) (SocketAddrV4, error)
+func (a SocketAddrV4) Netip() netip.AddrPort
+type SocketAddrV6 struct {
+	IP       Ipv6Addr
+	Port     uint16
+	FlowInfo uint32
+	ScopeID  uint32
+}
+func SocketAddrV6Of(a netip.AddrPort) (SocketAddrV6, error)
+func (a SocketAddrV6) Netip() (netip.AddrPort, error)
+type StartSeeker interface {
+	io.ReadSeeker
+	SeekStart(offset uint64) (uint64, error)
+}
+type StringError struct {
+	Value string
+}
+func (e StringError) Error() string
+type Tuple2[T0, T1 any] struct {
+	V0 T0
+	V1 T1
+}
+type Tuple3[T0, T1, T2 any] struct {
+	V0 T0
+	V1 T1
+	V2 T2
+}
+type Tuple4[T0, T1, T2, T3 any] struct {
+	V0 T0
+	V1 T1
+	V2 T2
+	V3 T3
+}
+type U128 struct {
+	Hi, Lo uint64
+}
+func U128Of(v *big.Int) (U128, error)
+func (v U128) Big() *big.Int
+
+package serdejson // import "api/serdejson"
+
+TYPES
+type Json struct {
+	Handle_ *p_rt.Handle_
+}
+func JsonParse(input string) (*Json, error)
+func (self *Json) Close() error
+func (self *Json) ToText() (string, error)
+
+package std // import "api/std"
+
+TYPES
+type Instant struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Instant) Clone() (*Instant, error)
+func (self *Instant) Close() error
+func (self *Instant) Equal(other *Instant) (bool, error)
+func (self *Instant) GoString() string
+
+package tls // import "api/tls"
+
+TYPES
+type Cert struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Cert) Close() error
+type Codec struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Codec) Close() error
+type Config struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Config) Clone() (*Config, error)
+func (self *Config) Close() error
+type PolicyLifetime struct {
+	Seconds uint32
+}
+func (self PolicyLifetime) Equal(other PolicyLifetime) bool
+func (self PolicyLifetime) GoString() string
+type Resolver struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Resolver) Clone() (*Resolver, error)
+func (self *Resolver) Close() error
+type Session struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Session) Alpn() (string, error)
+func (self *Session) Close() error
+func (self *Session) Lifetime() (PolicyLifetime, error)
+
+package tracingcore // import "api/tracingcore"
+
+TYPES
+type Level int32
+const (
+	LevelTrace Level = 0
+	LevelDebug Level = 1
+	LevelInfo  Level = 2
+	LevelWarn  Level = 3
+	LevelError Level = 4
+)
+func (self Level) Equal(other Level) bool
+func (self Level) String() string
+
+package url // import "api/url"
+
+TYPES
+type Url struct {
+	Handle_ *p_rt.Handle_
+}
+func UrlParse(input string) (*Url, error)
+func (self *Url) Clone() (*Url, error)
+func (self *Url) Close() error
+func (self *Url) Equal(other *Url) (bool, error)
+func (self *Url) GoString() string
+func (self *Url) String() string
+
