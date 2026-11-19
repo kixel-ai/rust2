@@ -37,7 +37,7 @@ TS = ["ts-node", "ts-chromium", "ts-firefox"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
-	("getter", "`demand.sequence()`, a u64 getter"),
+	("getter", "`demand.start()`, a u64 getter"),
 	("shared:call", "the handle call on 4 threads, one shared handle"),
 	("own:call", "the same, a handle per thread"),
 	("shared:getter", "the u64 getter on 4 threads, one shared handle"),
