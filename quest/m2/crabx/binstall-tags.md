@@ -19,19 +19,11 @@ these builds.
 Upstream accepted the idea on the issue, and
 [cargo-bins/cargo-binstall#2752](https://github.com/cargo-bins/cargo-binstall/pull/2752)
 adds both templates. Codeberg's arm reuses `GITHUB_RELEASE_PATHS`, so it gets them with no
-code change; the 2026-11-14 update merged upstream's `main` and regenerated SUPPORT.md
-with `just update-docs`, so both its GitHub and Codeberg lists show the templates. Its
-CI on that head waits for a cargo-bins maintainer to approve the fork's run.
+code change. It merged on 2026-11-15.
 
 ## Waiting
 
-- cargo-bins/cargo-binstall: merge
-  [#2752](https://github.com/cargo-bins/cargo-binstall/pull/2752) and ship a release
-  carrying it; then bump binstalk in crabx and drop the patch. Check the PR and the
-  releases page.
-- Maintainer: answer NobodyXu's review on #2752 (recommended reply: Codeberg's arm reuses
-  `GITHUB_RELEASE_PATHS`, and the regenerated SUPPORT.md lists both templates under
-  Codeberg), and in the same reply ask a cargo-bins maintainer to approve the fork's CI
-  run on the head. An agent can't take this: posting outside the maintainer's orgs needs
-  the maintainer, and only cargo-bins can approve the run. Check that the thread has the
-  reply and the head's CI has run.
+- cargo-bins/cargo-binstall: ship a release carrying
+  [#2752](https://github.com/cargo-bins/cargo-binstall/pull/2752); then bump binstalk in
+  crabx and drop the patch. On 2026-11-18 the latest, v1.27.0 and binstalk v0.30.0, predate
+  it. Check the releases page for a newer `v*` and `binstalk-v*` release.
