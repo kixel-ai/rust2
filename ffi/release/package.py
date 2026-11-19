@@ -714,6 +714,38 @@ def zip_diff(one, two):
             for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
 
 
+def ar_members(path):
+    """An archive's members as `{name: (content hash, time, owner, group, mode)}`, with its symbol table and names table by their own."""
+    data = Path(path).read_bytes()
+    if data[:8] != b"!<arch>\n":
+        raise SystemExit(f"{path} is no archive")
+    members, long_names, offset = {}, b"", 8
+    while offset + 60 <= len(data):
+        name, date, uid, gid, mode, size = (data[offset + a:offset + b].decode("ascii", "replace").strip()
+                                            for a, b in ((0, 16), (16, 28), (28, 34), (34, 40), (40, 48), (48, 58)))
+        body = data[offset + 60:offset + 60 + int(size)]
+        offset += 60 + int(size) + int(size) % 2
+        if name == "//":
+            long_names, name = body, "//"
+        elif name.startswith("/") and name[1:].isdigit():
+            start = int(name[1:])
+            name = long_names[start:long_names.index(b"\n", start)].decode("utf-8", "replace").rstrip("/")
+        else:
+            name = name.rstrip("/") or "/"
+        # A name twice, as an archive may hold, is told apart by its place.
+        while name in members:
+            name += "'"
+        members[name] = (hashlib.sha256(body).hexdigest(), date, uid, gid, mode)
+    return members
+
+
+def ar_diff(one, two):
+    """The members two archives hold differently."""
+    left, right = ar_members(one), ar_members(two)
+    return [f"  {name}: {left.get(name)} against {right.get(name)}"
+            for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
+
+
 def same(first, second):
     """Fail unless two builds' wheels and static libraries, the Go module's included, are the same bytes, naming what differs."""
     found = {}
@@ -730,6 +762,8 @@ def same(first, second):
         problems.append(name)
         if name.endswith(".whl"):
             problems += zip_diff(one, two)
+        elif name.endswith(".a"):
+            problems += ar_diff(one, two)
     if problems:
         raise SystemExit("a rebuild made other bytes:\n" + "\n".join(problems))
     print(f"{len(names)} files rebuilt byte for byte")

@@ -369,6 +369,22 @@ class Sbom(unittest.TestCase):
             self.assertTrue(any(ref.startswith("pkg:cargo/dep@1.2.3?vcs_url=git%2Bfile") for ref in refs), refs)
 
 
+class Archive(unittest.TestCase):
+    def test_members_that_differ_are_named(self):
+        def ar(*members):
+            out = b"!<arch>\n"
+            for name, date, body in members:
+                out += f"{name + '/':<16}{date:<12}{0:<6}{0:<6}{100644:<8}{len(body):<10}`\n".encode() + body + b"\n" * (len(body) % 2)
+            return out
+        with tempfile.TemporaryDirectory() as tmp:
+            one, two = Path(tmp) / "one.a", Path(tmp) / "two.a"
+            one.write_bytes(ar(("a.o", 0, b"same"), ("b.o", 0, b"before")))
+            two.write_bytes(ar(("a.o", 0, b"same"), ("b.o", 5, b"before")))
+            lines = package.ar_diff(one, two)
+            self.assertEqual(len(lines), 1)
+            self.assertIn("b.o", lines[0])
+
+
 class Purl(unittest.TestCase):
     def test_each_registry_is_its_own_package(self):
         def purl(source):
