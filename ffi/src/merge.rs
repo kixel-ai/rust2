@@ -250,12 +250,14 @@ pub(crate) fn bare_object(o: &Object) -> Object {
 fn unleaf(traits: &mut Traits) {
 	traits.leaf_eq = false;
 	traits.leaf_hash = false;
+	traits.leaf_sized = false;
 }
 
 /// Merge into `ours` whether `theirs`, another target's, are leaves.
 fn leaves(ours: &mut Traits, theirs: Traits) {
 	ours.leaf_eq &= theirs.leaf_eq;
 	ours.leaf_hash &= theirs.leaf_hash;
+	ours.leaf_sized &= theirs.leaf_sized;
 }
 
 pub(crate) fn bare_callback(c: &Callback) -> Callback {

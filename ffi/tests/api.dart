@@ -1749,6 +1749,11 @@ Future<void> leaf() async {
   check(plain.nGet == api.U64(4) && plain.onGet, 'a leaf getter reads what a leaf setter wrote');
   check(plain == api.Plain(api.U64(4), true) && plain != api.Plain(api.U64(4), false), 'a leaf equality');
   check(plain.hashCode == api.Plain(api.U64(4), true).hashCode, 'a leaf hash');
+  // A walk of a string the caller sized, which a leaf call would make the collector wait on.
+  final labeled = api.Labeled('a' * 100);
+  check(labeled == api.Labeled('a' * 100) && labeled != api.Labeled('b'), 'a served equality over a string');
+  check(labeled.hashCode == api.Labeled('a' * 100).hashCode, 'a served hash over a string');
+  labeled.close();
   plain.close();
   throws<StateError>(() => plain.nGet, 'a leaf getter of a closed object throws');
 

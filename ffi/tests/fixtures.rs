@@ -1924,7 +1924,8 @@ fn api_dart() {
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	// What looks like a leaf but reaches user code is no leaf call. The script catches a
 	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
-	// queued for it at once, apart from any call.
+	// queued for it at once, apart from any call. Nor is one walking a length the caller
+	// picks, which would stall the isolate group's collector until it returns.
 	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
 	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
 	assert!(
@@ -1946,11 +1947,13 @@ fn api_dart() {
 			"api_Pinned_value_get",
 			"api_Part_value_get",
 			"api_Part_eq",
-			"api_Part_hash"
+			"api_Part_hash",
+			"api_Labeled_eq",
+			"api_Labeled_hash"
 		]
 		.into_iter()
 		.all(|symbol| !leaf(symbol)),
-		"a call reaching user code is no leaf call"
+		"a call reaching user code or walking a caller's length is no leaf call"
 	);
 	let lib = api.lib.join(PYTHON_LIB);
 	let exe = dart_compile(

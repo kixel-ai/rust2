@@ -2628,6 +2628,20 @@ impl Plain {
 	}
 }
 
+/// A value whose derived `PartialEq` and `Hash` reach no user code but walk a string as
+/// long as the caller makes it: a leaf in Python, but no Dart leaf call, which would stall
+/// the isolate group's garbage collector that long.
+#[derive(Debug, PartialEq, Hash)]
+pub struct Labeled {
+	label: String,
+}
+
+impl Labeled {
+	pub fn new(label: String) -> Self {
+		Self { label }
+	}
+}
+
 /// A handle to `local`'s count if there is one, else a new local: made where `local`
 /// stays, or, with none, wherever a local made from nothing would be.
 pub fn local_or_new(local: Option<&Local>) -> Local {

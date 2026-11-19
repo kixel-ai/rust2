@@ -422,6 +422,10 @@ pub(crate) struct Traits {
 	/// The same of its `Hash`, through the glue's hasher.
 	#[serde(default)]
 	pub(crate) leaf_hash: bool,
+	/// Whether each of those leaves walks a size fixed by the type, no string, slice, `Vec`,
+	/// or type holding itself, whose length the caller picks.
+	#[serde(default)]
+	pub(crate) leaf_sized: bool,
 }
 
 /// A function or method.

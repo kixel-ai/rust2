@@ -1610,8 +1610,10 @@ impl<'a> Gen<'a> {
 					.collect(),
 				ret: Ty::Bool,
 			};
-			// A leaf call, as `Abi::leaf_trait` proves, takes no home and holds no handle.
-			let leaf = self.abi.leaf_trait(ty, false);
+			// A leaf call, as `Abi::leaf_trait` proves, takes no home and holds no handle. It
+			// stalls the isolate group's GC until it returns, so it walks no length the caller
+			// picks.
+			let leaf = self.abi.leaf_trait(ty, false) && t.leaf_sized;
 			let (f, (pa, a), (pb, b)) = match (leaf, object) {
 				// `other` bound to its own type, since Dart keeps a value alive to the end of
 				// its scope only for a variable declared `Finalizable`, which a promoted
@@ -1646,7 +1648,7 @@ impl<'a> Gen<'a> {
 						.collect(),
 					ret: Ty::Int(Int::U64),
 				};
-				let leaf = self.abi.leaf_trait(ty, true);
+				let leaf = self.abi.leaf_trait(ty, true) && t.leaf_sized;
 				let (f, (pre, arg)) = match (leaf, object) {
 					(true, true) => (self.leaf(&sig), (String::new(), "_live".to_string())),
 					(true, false) => (self.leaf(&sig), this(self, "this")),

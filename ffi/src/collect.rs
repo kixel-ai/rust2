@@ -2973,17 +2973,29 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// A hash is only of use beside the equality it agrees with.
 		traits.hash &= traits.eq;
-		let leaf = |tr: Option<DefId>| tr.is_some_and(|tr| self.leaf_impl(self_ty, tr, &mut Default::default()));
+		let mut sized = true;
+		let mut leaf =
+			|tr: Option<DefId>| tr.is_some_and(|tr| self.leaf_impl(self_ty, tr, &mut Default::default(), &mut sized));
 		traits.leaf_eq = traits.eq && leaf(tcx.lang_items().eq_trait());
 		traits.leaf_hash = traits.hash && leaf(tcx.get_diagnostic_item(sym::Hash));
+		traits.leaf_sized = sized;
 		(methods, traits)
 	}
 
 	/// Whether `ty`'s impl of `tr`, `PartialEq` with itself or `Hash`, runs only derived
 	/// impls and std's down to primitives: no code of any crate but std's, so a call of it
 	/// is a leaf. A derived impl calls each field's, which may be written by hand, so a
-	/// derived one alone proves nothing: each field must be a leaf too.
-	fn leaf_impl(&self, ty: Ty<'tcx>, tr: DefId, seen: &mut rustc_data_structures::fx::FxHashSet<Ty<'tcx>>) -> bool {
+	/// derived one alone proves nothing: each field must be a leaf too. Clears `sized` when
+	/// the walk's length is the value's: a string, slice, `Vec`, or type holding itself.
+	/// `seen` maps each type met to whether its walk is still open, as only a type holding
+	/// itself meets it.
+	fn leaf_impl(
+		&self,
+		ty: Ty<'tcx>,
+		tr: DefId,
+		seen: &mut rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
+		sized: &mut bool,
+	) -> bool {
 		let tcx = self.tcx;
 		let env = TypingEnv::fully_monomorphized();
 		if ty.has_param() {
@@ -2994,16 +3006,27 @@ impl<'tcx> Collector<'tcx> {
 			return false;
 		};
 		match ty.kind() {
-			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str => true,
-			ty::Pat(inner, _) | ty::Array(inner, _) | ty::Slice(inner) | ty::Ref(_, inner, _) => {
-				self.leaf_impl(*inner, tr, seen)
+			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) => true,
+			ty::Str => {
+				*sized = false;
+				true
 			}
-			ty::Tuple(elements) => elements.iter().all(|e| self.leaf_impl(e, tr, seen)),
-			// Met again through a type that holds itself: what else it holds decides.
-			ty::Adt(..) if !seen.insert(ty) => true,
+			ty::Slice(inner) => {
+				*sized = false;
+				self.leaf_impl(*inner, tr, seen, sized)
+			}
+			ty::Pat(inner, _) | ty::Array(inner, _) | ty::Ref(_, inner, _) => self.leaf_impl(*inner, tr, seen, sized),
+			ty::Tuple(elements) => elements.iter().all(|e| self.leaf_impl(e, tr, seen, sized)),
+			// Met again: what else it holds decides, and a type holding itself is as deep as
+			// its value.
+			ty::Adt(..) if let Some(&open) = seen.get(&ty) => {
+				*sized &= !open;
+				true
+			}
 			// std's own impls compare nothing and hash nothing.
 			ty::Adt(adt, _) if adt.is_phantom_data() => true,
 			ty::Adt(adt, args) => {
+				seen.insert(ty, true);
 				let did = adt.did();
 				let mut trait_args = vec![ty::GenericArg::from(ty)];
 				if tcx.lang_items().eq_trait() == Some(tr) {
@@ -3015,26 +3038,29 @@ impl<'tcx> Collector<'tcx> {
 				else {
 					return false;
 				};
-				if self.builtin_derived(imp.impl_def_id) {
-					return adt
-						.all_fields()
-						.all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen));
-				}
 				// std's own impls of these, written by hand, run their elements' alone, never
 				// their allocator's: unlike a map's, which hashes through its hasher parameter.
 				let std = |name: &str| tcx.is_diagnostic_item(rustc_span::Symbol::intern(name), did);
-				if !self.sysroot.contains(&imp.impl_def_id.krate) {
-					return false;
-				}
-				if tcx.lang_items().string() == Some(did) {
+				let leaf = if self.builtin_derived(imp.impl_def_id) {
+					adt.all_fields()
+						.all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen, sized))
+				} else if !self.sysroot.contains(&imp.impl_def_id.krate) {
+					false
+				} else if tcx.lang_items().string() == Some(did) {
+					*sized = false;
 					true
 				} else if std("Result") {
-					args.types().all(|arg| self.leaf_impl(arg, tr, seen))
-				} else if adt.is_box() || ["Option", "Vec", "Arc", "Rc"].into_iter().any(std) {
-					self.leaf_impl(args.type_at(0), tr, seen)
+					args.types().all(|arg| self.leaf_impl(arg, tr, seen, sized))
+				} else if std("Vec") {
+					*sized = false;
+					self.leaf_impl(args.type_at(0), tr, seen, sized)
+				} else if adt.is_box() || ["Option", "Arc", "Rc"].into_iter().any(std) {
+					self.leaf_impl(args.type_at(0), tr, seen, sized)
 				} else {
 					false
-				}
+				};
+				seen.insert(ty, false);
+				leaf
 			}
 			_ => false,
 		}

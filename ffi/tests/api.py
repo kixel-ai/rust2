@@ -1684,6 +1684,9 @@ def leaf():
 	check(plain.n_get == 4 and plain.on_get, "a leaf getter reads what a leaf setter wrote")
 	check(plain == api.Plain.new(4, True) and plain != api.Plain.new(4, False), "a leaf equality")
 	check(hash(plain) == hash(api.Plain.new(4, True)), "a leaf hash")
+	labeled = api.Labeled.new("a" * 100)
+	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
+	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
 
 	hooked = []
 	api.hook(lambda: hooked.append(threading.get_ident()))
