@@ -215,6 +215,11 @@ class CArchive(unittest.TestCase):
         self.assertEqual(cps["components"]["moq"]["link_libraries"], ["-framework Security", "iconv"])
         self.assertEqual(cps["components"]["shared"]["location"], "@prefix@/lib/libmoq.0.4.dylib")
         self.assertEqual(cps["website"], "https://github.com/moq-dev/moq")
+        self.assertEqual(cps["version_schema"], "simple")
+        prerelease = info("/src", version="2.0.0-rc.1")
+        self.assertEqual(json.loads(package.cps(prerelease, files, natives))["version_schema"], "custom")
+        self.assertIn("set(PACKAGE_VERSION_COMPATIBLE FALSE)\n", package.cmake_version(prerelease))
+        self.assertNotIn("VERSION_LESS", package.cmake_version(prerelease))
         windows = package.cps(info("/src"), package.c_files("moq", "x86_64-pc-windows-msvc", "0.4"),
                               [("lib", "ntdll"), ("flag", "/defaultlib:msvcrt")])
         windows = json.loads(windows)["components"]
