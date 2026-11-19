@@ -258,7 +258,7 @@ class __Writer {
 	fun release() {
 		held?.forEachIndexed { i, h -> h.release(slots[i]) }
 		// A fence on each: a monitor an object holds is a use the compiler cannot drop, while it
-		// escapes. `Reference.reachabilityFence` needs Android API 33.
+		// escapes. `Reference.reachabilityFence` needs Android API 28.
 		kept?.forEach { if (it != null) synchronized(it) {} }
 	}
 
