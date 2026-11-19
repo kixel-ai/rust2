@@ -598,8 +598,12 @@ the rest cross encoded.
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
   Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
-  `close()` frees the handle, and throws while a call holds it. One never closed is freed
-  once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
+  `close()` frees the handle, and throws while a call holds it. A returned object waits in
+  a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
+  registration, a phantom reference linked into a list under a lock. One never closed is
+  registered once pushed out, by 64 later returns on its thread or with its nursery, which
+  the thread holds only weakly, so any collection while it is not returning drops it; then
+  the GC frees it once it collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
   hash folded as `Long.hashCode` folds it, or 0 without one. A value that is not `Send`
@@ -1376,7 +1380,8 @@ target there.
   caller holds; up to 64 it holds a copy, since an engine keeps a typed array that short
   in its own heap, which costs less than a lend. Disposing it, as `using` does, frees Rust's
   buffer once no call reading it in place is running, and a read after throws `Bytes is
-  closed`, whichever it holds. One never disposed waits for the `FinalizationRegistry`,
+  closed`, whichever it holds. Lent bytes wait in the nursery objects do (below), and
+  one never disposed then waits for the `FinalizationRegistry`,
   which runs only once the collector does for its own heap, which no lent buffer grows: so
   past a quarter of memory lent and not yet freed, or once memory has grown by a third
   since none were, a call copies instead, so bytes nobody disposes grow memory by no more
@@ -1388,7 +1393,7 @@ target there.
   `Uint8Array`, since only a caller holding them alone disposes them. No view of Rust's buffer reaches a caller, as a `Uint8Array` over memory
   would: it detaches once memory grows, writes what Rust's other owners of the bytes read,
   and through a `subarray` or its `buffer` outlives the buffer it views. On Node 24, a lent
-  payload costs 0.4 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
+  payload costs 0.2 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
   1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
   has each engine's.
 - **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
@@ -1396,8 +1401,13 @@ target there.
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
   disposed and no call holds it, so one disposed while a later argument lowers fails the
   call's check rather than reach Rust freed. A call that meets a disposed handle throws
-  `<Type> is closed`, and a `FinalizationRegistry` frees one never disposed. On Node 24, a returned object disposed
-  costs 0.5 µs, 0.2 µs of it the registry's, against 0.1 µs for the C calls alone.
+  `<Type> is closed`. A returned object waits in a nursery of the last 64 objects and lent
+  bytes returned, where disposing it frees it without a `FinalizationRegistry` entry, which
+  costs more than the rest of a return and its disposal. One never disposed registers once
+  pushed out, by 64 later returns or once a collection finds the nursery's sentinel, which
+  then pushes out all it holds, and the registry frees it once the collector finds it
+  unreachable after. On Node 24, a returned object disposed costs 0.18 µs, against 0.36
+  µs with the registry entry and 0.1 µs for the C calls alone.
 - **Traits** are interfaces JavaScript implements, with an optional `close()` Rust calls
   once it drops an implementation, and **closures** are functions: each is a C function
   the module imports from `rust2`, whose data is a token the binding finds the value by, so
@@ -1444,8 +1454,10 @@ at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
 runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
-record they came from, until the GC frees it, and that calls racing `close()` or the GC
-read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
+record they came from, until the GC frees it, that calls racing `close()` or the GC
+read live values, that the GC frees an object never closed left in an idle nursery or
+pushed out of one, and that each object of many threads' returns, closes, and drops is
+freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
 device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an

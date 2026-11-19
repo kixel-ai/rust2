@@ -493,11 +493,8 @@ class __Handle(
 	// even while a closed handle is still reachable.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var key = 0L
 
-	// Where an owned one is: [NURSED], until freed or its eviction claims it, which then
-	// registers [cleanup]. Its default, so a return writes nothing here.
-	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var stage = NURSED
-
 	// What frees it once the GC collects its owner, from when it leaves its nursery open.
+	// Plain: a free that misses an eviction's write leaves a cleanup that finds it closed.
 	private var cleanup: __Collected? = null
 
 	init {
@@ -505,25 +502,14 @@ class __Handle(
 	}
 
 	/**
-	 * Register it with the GC, as it leaves its nursery, unless it was freed first. A free
-	 * meanwhile waits until it is registered, so it stops the cleanup.
+	 * Register it with the GC as it leaves its nursery, unless closed, when its last hold
+	 * frees it. Racing that close, it may register one closed meanwhile, whose cleanup then
+	 * finds it closed and frees nothing: [CLOSED], claimed once, decides the one free.
 	 */
 	internal fun evict(owner: Any) {
-		if (stage != NURSED || !STAGE.compareAndSet(this, NURSED, EVICTING)) return
+		// An unchecked close still deciding may leave it open.
+		if (state and (CLOSED or CLOSING) == CLOSED) return
 		cleanup = __Collected(owner, this)
-		stage = TRACKED
-	}
-
-	// Take it out of its nursery as it is freed, or else stop the cleanup its eviction
-	// registered: once, as only the last hold's release frees it.
-	private fun leave() {
-		while (true) {
-			when (stage) {
-				NURSED -> if (STAGE.compareAndSet(this, NURSED, FREED)) return
-				EVICTING -> java.lang.Thread.yield()
-				else -> return cleanup!!.stop()
-			}
-		}
 	}
 
 	/** Hold it for a call, until [release] takes what this returns. Throws once closed. */
@@ -666,7 +652,7 @@ class __Handle(
 	// Free it once no hold is left, which happens once.
 	private fun freed(n: Long) {
 		if (n < HELD && free != null) {
-			leave()
+			cleanup?.stop()
 			free.drop(raw)
 		}
 	}
@@ -686,11 +672,6 @@ class __Handle(
 		const val BIAS = 2L
 		const val CLOSING = 4L
 		const val HELD = 8L
-		// Each [stage].
-		const val NURSED = 0
-		const val EVICTING = 1
-		const val TRACKED = 2
-		const val FREED = 3
 		// Set in a slot whose hold a close counted.
 		const val REVOKED = 1L
 		// Once calls contend for a handle's count, each holds it in a slot of SLOTS instead,
@@ -711,8 +692,6 @@ class __Handle(
 			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "state")
 		val KEY: java.util.concurrent.atomic.AtomicLongFieldUpdater<__Handle> =
 			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "key")
-		val STAGE: java.util.concurrent.atomic.AtomicIntegerFieldUpdater<__Handle> =
-			java.util.concurrent.atomic.AtomicIntegerFieldUpdater.newUpdater(__Handle::class.java, "stage")
 		// The last key given, in steps of two, so a key's low bit is clear for [REVOKED].
 		val KEYS = java.util.concurrent.atomic.AtomicLong()
 	}
@@ -724,7 +703,10 @@ private class __Collected(owner: Any, private val handle: __Handle) : __Cleanup(
 		track()
 	}
 
-	override fun collected() = handle.abandon()
+	override fun collected() {
+		untrack()
+		handle.abandon()
+	}
 
 	/** Stop it, as the handle is freed first. */
 	fun stop() {
