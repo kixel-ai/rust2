@@ -85,6 +85,42 @@ pub fn check(dir: &Path, scripts: &[Script], driver: impl Fn(&Path) -> Command) 
 	}
 }
 
+/// Run every script through one process of `driver`, which takes their paths as its last
+/// arguments and prints `--` after each one's transcript, as a driver that starts slowly
+/// does: failing at the first step whose outcome differs from the model's.
+pub fn check_all(dir: &Path, scripts: &[Script], driver: impl Fn() -> Command) {
+	std::fs::create_dir_all(dir).unwrap();
+	let paths: Vec<_> = scripts
+		.iter()
+		.map(|script| {
+			let path = dir.join(format!("script-{}.txt", script.seed));
+			std::fs::write(&path, script.text()).unwrap();
+			path
+		})
+		.collect();
+	let output = driver().args(&paths).output().unwrap();
+	let stdout = String::from_utf8_lossy(&output.stdout);
+	let mut parts = stdout.split_inclusive('\n');
+	for (script, path) in scripts.iter().zip(&paths) {
+		let part: String = parts.by_ref().take_while(|line| *line != "--\n").collect();
+		if part == script.transcript() {
+			continue;
+		}
+		panic!(
+			"script {} ({}) differs from the model{}\nstderr:\n{}",
+			script.seed,
+			path.display(),
+			difference(script, &part),
+			String::from_utf8_lossy(&output.stderr),
+		);
+	}
+	assert!(
+		output.status.success(),
+		"the driver failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+}
+
 /// Where a driver's output first parts from the model's, with the steps leading there.
 fn difference(script: &Script, stdout: &str) -> String {
 	let expected = script.transcript();
@@ -118,7 +154,7 @@ fn difference(script: &Script, stdout: &str) -> String {
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome};
-	for bits in 0..256u16 {
+	for bits in 0..1024u16 {
 		let on = |bit: u16| bits & 1 << bit != 0;
 		for pending in [0, 1, usize::MAX] {
 			let profile = Profile {
@@ -130,13 +166,15 @@ fn protocol_profiles() {
 				failures: on(5),
 				drain: on(6),
 				pending,
+				homed_futures: on(8),
 				closed_first: on(7),
+				moves_close: on(9),
 			};
 			// A future run to its end in its call is awaited, not polled.
 			if pending == 0 && profile.polls {
 				continue;
 			}
-			for script in scripts(0, 5, 100, profile) {
+			for script in scripts(0, 2, 100, profile) {
 				let mut made = None;
 				for step in &script.steps {
 					let line = step.line();

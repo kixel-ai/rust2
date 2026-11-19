@@ -784,18 +784,8 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 #[test]
 fn api_kotlin() {
 	let api = api();
-	let classes = scratch().join("api").join("kotlin");
+	let classes = kotlin_classes(api);
 	let jar = PathBuf::from(coroutines());
-	let step = Step {
-		stamp: &step::stamp(&classes),
-		reads: &[
-			&api.out.join("kotlin").join("api.kt"),
-			&manifest_dir().join("tests").join("api.kt"),
-			&jar,
-		],
-		writes: &[&classes],
-	};
-	step.run(&mut kotlinc(&api.out, &classes));
 	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
 		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
@@ -806,6 +796,12 @@ fn api_kotlin() {
 		cmd
 	};
 	kotlin(&api.transcript, &|args| java(&[&classes], args));
+	// The protocol scripts, through `tests/protocol.kt`, compiled with the rest.
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("kotlin"),
+		&protocol::scripts(0, KOTLIN_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::KOTLIN),
+		|| protocol_kotlin(api, &classes),
+	);
 
 	let native_returns = run(cargo()
 		.arg("run")
@@ -959,13 +955,59 @@ fn api_android() {
 	kotlin(&api.transcript, &art);
 }
 
-/// kotlinc compiling the generated Kotlin with `tests/api.kt` into `dest`.
+/// The gate's Kotlin protocol scripts, fewer than C's, as each costs the JVM more.
+const KOTLIN_PROTOCOL_SEEDS: u64 = 100;
+
+/// `tests/protocol.kt`, compiled into `classes` with the api fixture's Kotlin, on the JVM.
+fn protocol_kotlin(api: &Api, classes: &Path) -> Command {
+	let mut cmd = Command::new("kotlin");
+	cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
+		.arg("-cp")
+		.arg(std::env::join_paths([classes.as_os_str(), &coroutines()]).unwrap())
+		.arg("ProtocolKt");
+	cmd
+}
+
+/// Longer Kotlin protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_kotlin_protocol_nightly() {
+	let api = api();
+	let classes = kotlin_classes(api);
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("kotlin-nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::KOTLIN),
+		|| protocol_kotlin(api, &classes),
+	);
+}
+
+/// The api fixture's Kotlin, `tests/api.kt`, and `tests/protocol.kt`, compiled.
+fn kotlin_classes(api: &Api) -> PathBuf {
+	let classes = scratch().join("api").join("kotlin");
+	let jar = PathBuf::from(coroutines());
+	Step {
+		stamp: &step::stamp(&classes),
+		reads: &[
+			&api.out.join("kotlin").join("api.kt"),
+			&manifest_dir().join("tests").join("api.kt"),
+			&manifest_dir().join("tests").join("protocol.kt"),
+			&jar,
+		],
+		writes: &[&classes],
+	}
+	.run(&mut kotlinc(&api.out, &classes));
+	classes
+}
+
+/// kotlinc compiling the generated Kotlin with `tests/api.kt` and `tests/protocol.kt` into
+/// `dest`.
 fn kotlinc(out: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
 		.arg(out.join("kotlin").join("api.kt"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
+		.arg(manifest_dir().join("tests").join("protocol.kt"))
 		.arg("-d")
 		.arg(dest);
 	cmd
@@ -1687,6 +1729,13 @@ fn api_dart() {
 	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
+	// The protocol scripts, through `tests/protocol.dart`.
+	let protocol = protocol_dart(api, &dir);
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("dart"),
+		&protocol::scripts(0, DART_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::DART),
+		|| dart_run(&protocol, &[]),
+	);
 	for (case, message) in [
 		("moved", "Bad state: api_Counter_get: a handle's value was moved out"),
 		("boxed moved", "Bad state: api_Node_sum: a handle's value was moved out"),
@@ -1743,6 +1792,33 @@ fn api_dart() {
 
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
 /// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
+/// The gate's Dart protocol scripts, fewer than C's, as each step costs Dart more.
+const DART_PROTOCOL_SEEDS: u64 = 100;
+
+/// `tests/protocol.dart`, compiled in `dir` against the api fixture's Dart.
+fn protocol_dart(api: &Api, dir: &Path) -> PathBuf {
+	dart_compile(
+		"api",
+		dir,
+		&api.out.join("dart"),
+		&api.lib.join(PYTHON_LIB),
+		&manifest_dir().join("tests").join("protocol.dart"),
+	)
+}
+
+/// Longer Dart protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_dart_protocol_nightly() {
+	let api = api();
+	let protocol = protocol_dart(api, &scratch().join("api").join("dart"));
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("dart-nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::DART),
+		|| dart_run(&protocol, &[]),
+	);
+}
+
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
 fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))

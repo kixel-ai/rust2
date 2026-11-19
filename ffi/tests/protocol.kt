@@ -84,6 +84,8 @@ private class Script(lines: List<String>) {
 			"draft_write" -> at<Draft>(a[0]).write("line").let { "ok" }
 			"draft_lines" -> at<Draft>(a[0]).lines().toString()
 			"draft_commit" -> at<Draft>(a[0]).commit().toString()
+			"tallied" -> tallied(at<Receipt>(a[0])).toString()
+			"stored" -> stored(at<Receipt>(a[0])).toString()
 			"receipt_count" -> at<Receipt>(a[0]).count().toString()
 			"receipt_clone" -> made(a[0], at<Receipt>(a[1]).clone())
 			"tally_new" -> made(a[0], Tally.new())
@@ -118,17 +120,21 @@ private class Script(lines: List<String>) {
 
 	fun run() {
 		// The worker: a thread of its own per script, which exits once it ends.
-		val worker = Executors.newSingleThreadExecutor()
-		for (line in steps) {
-			val words = line.split(' ')
-			val (op, a) = words[1] to words.drop(2)
-			val out = when (words[0]) {
-				"0" -> run(op, a)
-				else -> worker.submit<String> { run(op, a) }.get()
+		// A daemon, so a script that throws ends the run rather than leaving it waiting.
+		val worker = Executors.newSingleThreadExecutor { task -> Thread(task).apply { isDaemon = true } }
+		try {
+			for (line in steps) {
+				val words = line.split(' ')
+				val (op, a) = words[1] to words.drop(2)
+				val out = when (words[0]) {
+					"0" -> run(op, a)
+					else -> worker.submit<String> { run(op, a) }.get()
+				}
+				println(out)
 			}
-			println(out)
+		} finally {
+			worker.shutdown()
 		}
-		worker.shutdown()
 		check(worker.awaitTermination(1, TimeUnit.MINUTES)) { "the worker never exited" }
 	}
 }

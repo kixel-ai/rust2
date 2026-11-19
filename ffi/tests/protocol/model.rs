@@ -44,9 +44,16 @@ pub struct Profile {
 	/// future that wakes itself to its end in place, as a Kotlin `suspend fun` does, keeps
 	/// none: each future is awaited in the step after the one that made it.
 	pub pending: usize,
+	/// A future that is not `Send` made from no such value on a home, as a binding whose
+	/// coroutines resume on any thread makes one.
+	pub homed_futures: bool,
 	/// A binding's own check that every handle a call names is open, before Rust's: a
-	/// closed one, as a moved-out one is, fails as moved whatever Rust would refuse first.
+	/// closed one fails as moved whatever Rust would refuse first, and closing it again does
+	/// nothing.
 	pub closed_first: bool,
+	/// Whether a call moving a value out closes its handle, as Kotlin's does; Dart's stays
+	/// open, so Rust's own check refuses its next use.
+	pub moves_close: bool,
 }
 
 impl Profile {
@@ -60,14 +67,19 @@ impl Profile {
 		failures: true,
 		drain: true,
 		pending: usize::MAX,
+		homed_futures: false,
 		closed_first: false,
+		moves_close: false,
 	};
 
 	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
-	pub const MIRI: Self = Self { homes: false, ..Self::C };
+	pub const MIRI: Self = Self {
+		homes: false,
+		..Self::C
+	};
 
-	/// Kotlin's on the JVM: a second thread, no homes but a future's, which the step after
-	/// its call awaits; no frees amid the steps, as the GC frees in its own time, and no
+	/// Kotlin's on the JVM: a second thread, no homes but a future's made from no value that
+	/// is not `Send`, and each future awaited in the step after its call; no frees amid the steps, as the GC frees in its own time, and no
 	/// drain, as a value freed elsewhere drops at its thread's next check.
 	pub const KOTLIN: Self = Self {
 		threads: true,
@@ -78,7 +90,9 @@ impl Profile {
 		failures: true,
 		drain: false,
 		pending: 0,
+		homed_futures: true,
 		closed_first: true,
+		moves_close: true,
 	};
 
 	/// Dart's: one isolate, whose thread may change, so every value that is not `Send` is
@@ -93,7 +107,9 @@ impl Profile {
 		failures: true,
 		drain: false,
 		pending: 1,
+		homed_futures: true,
 		closed_first: true,
+		moves_close: false,
 	};
 }
 
@@ -275,6 +291,8 @@ impl Op {
 			| Op::DraftWrite(h)
 			| Op::DraftLines(h)
 			| Op::DraftCommit(h)
+			| Op::Tallied(h)
+			| Op::Stored(h)
 			| Op::ReceiptCount(h)
 			| Op::ReceiptClone(_, h)
 			| Op::TallyBump(h)
@@ -466,6 +484,8 @@ struct Slot {
 	freed: bool,
 	/// The value was moved out or dropped.
 	gone: bool,
+	/// A binding closed its handle: by a close, or by a move where its moves close it.
+	closed: bool,
 	owner: Owner,
 	/// Futures borrowing it shared.
 	shared: u32,
@@ -499,6 +519,7 @@ impl Slot {
 			kind,
 			freed: false,
 			gone: false,
+			closed: false,
 			owner,
 			shared: 0,
 			exclusive: 0,
@@ -684,13 +705,31 @@ impl Model {
 
 	/// Run `op` on `thread`: what it returns.
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
-		if self.profile.closed_first && op.handles().iter().any(|&h| self.slots[h].gone) {
-			return Outcome::Failed(Status::Moved);
+		if self.profile.closed_first {
+			if op.handles().iter().any(|&h| self.slots[h].closed) {
+				return Outcome::Failed(Status::Moved);
+			}
+			// A second close never reaches Rust, so it drains nothing either.
+			if let Op::Drop(h) = op
+				&& self.slots[h].closed
+			{
+				return Outcome::Ok;
+			}
 		}
-		match self.run(thread, op) {
+		let outcome = match self.run(thread, op) {
 			Ok(outcome) => outcome,
 			Err(status) => Outcome::Failed(status),
+		};
+		if !matches!(outcome, Outcome::Failed(_)) {
+			match op {
+				Op::Drop(h) => self.slots[h].closed = true,
+				Op::CounterIntoSum(h, _) | Op::DraftCommit(h) | Op::Tallied(h) if self.profile.moves_close => {
+					self.slots[h].closed = true;
+				}
+				_ => {}
+			}
 		}
+		outcome
 	}
 
 	fn run(&mut self, thread: usize, op: Op) -> Result<Outcome, Status> {
@@ -865,14 +904,19 @@ impl Model {
 			Op::BumpLater(to, h) => {
 				self.exclusive(h, thread)?;
 				self.slots[h].exclusive += 1;
-				let mut slot = Slot::new(Kind::BumpLater, here);
+				// Made from no value that is not `Send`, it may live on a home.
+				let owner = if self.profile.homed_futures { Owner::Home } else { here };
+				let mut slot = Slot::new(Kind::BumpLater, owner);
 				slot.holds_exclusive = Some(h);
 				assert_eq!(self.add(slot), to);
 				Outcome::Ok
 			}
 			Op::LocalNew(h, homed) => {
 				let mut slot = Slot::new(Kind::Local, if homed { Owner::Home } else { here });
-				assert!(homed || !self.profile.homed, "a homed profile makes every local on a home");
+				assert!(
+					homed || !self.profile.homed,
+					"a homed profile makes every local on a home"
+				);
 				self.groups.push(0);
 				slot.n = (self.groups.len() - 1) as u64;
 				assert_eq!(self.add(slot), h);
@@ -1073,7 +1117,9 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 		// A surface that runs a future to its end in the call that makes it awaits it next.
 		if profile.pending == 0
 			&& let Some(f) = op.future()
-			&& steps.last().is_some_and(|step| !matches!(step.expect, Outcome::Failed(_)))
+			&& steps
+				.last()
+				.is_some_and(|step| !matches!(step.expect, Outcome::Failed(_)))
 		{
 			push(&mut model, &mut steps, thread, Op::Await(f));
 		}
