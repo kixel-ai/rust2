@@ -787,7 +787,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.types,
-				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
+				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\tSwift.String(describing: error)\n\t}}\n}}\n\n",
 				sw.trim_start_matches("Swift.")
 			);
 		}

@@ -1795,7 +1795,7 @@ fn declaration<'a>(source: &'a str, function: &str) -> &'a str {
 	let at = source
 		.match_indices(function)
 		.map(|(at, _)| at)
-		.find(|&at| (at == 0 || source[..at].ends_with(['\n', ' ', ':'])))
+		.find(|&at| at == 0 || source[..at].ends_with(['\n', '\t', ' ', ':']))
 		.unwrap_or_else(|| panic!("the source declares {function}"));
 	let start = source[..at].rfind('\n').map_or(0, |i| i + 1);
 	source[start..].lines().next().unwrap()
@@ -1803,7 +1803,7 @@ fn declaration<'a>(source: &'a str, function: &str) -> &'a str {
 
 /// Each shape's calls in a function of its own, so no function grows past a compiler's
 /// limit: `(n, lines)`.
-fn by_shape(calls: &[Call], line: impl Fn(Call) -> String) -> Vec<(usize, String)> {
+fn by_shape(calls: &[Call], mut line: impl FnMut(Call) -> String) -> Vec<(usize, String)> {
 	let mut shapes: Vec<(usize, String)> = Vec::new();
 	for call in calls {
 		let n = call.n;
@@ -1892,21 +1892,74 @@ fn kotlin(built: &Built, calls: &[Call]) -> String {
 /// The Python driver, awaiting futures on asyncio.
 fn python(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
+	let source = std::fs::read_to_string(built.out.join("python").join(format!("{name}.py"))).unwrap();
+	let mut sinks = String::new();
 	let mut body = String::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
+		let other = call.other();
 		let value = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
 			Kind::Echo => format!("s.digest_{n}(s.echo_{n}(s.make_{n}({seed})))"),
 			Kind::Lent => format!("s.lent_{n}({seed}, s.digest_{n})"),
 			Kind::Peek => format!("s.peek_{n}({seed}, s.digest_{n})"),
 			Kind::Made => format!("s.made_{n}({seed}, s.make_{n})"),
 			Kind::Later => format!("s.digest_{n}(await s.later_{n}(s.make_{n}({seed})))"),
+			Kind::Try => format!("tried(lambda: s.try_{n}({seed}), s.digest_{n})"),
+			// A value is passed in a `Mut`, which Rust writes back; an object is borrowed.
+			Kind::Swap => {
+				let boxed = declaration(&source, &format!("def swap_{n}(")).contains("v: Mut[");
+				let boxed = if boxed { "True" } else { "False" };
+				format!("swapped(s.make_{n}, s.swap_{n}, s.digest_{n}, {seed}, {other}, {boxed})")
+			}
+			Kind::Pair => format!("s.pair_{n}(s.make_{n}({seed}), {seed}, s.make_{n}({other}))"),
+			Kind::Maybe => match seed % 2 {
+				0 => format!("s.maybe_{n}(None)"),
+				_ => format!("s.maybe_{n}(s.make_{n}({seed}))"),
+			},
+			Kind::Held => format!("held(s.Holder{n}, s.make_{n}, s.digest_{n}, {seed}, {other})"),
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let _ = writeln!(
+						sinks,
+						"class Echo{n}(s.Sink{n}):\n\tdef echo(self, v: typing.Any) -> typing.Any:\n\t\treturn v\n\n"
+					);
+				}
+				format!("s.sink_{n}({seed}, Echo{n}())")
+			}
 		};
 		let _ = writeln!(body, "\tprint(f\"{} {{{value}}}\")", call.label());
 	}
-	format!("import asyncio\n\nimport {name} as s\n\n\nasync def main() -> None:\n{body}\n\nasyncio.run(main())\n")
+	format!(
+		"import asyncio\nimport typing\n\nimport {name} as s\n\n\n{PYTHON_HELPERS}{sinks}async def main() -> None:\n{body}\n\nasyncio.run(main())\n"
+	)
 }
+
+/// What the Python driver's lines call: `tried` digests a `Result`'s value or its error,
+/// which only the binding's own exceptions hold; `swapped` a value before and after `&mut`;
+/// `held` an object's values through each of its methods.
+const PYTHON_HELPERS: &str = "def tried(f: typing.Any, digest: typing.Any) -> str:
+	try:
+		return f\"ok {digest(f())}\"
+	except Exception as e:
+		if type(e).__module__ != s.__name__:
+			raise
+		return f\"err {digest(typing.cast(typing.Any, e).error)}\"
+
+
+def swapped(make: typing.Any, swap: typing.Any, digest: typing.Any, seed: int, other: int, boxed: bool) -> str:
+	v = s.Mut(make(seed)) if boxed else make(seed)
+	d = swap(v, other)
+	return f\"{d} {digest(v.value if boxed else v)}\"
+
+
+def held(holder: typing.Any, make: typing.Any, digest: typing.Any, seed: int, other: int) -> str:
+	h = holder.new(make(seed))
+	old = h.swap(make(other))
+	d = h.digest()
+	return f\"{digest(old)} {d} {digest(h.into_inner())}\"
+
+
+";
 
 /// The Swift driver, in the generated module's `main.swift`: each shape's calls in a
 /// function of its own, since type-checking them as one body of top-level code takes
@@ -1928,10 +1981,89 @@ fn swift(calls: &[Call], source: &str) -> String {
 		true => "try! ",
 		false => "",
 	};
+	let mut sinks = String::new();
 	let shapes = by_shape(calls, |call| {
 		let Call { n, seed, .. } = call;
+		let other = call.other();
+		let label = call.label();
+		let make = |seed: u64| format!("{}make{n}({seed})", tr(&[format!("make{n}")]));
+		let digest = |v: &str| format!("{}digest{n}({v})", tr(&[format!("digest{n}")]));
 		let value = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
+			Kind::Try => {
+				// What it throws: an error holding the value, or the value, which is one.
+				let at = source.find(&format!("public func try{n}(")).unwrap();
+				let body = &source[at..at + source[at..].find("\n}\n").unwrap()];
+				let thrown = body.split_once("\n\tthrow ").expect("try_N throws").1;
+				let (thrown, error) = match thrown.split_once("(error: ") {
+					Some((thrown, _)) if !thrown.contains([' ', '(']) => (thrown, "e.error"),
+					_ => {
+						let declared = body.lines().next().unwrap();
+						(declared.split_once("throws -> ").unwrap().1.trim_end_matches(" {"), "e")
+					}
+				};
+				return format!(
+					"\tdo {{\n\t\tlet v = try try{n}({seed})\n\t\tprint(\"{label} ok \\({})\")\n\
+					\t}} catch let e as {thrown} {{\n\t\tprint(\"{label} err \\({})\")\n\t}}",
+					digest("v"),
+					digest(error)
+				);
+			}
+			Kind::Swap => {
+				// A value is `inout`; an object's handle is borrowed.
+				let at = source.find(&format!("public func swap{n}(")).unwrap();
+				let (var, arg) = match source[at..].lines().next().unwrap().contains("inout") {
+					true => ("var", "&v"),
+					false => ("let", "v"),
+				};
+				return format!(
+					"\tdo {{\n\t\t{var} v = {}\n\t\tlet d = {}swap{n}({arg}, {other})\n\t\tprint(\"{label} \\(d) \\({})\")\n\t}}",
+					make(seed),
+					tr(&[format!("swap{n}")]),
+					digest("v")
+				);
+			}
+			Kind::Pair => format!("{}pair{n}({}, {seed}, {})", tr(&[format!("pair{n}")]), make(seed), make(other)),
+			Kind::Maybe => match seed % 2 {
+				0 => format!("{}maybe{n}(nil)", tr(&[format!("maybe{n}")])),
+				_ => format!("{}maybe{n}({})", tr(&[format!("maybe{n}")]), make(seed)),
+			},
+			Kind::Held => {
+				// Its methods, which throw where they take its checked handle; a struct's
+				// `swap` is `mutating`.
+				let at = source
+					.find(&format!(" Holder{n}: "))
+					.unwrap_or_else(|| panic!("the Swift declares Holder{n}"));
+				let block = &source[at..at + source[at..].find("\n}\n").unwrap()];
+				let method = |name: &str| {
+					let line = block.lines().find(|l| l.contains(&format!(" func {name}("))).unwrap();
+					(line.contains(" throws "), line.contains(" mutating "))
+				};
+				let t = |name: &str| if method(name).0 { "try " } else { "" };
+				let var = if method("swap").1 { "var" } else { "let" };
+				return format!(
+					"\tdo {{\n\t\t{var} h = {}Holder{n}.new({})\n\t\tlet old = {}h.swap({})\n\t\tlet d = {}h.digest()\n\
+					\t\tlet c = {}h.intoInner()\n\t\tprint(\"{label} \\({}) \\(d) \\({})\")\n\t}}",
+					t("new"),
+					make(seed),
+					t("swap"),
+					make(other),
+					t("digest"),
+					t("intoInner"),
+					digest("old"),
+					digest("c")
+				);
+			}
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let protocol = source
+						.split(&format!("public protocol Sink{n}: Sendable {{\n"))
+						.nth(1)
+						.expect("the Swift declares the sink");
+					let echo = protocol.lines().next().unwrap().trim();
+					let _ = writeln!(sinks, "struct Echo{n}: Sink{n} {{\n\t{echo} {{\n\t\tv\n\t}}\n}}\n");
+				}
+				format!("{}sink{n}({seed}, Echo{n}())", tr(&[format!("sink{n}")]))
+			}
 			Kind::Echo => format!(
 				"{}digest{n}(echo{n}(make{n}({seed})))",
 				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")])
@@ -1962,7 +2094,7 @@ fn swift(calls: &[Call], source: &str) -> String {
 		};
 		format!("\tprint(\"{} \\({value})\")", call.label())
 	});
-	let mut out = String::new();
+	let mut out = sinks;
 	for (n, lines) in &shapes {
 		let _ = writeln!(out, "func shape{n}() async throws {{\n{lines}}}\n");
 	}
