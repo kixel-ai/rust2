@@ -1451,12 +1451,15 @@ export function failed<T>(error: unknown): Call<T> {
 	return promise;
 }
 
+/** A stream's items, as `for await` takes them, by a name no export's can hide. */
+export type Stream<T> = AsyncIterableIterator<T>;
+
 /**
  * A stream's items, as an async iterator calling `next` once for each: it ends where
  * `next` gives `none`, or with `fallible` at an `Ok` of `none`, and yields an `Err` last.
  * It reads nothing ahead, and `return` cancels a pending `next` in Rust.
  */
-export function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): AsyncIterableIterator<T> {
+export function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T> {
 	return new Values<T>(next, none, fallible);
 }
 
@@ -1490,6 +1493,9 @@ class Values<T> implements AsyncIterableIterator<T> {
 		try {
 			const call = this.#next();
 			this.#call = call;
+			// A `return` from a callback Rust called in the start, before there was a call
+			// for it to cancel.
+			if (this.#done) call.cancel();
 			out = await call;
 		} catch (e) {
 			this.#done = true;

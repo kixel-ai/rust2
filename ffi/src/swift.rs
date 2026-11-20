@@ -1385,7 +1385,12 @@ impl<'a> Gen<'a> {
 		}
 		let key = crate::lock::function_key(method);
 		self.locked.insert(format!("{key} / stream"), member.clone());
-		let class = self.claim(&format!("{name}Stream"), &[], format!("the stream of `{rust}`"));
+		// A keyword's quoting would split the name it starts.
+		let class = self.claim(
+			&format!("{}Stream", name.trim_matches('`')),
+			&[],
+			format!("the stream of `{rust}`"),
+		);
 		self.locked.insert(format!("{key} / stream type"), class.clone());
 		let consuming = match unique {
 			true => "consuming ",
@@ -1403,7 +1408,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.types,
-			"{}public final class {class}: AsyncSequence, AsyncIteratorProtocol {{\n\
+			"{}public final class {class}: Swift.AsyncSequence, Swift.AsyncIteratorProtocol {{\n\
 			\tpublic typealias Element = {element}\n\
 			\tpublic typealias Failure = any Swift.Error\n\n\
 			\t@usableFromInline var value: {name}\n\n\
@@ -1411,7 +1416,7 @@ impl<'a> Gen<'a> {
 			\tpublic func makeAsyncIterator() -> {class} {{\n\t\tself\n\t}}\n\n\
 			\t/// The next item, as `{next}()` returns it.\n\
 			\t@inlinable nonisolated(nonsending) public func next() async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\n\
-			\t@inlinable public func next(isolation actor: isolated (any Actor)?) async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\
+			\t@inlinable public func next(isolation actor: isolated (any Swift.Actor)?) async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\
 			}}\n\n",
 			docs(&text, "")
 		);

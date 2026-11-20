@@ -347,7 +347,7 @@ import * as rt from "./rt.ts";
 export type Countdown = rt.Handle<"Countdown">;
 export declare function new$(from: number): Countdown;
 export declare function next(self: Countdown): rt.Call<number | undefined>;
-export declare function values(self: Countdown): AsyncIterableIterator<number>;
+export declare function values(self: Countdown): rt.Stream<number>;
 export { new$ as new };
 
 // Counter.ts
@@ -476,7 +476,7 @@ import * as rt from "./rt.ts";
 import type { Error_ } from "./Error_.ts";
 export type Feed = rt.Handle<"Feed">;
 export declare function next(self: Feed): rt.Call<rt.Result<rt.Bytes | undefined, Error_>>;
-export declare function values(self: Feed): AsyncIterableIterator<rt.Result<rt.Bytes, Error_>>;
+export declare function values(self: Feed): rt.Stream<rt.Result<rt.Bytes, Error_>>;
 
 // FiledReceipt.ts
 import * as rt from "./rt.ts";
@@ -2728,7 +2728,8 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
-export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): AsyncIterableIterator<T>;
+export type Stream<T> = AsyncIterableIterator<T>;
+export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;

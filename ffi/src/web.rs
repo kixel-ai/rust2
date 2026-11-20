@@ -2170,7 +2170,7 @@ impl Gen<'_> {
 			does."
 		);
 		let code = format!(
-			"{}export function {member}(self: {self_t}): AsyncIterableIterator<{item_t}> {{\n\treturn rt.values(() => {next}(self), {none}, {});\n}}\n\n",
+			"{}export function {member}(self: {self_t}): rt.Stream<{item_t}> {{\n\treturn rt.values(() => {next}(self), {none}, {});\n}}\n\n",
 			docs(&text, ""),
 			method.err.is_some()
 		);

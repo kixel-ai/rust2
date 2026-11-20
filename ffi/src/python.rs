@@ -1237,6 +1237,12 @@ impl<'a> Gen<'a> {
 		reserved: &[&str],
 		body: &mut Body,
 	) {
+		// A stream's async iteration takes its protocol's names, whichever method comes first.
+		let streams = matches!(ty, Type::Object(_)) && methods.iter().any(|m| m.stream().is_some());
+		let protocol: &[&str] = match streams {
+			true => &["__aiter__", "__anext__"],
+			false => &[],
+		};
 		for method in methods {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
@@ -1245,6 +1251,7 @@ impl<'a> Gen<'a> {
 			// A name its data or an earlier member takes, its own takes a trailing `_` against.
 			let earlier: Vec<String> = body.codes().filter_map(|code| member_name(code)).collect();
 			let reserved: Vec<&str> = (reserved.iter().copied())
+				.chain(protocol.iter().copied())
 				.chain(data.iter().map(String::as_str))
 				.chain(earlier.iter().map(String::as_str))
 				.collect();

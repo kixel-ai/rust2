@@ -584,6 +584,12 @@ final class _Pull<T extends Object> implements _Sink<T?> {
           return;
         }
         if (call != null) {
+          // A pause or cancel from a callback Rust called in the start, before the call
+          // was pending for it to drop.
+          if (!_out.hasListener || _out.isPaused || _out.isClosed) {
+            call.cancel();
+            return;
+          }
           _pending = call;
           call._sink = this;
           call._begin();
