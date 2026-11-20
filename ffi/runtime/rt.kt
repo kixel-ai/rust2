@@ -95,8 +95,9 @@ class __Writer {
 	}
 
 	/**
-	 * Bytes a record holds, or -1 for none: Kotlin's as [KOTLIN], their array's place in
-	 * [refs], where they start, and their length, which Rust copies once from the array, and
+	 * Bytes a record holds, or -1 for none: Kotlin's as [KOTLIN], or a direct buffer's as
+	 * [DIRECT], their array's or buffer's place in [refs], where they start, and their
+	 * length, which Rust copies once from the array or the buffer's memory, and
 	 * Rust's as [LENT], their owner, where they start, and their length, which Rust reads in
 	 * place, kept until [release].
 	 */
@@ -107,7 +108,7 @@ class __Writer {
 		}
 		val owner = v.owner
 		room(20)
-		if (owner != 0L) {
+		if (owner != 0L && owner != __DIRECT) {
 			b.putInt(LENT)
 			b.putLong(owner)
 			b.putInt(v.start)
@@ -115,7 +116,7 @@ class __Writer {
 			(kept ?: java.util.ArrayList<Any?>().also { kept = it }).add(v.held)
 			return
 		}
-		b.putInt(KOTLIN)
+		b.putInt(if (owner == __DIRECT) DIRECT else KOTLIN)
 		b.putInt(ref(v.held))
 		b.putInt(v.start)
 		b.putInt(v.size)
@@ -864,6 +865,18 @@ const val LENT = -2
 
 /** What precedes the place of Kotlin's array of bytes in a writer's `refs`, where an encoded one's length would. */
 const val KOTLIN = -3
+
+/** What precedes the place of a direct `ByteBuffer` in a writer's `refs`, where an encoded one's length would. */
+const val DIRECT = -5
+
+/** The owner a direct buffer's bytes cross a call with, which no buffer Rust lends has. */
+const val __DIRECT = -1L
+
+/** [buffer]'s array, shared, or for a read-only one a copy of its bytes from its position. */
+fun __heap(buffer: java.nio.ByteBuffer): ByteArray = when (buffer.hasArray()) {
+	true -> buffer.array()
+	false -> ByteArray(buffer.remaining()).also { buffer.duplicate().get(it) }
+}
 
 /** What marks Kotlin's text, which a writer's `refs` holds, where an encoded one's length would. */
 const val TEXT = -4

@@ -943,6 +943,35 @@ fn api_kotlin() {
 		.arg("--example")
 		.arg("returns")
 		.current_dir(manifest_dir()));
+	// Plain Java calls the same classes: javac refuses a `catch` of an exception no function
+	// declares, and a companion's function called on its class.
+	let callers = scratch().join("api").join("java");
+	let stdlib = kotlin_stdlib();
+	let classpath = std::env::join_paths([classes.as_path(), stdlib.as_path()]).unwrap();
+	Step {
+		stamp: &step::stamp(&callers),
+		reads: &[&classes, &manifest_dir().join("tests").join("Caller.java"), &stdlib],
+		writes: &[&callers],
+	}
+	.run(
+		Command::new("javac")
+			.args(["-Werror", "-Xlint:all", "-cp"])
+			.arg(&classpath)
+			.arg("-d")
+			.arg(&callers)
+			.arg(manifest_dir().join("tests").join("Caller.java")),
+	);
+	let caller = run(Command::new("java")
+		.arg(format!("-Djava.library.path={}", api.lib.display()))
+		.arg("-cp")
+		.arg(std::env::join_paths([callers.as_path(), classes.as_path(), stdlib.as_path()]).unwrap())
+		.arg("Caller"));
+	assert_eq!(
+		String::from_utf8_lossy(&caller.stdout),
+		"java\n",
+		"plain Java calls the binding"
+	);
+
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
 		kotlin_returns.stdout, native_returns.stdout,
@@ -1227,6 +1256,26 @@ fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 		.arg("-d")
 		.arg(dest);
 	cmd
+}
+
+/// The Kotlin standard library's jar, beside the `kotlinc` on `PATH`, which plain Java
+/// compiles and runs against.
+fn kotlin_stdlib() -> PathBuf {
+	let path = std::env::var_os("PATH").expect("PATH is set");
+	let kotlinc = std::env::split_paths(&path)
+		.map(|dir| dir.join("kotlinc"))
+		.find(|bin| bin.is_file())
+		.expect("kotlinc is on PATH: run this in the dev shell");
+	let home = kotlinc.canonicalize().unwrap();
+	let jar = home
+		.parent()
+		.unwrap()
+		.parent()
+		.unwrap()
+		.join("lib")
+		.join("kotlin-stdlib.jar");
+	assert!(jar.is_file(), "{} is missing", jar.display());
+	jar
 }
 
 /// kotlinx-coroutines' jar.

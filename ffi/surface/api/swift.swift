@@ -200,6 +200,7 @@ public struct Point: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: Point, b: Point) -> Swift.Bool
 	@inlinable public static func `default`() -> Point
 	@inlinable public func offset(_ dx: Swift.Int32, _ dy: Swift.Int32) -> Point
+	@inlinable public static func getX() -> Swift.Int32
 }
 public struct Label: Sendable, CustomDebugStringConvertible, Equatable {
 	public var name: Swift.String
@@ -651,6 +652,7 @@ public enum Shape: Sendable, CustomDebugStringConvertible, Equatable {
 	case square
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Shape, b: Shape) -> Swift.Bool
+	@inlinable public static func valueOf(_ name: Swift.String) -> Shape?
 	@inlinable public static var ALL: [Shape] { get }
 	@inlinable public static var BOTH: [Shape] { get }
 }

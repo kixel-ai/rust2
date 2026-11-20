@@ -11,8 +11,8 @@ every child has merged.
 Decided with the maintainer on 2026-11-18, in the per-language audit: ✅ all of the speed
 findings are kept (rejected: any subset). The zero-copy buffer findings change generated
 APIs, so they are children of [the exporter epic](/quest/m1/ffi-export/README.md) instead:
-[C++](/quest/m1/ffi-export/cpp-idioms.md), Swift, and
-[Kotlin](/quest/m1/ffi-export/kotlin-idioms.md). This epic changes no generated API and
+[C++](/quest/m1/ffi-export/cpp-idioms.md), Swift (landed), and
+Kotlin (landed). This epic changes no generated API and
 does not hold moq's pin.
 
 Considered and rejected by the audit: Go's `#cgo noescape` and `nocallback`, since

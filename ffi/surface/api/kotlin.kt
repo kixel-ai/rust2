@@ -2,11 +2,13 @@
 fun interface Waker {
 	fun wake()
 }
-class Bytes private constructor(private val array: ByteArray?, private val lent: _Native.__Lent?, private val offset: Int, val size: Int) {
+class Bytes private constructor(private val array: ByteArray?, private val direct: java.nio.ByteBuffer?, private val lent: _Native.__Lent?, private val offset: Int, val size: Int) {
 	constructor(bytes: ByteArray)
+	constructor(buffer: java.nio.ByteBuffer)
 	operator fun get(index: Int): Byte
 	fun slice(startIndex: Int, endIndex: Int = size): Bytes
 	fun copyInto(destination: ByteArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): ByteArray
+	fun copyInto(destination: java.nio.ByteBuffer, startIndex: Int = 0, endIndex: Int = size): java.nio.ByteBuffer
 	fun toByteArray(): ByteArray
 	override fun equals(other: Any?): Boolean
 	override fun hashCode(): Int
@@ -26,7 +28,7 @@ class Duration(val secs: ULong, val nanos: UInt = 0u) : kotlin.Comparable<Durati
 sealed interface IpAddr {
 	fun toInetAddress(): java.net.InetAddress
 	companion object {
-		fun of(address: java.net.InetAddress): IpAddr
+		@kotlin.jvm.JvmStatic fun of(address: java.net.InetAddress): IpAddr
 	}
 }
 @kotlin.jvm.JvmInline value class Ipv4Addr(val bits: UInt) : IpAddr {
@@ -49,7 +51,7 @@ sealed interface SocketAddr {
 	val port: UShort
 	fun toInetSocketAddress(): java.net.InetSocketAddress
 	companion object {
-		fun of(address: java.net.InetSocketAddress): SocketAddr
+		@kotlin.jvm.JvmStatic fun of(address: java.net.InetSocketAddress): SocketAddr
 	}
 }
 @kotlin.jvm.JvmInline value class SocketAddrV4 private constructor(private val bits: Long) : SocketAddr {
@@ -110,7 +112,8 @@ data class Point(val x: kotlin.Int, val y: kotlin.Int) {
 	fun debug(): kotlin.String
 	fun offset(dx: kotlin.Int, dy: kotlin.Int): api.Point
 	companion object {
-		fun default(): api.Point
+		@kotlin.jvm.JvmStatic fun default(): api.Point
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("getX_") fun getX(): kotlin.Int
 	}
 }
 data class Label(val name: kotlin.String, val at: api.Point?, val ttl: api.Duration?) {
@@ -119,7 +122,7 @@ data class Label(val name: kotlin.String, val at: api.Point?, val ttl: api.Durat
 data class Note(val text: kotlin.String?) {
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): api.Note
+		@kotlin.jvm.JvmStatic fun default(): api.Note
 	}
 }
 data class Reading(val ok: kotlin.Boolean, val level: kotlin.Float, val ratio: kotlin.Double, val mark: kotlin.Int, val shape: api.Shape, val at: api.Point, val note: kotlin.String, val count: kotlin.ULong, val offset: kotlin.Byte, val len: kotlin.ULong, val tag: kotlin.UShort) {
@@ -148,8 +151,8 @@ data class Window(val range: api.RangeU64, val end: api.BoundU64) {
 	fun debug(): kotlin.String
 	fun number(): kotlin.UInt
 	companion object {
-		fun new(number: kotlin.UInt): api.Ticket
-		fun clones(): kotlin.UInt
+		@kotlin.jvm.JvmStatic fun new(number: kotlin.UInt): api.Ticket
+		@kotlin.jvm.JvmStatic fun clones(): kotlin.UInt
 	}
 }
 data class Seat(val mark: api.Mark, val row: kotlin.UInt) {
@@ -162,7 +165,7 @@ data class Seat(val mark: api.Mark, val row: kotlin.UInt) {
 	fun whole(): api.Stamp
 	fun later(other: api.Stamp): kotlin.Boolean
 	companion object {
-		fun fromMillis(millis: kotlin.ULong): api.Stamp
+		@kotlin.jvm.JvmStatic fun fromMillis(millis: kotlin.ULong): api.Stamp
 	}
 }
 class Moment internal constructor() {
@@ -172,7 +175,7 @@ class Moment internal constructor() {
 	fun millis(): kotlin.ULong
 	fun after(ticks: kotlin.ULong): api.Moment
 	companion object {
-		fun new(ticks: kotlin.ULong, rate: kotlin.ULong): api.Moment?
+		@kotlin.jvm.JvmStatic fun new(ticks: kotlin.ULong, rate: kotlin.ULong): api.Moment?
 	}
 }
 class LongArray_ internal constructor() {
@@ -182,7 +185,7 @@ class LongArray_ internal constructor() {
 	fun c(): kotlin.ULong
 	fun also(f: (kotlin.ULong) -> kotlin.Unit)
 	companion object {
-		fun new(low: kotlin.ULong, high: kotlin.ULong): api.LongArray_
+		@kotlin.jvm.JvmStatic fun new(low: kotlin.ULong, high: kotlin.ULong): api.LongArray_
 	}
 }
 data class JvmField(val n: kotlin.UInt) {
@@ -200,7 +203,7 @@ class Wide internal constructor() {
 	override fun hashCode(): kotlin.Int
 	fun sum(): kotlin.ULong
 	companion object {
-		fun new(seed: kotlin.ULong): api.Wide
+		@kotlin.jvm.JvmStatic fun new(seed: kotlin.ULong): api.Wide
 	}
 }
 data class Clocked(val at: api.Moment, val count: kotlin.UInt) {
@@ -215,7 +218,7 @@ data class Clocked(val at: api.Moment, val count: kotlin.UInt) {
 	fun note(mark: api.Mark): kotlin.Pair<api.Score, kotlin.ULong>
 	fun absorb(other: api.Mut<api.Score>): kotlin.Triple<api.Score, kotlin.ULong, kotlin.ULong>
 	companion object {
-		fun of(count: kotlin.ULong): api.Score
+		@kotlin.jvm.JvmStatic fun of(count: kotlin.ULong): api.Score
 	}
 }
 class Hits internal constructor() {
@@ -229,8 +232,8 @@ class Hits internal constructor() {
 	fun add(other: api.Hits): api.Hits
 	fun eq(other: api.Hits): kotlin.Pair<api.Hits, kotlin.Boolean>
 	companion object {
-		fun default(): api.Hits
-		fun of(hits: kotlin.ULong, misses: kotlin.ULong): api.Hits
+		@kotlin.jvm.JvmStatic fun default(): api.Hits
+		@kotlin.jvm.JvmStatic fun of(hits: kotlin.ULong, misses: kotlin.ULong): api.Hits
 	}
 }
 class Extent internal constructor() {
@@ -242,7 +245,7 @@ class Extent internal constructor() {
 	fun end(): kotlin.ULong
 	fun slide(by: kotlin.ULong): kotlin.Pair<api.Extent, kotlin.ULong>
 	companion object {
-		fun new(start: kotlin.ULong, len: kotlin.ULong): api.Extent
+		@kotlin.jvm.JvmStatic fun new(start: kotlin.ULong, len: kotlin.ULong): api.Extent
 	}
 }
 data class PairSizeU8(val left: api.Size, val right: kotlin.UByte) {
@@ -310,8 +313,8 @@ data class Numbers(val u16s: kotlin.UShortArray, val u32s: kotlin.UIntArray, val
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun edges(): api.Numbers
-		fun zero(negative: kotlin.Boolean): api.Numbers
+		@kotlin.jvm.JvmStatic fun edges(): api.Numbers
+		@kotlin.jvm.JvmStatic fun zero(negative: kotlin.Boolean): api.Numbers
 	}
 }
 data class Measure(val value: kotlin.Double, val numbers: api.Numbers) {
@@ -319,7 +322,7 @@ data class Measure(val value: kotlin.Double, val numbers: api.Numbers) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun new(value: kotlin.Double, negative: kotlin.Boolean): api.Measure
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.Double, negative: kotlin.Boolean): api.Measure
 	}
 }
 data class LimitsBytes(val low: api.Bytes, val high: api.Bytes) {
@@ -331,7 +334,7 @@ data class LimitsDuration(val low: api.Duration, val high: api.Duration) {
 data class Page(val size: kotlin.UInt) {
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): api.Page
+		@kotlin.jvm.JvmStatic fun default(): api.Page
 	}
 }
 data class Booth(val mark: api.Mark) {
@@ -380,8 +383,8 @@ data class ClashAny(val typeUrl: kotlin.String) {
 data class ClashBreak(val _0: kotlin.UByte) {
 	fun debug(): kotlin.String
 	companion object {
-		val SP: api.ClashBreak
-		val SP_: api.ClashBreak
+		@kotlin.jvm.JvmStatic val SP: api.ClashBreak
+		@kotlin.jvm.JvmStatic val SP_: api.ClashBreak
 	}
 }
 data class TlsPolicyLifetime(val seconds: kotlin.UInt) {
@@ -408,8 +411,9 @@ enum class Shape(internal val value: Int) {
 	SQUARE(4);
 	fun debug(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<api.Shape>
-		val BOTH: kotlin.collections.List<api.Shape>
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("valueOf_") fun valueOf(name: kotlin.String): api.Shape?
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<api.Shape>
+		@kotlin.jvm.JvmStatic val BOTH: kotlin.collections.List<api.Shape>
 	}
 }
 sealed class Event {
@@ -452,10 +456,10 @@ sealed class Clash {
 	fun moment(kotlin: kotlin.ULong): api.Moment
 	fun describe(text: kotlin.String, n: kotlin.UInt, shape: api.Shape, out: api.Mut<kotlin.UInt>): kotlin.String
 	companion object {
-		fun of(value: kotlin.Double): api.Clash
-		fun listed(java: kotlin.UIntArray, kotlin: api.Mut<kotlin.UInt>): kotlin.collections.List<kotlin.UIntArray>
-		suspend fun after(first: suspend () -> kotlin.Unit, kotlin: kotlin.Double): api.Clash
-		fun at(api: api.Point): api.Clash
+		@kotlin.jvm.JvmStatic fun of(value: kotlin.Double): api.Clash
+		@kotlin.jvm.JvmStatic fun listed(java: kotlin.UIntArray, kotlin: api.Mut<kotlin.UInt>): kotlin.collections.List<kotlin.UIntArray>
+		@kotlin.jvm.JvmStatic suspend fun after(first: suspend () -> kotlin.Unit, kotlin: kotlin.Double): api.Clash
+		@kotlin.jvm.JvmStatic fun at(api: api.Point): api.Clash
 	}
 }
 sealed class Stage {
@@ -534,7 +538,7 @@ class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun ranked(): kotlin.collections.List<kotlin.Pair<kotlin.String, api.Counter>>
 	fun best(): api.Counter
 	companion object {
-		fun new(counters: kotlin.collections.List<kotlin.Pair<kotlin.String, api.Counter>>): api.Board
+		@kotlin.jvm.JvmStatic fun new(counters: kotlin.collections.List<kotlin.Pair<kotlin.String, api.Counter>>): api.Board
 	}
 }
 class Receipt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -563,7 +567,7 @@ class PadU16 internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun title(): kotlin.UShort
 	fun describe(): kotlin.String
 	companion object {
-		fun wide(): api.PadU16
+		@kotlin.jvm.JvmStatic fun wide(): api.PadU16
 	}
 }
 class PadU8 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -572,7 +576,7 @@ class PadU8 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	val titleGet: kotlin.String
 	fun lines(): kotlin.UInt
 	companion object {
-		fun small(): api.PadU8
+		@kotlin.jvm.JvmStatic fun small(): api.PadU8
 	}
 }
 class Layered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -580,7 +584,7 @@ class Layered internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	val titleGet: kotlin.String
 	fun lines(): kotlin.UInt
 	companion object {
-		fun new(): api.Layered
+		@kotlin.jvm.JvmStatic fun new(): api.Layered
 	}
 }
 class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -592,7 +596,7 @@ class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun ySet(value: kotlin.Int)
 	fun offset(dx: kotlin.Int, dy: kotlin.Int): api.Point
 	companion object {
-		fun new(label: kotlin.String, x: kotlin.Int, y: kotlin.Int): api.Marker
+		@kotlin.jvm.JvmStatic fun new(label: kotlin.String, x: kotlin.Int, y: kotlin.Int): api.Marker
 	}
 }
 class Batch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -600,7 +604,7 @@ class Batch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun push(v: kotlin.UInt): kotlin.Boolean
 	fun capacity(): kotlin.ULong
 	companion object {
-		fun new(): api.Batch
+		@kotlin.jvm.JvmStatic fun new(): api.Batch
 	}
 }
 class Batch2 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -608,7 +612,7 @@ class Batch2 internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun push(v: kotlin.UInt): kotlin.Boolean
 	fun capacity(): kotlin.ULong
 	companion object {
-		fun new(): api.Batch2
+		@kotlin.jvm.JvmStatic fun new(): api.Batch2
 	}
 }
 class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -616,8 +620,8 @@ class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun waker(): api.Waker
 	fun context(): api.Waker
 	companion object {
-		fun new(waker: api.Waker): api.Waiter
-		suspend fun pollFuture(future: suspend () -> kotlin.Unit)
+		@kotlin.jvm.JvmStatic fun new(waker: api.Waker): api.Waiter
+		@kotlin.jvm.JvmStatic suspend fun pollFuture(future: suspend () -> kotlin.Unit)
 	}
 }
 class Logger internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -625,7 +629,7 @@ class Logger internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun write(line: kotlin.String): kotlin.Boolean
 	fun writeFromThread(line: kotlin.String): kotlin.Boolean
 	companion object {
-		fun new(sink: api.Log): api.Logger
+		@kotlin.jvm.JvmStatic fun new(sink: api.Log): api.Logger
 	}
 }
 class Journal internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -633,7 +637,7 @@ class Journal internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun redirect(sink: api.Log)
 	fun write(line: kotlin.String): kotlin.Boolean
 	companion object {
-		fun new(sink: api.Log): api.Journal
+		@kotlin.jvm.JvmStatic fun new(sink: api.Log): api.Journal
 	}
 }
 class Local internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -648,15 +652,15 @@ class Local internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun threadNumber(): kotlin.ULong
 	fun onOwnThread(): kotlin.Boolean
 	companion object {
-		fun default(): api.Local
-		fun new(): api.Local
+		@kotlin.jvm.JvmStatic fun default(): api.Local
+		@kotlin.jvm.JvmStatic fun new(): api.Local
 	}
 }
 class LocalWaiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		fun new(waker: api.Waker): api.LocalWaiter
-		suspend fun pollReady(n: kotlin.UInt): kotlin.UInt
+		@kotlin.jvm.JvmStatic fun new(waker: api.Waker): api.LocalWaiter
+		@kotlin.jvm.JvmStatic suspend fun pollReady(n: kotlin.UInt): kotlin.UInt
 	}
 }
 class Retry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -667,7 +671,7 @@ class Retry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun delay(): kotlin.UInt
 	fun setLimit(limit: kotlin.UInt)
 	companion object {
-		fun new(limit: kotlin.UInt?): api.Retry
+		@kotlin.jvm.JvmStatic fun new(limit: kotlin.UInt?): api.Retry
 	}
 }
 class Digest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -676,7 +680,7 @@ class Digest internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun sumSet(value: ArrayU8x4)
 	fun flipped(mask: ArrayU8x4): ArrayU8x4
 	companion object {
-		fun new(): api.Digest
+		@kotlin.jvm.JvmStatic fun new(): api.Digest
 	}
 }
 class Cursor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -687,20 +691,20 @@ class OuterInnerU8 internal constructor(raw: Long, lent: Boolean = false) : Auto
 	override fun close()
 	fun get(): kotlin.UByte
 	companion object {
-		fun new(value: kotlin.UByte): api.OuterInnerU8
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.OuterInnerU8
 	}
 }
 class SlotU32 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		fun new(value: kotlin.UInt): api.SlotU32
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.UInt): api.SlotU32
 	}
 }
 class SlotU8 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun value(): kotlin.UShort
 	companion object {
-		fun new(value: kotlin.UByte): api.SlotU8
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.SlotU8
 	}
 }
 class Resolving internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -708,7 +712,7 @@ class Resolving internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	val _0_get: api.TlsResolver
 	fun _0_set(value: api.TlsResolver)
 	companion object {
-		fun new(name: kotlin.String): api.Resolving
+		@kotlin.jvm.JvmStatic fun new(name: kotlin.String): api.Resolving
 	}
 }
 class Codecs internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -717,15 +721,15 @@ class Codecs internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun listSet(value: kotlin.collections.List<api.TlsCodec>)
 	fun ids(): kotlin.UInt
 	companion object {
-		fun default(): api.Codecs
-		fun new(): api.Codecs
+		@kotlin.jvm.JvmStatic fun default(): api.Codecs
+		@kotlin.jvm.JvmStatic fun new(): api.Codecs
 	}
 }
 class Der internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun bytes(): api.Bytes
 	companion object {
-		fun fromSlice(bytes: api.Bytes): api.Der
+		@kotlin.jvm.JvmStatic fun fromSlice(bytes: api.Bytes): api.Der
 	}
 }
 class Verbosity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -734,7 +738,7 @@ class Verbosity internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun levelSet(value: api.Level)
 	fun filter(): api.Level?
 	companion object {
-		fun new(level: api.Level): api.Verbosity
+		@kotlin.jvm.JvmStatic fun new(level: api.Level): api.Verbosity
 	}
 }
 class Site internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -742,7 +746,7 @@ class Site internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	val homeGet: api.Url
 	fun homeSet(value: api.Url)
 	companion object {
-		fun new(home: api.Url): api.Site
+		@kotlin.jvm.JvmStatic fun new(home: api.Url): api.Site
 	}
 }
 class Trail internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -755,22 +759,22 @@ class Trail internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun bytes(): api.Bytes
 	fun drain(): kotlin.collections.List<api.Label>
 	companion object {
-		fun new(points: kotlin.collections.List<api.Point>, names: kotlin.collections.List<kotlin.String>): api.Trail
+		@kotlin.jvm.JvmStatic fun new(points: kotlin.collections.List<api.Point>, names: kotlin.collections.List<kotlin.String>): api.Trail
 	}
 }
 class Worker internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun id(): kotlin.UInt
 	companion object {
-		fun new(id: kotlin.UInt): api.Worker
+		@kotlin.jvm.JvmStatic fun new(id: kotlin.UInt): api.Worker
 	}
 }
 class Handle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun count(): kotlin.UInt
 	companion object {
-		fun new(count: kotlin.UInt): api.Handle
-		suspend fun later(count: kotlin.UInt): api.Handle
+		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.Handle
+		@kotlin.jvm.JvmStatic suspend fun later(count: kotlin.UInt): api.Handle
 	}
 }
 class Area internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -781,7 +785,7 @@ class Area internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun pixels(): kotlin.ULong
 	fun scaledPoint(by: api.Point): kotlin.ULong
 	companion object {
-		fun new(size: api.Size): api.Area
+		@kotlin.jvm.JvmStatic fun new(size: api.Size): api.Area
 	}
 }
 class Counter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -792,8 +796,8 @@ class Counter internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun offset(handle: kotlin.ULong, h: kotlin.ULong): kotlin.ULong
 	fun intoSum(close: kotlin.ULong): kotlin.ULong
 	fun name(): kotlin.String
-	fun add(n: kotlin.ULong): kotlin.ULong
-	fun sub(n: kotlin.ULong): kotlin.ULong
+	@kotlin.jvm.Throws(ErrorException::class) fun add(n: kotlin.ULong): kotlin.ULong
+	@kotlin.jvm.Throws(ErrorException::class) fun sub(n: kotlin.ULong): kotlin.ULong
 	fun edited(): kotlin.Boolean
 	fun plus(other: api.Counter?): kotlin.ULong
 	fun clamped(low: api.Counter?, high: api.Counter?): kotlin.ULong
@@ -802,16 +806,16 @@ class Counter internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun intoLabel(at: api.Point?): api.Label
 	fun rename(name: kotlin.String)
 	fun split(at: kotlin.ULong): kotlin.Pair<api.Counter, api.Counter>
-	fun plusIfString(n: kotlin.ULong, `object`: kotlin.Any?): kotlin.ULong
+	@kotlin.jvm.Throws(StringException::class) fun plusIfString(n: kotlin.ULong, `object`: kotlin.Any?): kotlin.ULong
 	fun `is`(name: kotlin.String): kotlin.Boolean
 	companion object {
-		fun default(): api.Counter
-		fun new(name: kotlin.String, start: kotlin.ULong): api.Counter
-		fun seededPoint(name: kotlin.String, from: api.Point): api.Counter
-		fun seededCounter(name: kotlin.String, from: api.Counter): api.Counter
-		fun seededSize(name: kotlin.String, from: api.Size): api.Counter
-		fun seededWrapU32(name: kotlin.String, from: api.WrapU32): api.Counter
-		fun seededPolarPoint(name: kotlin.String, from: api.PolarPoint): api.Counter
+		@kotlin.jvm.JvmStatic fun default(): api.Counter
+		@kotlin.jvm.JvmStatic fun new(name: kotlin.String, start: kotlin.ULong): api.Counter
+		@kotlin.jvm.JvmStatic fun seededPoint(name: kotlin.String, from: api.Point): api.Counter
+		@kotlin.jvm.JvmStatic fun seededCounter(name: kotlin.String, from: api.Counter): api.Counter
+		@kotlin.jvm.JvmStatic fun seededSize(name: kotlin.String, from: api.Size): api.Counter
+		@kotlin.jvm.JvmStatic fun seededWrapU32(name: kotlin.String, from: api.WrapU32): api.Counter
+		@kotlin.jvm.JvmStatic fun seededPolarPoint(name: kotlin.String, from: api.PolarPoint): api.Counter
 	}
 }
 class Meter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -820,7 +824,7 @@ class Meter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun count(): kotlin.ULong
 	fun reset()
 	companion object {
-		fun default(): api.Meter
+		@kotlin.jvm.JvmStatic fun default(): api.Meter
 	}
 }
 class Meters internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -832,8 +836,8 @@ class Meters internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun first(): api.Meter
 	fun clear()
 	companion object {
-		fun default(): api.Meters
-		fun new(): api.Meters
+		@kotlin.jvm.JvmStatic fun default(): api.Meters
+		@kotlin.jvm.JvmStatic fun new(): api.Meters
 	}
 }
 class Registry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -844,13 +848,13 @@ class Registry internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun push(counter: api.Counter)
 	fun edit(edit: (api.Counter) -> kotlin.Boolean): kotlin.Boolean
 	companion object {
-		fun default(): api.Registry
-		fun new(first: api.Counter): api.Registry
+		@kotlin.jvm.JvmStatic fun default(): api.Registry
+		@kotlin.jvm.JvmStatic fun new(first: api.Counter): api.Registry
 	}
 }
 class Ledger internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun edit(): api.Draft
+	@kotlin.jvm.Throws(ErrorException::class) fun edit(): api.Draft
 	fun published(): kotlin.UInt
 	fun title(): kotlin.String
 	fun seal()
@@ -859,8 +863,8 @@ class Ledger internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun fileReceipt(item: api.Receipt): api.FiledReceipt
 	fun slip(): api.Slip
 	companion object {
-		fun default(): api.Ledger
-		fun new(): api.Ledger
+		@kotlin.jvm.JvmStatic fun default(): api.Ledger
+		@kotlin.jvm.JvmStatic fun new(): api.Ledger
 	}
 }
 class Slip internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -882,8 +886,8 @@ class Sheet internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun write(line: kotlin.String)
 	fun describe(): kotlin.String
 	companion object {
-		fun default(): api.Sheet
-		fun new(): api.Sheet
+		@kotlin.jvm.JvmStatic fun default(): api.Sheet
+		@kotlin.jvm.JvmStatic fun new(): api.Sheet
 	}
 }
 class Name internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -897,8 +901,8 @@ class Name internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun shares(other: api.Name): kotlin.Boolean
 	fun rename(text: kotlin.String)
 	companion object {
-		fun owned(text: kotlin.String): api.Name
-		fun borrowed(text: kotlin.String): api.Name
+		@kotlin.jvm.JvmStatic fun owned(text: kotlin.String): api.Name
+		@kotlin.jvm.JvmStatic fun borrowed(text: kotlin.String): api.Name
 	}
 }
 class Channel internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -912,14 +916,14 @@ class Channel internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	suspend fun tagged(tag: kotlin.String): kotlin.String
 	suspend fun itemized(items: kotlin.UIntArray?): kotlin.ULong
 	suspend fun pollTake(): api.Bytes
-	suspend fun pollMeasure(extra: kotlin.ULong): kotlin.ULong
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun pollMeasure(extra: kotlin.ULong): kotlin.ULong
 	fun listen(cx: api.Waker)
 	suspend fun recvSized(): kotlin.Pair<api.Bytes, kotlin.ULong>
-	suspend fun recvNonempty(): api.Bytes
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun recvNonempty(): api.Bytes
 	fun sendFromThread(payload: api.Bytes)
 	companion object {
-		fun default(): api.Channel
-		fun new(): api.Channel
+		@kotlin.jvm.JvmStatic fun default(): api.Channel
+		@kotlin.jvm.JvmStatic fun new(): api.Channel
 	}
 }
 class Gap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -930,7 +934,7 @@ class Gap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable
 	override fun hashCode(): kotlin.Int
 	fun sum(): kotlin.ULong
 	companion object {
-		fun new(wide: kotlin.ULong, narrow: kotlin.UByte): api.Gap
+		@kotlin.jvm.JvmStatic fun new(wide: kotlin.ULong, narrow: kotlin.UByte): api.Gap
 	}
 }
 class Berth internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -939,7 +943,7 @@ class Berth internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun clone(): api.Berth
 	fun at(): kotlin.UInt?
 	companion object {
-		fun new(at: kotlin.UInt?): api.Berth
+		@kotlin.jvm.JvmStatic fun new(at: kotlin.UInt?): api.Berth
 	}
 }
 class Mark internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -951,7 +955,7 @@ class Mark internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun count(): kotlin.ULong
 	fun add(by: kotlin.ULong)
 	companion object {
-		fun of(count: kotlin.ULong): api.Mark
+		@kotlin.jvm.JvmStatic fun of(count: kotlin.ULong): api.Mark
 	}
 }
 class Message internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -964,7 +968,7 @@ class Message internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun payloadSet(value: api.Bytes)
 	fun sent(): kotlin.Boolean
 	companion object {
-		fun new(stamp: api.Stamp?, payload: api.Bytes): api.Message
+		@kotlin.jvm.JvmStatic fun new(stamp: api.Stamp?, payload: api.Bytes): api.Message
 	}
 }
 class Node internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -975,7 +979,7 @@ class Node internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun push(value: kotlin.ULong)
 	fun sum(): kotlin.ULong
 	companion object {
-		fun new(value: kotlin.ULong, next: api.Node?): api.Node
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.ULong, next: api.Node?): api.Node
 	}
 }
 class Tally internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -986,16 +990,16 @@ class Tally internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun bump(): kotlin.UInt
 	suspend fun bumpLater(): kotlin.UInt
 	companion object {
-		fun default(): api.Tally
-		fun new(): api.Tally
+		@kotlin.jvm.JvmStatic fun default(): api.Tally
+		@kotlin.jvm.JvmStatic fun new(): api.Tally
 	}
 }
 class Tallies internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun first(): api.Tally
 	companion object {
-		fun default(): api.Tallies
-		fun new(): api.Tallies
+		@kotlin.jvm.JvmStatic fun default(): api.Tallies
+		@kotlin.jvm.JvmStatic fun new(): api.Tallies
 	}
 }
 class Plain internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1008,7 +1012,7 @@ class Plain internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	val onGet: kotlin.Boolean
 	fun onSet(value: kotlin.Boolean)
 	companion object {
-		fun new(n: kotlin.ULong, on: kotlin.Boolean): api.Plain
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong, on: kotlin.Boolean): api.Plain
 	}
 }
 class Labeled internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1017,7 +1021,7 @@ class Labeled internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun new(label: kotlin.String): api.Labeled
+		@kotlin.jvm.JvmStatic fun new(label: kotlin.String): api.Labeled
 	}
 }
 class Gauge internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1029,7 +1033,7 @@ class Gauge internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	suspend fun later(): kotlin.ULong
 	suspend fun reaches(`this`: kotlin.ULong): kotlin.Boolean
 	companion object {
-		fun new(level: kotlin.ULong): api.Gauge
+		@kotlin.jvm.JvmStatic fun new(level: kotlin.ULong): api.Gauge
 	}
 }
 class Latch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1038,7 +1042,7 @@ class Latch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun set(value: kotlin.UInt): kotlin.Boolean
 	fun get(): kotlin.UInt?
 	companion object {
-		fun default(): api.Latch
+		@kotlin.jvm.JvmStatic fun default(): api.Latch
 	}
 }
 class Token internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1048,7 +1052,7 @@ class Token internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun idSet(value: kotlin.UInt)
 	fun twice(): kotlin.collections.List<api.Token>
 	companion object {
-		fun new(id: kotlin.UInt): api.Token
+		@kotlin.jvm.JvmStatic fun new(id: kotlin.UInt): api.Token
 	}
 }
 class Stack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1062,8 +1066,8 @@ class Stack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun depthPastSize(from: api.Size): kotlin.ULong
 	fun depthPastWrapU32(from: api.WrapU32): kotlin.ULong
 	companion object {
-		fun default(): api.Stack
-		fun new(): api.Stack
+		@kotlin.jvm.JvmStatic fun default(): api.Stack
+		@kotlin.jvm.JvmStatic fun new(): api.Stack
 	}
 }
 class Refusal internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1077,7 +1081,7 @@ class C internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun new(value: kotlin.UByte): api.C
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.C
 	}
 }
 class Key internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1088,7 +1092,7 @@ class Key internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable
 	override fun hashCode(): kotlin.Int
 	fun hashOf(): kotlin.ULong
 	companion object {
-		fun new(name: kotlin.String): api.Key
+		@kotlin.jvm.JvmStatic fun new(name: kotlin.String): api.Key
 	}
 }
 class ClashSeed internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1096,8 +1100,8 @@ class ClashSeed internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun value(): kotlin.UInt
 	fun bool(): kotlin.Boolean
 	companion object {
-		fun default(): api.ClashSeed
-		fun default_(): api.ClashSeed
+		@kotlin.jvm.JvmStatic fun default(): api.ClashSeed
+		@kotlin.jvm.JvmStatic fun default_(): api.ClashSeed
 	}
 }
 class ClashEmptyString internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1109,7 +1113,7 @@ class ClashStore internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun free(): kotlin.UInt
 	fun close_(): kotlin.UInt
 	companion object {
-		fun new(count: kotlin.UInt): api.ClashStore
+		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.ClashStore
 	}
 }
 class TlsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1125,14 +1129,14 @@ class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun parse(input: kotlin.String): api.Url
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Url
 	}
 }
 class Json internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun toText(): kotlin.String
 	companion object {
-		fun parse(input: kotlin.String): api.Json
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Json
 	}
 }
 class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1163,14 +1167,14 @@ class Spawned internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	override fun close()
 	fun join(): kotlin.UInt
 	companion object {
-		fun new(task: () -> kotlin.UInt): api.Spawned
+		@kotlin.jvm.JvmStatic fun new(task: () -> kotlin.UInt): api.Spawned
 	}
 }
 class LogThread internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun join(): kotlin.Boolean
 	companion object {
-		fun new(log: api.Log, line: kotlin.String): api.LogThread
+		@kotlin.jvm.JvmStatic fun new(log: api.Log, line: kotlin.String): api.LogThread
 	}
 }
 class Pinned internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1179,7 +1183,7 @@ class Pinned internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun valueSet(value: kotlin.ULong)
 	fun part(): api.Part
 	companion object {
-		fun new(value: kotlin.ULong): api.Pinned
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.ULong): api.Pinned
 	}
 }
 class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1190,7 +1194,7 @@ class Hooked internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	val nGet: kotlin.ULong
 	fun nSet(value: kotlin.ULong)
 	companion object {
-		fun new(n: kotlin.ULong): api.Hooked
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Hooked
 	}
 }
 class Forged internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1201,7 +1205,7 @@ class Forged internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	val nGet: kotlin.ULong
 	fun nSet(value: kotlin.ULong)
 	companion object {
-		fun new(n: kotlin.ULong): api.Forged
+		@kotlin.jvm.JvmStatic fun new(n: kotlin.ULong): api.Forged
 	}
 }
 class Part internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1257,18 +1261,18 @@ fun readingDebug(n: kotlin.UInt): kotlin.String
 fun readingEcho(reading: api.Reading?): api.Reading?
 fun readingBump(reading: api.Mut<api.Reading?>)
 fun advance(stage: api.Stage): api.Stage
-fun sameObject(a: kotlin.Any?, b: kotlin.Any?): kotlin.Boolean
-fun thrown(fail: kotlin.Boolean): kotlin.ULong
-fun thrownLogger(sink: api.Log): api.Logger
+@kotlin.jvm.Throws(StringException::class) fun sameObject(a: kotlin.Any?, b: kotlin.Any?): kotlin.Boolean
+@kotlin.jvm.Throws(StringException::class) fun thrown(fail: kotlin.Boolean): kotlin.ULong
+@kotlin.jvm.Throws(StringException::class) fun thrownLogger(sink: api.Log): api.Logger
 fun only(counter: api.Counter): api.Tuple1<api.Counter>
 fun widths(n: kotlin.ULong): api.Tuple4<kotlin.UByte, kotlin.Short, kotlin.UInt, kotlin.ULong>
-fun divide(a: kotlin.ULong, b: kotlin.ULong): kotlin.Pair<kotlin.ULong, kotlin.ULong>
-fun corner(unit: kotlin.Boolean): kotlin.Pair<kotlin.UInt, kotlin.UInt>
+@kotlin.jvm.Throws(ErrorException::class) fun divide(a: kotlin.ULong, b: kotlin.ULong): kotlin.Pair<kotlin.ULong, kotlin.ULong>
+@kotlin.jvm.Throws(ErrorException::class) fun corner(unit: kotlin.Boolean): kotlin.Pair<kotlin.UInt, kotlin.UInt>
 suspend fun cornerLater(): kotlin.Pair<kotlin.UInt, kotlin.UInt>
 fun spread(n: kotlin.ULong): api.Tuple4<kotlin.UByte, kotlin.Short, kotlin.UInt, kotlin.ULong>?
 fun find(haystack: api.Bytes, needle: api.Bytes): kotlin.Pair<kotlin.ULong, kotlin.ULong>?
 fun rows(points: kotlin.collections.List<api.Point>): kotlin.collections.List<kotlin.Triple<kotlin.String, api.Shape, api.Point>>
-fun port(text: kotlin.String): kotlin.UShort
+@kotlin.jvm.Throws(StringException::class) fun port(text: kotlin.String): kotlin.UShort
 fun span(start: kotlin.UInt, end: kotlin.UInt): kotlin.UInt
 fun halves(span: api.Span): kotlin.Pair<kotlin.Pair<kotlin.UInt, kotlin.UInt>, kotlin.Pair<kotlin.UInt, kotlin.UInt>>
 fun doubled(value: api.Tuple1<kotlin.UInt?>?): api.Tuple1<kotlin.UInt?>?
@@ -1300,7 +1304,7 @@ fun widen(range: api.RangeU64, by: kotlin.ULong): api.RangeU64
 fun count(range: api.BoundsU64): kotlin.ULong
 fun end(limit: kotlin.ULong): api.BoundU64
 fun ends(limit: kotlin.ULong): kotlin.Pair<api.BoundU64, api.BoundU64>
-fun below(n: kotlin.ULong, limit: kotlin.ULong): kotlin.ULong
+@kotlin.jvm.Throws(BoundsU64Exception::class) fun below(n: kotlin.ULong, limit: kotlin.ULong): kotlin.ULong
 suspend fun drive(start: api.Moment, poll: (api.Moment, api.Waiter) -> api.Moment?): kotlin.String
 fun made(n: kotlin.UInt, make: (kotlin.UInt) -> kotlin.String): kotlin.String
 fun tickets(entries: kotlin.collections.List<kotlin.Pair<kotlin.String, api.Ticket>>): kotlin.collections.List<kotlin.Pair<kotlin.String, api.Ticket>>
@@ -1310,22 +1314,22 @@ fun seat(mark: api.Mark, row: kotlin.UInt): api.Seat
 fun admit(entry: api.Tuple4<api.Counter, api.Mark, api.Seat, api.Choice>): kotlin.ULong
 fun choose(choice: api.Choice): kotlin.ULong
 fun heft(marked: kotlin.Pair<api.Mark, api.Bytes>, lent: api.Parcel, moved: kotlin.Pair<api.Counter, api.Bytes>): kotlin.ULong
-fun spend(e: api.Counter, it: api.Counter): kotlin.ULong
+@kotlin.jvm.Throws(StringException::class) fun spend(e: api.Counter, it: api.Counter): kotlin.ULong
 fun isKept(status: api.Status): kotlin.Boolean
-fun attempt(check: () -> kotlin.Unit)
-fun tail(file: java.nio.channels.SeekableByteChannel, len: kotlin.ULong): kotlin.Pair<api.Bytes, kotlin.ULong>
-fun seekTo(file: java.nio.channels.SeekableByteChannel, at: kotlin.ULong): kotlin.ULong
+@kotlin.jvm.Throws(StringException::class) fun attempt(check: () -> kotlin.Unit)
+@kotlin.jvm.Throws(StringException::class) fun tail(file: java.nio.channels.SeekableByteChannel, len: kotlin.ULong): kotlin.Pair<api.Bytes, kotlin.ULong>
+@kotlin.jvm.Throws(StringException::class) fun seekTo(file: java.nio.channels.SeekableByteChannel, at: kotlin.ULong): kotlin.ULong
 suspend fun halved(n: kotlin.UInt): kotlin.UInt?
 suspend fun yielded(value: kotlin.UInt): kotlin.UInt
 suspend fun after(first: suspend () -> kotlin.Unit, value: kotlin.UInt): kotlin.UInt
-suspend fun within(polls: kotlin.UInt, future: suspend () -> kotlin.Unit)
-fun momentAt(ticks: kotlin.ULong, rate: kotlin.ULong): api.Moment
-fun stampAt(millis: kotlin.ULong): api.Stamp
+@kotlin.jvm.Throws(ErrorException::class) suspend fun within(polls: kotlin.UInt, future: suspend () -> kotlin.Unit)
+@kotlin.jvm.Throws(StringException::class) fun momentAt(ticks: kotlin.ULong, rate: kotlin.ULong): api.Moment
+@kotlin.jvm.Throws(StringException::class) fun stampAt(millis: kotlin.ULong): api.Stamp
 fun shifted(moment: api.Moment, shift: (api.Moment) -> api.Moment): api.Moment
 fun jvmSum(field: api.JvmField, method: api.JvmStatic, opt: api.OptIn): kotlin.UInt
 fun clockedAfter(clocked: api.Clocked, ticks: kotlin.ULong): api.Clocked
 fun emit(log: api.Log, lines: api.Bytes): kotlin.UInt
-suspend fun counted(n: kotlin.UInt, count: (kotlin.UInt) -> kotlin.Unit): kotlin.UInt
+@kotlin.jvm.Throws(ErrorException::class) suspend fun counted(n: kotlin.UInt, count: (kotlin.UInt) -> kotlin.Unit): kotlin.UInt
 fun filter(lines: api.Bytes, keep: (kotlin.UByte, kotlin.String) -> kotlin.Boolean): kotlin.UInt
 suspend fun logLater(log: api.Log): kotlin.Boolean
 fun logCounts(log: api.Log, level: kotlin.UByte, counter: api.Counter, more: kotlin.collections.List<api.Counter>): kotlin.UInt
@@ -1341,7 +1345,7 @@ fun watch(gauge: api.Gauge, watch: (api.Gauge) -> kotlin.ULong): kotlin.ULong
 fun tokenBytes(id: kotlin.UInt, len: kotlin.UInt): api.Bytes
 fun tokenSlice(id: kotlin.UInt, len: kotlin.UInt, of: kotlin.UInt): api.Bytes
 fun nextPacket(packet: api.Packet): api.Packet
-fun fingerprint(hex: kotlin.String): ArrayU8x4
+@kotlin.jvm.Throws(StringException::class) fun fingerprint(hex: kotlin.String): ArrayU8x4
 fun dropped(): kotlin.UInt
 fun bumpBoth(a: api.Tally, b: api.Tally): kotlin.UInt
 fun offset(by: () -> kotlin.UInt, byData: kotlin.UInt): kotlin.UInt
@@ -1394,7 +1398,7 @@ fun seedsCounterPolarPoint(from: api.PolarPoint): kotlin.ULong
 fun grow(area: api.Area, by: kotlin.UInt): api.Area
 fun wide(value: kotlin.UInt): api.SlotU32
 fun host(url: api.Url): kotlin.String?
-fun resolve(base: api.Url, path: kotlin.String): api.Url
+@kotlin.jvm.Throws(StringException::class) fun resolve(base: api.Url, path: kotlin.String): api.Url
 fun ports(addrs: kotlin.collections.List<api.SocketAddr>): kotlin.UShortArray
 fun doubledTtl(ttl: api.Duration): api.Duration
 fun file(dir: api.PathBuf, name: kotlin.String): api.PathBuf
@@ -1407,7 +1411,7 @@ fun words(text: kotlin.String): kotlin.collections.List<kotlin.String>
 fun sentence(words: kotlin.collections.List<kotlin.String>?): kotlin.String
 fun putNumber(value: kotlin.UInt, buf: api.Mut<api.Bytes>)
 fun secondLater(w235: api.Duration): api.Duration
-fun digit(r: api.Mut<api.Bytes>): kotlin.UByte
+@kotlin.jvm.Throws(ErrorException::class) fun digit(r: api.Mut<api.Bytes>): kotlin.UByte
 fun pushCounted(entry: api.Mut<kotlin.Pair<api.Bytes, kotlin.UInt>>, byte: kotlin.UByte): kotlin.UInt
 fun nudge(point: api.Mut<api.Point>, by: kotlin.Int)
 fun nudgeBy(point: api.Mut<api.Point>, refusal: api.Refusal)
@@ -1419,9 +1423,9 @@ suspend fun byteLen(bytes: api.Bytes): kotlin.ULong
 fun certLen(cert: api.TlsCert): kotlin.ULong
 fun certDer(cert: api.TlsCert): api.Bytes
 fun chainLen(chain: kotlin.collections.List<api.TlsCert>): kotlin.ULong
-fun verify(cert: api.TlsCert): kotlin.UInt
-fun parseCert(text: kotlin.String): kotlin.UInt
-suspend fun parseLater(text: kotlin.String): kotlin.UInt
+@kotlin.jvm.Throws(StringException::class) fun verify(cert: api.TlsCert): kotlin.UInt
+@kotlin.jvm.Throws(StringException::class) fun parseCert(text: kotlin.String): kotlin.UInt
+@kotlin.jvm.Throws(StringException::class) suspend fun parseLater(text: kotlin.String): kotlin.UInt
 fun resolver(name: kotlin.String): api.TlsResolver
 fun resolved(resolver: api.TlsResolver): kotlin.String
 fun failure(message: kotlin.String): api.StdIoError
@@ -1431,7 +1435,7 @@ fun sumAll(items: kotlin.collections.List<kotlin.UInt>): kotlin.UInt
 fun weighAllCounter(items: kotlin.collections.List<api.Counter>): kotlin.ULong
 fun offeredLen(alpns: kotlin.collections.List<api.Bytes>): kotlin.ULong
 fun joinWords(words: kotlin.collections.List<kotlin.String>): kotlin.String
-fun resume(alpn: kotlin.String, seconds: kotlin.UInt): api.TlsSession
+@kotlin.jvm.Throws(StringException::class) fun resume(alpn: kotlin.String, seconds: kotlin.UInt): api.TlsSession
 fun either(text: kotlin.String?): kotlin.ULong
 suspend fun eitherLater(text: kotlin.String?): kotlin.ULong
 fun prefixed(payload: api.Bytes, prefix: api.Bytes?): api.Bytes
@@ -1478,21 +1482,21 @@ fun flip(ip: api.IpAddr): api.IpAddr
 fun reasons(pairs: kotlin.collections.List<kotlin.Pair<api.Counter, api.Refusal>>, last: kotlin.Pair<api.Counter, api.Refusal>?): kotlin.String
 fun excuse(note: api.Bytes, entry: kotlin.Pair<api.Bytes, api.Refusal>): kotlin.ULong
 fun relay(log: api.Log, refusals: kotlin.collections.List<api.Refusal>): kotlin.UInt
-fun refuse(reason: kotlin.String): kotlin.UInt
+@kotlin.jvm.Throws(RefusalException::class) fun refuse(reason: kotlin.String): kotlin.UInt
 fun platform(): api.Platform
 fun pointerBits(platform: api.Platform): kotlin.UInt
 fun sameLabelled(labelled: api.Labelled): api.Labelled
 fun placement(): api.Placement
 fun isFamily(family: api.Family): kotlin.Boolean
 fun wasmOnly(): kotlin.UInt
-fun wasmTake(counter: api.Counter): kotlin.ULong
+@kotlin.jvm.Throws(ErrorException::class) fun wasmTake(counter: api.Counter): kotlin.ULong
 fun wasmLog(log: api.Log)
 fun boothCount(booth: api.Booth): kotlin.ULong
 fun page(): api.Page
 fun beats(beat: api.Beat): kotlin.UInt
 fun same(a: kotlin.Double, b: kotlin.Double): kotlin.Int
-fun returnValues(point: api.Mut<api.Point>, fail: kotlin.Boolean): kotlin.Triple<kotlin.String, api.Tuple4<kotlin.UByte, kotlin.Short, kotlin.UInt, kotlin.ULong>?, kotlin.collections.List<api.Bytes>>
-fun returnMoved(counter: api.Counter, fail: kotlin.Boolean): api.Counter
+@kotlin.jvm.Throws(ErrorException::class) fun returnValues(point: api.Mut<api.Point>, fail: kotlin.Boolean): kotlin.Triple<kotlin.String, api.Tuple4<kotlin.UByte, kotlin.Short, kotlin.UInt, kotlin.ULong>?, kotlin.collections.List<api.Bytes>>
+@kotlin.jvm.Throws(ErrorException::class) fun returnMoved(counter: api.Counter, fail: kotlin.Boolean): api.Counter
 fun nonZeros(): api.NonZeros
 fun describeNonZeros(nonZeros: api.NonZeros): kotlin.String
 fun nextHop(hop: kotlin.ULong?): kotlin.ULong?
@@ -1517,7 +1521,7 @@ fun clashAny(typeUrl: kotlin.String): api.ClashAny
 fun clashCandidate(at: kotlin.UByte): api.ClashCandidate
 fun clashIgnore(arg0: kotlin.UByte, arg1: kotlin.UByte, arg2: kotlin.UByte): kotlin.UByte
 fun clashEmpty(): api.ClashEmptyString
-fun clashAudible(tone: api.ClashTone): api.ClashTone
+@kotlin.jvm.Throws(kotlincollectionsListClashToneException::class) fun clashAudible(tone: api.ClashTone): api.ClashTone
 fun clashNested(a: kotlin.Pair<kotlin.Pair<kotlin.UByte, kotlin.UShort>, kotlin.UInt>?, b: api.Tuple1<kotlin.Triple<kotlin.UByte, kotlin.UShort, kotlin.UInt>>?): kotlin.UInt
 fun clashAudioEncoderFinish(): kotlin.UByte
 fun clashAudioEncoderFinish_(): kotlin.UByte

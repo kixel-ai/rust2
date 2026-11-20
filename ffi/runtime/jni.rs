@@ -377,15 +377,58 @@ fn region(env: *mut JNIEnv, array: jbyteArray, start: jint, len: jint) -> Vec<u8
 	bytes
 }
 
+/// The owner Kotlin passes for a `Bytes` over a direct `ByteBuffer`, which no buffer Rust
+/// lends has, as Kotlin's `_Native.__DIRECT`.
+const DIRECT_OWNER: jlong = -1;
+
+/// The memory of a live direct `ByteBuffer` from `start`, `len` long, failing loud past its
+/// capacity, which Kotlin checks first.
+fn direct_range(env: *mut JNIEnv, buffer: jobject, start: jint, len: jint) -> *mut u8 {
+	// SAFETY: `buffer` is a live direct `ByteBuffer`, which `load` checked the JVM supports.
+	let (base, capacity) = unsafe {
+		(
+			((**env).v1_4.GetDirectBufferAddress)(env, buffer).cast::<u8>(),
+			((**env).v1_4.GetDirectBufferCapacity)(env, buffer),
+		)
+	};
+	match (usize::try_from(start), usize::try_from(len), usize::try_from(capacity)) {
+		(Ok(start), Ok(len), Ok(capacity)) if start <= capacity && len <= capacity - start => match base.is_null() {
+			// An empty buffer may have no memory at all.
+			true if len == 0 => std::ptr::NonNull::dangling().as_ptr(),
+			true => rt::fail("jni", "a direct buffer has no memory"),
+			// SAFETY: within the buffer's memory, as just checked.
+			false => unsafe { base.add(start) },
+		},
+		_ => rt::fail("jni", "bytes passed are past their direct buffer's end"),
+	}
+}
+
+/// `len` bytes of a live direct `ByteBuffer` from `start`, copied once from its memory.
+fn direct(env: *mut JNIEnv, buffer: jobject, start: jint, len: jint) -> Vec<u8> {
+	let from = direct_range(env, buffer, start, len);
+	let n = len as usize;
+	let mut bytes = Vec::<u8>::with_capacity(n);
+	// SAFETY: `from` reaches `n` bytes, and `bytes` has room for them. Nothing writes them
+	// meanwhile: `Bytes(ByteBuffer)` documents a write during the call as the caller's race.
+	unsafe {
+		std::ptr::copy_nonoverlapping(from, bytes.as_mut_ptr(), n);
+		bytes.set_len(n);
+	}
+	bytes
+}
+
 /// Bytes Kotlin passes as a `Bytes` holds them, for Rust to take: none where `len` is -1,
-/// else those from `start` of what a non-zero `owner` holds, shared without a copy, or of
-/// the `byte[]` `held`, copied once.
+/// else those from `start` of what an `owner` Rust lent holds, shared without a copy, or of
+/// the direct `ByteBuffer` or the `byte[]` `held`, copied once.
 ///
 /// # Safety
 /// A non-zero `owner` came from [`hand`], and `held` keeps it from being freed.
 pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint, len: jint) -> rt::Buf {
 	if len == -1 {
 		return rt::Buf::NONE;
+	}
+	if owner == DIRECT_OWNER {
+		return rt::Buf::vec(direct(env, held, start, len));
 	}
 	if owner != 0 {
 		// SAFETY: the caller's contract.
@@ -543,6 +586,21 @@ pub unsafe fn copy(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, array
 	unsafe {
 		let bytes = range(owner, start, len);
 		((**env).v1_2.SetByteArrayRegion)(env, array, at, len, bytes.as_ptr().cast());
+	}
+}
+
+/// Copy the bytes `owner` holds from `start`, `len` long, into the memory of `buffer`, a
+/// direct `ByteBuffer`, at `at`.
+///
+/// # Safety
+/// As [`range`], and `buffer` is a live direct `ByteBuffer`.
+pub unsafe fn copy_direct(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, buffer: jobject, at: jint) {
+	let to = direct_range(env, buffer, at, len);
+	// SAFETY: the caller's contract, and `to` reaches `len` bytes; Rust's never overlap Java's,
+	// and nothing touches them meanwhile, as `Bytes.copyInto(ByteBuffer)` documents.
+	unsafe {
+		let bytes = range(owner, start, len);
+		std::ptr::copy_nonoverlapping(bytes.as_ptr(), to, bytes.len());
 	}
 }
 
@@ -1318,6 +1376,11 @@ impl Wire for rt::Buf {
 				let (start, len) = (r.get::<i32>(), r.get::<i32>());
 				r.referred(at, |env, array| region(env, array, start, len))
 			}
+			DIRECT => {
+				let at = r.get::<i32>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				r.referred(at, |env, buffer| direct(env, buffer, start, len))
+			}
 			TEXT => r.text(),
 			len => match usize::try_from(len) {
 				Ok(len) => rt::Buf::view(r.take(len)),
@@ -1352,6 +1415,10 @@ const LENT: i32 = -2;
 /// What precedes the place in a call's objects of Kotlin's `byte[]`, then where its bytes
 /// start and how many, where an encoded buffer's length would.
 const KOTLIN: i32 = -3;
+
+/// What precedes the place in a call's objects of a direct `ByteBuffer`, then where its bytes
+/// start and how many, where an encoded buffer's length would.
+const DIRECT: i32 = -5;
 
 /// What marks the next of a call's texts, which its objects hold, where an encoded buffer's
 /// length would.
