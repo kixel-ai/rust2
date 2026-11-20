@@ -141,8 +141,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &st
 		}
 	}
 	let variants = variants(abi, &types, &classes, &thrown);
-	crate::lock::variants(abi, &mut locked, |c, v| {
-		variants.get(&(c.to_string(), v.to_string())).cloned()
+	crate::lock::variants(abi, &mut locked, |i, v| {
+		variants.get(&(abi.enumeration(i), v.to_string())).cloned()
 	});
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
@@ -3625,8 +3625,6 @@ fn c_int(int: Int) -> &'static str {
 	}
 }
 
-/// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
-/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
 /// Whether go vet's `stdmethods` reports a method `name` of the Go types `params` and
 /// `results`: one named as a standard interface's but of another signature, as its
 /// `canonicalMethods` lists them. `Is`, `As`, and `Unwrap` are checked only on an `error`.
@@ -3666,6 +3664,7 @@ fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
 		&& !(alike(want, params, false) && alike(got, results, false))
 }
 
+/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
 fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
 	while !taken.insert(name.clone()) {
 		name.push('_');

@@ -2152,17 +2152,21 @@ pub(crate) fn escape(name: &str) -> String {
 		// lacks.
 		"i386",
 	];
-	// `out0`, `out1`, ... are a returned tuple's.
-	let out = name
-		.strip_prefix("out")
-		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
 		_ => {
 			let stem = name.trim_end_matches('_');
 			let trailing = name.len() - stem.len();
-			let escaped = out || trailing > 0 || KEYWORDS.contains(&name);
-			unmacroed(stem, trailing + usize::from(escaped), |_| false)
+			// `out0`, `out1`, ... are a returned tuple's.
+			let out = stem
+				.strip_prefix("out")
+				.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+			// A keyword's own name is never one of its family's, so they count from `stem_`:
+			// `bool`, which C defines as a macro too, keeps its one `_`.
+			match out || KEYWORDS.contains(&stem) {
+				true => unmacroed(&format!("{stem}_"), trailing, |_| false),
+				false => unmacroed(stem, trailing + usize::from(trailing > 0), |_| false),
+			}
 		}
 	}
 }

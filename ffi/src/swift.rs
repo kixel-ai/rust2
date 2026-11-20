@@ -74,6 +74,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		g.names.insert(name.clone(), "a type".to_string());
 	}
 	g.locked = crate::lock::types(abi, &g.classes);
+	// Each case, which the enum's traits may rename.
+	let mut locked = std::mem::take(&mut g.locked);
+	crate::lock::variants(abi, &mut locked, |i, v| {
+		let class = g.class(&abi.enumeration(i));
+		Some(format!("{class}.{}", unquote(&case_of(abi.api.enums[i].traits, v))))
+	});
+	g.locked = locked;
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));

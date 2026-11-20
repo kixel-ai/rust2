@@ -2627,6 +2627,11 @@ mod tests {
 		assert_eq!(escape("_STRING_H_"), "_STRING_H___");
 		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
 		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H____");
+		assert_eq!(crate::abi::escape("bool"), "bool_");
+		assert_eq!(crate::abi::escape("bool_"), "bool__");
+		assert_eq!(crate::abi::escape("or__"), "or___");
+		assert_eq!(crate::abi::escape("out0"), "out0_");
+		assert_eq!(crate::abi::escape("out0_"), "out0__");
 		// Only C's `tgmath.h` defines `sin`, and only as a function-like macro.
 		assert_eq!(escape("sin"), "sin");
 		// A keyword C defines as a macro keeps its one escape, past which the rest move.

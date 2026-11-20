@@ -100,8 +100,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
 	let mut locked = std::mem::take(&mut g.locked);
-	crate::lock::variants(abi, &mut locked, |c, v| {
-		g.variants.get(&(g.class(c), v.to_string())).cloned()
+	// A plain enum's value, which its traits may rename, or a data enum's variant class.
+	crate::lock::variants(abi, &mut locked, |i, v| {
+		let (class, e) = (g.class(&abi.enumeration(i)), &abi.api.enums[i]);
+		match e.plain() {
+			true => Some(format!("{class}.{}", enum_value(e.traits, v))),
+			false => g.variants.get(&(class, v.to_string())).cloned(),
+		}
 	});
 	g.locked = locked;
 	let types: Vec<String> = (g.classes.keys())

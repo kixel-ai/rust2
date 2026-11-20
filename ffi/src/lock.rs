@@ -44,17 +44,17 @@ pub(crate) fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, S
 		.collect()
 }
 
-/// Record names made for enum variants by a generator's collision rules.
+/// Record the names a generator gives enum variants.
 ///
-/// `variant` gives a variant's name by its enum's C name and its Rust name, if it has one.
+/// `variant` gives a variant's name by its enum's index and its Rust name, if it has one.
 pub(crate) fn variants(
 	abi: &Abi<'_>,
 	names: &mut BTreeMap<String, String>,
-	variant: impl Fn(&str, &str) -> Option<String>,
+	variant: impl Fn(usize, &str) -> Option<String>,
 ) {
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
-			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
+			if let Some(name) = variant(i, &v.name) {
 				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
 			}
 		}
@@ -998,6 +998,68 @@ mod tests {
 			"{:?}",
 			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
 		);
+	}
+
+	/// A case named as a member a trait gives the enum moves out of its way once the enum
+	/// has the trait, which the structure accepts and the names report.
+	#[test]
+	fn a_trait_renaming_a_case_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.enums.push(crate::ir::Enum {
+			path: vec!["lock".into(), "Mode".into()],
+			shown: vec!["lock".into(), "Mode".into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			variants: vec![variant("Default"), variant("Debug")],
+			exhaustive: true,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+		});
+		base.functions[0].ok = Type::Enum(0);
+		let mut now = base.clone();
+		now.enums[0].traits.default = true;
+		now.enums[0].traits.debug = true;
+		assert!(breaks(&base, &now, "lock").is_empty(), "an added trait passes structurally");
+		let abi = Abi::new(&now, "lock");
+		let old = |language: &str| match language {
+			"Swift" => crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap().names,
+			_ => crate::dart::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap().names,
+		};
+		let new = |language: &str| match language {
+			"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
+			_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+		};
+		for (language, renamed) in [
+			("Swift", "`Mode.default` is now `Mode.default_`"),
+			("Dart", "`Mode.debug` is now `Mode.debug_`"),
+		] {
+			let changes = name_breaks(
+				&BTreeMap::from([(language.into(), old(language))]),
+				&BTreeMap::from([(language.into(), new(language))]),
+				&base,
+				&abi,
+			);
+			assert!(
+				changes.iter().any(|c| c.what.contains(renamed)),
+				"{language}: {:?}",
+				changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+			);
+		}
 	}
 
 	fn object(name: &str) -> crate::ir::Object {
