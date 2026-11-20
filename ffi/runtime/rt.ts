@@ -1692,6 +1692,9 @@ async function instantiate(source: Source, glue: Glue): Promise<void> {
 	});
 	const exports = instance.exports as Exports;
 	memory = exports.memory as WebAssembly.Memory;
+	// A refused load's views are of its own memory, which this one never detaches.
+	view = new DataView(new ArrayBuffer(0));
+	bytes = new Uint8Array(0);
 	prefix = glue.prefix;
 	space = glue.space;
 	exports._initialize?.();

@@ -815,9 +815,11 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The twin of the C struct `name`, which holds an `f32`: of its layout, each `f32` in it
-	/// as its bits, so it crosses by the ABI `dart:ffi` gives its class.
+	/// as its bits, so it crosses by the ABI `dart:ffi` gives its class. Named in the glue's
+	/// namespace, which no C name takes.
 	fn twin(&mut self, name: &str) -> String {
-		let twin = format!("{name}_d");
+		let twin = format!("{}_twin_{}", self.space, self.bare(name));
+		let union = format!("{}_union_{}", self.space, self.bare(name));
 		if !self.twins.insert(name.to_string()) {
 			return twin;
 		}
@@ -834,7 +836,7 @@ impl<'a> Gen<'a> {
 					.map(|(n, p)| format!("\tpub v{n}: {},\n", self.crossing(&Ty::Struct(p.clone()))))
 					.collect();
 				format!(
-					"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {twin}(pub i32, pub {twin}u);\n\n#[repr(C)]\n#[derive(Clone, Copy)]\npub union {twin}u {{\n{}}}\n\n",
+					"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {twin}(pub i32, pub {union});\n\n#[repr(C)]\n#[derive(Clone, Copy)]\npub union {union} {{\n{}}}\n\n",
 					members.concat()
 				)
 			}
