@@ -632,7 +632,8 @@ the rest cross encoded.
   `IllegalStateException` naming the function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
-  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
+  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
+  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -643,11 +644,15 @@ the rest cross encoded.
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,
   `val (y, n) = x.take()`.
 - **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
-  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
-  at a call's top level or in a record; those Rust lends a closure or trait method are
-  copied. A `Bytes` is read only through `size`,
-  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
-  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  which `Bytes(ByteArray)` and `Bytes(ByteBuffer)` hold without a copy, are copied once
+  into a buffer Rust takes, at a call's top level or in a record; those Rust lends a
+  closure or trait method are copied. A direct `ByteBuffer`'s, as a `MediaCodec` output
+  is, are copied straight from its memory, from its position until its limit when made;
+  a heap one's array is shared, or copied when made if it is read-only. A `Bytes` is
+  read only through `size`, `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of
+  Rust's memory escapes and no read meets it freed; `copyInto(ByteBuffer)` copies into a
+  buffer at its position once, as `put` does, straight into a direct one's memory, such as
+  a `MediaCodec` input's. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
@@ -664,7 +669,7 @@ the rest cross encoded.
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
   compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
-  holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  holding it, whose message is its `Display`, a checked `Exception` each function that throws it declares with `@Throws`, so Java can catch it. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
 - **Std values** no Kotlin or Java type holds exactly are the runtime's own, each holding

@@ -63,6 +63,7 @@ sealed interface IpAddr {
 
 	companion object {
 		/** [address] exactly, throwing `IllegalArgumentException` for an IPv6 one with a scope, which Rust's `IpAddr` has no room for. */
+		@kotlin.jvm.JvmStatic
 		fun of(address: java.net.InetAddress): IpAddr = when (address) {
 			is java.net.Inet6Address -> Ipv6Addr(address)
 			else -> Ipv4Addr(address.address)
@@ -137,6 +138,7 @@ sealed interface SocketAddr {
 
 	companion object {
 		/** [address], throwing `IllegalArgumentException` for an unresolved one, which Rust's `SocketAddr` has no form of. */
+		@kotlin.jvm.JvmStatic
 		fun of(address: java.net.InetSocketAddress): SocketAddr = when (_resolved(address)) {
 			is java.net.Inet6Address -> SocketAddrV6(address)
 			else -> SocketAddrV4(address)

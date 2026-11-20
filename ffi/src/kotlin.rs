@@ -150,7 +150,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -200,6 +200,10 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1copy(env: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, start: jint, len: jint, destination: jbyteArray, at: jint) {{\n\
 		\tunsafe {{ rt::copy(env, owner, start, len, destination, at) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1copy_1direct(env: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, start: jint, len: jint, destination: jobject, at: jint) {{\n\
+		\tunsafe {{ rt::copy_direct(env, owner, start, len, destination, at) }}\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
@@ -322,31 +326,48 @@ const BYTES: &str = "/**
  * freed once the GC finds no `Bytes` reaching it, its slices included.
  */
 class Bytes private constructor(
-\t// Kotlin's bytes, or null for Rust's.
+\t// Kotlin's bytes, or null for a direct buffer's or Rust's.
 \tprivate val array: ByteArray?,
+\t// A direct buffer's bytes, or null for Kotlin's array or Rust's.
+\tprivate val direct: java.nio.ByteBuffer?,
 \t// Rust's buffer, which every slice of it holds.
 \tprivate val lent: _Native.__Lent?,
-\t// Where these start in [array] or [lent].
+\t// Where these start in [array], [direct], or [lent].
 \tprivate val offset: Int,
 \t/** How many bytes these hold. */
 \tval size: Int,
 ) {
 \t/** [bytes] held without a copy, as a record passed in takes them. */
-\tconstructor(bytes: ByteArray) : this(bytes, null, 0, bytes.size)
+\tconstructor(bytes: ByteArray) : this(bytes, null, null, 0, bytes.size)
 
-\tinternal constructor(lent: _Native.__Lent, size: Int) : this(null, lent, 0, size)
+\t/**
+\t * The bytes of [buffer] from its position until its limit, held without a copy, so a
+\t * later write to them shows here; its position and limit may change freely. A direct
+\t * buffer's cross to Rust in one copy straight from its memory, as a `MediaCodec`
+\t * output's do; a heap buffer's array is shared, or copied if read-only.
+\t */
+\tconstructor(buffer: java.nio.ByteBuffer) : this(
+\t\tif (buffer.isDirect) null else _Native.__heap(buffer),
+\t\tif (buffer.isDirect) buffer else null,
+\t\tnull,
+\t\tif (buffer.isDirect) buffer.position() else if (buffer.hasArray()) buffer.arrayOffset() + buffer.position() else 0,
+\t\tbuffer.remaining(),
+\t)
+
+\tinternal constructor(lent: _Native.__Lent, size: Int) : this(null, null, lent, 0, size)
 
 \t/** The byte at [index], throwing `IndexOutOfBoundsException` out of range. */
 \toperator fun get(index: Int): Byte {
 \t\tif (index < 0 || index >= size) throw kotlin.IndexOutOfBoundsException(\"index $index of $size bytes\")
-\t\tval array = array ?: return lent!!.let { _Native.__bytes_get(it, it.owner, offset + index) }
-\t\treturn array[offset + index]
+\t\tarray?.let { return it[offset + index] }
+\t\tdirect?.let { return it.get(offset + index) }
+\t\treturn lent!!.let { _Native.__bytes_get(it, it.owner, offset + index) }
 \t}
 
 \t/** The bytes from [startIndex] until [endIndex], sharing these without a copy. */
 \tfun slice(startIndex: Int, endIndex: Int = size): Bytes {
 \t\trange(startIndex, endIndex)
-\t\treturn Bytes(array, lent, offset + startIndex, endIndex - startIndex)
+\t\treturn Bytes(array, direct, lent, offset + startIndex, endIndex - startIndex)
 \t}
 
 \t/**
@@ -361,15 +382,48 @@ class Bytes private constructor(
 \t\t}
 \t\tval array = array
 \t\tif (array != null) return array.copyInto(destination, destinationOffset, offset + startIndex, offset + endIndex)
+\t\tval direct = direct
+\t\tif (direct != null) {
+\t\t\tview(direct, startIndex, endIndex).get(destination, destinationOffset, n)
+\t\t\treturn destination
+\t\t}
 \t\tif (n > 0) lent!!.let { _Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination, destinationOffset) }
 \t\treturn destination
 \t}
 
-\t/** What holds the bytes, kept alive across a call passing them: Kotlin's array or Rust's buffer. */
-\tinternal val held: Any? get() = array ?: lent
+\t/**
+\t * Copy the bytes from [startIndex] until [endIndex] into [destination] at its position,
+\t * which moves past them, returning it, as `ByteBuffer.put` does: one copy, straight
+\t * into a direct buffer's memory, such as a `MediaCodec` input's. Throws
+\t * `BufferOverflowException` past its limit and `ReadOnlyBufferException` for a
+\t * read-only one, writing nothing.
+\t */
+\tfun copyInto(destination: java.nio.ByteBuffer, startIndex: Int = 0, endIndex: Int = size): java.nio.ByteBuffer {
+\t\trange(startIndex, endIndex)
+\t\tval n = endIndex - startIndex
+\t\tif (destination.isReadOnly) throw java.nio.ReadOnlyBufferException()
+\t\tif (destination.remaining() < n) throw java.nio.BufferOverflowException()
+\t\tval array = array
+\t\tif (array != null) return destination.put(array, offset + startIndex, n)
+\t\tval direct = direct
+\t\tif (direct != null) return destination.put(view(direct, startIndex, endIndex))
+\t\tval at = destination.position()
+\t\tif (n > 0) lent!!.let {
+\t\t\twhen (destination.isDirect) {
+\t\t\t\ttrue -> _Native.__bytes_copy_direct(it, it.owner, offset + startIndex, n, destination, at)
+\t\t\t\tfalse -> _Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination.array(), destination.arrayOffset() + at)
+\t\t\t}
+\t\t}
+\t\tval moved: java.nio.Buffer = destination
+\t\tmoved.position(at + n)
+\t\treturn destination
+\t}
 
-\t/** Rust's owner of the bytes, which a call passing them shares without a copy, or 0 for Kotlin's. */
-\tinternal val owner: Long get() = lent?.owner ?: 0L
+\t/** What holds the bytes, kept alive across a call passing them: Kotlin's array, a direct buffer, or Rust's buffer. */
+\tinternal val held: Any? get() = array ?: direct ?: lent
+
+\t/** Rust's owner of the bytes, which a call passing them shares without a copy; [_Native.__DIRECT] for a direct buffer's, which it copies from its memory, or 0 for Kotlin's array. */
+\tinternal val owner: Long get() = lent?.owner ?: if (direct != null) _Native.__DIRECT else 0L
 
 \t/** Where the bytes start in what holds them. */
 \tinternal val start: Int get() = offset
@@ -384,9 +438,21 @@ class Bytes private constructor(
 \t/** A hash of the bytes, as [equals] compares them. */
 \toverride fun hashCode(): Int = contents().hashCode()
 
-\t// The bytes in Kotlin's memory, Rust's copied across in one call.
-\tprivate fun contents(): java.nio.ByteBuffer =
-\t\tjava.nio.ByteBuffer.wrap(array ?: toByteArray(), if (array == null) 0 else offset, size)
+\t// The bytes as a buffer: Kotlin's or a direct buffer's in place, Rust's copied across in one call.
+\tprivate fun contents(): java.nio.ByteBuffer = when {
+\t\tarray != null -> java.nio.ByteBuffer.wrap(array, offset, size)
+\t\tdirect != null -> view(direct, 0, size)
+\t\telse -> java.nio.ByteBuffer.wrap(toByteArray())
+\t}
+
+\t// The bytes from [startIndex] until [endIndex] of [direct], apart from its own position
+\t// and limit. Set through `Buffer`, whose `position` and `limit` every JVM and Android has.
+\tprivate fun view(direct: java.nio.ByteBuffer, startIndex: Int, endIndex: Int): java.nio.ByteBuffer {
+\t\tval view = direct.duplicate()
+\t\tval moved: java.nio.Buffer = view
+\t\tmoved.limit(offset + endIndex).position(offset + startIndex)
+\t\treturn view
+\t}
 
 \tprivate fun range(startIndex: Int, endIndex: Int) {
 \t\tif (startIndex < 0 || startIndex > endIndex || endIndex > size) {
@@ -1582,7 +1648,7 @@ impl<'a> Gen<'a> {
 			};
 			self.native(&format!("{bare}_default"), &[], (jni, native), &rust);
 			statics.push(format!(
-				"\t\t/** Rust's `Default`. */\n\t\tfun default(): {class} = {lift}\n"
+				"\t\t/** Rust's `Default`. */\n\t\t@kotlin.jvm.JvmStatic\n\t\tfun default(): {class} = {lift}\n"
 			));
 		}
 	}
@@ -3101,7 +3167,17 @@ impl<'a> Gen<'a> {
 			_ if getter => format!("{head} = {}", code.replace('\n', "\n\t")),
 			_ => format!("{head} = {code}"),
 		};
-		let code = format!("{}{code}\n", docs(text.trim(), ""));
+		// What plain Java needs to call it: a companion's member as the type's own static, and
+		// the checked exception it throws declared, so javac accepts its `catch`.
+		let mut annotations = String::new();
+		if place == Place::Static && !top {
+			annotations.push_str("@kotlin.jvm.JvmStatic\n");
+		}
+		if let Some(exception) = &exception {
+			let target = if getter { "get:" } else { "" };
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
+		}
+		let code = format!("{}{annotations}{code}\n", docs(text.trim(), ""));
 		Some(indent_by(&code, indent_level))
 	}
 
