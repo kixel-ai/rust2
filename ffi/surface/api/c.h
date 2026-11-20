@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xe9e73593591b8c17ULL)
+#define API_CONTRACT ((uint64_t)0x56dc8776c75ad783ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -690,6 +690,9 @@ typedef struct api_Clocked {
 	api_Moment at;
 	uint32_t count;
 } api_Clocked;
+typedef struct api_Rated {
+	uint64_t opaque[2];
+} api_Rated;
 typedef struct api_Hits {
 	uint64_t opaque[2];
 } api_Hits;
@@ -1162,6 +1165,10 @@ uint64_t api_Wide_sum(const api_Wide *self);
 void api_Clocked_free(api_Clocked *self);
 bool api_Clocked_eq(const api_Clocked *a, const api_Clocked *b);
 api_buf api_Clocked_debug(const api_Clocked *self);
+bool api_Rated_eq(const api_Rated *a, const api_Rated *b);
+api_buf api_Rated_debug(const api_Rated *self);
+api_Rated api_Rated_new(uint64_t count, uint64_t scale);
+uint64_t api_Rated_scale(const api_Rated *self);
 api_buf api_Score_debug(const api_Score *self);
 api_Score api_Score_of(uint64_t count);
 uint64_t api_Score_count(const api_Score *self);

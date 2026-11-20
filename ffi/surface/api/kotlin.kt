@@ -215,7 +215,7 @@ class Rated internal constructor() {
 	override fun hashCode(): kotlin.Int
 	fun scale(): kotlin.ULong
 	companion object {
-		fun new(count: kotlin.ULong, scale: kotlin.ULong): api.Rated
+		@kotlin.jvm.JvmStatic fun new(count: kotlin.ULong, scale: kotlin.ULong): api.Rated
 	}
 }
 @kotlin.jvm.JvmInline value class Score internal constructor(internal val bits: Long) {
