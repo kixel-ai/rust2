@@ -33,11 +33,31 @@ jobs:
       - name: Host
         run: |
           uname -a; cat /proc/sys/vm/mmap_rnd_bits /proc/sys/vm/mmap_rnd_compat_bits || true
-          sudo sysctl vm.mmap_rnd_bits vm.mmap_rnd_compat_bits; sudo sysctl -w vm.mmap_rnd_bits=28; getconf PAGESIZE; getconf VA_BITS; cat /proc/cpuinfo | grep -m1 -i 'model name\|cpu part'
+          sudo sysctl vm.mmap_rnd_bits vm.mmap_rnd_compat_bits; getconf PAGESIZE;  cat /proc/cpuinfo | grep -m1 -i 'model name\|cpu part'
 
       - name: Sanitize
         run: nix develop .#sanitize --command bash -c 'cd ffi && export PATH=$RUST2_TS_TOOLCHAIN/bin:$PATH && for t in api_asan api_tsan api_swift_tsan; do cargo test --locked --test fixtures -- --ignored --exact $t 2>&1 | tail -40 || true; done'
 
+
+      - name: Debug
+        if: always()
+        run: |
+          nix develop .#sanitize --command bash -c '
+            cd ffi/target/tmp/api
+            ls address thread || true
+            for d in address thread; do
+              echo "== $d"
+              ASAN_OPTIONS=verbosity=2:abort_on_error=1 TSAN_OPTIONS=verbosity=2 $d/api-c 2>&1 | tail -30
+              echo "exit $?"
+              lldb -b -o "settings set target.process.stop-on-sharedlibrary-events false" -o run -o bt -o "register read" -o "image list" -- $d/api-c 2>&1 | tail -60
+            done
+            cat > /tmp/hello.c <<EOF2
+          #include <stdio.h>
+          int main(){puts("hi");return 0;}
+          EOF2
+            for s in address thread; do clang -fsanitize=$s /tmp/hello.c -o /tmp/hello-$s && /tmp/hello-$s; echo "hello $s exit $?"; done
+            clang --version
+          '
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
   # Python on the platforms the job above lacks, and on macOS the Swift with Apple's
