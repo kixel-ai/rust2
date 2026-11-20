@@ -207,8 +207,8 @@ crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
 runs on a tag, before anything is published, and gives every wheel, the XCFramework, the Go
 module's `.zip` and `.mod`, each C archive, and the npm tarball a build provenance
-attestation and an SBOM attestation, which `gh attestation verify
-<file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
+attestation and an SBOM attestation (the tarball's from its own `sbom.cdx.json`), which
+`gh attestation verify <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
 attestations for the wheels as well.
 

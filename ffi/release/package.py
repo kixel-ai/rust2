@@ -1370,9 +1370,9 @@ def purl(package):
     return base
 
 
-def sbom(info, crate):
-    """A CycloneDX SBOM of the crates the binding is built from, the same for every host and target."""
-    meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", "--features", "python",
+def sbom(info, crate, feature="python"):
+    """A CycloneDX SBOM of the crates the binding is built from with `feature`, the same for every host and target."""
+    meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", "--features", feature,
                              "--manifest-path", crate))
     lock = tomllib.loads((Path(crate).parent / "Cargo.lock").read_text(encoding="utf-8"))
     checksums = {(p["name"], p["version"], p.get("source")): p["checksum"] for p in lock["package"] if "checksum" in p}
@@ -1882,6 +1882,8 @@ def web(args):
     sys.stderr.write(built.stderr)
     wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
     npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)
+    # Its own, as the web crate's dependencies are not the native export's.
+    (out / "sbom.cdx.json").write_bytes(sbom(info, export_dir / "Cargo.toml", "web"))
     packed = output("npm", "pack", "--silent", "--pack-destination", out, cwd=npm).strip()
     if not (out / packed).is_file():
         raise SystemExit(f"npm pack wrote no {packed}")
