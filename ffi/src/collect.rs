@@ -1370,7 +1370,7 @@ impl<'tcx> Collector<'tcx> {
 		}
 		types.visit_with(visitor);
 		let mut traits = Vec::new();
-		let mut bounded = |clause: ty::Clause<'tcx>, traits: &mut Vec<DefId>| {
+		let bounded = |clause: ty::Clause<'tcx>, traits: &mut Vec<DefId>| {
 			if let Some(bound) = clause.as_trait_clause()
 				&& self.exported(bound.def_id().krate)
 				&& !traits.contains(&bound.def_id())
