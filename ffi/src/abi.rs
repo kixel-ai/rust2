@@ -2158,8 +2158,29 @@ pub(crate) fn escape(name: &str) -> String {
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) || defined(name) => format!("{name}_"),
-		_ => name.to_string(),
+		_ => {
+			let stem = name.trim_end_matches('_');
+			let trailing = name.len() - stem.len();
+			let escaped = out || trailing > 0 || KEYWORDS.contains(&name);
+			unmacroed(stem, trailing + usize::from(escaped), |_| false)
+		}
+	}
+}
+
+/// `stem` with trailing `_`s, as many as the `n`th count, from none, at which neither a
+/// macro nor what `also` names holds it: so the names of one stem keep their order and stay
+/// apart, as `_STRING_H` and `_STRING_H_` are both macros, and none takes a macro's.
+pub(crate) fn unmacroed(stem: &str, n: usize, also: impl Fn(&str) -> bool) -> String {
+	let mut name = stem.to_string();
+	let mut free = 0;
+	loop {
+		if !(defined(&name) || also(&name)) {
+			if free == n {
+				return name;
+			}
+			free += 1;
+		}
+		name.push('_');
 	}
 }
 
@@ -2185,7 +2206,27 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest, unique};
+	use super::{apart, defined, escape, shortest, unique};
+
+	#[test]
+	fn escapes_keep_apart_from_every_macro() {
+		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
+		for stem in macros.map(|m| m.trim_end_matches('_')) {
+			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
+			// A C++ keyword's escape merges a name with its own, which `cpp-name-collisions` keeps
+			// apart.
+			let keyword = crate::cpp::escape(stem) != super::unmacroed(stem, 0, |name| name == "i386");
+			let escapes: &[fn(&str) -> String] = match keyword {
+				true => &[escape],
+				false => &[escape, crate::cpp::escape],
+			};
+			for escape in escapes {
+				let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
+				assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
+				assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
+			}
+		}
+	}
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {

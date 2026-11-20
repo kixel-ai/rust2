@@ -2458,15 +2458,17 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	// A macro is kept apart from its name with trailing `_`s too, so `unix` and `unix_` stay
-	// apart, unless it ends in `_` itself, as glibc's `__attribute_pure__` does; 32-bit x86's
-	// GNU dialects predefine `i386`, which `macros.txt` lacks.
-	let bare = name.trim_end_matches('_');
-	let defined = abi::defined(name) || abi::defined(bare) || bare == "i386";
+	// A keyword takes one `_`, which makes no macro's name. Otherwise a macro's name, and
+	// each with trailing `_`s past it, takes one more, as [`abi::unmacroed`] counts them, so
+	// `unix` and `unix_` stay apart; 32-bit x86's GNU dialects predefine `i386`, which
+	// `macros.txt` lacks.
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || defined => format!("{name}_"),
-		_ => name.to_string(),
+		_ if KEYWORDS.contains(&name) => format!("{name}_"),
+		_ => {
+			let stem = name.trim_end_matches('_');
+			abi::unmacroed(stem, name.len() - stem.len(), |name| name == "i386")
+		}
 	}
 }
 
@@ -2505,9 +2507,20 @@ mod tests {
 		assert_eq!(escape("h_addr"), "h_addr_");
 		// Reserved, but defined by glibc and exported by libc.
 		assert_eq!(escape("__WALL"), "__WALL_");
+		// Apart from a macro ending in `_`, and from each other.
 		assert_eq!(escape("__attribute_pure__"), "__attribute_pure___");
+		assert_eq!(escape("__attribute_pure___"), "__attribute_pure____");
+		assert_eq!(escape("__attribute_pure_"), "__attribute_pure_");
+		// Past both of a family's macros, `_STRING_H` and `_STRING_H_`.
+		assert_eq!(escape("_STRING_H"), "_STRING_H__");
+		assert_eq!(escape("_STRING_H_"), "_STRING_H___");
+		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
+		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H____");
 		// Only C's `tgmath.h` defines `sin`, and only as a function-like macro.
 		assert_eq!(escape("sin"), "sin");
+		// A keyword C defines as a macro keeps its one escape, past which the rest move.
+		assert_eq!(escape("bool"), "bool_");
+		assert_eq!(escape("bool_"), "bool__");
 		// Predefined by GNU dialects.
 		assert_eq!(escape("i386"), "i386_");
 		assert_eq!(escape("unix"), "unix_");
