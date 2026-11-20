@@ -574,8 +574,10 @@ int checks() {
 	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
 	{
 		api::clash_Escaped escaped{3};
-		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+		check(escaped.delete_2() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
 	}
+	// A name C++ reserves, which holds `__`, drops its leading `_`s and each run's others.
+	check(api::all_(1) == 3 && api::_deprecated(1) == 2, "a name C++ reserves escapes unreserved");
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{
 		api::Name name = api::Name::owned("a");

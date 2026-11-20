@@ -4,9 +4,10 @@
 //! Each name is its C name without the prefix, in a namespace of the prefix: `moq_track`
 //! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
-//! named as its class, a field, or a trait's member, takes a trailing `_`, and one a
-//! keyword's escape makes another's takes another (`delete` beside `delete_` is `delete__`);
-//! so does a parameter named as a member or as anything in the namespace, which it would hide. An object is a class owning
+//! named as its class, a field, or a trait's member, takes a trailing `_`, a name C++
+//! reserves drops its `__`s (`__all__` is `all_`), and one an escape makes another's takes
+//! `2` (`delete` beside `delete_` is `delete_2`), since `__` is reserved; so does a parameter
+//! named as a member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
 //! share; a record a struct, and a `Copy` type with private fields a class over its C
@@ -75,8 +76,19 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		hashes: String::new(),
 		defined: BTreeSet::new(),
 		globals: runtime_names().map(str::to_string).collect(),
+		names: BTreeMap::new(),
 		errors: Vec::new(),
 	};
+	let c: Vec<&str> = (abi.declared().into_iter())
+		.filter(|c| c.strip_prefix(p.as_str()).is_some_and(|rest| rest.starts_with('_')))
+		.collect();
+	let rust: Vec<String> = c.iter().map(|c| c[p.len() + 1..].to_string()).collect();
+	let runtime: BTreeSet<&str> = runtime_names().collect();
+	h.names = c
+		.iter()
+		.map(|c| c.to_string())
+		.zip(named(&rust, |n| runtime.contains(n)))
+		.collect();
 	// A C++ class is named by its C name alone.
 	let api = abi.api;
 	let classes = (0..api.records.len())
@@ -173,6 +185,9 @@ struct Header<'a> {
 	defined: BTreeSet<String>,
 	/// The names declared in the namespace, which a parameter named alike would hide.
 	globals: BTreeSet<String>,
+	/// The C++ name of each C name the API declares, kept apart from each other's and the
+	/// runtime's, as escaping may make two alike (`__all__` and `all_`).
+	names: BTreeMap<String, String>,
 	errors: Vec<String>,
 }
 
@@ -189,7 +204,10 @@ impl<'a> Header<'a> {
 
 	/// A C name without the prefix, as C++ names it.
 	fn name(&self, c: &str) -> String {
-		escape(&c[self.abi.prefix.len() + 1..])
+		match self.names.get(c) {
+			Some(name) => name.clone(),
+			None => escape(&c[self.abi.prefix.len() + 1..]),
+		}
 	}
 
 	/// A C name's C++ name, qualified.
@@ -2223,8 +2241,9 @@ fn apart(bare: &str, class: &str) -> String {
 
 /// The C++ names of `rust`, the names of one scope, each kept apart from those `taken` holds
 /// and the rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every
-/// other, escaped, takes `_` while a name before it in Rust's order holds it. So a field
-/// `new_` stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
+/// other, escaped, takes a [`step`] while a name before it in Rust's order holds it. So a
+/// field `new_` stays `new_` beside `new`, which becomes `new_2`, and no order of the source
+/// moves one.
 fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
 	let kept: Vec<bool> = (0..rust.len())
@@ -2235,7 +2254,7 @@ fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
 	for k in moved {
 		while taken(&names[k]) || held.contains(&names[k]) {
-			names[k].push('_');
+			step(&mut names[k]);
 		}
 		held.push(names[k].clone());
 	}
@@ -2248,14 +2267,23 @@ fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	named(&rust, |_| false)
 }
 
-/// The C++ name of the parameter `rust`, with `_` appended while `taken` holds it or it is
+/// The C++ name of the parameter `rust`, a [`step`] further while `taken` holds it or it is
 /// a name the header gives its own locals and members.
 fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
 	let mut name = escape(rust);
 	while taken(&name) || generated(&name) {
-		name.push('_');
+		step(&mut name);
 	}
 	name
+}
+
+/// Moves `name` one step from a name it clashed with: `_` appended, or `2` after one already
+/// there, since `__` would make a name C++ reserves.
+fn step(name: &mut String) {
+	match name.ends_with('_') {
+		true => name.push('2'),
+		false => name.push('_'),
+	}
 }
 
 /// Whether the header names its own locals and members `name`: the arena `a_`, a handle's
@@ -2440,8 +2468,10 @@ fn cpp_int(int: Int) -> &'static str {
 	}
 }
 
-/// A name C++ would read as a keyword or reserves for itself with `_` appended, and one
-/// starting with a digit with `_` prepended, as C's are.
+/// A name C++ would read as a keyword or a macro with `_` appended, and one starting with a
+/// digit with `_` prepended, as C's are. One C++ reserves for the implementation, holding
+/// `__` or starting with `_` and a capital ([lex.name]), first drops its leading `_`s and
+/// takes one `_` for each run, so `__all__` is `all_`: appending keeps a reserved name reserved.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -2541,14 +2571,38 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	// Each name of a macro and trailing `_`s takes another, so `unix` and `unix_` stay apart.
+	let mut unreserved = String::new();
+	let name = match reserved(name) {
+		true => {
+			for c in name.trim_start_matches('_').chars() {
+				if !(c == '_' && unreserved.ends_with('_')) {
+					unreserved.push(c);
+				}
+			}
+			// Rust's `__` alone, which a parameter may take.
+			if unreserved.is_empty() {
+				unreserved.push('_');
+			}
+			unreserved.as_str()
+		}
+		false => name,
+	};
+	// Each name of a macro and trailing `_`s takes a step, so `unix` and `unix_` stay apart.
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || abi::MACROS.contains(&name.trim_end_matches('_')) || abi::reserved(name) => {
-			format!("{name}_")
+		_ if KEYWORDS.contains(&name) || abi::MACROS.contains(&name.trim_end_matches('_')) => {
+			let mut name = name.to_string();
+			step(&mut name);
+			name
 		}
 		_ => name.to_string(),
 	}
+}
+
+/// Whether C++ reserves `name` for the implementation in every scope: one holding `__`, or
+/// starting with `_` and a capital.
+fn reserved(name: &str) -> bool {
+	name.contains("__") || abi::reserved(name)
 }
 
 #[cfg(test)]
@@ -2572,8 +2626,8 @@ mod tests {
 		let method = |rust: &str| named(&[rust.to_string()], |n| taken.iter().any(|t| t == n)).remove(0);
 		// rustc-hash's `FxHasher::default`, which C renames `_default_` beside `Default`'s
 		// `_default`, while C++ escapes the keyword of both to `default_`.
-		assert_eq!(method("default_"), "default__");
-		assert_eq!(method("default"), "default__");
+		assert_eq!(method("default_"), "default_2");
+		assert_eq!(method("default"), "default_2");
 		assert_eq!(method("seed"), "seed");
 	}
 
@@ -2585,61 +2639,168 @@ mod tests {
 			named(&rust, |n| taken.iter().any(|t| t == n))
 		};
 		// A name escaping leaves as it is keeps it, in either order.
-		assert_eq!(names(&["delete", "delete_"], &[]), ["delete__", "delete_"]);
-		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete__"]);
+		assert_eq!(names(&["delete", "delete_"], &[]), ["delete_2", "delete_"]);
+		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete_2"]);
 		assert_eq!(
 			names(&["class", "class_", "class__"], &[]),
-			["class___", "class_", "class__"]
+			["class_2", "class_", "class_2_"]
 		);
 		// Unless something else holds it, such as a trait's member.
-		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug__", "debug_"]);
-		assert_eq!(names(&["default", "seed"], &["default_"]), ["default__", "seed"]);
+		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug_2", "debug_"]);
+		assert_eq!(names(&["default", "seed"], &["default_"]), ["default_2", "seed"]);
 		// And two that neither keeps move by Rust's order, not the source's.
 		assert_eq!(
 			names(&["default", "default_"], &["default_"]),
-			["default__", "default___"]
+			["default_2", "default_2_"]
 		);
 		assert_eq!(
 			names(&["default_", "default"], &["default_"]),
-			["default___", "default__"]
+			["default_2_", "default_2"]
 		);
 		// The macros' family escapes apart already.
-		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix__"]);
+		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix_2"]);
+		// A reserved name stays apart from what it escapes to.
+		assert_eq!(names(&["__all__", "all_", "all"], &[]), ["all_2", "all_", "all"]);
 		// A function's parameters also stay clear of the header's own locals, such as `a_`.
 		let rust = ["a_".to_string(), "a".to_string(), "new_".to_string(), "new".to_string()];
-		assert_eq!(named(&rust, super::generated), ["a__", "a", "new_", "new__"]);
+		assert_eq!(named(&rust, super::generated), ["a_2", "a", "new_", "new_2"]);
 	}
 
 	#[test]
 	fn predefined_macros_escape_apart() {
 		assert_eq!(escape("unix"), "unix_");
-		assert_eq!(escape("unix_"), "unix__");
-		assert_eq!(escape("linux__"), "linux___");
+		assert_eq!(escape("unix_"), "unix_2");
 		assert_eq!(escape("unixes"), "unixes");
 		// And the C library's, which `<cerrno>` and `<cstddef>` define.
 		assert_eq!(escape("errno"), "errno_");
-		assert_eq!(escape("offsetof_"), "offsetof__");
+		assert_eq!(escape("offsetof_"), "offsetof_2");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
-		// A reserved name always takes one more, `__GNUC__` being a macro itself.
-		assert_eq!(escape("__cplusplus"), "__cplusplus_");
-		assert_eq!(escape("__GNUC__"), "__GNUC___");
-		assert_eq!(escape("_Bool"), "_Bool_");
+	}
+
+	#[test]
+	fn reserved_names_escape_unreserved() {
+		// The api fixture's, and serde's derived `Deserialize::deserialize` parameter.
+		assert_eq!(escape("__all__"), "all_");
+		assert_eq!(escape("__deserializer"), "deserializer");
+		assert_eq!(escape("_Bool"), "Bool");
+		assert_eq!(escape("a__b"), "a_b");
+		// Unreserved, it escapes as any other name.
+		assert_eq!(escape("__class"), "class_");
+		assert_eq!(escape("linux__"), "linux_2");
+		assert_eq!(escape("__1"), "_1");
+		assert_eq!(escape("__"), "_");
+		// C++ reserves a lowercase `_x` only in the global namespace, which holds no name of
+		// the API.
 		assert_eq!(escape("_bool"), "_bool");
+	}
+
+	/// Every identifier of up to five of `_`, `a`, `A`, and `1`, with the keywords and
+	/// macros and their trailing `_`s, escapes to a name C++ leaves to programs, and a scope
+	/// of all of them names each apart, still unreserved.
+	#[test]
+	fn no_name_is_reserved() {
+		let mut rust: Vec<String> = vec![String::new()];
+		let mut all = Vec::new();
+		for _ in 0..5 {
+			rust = (rust.iter())
+				.flat_map(|name| "_aA1".chars().map(move |c| format!("{name}{c}")))
+				.collect();
+			all.extend(rust.iter().filter(|n| !n.starts_with('1') && *n != "_").cloned());
+		}
+		for stem in ["class", "new", "unix", "errno", "raw", "c_out"] {
+			all.extend((0..3).map(|n| format!("{stem}{}", "_".repeat(n))));
+		}
+		all.sort();
+		all.dedup();
+		for name in &all {
+			assert!(!super::reserved(&escape(name)), "{name} escapes to {}", escape(name));
+			assert!(!super::reserved(&parameter(name, |_| false)), "{name} as a parameter");
+		}
+		let names = named(&all, super::generated);
+		assert!(!names.iter().any(|n| super::reserved(n)), "a scope names one reserved");
+		let distinct: std::collections::BTreeSet<&String> = names.iter().collect();
+		assert_eq!(distinct.len(), names.len(), "a scope names two alike");
+	}
+
+	/// A free function `name` of the crate `ns`, taking and returning nothing.
+	fn function(name: &str) -> crate::ir::Function {
+		crate::ir::Function {
+			path: vec!["ns".into(), name.into()],
+			shown: vec!["ns".into(), name.into()],
+			span: rustc_span::DUMMY_SP,
+			on: crate::ir::On::ALL,
+			docs: String::new(),
+			deprecated: None,
+			receiver: None,
+			params: vec![],
+			units: vec![],
+			ok: crate::ir::Type::Unit,
+			err: None,
+			future: false,
+			eager: false,
+			holds: false,
+			task: None,
+			send: true,
+			collect: false,
+			lends: false,
+			lends_mut: false,
+			derefs: 0,
+			ties: false,
+			access: crate::ir::Access::Call,
+			instance: None,
+			home: crate::ir::Home {
+				krate: "ns".into(),
+				outside: 1,
+			},
+		}
+	}
+
+	/// Functions whose names escape alike stay apart in the namespace, as every language
+	/// but Kotlin exports them.
+	#[test]
+	fn the_namespace_keeps_escapes_apart() {
+		let api = crate::ir::Api {
+			records: vec![],
+			enums: vec![],
+			objects: vec![],
+			callbacks: vec![],
+			functions: ["__all__", "all_", "all", "delete", "delete_"].map(function).to_vec(),
+			constants: vec![],
+			crates: vec!["ns".into()],
+			targets: vec!["host".into()],
+			links: Default::default(),
+			reached: Vec::new(),
+		};
+		let rest = api.without_jni();
+		let abi = crate::abi::Abi::new(&api, "ns");
+		let abi = abi.without_jni(&rest);
+		let output = super::headers(&abi, "ns").unwrap_or_else(|e| panic!("{e}"));
+		let text: String = output.files.iter().map(|(_, text)| text.as_str()).collect();
+		for (cpp, c) in [
+			("all_2", "ns___all__"),
+			("all_", "ns_all_"),
+			("all", "ns_all"),
+			("delete_2", "ns_delete"),
+			("delete_", "ns_delete_"),
+		] {
+			let defined = format!("inline void {cpp}() {{\n\t::{c}();");
+			assert!(text.contains(&defined), "{c} is not {cpp}:\n{text}");
+		}
 	}
 
 	#[test]
 	fn parameters_keep_apart_from_what_they_would_hide() {
 		let taken = |name: &str| ["a", "size", "size_"].contains(&name);
 		// Past a namespace name, and past the arena `a_` the rename would reach.
-		assert_eq!(parameter("a", taken), "a__");
+		assert_eq!(parameter("a", taken), "a_2");
 		// Past a name already taken by the first rename.
-		assert_eq!(parameter("size", taken), "size__");
+		assert_eq!(parameter("size", taken), "size_2");
 		// A keyword escapes as before; a name like a generated one moves out of its way.
 		assert_eq!(parameter("new", taken), "new_");
-		assert_eq!(parameter("raw_", taken), "raw__");
-		assert_eq!(parameter("c_out_", taken), "c_out__");
-		assert_eq!(parameter("x1_", taken), "x1__");
+		assert_eq!(parameter("raw_", taken), "raw_2");
+		assert_eq!(parameter("c_out_", taken), "c_out_2");
+		assert_eq!(parameter("x1_", taken), "x1_2");
 		assert_eq!(parameter("x_", taken), "x_");
 	}
 }
