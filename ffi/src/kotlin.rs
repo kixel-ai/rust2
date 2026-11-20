@@ -2047,14 +2047,14 @@ impl<'a> Gen<'a> {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long")],
+					&[("jlong", "Long"), ("jboolean", "Boolean")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
+						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}\n\t\tif p1 {{\n\t\t\tcrate::{c}_free(p0 as usize as _);\n\t\t}}"
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ _Native.{bare}_drop(it) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
 				)
 			}
 			false => format!(
