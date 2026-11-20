@@ -3749,7 +3749,10 @@ fn lock() {
 			})
 			.collect();
 	}
-	assert_ne!(respelled, original, "the baseline holds no native exception key to respell");
+	assert_ne!(
+		respelled, original,
+		"the baseline holds no native exception key to respell"
+	);
 	let path = dir.join("respelled.json");
 	std::fs::write(&path, serde_json::to_vec(&respelled).unwrap()).unwrap();
 	let args = ["--baseline".as_ref(), path.as_os_str()];

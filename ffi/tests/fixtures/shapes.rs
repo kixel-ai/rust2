@@ -1350,7 +1350,12 @@ impl Built {
 		let lines: Vec<&str> = got.lines().collect();
 		// A sink's foreign `echo` prints `echoed` once, before its call's line.
 		let expected: Vec<(Call, &str)> = (expected.iter())
-			.flat_map(|&(call, want)| (call.kind == Kind::Sink).then_some((call, "echoed")).into_iter().chain([(call, want)]))
+			.flat_map(|&(call, want)| {
+				(call.kind == Kind::Sink)
+					.then_some((call, "echoed"))
+					.into_iter()
+					.chain([(call, want)])
+			})
 			.collect();
 		for (i, (call, want)) in expected.iter().enumerate() {
 			let line = lines.get(i).copied().unwrap_or("<missing>");
@@ -2191,7 +2196,10 @@ fn swift(calls: &[Call], source: &str) -> String {
 						.nth(1)
 						.expect("the Swift declares the sink");
 					let echo = protocol.lines().next().unwrap().trim();
-					let _ = writeln!(sinks, "struct Echo{n}: Sink{n} {{\n\t{echo} {{\n\t\tprint(\"echoed\")\n\t\treturn v\n\t}}\n}}\n");
+					let _ = writeln!(
+						sinks,
+						"struct Echo{n}: Sink{n} {{\n\t{echo} {{\n\t\tprint(\"echoed\")\n\t\treturn v\n\t}}\n}}\n"
+					);
 				}
 				format!("{}sink{n}({seed}, Echo{n}())", tr(&[format!("sink{n}")]))
 			}
@@ -2655,7 +2663,10 @@ fn web(built: &Built, calls: &[Call]) -> String {
 				);
 				continue;
 			}
-			Kind::Sink => format!("s.sink{n}({}, {{ echo: (v) => {{ print(\"echoed\"); return v; }} }})", u(seed)),
+			Kind::Sink => format!(
+				"s.sink{n}({}, {{ echo: (v) => {{ print(\"echoed\"); return v; }} }})",
+				u(seed)
+			),
 		};
 		let _ = writeln!(body, "print(`{label} ${{dec({value})}}`);");
 	}
