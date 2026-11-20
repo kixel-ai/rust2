@@ -43,15 +43,11 @@ jobs:
         if: always()
         run: |
           nix develop .#sanitize --command bash -c '
-            clang --version | head -1
-            mkdir -p /tmp/h; cd /tmp/h
-            printf "int g; int main(int c,char**v){return g+v[0][0];}" > h.c
-            clang -O0 -fsanitize=address -S -emit-llvm h.c -o - | grep -E "add|shl|lshr|dynamic|shadow" | head
-            ASAN_OPTIONS=verbosity=1 clang -fsanitize=address h.c -o hc && ASAN_OPTIONS=verbosity=1 ./hc 2>&1 | grep -vE "intercept|root region" | head -30
+            which -a clang | head; clang --version | head -1
             cd /home/runner/work/rust2/rust2/ffi/target/tmp/api/address
-            ASAN_OPTIONS=verbosity=1 ./api-c 2>&1 | head; 
-            cat /proc/self/maps | head -30
-            ldd api-c | head; file api-c
+            printf "b __asan_init\nrun\nfinish\nbt\nregister read x30\nimage lookup -a \$x30\nc\nbt\nregister read x30 x0 x1 x2 x8\nimage lookup -a \$x30\nx/8i \$pc-16\nthread backtrace all\nquit\n" | lldb api-c 2>&1 | tail -80
+            ASAN_OPTIONS=verbosity=1 ./api-c 2>&1 | head -5
+            ldd api-c | head -3
           '
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
