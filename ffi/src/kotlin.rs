@@ -2468,14 +2468,14 @@ impl<'a> Gen<'a> {
 	fn exception(&mut self, e: &Type) -> String {
 		let kt = self.kt(e);
 		if let Some(name) = self.thrown.get(&kt) {
-			self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
+			crate::lock::exception(&mut self.locked, self.abi, e, &kt, name);
 			return name.clone();
 		}
 		// Named by the type as it reads unqualified, so qualifying it renames no exception.
 		let bare = self.unqualified(&kt);
 		let name = format!("{}Exception", bare.replace(['?', '<', '>', ',', ' ', '.'], ""));
 		let name = self.claim(&name, format!("the exception of `{kt}`"));
-		self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
+		crate::lock::exception(&mut self.locked, self.abi, e, &kt, &name);
 		self.exceptions.insert(name.clone(), e.clone());
 		self.thrown.insert(kt, name.clone());
 		name

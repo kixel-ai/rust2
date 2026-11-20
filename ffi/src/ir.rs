@@ -371,6 +371,11 @@ pub(crate) struct Object {
 	pub(crate) lifetimes: usize,
 	pub(crate) methods: Vec<Function>,
 	pub(crate) traits: Traits,
+	/// The variants of the enum it is, by name alone, as none of their fields reaches the
+	/// API: Python raises a subclass per variant of an error. A baseline written before it
+	/// has none.
+	#[serde(default)]
+	pub(crate) variants: Vec<Variant>,
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub(crate) foreign: bool,

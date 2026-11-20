@@ -1104,6 +1104,11 @@ class Refusal internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
+class Fault internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	final override fun toString(): kotlin.String
+	fun debug(): kotlin.String
+}
 class C internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -1271,6 +1276,9 @@ class BoundsU64Exception(val error: api.BoundsU64) : Exception() {
 	override val message: String
 }
 class ErrorException(val error: api.Error) : Exception() {
+	override val message: String
+}
+class FaultException(val error: api.Fault) : Exception() {
 	override val message: String
 }
 class RefusalException(val error: api.Refusal) : Exception() {
@@ -1513,6 +1521,7 @@ fun reasons(pairs: kotlin.collections.List<kotlin.Pair<api.Counter, api.Refusal>
 fun excuse(note: api.Bytes, entry: kotlin.Pair<api.Bytes, api.Refusal>): kotlin.ULong
 fun relay(log: api.Log, refusals: kotlin.collections.List<api.Refusal>): kotlin.UInt
 @kotlin.jvm.Throws(RefusalException::class) fun refuse(reason: kotlin.String): kotlin.UInt
+@kotlin.jvm.Throws(FaultException::class) fun jam(n: kotlin.UInt): kotlin.UInt
 fun platform(): api.Platform
 fun pointerBits(platform: api.Platform): kotlin.UInt
 fun sameLabelled(labelled: api.Labelled): api.Labelled

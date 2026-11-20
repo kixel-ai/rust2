@@ -93,6 +93,7 @@ fn mark(api: &mut Api, on: On) {
 	}
 	for object in &mut api.objects {
 		object.on = on;
+		object.variants.iter_mut().for_each(|v| v.on = on);
 		functions(&mut object.methods);
 	}
 	for callback in &mut api.callbacks {
@@ -265,6 +266,7 @@ pub(crate) fn bare_object(o: &Object) -> Object {
 		o.deprecated = None;
 		o.on = On::ALL;
 		o.methods.clear();
+		o.variants.clear();
 		unleaf(&mut o.traits);
 	})
 }
@@ -512,6 +514,21 @@ impl Merged {
 			}
 			linked(&mut self.api.objects[at].docs, object.docs);
 			self.api.objects[at].on.0 |= object.on.0;
+			// Each variant is on the targets it is, after the one it follows in theirs.
+			let mut after = 0;
+			for variant in object.variants {
+				let ours = &mut self.api.objects[at].variants;
+				match ours.iter().position(|v| v.name == variant.name) {
+					Some(found) => {
+						ours[found].on.0 |= variant.on.0;
+						after = found + 1;
+					}
+					None => {
+						ours.insert(after, variant);
+						after += 1;
+					}
+				}
+			}
 			leaves(&mut self.api.objects[at].traits, object.traits);
 			let methods = std::mem::take(&mut self.api.objects[at].methods);
 			self.api.objects[at].methods = self.functions(methods, object.methods);

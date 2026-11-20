@@ -1850,6 +1850,7 @@ impl<'tcx> Collector<'tcx> {
 							lifetimes,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							variants: Vec::new(),
 							foreign: false,
 							opaque: None,
 						});
@@ -2003,6 +2004,7 @@ impl<'tcx> Collector<'tcx> {
 					clone: !owned,
 					..Traits::default()
 				},
+				variants: Vec::new(),
 				foreign: true,
 				opaque: Some(match owned {
 					true => Held::Value,
@@ -2141,6 +2143,7 @@ impl<'tcx> Collector<'tcx> {
 			lifetimes: 0,
 			methods,
 			traits,
+			variants: Vec::new(),
 			foreign: true,
 			opaque: None,
 		}
@@ -2560,6 +2563,17 @@ impl<'tcx> Collector<'tcx> {
 						object.methods = methods;
 						object.traits = traits;
 						object.shared = shared && object.sync;
+						if kind == DefKind::Enum && object.opaque.is_none() {
+							object.variants = (tcx.adt_def(def_id).variants().iter())
+								.map(|v| Variant {
+									name: v.name.to_string(),
+									discriminant: 0,
+									fields: Vec::new(),
+									tuple: false,
+									on: On::ALL,
+								})
+								.collect();
+						}
 					}
 					_ => {}
 				}

@@ -1122,6 +1122,8 @@ pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
 #[repr(C)]
 struct ValueHead {
 	ob_base: PyVarObject,
+	/// The weak references to it, which `weakref` keeps.
+	weaklist: *mut PyObject,
 	/// The class registered at this index made it: Python can reassign `__class__`, to
 	/// any class of `Value`'s layout, whose bytes may be fewer or another type's.
 	index: usize,
@@ -1152,6 +1154,7 @@ pub fn value_out<T: Copy>(index: usize, value: T) -> R<Obj> {
 	unsafe {
 		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
 		let obj = Obj::new(alloc(class.cast(), size_of::<T>() as Py_ssize_t))?;
+		(*obj.ptr().cast::<ValueHead>()).weaklist = null_mut();
 		(*obj.ptr().cast::<ValueHead>()).index = index;
 		obj.ptr().cast::<u8>().add(size_of::<ValueHead>()).cast::<T>().write_unaligned(value);
 		Ok(obj)
@@ -1620,13 +1623,14 @@ pub fn member_in(obj: *mut PyObject, index: usize) -> R<i32> {
 	}
 }
 
-/// Raise the exception class registered at `index`, holding `error`.
+/// Raise the exception class registered at `index`, holding `error`: the subclass of its
+/// variant, for an enum's, which the class makes.
 pub fn raise_error<T>(index: usize, error: R<Obj>) -> R<T> {
 	let args = tuple(vec![error])?;
 	// SAFETY: the GIL is held, and the class an exception's.
 	unsafe {
 		let exc = Obj::new(PyObject_CallObject(ty(index), args.ptr()))?;
-		PyErr_SetObject(ty(index), exc.ptr());
+		PyErr_SetObject(Py_TYPE(exc.ptr()).cast(), exc.ptr());
 	}
 	Err(Raised)
 }
@@ -1856,6 +1860,8 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 #[repr(C)]
 pub struct Handle {
 	ob_base: PyObject,
+	/// The weak references to it, which `weakref` keeps.
+	weaklist: *mut PyObject,
 	/// The class registered at this index made it: Python can reassign `__class__`.
 	index: usize,
 	raw: *const c_void,
@@ -1900,6 +1906,7 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 			return Err(Raised);
 		};
 		let handle = obj.ptr().cast::<Handle>();
+		(*handle).weaklist = null_mut();
 		(*handle).index = index;
 		(*handle).raw = raw;
 		(*handle).free = free;
@@ -1979,10 +1986,55 @@ unsafe fn free_now(handle: *mut Handle) {
 unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates an `Object` once, holding the GIL; nothing holds it.
 	unsafe {
+		clear_weak(obj, (*obj.cast::<Handle>()).weaklist);
 		free_now(obj.cast());
 		dealloc(obj);
 	}
 }
+
+unsafe extern "C" fn value_dealloc(obj: *mut PyObject) {
+	// SAFETY: Python deallocates a `Value` once, holding the GIL.
+	unsafe {
+		clear_weak(obj, (*obj.cast::<ValueHead>()).weaklist);
+		dealloc(obj);
+	}
+}
+
+/// Clear the weak references to `obj`, as its dealloc must: Python's `subtype_dealloc`
+/// leaves them to it, for a class of `Object` or `Value` is not tracked by the collector.
+///
+/// # Safety
+/// `obj` is being deallocated, holding the GIL, and `weaklist` is its list.
+unsafe fn clear_weak(obj: *mut PyObject, weaklist: *mut PyObject) {
+	if !weaklist.is_null() {
+		// SAFETY: the caller's contract.
+		unsafe { PyObject_ClearWeakRefs(obj) };
+	}
+}
+
+/// The members of a type whose instances hold a list of weak references at `offset`:
+/// `__weaklistoffset__` alone, which `PyType_FromSpec` reads to let `weakref` take them.
+const fn weak_members(offset: usize) -> [PyMemberDef; 2] {
+	[
+		PyMemberDef {
+			name: c"__weaklistoffset__".as_ptr(),
+			type_code: Py_T_PYSSIZET,
+			offset: offset as Py_ssize_t,
+			flags: Py_READONLY,
+			doc: null(),
+		},
+		PyMemberDef {
+			name: null(),
+			type_code: 0,
+			offset: 0,
+			flags: 0,
+			doc: null(),
+		},
+	]
+}
+
+static OBJECT_MEMBERS: Gil<[PyMemberDef; 2]> = Gil::new(weak_members(std::mem::offset_of!(Handle, weaklist)));
+static VALUE_MEMBERS: Gil<[PyMemberDef; 2]> = Gil::new(weak_members(std::mem::offset_of!(ValueHead, weaklist)));
 
 /// Free an instance of a heap type, and the reference to its type it held.
 ///
@@ -2987,6 +3039,7 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		let base = (Py_TPFLAGS_BASETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION) as u64;
 		add_type(module, &OBJECT, c"Object", size_of::<Handle>(), base, &mut [
 			slot(Py_tp_dealloc, handle_dealloc as *mut c_void),
+			slot(Py_tp_members, OBJECT_MEMBERS.get().as_mut_ptr().cast()),
 			slot(
 				Py_tp_doc,
 				c"An object owning a Rust value's handle, freed once the last reference to it goes.".as_ptr().cast_mut().cast(),
@@ -2995,6 +3048,8 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		])?;
 		// Its items are a value's bytes, past the header.
 		add_sized(module, &VALUE_BASE, c"Value", size_of::<ValueHead>(), 1, base, &mut [
+			slot(Py_tp_dealloc, value_dealloc as *mut c_void),
+			slot(Py_tp_members, VALUE_MEMBERS.get().as_mut_ptr().cast()),
 			slot(
 				Py_tp_doc,
 				c"A Rust `Copy` value's bytes, which only Rust makes or reads.".as_ptr().cast_mut().cast(),

@@ -263,7 +263,10 @@ item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
 public names. A clash that renames a kept class, function, or member reports its language
-and old and new names at the item's span. Staged `--api` files have no binding names; a
+and old and new names at the item's span. An error type's exception class is known by its
+error type and the type the language holds it as, since Kotlin's `UShortArray` and
+`List<UShort>` may share one error type: one added beside another adds a class, and a
+native type respelled or gone breaks nothing while a class still bears its old name. Staged `--api` files have no binding names; a
 baseline must be a complete export. An older baseline without name tables still has its
 structure checked, reporting each break before the error that it lacks names, so its
 re-export with this version accepts no break that check would have caught. A binding
@@ -789,7 +792,8 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. A field is a
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. An object, as
+  an opaque value and a record, takes weak references (`weakref.ref`). A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -800,10 +804,13 @@ caller imports it with no ignores.
   thread: on the next turn of the event loop that ran there when a call made a value that
   is not `Send`, though the loop calls nothing into Rust, else at its next call or as it
   exits.
-- **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
-  against itself, as Rust does, and **enums** an `Enum`
-  of upper-case members, or for one with data a class of a dataclass per variant,
-  `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
+- **Records** are slotted classes, written out as `@dataclass(slots=True,
+  weakref_slot=True)` would make them, so no `dataclass` runs at import: an `__init__`
+  taking each field, `__match_args__`, a dataclass's `repr`, and `__eq__` comparing the
+  fields, a float by IEEE `==` even against itself, as Rust does. `dataclasses.fields`,
+  `replace`, and `asdict` take one, as its `__dataclass_fields__` is made on its first read,
+  and so does `copy.replace`. **Enums** are an `Enum` of upper-case members, or for one
+  with data a class of such a record per variant, `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal. An **opaque value** is a class of the runtime's `Value`, which holds its bytes
   in place, so only Rust makes or reads one: making one raises `TypeError`. It is shared
@@ -819,7 +826,11 @@ caller imports it with no ignores.
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
   microseconds up to 999,999,999 days. A zero passed for a `NonZero` raises `ValueError`. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
-  holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
+  holding it in `error`, whose `str` is its `Display`. An enum's, or an object's whose
+  type is an enum, raises a subclass per variant, `ErrorException.Timeout`, which
+  `ErrorException(error)` makes too, so `except ErrorException.Timeout` catches that
+  variant alone; one of a variant a `#[non_exhaustive]` enum's crate adds after the export
+  raises `ErrorException` itself. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
@@ -861,7 +872,8 @@ caller imports it with no ignores.
   to a socket the loop reads, without the GIL, or during a call on the loop's own thread,
   writes nothing and schedules the loop's dispatch once the call returns. Cancelling the task frees the future and
   loses nothing. The call polls it once before suspending, and a future is awaited once,
-  as a coroutine is.
+  as a coroutine is. Futures and wakers run on asyncio's event loop alone: an await or a
+  `Waker` where none runs, as under trio, raises `RuntimeError` saying so.
 - An **awaitable Python implements** is an `Awaitable[None]`, such as a coroutine, passed
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
   cancels the task, or closes a coroutine it never started. One that raises, or that
@@ -1358,7 +1370,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, then the `exclude` list that exports the rest, and
+lists each refused item at its span, a binding's own refusals such as Swift's included,
+then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
 That list is checked by collecting again with it: it holds what Swift alone refuses, and
 not an instance only refused items named, which nothing names once they are left out.
@@ -1576,15 +1589,20 @@ binding, which builds for each, and staged with `--api` and `--with`; a build fo
 not exported fails, and items that differ between the two are refused, naming both.
 The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each
 leaf alone and in each wrapper, then nested to depth 3 from a fixed seed, and emit a crate
-of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a closure's
-parameter and return and in a future besides. Its census decides what exports, so a shape
-refused by design is left out rather than failed. Each language's driver is a generated
-flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
-own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
-the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
-fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
-on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
-until the sampler covers it.
+of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in each
+position a binding maps apart: a closure's parameter and return, a future, a `Result`'s
+value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
+object's methods, and a trait a caller implements. A digest hashes floats by their bits,
+so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
+decides what exports, so a shape refused by design is left out rather than failed. Each
+language's driver, the web's on Node included, is a generated list of these calls whose
+printed digests must match the crate's own, run natively, or as wasm under Node's WASI
+for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
+every sampled shape and, as the nightly does, more drawn from the day's seed, which it
+prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
+each with the quest that fixes it; the driver skips those calls, so the fix deletes its
+entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
+`Type` variant fails `ir_covered` until the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use

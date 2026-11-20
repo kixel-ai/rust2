@@ -1472,7 +1472,9 @@ impl<'a> Gen<'a> {
 			Type::List(_, elem) => {
 				let l = self.layout(&abi.ty(elem));
 				let stride = round(l.size, l.align);
-				let item = self.put(elem, "v[i]", &format!("ptr + i * {stride}"), false);
+				// The element bound, since TypeScript narrows no `v[i]` past an `undefined` check.
+				let item = self.put(elem, "x", &format!("ptr + i * {stride}"), false);
+				let item = format!("const x = v[i];\n{item}");
 				format!(
 					"if (v === undefined) {{\n\tconst d = rt.dv();\n\td.setUint32(p, 0, true);\n\td.setUint32(p + 4, 0, true);\n\td.setUint32(p + 8, 0, true);\n\treturn;\n}}\nconst ptr = rt.alloc(Math.max(v.length * {stride}, 1), {});\nfor (let i = 0; i < v.length; i++) {{\n{}\n}}\nconst d = rt.dv();\nd.setUint32(p, ptr, true);\nd.setUint32(p + 4, v.length, true);\nd.setUint32(p + 8, 0, true);",
 					l.align,
