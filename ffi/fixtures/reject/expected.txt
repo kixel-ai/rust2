@@ -51,9 +51,9 @@ fixtures/reject/src/lib.rs:1161:1: rust2-ffi: cannot export fn `wrap`: returned 
 fixtures/reject/src/lib.rs:1166:1: rust2-ffi: cannot export fn `hidden_wrap`: returned object that borrows `impl std::clone::Clone + '_`; exclude it in the config to leave it out
 	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1182:1: rust2-ffi: cannot export fn `picked`: closure signature `&'static Mark`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:1187:1: rust2-ffi: cannot export fn `maybe_picked`: closure signature `std::option::Option<&'static Mark>`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:1192:1: rust2-ffi: cannot export fn `hidden_answer`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
 	help: return a named type, or an `impl Trait` hiding an exported object that captures no borrow, as `+ use<>` ensures
 fixtures/reject/src/lib.rs:1197:1: rust2-ffi: cannot export fn `hidden_items`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
@@ -161,11 +161,11 @@ fixtures/reject/src/lib.rs:209:1: rust2-ffi: cannot export fn `relay`: borrowing
 fixtures/reject/src/lib.rs:214:1: rust2-ffi: cannot export fn `resolve`: borrowing output of a future from a function that is not async `&str`; exclude it in the config to leave it out
 	help: make it an `async fn`, or return an output that borrows nothing
 fixtures/reject/src/lib.rs:219:1: rust2-ffi: cannot export fn `spend`: closure signature `tls::held::Token`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:21:1: rust2-ffi: cannot export fn `nested`: nested Option `std::option::Option<std::boxed::Box<std::option::Option<u32>>>`; exclude it in the config to leave it out
 	help: use one `Option`, or wrap the inner one in an enum, since C has one `None` per option
 fixtures/reject/src/lib.rs:224:1: rust2-ffi: cannot export fn `mint`: closure signature `tls::held::Token`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:234:1: rust2-ffi: cannot export fn `spent`: reference to a handle inside a value `[tls::held::Token]`; exclude it in the config to leave it out
 	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:244:1: rust2-ffi: cannot export fn `adopt`: generic parameter `std::convert::Into`; exclude it in the config to leave it out
@@ -203,9 +203,9 @@ fixtures/reject/src/lib.rs:354:2: rust2-ffi: cannot export field `Tag::label`: '
 fixtures/reject/src/lib.rs:35:1: rust2-ffi: cannot export static `COUNT`: static; exclude it in the config to leave it out
 	help: export a function returning the value, or a `const`
 fixtures/reject/src/lib.rs:364:1: rust2-ffi: cannot export fn `gather`: closure signature `std::vec::Vec<u8>`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:369:1: rust2-ffi: cannot export fn `attempt`: closure signature `std::result::Result<u32, u8>`; exclude it in the config to leave it out
-	help: take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:374:1: rust2-ffi: cannot export fn `consume`: reader not lent as &mut `impl std::io::Read + std::io::Seek`; exclude it in the config to leave it out
 	help: take the reader as `&mut R`
 fixtures/reject/src/lib.rs:379:1: rust2-ffi: cannot export fn `retain`: reader kept past the call `R`; exclude it in the config to leave it out
@@ -311,7 +311,7 @@ fixtures/reject/src/lib.rs:778:1: rust2-ffi: cannot export fn `values`: foreign 
 fixtures/reject/src/lib.rs:77:1: rust2-ffi: cannot export fn `first`: borrowed return that is not Clone `Opaque`; exclude it in the config to leave it out
 	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:784:1: rust2-ffi: cannot export fn `floats`: collection not built from its items `std::collections::BTreeSet<f64>`; exclude it in the config to leave it out
-	help: use a standard collection, or one implementing `FromIterator` of its items
+	help: the collection must build from its items, which a `BTreeSet` or `BTreeMap` of a type without `Ord`, such as `f64`, cannot: key it by an ordered type, or take a `Vec<T>` and build the collection inside the facade
 fixtures/reject/src/lib.rs:789:1: rust2-ffi: cannot export fn `zeros`: foreign type `std::iter::RepeatN`; exclude it in the config to leave it out
 	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:794:1: rust2-ffi: cannot export fn `successes`: foreign type `std::iter::Flatten`; exclude it in the config to leave it out

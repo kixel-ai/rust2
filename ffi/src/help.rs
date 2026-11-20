@@ -110,7 +110,7 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 			"take owned items, or only return the references: C lends nothing inside a collection, tuple, or iterator"
 		}
 		"collection not built from its items" => {
-			"use a standard collection, or one implementing `FromIterator` of its items"
+			"the collection must build from its items, which a `BTreeSet` or `BTreeMap` of a type without `Ord`, such as `f64`, cannot: key it by an ordered type, or take a `Vec<T>` and build the collection inside the facade"
 		}
 		"trait object" => {
 			"take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`"
@@ -200,7 +200,7 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 			"bound the closure by `Fn`, `FnMut`, or `FnOnce` alone, besides `Send`, `Sync`, and a lifetime"
 		}
 		"closure signature" => {
-			"take and return values a callback maps: `bool`, integers, `String`, objects by reference, opaque values, an `Option`, or a `Result` with a `String` error"
+			"take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference"
 		}
 		"reader bound" => "bound the reader by `Read` and `Seek` alone",
 		"reader kept past the call" => "do not return or keep the reader, which C lends only for the call",

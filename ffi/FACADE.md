@@ -33,8 +33,9 @@ This guide goes from a crate you want in another language to a facade with no re
 3. Read `census/<package>.md`, as below, and fix the top construct.
 4. Repeat until the census refuses nothing, then export with `--out dir`.
 
-Each refusal is also a compile error at its span when you export, with a `help:` note naming
-the change to make. The census only gathers them.
+Each refusal is also a compile error at its span when you export. Most carry a `help:` note
+naming the change to make. The census only gathers them. An `instance not inferred` error is
+a bug in `rust2-ffi`, so it has no note and no facade change fixes it.
 
 ## What exports
 
@@ -111,6 +112,11 @@ impl Link {
 	}
 }
 ```
+
+A wrapper replaces the type it wraps: replace the `pub use url::*;` glob with explicit
+re-exports of the items that map, such as `pub use url::ParseError;`, and drop `Url` from
+them. A kept `pub use url::Url;` exports the original type beside `Link`, and the census
+goes on reporting its refused methods.
 
 This exports with no refusals: `Link` is an object, `parse` fails with `ParseError`'s message,
 and every other method is a call a language can make.
