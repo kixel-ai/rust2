@@ -10,6 +10,8 @@ them from the table and drop their copies of each generator's naming rules.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#885](https://github.com/kixel-ai/rust2/pull/885): ✅ kept as recommended (rejected: dropping it).
+
 Found by [#885](https://github.com/kixel-ai/rust2/pull/885), which writes each language's
 `tests/api.*` script from the transcript. Each of its eight emitters repeats some of its
 generator's naming rules for what the table leaves out: camel or snake case, reserved-word
