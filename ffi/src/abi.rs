@@ -959,16 +959,27 @@ impl<'a> Abi<'a> {
 
 	/// Whether a value of `ty` holds memory Rust allocated.
 	pub(crate) fn owns(&self, ty: &Type) -> bool {
+		self.holds(ty, false)
+	}
+
+	/// Whether C's copy of a returned `ty` holds memory Rust allocated: a reference
+	/// returns as an owned copy of what it borrows.
+	pub(crate) fn returns_owned(&self, ty: &Type) -> bool {
+		self.holds(ty, true)
+	}
+
+	fn holds(&self, ty: &Type, refs: bool) -> bool {
 		match ty {
 			_ if Abi::is_buf(ty) => true,
 			Type::Object(_) | Type::List(..) => true,
-			Type::Option(inner) | Type::Box(inner) => self.owns(inner),
-			Type::Tuple(elements) => elements.iter().any(|ty| self.owns(ty)),
-			Type::Record(i) => self.api.records[*i].fields.iter().any(|f| self.owns(&f.ty)),
+			Type::Ref(_, inner) if refs => self.holds(inner, refs),
+			Type::Option(inner) | Type::Box(inner) => self.holds(inner, refs),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.holds(ty, refs)),
+			Type::Record(i) => self.api.records[*i].fields.iter().any(|f| self.holds(&f.ty, refs)),
 			Type::Enum(i) => self.api.enums[*i]
 				.variants
 				.iter()
-				.any(|v| v.fields.iter().any(|f| self.owns(&f.ty))),
+				.any(|v| v.fields.iter().any(|f| self.holds(&f.ty, refs))),
 			_ => false,
 		}
 	}

@@ -529,7 +529,7 @@ impl Header<'_> {
 			self.line(format!("{upper}_MUST_USE {p}_buf {name}_debug({this}{status});"));
 		}
 		if traits.default {
-			let must_use = match self.abi.owns(value) {
+			let must_use = match self.abi.returns_owned(value) {
 				true => format!("{upper}_MUST_USE "),
 				false => String::new(),
 			};
@@ -635,7 +635,7 @@ impl Header<'_> {
 			return;
 		}
 		for sig in std::iter::once(export.call.clone()).chain(export.homed_call()) {
-			let prototype = self.prototype(&sig, self.abi.owns(function.ok.base()), function.err.is_some());
+			let prototype = self.prototype(&sig, self.abi.returns_owned(&function.ok), function.err.is_some());
 			self.line(prototype);
 		}
 	}

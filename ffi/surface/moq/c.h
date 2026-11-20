@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x48430f46e4467acfULL)
+#define MOQ_CONTRACT ((uint64_t)0x8f926a5e9eea5c58ULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -3862,7 +3862,7 @@ moq_option_non_zero_u64 moq_server_Handshake_peer_node(const moq_server_Handshak
 MOQ_MUST_USE moq_buf moq_server_Handshake_peer_implementation(const moq_server_Handshake *self, moq_status *status);
 MOQ_MUST_USE moq_auth_Handle *moq_server_Handshake_auth(const moq_server_Handshake *self, moq_status *status);
 MOQ_MUST_USE moq_auth_Requests *moq_server_Handshake_requests(moq_server_Handshake *self, moq_status *status);
-moq_option_setup_Token moq_server_Handshake_token(const moq_server_Handshake *self, moq_status *status);
+MOQ_MUST_USE moq_option_setup_Token moq_server_Handshake_token(const moq_server_Handshake *self, moq_status *status);
 MOQ_MUST_USE moq_server_Handshake *moq_server_Handshake_with_publisher_Producer(moq_server_Handshake *self, const moq_origin_Producer *publish, moq_status *status);
 MOQ_MUST_USE moq_server_Handshake *moq_server_Handshake_with_publisher_Consumer(moq_server_Handshake *self, const moq_origin_Consumer *publish, moq_status *status);
 MOQ_MUST_USE moq_server_Handshake *moq_server_Handshake_with_subscriber(moq_server_Handshake *self, moq_origin_Producer *subscribe, moq_status *status);
@@ -7887,7 +7887,7 @@ MOQ_MUST_USE moq_auth_Handle *moq_tokio_server_Request_auth(const moq_tokio_serv
 MOQ_MUST_USE moq_auth_Requests *moq_tokio_server_Request_requests(moq_tokio_server_Request *self, moq_status *status);
 moq_option_non_zero_u64 moq_tokio_server_Request_peer_node(const moq_tokio_server_Request *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_tokio_server_Request_peer_implementation(const moq_tokio_server_Request *self, moq_status *status);
-moq_option_setup_Token moq_tokio_server_Request_token(const moq_tokio_server_Request *self, moq_status *status);
+MOQ_MUST_USE moq_option_setup_Token moq_tokio_server_Request_token(const moq_tokio_server_Request *self, moq_status *status);
 MOQ_MUST_USE moq_tokio_tls_PeerIdentity *moq_tokio_server_Request_peer_identity(const moq_tokio_server_Request *self, moq_status *status);
 void moq_transport_memory_Config_free(moq_transport_memory_Config *self);
 void moq_transport_memory_Config_drop(moq_transport_memory_Config *self, moq_status *status);
@@ -9132,7 +9132,7 @@ MOQ_MUST_USE moq_buf moq_moq_tokio_connect_Addr_debug(const moq_moq_tokio_connec
 MOQ_MUST_USE moq_moq_tokio_connect_Addr *moq_moq_tokio_connect_Addr_new(moq_Url *url, moq_status *status);
 MOQ_MUST_USE bool moq_moq_tokio_connect_Addr_pinned(moq_Url *url, moq_vec_socket_addr addrs, moq_moq_tokio_connect_Addr **out, moq_moq_tokio_connect_Error *err, moq_status *status);
 MOQ_MUST_USE moq_Url *moq_moq_tokio_connect_Addr_url(const moq_moq_tokio_connect_Addr *self, moq_status *status);
-moq_vec_socket_addr moq_moq_tokio_connect_Addr_addresses(const moq_moq_tokio_connect_Addr *self, moq_status *status);
+MOQ_MUST_USE moq_vec_socket_addr moq_moq_tokio_connect_Addr_addresses(const moq_moq_tokio_connect_Addr *self, moq_status *status);
 void moq_rustls_pki_types_TrustAnchor_free(moq_rustls_pki_types_TrustAnchor *self);
 void moq_rustls_pki_types_TrustAnchor_drop(moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
 MOQ_MUST_USE moq_rustls_pki_types_TrustAnchor *moq_rustls_pki_types_TrustAnchor_clone(const moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
@@ -9216,7 +9216,7 @@ MOQ_MUST_USE moq_buf moq_qmux_Session_debug(const moq_qmux_Session *self, moq_st
 MOQ_MUST_USE moq_buf moq_qmux_Session_protocol(const moq_qmux_Session *self, moq_status *status);
 moq_moq_quic_connection_mux_Version moq_qmux_Session_version(const moq_qmux_Session *self, moq_status *status);
 MOQ_MUST_USE bool moq_qmux_Session_set_limits(const moq_qmux_Session *self, const moq_moq_quic_Limits *limits, moq_buf *err, moq_status *status);
-moq_vec_rustls_pki_types_CertificateDer moq_qmux_Session_peer_certificates(const moq_qmux_Session *self, moq_status *status);
+MOQ_MUST_USE moq_vec_rustls_pki_types_CertificateDer moq_qmux_Session_peer_certificates(const moq_qmux_Session *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_qmux_Session_server_name(const moq_qmux_Session *self, moq_status *status);
 void moq_moq_sock_demux_Counters_free(moq_moq_sock_demux_Counters *self);
 bool moq_moq_sock_demux_Counters_borrowed(const moq_moq_sock_demux_Counters *self);
