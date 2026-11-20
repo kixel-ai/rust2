@@ -385,6 +385,7 @@ func NewChannel() *Channel
 func (self *Channel) Clear() error
 func (self *Channel) Clone() (*Channel, error)
 func (self *Channel) Close() error
+func (self *Channel) Feed() (*Feed, error)
 func (self *Channel) Itemized(ctx context.Context, items *[]uint32) (uint, error)
 func (self *Channel) Listen(cx func()) error
 func (self *Channel) Notify(waker func()) error
@@ -503,6 +504,13 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
+type ClashEscaped struct {
+	New uint8
+}
+func (self ClashEscaped) Delete() uint8
+func (self ClashEscaped) Delete_(new_ uint8, new_2 uint8) uint8
+func (self ClashEscaped) Equal(other ClashEscaped) bool
+func (self ClashEscaped) GoString() string
 type ClashEvent struct {
 	V0 Event
 }
@@ -723,6 +731,14 @@ func (self *Codecs) ListSet(value []*p_tls.Codec) error
 type Core struct {
 	Id uint32
 }
+type Countdown struct {
+	Handle_ *p_rt.Handle_
+}
+func CountdownTold(from uint32, log Log) *Countdown
+func NewCountdown(from uint32) *Countdown
+func (self *Countdown) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Countdown) Close() error
+func (self *Countdown) Next(ctx context.Context) (*uint32, error)
 type Counter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -871,6 +887,12 @@ func (self *Fault) Close() error
 func (self *Fault) Error() string
 func (self *Fault) GoString() string
 func (self *Fault) String() string
+type Feed struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Feed) All(ctx context.Context) iter.Seq2[p_rt.Bytes, error]
+func (self *Feed) Close() error
+func (self *Feed) Next(ctx context.Context) (*p_rt.Bytes, error)
 type FiledReceipt struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1347,6 +1369,16 @@ func (self *Part) Equal(other *Part) (bool, error)
 func (self *Part) GoString() string
 func (self *Part) ValueGet() (uint64, error)
 func (self *Part) ValueSet(value uint64) error
+type Pass struct {
+	Handle_ *p_rt.Handle_
+}
+func NewPass(number uint32) *Pass
+func (self *Pass) Close() error
+func (self *Pass) Compare(other *Pass) (int, error)
+func (self *Pass) Equal(other *Pass) (bool, error)
+func (self *Pass) GoString() string
+func (self *Pass) PartialCompare(other *Pass) (int, bool, error)
+func (self *Pass) Redeem() (uint32, error)
 type Peer struct {
 	Addr  p_rt.SocketAddr
 	Names []string
@@ -1422,6 +1454,36 @@ type Qualifiers struct {
 	Kotlin float64
 }
 func (self Qualifiers) Equal(other Qualifiers) bool
+type Quantity struct {
+	Handle_ *p_rt.Handle_
+}
+func NewQuantity(value int64, unit rune) (*Quantity, error)
+func (self *Quantity) Close() error
+func (self *Quantity) Equal(other *Quantity) (bool, error)
+func (self *Quantity) GoString() string
+func (self *Quantity) PartialCompare(other *Quantity) (int, bool, error)
+type Rank interface {
+	GoString() string
+	Equal(other Rank) bool
+	PartialCompare(other Rank) (int, bool)
+	Compare(other Rank) int
+}
+type RankRanked struct {
+	Compare_         uint8
+	PartialCompare_  uint8
+	CompareTo        uint8
+	PartialCompareTo uint8
+}
+func (self RankRanked) Compare(other Rank) int
+func (self RankRanked) Equal(other Rank) bool
+func (self RankRanked) GoString() string
+func (self RankRanked) PartialCompare(other Rank) (int, bool)
+type RankUnranked struct {
+}
+func (self RankUnranked) Compare(other Rank) int
+func (self RankUnranked) Equal(other Rank) bool
+func (self RankUnranked) GoString() string
+func (self RankUnranked) PartialCompare(other Rank) (int, bool)
 type Rated struct {
 	Bytes_ [2]uint64
 	Made_ bool
@@ -1479,6 +1541,13 @@ func NewResolving(name string) (*Resolving, error)
 func (self *Resolving) Close() error
 func (self *Resolving) V0Get() (*p_tls.Resolver, error)
 func (self *Resolving) V0Set(value *p_tls.Resolver) error
+type Retired struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRetired(from uint32) *Retired
+func (self *Retired) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Retired) Close() error
+func (self *Retired) Next(ctx context.Context) (*uint32, error)
 type Retry struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1696,6 +1765,17 @@ func ReissueLent(ticket Ticket, swap func(Ticket) Ticket) Ticket
 func (self Ticket) Equal(other Ticket) bool
 func (self Ticket) GoString() string
 func (self Ticket) Number() uint32
+type Tier int32
+const (
+	TierLow              Tier = 0
+	TierHigh             Tier = 1
+	TierCompareTo        Tier = 2
+	TierPartialCompareTo Tier = 3
+)
+func (self Tier) Compare(other Tier) int
+func (self Tier) Equal(other Tier) bool
+func (self Tier) GoString() string
+func (self Tier) PartialCompare(other Tier) (int, bool)
 type Token struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1739,6 +1819,14 @@ func (self *Verbosity) Close() error
 func (self *Verbosity) Filter() (*p_tracingcore.Level, error)
 func (self *Verbosity) LevelGet() (p_tracingcore.Level, error)
 func (self *Verbosity) LevelSet(value p_tracingcore.Level) error
+type Version struct {
+	Major uint16
+	Minor uint16
+}
+func (self Version) Compare(other Version) int
+func (self Version) Equal(other Version) bool
+func (self Version) GoString() string
+func (self Version) PartialCompare(other Version) (int, bool)
 type Waiter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1969,8 +2057,10 @@ type Instant struct {
 }
 func (self *Instant) Clone() (*Instant, error)
 func (self *Instant) Close() error
+func (self *Instant) Compare(other *Instant) (int, error)
 func (self *Instant) Equal(other *Instant) (bool, error)
 func (self *Instant) GoString() string
+func (self *Instant) PartialCompare(other *Instant) (int, bool, error)
 
 package tls // import "api/tls"
 
@@ -2010,13 +2100,15 @@ package tracingcore // import "api/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
+func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
+func (self Level) PartialCompare(other Level) (int, bool)
 func (self Level) String() string
 
 package url // import "api/url"
@@ -2028,7 +2120,9 @@ type Url struct {
 func UrlParse(input string) (*Url, error)
 func (self *Url) Clone() (*Url, error)
 func (self *Url) Close() error
+func (self *Url) Compare(other *Url) (int, error)
 func (self *Url) Equal(other *Url) (bool, error)
 func (self *Url) GoString() string
+func (self *Url) PartialCompare(other *Url) (int, bool, error)
 func (self *Url) String() string
 

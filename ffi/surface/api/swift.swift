@@ -580,6 +580,17 @@ public struct Qualifiers: Sendable, Equatable {
 	@inlinable public init(api: Swift.Double, kotlin: Swift.Double)
 	@inlinable public static func == (a: Qualifiers, b: Qualifiers) -> Swift.Bool
 }
+public struct Version: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
+	public var major: Swift.UInt16
+	public var minor: Swift.UInt16
+	@inlinable public init(major: Swift.UInt16, minor: Swift.UInt16)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func < (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func <= (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func > (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func >= (a: Version, b: Version) -> Swift.Bool
+}
 public struct Spot: Sendable, CustomDebugStringConvertible, Equatable {
 	public var x: Swift.UInt32
 	public var y: Swift.UInt32
@@ -663,6 +674,14 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: ClashBreak, b: ClashBreak) -> Swift.Bool
 	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
+}
+public struct ClashEscaped: Sendable, CustomDebugStringConvertible, Equatable {
+	public var new: Swift.UInt8
+	@inlinable public init(new: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashEscaped, b: ClashEscaped) -> Swift.Bool
+	@inlinable public func delete() -> Swift.UInt8
+	@inlinable public func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
 }
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
@@ -787,20 +806,46 @@ public enum Builtin: Sendable, Equatable {
 	case native(Swift.Double)
 	@inlinable public static func == (a: Builtin, b: Builtin) -> Swift.Bool
 }
+public enum Rank: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
+	case unranked
+	case ranked(compare: Swift.UInt8, partialCompare: Swift.UInt8, compareTo: Swift.UInt8, partialCompareTo: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Rank, b: Rank) -> Swift.Bool
+	@inlinable public static func < (a: Rank, b: Rank) -> Swift.Bool
+	@inlinable public static func <= (a: Rank, b: Rank) -> Swift.Bool
+	@inlinable public static func > (a: Rank, b: Rank) -> Swift.Bool
+	@inlinable public static func >= (a: Rank, b: Rank) -> Swift.Bool
+}
+public enum Tier: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
+	case low
+	case high
+	case compareTo
+	case partialCompareTo
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func < (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func <= (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func > (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func >= (a: Tier, b: Tier) -> Swift.Bool
+}
 public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
 	case none
 	case match(Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
 }
-public enum Level: Sendable, CustomStringConvertible, Hashable {
-	case trace
-	case debug
-	case info
-	case warn
+public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
+	case warn
+	case info
+	case debug
+	case trace
 	@inlinable public var description: Swift.String { get }
 	@inlinable public static func == (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func < (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func <= (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func > (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func >= (a: Level, b: Level) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct Board: ~Copyable, @unchecked Sendable {
@@ -875,6 +920,51 @@ public struct Waiter: ~Copyable, @unchecked Sendable {
 	@inlinable public func waker() throws -> @Sendable () -> Void
 	@inlinable public func context() throws -> @Sendable () -> Void
 	@inlinable nonisolated(nonsending) public static func pollFuture(_ future: @escaping @Sendable () async -> Void) async throws
+}
+public final class FeedStream: Swift.AsyncSequence {
+	public typealias Element = Bytes
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Bytes?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Bytes?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Bytes?
+	}
+}
+public struct Feed: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Bytes?
+	@inlinable public consuming func stream() -> FeedStream
+}
+public final class CountdownStream: Swift.AsyncSequence {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Swift.UInt32?
+	}
+}
+public struct Countdown: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Countdown
+	@inlinable public static func told(_ from: Swift.UInt32, _ log: any Log) -> Countdown
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@inlinable public consuming func stream() -> CountdownStream
+}
+@available(*, deprecated, message: "count with `Countdown`") public final class RetiredStream: Swift.AsyncSequence {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Swift.UInt32?
+	}
+}
+public struct Retired: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Retired
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable public consuming func stream() -> RetiredStream
 }
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
@@ -1111,6 +1201,7 @@ public struct Channel: ~Copyable, @unchecked Sendable {
 	@inlinable public func listen(_ cx: @escaping @Sendable () -> Void) throws
 	@inlinable nonisolated(nonsending) public func recvSized() async throws -> (Bytes, Swift.UInt)
 	@inlinable nonisolated(nonsending) public func recvNonempty() async throws -> Bytes
+	@inlinable public func feed() throws -> Feed
 	@inlinable public func sendFromThread(_ payload: Bytes) throws
 }
 public final class Gap: @unchecked Sendable, CustomDebugStringConvertible, Equatable {
@@ -1237,6 +1328,28 @@ public struct C: ~Copyable, @unchecked Sendable {
 #if compiler(>=6.4)
 extension C: Equatable {}
 #endif
+public struct Quantity: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func < (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func > (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func new(_ value: Swift.Int64, _ unit: Swift.Unicode.Scalar) -> Quantity
+}
+#if compiler(>=6.4)
+extension Quantity: Equatable {}
+#endif
+public struct Pass: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Pass, b: borrowing Pass) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Pass, b: borrowing Pass) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Pass, b: borrowing Pass) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Pass, b: borrowing Pass) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Pass, b: borrowing Pass) throws -> Swift.Bool
+	@inlinable public static func new(_ number: Swift.UInt32) -> Pass
+	@inlinable public consuming func redeem() throws -> Swift.UInt32
+}
 public struct Key: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Key
@@ -1271,6 +1384,10 @@ public struct Url: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Url
 	@inlinable public static func == (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func parse(_ input: Swift.String) throws -> Url
 }
@@ -1278,10 +1395,14 @@ public struct Json: ~Copyable, @unchecked Sendable {
 	@inlinable public static func parse(_ input: Swift.String) throws -> Json
 	@inlinable public func toText() throws -> Swift.String
 }
-public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable {
+public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Instant
 	@inlinable public static func == (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func < (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func <= (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func > (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func >= (a: Instant, b: Instant) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct StdIoError: ~Copyable, @unchecked Sendable {}

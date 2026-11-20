@@ -30,7 +30,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opaque, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opaque, Order, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 /// The runtime's public types, at the generated file's top level.
@@ -329,6 +329,7 @@ const IMPORTS: &[&str] = &[
 	"kotlin.also as _also",
 	"kotlin.coroutines.resume",
 	"kotlin.time.toDuration",
+	"kotlinx.coroutines.ensureActive as _ensureActive",
 	"kotlinx.coroutines.launch",
 ];
 
@@ -1570,6 +1571,21 @@ impl<'a> Gen<'a> {
 				"\t/** Rust's `Hash`, as `Long.hashCode` folds it. */\n\toverride fun hashCode(): kotlin.Int = {open}\n\t\t_Native.{bare}_hash({arg}).hashCode()\n\t}}\n"
 			)
 		};
+		let shown = self.abi.api.shown(ty);
+		let members = [
+			(t.display, "Display", "toString"),
+			(t.debug, "Debug", "debug"),
+			(object && t.clone, "Clone", "clone"),
+			(t.eq, "PartialEq", "equals"),
+			(t.eq && t.hash, "Hash", "hashCode"),
+			(t.ord != Order::None, "PartialOrd", "partialCompareTo"),
+			(t.ord == Order::Total, "Ord", "compareTo"),
+			(t.default, "Default", "default"),
+			(object, "Drop", "close"),
+		];
+		for (_, t, member) in members.into_iter().filter(|(has, ..)| *has) {
+			crate::lock::trait_member(&mut self.locked, shown, t, member);
+		}
 		if t.display {
 			// Final, so a data class variant of a sealed class keeps it rather than making
 			// its own.
@@ -1647,6 +1663,52 @@ impl<'a> Gen<'a> {
 				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_eq(a, b) }} }}\n\n{hash}"
 			));
 		}
+		// Rust's `partial_cmp` as `partialCompareTo`, null when unordered, and with `Ord` its
+		// `cmp` as `Comparable`'s `compareTo`, except an enum class's, which Kotlin makes
+		// final by ordinal: of both handles, or of both values encoded.
+		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
+			let member = suffix == "cmp";
+			if member && plain {
+				continue;
+			}
+			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
+				true => (
+					vec![("jlong", "Long"); 2],
+					(String::new(), format!("crate::{c}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
+				),
+				false => (
+					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
+					(
+						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
+						format!("crate::{c}_{suffix}(&x, &y)"),
+					),
+					format!(
+						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
+						self.write_value(ty, "w", "this"),
+						self.write_value(ty, "w", "other")
+					),
+				),
+			};
+			let (pre, call) = call;
+			let rust = match status {
+				true => format!(
+					"{pre}let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_{suffix}\");\n\t\t}}\n\t\tret as jint",
+					call.strip_suffix(')').expect("a call")
+				),
+				false => format!("{pre}let ret = {call};\n\t\tret as jint"),
+			};
+			self.native(&format!("{bare}_{suffix}"), &params, ("jint", "Int"), &rust);
+			body.push(match member {
+				true => format!(
+					"\t/** Rust's `Ord`: -1, 0, or 1 as this is less than, equal to, or greater than `other`. */\n\toverride fun compareTo(other: {class}): kotlin.Int = {kt}\n"
+				),
+				false => format!(
+					"\t/** Rust's `PartialOrd`: -1, 0, or 1 as this is less than, equal to, or greater than `other`, or null when the two are unordered. */\n\tfun partialCompareTo(other: {class}): kotlin.Int? = {kt}.takeIf {{ it != 2 }}\n"
+				),
+			});
+		}
 		if t.default {
 			let (jni, native, rust, lift) = match ty {
 				Type::Object(_) => (
@@ -1686,7 +1748,11 @@ impl<'a> Gen<'a> {
 		let fields: Vec<(String, String)> = record
 			.fields
 			.iter()
-			.map(|f| (field_name(&f.name), self.kt(&f.ty)))
+			.map(|f| {
+				let field = field_name(&f.name);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &field);
+				(field, self.kt(&f.ty))
+			})
 			.collect();
 		let mut body = Vec::new();
 		let mut statics = Vec::new();
@@ -1735,15 +1801,16 @@ impl<'a> Gen<'a> {
 			true => String::new(),
 			false => format!(" {{\n{}}}", body.join("\n")),
 		};
+		let supers = comparable(record.traits.ord, &name, " : ");
 		if let Some(opaque) = record.opaque {
-			self.opaque(&c, &name, &opaque, &comment, &body);
+			self.opaque(&c, &name, &opaque, &comment, &supers, &body);
 			return;
 		}
 		match fields.is_empty() {
 			true => {
 				let _ = write!(
 					self.types,
-					"{comment}class {name} {}\n\n",
+					"{comment}class {name}{supers} {}\n\n",
 					match body.is_empty() {
 						true => format!(
 							"{{\n\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {name}\n\n\toverride fun hashCode(): kotlin.Int = 0\n}}"
@@ -1771,7 +1838,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				let _ = write!(
 					self.types,
-					"{comment}data class {name}(\n{}\n){body}\n\n",
+					"{comment}data class {name}(\n{}\n){supers}{body}\n\n",
 					params.join("\n")
 				);
 			}
@@ -1810,7 +1877,7 @@ impl<'a> Gen<'a> {
 	/// over the `Long` it fits in with no padding, or else a class of a `Long` for each of
 	/// its words, which compares through Rust's `PartialEq`, so one that does not escape
 	/// allocates nothing. Only Rust makes one.
-	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, body: &str) {
+	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, supers: &str, body: &str) {
 		let words = opaque.words();
 		let holders = holders(opaque);
 		// Set after a constructor of none, as a constructor of a parameter each would pass
@@ -1834,7 +1901,7 @@ impl<'a> Gen<'a> {
 		};
 		let write: String = holders.iter().map(|h| format!("\tw.i64(v.{h})\n")).collect();
 		let read = self.made(name, opaque, &vec!["r.i64()".to_string(); holders.len()]);
-		let _ = write!(self.types, "{docs}{head}{body}\n\n");
+		let _ = write!(self.types, "{docs}{head}{supers}{body}\n\n");
 		let _ = write!(
 			self.top,
 			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n{write}}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = {read}\n\n"
@@ -1917,6 +1984,7 @@ impl<'a> Gen<'a> {
 			let entries: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let entry = abi::snake(&v.name).to_uppercase();
+					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &format!("{name}.{entry}"));
 					match abi.api.everywhere(v.on) {
 						true => format!("\t{entry}({}),", v.discriminant),
 						false => format!(
@@ -1959,11 +2027,16 @@ impl<'a> Gen<'a> {
 		let mut glue_writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
 			let vname = pascal(&variant.name);
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 			members.push(format!("class {vname}"));
 			let fields: Vec<String> = variant
 				.fields
 				.iter()
-				.map(|f| format!("val {}: {}", field_name(&f.name), self.kt(&f.ty)))
+				.map(|f| {
+					let field = field_name(&f.name);
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &field);
+					format!("val {field}: {}", self.kt(&f.ty))
+				})
 				.collect();
 			let mut write = vec![format!("w.i32({n})")];
 			// A value of a variant the library's target lacks is refused as it crosses.
@@ -2029,8 +2102,9 @@ impl<'a> Gen<'a> {
 		all.extend(body);
 		let _ = write!(
 			self.types,
-			"{}sealed class {name} {{\n{}}}\n\n",
+			"{}sealed class {name}{} {{\n{}}}\n\n",
 			docs(&e.docs, e.deprecated.as_deref(), ""),
+			comparable(e.traits.ord, &name, " : "),
 			all.join("\n")
 		);
 		let _ = write!(
@@ -2104,6 +2178,21 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
+		// Each stream's flow, after every Rust method, so a Rust name keeps itself.
+		for method in &object.methods {
+			let key = crate::lock::function_key(method);
+			let (Some(item), Some(next)) = (method.stream(), self.locked.get(&key).cloned()) else {
+				continue;
+			};
+			let taken = kept_apart(names(&body), jvm_names(&body).chain(jvm_names(&statics)));
+			let item = self.kt(item);
+			body.push(flow(
+				(&item, &next, method.deprecated.as_deref()),
+				&key,
+				&taken,
+				&mut self.locked,
+			));
+		}
 		let mut members: Vec<String> = body.iter().filter_map(|b| member_name(b)).collect();
 		members.extend(statics.iter().filter_map(|s| member_name(s)));
 		self.distinct(&rust, &members);
@@ -2113,8 +2202,9 @@ impl<'a> Gen<'a> {
 		let text = format!("{rust}\n\n{}", object.docs);
 		let _ = write!(
 			self.types,
-			"{}class {name} internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {{\n{}}}\n\n",
+			"{}class {name} internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable{} {{\n{}}}\n\n",
 			docs(text.trim(), object.deprecated.as_deref(), ""),
+			comparable(object.traits.ord, &name, ", "),
 			body.join("\n")
 		);
 	}
@@ -3782,6 +3872,14 @@ fn opaque_of(abi: &Abi<'_>, c: &Ty) -> Option<Opaque> {
 		.and_then(|i| abi.api.records[i].opaque)
 }
 
+/// The `Comparable` a class ordered by `ord` implements, after `sep`: only a total order is.
+fn comparable(ord: Order, name: &str, sep: &str) -> String {
+	match ord {
+		Order::Total => format!("{sep}kotlin.Comparable<{name}>"),
+		_ => String::new(),
+	}
+}
+
 /// The properties of an opaque value's class holding it, a word each: a value class's
 /// `bits`, or `w0` and on.
 fn holders(opaque: &Opaque) -> Vec<String> {
@@ -4073,6 +4171,28 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 		true => format!("{name}_"),
 		false => kw(&name),
 	}
+}
+
+/// A stream's `asFlow()`, over its `next` member `next` yielding `item`s, apart from the
+/// members `taken` names, its name locked under `key`, the `next`'s own.
+fn flow(
+	(item, next, deprecated): (&str, &str, Option<&str>),
+	key: &str,
+	taken: &[String],
+	locked: &mut BTreeMap<String, String>,
+) -> String {
+	let mut name = "asFlow".to_string();
+	while taken.contains(&format!("fun {name}")) || taken.contains(&format!("jvm {name}")) {
+		name.push('_');
+	}
+	locked.insert(format!("{key} / stream"), name.clone());
+	let doc = format!(
+		"Each item [{next}] yields, as a cold flow calling it once per item until it returns null, ending with what it throws. It checks for cancellation before each call, since a call ready at once never suspends, and reads nothing ahead, so a collector leaving early leaves the next item to the next call, and cancelling the collection cancels the pending [{next}], which loses an item only where its Rust future does when dropped."
+	);
+	format!(
+		"{}\tfun {name}(): kotlinx.coroutines.flow.Flow<{item}> = kotlinx.coroutines.flow.flow {{\n\t\twhile (true) {{\n\t\t\tkotlinx.coroutines.currentCoroutineContext()._ensureActive()\n\t\t\temit({next}() ?: break)\n\t\t}}\n\t}}\n",
+		docs(&doc, deprecated, "\t")
+	)
 }
 
 /// A name Kotlin reads as a hard keyword, in backticks.

@@ -15,7 +15,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Waiter, Window,
+	Stamp, Tally, Tier, Version, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -995,6 +995,73 @@ fn main() {
 		a.hash_of() == api::Key::new("a").hash_of(),
 		a.hash_of() == b.hash_of()
 	);
+	// A version orders by its derived `Ord`, and its `<` by `PartialOrd`, which agrees.
+	let (v1, v2) = (Version { major: 1, minor: 2 }, Version { major: 1, minor: 10 });
+	println!(
+		"version {} {} {} {} {} {} {}",
+		v1 < v2,
+		v1 <= v2,
+		v1 > v2,
+		v1 >= v2,
+		v1.cmp(&v2) as i8,
+		v2.cmp(&v1) as i8,
+		v1.cmp(&v1) as i8
+	);
+	// A quantity orders by its hand-written `PartialOrd`, which leaves two units unordered.
+	let (m1, m2, g1) = (
+		api::Quantity::new(1, 'm'),
+		api::Quantity::new(2, 'm'),
+		api::Quantity::new(1, 'g'),
+	);
+	println!(
+		"quantity {} {} {} {} {} {} {} {} {}",
+		m1 < m2,
+		m1 <= m2,
+		m1 > m2,
+		m1 >= m2,
+		m1 <= api::Quantity::new(1, 'm'),
+		m1 < g1,
+		m1 <= g1,
+		m1 > g1,
+		m1 >= g1
+	);
+	println!(
+		"tier {} {} {} {} {}",
+		Tier::Low < Tier::High,
+		Tier::CompareTo < Tier::PartialCompareTo,
+		Tier::Low >= Tier::Low,
+		Tier::High.cmp(&Tier::Low) as i8,
+		Tier::Low.cmp(&Tier::High) as i8
+	);
+	// A pass's handle is checked, so its comparisons can fail, yet it still orders by `Ord`.
+	let (t1, t2) = (api::Pass::new(1), api::Pass::new(2));
+	println!(
+		"pass {} {} {} {} {}",
+		t1 < t2,
+		t1 >= t2,
+		t1.cmp(&t2) as i8,
+		t2.cmp(&t1) as i8,
+		t1.cmp(&t1) as i8
+	);
+	// A rank's fields are named as the comparison methods, which each binding keeps apart.
+	let ranked = api::Rank::Ranked {
+		compare: 1,
+		partial_compare: 2,
+		compare_to: 3,
+		partial_compare_to: 4,
+	};
+	println!(
+		"rank {} {} {}",
+		api::Rank::Unranked < ranked,
+		ranked.cmp(&api::Rank::Unranked) as i8,
+		ranked
+			== api::Rank::Ranked {
+				compare: 1,
+				partial_compare: 2,
+				compare_to: 3,
+				partial_compare_to: 4
+			}
+	);
 	println!(
 		"lossless ip {} {}",
 		ip_hex(api::same_ip_addr("255.255.255.255".parse().unwrap())),
@@ -1057,6 +1124,7 @@ fn main() {
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
 	drive();
 	readers();
+	streams();
 	println!("non zeros {}", api::describe_non_zeros(api::non_zeros()));
 	println!(
 		"hop {:?} {:?} {:?}",
@@ -1210,6 +1278,52 @@ fn readers() {
 	match api::seek_to(&mut std::io::Cursor::new(Vec::<u8>::new()), u64::MAX) {
 		Ok(at) => println!("sought {at}"),
 		Err(err) => println!("sought error {err}"),
+	}
+}
+
+/// Streams, each iterated in its language's own protocol: to its end, left early, and to
+/// an error, past which the stream goes on.
+fn streams() {
+	let mut counts = Vec::new();
+	let mut countdown = api::Countdown::new(3);
+	while let Some(count) = finish(countdown.next()) {
+		counts.push(count.to_string());
+	}
+	println!("countdown {}", counts.join(" "));
+	// A loop left early takes nothing past the item it stopped at.
+	let mut countdown = api::Countdown::new(5);
+	while let Some(count) = finish(countdown.next()) {
+		if count == 4 {
+			break;
+		}
+	}
+	println!("countdown after break {}", finish(countdown.next()).unwrap());
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	let channel = Channel::new();
+	let mut feed = channel.feed();
+	for first in ["a", "c"] {
+		channel.send(Bytes::from_static(first.as_bytes()));
+		loop {
+			match finish(feed.next()) {
+				Ok(Some(payload)) => {
+					println!("feed {}", String::from_utf8_lossy(&payload));
+					let reply: &'static str = match &payload[..] {
+						b"a" => "b",
+						b"b" => "!",
+						_ => "",
+					};
+					channel.send(Bytes::from_static(reply.as_bytes()));
+				}
+				Ok(None) => {
+					println!("feed end");
+					break;
+				}
+				Err(err) => {
+					println!("feed error {err}");
+					break;
+				}
+			}
+		}
 	}
 }
 

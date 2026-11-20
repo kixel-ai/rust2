@@ -109,18 +109,19 @@ export declare function debug(self: BoxedU8): string;
 export declare function eq(a: BoxedU8, b: BoxedU8): boolean;
 
 // Builtin.ts
+import * as rt from "./rt.ts";
 export type Builtin = {
     tag: "Any";
     _0: Int32Array;
 } | {
     tag: "Boolean";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Int";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Native";
-    _0: number;
+    _0: rt.f64;
 };
 export declare function eq(a: Builtin, b: Builtin): boolean;
 
@@ -147,6 +148,7 @@ export declare function eq(a: Cancelled, b: Cancelled): boolean;
 // Channel.ts
 import * as rt from "./rt.ts";
 import type { Error_ } from "./Error_.ts";
+import type { Feed } from "./Feed.ts";
 export type Channel = rt.Handle<"Channel">;
 export declare function clone(self: Channel): Channel;
 export declare function default$(): Channel;
@@ -163,6 +165,7 @@ export declare function pollMeasure(self: Channel, extra: number): rt.Call<rt.Re
 export declare function listen(self: Channel, cx: () => void): void;
 export declare function recvSized(self: Channel): rt.Call<[Uint8Array, number]>;
 export declare function recvNonempty(self: Channel): rt.Call<rt.Result<rt.Bytes, Error_>>;
+export declare function feed(self: Channel): Feed;
 export { default$ as default, new$ as new };
 
 // Choice.ts
@@ -193,10 +196,10 @@ export type Clash = {
     _0: Event;
 } | {
     tag: "Double";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Float";
-    _0: number;
+    _0: rt.f32;
 } | {
     tag: "String";
     _0: string;
@@ -234,11 +237,11 @@ export type Clash = {
 export declare function debug(self: Clash): string;
 export declare function eq(a: Clash, b: Clash): boolean;
 export declare function point(self: Clash): Point | undefined;
-export declare function of(value: number): Clash;
+export declare function of(value: rt.f64): Clash;
 export declare function bytes(self: Clash): rt.Bytes;
 export declare function reading(self: Clash, kotlin: number): Reading;
 export declare function listed(java: Uint32Array, kotlin: rt.Place<number>): Uint32Array[];
-export declare function after(first: Promise<unknown>, kotlin: number): rt.Call<Clash>;
+export declare function after(first: Promise<unknown>, kotlin: rt.f64): rt.Call<Clash>;
 export declare function joined(self: Clash, lent: Uint8Array | rt.Bytes, owned: Uint8Array | rt.Bytes, maybe: Uint8Array | rt.Bytes | undefined): rt.Bytes;
 export declare function tagged(self: Clash, tag: string): rt.Call<string>;
 export declare function stamp(self: Clash, kotlin: rt.u64): Stamp;
@@ -278,6 +281,16 @@ export declare function eq(a: ClashCandidate, b: ClashCandidate): boolean;
 import * as rt from "./rt.ts";
 export type ClashEmptyString = rt.Handle<"ClashEmptyString">;
 export declare function isEmpty(self: ClashEmptyString): boolean;
+
+// ClashEscaped.ts
+export type ClashEscaped = {
+    new: number;
+};
+export declare function debug(self: ClashEscaped): string;
+export declare function eq(a: ClashEscaped, b: ClashEscaped): boolean;
+export declare function delete$(self: ClashEscaped): number;
+export declare function delete_(self: ClashEscaped, new_: number, new_2: number): number;
+export { delete$ as delete };
 
 // ClashSeed.ts
 import * as rt from "./rt.ts";
@@ -339,6 +352,16 @@ export declare function listSet(self: Codecs, value: TlsCodec[]): void;
 export declare function new$(): Codecs;
 export declare function ids(self: Codecs): number;
 export { default$ as default, new$ as new };
+
+// Countdown.ts
+import * as rt from "./rt.ts";
+import type { Log } from "./Log.ts";
+export type Countdown = rt.Handle<"Countdown">;
+export declare function new$(from: number): Countdown;
+export declare function told(from: number, log: Log): Countdown;
+export declare function next(self: Countdown): rt.Call<number | undefined>;
+export declare function values(self: Countdown): rt.Stream<number>;
+export { new$ as new };
 
 // Counter.ts
 import * as rt from "./rt.ts";
@@ -486,6 +509,13 @@ export type Fault = rt.Handle<"Fault">;
 export declare function toString(self: Fault): string;
 export declare function debug(self: Fault): string;
 
+// Feed.ts
+import * as rt from "./rt.ts";
+import type { Error_ } from "./Error_.ts";
+export type Feed = rt.Handle<"Feed">;
+export declare function next(self: Feed): rt.Call<rt.Result<rt.Bytes | undefined, Error_>>;
+export declare function values(self: Feed): rt.Stream<rt.Result<rt.Bytes, Error_>>;
+
 // FiledReceipt.ts
 import * as rt from "./rt.ts";
 export type FiledReceipt = rt.Handle<"FiledReceipt">;
@@ -564,6 +594,8 @@ export declare function debug(self: Instant): string;
 export declare function clone(self: Instant): Instant;
 export declare function eq(a: Instant, b: Instant): boolean;
 export declare function hash(self: Instant): rt.u64;
+export declare function partialCmp(a: Instant, b: Instant): number | undefined;
+export declare function cmp(a: Instant, b: Instant): number;
 
 // Journal.ts
 import * as rt from "./rt.ts";
@@ -701,8 +733,10 @@ export declare function debug(self: LeftU8): string;
 export declare function eq(a: LeftU8, b: LeftU8): boolean;
 
 // Level.ts
-export type Level = "Trace" | "Debug" | "Info" | "Warn" | "Error";
+export type Level = "Error" | "Warn" | "Info" | "Debug" | "Trace";
 export declare function toString(self: Level): string;
+export declare function partialCmp(a: Level, b: Level): number | undefined;
+export declare function cmp(a: Level, b: Level): number;
 
 // LimitsBytes.ts
 export type LimitsBytes = {
@@ -801,14 +835,15 @@ export declare function offset(self: Marker, dx: number, dy: number): Point;
 export { new$ as new };
 
 // Measure.ts
+import * as rt from "./rt.ts";
 import type { Numbers } from "./Numbers.ts";
 export type Measure = {
-    value: number;
+    value: rt.f64;
     numbers: Numbers;
 };
 export declare function debug(self: Measure): string;
 export declare function eq(a: Measure, b: Measure): boolean;
-export declare function new$(value: number, negative: boolean): Measure;
+export declare function new$(value: rt.f64, negative: boolean): Measure;
 export { new$ as new };
 
 // Message.ts
@@ -1039,6 +1074,17 @@ export type Parcel = {
     payload: Uint8Array;
 };
 
+// Pass.ts
+import * as rt from "./rt.ts";
+export type Pass = rt.Handle<"Pass">;
+export declare function debug(self: Pass): string;
+export declare function eq(a: Pass, b: Pass): boolean;
+export declare function partialCmp(a: Pass, b: Pass): number | undefined;
+export declare function cmp(a: Pass, b: Pass): number;
+export declare function new$(number: number): Pass;
+export declare function redeem(self: Pass): number;
+export { new$ as new };
+
 // Peer.ts
 import * as rt from "./rt.ts";
 export type Peer = {
@@ -1112,11 +1158,36 @@ export declare function debug(self: Polar_Turn): string;
 export declare function eq(a: Polar_Turn, b: Polar_Turn): boolean;
 
 // Qualifiers.ts
+import * as rt from "./rt.ts";
 export type Qualifiers = {
-    api: number;
-    kotlin: number;
+    api: rt.f64;
+    kotlin: rt.f64;
 };
 export declare function eq(a: Qualifiers, b: Qualifiers): boolean;
+
+// Quantity.ts
+import * as rt from "./rt.ts";
+export type Quantity = rt.Handle<"Quantity">;
+export declare function debug(self: Quantity): string;
+export declare function eq(a: Quantity, b: Quantity): boolean;
+export declare function partialCmp(a: Quantity, b: Quantity): number | undefined;
+export declare function new$(value: rt.i64, unit: number): Quantity;
+export { new$ as new };
+
+// Rank.ts
+export type Rank = {
+    tag: "Unranked";
+} | {
+    tag: "Ranked";
+    compare: number;
+    partialCompare: number;
+    compareTo: number;
+    partialCompareTo: number;
+};
+export declare function debug(self: Rank): string;
+export declare function eq(a: Rank, b: Rank): boolean;
+export declare function partialCmp(a: Rank, b: Rank): number | undefined;
+export declare function cmp(a: Rank, b: Rank): number;
 
 // Rated.ts
 import * as rt from "./rt.ts";
@@ -1133,8 +1204,8 @@ import type { Point } from "./Point.ts";
 import type { Shape } from "./Shape.ts";
 export type Reading = {
     ok: boolean;
-    level: number;
-    ratio: number;
+    level: rt.f32;
+    ratio: rt.f64;
     mark: number;
     shape: Shape;
     at: Point;
@@ -1180,6 +1251,14 @@ export type Resolving = rt.Handle<"Resolving">;
 export declare function _0_get(self: Resolving): TlsResolver;
 export declare function _0_set(self: Resolving, value: TlsResolver): void;
 export declare function new$(name: string): Resolving;
+export { new$ as new };
+
+// Retired.ts
+import * as rt from "./rt.ts";
+export type Retired = rt.Handle<"Retired">;
+export declare function new$(from: number): Retired;
+export declare function next(self: Retired): rt.Call<number | undefined>;
+export declare function values(self: Retired): rt.Stream<number>;
 export { new$ as new };
 
 // Retry.ts
@@ -1439,6 +1518,12 @@ export declare function number(self: Ticket): number;
 export declare function clones(): number;
 export { new$ as new };
 
+// Tier.ts
+export type Tier = "Low" | "High" | "CompareTo" | "PartialCompareTo";
+export declare function debug(self: Tier): string;
+export declare function partialCmp(a: Tier, b: Tier): number | undefined;
+export declare function cmp(a: Tier, b: Tier): number;
+
 // TlsCert.ts
 import * as rt from "./rt.ts";
 export type TlsCert = rt.Handle<"TlsCert">;
@@ -1512,6 +1597,8 @@ export declare function debug(self: Url): string;
 export declare function clone(self: Url): Url;
 export declare function eq(a: Url, b: Url): boolean;
 export declare function hash(self: Url): rt.u64;
+export declare function partialCmp(a: Url, b: Url): number | undefined;
+export declare function cmp(a: Url, b: Url): number;
 export declare function parse(input: string): rt.Result<Url, string>;
 
 // VecClashTone.ts
@@ -1527,6 +1614,16 @@ export declare function levelSet(self: Verbosity, value: Level): void;
 export declare function new$(level: Level): Verbosity;
 export declare function filter(self: Verbosity): Level | undefined;
 export { new$ as new };
+
+// Version.ts
+export type Version = {
+    major: number;
+    minor: number;
+};
+export declare function debug(self: Version): string;
+export declare function eq(a: Version, b: Version): boolean;
+export declare function partialCmp(a: Version, b: Version): number | undefined;
+export declare function cmp(a: Version, b: Version): number;
 
 // Waiter.ts
 import * as rt from "./rt.ts";
@@ -1605,6 +1702,7 @@ import type { Clash } from "./Clash.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashBreak } from "./ClashBreak.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashEscaped } from "./ClashEscaped.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashTone_ } from "./ClashTone_.ts";
@@ -1659,6 +1757,7 @@ import type { PolarPoint } from "./PolarPoint.ts";
 import type { PolarTurn } from "./PolarTurn.ts";
 import type { Polar_Turn } from "./Polar_Turn.ts";
 import type { Qualifiers } from "./Qualifiers.ts";
+import type { Rank } from "./Rank.ts";
 import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
@@ -1678,11 +1777,13 @@ import type { StartSeekable } from "./StartSeekable.ts";
 import type { Status } from "./Status.ts";
 import type { Tally } from "./Tally.ts";
 import type { Ticket } from "./Ticket.ts";
+import type { Tier } from "./Tier.ts";
 import type { TlsCert } from "./TlsCert.ts";
 import type { TlsCodec } from "./TlsCodec.ts";
 import type { TlsPolicyLifetime } from "./TlsPolicyLifetime.ts";
 import type { Token } from "./Token.ts";
 import type { VecClashTone } from "./VecClashTone.ts";
+import type { Version } from "./Version.ts";
 import type { Waiter } from "./Waiter.ts";
 import type { Weighted } from "./Weighted.ts";
 import type { Wide } from "./Wide.ts";
@@ -1692,6 +1793,7 @@ export declare function e_Family(v: Family): number;
 export declare function e_Level(v: Level): number;
 export declare function e_Shape(v: Shape): number;
 export declare function e_Status_(v: Status): number;
+export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
 export declare function f0(): number;
 export declare function f1(): number;
@@ -1719,12 +1821,14 @@ export declare const k_Berth: rt.Kind;
 export declare const k_Board: rt.Kind;
 export declare const k_Channel: rt.Kind;
 export declare const k_Codecs: rt.Kind;
+export declare const k_Countdown: rt.Kind;
 export declare const k_Counter: rt.Kind;
 export declare const k_Cursor: rt.Kind;
 export declare const k_Der: rt.Kind;
 export declare const k_Digest: rt.Kind;
 export declare const k_Draft: rt.Kind;
 export declare const k_Fault: rt.Kind;
+export declare const k_Feed: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
@@ -1751,11 +1855,14 @@ export declare const k_Node: rt.Kind;
 export declare const k_Outer_Inner_u8: rt.Kind;
 export declare const k_Pad_u16: rt.Kind;
 export declare const k_Pad_u8: rt.Kind;
+export declare const k_Pass: rt.Kind;
 export declare const k_Plain: rt.Kind;
+export declare const k_Quantity: rt.Kind;
 export declare const k_Receipt: rt.Kind;
 export declare const k_Refusal: rt.Kind;
 export declare const k_Registry: rt.Kind;
 export declare const k_Resolving: rt.Kind;
+export declare const k_Retired: rt.Kind;
 export declare const k_Retry: rt.Kind;
 export declare const k_Sheet: rt.Kind;
 export declare const k_Site: rt.Kind;
@@ -1792,13 +1899,16 @@ export declare function p_Channel_send_later(f: number, w$: number): [boolean, v
 export declare function p_Channel_tagged(f: number, w$: number): [boolean, string];
 export declare function p_Clash_after(f: number, w$: number): [boolean, Clash];
 export declare function p_Clash_tagged(f: number, w$: number): [boolean, string];
+export declare function p_Countdown_next(f: number, w$: number): [boolean, number | undefined];
 export declare function p_Counter_plus_later(f: number, w$: number): [boolean, rt.u64];
+export declare function p_Feed_next(f: number, w$: number): [boolean, rt.Result<rt.Bytes | undefined, Error_>];
 export declare function p_Gauge_later(f: number, w$: number): [boolean, rt.u64];
 export declare function p_Gauge_reaches(f: number, w$: number): [boolean, boolean];
 export declare function p_Handle_later(f: number, w$: number): [boolean, Handle];
 export declare function p_LocalWaiter_poll_ready(f: number, w$: number): [boolean, number];
 export declare function p_Local_later(f: number, w$: number): [boolean, number];
 export declare function p_Local_poll_count(f: number, w$: number): [boolean, number];
+export declare function p_Retired_next(f: number, w$: number): [boolean, number | undefined];
 export declare function p_Tally_bump_later(f: number, w$: number): [boolean, number];
 export declare function p_Waiter_poll_future(f: number, w$: number): [boolean, void];
 export declare function p_after(f: number, w$: number): [boolean, number];
@@ -2043,6 +2153,7 @@ export declare function w_Platform(p: number, v: Platform): void;
 export declare function w_Point(p: number, v: Point): void;
 export declare function w_PolarTurn(p: number, v: PolarTurn): void;
 export declare function w_Qualifiers(p: number, v: Qualifiers): void;
+export declare function w_Rank(p: number, v: Rank): void;
 export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;
@@ -2058,6 +2169,7 @@ export declare function w_Stamp(p: number, v: Stamp): void;
 export declare function w_Stamped(p: number, v: Stamped): void;
 export declare function w_StartSeekable(p: number, v: StartSeekable): void;
 export declare function w_Ticket(p: number, v: Ticket): void;
+export declare function w_Version(p: number, v: Version): void;
 export declare function w_Weighted(p: number, v: Weighted): void;
 export declare function w_Wide(p: number, v: Wide): void;
 export declare function w_Window(p: number, v: Window): void;
@@ -2096,6 +2208,7 @@ export declare function w_bounds_u64(p: number, v: {
 export declare function w_clash_Any(p: number, v: ClashAny): void;
 export declare function w_clash_Break(p: number, v: ClashBreak): void;
 export declare function w_clash_Candidate(p: number, v: ClashCandidate): void;
+export declare function w_clash_Escaped(p: number, v: ClashEscaped): void;
 export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
 export declare function w_clash_Tone(p: number, v: ClashTone): void;
@@ -2593,7 +2706,7 @@ export declare function wasmLog(log: Log): void;
 export declare function boothCount(booth: Booth): rt.u64;
 export declare function page(): Page;
 export declare function beats(beat: Beat): number;
-export declare function same(a: number, b: number): number;
+export declare function same(a: rt.f64, b: rt.f64): number;
 export declare function returnValues(point: rt.Place<Point>, fail: boolean): rt.Result<[string, [number, number, number, rt.u64] | undefined, Uint8Array[]], Error_>;
 export declare function returnMoved(counter: Counter, fail: boolean): rt.Result<Counter, Error_>;
 export declare function nonZeros(): NonZeros;
@@ -2659,6 +2772,17 @@ type Num<T extends string> = number & {
 export type u64 = Num<"u64"> | U64Limbs;
 export type i64 = Num<"i64"> | I64Limbs;
 export type u128 = Num<"u128"> | U128Limbs;
+export type F32Nan = {
+    readonly bits: number;
+    readonly [brand]: "f32";
+};
+export type F64Nan = {
+    readonly hi: number;
+    readonly lo: number;
+    readonly [brand]: "f64";
+};
+export type f32 = Num<"f32"> | F32Nan;
+export type f64 = Num<"f64"> | F64Nan;
 export type Result<T, E> = {
     readonly ok: true;
     readonly value: T;
@@ -2776,7 +2900,12 @@ export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
-export declare function f32(v: number): number;
+export declare function f32Get(p: number): f32;
+export declare function f32Put(p: number, v: f32): void;
+export declare function f64Get(p: number): f64;
+export declare function f64Put(p: number, v: f64): void;
+export declare function f32Number(v: f32): number;
+export declare function f64Number(v: f64): number;
 export declare function char(v: number): number;
 export declare function u64Of(hi: number, lo: number): u64;
 export declare function i64Of(hi: number, lo: number): i64;
@@ -2855,6 +2984,8 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
+export type Stream<T> = AsyncIterableIterator<T>;
+export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;

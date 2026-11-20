@@ -1693,6 +1693,86 @@ impl Channel {
 			payload => Ok(payload),
 		}
 	}
+
+	/// What this channel receives from now on, as a stream.
+	pub fn feed(&self) -> Feed {
+		Feed(self.clone())
+	}
+}
+
+/// What a channel receives, as a stream each binding iterates in its language's own
+/// protocol: each payload, ending at an empty one and failing at `!`.
+pub struct Feed(Channel);
+
+impl Feed {
+	/// The next payload, waiting for it: `None` at an empty one, and an error at `!`.
+	/// Dropped while it waits, it loses nothing, since only the poll returning a payload
+	/// takes it.
+	pub async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+		match self.0.recv().await {
+			payload if payload.is_empty() => Ok(None),
+			payload if payload == "!" => Err(Error::Overflow),
+			payload => Ok(Some(payload)),
+		}
+	}
+}
+
+/// Counts down to 1, then ends: a stream each binding iterates in its language's own
+/// protocol, whose every count pends once first.
+pub struct Countdown {
+	left: u32,
+	told: Option<Box<dyn Log>>,
+}
+
+impl Countdown {
+	pub fn new(from: u32) -> Self {
+		Self { left: from, told: None }
+	}
+
+	/// A countdown telling `log` each count in the poll that returns it, so a binding's
+	/// adapter sees a callback in the poll that finishes its call.
+	pub fn told(from: u32, log: Box<dyn Log>) -> Self {
+		Self {
+			left: from,
+			told: Some(log),
+		}
+	}
+
+	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
+	/// adapter waits on a wake between items.
+	pub async fn next(&mut self) -> Option<u32> {
+		let mut pended = false;
+		std::future::poll_fn(|cx| {
+			if !std::mem::replace(&mut pended, true) {
+				cx.waker().wake_by_ref();
+				return Poll::Pending;
+			}
+			Poll::Ready(())
+		})
+		.await;
+		let count = self.left;
+		self.left = count.saturating_sub(1);
+		if let Some(log) = &self.told {
+			log.log(0, &format!("count {count}"));
+		}
+		(count > 0).then_some(count)
+	}
+}
+
+/// A countdown whose `next` is deprecated, as is each binding's adapter calling it, so a
+/// binding that refuses a use of what is deprecated still builds.
+pub struct Retired(Countdown);
+
+impl Retired {
+	pub fn new(from: u32) -> Self {
+		Self(Countdown::new(from))
+	}
+
+	/// The next count, or `None` past 1.
+	#[deprecated(note = "count with [`Countdown`]")]
+	pub async fn next(&mut self) -> Option<u32> {
+		self.0.next().await
+	}
 }
 
 /// `n` halved if even, at once: a future whose output may be `None`.
@@ -4878,6 +4958,24 @@ pub mod clash {
 		}
 	}
 
+	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+	pub struct Escaped {
+		pub new: u8,
+	}
+
+	impl Escaped {
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+
+		/// `new` plus the arguments, by parameters C++ escapes alike.
+		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
+			self.new + new * 10 + new_ * 100
+		}
+	}
+
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
 	pub fn audible(tone: Tone) -> Result<Tone, Vec<Tone>> {
 		if tone.hz == 0 { Err(Vec::new()) } else { Ok(tone) }
@@ -5088,6 +5186,74 @@ pub fn same_socket_addr_v6(v: std::net::SocketAddrV6) -> std::net::SocketAddrV6 
 /// `v`, as given.
 pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
 	v
+}
+
+/// A version: a record whose derived `Ord` is a total order, `major` first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Version {
+	pub major: u16,
+	pub minor: u16,
+}
+
+/// A quantity: an object whose hand-written `PartialOrd` leaves quantities of two units
+/// unordered, as moq's timestamps of two scales are, so it has no `Ord`.
+#[derive(Debug, PartialEq)]
+pub struct Quantity {
+	value: i64,
+	unit: char,
+}
+
+impl Quantity {
+	pub fn new(value: i64, unit: char) -> Quantity {
+		Quantity { value, unit }
+	}
+}
+
+impl PartialOrd for Quantity {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		(self.unit == other.unit).then(|| self.value.cmp(&other.value))
+	}
+}
+
+/// A pass: an object whose derived `Ord` is a total order, and whose handle a call checks,
+/// since `redeem` moves it out.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pass {
+	number: u32,
+}
+
+impl Pass {
+	pub fn new(number: u32) -> Pass {
+		Pass { number }
+	}
+
+	/// Its number, using it up.
+	pub fn redeem(self) -> u32 {
+		self.number
+	}
+}
+
+/// A rank: a data enum with `Ord` whose fields are named as the comparison methods a
+/// binding gives it, which each binding's names for them must keep apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank {
+	Unranked,
+	Ranked {
+		compare: u8,
+		partial_compare: u8,
+		compare_to: u8,
+		partial_compare_to: u8,
+	},
+}
+
+/// A tier: an enum whose derived `Ord` orders its variants as declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+	Low,
+	High,
+	/// Named as Dart's comparison methods are, which its constants keep apart.
+	CompareTo,
+	PartialCompareTo,
 }
 
 /// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by

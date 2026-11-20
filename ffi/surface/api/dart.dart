@@ -617,6 +617,20 @@ final class Qualifiers {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Version implements Comparable<Version> {
+	final int major;
+	final int minor;
+	const Version({required this.major, required this.minor});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Version other);
+	bool operator <(Version other);
+	bool operator <=(Version other);
+	bool operator >(Version other);
+	bool operator >=(Version other);
+	@override int compareTo(Version other);
+}
 final class Spot {
 	final int x;
 	final int y;
@@ -710,6 +724,15 @@ final class ClashBreak {
 	@override int get hashCode;
 	static ClashBreak get sp;
 	static ClashBreak get sp_;
+}
+final class ClashEscaped {
+	final int new_;
+	const ClashEscaped({required this.new_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int delete();
+	int delete_(int new_, int new_2);
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -964,6 +987,42 @@ final class BuiltinNative extends Builtin {
 	final double $0;
 	const BuiltinNative(this.$0);
 }
+sealed class Rank implements Comparable<Rank> {
+	const Rank();
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Rank other);
+	bool operator <(Rank other);
+	bool operator <=(Rank other);
+	bool operator >(Rank other);
+	bool operator >=(Rank other);
+	@override int compareTo(Rank other);
+}
+final class RankUnranked extends Rank {
+	const RankUnranked();
+}
+final class RankRanked extends Rank {
+	final int compare;
+	final int partialCompare;
+	final int compareTo_;
+	final int partialCompareTo_;
+	const RankRanked({required this.compare, required this.partialCompare, required this.compareTo_, required this.partialCompareTo_});
+}
+enum Tier implements Comparable<Tier> {
+	low(0),
+	high(1),
+	compareTo_(2),
+	partialCompareTo_(3),
+	const Tier(this._c);
+	String debug();
+	int? partialCompareTo(Tier other);
+	bool operator <(Tier other);
+	bool operator <=(Tier other);
+	bool operator >(Tier other);
+	bool operator >=(Tier other);
+	@override int compareTo(Tier other);
+}
 sealed class ClashCandidate {
 	const ClashCandidate();
 	String debug();
@@ -977,14 +1036,20 @@ final class ClashCandidateMatch extends ClashCandidate {
 	final int $0;
 	const ClashCandidateMatch(this.$0);
 }
-enum Level {
-	trace(0),
-	debug(1),
+enum Level implements Comparable<Level> {
+	error(0),
+	warn(1),
 	info(2),
-	warn(3),
-	error(4),
+	debug(3),
+	trace(4),
 	const Level(this._c);
 	@override String toString();
+	int? partialCompareTo(Level other);
+	bool operator <(Level other);
+	bool operator <=(Level other);
+	bool operator >(Level other);
+	bool operator >=(Level other);
+	@override int compareTo(Level other);
 }
 final class Board extends _Object {
 	factory Board(List<(String, Counter)> counters);
@@ -1058,6 +1123,21 @@ final class Waiter extends _Object {
 	Waker waker();
 	Waker context();
 	static Cancelable<void> pollFuture(Future<void> future);
+}
+final class Feed extends _Object {
+	Cancelable<typed.Uint8List?> next();
+	dasync.Stream<typed.Uint8List> asStream();
+}
+final class Countdown extends _Object {
+	factory Countdown(int from);
+	factory Countdown.told(int from, Log log);
+	Cancelable<int?> next();
+	dasync.Stream<int> asStream();
+}
+final class Retired extends _Object {
+	factory Retired(int from);
+	@Deprecated('count with `Countdown`') Cancelable<int?> next();
+	@Deprecated('count with `Countdown`') dasync.Stream<int> asStream();
 }
 final class Logger extends _Object {
 	factory Logger(Log sink);
@@ -1290,6 +1370,7 @@ final class Channel extends _Object {
 	void listen(void Function() cx);
 	Cancelable<(typed.Uint8List, U64)> recvSized();
 	Cancelable<typed.Uint8List> recvNonempty();
+	Feed feed();
 	void sendFromThread(typed.Uint8List payload);
 }
 final class Gap extends _Object {
@@ -1414,6 +1495,30 @@ final class C extends _Object {
 	@override int get hashCode;
 	factory C(int value);
 }
+final class Quantity extends _Object {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Quantity other);
+	bool operator <(Quantity other);
+	bool operator <=(Quantity other);
+	bool operator >(Quantity other);
+	bool operator >=(Quantity other);
+	factory Quantity(int value, String unit);
+}
+final class Pass extends _Object implements Comparable<Pass> {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Pass other);
+	bool operator <(Pass other);
+	bool operator <=(Pass other);
+	bool operator >(Pass other);
+	bool operator >=(Pass other);
+	@override int compareTo(Pass other);
+	factory Pass(int number);
+	int redeem();
+}
 final class Key extends _Object {
 	String debug();
 	Key clone();
@@ -1440,23 +1545,35 @@ final class TlsSession extends _Object {
 	String alpn();
 	TlsPolicyLifetime lifetime();
 }
-final class Url extends _Object {
+final class Url extends _Object implements Comparable<Url> {
 	@override String toString();
 	String debug();
 	Url clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Url other);
+	bool operator <(Url other);
+	bool operator <=(Url other);
+	bool operator >(Url other);
+	bool operator >=(Url other);
+	@override int compareTo(Url other);
 	factory Url.parse(String input);
 }
 final class Json extends _Object {
 	factory Json.parse(String input);
 	String toText();
 }
-final class Instant extends _Object {
+final class Instant extends _Object implements Comparable<Instant> {
 	String debug();
 	Instant clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Instant other);
+	bool operator <(Instant other);
+	bool operator <=(Instant other);
+	bool operator >(Instant other);
+	bool operator >=(Instant other);
+	@override int compareTo(Instant other);
 }
 final class StdIoError extends _Object {
 }

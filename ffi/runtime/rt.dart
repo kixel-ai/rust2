@@ -495,10 +495,159 @@ extension type Cancelable<T>._(Future<T> _future) implements Future<T> {
 Cancelable<T> _call<T>(_Call<T> call) {
   final future = call._done.future;
   _n.calls[future] = call;
-  call._token = _n.listen(call._wake);
-  call._waker = _n.waker(call._token);
-  call._step(call._waker!);
+  call._begin();
   return Cancelable._(future);
+}
+
+/// What `next` yields, one item a call: a stream that calls `start` only while its one
+/// listener listens and is not paused, and awaits each call before the next.
+///
+/// It reads nothing ahead, so a loop left early leaves the next item to the next call. A
+/// pause or cancel drops the pending call's future in Rust, as dropping it there would, so
+/// it loses an item only where `next` does when dropped. `None` ends it, and an error is
+/// its last event before it ends.
+// ignore: unused_element
+dasync.Stream<T> _stream<T extends Object>(_Call<T?>? Function(_Pull<T>) start) {
+  final pull = _Pull<T>._(start);
+  // Synchronous, so a pause or cancel in the listener's handler lands before the next
+  // call: each event is added from the event loop, never inside a listener's own call.
+  pull._out = dasync.StreamController<T>(
+    sync: true,
+    onListen: pull._later,
+    onPause: pull._drop,
+    onResume: pull._later,
+    onCancel: pull._drop,
+  );
+  return pull._out.stream;
+}
+
+/// What a [_Call]'s poll that finished hands its outcome to, once Rust freed its future.
+abstract interface class _Sink<T> {
+  void _settle(_Call<T> call);
+}
+
+/// A stream's calls of `next`, one at a time.
+final class _Pull<T extends Object> implements _Sink<T?> {
+  /// Its `next`: the call it left pending in Rust, or null once it finished, having
+  /// handed this its outcome.
+  final _Call<T?>? Function(_Pull<T>) _start;
+  late final dasync.StreamController<T> _out;
+
+  /// The call pending in Rust, if any.
+  _Call<T?>? _pending;
+
+  /// Whether [_pull] runs, which then adds what a call that finished meanwhile left.
+  bool _pulling = false;
+
+  /// An outcome not yet added: 1 for a value, 2 for an error, as [_Call]'s.
+  int _state = 0;
+  Object? _value;
+  StackTrace? _stack;
+
+  _Pull._(this._start);
+
+  /// A finished start's value, kept until the start returns.
+  // ignore: unused_element
+  void _ready(T? value) {
+    _state = 1;
+    _value = value;
+  }
+
+  /// A finished start's error, kept until the start returns.
+  // ignore: unused_element
+  void _error(Object error) {
+    _state = 2;
+    _value = error;
+  }
+
+  /// Pull from the event loop, not inside a listen or resume, which add no event.
+  void _later() => dasync.scheduleMicrotask(_pull);
+
+  /// Drop the pending call's future, losing nothing of this stream's own.
+  void _drop() {
+    final pending = _pending;
+    _pending = null;
+    pending?.cancel();
+  }
+
+  @override
+  void _settle(_Call<T?> call) {
+    // A call a pause or cancel dropped while Rust polled it, as from a closure Rust called,
+    // that finished in that poll: a pause keeps its outcome for the resume, and a cancel
+    // leaves no listener to take it.
+    final dropped = !identical(call, _pending);
+    if (dropped && !_out.hasListener) return;
+    _pending = null;
+    _state = call._settled;
+    _value = call._value;
+    _stack = call._stack;
+    if (!_pulling && !dropped && _add()) _pull();
+  }
+
+  void _pull() {
+    if (_pulling) return;
+    _pulling = true;
+    try {
+      while (_pending == null && _out.hasListener && !_out.isPaused && !_out.isClosed) {
+        // An outcome left, by a start that finished or a call that finished as a pause
+        // dropped it, which is added before the next call.
+        if (_state != 0) {
+          if (!_add()) return;
+          continue;
+        }
+        final _Call<T?>? call;
+        try {
+          call = _start(this);
+        } catch (e, s) {
+          // A check that refused the call, before Rust ran.
+          _end(e, s);
+          return;
+        }
+        if (call != null) {
+          // A pause or cancel from a callback Rust called in the start, before the call
+          // was pending for it to drop.
+          if (!_out.hasListener || _out.isPaused || _out.isClosed) {
+            call.cancel();
+            return;
+          }
+          _pending = call;
+          call._sink = this;
+          call._begin();
+          // Still pending: its wake settles it.
+          if (identical(call, _pending)) return;
+        }
+      }
+    } finally {
+      _pulling = false;
+    }
+  }
+
+  /// Add the outcome left, if any: whether the stream goes on.
+  bool _add() {
+    final (state, value, stack) = (_state, _value, _stack);
+    _state = 0;
+    _value = null;
+    _stack = null;
+    switch (state) {
+      case 0:
+        return true;
+      case 2:
+        _end(value!, stack);
+        return false;
+      default:
+        if (value == null) {
+          _out.close().ignore();
+          return false;
+        }
+        _out.add(value as T);
+        return true;
+    }
+  }
+
+  void _end(Object error, StackTrace? stack) {
+    _out.addError(error, stack);
+    _out.close().ignore();
+  }
 }
 
 /// A [Cancelable]'s future in Rust, from when its start pended until it finishes.
@@ -516,7 +665,21 @@ final class _Call<T> {
   bool _polling = false;
   bool _cancelled = false;
 
+  /// A stream's, which takes its outcome in place of [_done], once Rust freed the future:
+  /// 1 for a value, 2 for an error, in [_value], with its [_stack].
+  _Sink<T>? _sink;
+  int _settled = 0;
+  Object? _value;
+  StackTrace? _stack;
+
   _Call._(this._free, this._poll, this._f);
+
+  /// Poll it the first time with a waker, which its start had no use for.
+  void _begin() {
+    _token = _n.listen(_wake);
+    _waker = _n.waker(_token);
+    _step(_waker!);
+  }
 
   void _wake() {
     if (_f != ffi.nullptr) _step(_waker!);
@@ -536,6 +699,7 @@ final class _Call<T> {
     _polling = false;
     if (ready) {
       _finish();
+      _sink?._settle(this);
     } else if (_cancelled) {
       _cancel();
     }
@@ -543,10 +707,22 @@ final class _Call<T> {
 
   /// Complete it with what Rust returned, from its poll.
   // ignore: unused_element
-  void _ready(T value) => _done.complete(value);
+  void _ready(T value) {
+    if (_sink == null) return _done.complete(value);
+    _settled = 1;
+    _value = value;
+  }
 
-  /// Complete it with the error Rust returned, from its poll.
-  void _error(Object error, [StackTrace? stack]) => _done.completeError(error, stack);
+  /// Complete it with the error Rust returned, from its poll, or the poll's own.
+  void _error(Object error, [StackTrace? stack]) {
+    final sink = _sink;
+    if (sink == null) return _done.completeError(error, stack);
+    _settled = 2;
+    _value = error;
+    _stack = stack;
+    // A poll that threw freed the future already.
+    if (_f == ffi.nullptr) sink._settle(this);
+  }
 
   void _finish() {
     _free(_n.home, _f);
@@ -1446,6 +1622,39 @@ final class _Native {
   int i16(int v) => v >= -0x8000 && v <= 0x7fff ? v : throw RangeError.range(v, -0x8000, 0x7fff);
   int i32(int v) =>
       v >= -0x80000000 && v <= 0x7fffffff ? v : throw RangeError.range(v, -0x80000000, 0x7fffffff);
+
+  /// Where [f32Bits] and [f32Of] convert, by bits for a NaN.
+  final _float = typed.ByteData(8);
+
+  /// The bits of the `f32` nearest `v`, as a cast rounds: a NaN narrowed by its bits, as
+  /// [f32Of] widened it, keeping its sign, its quiet bit, and its payload's top 23 bits,
+  /// where the hardware's narrowing would set the quiet bit.
+  int f32Bits(double v) {
+    final b = _float;
+    if (!v.isNaN) {
+      b.setFloat32(0, v, typed.Endian.host);
+      return b.getUint32(0, typed.Endian.host);
+    }
+    b.setFloat64(0, v, typed.Endian.host);
+    final bits = b.getUint64(0, typed.Endian.host);
+    var payload = (bits >> 29) & 0x7fffff;
+    // A payload only in the low bits would narrow to infinity: quieted instead, as the
+    // hardware does.
+    if (payload == 0) payload = 1 << 22;
+    return ((bits >> 32) & 0x80000000) | 0x7f800000 | payload;
+  }
+
+  /// The `double` of an `f32`'s bits: a NaN widened by its bits, its payload shifted up and
+  /// its quiet bit kept, so [f32Bits] narrows it back exactly.
+  double f32Of(int bits) {
+    final b = _float;
+    if ((bits & 0x7fffffff) <= 0x7f800000) {
+      b.setUint32(0, bits, typed.Endian.host);
+      return b.getFloat32(0, typed.Endian.host);
+    }
+    b.setUint64(0, ((bits & 0x80000000) << 32) | 0x7ff0000000000000 | ((bits & 0x7fffff) << 29), typed.Endian.host);
+    return b.getFloat64(0, typed.Endian.host);
+  }
 
   /// A `NonZero`'s integer, which Rust's type holds only if it is not zero.
   int nonZero(int v) => v != 0 ? v : throw ArgumentError.value(v, 'NonZero', 'a NonZero is zero');

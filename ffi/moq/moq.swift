@@ -256,6 +256,11 @@ func script() throws {
 	// untimed, so a timed frame is refused.
 	let at = try Timestamp.fromMillis(1500)
 	expect(try at.asSecs() == 1, "1500 ms is 1 s")
+	// Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	let second = try Timestamp.fromSecs(1)
+	let key = Timestamp.unscaled(0)
+	expect(second < at && at > second, "1 s is before 1500 ms")
+	expect(!(key < at) && !(key >= at), "an unscaled key is unordered against a time")
 	do {
 		try Bytes("late".utf8).withSpan { try writer.writeFrame(at, $0) }
 		expect(false, "a timed frame on an untimed track is an error")

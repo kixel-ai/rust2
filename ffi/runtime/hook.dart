@@ -160,12 +160,14 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
       environment['MACOSX_DEPLOYMENT_TARGET'] = '${version.major}.${version.minor}';
   }
   // The crate the export depends on as `<package>_export`, as the exporter writes its line,
-  // its path a Rust string: from its directory rustup picks the toolchain for each Cargo
-  // call, as its own build would.
+  // its path a Rust string, relative to the export or absolute: from its directory rustup
+  // picks the toolchain for each Cargo call, as its own build would.
   final dependency = RegExp('^${input.packageName}_export = \\{ package = "(?:[^"\\\\]|\\\\.)*", path = ("(?:[^"\\\\]|\\\\.)*")', multiLine: true)
       .firstMatch(await manifest.readAsString());
   if (dependency == null) throw StateError('${manifest.path} depends on no ${input.packageName}_export');
-  final facade = jsonDecode(dependency[1]!) as String;
+  final facade = Uri.directory(manifest.parent.path)
+      .resolveUri(Uri.file(jsonDecode(dependency[1]!) as String))
+      .toFilePath();
   // Each path package's manifest and the lock, which change the build as its sources do.
   final metadata = await _cargo(['metadata', '--format-version', '1', '--manifest-path', manifest.path, //
     '--filter-platform', target], facade, environment);

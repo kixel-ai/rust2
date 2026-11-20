@@ -3255,6 +3255,73 @@ fn go_package_names() {
 	vet(&go);
 }
 
+/// A checkout at another path, with the export beside it as before, exports the same
+/// bytes: the crate's version hashes its manifest, which names the facade and its sibling
+/// crates relative to the export, and cargo hashes that version into every symbol.
+#[test]
+fn export_is_relocatable() {
+	let files = [
+		(
+			"Cargo.toml",
+			"[package]\nname = \"relocatable\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+			[dependencies]\nunder = { package = \"relocatable-under\", path = \"under\" }\n\n\
+			[workspace]\nexclude = [\"under\"]\n",
+		),
+		("src/lib.rs", "pub use under::one;\n\npub fn two() -> u32 {\n\t2\n}\n"),
+		(
+			"under/Cargo.toml",
+			"[package]\nname = \"relocatable-under\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"under\"\n",
+		),
+		("under/src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+	];
+	let export = |checkout: PathBuf| {
+		write_all(&checkout, &files);
+		let out = checkout.join("out");
+		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--manifest-path")
+			.arg(checkout.join("Cargo.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", checkout.join("build"))
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"the export failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let mut found = std::collections::BTreeMap::new();
+		let mut dirs = vec![out.clone()];
+		while let Some(dir) = dirs.pop() {
+			for entry in std::fs::read_dir(&dir).unwrap() {
+				let path = entry.unwrap().path();
+				match path.is_dir() {
+					true => dirs.push(path),
+					false => {
+						let name = path.strip_prefix(&out).unwrap().to_path_buf();
+						found.insert(name, std::fs::read(&path).unwrap());
+					}
+				}
+			}
+		}
+		found
+	};
+	// With no symlink in it, which an export's own path must lack to be written relative.
+	let root = std::fs::canonicalize(scratch()).unwrap().join("relocatable");
+	let near = export(root.join("near"));
+	let far = export(root.join("far/deeper/still"));
+	let manifest = String::from_utf8(near[Path::new("Cargo.toml")].clone()).unwrap();
+	assert!(manifest.contains("path = \"..\""), "{manifest}");
+	assert!(
+		near.keys().eq(far.keys()) && near == far,
+		"an export at another path differs: {:?}",
+		near.iter()
+			.filter(|(k, v)| far.get(*k) != Some(*v))
+			.map(|(k, _)| k)
+			.collect::<Vec<_>>()
+	);
+}
+
 /// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
 /// exports by its public path in its own crate, through a re-export or a module, even from a
 /// crate the facade re-exports nothing from; one no public path names stays refused. Such a
@@ -4006,6 +4073,20 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	// Kotlin throws `samples` and `samples_set` apart under one error key, which the
+	// transcript, knowing no Kotlin type, refuses to resolve rather than name either class.
+	let source = dir.join("added-transcript.rs");
+	std::fs::write(&source, "fn main() {}").unwrap();
+	let t = transcript::Transcript::load(&dir.join("added").join("api.json"), &source);
+	for name in ["samples", "samples_set"] {
+		let f = t.api.functions.iter().find(|f| f.path == ["lock", name]).unwrap();
+		let err = f.err.as_ref().unwrap();
+		let panic = std::panic::catch_unwind(|| t.error("Kotlin", err))
+			.err()
+			.unwrap_or_else(|| panic!("Kotlin's exception of {name} resolved"));
+		let message = panic.downcast_ref::<String>().unwrap();
+		assert!(message.contains("cannot tell apart"), "{message}");
+	}
 	// A baseline from before an exception was known by its native type too, whose key alone
 	// names one class of those an addition gives it.
 	let original: serde_json::Value = serde_json::from_slice(&before).unwrap();

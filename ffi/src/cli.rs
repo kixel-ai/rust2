@@ -474,7 +474,8 @@ mod decode_tests {
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
-/// it builds, as TOML with each path absolute, and the `[profile]` the exports build with.
+/// it builds, as TOML with each path absolute, which the glue writes relative to its export,
+/// and the `[profile]` the exports build with.
 fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 	let (patch, built) = patch(metadata, top)?;
 	let mut overrides = toml::Table::new();

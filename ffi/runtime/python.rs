@@ -791,6 +791,34 @@ pub fn float_out(value: f64) -> R<Obj> {
 	unsafe { Obj::new(PyFloat_FromDouble(value)) }
 }
 
+/// An `f32`, from a `float` that [`f32_out`] widened: a NaN narrowed by its bits, keeping
+/// its sign, its quiet bit, and its payload's top 23 bits, as CPython's `struct` packs one,
+/// where the hardware's narrowing would set the quiet bit.
+pub fn f32_in(obj: *mut PyObject) -> R<f32> {
+	let value = float_in(obj)?;
+	if !value.is_nan() {
+		return Ok(value as f32);
+	}
+	let bits = value.to_bits();
+	let mut payload = (bits >> 29) as u32 & 0x7f_ffff;
+	// A payload only in the low bits would narrow to infinity: quieted instead, as the
+	// hardware does.
+	if payload == 0 {
+		payload = 1 << 22;
+	}
+	Ok(f32::from_bits((bits >> 32) as u32 & 1 << 31 | 0x7f80_0000 | payload))
+}
+
+/// A `float` of an `f32`: a NaN widened by its bits, its payload shifted up and its quiet
+/// bit kept, as CPython's `struct` unpacks one, so [`f32_in`] narrows it back exactly.
+pub fn f32_out(value: f32) -> R<Obj> {
+	if !value.is_nan() {
+		return float_out(value as f64);
+	}
+	let bits = u64::from(value.to_bits());
+	float_out(f64::from_bits((bits & 1 << 31) << 32 | 0x7ff0_0000_0000_0000 | (bits & 0x7f_ffff) << 29))
+}
+
 /// A `char`, from a `str` of one code point that is a Unicode scalar value.
 pub fn char_in(obj: *mut PyObject) -> R<u32> {
 	// SAFETY: the GIL is held, and `obj` is live.

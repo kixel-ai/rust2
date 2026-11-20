@@ -28,7 +28,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Order, Param, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -68,6 +68,7 @@ const TAKEN: &[&str] = &[
 	"_Dataclass",
 	"_NotImplemented",
 	"_RuntimeError",
+	"_StopAsyncIteration",
 	"_getattr",
 	"_same",
 	"_all",
@@ -221,6 +222,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import NotImplemented as _NotImplemented\n\
 		from builtins import NotImplementedError as _NotImplementedError\n\
 		from builtins import RuntimeError as _RuntimeError\n\
+		from builtins import StopAsyncIteration as _StopAsyncIteration\n\
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
@@ -638,7 +640,7 @@ impl<'a> Gen<'a> {
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::NonZero(int) => format!("rt::nonzero_in::<{}>({o})", int.rust()),
-			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
+			Type::F32 => format!("rt::f32_in({o})"),
 			Type::F64 => format!("rt::float_in({o})"),
 			Type::Char => format!("rt::char_in({o})"),
 			Type::Str | Type::String => format!("rt::str_in({o})"),
@@ -706,7 +708,8 @@ impl<'a> Gen<'a> {
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) | Type::NonZero(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
 			Type::Int(_) | Type::NonZero(_) => format!("rt::uint_out({v} as u64)"),
-			Type::F32 | Type::F64 => format!("rt::float_out({v} as f64)"),
+			Type::F32 => format!("rt::f32_out({v})"),
+			Type::F64 => format!("rt::float_out({v})"),
 			Type::Char => format!("rt::char_out({v})"),
 			Type::Str | Type::String => format!("rt::str_out({v})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_out({v})"),
@@ -1181,15 +1184,19 @@ impl<'a> Gen<'a> {
 				),
 			);
 		};
+		let shown = self.abi.api.shown(ty);
 		if t.display {
+			crate::lock::trait_member(&mut self.locked, shown, "Display", "__str__");
 			unary(self, "to_string", "__str__", "", "rt::str_out(ret)".to_string());
 			body.native.push("\tdef __str__(self) -> _str: ...\n".to_string());
 		}
 		if t.debug {
+			crate::lock::trait_member(&mut self.locked, shown, "Debug", "__repr__");
 			unary(self, "debug", "__repr__", "", "rt::str_out(ret)".to_string());
 			body.native.push("\tdef __repr__(self) -> _str: ...\n".to_string());
 		}
 		if object && t.clone {
+			crate::lock::trait_member(&mut self.locked, shown, "Clone", "clone");
 			let lower = self.lower(ty, "ret");
 			let docs = "A new handle to a clone.";
 			unary(self, "clone", "clone", docs, lower);
@@ -1200,6 +1207,7 @@ impl<'a> Gen<'a> {
 		// An opaque value compares through Rust, as an object does; a record compares its
 		// fields, as `record_class` writes.
 		if (object || opaque) && t.eq {
+			crate::lock::trait_member(&mut self.locked, shown, "PartialEq", "__eq__");
 			let other = match object {
 				true => self.lift(
 					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
@@ -1229,12 +1237,52 @@ impl<'a> Gen<'a> {
 				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> _bool: ...\n"
 			));
 		}
+		// Every type orders through Rust's `partial_cmp`, as Rust's own `<` and its kin do:
+		// -1, 0, 1, or 2 when unordered, which none of them is.
+		if t.ord != Order::None {
+			let other = match object {
+				true => self.lift(
+					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+					"a[1]",
+					"false",
+				),
+				false => self.lift(ty, "a[1]", "false"),
+			};
+			let (a, b) = match object {
+				true => ("this", "other"),
+				false => ("&this", "&other"),
+			};
+			let call = called(false, format!("crate::{c}_partial_cmp({a}, {b}{arg})"));
+			self.native(
+				&format!("{bare}_partial_cmp"),
+				2,
+				&format!(
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\trt::int_out(ret.into())",
+					check("partial_cmp")
+				),
+			);
+			for (dunder, test) in [
+				("__lt__", "== -1"),
+				("__le__", "in (-1, 0)"),
+				("__gt__", "== 1"),
+				("__ge__", "in (0, 1)"),
+			] {
+				body.python.push(format!(
+					"\tdef {dunder}(self, other: _object) -> _bool:\n\t\tif not _isinstance(other, {class}):\n\t\t\treturn _NotImplemented\n\t\treturn _n.{bare}_partial_cmp(self, other) {test}\n"
+				));
+			}
+			self.natives.push(format!(
+				"@_staticmethod\ndef {bare}_partial_cmp(this: {class}, other: {class}, /) -> _int: ...\n"
+			));
+		}
 		// Rust's `Hash` makes it hashable again, agreeing with its `__eq__`.
 		if (object || opaque) && t.hash {
+			crate::lock::trait_member(&mut self.locked, shown, "Hash", "__hash__");
 			unary(self, "hash", "__hash__", "", "rt::uint_out(ret)".to_string());
 			body.native.push("\tdef __hash__(self) -> _int: ...\n".to_string());
 		}
 		if t.default {
+			crate::lock::trait_member(&mut self.locked, shown, "Default", "default");
 			let lower = self.lower(ty, "ret");
 			let docs = "Rust's `Default`.";
 			let d = Direct {
@@ -1267,6 +1315,12 @@ impl<'a> Gen<'a> {
 		reserved: &[&str],
 		body: &mut Body,
 	) {
+		// A stream's async iteration takes its protocol's names, whichever method comes first.
+		let streams = matches!(ty, Type::Object(_)) && methods.iter().any(|m| m.stream().is_some());
+		let protocol: &[&str] = match streams {
+			true => &["__aiter__", "__anext__"],
+			false => &[],
+		};
 		for method in methods {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
@@ -1275,19 +1329,44 @@ impl<'a> Gen<'a> {
 			// A name its data or an earlier member takes, its own takes a trailing `_` against.
 			let earlier: Vec<String> = body.codes().filter_map(|code| member_name(code)).collect();
 			let reserved: Vec<&str> = (reserved.iter().copied())
+				.chain(protocol.iter().copied())
 				.chain(data.iter().map(String::as_str))
 				.chain(earlier.iter().map(String::as_str))
 				.collect();
-			match self.function(method, Some(owner), Some((ty, &reserved)), place) {
+			let code = match self.function(method, Some(owner), Some((ty, &reserved)), place) {
 				Some(Form::Native(code, binding)) => {
 					body.native.push(indent_by(&code, 1));
 					body.runtime.extend(binding.map(|b| indent_by(&b, 1)));
+					code
 				}
-				Some(Form::Python(code)) => body.python.push(indent_by(&code, 1)),
-				None => {}
+				Some(Form::Python(code)) => {
+					body.python.push(indent_by(&code, 1));
+					code
+				}
+				None => continue,
+			};
+			if let (Type::Object(_), Some(item)) = (ty, method.stream()) {
+				let next = member_name(&code).expect("a method has a name");
+				let stream = self.stream(&next, item, method.deprecated.as_deref());
+				body.python.extend(stream.iter().map(|code| indent_by(code, 1)));
 			}
 		}
 		self.distinct(rust, data, body.codes());
+	}
+
+	/// An object's async iteration over its stream's method `next`, yielding `item`s.
+	/// Deprecated as `next` is, by `deprecated`'s note.
+	fn stream(&self, next: &str, item: &Type, deprecated: Option<&str>) -> [String; 2] {
+		let item = self.py_ty(item);
+		let aiter = "def __aiter__(self) -> _typing.Self:\n\t\"\"\"This stream, which `async for` iterates through `__anext__`.\"\"\"\n\treturn self";
+		let anext = format!(
+			"async def __anext__(self) -> {item}:\n\t\"\"\"The next item, awaiting `{next}` once: `StopAsyncIteration` at `None`, and its error raised.\n\n\t\
+			It reads nothing ahead, so a loop left early leaves the next item to the next call, and\n\t\
+			cancelling the awaiting task drops `{next}`'s future, as dropping it in Rust would: it loses\n\t\
+			an item only where that future does when dropped, as one that is not cancel-safe does.\"\"\"\n\t\
+			item = await self.{next}()\n\tif item is None:\n\t\traise _StopAsyncIteration\n\treturn item"
+		);
+		[aiter.to_string(), format!("{}{anext}", deprecator(deprecated))]
 	}
 
 	/// Check that the members `codes` of the type `rust` and its data's names `data` differ.
@@ -1339,7 +1418,11 @@ impl<'a> Gen<'a> {
 		}
 		let fields: Vec<Slot> = (record.fields.iter())
 			.map(|f| Slot {
-				name: field_name(&f.name),
+				name: {
+					let name = field_name(&f.name);
+					crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
+					name
+				},
 				ty: self.py_field(&f.ty),
 				docs: deprecation(&f.docs, f.deprecated.as_deref()),
 				same: own_eq(abi, &f.ty),
@@ -1410,10 +1493,11 @@ impl<'a> Gen<'a> {
 			let data: Vec<String> = e.variants.iter().map(|v| abi::snake(&v.name).to_uppercase()).collect();
 			// An `Enum`'s members have these.
 			self.methods(&e.methods, (&ty, &owner, &rust), &data, &["name", "value"], &mut body);
-			let entries: String = e
-				.variants
-				.iter()
-				.map(|v| format!("\t{} = {}\n", abi::snake(&v.name).to_uppercase(), v.discriminant))
+			for (v, member) in e.variants.iter().zip(&data) {
+				crate::lock::variant(&mut self.locked, &e.shown, &v.name, &format!("{name}.{member}"));
+			}
+			let entries: String = (e.variants.iter().zip(&data))
+				.map(|(v, member)| format!("\t{member} = {}\n", v.discriminant))
 				.collect();
 			let _ = write!(
 				self.py,
@@ -1430,8 +1514,7 @@ impl<'a> Gen<'a> {
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
 		let vnames = variant_classes(e.variants.iter().map(|v| v.name.as_str()));
 		for (variant, vname) in e.variants.iter().zip(&vnames) {
-			let key = format!("{} / variant {}", crate::lock::type_key(&e.shown), variant.name);
-			self.locked.insert(key, format!("{name}.{vname}"));
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 		}
 		let mut data = vnames.clone();
 		let fields: BTreeSet<String> = e
@@ -1465,7 +1548,11 @@ impl<'a> Gen<'a> {
 			let tv = self.register(&key, class.clone());
 			let fields: Vec<Slot> = (variant.fields.iter())
 				.map(|f| Slot {
-					name: field_name(&f.name),
+					name: {
+						let name = field_name(&f.name);
+						crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
+						name
+					},
 					ty: self.py_field(&f.ty),
 					docs: f.docs.clone(),
 					same: own_eq(abi, &f.ty),

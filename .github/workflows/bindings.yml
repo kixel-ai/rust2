@@ -170,7 +170,9 @@ jobs:
           if-no-files-found: error
 
   # Each target's API, checked on the host whose C toolchain its build scripts need, for
-  # every build host's export to merge into one binding.
+  # every build host's export to merge into one binding. Beside each prebuilt package's
+  # targets, those the sdist builds a wheel on, package.py's SDIST_TARGETS: the generated
+  # crate builds for no target it was not exported for.
   api:
     needs: facts
     strategy:
@@ -179,18 +181,18 @@ jobs:
         include:
           - host: linux-x64
             os: ubuntu-24.04
-            targets: x86_64-unknown-linux-gnu
+            targets: x86_64-unknown-linux-gnu x86_64-unknown-linux-musl
           - host: linux-arm64
             os: ubuntu-24.04-arm
-            targets: aarch64-unknown-linux-gnu
+            targets: aarch64-unknown-linux-gnu aarch64-unknown-linux-musl
           - host: apple
             os: macos-26
-            targets: aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-darwin
           # MSVC's library for the wheel, MinGW's for Go, which links through MinGW.
           - host: windows
             os: windows-latest
-            targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
-          # The Dart package's Android libraries, through the NDK.
+            targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu aarch64-pc-windows-msvc
+          # The Dart package's and the Go module's Android libraries, through the NDK.
           - host: android
             os: ubuntu-24.04
             targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
@@ -226,6 +228,9 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> "$GITHUB_ENV"
+      # musl-gcc, which a build script's cc compiles musl's C with.
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -yq musl-tools
       - name: Exporter
         working-directory: rust2/ffi
         env:
@@ -270,9 +275,10 @@ jobs:
           - host: apple-ios-sim
             os: macos-26
             targets: aarch64-apple-ios-sim
-          # The Dart package's Intel Mac library, which a Flutter app's universal build needs.
-          - host: macos-x64
-            os: macos-26
+          # Intel macOS's Go and Dart libraries, which the export's Go links once its API is
+          # merged, and its native output; named apart from apple-*, the Swift package's slices.
+          - host: darwin-x64
+            os: macos-15-intel
             targets: x86_64-apple-darwin
           - host: windows
             os: windows-latest
@@ -358,6 +364,10 @@ jobs:
         run: |
           read -ra targets <<< "$TARGETS"
           python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${targets[@]}"
+      # One host's: the sources are the same on every host, as `agree` checks their binding.
+      - name: Source distribution
+        if: matrix.host == 'linux-x64'
+        run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
       # The build again, as a rerun makes it: the same packages byte for byte, from a new
       # export at the same path, since dlltool names the Windows GNU library's import symbols
       # after the target directory. It doubles the job's time.
@@ -366,11 +376,15 @@ jobs:
         env:
           TARGETS: ${{ matrix.targets }}
           GO_MODULE: ${{ inputs.go-module }}
+          HOST: ${{ matrix.host }}
         run: |
           read -ra targets <<< "$TARGETS"
           mv export first-export
           python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --go-module "$GO_MODULE" --out export "${targets[@]}"
           python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out again/dist "${targets[@]}"
+          if [[ "$HOST" == linux-x64 ]]; then
+            python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out again/dist
+          fi
           python3 -I rust2/ffi/release/package.py same dist again/dist
       - name: Checks
         env:
@@ -568,6 +582,108 @@ jobs:
           else
             "$py" -I rust2/ffi/release/package.py consume-python --import "$(cat dist/lib.txt)"
           fi
+          echo "PY=$py" >> "$GITHUB_ENV"
+      # The installed package as a caller's type checker finds it: through its py.typed, and
+      # with no error under --strict. One host's, as the module is the same on each.
+      - name: Type check
+        if: matrix.host == 'linux-x64'
+        run: |
+          python -m venv "$RUNNER_TEMP/tools"
+          "$RUNNER_TEMP/tools/bin/python" -m pip install -q mypy==2.4.1
+          mkdir "$RUNNER_TEMP/typed"
+          cd "$RUNNER_TEMP/typed"
+          "$RUNNER_TEMP/tools/bin/mypy" --strict --python-executable "$PY" -p "$(cat "$GITHUB_WORKSPACE/dist/lib.txt")"
+
+  # The sdist built and installed by pip, with Rust's toolchain and no other, on targets no
+  # prebuilt wheel covers: musllinux in Alpine, Windows on arm64, and Intel macOS. Each runs
+  # the check against its OS's native output.
+  python-sdist:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: musllinux-x64
+            os: ubuntu-24.04
+            native: linux-x64
+          - host: windows-arm64
+            os: windows-11-arm
+            native: windows
+          - host: darwin-x64
+            os: macos-15-intel
+            native: darwin-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.native }}
+          path: native
+      - name: Python floor
+        id: floor
+        run: |
+          shopt -s nullglob
+          wheels=(dist/wheels/*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
+          [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
+          echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          args=(--check dist/checks/check.py)
+          if [[ ! -f dist/checks/check.py ]]; then args=(--import "$(cat dist/lib.txt)"); fi
+          if [[ -f native/native.txt ]]; then args+=(--native native/native.txt); fi
+          echo "args=${args[*]}" >> "$GITHUB_OUTPUT"
+      # Alpine's own Python and rustup's Rust, whose host is the musl target the export names.
+      - name: Install and run in Alpine
+        if: matrix.host == 'musllinux-x64'
+        env:
+          ARGS: ${{ steps.floor.outputs.args }}
+          FLOOR: ${{ steps.floor.outputs.version }}
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work -e ARGS "python:$FLOOR-alpine" sh -euc '
+            apk add --no-cache build-base rustup
+            rustup-init -y --profile minimal --default-toolchain stable
+            export PATH="$HOME/.cargo/bin:$PATH"
+            python -m venv /env
+            /env/bin/python -m pip install -v --no-index --no-deps dist/sdist/*.tar.gz
+            /env/bin/python -I rust2/ffi/release/package.py consume-python $ARGS
+          '
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: matrix.host != 'musllinux-x64'
+        with:
+          python-version: ${{ steps.floor.outputs.version }}
+      - name: Install and run
+        if: matrix.host != 'musllinux-x64'
+        env:
+          ARGS: ${{ steps.floor.outputs.args }}
+        run: |
+          if ! command -v rustup > /dev/null; then
+            if [[ "$RUNNER_OS" == Windows ]]; then
+              curl -sSfLo "$RUNNER_TEMP/rustup-init.exe" https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe
+              "$RUNNER_TEMP/rustup-init.exe" -y --profile minimal --default-toolchain stable
+            else
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+            fi
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          python -m venv "$RUNNER_TEMP/env"
+          if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
+          "$py" -m pip install -v --no-index --no-deps dist/sdist/*.tar.gz
+          read -ra args <<< "$ARGS"
+          "$py" -I rust2/ffi/release/package.py consume-python "${args[@]}"
 
   # A new SwiftPM package whose only library is the staged package, as a user's would be,
   # run on macOS and built for iOS devices and simulators.
@@ -809,6 +925,8 @@ jobs:
             os: ubuntu-24.04-arm
           - host: apple-darwin
             os: macos-26
+          - host: darwin-x64
+            os: macos-15-intel
           - host: windows
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -929,6 +1047,9 @@ jobs:
             sdk: stable
           - host: apple-darwin
             os: macos-26
+            sdk: stable
+          - host: darwin-x64
+            os: macos-15-intel
             sdk: stable
           - host: windows
             os: windows-latest

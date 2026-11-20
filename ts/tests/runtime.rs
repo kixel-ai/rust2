@@ -40,6 +40,18 @@ fn fma_allowance() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// Limbs divide by a divisor under 2^32 as bigints do, which `limbs.ts` checks across each width,
+/// sign, and step of the long division.
+#[test]
+fn limb_division() {
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("limbs.ts");
+	let output = Command::new("node")
+		.arg(script)
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// A recursive `OnceLock` init, or `LazyLock` or `LazyCell` force, panics with std's
 /// message, which `once.ts` checks.
 #[test]

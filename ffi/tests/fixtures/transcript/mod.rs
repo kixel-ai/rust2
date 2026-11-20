@@ -25,7 +25,7 @@ pub(crate) mod typescript;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use ir::{Access, Function, Type};
+use ir::{Access, Family, Function, Type};
 
 /// The transcript, resolved against an export.
 pub(crate) struct Transcript {
@@ -149,7 +149,11 @@ pub(crate) enum Op {
 	Eq,
 	Ne,
 	Lt,
+	Le,
 	Gt,
+	Ge,
+	/// `a.cmp(&b) as i8`: Rust's `Ord`, -1, 0, or 1.
+	Cmp,
 	Add,
 	Sub,
 	Mul,
@@ -360,6 +364,123 @@ impl Transcript {
 		self.named(language, &format!("type {}", self.rust(ty)))
 	}
 
+	/// The key the export spells `ty` by inside another's, as `vec_u16` holds `u16`: its C
+	/// name past the prefix.
+	pub(crate) fn spelling(&self, ty: &Type) -> String {
+		let strip = |name: &str| {
+			let prefix = self.named("C", "prefix");
+			name[prefix.len() + 1..].to_string()
+		};
+		match ty {
+			Type::Unit => "unit".to_string(),
+			Type::Bool => "bool".to_string(),
+			Type::Str | Type::String => "string".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
+			Type::Path | Type::PathBuf => "path".to_string(),
+			Type::Int(int) => int.rust().to_string(),
+			Type::NonZero(int) => format!("non_zero_{}", int.rust()),
+			Type::F32 => "f32".to_string(),
+			Type::F64 => "f64".to_string(),
+			Type::Char => "char".to_string(),
+			Type::U128 => "u128".to_string(),
+			Type::Duration => "duration".to_string(),
+			Type::Array(n) => format!("array_u8_{n}"),
+			Type::SocketAddr(family) => addr(true, *family).to_string(),
+			Type::IpAddr(family) => addr(false, *family).to_string(),
+			Type::Option(inner) => format!("option_{}", self.spelling(inner)),
+			Type::List(_, inner) => format!("vec_{}", self.spelling(inner)),
+			Type::Tuple(elements) => strip(self.tuple("C", elements)),
+			Type::Record(_) | Type::Enum(_) | Type::Object(_) => strip(self.type_name("C", ty)),
+			Type::Range(int) => format!("range_{}", int.rust()),
+			Type::Bound(int) => format!("bound_{}", int.rust()),
+			Type::Bounds(int) => format!("bounds_{}", int.rust()),
+			Type::Ref(_, inner) | Type::Box(inner) => self.spelling(inner),
+			other => panic!("no key spells {other:?}"),
+		}
+	}
+
+	/// The key the export spells `ty` by alone, each tuple as Rust spells it, past any
+	/// reference.
+	pub(crate) fn spell(&self, ty: &Type) -> String {
+		match owned(ty) {
+			Type::Tuple(elements) => {
+				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
+				match elements.len() {
+					1 => format!("({},)", elements[0]),
+					_ => format!("({})", elements.join(", ")),
+				}
+			}
+			ty => self.spelling(&ty),
+		}
+	}
+
+	/// `language`'s name for the tuple of `elements`, where it names one.
+	pub(crate) fn find_tuple(&self, language: &str, elements: &[Type]) -> Option<&str> {
+		self.find(
+			language,
+			&format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))),
+		)
+	}
+
+	/// `language`'s name for the tuple of `elements`.
+	pub(crate) fn tuple(&self, language: &str, elements: &[Type]) -> &str {
+		self.named(
+			language,
+			&format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))),
+		)
+	}
+
+	/// `language`'s name for the exception an error of `ty` throws as.
+	///
+	/// The lock keys a class by the error's C spelling and, beside it, the type the language
+	/// holds it as; the key alone names only the last class written. Where one key names
+	/// several classes, as Kotlin's `Vec<u16>` and `BTreeSet<u16>` do, the transcript cannot
+	/// tell which is `ty`'s, so it refuses rather than pick one.
+	pub(crate) fn error(&self, language: &str, ty: &Type) -> &str {
+		let key = format!("error {}", self.spell(ty));
+		let prefix = format!("{key} / as ");
+		let mut classes = self.names[language]
+			.range(prefix.clone()..)
+			.take_while(|(k, _)| k.starts_with(&prefix))
+			.map(|(_, name)| name.as_str());
+		if let Some(first) = classes.next()
+			&& let Some(other) = classes.find(|name| *name != first)
+		{
+			panic!("{language} names both {first} and {other} for {key}, which the transcript cannot tell apart");
+		}
+		self.named(language, &key)
+	}
+
+	/// `language`'s name for the field `field` of the record `ty`.
+	pub(crate) fn field(&self, language: &str, ty: &Type, field: &str) -> &str {
+		self.named(
+			language,
+			&format!("type {} / field {field}", self.rust(unref(ty).base())),
+		)
+	}
+
+	/// `language`'s name for the variant `variant` of the enum `ty`.
+	pub(crate) fn variant(&self, language: &str, ty: &Type, variant: &str) -> &str {
+		self.named(
+			language,
+			&format!("type {} / variant {variant}", self.rust(unref(ty).base())),
+		)
+	}
+
+	/// `language`'s name for the field `field` of the data variant `variant` of `ty`.
+	pub(crate) fn variant_field(&self, language: &str, ty: &Type, variant: &str, field: &str) -> &str {
+		let key = format!(
+			"type {} / variant {variant} / field {field}",
+			self.rust(unref(ty).base())
+		);
+		self.named(language, &key)
+	}
+
+	/// `language`'s name for the member of the std trait `t`, such as `Clone`, on `ty`.
+	pub(crate) fn member(&self, language: &str, ty: &Type, t: &str) -> &str {
+		self.named(language, &format!("type {} / {t}", self.rust(unref(ty).base())))
+	}
+
 	/// `language`'s name for each item, by its key.
 	pub(crate) fn names(&self, language: &str) -> &BTreeMap<String, String> {
 		&self.names[language]
@@ -382,6 +503,31 @@ impl Transcript {
 			Some((k, name)) if k.starts_with(&prefix) => name,
 			_ => panic!("{language} names no {key}"),
 		}
+	}
+}
+
+/// `ty` without its references, as a key names it, and as Rust returns it to C: each
+/// borrow a clone.
+pub(crate) fn owned(ty: &Type) -> Type {
+	match ty {
+		Type::Ref(_, inner) => owned(inner),
+		Type::Option(inner) => Type::Option(Box::new(owned(inner))),
+		Type::Box(inner) => Type::Box(Box::new(owned(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
+		Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
+		ty => ty.clone(),
+	}
+}
+
+/// The key of an address type, `socket` for a socket's.
+fn addr(socket: bool, family: Family) -> &'static str {
+	match (socket, family) {
+		(true, Family::Any) => "socket_addr",
+		(true, Family::V4) => "socket_addr_v4",
+		(true, Family::V6) => "socket_addr_v6",
+		(false, Family::Any) => "ip_addr",
+		(false, Family::V4) => "ipv4_addr",
+		(false, Family::V6) => "ipv6_addr",
 	}
 }
 

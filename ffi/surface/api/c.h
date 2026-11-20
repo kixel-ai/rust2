@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x90b55a88885e2638ULL)
+#define API_CONTRACT ((uint64_t)0x803114fce319dd8dULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -111,6 +111,9 @@ typedef struct api_Marker api_Marker;
 typedef struct api_Batch api_Batch;
 typedef struct api_Batch_2 api_Batch_2;
 typedef struct api_Waiter api_Waiter;
+typedef struct api_Feed api_Feed;
+typedef struct api_Countdown api_Countdown;
+typedef struct api_Retired api_Retired;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
@@ -156,6 +159,8 @@ typedef struct api_Stack api_Stack;
 typedef struct api_Refusal api_Refusal;
 typedef struct api_Fault api_Fault;
 typedef struct api_c api_c;
+typedef struct api_Quantity api_Quantity;
+typedef struct api_Pass api_Pass;
 typedef struct api_Key api_Key;
 typedef struct api_clash_Seed api_clash_Seed;
 typedef struct api_clash_Empty_string api_clash_Empty_string;
@@ -190,12 +195,18 @@ typedef enum api_Family {
 typedef enum api_VecClashTone {
 	API_VECCLASHTONE_ERROR = 0,
 } api_VecClashTone;
+typedef enum api_Tier {
+	API_TIER_LOW = 0,
+	API_TIER_HIGH = 1,
+	API_TIER_COMPARE_TO = 2,
+	API_TIER_PARTIAL_COMPARE_TO = 3,
+} api_Tier;
 typedef enum api_Level {
-	API_LEVEL_TRACE = 0,
-	API_LEVEL_DEBUG = 1,
+	API_LEVEL_ERROR = 0,
+	API_LEVEL_WARN = 1,
 	API_LEVEL_INFO = 2,
-	API_LEVEL_WARN = 3,
-	API_LEVEL_ERROR = 4,
+	API_LEVEL_DEBUG = 3,
+	API_LEVEL_TRACE = 4,
 } api_Level;
 typedef enum api_bound {
 	API_BOUND_UNBOUNDED = 0,
@@ -825,6 +836,10 @@ typedef struct api_Qualifiers {
 	double api;
 	double kotlin;
 } api_Qualifiers;
+typedef struct api_Version {
+	uint16_t major;
+	uint16_t minor;
+} api_Version;
 typedef struct api_Spot {
 	uint32_t x;
 	uint32_t y;
@@ -856,6 +871,9 @@ typedef struct api_clash_Any {
 typedef struct api_clash_Break {
 	uint8_t _0;
 } api_clash_Break;
+typedef struct api_clash_Escaped {
+	uint8_t new_;
+} api_clash_Escaped;
 typedef struct api_tls_policy_Lifetime {
 	uint32_t seconds;
 } api_tls_policy_Lifetime;
@@ -1078,6 +1096,22 @@ typedef struct api_Builtin {
 		api_Builtin_Native native;
 	};
 } api_Builtin;
+typedef enum api_Rank_tag {
+	API_RANK_UNRANKED = 0,
+	API_RANK_RANKED = 1,
+} api_Rank_tag;
+typedef struct api_Rank_Ranked {
+	uint8_t compare;
+	uint8_t partial_compare;
+	uint8_t compare_to;
+	uint8_t partial_compare_to;
+} api_Rank_Ranked;
+typedef struct api_Rank {
+	api_Rank_tag tag;
+	union {
+		api_Rank_Ranked ranked;
+	};
+} api_Rank;
 typedef enum api_clash_Candidate_tag {
 	API_CLASH_CANDIDATE_NONE = 0,
 	API_CLASH_CANDIDATE_MATCH = 1,
@@ -1339,6 +1373,11 @@ bool api_a_eq(const api_a *a, const api_a *b);
 API_MUST_USE api_buf api_a_debug(const api_a *self);
 void api_Qualifiers_free(api_Qualifiers *self);
 bool api_Qualifiers_eq(const api_Qualifiers *a, const api_Qualifiers *b);
+void api_Version_free(api_Version *self);
+bool api_Version_eq(const api_Version *a, const api_Version *b);
+int8_t api_Version_partial_cmp(const api_Version *a, const api_Version *b);
+int8_t api_Version_cmp(const api_Version *a, const api_Version *b);
+API_MUST_USE api_buf api_Version_debug(const api_Version *self);
 void api_Spot_free(api_Spot *self);
 bool api_Spot_eq(const api_Spot *a, const api_Spot *b);
 API_MUST_USE api_buf api_Spot_debug(const api_Spot *self);
@@ -1385,6 +1424,11 @@ bool api_clash_Break_eq(const api_clash_Break *a, const api_clash_Break *b);
 API_MUST_USE api_buf api_clash_Break_debug(const api_clash_Break *self);
 api_clash_Break api_clash_Break_Sp(void);
 api_clash_Break api_clash_Break_SP(void);
+void api_clash_Escaped_free(api_clash_Escaped *self);
+bool api_clash_Escaped_eq(const api_clash_Escaped *a, const api_clash_Escaped *b);
+API_MUST_USE api_buf api_clash_Escaped_debug(const api_clash_Escaped *self);
+uint8_t api_clash_Escaped_delete(const api_clash_Escaped *self);
+uint8_t api_clash_Escaped_delete_(const api_clash_Escaped *self, uint8_t new_, uint8_t new__);
 void api_tls_policy_Lifetime_free(api_tls_policy_Lifetime *self);
 bool api_tls_policy_Lifetime_eq(const api_tls_policy_Lifetime *a, const api_tls_policy_Lifetime *b);
 API_MUST_USE api_buf api_tls_policy_Lifetime_debug(const api_tls_policy_Lifetime *self);
@@ -1445,11 +1489,22 @@ bool api_b_eq(const api_b *a, const api_b *b);
 API_MUST_USE api_buf api_b_debug(const api_b *self);
 void api_Builtin_free(api_Builtin *self);
 bool api_Builtin_eq(const api_Builtin *a, const api_Builtin *b);
+void api_Rank_free(api_Rank *self);
+bool api_Rank_eq(const api_Rank *a, const api_Rank *b);
+int8_t api_Rank_partial_cmp(const api_Rank *a, const api_Rank *b);
+int8_t api_Rank_cmp(const api_Rank *a, const api_Rank *b);
+API_MUST_USE api_buf api_Rank_debug(const api_Rank *self);
+bool api_Tier_eq(const api_Tier *a, const api_Tier *b);
+int8_t api_Tier_partial_cmp(const api_Tier *a, const api_Tier *b);
+int8_t api_Tier_cmp(const api_Tier *a, const api_Tier *b);
+API_MUST_USE api_buf api_Tier_debug(const api_Tier *self);
 void api_clash_Candidate_free(api_clash_Candidate *self);
 bool api_clash_Candidate_eq(const api_clash_Candidate *a, const api_clash_Candidate *b);
 API_MUST_USE api_buf api_clash_Candidate_debug(const api_clash_Candidate *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
+int8_t api_Level_partial_cmp(const api_Level *a, const api_Level *b);
+int8_t api_Level_cmp(const api_Level *a, const api_Level *b);
 API_MUST_USE api_buf api_Level_to_string(const api_Level *self);
 void api_Board_free(api_Board *self);
 void api_Board_drop(api_Board *self, api_status *status);
@@ -1525,6 +1580,30 @@ API_MUST_USE api_Waiter_poll_future_future *api_Waiter_poll_future(api_foreign_f
 API_MUST_USE api_poll api_Waiter_poll_future_start(api_foreign_future future_, api_Waiter_poll_future_future **future);
 API_MUST_USE api_poll api_Waiter_poll_future_poll(api_Waiter_poll_future_future *future, api_waker waker);
 void api_Waiter_poll_future_future_free(api_Waiter_poll_future_future *future);
+void api_Feed_free(api_Feed *self);
+void api_Feed_drop(api_Feed *self, api_status *status);
+typedef struct api_Feed_next_future api_Feed_next_future;
+API_MUST_USE api_Feed_next_future *api_Feed_next(api_Feed *self, api_status *status);
+API_MUST_USE api_poll api_Feed_next_start(api_Feed *self, api_buf *out, api_Error *err, api_Feed_next_future **future, api_status *status);
+API_MUST_USE api_poll api_Feed_next_poll(api_Feed_next_future *future, api_waker waker, api_buf *out, api_Error *err);
+void api_Feed_next_future_free(api_Feed_next_future *future);
+void api_Countdown_free(api_Countdown *self);
+void api_Countdown_drop(api_Countdown *self, api_status *status);
+API_MUST_USE api_Countdown *api_Countdown_new(uint32_t from);
+API_MUST_USE api_Countdown *api_Countdown_told(uint32_t from, api_Log log);
+typedef struct api_Countdown_next_future api_Countdown_next_future;
+API_MUST_USE api_Countdown_next_future *api_Countdown_next(api_Countdown *self, api_status *status);
+API_MUST_USE api_poll api_Countdown_next_start(api_Countdown *self, api_option_u32 *out, api_Countdown_next_future **future, api_status *status);
+API_MUST_USE api_poll api_Countdown_next_poll(api_Countdown_next_future *future, api_waker waker, api_option_u32 *out);
+void api_Countdown_next_future_free(api_Countdown_next_future *future);
+void api_Retired_free(api_Retired *self);
+void api_Retired_drop(api_Retired *self, api_status *status);
+API_MUST_USE api_Retired *api_Retired_new(uint32_t from);
+typedef struct api_Retired_next_future api_Retired_next_future;
+API_MUST_USE api_Retired_next_future *api_Retired_next(api_Retired *self, api_status *status);
+API_MUST_USE api_poll api_Retired_next_start(api_Retired *self, api_option_u32 *out, api_Retired_next_future **future, api_status *status);
+API_MUST_USE api_poll api_Retired_next_poll(api_Retired_next_future *future, api_waker waker, api_option_u32 *out);
+void api_Retired_next_future_free(api_Retired_next_future *future);
 void api_Logger_free(api_Logger *self);
 API_MUST_USE api_Logger *api_Logger_new(api_Log sink);
 bool api_Logger_write(const api_Logger *self, api_buf line);
@@ -1809,6 +1888,7 @@ API_MUST_USE api_Channel_recv_nonempty_future *api_Channel_recv_nonempty(const a
 API_MUST_USE api_poll api_Channel_recv_nonempty_start(const api_Channel *self, api_buf *out, api_Error *err, api_Channel_recv_nonempty_future **future, api_status *status);
 API_MUST_USE api_poll api_Channel_recv_nonempty_poll(api_Channel_recv_nonempty_future *future, api_waker waker, api_buf *out, api_Error *err);
 void api_Channel_recv_nonempty_future_free(api_Channel_recv_nonempty_future *future);
+API_MUST_USE api_Feed *api_Channel_feed(const api_Channel *self, api_status *status);
 void api_Channel_send_from_thread(const api_Channel *self, api_buf payload, api_status *status);
 void api_Gap_free(api_Gap *self);
 bool api_Gap_borrowed(const api_Gap *self);
@@ -1939,6 +2019,19 @@ void api_c_free(api_c *self);
 bool api_c_eq(const api_c *a, const api_c *b);
 API_MUST_USE api_buf api_c_debug(const api_c *self);
 API_MUST_USE api_c *api_c_new(uint8_t value);
+void api_Quantity_free(api_Quantity *self);
+bool api_Quantity_eq(const api_Quantity *a, const api_Quantity *b);
+int8_t api_Quantity_partial_cmp(const api_Quantity *a, const api_Quantity *b);
+API_MUST_USE api_buf api_Quantity_debug(const api_Quantity *self);
+API_MUST_USE api_Quantity *api_Quantity_new(int64_t value, uint32_t unit);
+void api_Pass_free(api_Pass *self);
+void api_Pass_drop(api_Pass *self, api_status *status);
+bool api_Pass_eq(const api_Pass *a, const api_Pass *b, api_status *status);
+int8_t api_Pass_partial_cmp(const api_Pass *a, const api_Pass *b, api_status *status);
+int8_t api_Pass_cmp(const api_Pass *a, const api_Pass *b, api_status *status);
+API_MUST_USE api_buf api_Pass_debug(const api_Pass *self, api_status *status);
+API_MUST_USE api_Pass *api_Pass_new(uint32_t number);
+uint32_t api_Pass_redeem(api_Pass *self, api_status *status);
 void api_Key_free(api_Key *self);
 bool api_Key_borrowed(const api_Key *self);
 API_MUST_USE api_Key *api_Key_clone(const api_Key *self);
@@ -1967,6 +2060,8 @@ bool api_Url_borrowed(const api_Url *self);
 API_MUST_USE api_Url *api_Url_clone(const api_Url *self, api_status *status);
 bool api_Url_eq(const api_Url *a, const api_Url *b, api_status *status);
 uint64_t api_Url_hash(const api_Url *self, api_status *status);
+int8_t api_Url_partial_cmp(const api_Url *a, const api_Url *b, api_status *status);
+int8_t api_Url_cmp(const api_Url *a, const api_Url *b, api_status *status);
 API_MUST_USE api_buf api_Url_to_string(const api_Url *self, api_status *status);
 API_MUST_USE api_buf api_Url_debug(const api_Url *self, api_status *status);
 API_MUST_USE bool api_Url_parse(api_buf input, api_Url **out, api_buf *err);
@@ -1979,6 +2074,8 @@ bool api_Instant_borrowed(const api_Instant *self);
 API_MUST_USE api_Instant *api_Instant_clone(const api_Instant *self);
 bool api_Instant_eq(const api_Instant *a, const api_Instant *b);
 uint64_t api_Instant_hash(const api_Instant *self);
+int8_t api_Instant_partial_cmp(const api_Instant *a, const api_Instant *b);
+int8_t api_Instant_cmp(const api_Instant *a, const api_Instant *b);
 API_MUST_USE api_buf api_Instant_debug(const api_Instant *self);
 void api_std_io_Error_free(api_std_io_Error *self);
 void api_std_io_Error_drop(api_std_io_Error *self, api_status *status);

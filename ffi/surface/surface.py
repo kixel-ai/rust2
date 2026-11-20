@@ -190,7 +190,8 @@ def assignment(masked):
         k = m.start()
         if k in top and not re.search(r"\boperator\s*\S*$", masked[:k]):
             return k
-    for m in re.finditer(r"=>", masked):
+    # Dart's expression body, not C++'s `operator<=>`.
+    for m in re.finditer(r"(?<!<)=>", masked):
         if m.start() in top:
             return m.start()
     return None

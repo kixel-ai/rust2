@@ -32,6 +32,12 @@ namespace api {
 	enum class VecClashTone {
 		error = 0,
 	};
+	enum class Tier {
+		low = 0,
+		high = 1,
+		compare_to = 2,
+		partial_compare_to = 3,
+	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
 	inline constexpr ::std::uint64_t URL = API_URL;
@@ -132,6 +138,24 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::waker waker() const;
 		RUST2_FFI_CALLABLE ::api::waker context() const;
 		template <class F0> static ::api::Waiter_poll_future_future poll_future(F0 future_);
+	};
+	class RUST2_FFI_CONSUMABLE Feed {
+		RUST2_FFI_UNCONSUMED Feed(Feed &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Feed &operator=(Feed &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Feed_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Countdown {
+		RUST2_FFI_UNCONSUMED Countdown(Countdown &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Countdown &operator=(Countdown &&other) noexcept = default;
+		static ::api::Countdown new_(::std::uint32_t from);
+		static ::api::Countdown told(::std::uint32_t from, ::std::unique_ptr<::api::Log> log);
+		RUST2_FFI_CALLABLE ::api::Countdown_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Retired {
+		RUST2_FFI_UNCONSUMED Retired(Retired &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Retired &operator=(Retired &&other) noexcept = default;
+		static ::api::Retired new_(::std::uint32_t from);
+		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
 	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -413,6 +437,7 @@ namespace api {
 		RUST2_FFI_CALLABLE void listen(const ::api::waker &cx) const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_sized_future recv_sized() const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_nonempty_future recv_nonempty() const;
+		RUST2_FFI_CALLABLE ::api::Feed feed() const;
 		RUST2_FFI_CALLABLE void send_from_thread(::api::input payload) const;
 	};
 	class RUST2_FFI_CONSUMABLE Gap {
@@ -573,6 +598,31 @@ namespace api {
 		friend bool operator!=(const c &a__, const c &b_);
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::c new_(::std::uint8_t value);
+	};
+	class RUST2_FFI_CONSUMABLE Quantity {
+		RUST2_FFI_UNCONSUMED Quantity(Quantity &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Quantity &operator=(Quantity &&other) noexcept = default;
+		friend bool operator==(const Quantity &a__, const Quantity &b_);
+		friend bool operator!=(const Quantity &a__, const Quantity &b_);
+		friend bool operator<(const Quantity &a__, const Quantity &b_);
+		friend bool operator<=(const Quantity &a__, const Quantity &b_);
+		friend bool operator>(const Quantity &a__, const Quantity &b_);
+		friend bool operator>=(const Quantity &a__, const Quantity &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static ::api::Quantity new_(::std::int64_t value, char32_t unit);
+	};
+	class RUST2_FFI_CONSUMABLE Pass {
+		RUST2_FFI_UNCONSUMED Pass(Pass &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Pass &operator=(Pass &&other) noexcept = default;
+		friend bool operator==(const Pass &a__, const Pass &b_);
+		friend bool operator!=(const Pass &a__, const Pass &b_);
+		friend bool operator<(const Pass &a__, const Pass &b_);
+		friend bool operator<=(const Pass &a__, const Pass &b_);
+		friend bool operator>(const Pass &a__, const Pass &b_);
+		friend bool operator>=(const Pass &a__, const Pass &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static ::api::Pass new_(::std::uint32_t number);
+		RUST2_FFI_CONSUMES ::std::uint32_t redeem() &&;
 	};
 	class RUST2_FFI_CONSUMABLE Key {
 		RUST2_FFI_UNCONSUMED Key(Key &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -1092,6 +1142,17 @@ namespace api {
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
 	};
+	struct Version {
+		::std::uint16_t major;
+		::std::uint16_t minor;
+		friend bool operator==(const Version &a__, const Version &b_);
+		friend bool operator!=(const Version &a__, const Version &b_);
+		friend bool operator<(const Version &a__, const Version &b_);
+		friend bool operator<=(const Version &a__, const Version &b_);
+		friend bool operator>(const Version &a__, const Version &b_);
+		friend bool operator>=(const Version &a__, const Version &b_);
+		::api::buf debug() const;
+	};
 	struct Spot {
 		::std::uint32_t x;
 		::std::uint32_t y;
@@ -1174,6 +1235,14 @@ namespace api {
 		::api::buf debug() const;
 		static ::api::clash_Break Sp();
 		static ::api::clash_Break SP();
+	};
+	struct clash_Escaped {
+		::std::uint8_t new_;
+		friend bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
+		friend bool operator!=(const clash_Escaped &a__, const clash_Escaped &b_);
+		::api::buf debug() const;
+		::std::uint8_t delete__() const;
+		::std::uint8_t delete_(::std::uint8_t new__, ::std::uint8_t new___) const;
 	};
 	struct Core {
 		::std::uint32_t id;
@@ -1285,11 +1354,25 @@ namespace api {
 	struct Builtin_Native {
 		double _0;
 	};
+	struct Rank_Unranked {
+	};
+	struct Rank_Ranked {
+		::std::uint8_t compare;
+		::std::uint8_t partial_compare;
+		::std::uint8_t compare_to;
+		::std::uint8_t partial_compare_to;
+	};
 	struct clash_Candidate_None {
 	};
 	struct clash_Candidate_Match {
 		::std::uint8_t _0;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Pass &a__, const Pass &b_);
+	#endif
 	inline bool operator==(const Stamp &a__, const Stamp &b_);
 	inline bool operator==(const Point &a__, const Point &b_);
 	inline bool operator==(const Label &a__, const Label &b_);
@@ -1338,6 +1421,14 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Version &a__, const Version &b_);
+	inline bool operator<(const Version &a__, const Version &b_);
+	inline bool operator<=(const Version &a__, const Version &b_);
+	inline bool operator>(const Version &a__, const Version &b_);
+	inline bool operator>=(const Version &a__, const Version &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Version &a__, const Version &b_);
+	#endif
 	inline bool operator==(const Spot &a__, const Spot &b_);
 	inline bool operator==(const Deprecated &a__, const Deprecated &b_);
 	inline bool operator==(const Dial &a__, const Dial &b_);
@@ -1349,6 +1440,7 @@ namespace api {
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
+	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
@@ -1397,6 +1489,26 @@ namespace api {
 	inline ::api::buf b_debug(const ::api::b &self);
 	inline bool operator==(const ::api::Builtin &a__, const ::api::Builtin &b_);
 	inline bool operator!=(const ::api::Builtin &a__, const ::api::Builtin &b_);
+	inline bool operator==(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator!=(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator<(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator<=(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator>(const ::api::Rank &a__, const ::api::Rank &b_);
+	inline bool operator>=(const ::api::Rank &a__, const ::api::Rank &b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const ::api::Rank &a__, const ::api::Rank &b_);
+	#endif
+	inline ::api::buf Rank_debug(const ::api::Rank &self);
+	inline bool operator==(::api::Tier a__, ::api::Tier b_);
+	inline bool operator!=(::api::Tier a__, ::api::Tier b_);
+	inline bool operator<(::api::Tier a__, ::api::Tier b_);
+	inline bool operator<=(::api::Tier a__, ::api::Tier b_);
+	inline bool operator>(::api::Tier a__, ::api::Tier b_);
+	inline bool operator>=(::api::Tier a__, ::api::Tier b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(::api::Tier a__, ::api::Tier b_);
+	#endif
+	inline ::api::buf Tier_debug(::api::Tier self);
 	inline bool operator==(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline bool operator!=(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline ::api::buf clash_Candidate_debug(const ::api::clash_Candidate &self);
@@ -1813,6 +1925,9 @@ namespace api {
 #if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)
 #include <coroutine>
 #endif
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && __has_include(<compare>)
+#include <compare>
+#endif
 namespace api {
 	#if defined(__clang__)
 	#define RUST2_FFI_OWNER(T) [[gsl::Owner(T)]]
@@ -1987,6 +2102,7 @@ namespace api {
 	enum class Status_;
 	enum class Family;
 	enum class VecClashTone;
+	enum class Tier;
 	enum class Level;
 	struct Parcel;
 	struct Weighted;
@@ -2045,6 +2161,7 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Version;
 	struct Spot;
 	struct Deprecated;
 	struct Dial;
@@ -2056,6 +2173,7 @@ namespace api {
 	struct clash_Span;
 	struct clash_Any;
 	struct clash_Break;
+	struct clash_Escaped;
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
@@ -2070,6 +2188,9 @@ namespace api {
 	class Batch;
 	class Batch_2;
 	class Waiter;
+	class Feed;
+	class Countdown;
+	class Retired;
 	class Logger;
 	class Journal;
 	class Local;
@@ -2115,6 +2236,8 @@ namespace api {
 	class Refusal;
 	class Fault;
 	class c;
+	class Quantity;
+	class Pass;
 	class Key;
 	class clash_Seed;
 	class clash_Empty_string;
@@ -2188,12 +2311,18 @@ namespace api {
 	struct Builtin_Int;
 	struct Builtin_Native;
 	using Builtin = ::std::variant<Builtin_Any, Builtin_Boolean, Builtin_Int, Builtin_Native>;
+	struct Rank_Unranked;
+	struct Rank_Ranked;
+	using Rank = ::std::variant<Rank_Unranked, Rank_Ranked>;
 	struct clash_Candidate_None;
 	struct clash_Candidate_Match;
 	using clash_Candidate = ::std::variant<clash_Candidate_None, clash_Candidate_Match>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;
+	using Feed_next_future = ::api::future<detail::Feed_next_future_op>;
+	using Countdown_next_future = ::api::future<detail::Countdown_next_future_op>;
+	using Retired_next_future = ::api::future<detail::Retired_next_future_op>;
 	using Local_later_future = ::api::future<detail::Local_later_future_op>;
 	using Local_poll_count_future = ::api::future<detail::Local_poll_count_future_op>;
 	using LocalWaiter_poll_ready_future = ::api::future<detail::LocalWaiter_poll_ready_future_op>;
@@ -2285,9 +2414,16 @@ namespace api {
 		Instant &operator=(const Instant &other) = default;
 		friend bool operator==(const Instant &a__, const Instant &b_);
 		friend bool operator!=(const Instant &a__, const Instant &b_);
+		friend bool operator<(const Instant &a__, const Instant &b_);
+		friend bool operator<=(const Instant &a__, const Instant &b_);
+		friend bool operator>(const Instant &a__, const Instant &b_);
+		friend bool operator>=(const Instant &a__, const Instant &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Instant &a__, const Instant &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Instant> {
@@ -2367,14 +2503,21 @@ namespace api {
 #include "rt.hpp"
 namespace api {
 	enum class Level {
-		trace = 0,
-		debug = 1,
+		error = 0,
+		warn = 1,
 		info = 2,
-		warn = 3,
-		error = 4,
+		debug = 3,
+		trace = 4,
 	};
 	inline bool operator==(::api::Level a__, ::api::Level b_);
 	inline bool operator!=(::api::Level a__, ::api::Level b_);
+	inline bool operator<(::api::Level a__, ::api::Level b_);
+	inline bool operator<=(::api::Level a__, ::api::Level b_);
+	inline bool operator>(::api::Level a__, ::api::Level b_);
+	inline bool operator>=(::api::Level a__, ::api::Level b_);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(::api::Level a__, ::api::Level b_);
+	#endif
 	inline ::api::buf Level_to_string(::api::Level self);
 }
 #if defined(__GNUC__) || defined(__clang__)
@@ -2403,11 +2546,18 @@ namespace api {
 		Url &operator=(const Url &other) = default;
 		friend bool operator==(const Url &a__, const Url &b_);
 		friend bool operator!=(const Url &a__, const Url &b_);
+		friend bool operator<(const Url &a__, const Url &b_);
+		friend bool operator<=(const Url &a__, const Url &b_);
+		friend bool operator>(const Url &a__, const Url &b_);
+		friend bool operator>=(const Url &a__, const Url &b_);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf to_string() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::result<::api::Url, ::api::buf> parse(::api::input input_);
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Url &a__, const Url &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Url> {

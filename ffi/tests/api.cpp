@@ -457,6 +457,45 @@ void readers() {
 	}
 }
 
+// Streams, each `next` awaited in turn, as C++ has no asynchronous iteration of its own.
+void streams() {
+	{
+		api::Countdown countdown = api::Countdown::new_(3);
+		std::printf("countdown");
+		const char *sep = " ";
+		while (auto count = countdown.next().get()) {
+			std::printf("%s%u", sep, unsigned(*count));
+		}
+		std::printf("\n");
+	}
+	api::Countdown countdown = api::Countdown::new_(5);
+	while (auto count = countdown.next().get()) {
+		if (*count == 4) {
+			break;
+		}
+	}
+	std::printf("countdown after break %u\n", unsigned(*countdown.next().get()));
+	api::Channel channel = api::Channel::new_();
+	api::Feed feed = channel.feed();
+	for (const char *first : {"a", "c"}) {
+		channel.send(first);
+		for (;;) {
+			auto next = feed.next().get();
+			if (!next) {
+				print("feed error ", api::Error_to_string(next.error()), "\n");
+				break;
+			}
+			if (!next.value()) {
+				std::printf("feed end\n");
+				break;
+			}
+			const api::buf &payload = *next.value();
+			print("feed ", payload, "\n");
+			channel.send(payload.str() == "a" ? "b" : payload.str() == "b" ? "!" : "");
+		}
+	}
+}
+
 // Futures of a value that is not `Send`, polled on this thread until each is ready.
 void local_later(const api::Local &local) {
 	api::waker waker([]() {});
@@ -506,6 +545,11 @@ int checks() {
 		auto handle = api::c::new_(1);
 		check(one == one && !(one == two) && unit != two_b && handle == api::c::new_(1) && !(handle == api::c::new_(2)),
 			"types named a, b, and c compare");
+	}
+	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
+	{
+		api::clash_Escaped escaped{3};
+		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
 	}
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{

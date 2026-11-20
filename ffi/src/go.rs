@@ -43,7 +43,9 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Closure, Collection, Function, Home, Int, Literal, On, Param, Receiver, Type};
+use crate::ir::{
+	Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Traits, Type, Variant,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -53,6 +55,7 @@ const STD: &[(&str, &str)] = &[
 	("context", "context"),
 	("cgo", "runtime/cgo"),
 	("io", "io"),
+	("iter", "iter"),
 	("runtime", "runtime"),
 	("unsafe", "unsafe"),
 ];
@@ -1501,6 +1504,7 @@ impl<'a> Gen<'a> {
 			if home.krate == pkg {
 				continue;
 			}
+			let mut streams = Vec::new();
 			for function in methods.iter().filter(|f| f.home.krate == pkg) {
 				let mut method = self.function(function, Some(&owner), Some(&ty));
 				if let Some(receiver) = method.receiver.take() {
@@ -1514,7 +1518,69 @@ impl<'a> Gen<'a> {
 				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
+				if let (Some(item), Type::Object(_), Some((_, go))) = (function.stream(), &ty, method.params.first()) {
+					streams.push((function, item, method.name.clone(), go.clone()));
+				}
 			}
+			// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+			for (function, item, next, go) in streams {
+				let mut adapter = self.stream(function, item, &next, &format!("{next}(self, "));
+				adapter.params.insert(0, ("self".to_string(), go));
+				adapter.name = format!("{}{}", self.named(&ty).1, adapter.name);
+				adapter.name = self.claim(&adapter.name, format!("`{}`'s stream", function.path.join("::")));
+				let key = format!("{} / stream", crate::lock::function_key(function));
+				self.locked.insert(key, adapter.name.clone());
+				self.top.push_str(&adapter.write());
+			}
+		}
+	}
+
+	/// The adapter ranging over the stream `function`'s items of type `item`, calling `next`,
+	/// its Go name, as `call` begins, with ctx: an `iter.Seq2` named `All`, deprecated as
+	/// `function` is.
+	fn stream(&mut self, function: &Function, item: &Type, next: &str, call: &str) -> Method {
+		let item = strip_refs(item);
+		let go = self.go(&item);
+		// An object is already a pointer, nil for none; any other item is one's target.
+		let value = match item.base() {
+			Type::Object(_) => "item_",
+			_ => "*item_",
+		};
+		let call = match call.ends_with(", ") {
+			true => format!("{call}ctx)"),
+			false => format!("{call}(ctx)"),
+		};
+		Method {
+			key: None,
+			docs: deprecation(
+				&format!(
+					"All ranges over the items {next} returns, calling it once for each, until it returns none\n\
+				 or an error, which All yields last. It reads no item ahead, so a loop that breaks\n\
+				 leaves the next item to the next call. Once ctx is done, the pending {next} cancels its\n\
+				 future in Rust, as dropping it there would, and All yields ctx's error: an item is lost\n\
+				 only where Rust's future loses one when dropped, and the stream stays usable."
+				),
+				function.deprecated.as_deref(),
+			),
+			receiver: None,
+			name: "All".to_string(),
+			params: vec![("ctx".to_string(), "context.Context".to_string())],
+			results: vec![format!("iter.Seq2[{go}, error]")],
+			body: format!(
+				"return func(yield_ func({go}, error) bool) {{\n\
+				 \tfor {{\n\
+				 \t\titem_, err_ := {call}\n\
+				 \t\tif err_ != nil {{\n\
+				 \t\t\tvar zero_ {go}\n\
+				 \t\t\tyield_(zero_, err_)\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t\tif item_ == nil || !yield_({value}, nil) {{\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t}}\n\
+				 }}"
+			),
 		}
 	}
 
@@ -1684,7 +1750,7 @@ impl<'a> Gen<'a> {
 	/// The methods a type's std traits export: `Display` is `String`, `Debug` `GoString`,
 	/// `PartialEq` `Equal`, and `Clone` an object's `Clone`; and the package's function for
 	/// `Default`.
-	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits) -> (Vec<Method>, Option<Method>) {
+	fn traits(&mut self, ty: &Type, c: &str, t: Traits) -> (Vec<Method>, Option<Method>) {
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);
@@ -1860,6 +1926,65 @@ impl<'a> Gen<'a> {
 				body,
 			));
 		}
+		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `PartialCompare`, and with
+		// `Ord` its `cmp` as `Compare`, the shape `slices.SortFunc` takes.
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
+			let (member, docs, zero, results, done) = match suffix {
+				"cmp" => (
+					"Compare",
+					"Compare is Rust's Ord: -1, 0, or 1 as self is less than, equal to, or greater than other.",
+					"0",
+					vec!["int".to_string()],
+					"return int(r_)",
+				),
+				_ => (
+					"PartialCompare",
+					"PartialCompare is Rust's PartialOrd: -1, 0, or 1 as self is less than, equal to, or greater than\nother, and false when the two are unordered.",
+					"0, false",
+					vec!["int".to_string(), "bool".to_string()],
+					"if r_ == 2 {\n\treturn 0, false{ok}\n}\nreturn int(r_), true",
+				),
+			};
+			let failed = |e: &str| format!("{zero}, {e}");
+			let (open, this) = match closable {
+				true => open(&failed),
+				false => open(&|_: &str| unreachable!("a value holding no object is never closed")),
+			};
+			let (results, ok) = match closable || limited {
+				true => ([results, vec!["error".to_string()]].concat(), ", nil"),
+				false => (results, ""),
+			};
+			let done = format!("{}{ok}", done.replace("{ok}", ok));
+			let sig = || sig(suffix, 2, Ty::Int(Int::I8));
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
+			let body = match (object, arena) {
+				(true, _) => format!(
+					"{open}{}\n{}{done}",
+					hold(&slot, "other", "o_", "os_", &closed),
+					checked(sig(), &[this, format!("(*C.{c})(o_)")], &failed)
+				),
+				(false, true) if closable => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\n{}{done}",
+					failed("a_.err"),
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, true) => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, false) => format!(
+					"{open}c_other_ := lower_{c}(other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+			};
+			methods.push(method(
+				docs,
+				member,
+				vec![("other".to_string(), name.clone())],
+				results,
+				body,
+			));
+		}
 		let default = t.default.then(|| {
 			let func = format!("{}Default", name.trim_start_matches('*'));
 			// A value that is not `Send` is made on a home, which its calls then run on.
@@ -1896,6 +2021,8 @@ impl<'a> Gen<'a> {
 					"GoString" => ("debug", "err_.Error()".to_string()),
 					"Clone" => ("clone", "nil, err_".to_string()),
 					"Equal" => ("eq", "false, err_".to_string()),
+					"Compare" => ("cmp", "0, err_".to_string()),
+					"PartialCompare" => ("partial_cmp", "0, false, err_".to_string()),
 					_ => ("default", format!("{zero}, err_")),
 				};
 				method.body = format!(
@@ -1971,29 +2098,42 @@ impl<'a> Gen<'a> {
 	/// field takes it.
 	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
-		let t = record.traits;
+		let mut taken = self.trait_methods(&Type::Record(i), record.traits);
+		(record.fields.iter())
+			.map(|f| {
+				let name = unique(&mut taken, field_name(&f.name));
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
+				name
+			})
+			.collect()
+	}
+
+	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
+	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
+		let e = &self.abi.api.enums[i];
+		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
+		(variant.fields.iter())
+			.map(|f| {
+				let name = unique(&mut taken, field_name(&f.name));
+				crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
+				name
+			})
+			.collect()
+	}
+
+	/// The methods the traits `t` of the type `ty` add, which a field's name must clear.
+	fn trait_methods(&self, ty: &Type, t: Traits) -> BTreeSet<String> {
 		let methods = [
 			(t.display, "String"),
 			(t.debug, "GoString"),
 			(t.eq, "Equal"),
-			(self.errored(&Type::Record(i)), "Error"),
+			(t.ord != Order::None, "PartialCompare"),
+			(t.ord == Order::Total, "Compare"),
+			(self.errored(ty), "Error"),
 		];
-		let mut taken: BTreeSet<String> = (methods.iter())
+		(methods.iter())
 			.filter(|(has, _)| *has)
 			.map(|(_, name)| name.to_string())
-			.collect();
-		(record.fields.iter())
-			.map(|f| {
-				let mut name = field_name(&f.name);
-				while !taken.insert(name.clone()) {
-					name.push('_');
-				}
-				self.locked.insert(
-					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
-					name.clone(),
-				);
-				name
-			})
 			.collect()
 	}
 
@@ -2055,15 +2195,36 @@ impl<'a> Gen<'a> {
 		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
+		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
+		let mut named = BTreeMap::new();
 		for mut method in methods {
 			while !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
 			if let Some(key) = &method.key {
 				self.locked.insert(key.clone(), method.name.clone());
+				named.insert(key.clone(), (method.name.clone(), method.receiver.clone()));
 			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
+		}
+		// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+		let pkg = self.pkg;
+		let streams = (functions.iter()).filter(|f| f.home.krate == pkg && matches!(ty, Type::Object(_)));
+		for function in streams {
+			let Some(item) = function.stream() else { continue };
+			let key = crate::lock::function_key(function);
+			let Some((next, receiver)) = named.get(&key).cloned() else {
+				continue;
+			};
+			let mut adapter = self.stream(function, item, &next, &format!("self.{next}"));
+			adapter.receiver = receiver;
+			while !taken.insert(adapter.name.clone()) {
+				adapter.name.push('_');
+			}
+			self.locked.insert(format!("{key} / stream"), adapter.name.clone());
+			members.push(adapter.name.clone());
+			self.types.push_str(&adapter.write());
 		}
 		for function in statics {
 			self.types.push_str(&function.write());
@@ -2083,20 +2244,22 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 	) -> (Vec<Method>, Vec<Method>) {
 		let (mut methods, default) = self.traits(ty, c, traits);
+		for method in &methods {
+			let t = match method.name.as_str() {
+				"String" => "Display",
+				"GoString" => "Debug",
+				"Clone" => "Clone",
+				"Equal" => "PartialEq",
+				"PartialCompare" => "PartialOrd",
+				"Compare" => "Ord",
+				name => unreachable!("no trait exports {name}"),
+			};
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, &method.name);
+		}
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
-			let api = self.abi.api;
-			let shown = match ty {
-				Type::Record(i) => &api.records[*i].shown,
-				Type::Enum(i) => &api.enums[*i].shown,
-				Type::Object(i) => &api.objects[*i].shown,
-				_ => unreachable!("only an exported type has members"),
-			};
-			self.locked.insert(
-				format!("{} / Default", crate::lock::type_key(shown)),
-				default.name.clone(),
-			);
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), "Default", &default.name);
 			statics.push(default);
 		}
 		let pkg = self.pkg;
@@ -2196,8 +2359,8 @@ impl<'a> Gen<'a> {
 		);
 		for variant in &e.variants {
 			let vname = self.variants[&(c.clone(), variant.name.clone())].clone();
-			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| (field_name(&f.name), self.go(&f.ty)))
+			let fields: Vec<(String, String)> = (self.variant_fields(i, variant).into_iter())
+				.zip(variant.fields.iter().map(|f| self.go(&f.ty)))
 				.collect();
 			let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 			members.extend(methods.iter().map(|m| m.name.clone()));
@@ -2267,15 +2430,16 @@ impl<'a> Gen<'a> {
 				lowers.push(format!("\tcase {vname}:\n{check}\t\tc.tag = {n}\n"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter())
-				.map(|f| {
+			let names = self.variant_fields(i, variant);
+			let lifted: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
 					let value = self.lift(&f.ty, &format!("p.{}", cgo_field(&abi::escape(&f.name))));
-					format!("{}: {value}", field_name(&f.name))
+					format!("{name}: {value}")
 				})
 				.collect();
-			let lowered: Vec<String> = (variant.fields.iter())
-				.map(|f| {
-					let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
+			let lowered: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
+					let value = self.lower(&f.ty, &format!("v.{name}"));
 					format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 				})
 				.collect();
@@ -2326,6 +2490,7 @@ impl<'a> Gen<'a> {
 			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
 			docs(text.trim(), object.deprecated.as_deref(), "")
 		);
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Close");
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -3421,6 +3586,14 @@ fn c_int(int: Int) -> &'static str {
 }
 
 /// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
+/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
+fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
+	while !taken.insert(name.clone()) {
+		name.push('_');
+	}
+	name
+}
+
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),
@@ -3501,6 +3674,7 @@ fn local(name: &str) -> String {
 		"context",
 		"errors",
 		"io",
+		"iter",
 		"ctx",
 		"cgo",
 		"math",

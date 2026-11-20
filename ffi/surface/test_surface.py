@@ -193,6 +193,7 @@ inline ::api::Marker Marker::new_(const char *s) {
 	return {};
 }
 inline bool operator==(const Marker &a, const Marker &b) { return true; }
+inline ::std::weak_ordering operator<=>(const Marker &a, const Marker &b) { return a.n <=> b.n; }
 } // namespace api
 """
         self.assertEqual(self.outline(source), [
@@ -214,6 +215,7 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "\t\ttemplate <class F, class = ::std::enable_if_t<true>> void each(F f) const;",
             "\t};",
             "\tinline bool operator==(const Marker &a, const Marker &b);",
+            "\tinline ::std::weak_ordering operator<=>(const Marker &a, const Marker &b);",
             "}",
         ])
 
