@@ -43,6 +43,15 @@ class Print : Log, AutoCloseable {
 	override fun close() = println("freed")
 }
 
+// The Undo callback: each method returns its own digit.
+class Edits : Undo {
+	override fun delete(n: UInt): UInt = n - 1u
+
+	override fun free(): UInt = 2u
+
+	override fun type(): UByte = 3u
+}
+
 // Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
 fun numbers(what: String, n: Numbers) {
 	println("$what u16 ${n.u16s.contentToString()}")
