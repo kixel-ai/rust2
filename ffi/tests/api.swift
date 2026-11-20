@@ -1124,6 +1124,14 @@ func lossless() {
 		}
 		check(seen == [98, 2100, 4101, 7], "a closure reads each chunk of a caller's bytes in place")
 	}
+	nonisolated(unsafe) var kept: [Bytes] = []
+	_ = lend("abc") { visitChunks($0, 2) { chunk in
+		if let chunk {
+			kept.append(Bytes(chunk))
+		}
+		return 0
+	} }
+	check(kept == [Bytes("ab".utf8), Bytes("c".utf8)], "a closure keeps lent bytes by copying them")
 	let digest = scanned(ScanDigest(), Bytes("abcd".utf8))
 	check(digest == (2 << 32) + 97 + 98 + (99 + 100) * 256 + (1 << 48), "a callback reads lent bytes and none")
 	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")

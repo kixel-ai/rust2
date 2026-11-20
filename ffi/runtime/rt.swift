@@ -259,6 +259,11 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 		self.init(Data(bytes))
 	}
 
+	/// `span`'s bytes, copied, as a closure keeps bytes Rust lent it.
+	public init(_ span: borrowing Swift.Span<Swift.UInt8>) {
+		self.init(span.withUnsafeBufferPointer { Data(buffer: $0) })
+	}
+
 	/// The bytes as a `Data`: Swift's as they are, and Rust's copied.
 	public var data: Data {
 		owner == nil ? storage : Data(storage)

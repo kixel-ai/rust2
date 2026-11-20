@@ -58,6 +58,7 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 	@inlinable public init()
 	@inlinable public init(_ data: Data)
 	@inlinable public init(_ bytes: some Swift.Sequence<Swift.UInt8>)
+	@inlinable public init(_ span: borrowing Swift.Span<Swift.UInt8>)
 	@inlinable public var data: Data { get }
 	@inlinable public var startIndex: Swift.Int { get }
 	@inlinable public var endIndex: Swift.Int { get }
