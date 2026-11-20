@@ -8,7 +8,7 @@ mutant that frees a handle a call holds there.
 
 ## Plan
 
-Found in [#906](https://github.com/kixel-ai/rust2/pull/906): loom 0.7.3 never ran another
+Found in [#906](https://github.com/kixel-ai/rust2/pull/906), whose pick kept this quest: loom 0.7.3 never ran another
 thread's load between a thread's `load` then `compare_exchange` and its later `fetch_sub`.
 A probe, one thread doing `load`, `compare_exchange(n, n + 8)`, `fetch_sub(8)` against
 another's `load`, passed `assert_eq!(n, 8)` in every execution, while the same probe without

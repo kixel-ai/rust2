@@ -9,7 +9,8 @@ the same object, on its own thread or on one it then joins, still returns at onc
 
 ## Plan
 
-Found in review of [#906](https://github.com/kixel-ai/rust2/pull/906). Since
+Found in review of [#906](https://github.com/kixel-ai/rust2/pull/906), whose pick kept this
+quest and accepted that PR's close returning at once, as Go's does, until this one lands. Since
 [#838](https://github.com/kixel-ai/rust2/pull/838) (Go) and #906 (Kotlin), a checked close no
 call holds claims the handle `CLOSED | CLOSING`, then drops and frees it in one crossing,
 restoring it open if Rust refuses the drop under a borrow of its own, such as a lent
