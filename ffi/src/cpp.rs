@@ -2465,7 +2465,10 @@ mod tests {
 		// A name escaping leaves as it is keeps it, in either order.
 		assert_eq!(names(&["delete", "delete_"], &[]), ["delete__", "delete_"]);
 		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete__"]);
-		assert_eq!(names(&["class", "class_", "class__"], &[]), ["class___", "class_", "class__"]);
+		assert_eq!(
+			names(&["class", "class_", "class__"], &[]),
+			["class___", "class_", "class__"]
+		);
 		// Unless something else holds it, such as a trait's member.
 		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug__", "debug_"]);
 		assert_eq!(names(&["default", "seed"], &["default_"]), ["default__", "seed"]);
