@@ -709,7 +709,8 @@ impl<'a> Gen<'a> {
 	/// for its call: a slice as a span of it in place, other bytes and text copied, and a
 	/// scalar as it is.
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
-		let span = |e: &str| format!("Swift.Span(_unsafeElements: Swift.UnsafeBufferPointer(start: {e}.ptr, count: {e}.len))");
+		let span =
+			|e: &str| format!("Swift.Span(_unsafeElements: Swift.UnsafeBufferPointer(start: {e}.ptr, count: {e}.len))");
 		match ty {
 			_ if self.spanned(ty).is_some() => span(e),
 			Type::Option(inner) if self.spanned(inner).is_some() => format!("({e}.ptr == nil ? nil : {})", span(e)),

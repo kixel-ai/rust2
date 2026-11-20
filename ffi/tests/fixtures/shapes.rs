@@ -1221,8 +1221,8 @@ fn swift(calls: &[Call], source: &str) -> String {
 		false => "",
 	};
 	// `digest_N` of the value `v`, lent as a span where it borrows a slice.
-	let digest = |n: usize, v: String| {
-		match source.contains(&format!("public func digest{n}(_ v: borrowing Swift.Span<")) {
+	let digest =
+		|n: usize, v: String| match source.contains(&format!("public func digest{n}(_ v: borrowing Swift.Span<")) {
 			true => {
 				let t = match throws(&format!("digest{n}")) {
 					true => "try ",
@@ -1231,8 +1231,7 @@ fn swift(calls: &[Call], source: &str) -> String {
 				format!("lend({v}) {{ {t}digest{n}($0) }}")
 			}
 			false => format!("digest{n}({v})"),
-		}
-	};
+		};
 	let shapes = by_shape(calls, |call| {
 		let value = match call {
 			Call::Echo(n, seed) => format!(
