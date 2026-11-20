@@ -179,7 +179,7 @@ jobs:
             targets: aarch64-unknown-linux-gnu
           - host: apple
             os: macos-26
-            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi
           # MSVC's library for the wheel, MinGW's for Go, which links through MinGW.
           - host: windows
             os: windows-latest
@@ -255,6 +255,9 @@ jobs:
           - host: apple-ios-sim
             os: macos-26
             targets: aarch64-apple-ios-sim
+          - host: apple-catalyst
+            os: macos-26
+            targets: aarch64-apple-ios-macabi
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc x86_64-pc-windows-gnu
@@ -459,7 +462,7 @@ jobs:
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
         run: |
           args=()
-          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
+          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-ios-macabi; do
             args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
           done
           cd source
@@ -529,7 +532,7 @@ jobs:
           fi
 
   # A new SwiftPM package whose only library is the staged package, as a user's would be,
-  # run on macOS and built for iOS devices and simulators.
+  # run on macOS and built for iOS devices and simulators and Mac Catalyst.
   swift-consumer:
     needs: [facts, swift, agree]
     runs-on: macos-26

@@ -88,15 +88,30 @@ crate apart from it takes `web-features` and `web-example` instead.
    `manylinux_2_28` on x86_64 and aarch64 (built by cargo-zigbuild against glibc 2.28, as
    [crabx](/crabx/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
    `win_amd64`.
-6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
-   at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
-   every object's declared minimum OS; one XCFramework of the three, zipped by the builder itself,
+6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64, its simulator, and
+   Mac Catalyst arm64 at iOS 16, the floors of the generated Swift's `Swift.Duration`, each
+   checked against every object's declared minimum OS; one XCFramework of the four, zipped by the builder itself,
    its SHA-256 checked against `swift package compute-checksum`; and a `Package.swift`
    naming it at `https://github.com/<repo>/releases/download/<crate>-v<version>/<Module>FFI.xcframework.zip`.
    The package depends on swift-collections by the release tag at the exporter's pinned
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
+
+   Each slice is linked as an app links it, keeping only what the C ABI reaches, and
+   `nm` lists the [required-reason APIs](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)
+   that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
+   The package's `PrivacyInfo.xcprivacy`, a resource SwiftPM bundles into the app, since a
+   static library holds none, declares them: file metadata (`stat` and its kin) for the
+   app's container, `C617.1`, and the boot clock (`mach_absolute_time`) for elapsed time,
+   `35F9.1`. Disk space, `getattrlist`, user defaults, and active keyboards have no reason
+   that fits every library, so a library reaching them fails the build. An Objective-C call
+   by selector, or to a class looked up at run time, imports no symbol, and the scan misses it.
+
+   The slices carry line tables, `debug = "line-tables-only"` unless the crate's release
+   profile sets `debug`: a static library has no dSYM of its own, and the app's dSYM is made
+   from the debug info of what it links, so a crash in Rust symbolicates to its source
+   line, which the build checks by `atos` on a dSYM of each slice's link.
 7. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`
    on Windows, built like the wheels, Linux's against glibc 2.28 and macOS's at 11.0. It
    holds `include/` with both headers, the static and shared libraries, and three ways to
@@ -147,7 +162,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 10. Consumers, with no checkout, Rust, or source path: each wheel installed with
     `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
     from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
-    and the iOS Simulator, then consumed by a new executable package that runs the check;
+    the iOS Simulator, and Mac Catalyst, then consumed by a new executable package that runs
+    the check, whose bundled privacy manifest must declare what the executable imports;
     and each C archive unpacked alone, built by a new CMake project through its CPS file and
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
