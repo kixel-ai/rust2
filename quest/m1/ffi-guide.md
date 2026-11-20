@@ -12,7 +12,7 @@ read the census.
 Found by the 2026-11-18 language audit: refusals are rustc diagnostics at their spans but
 say only what is refused; the README's scope note says a stock crate needs a facade, and
 nothing shows how to write one. The nightly corpus's refusals (`just ffi corpus`, whose
-report lists each crate's) are the examples to write the notes against. The "exclude it in the config" suffix goes
-with [the config](/quest/m1/ffi-refusals/no-config.md), not here.
+report lists each crate's) are the examples to write the notes against. The "exclude it in the config" suffix went
+with the config, in [#903](https://github.com/kixel-ai/rust2/pull/903).
 
 Public API: refusal messages.
