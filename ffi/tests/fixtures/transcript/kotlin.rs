@@ -101,7 +101,8 @@ fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>, vars: &mut Vec
 				let f = t.function(*id);
 				for (arg, param) in args.iter().zip(params(t, *id)) {
 					if let Kind::Var(name) = &arg.kind
-						&& written(&param) && !out.contains(name)
+						&& written(&param)
+						&& !out.contains(name)
 					{
 						out.push(name.clone());
 					}

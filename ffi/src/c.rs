@@ -360,7 +360,9 @@ impl Header<'_> {
 			}
 			if t.display {
 				let display = self.member(&ty, "Display", &name, "to_string");
-				self.line(format!("{upper}_MUST_USE {p}_buf {display}(const {name} *self{status});"));
+				self.line(format!(
+					"{upper}_MUST_USE {p}_buf {display}(const {name} *self{status});"
+				));
 			}
 			if t.debug {
 				let debug = self.member(&ty, "Debug", &name, "debug");

@@ -416,12 +416,18 @@ impl Transcript {
 
 	/// `language`'s name for the tuple of `elements`, where it names one.
 	pub(crate) fn find_tuple(&self, language: &str, elements: &[Type]) -> Option<&str> {
-		self.find(language, &format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))))
+		self.find(
+			language,
+			&format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))),
+		)
 	}
 
 	/// `language`'s name for the tuple of `elements`.
 	pub(crate) fn tuple(&self, language: &str, elements: &[Type]) -> &str {
-		self.named(language, &format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))))
+		self.named(
+			language,
+			&format!("tuple {}", self.spell(&Type::Tuple(elements.to_vec()))),
+		)
 	}
 
 	/// `language`'s name for the exception an error of `ty` throws as.
@@ -431,17 +437,26 @@ impl Transcript {
 
 	/// `language`'s name for the field `field` of the record `ty`.
 	pub(crate) fn field(&self, language: &str, ty: &Type, field: &str) -> &str {
-		self.named(language, &format!("type {} / field {field}", self.rust(unref(ty).base())))
+		self.named(
+			language,
+			&format!("type {} / field {field}", self.rust(unref(ty).base())),
+		)
 	}
 
 	/// `language`'s name for the variant `variant` of the enum `ty`.
 	pub(crate) fn variant(&self, language: &str, ty: &Type, variant: &str) -> &str {
-		self.named(language, &format!("type {} / variant {variant}", self.rust(unref(ty).base())))
+		self.named(
+			language,
+			&format!("type {} / variant {variant}", self.rust(unref(ty).base())),
+		)
 	}
 
 	/// `language`'s name for the field `field` of the data variant `variant` of `ty`.
 	pub(crate) fn variant_field(&self, language: &str, ty: &Type, variant: &str, field: &str) -> &str {
-		let key = format!("type {} / variant {variant} / field {field}", self.rust(unref(ty).base()));
+		let key = format!(
+			"type {} / variant {variant} / field {field}",
+			self.rust(unref(ty).base())
+		);
 		self.named(language, &key)
 	}
 

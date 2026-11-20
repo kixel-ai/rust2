@@ -12,7 +12,9 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use super::ir::{Access, Closure, Family, Int, Mutability, Receiver, Type};
-use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Pat, Piece, Spec, Step, Transcript, each_expr, owned, unref, walk};
+use super::{
+	Arm, BoundKind, Expr, FnId, Kind, Num, Op, Pat, Piece, Spec, Step, Transcript, each_expr, owned, unref, walk,
+};
 
 const LANGUAGE: &str = "C";
 
@@ -572,7 +574,9 @@ impl Emitter<'_> {
 
 	/// The C struct of tuple type `ty`, if the header has one.
 	fn tuple_struct(&self, ty: &Type) -> Option<String> {
-		let Type::Tuple(elements) = unref(ty).base() else { return None };
+		let Type::Tuple(elements) = unref(ty).base() else {
+			return None;
+		};
 		self.t.find_tuple(LANGUAGE, elements).map(str::to_string)
 	}
 
@@ -642,7 +646,9 @@ impl Emitter<'_> {
 				let inner = self.free(&format!("{c}.value"), inner).join(" ");
 				vec![format!("if ({c}.some) {{ {inner} }}")]
 			}
-			Type::Record(_) | Type::Enum(_) if self.owns(ty) => vec![format!("{}(&{c});", self.t.member(LANGUAGE, ty, "Drop"))],
+			Type::Record(_) | Type::Enum(_) if self.owns(ty) => {
+				vec![format!("{}(&{c});", self.t.member(LANGUAGE, ty, "Drop"))]
+			}
 			Type::Tuple(elements) => (elements.iter().enumerate())
 				.flat_map(|(i, e)| self.free(&format!("{c}._{i}"), e))
 				.collect(),
