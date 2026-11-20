@@ -27,6 +27,9 @@ static void print(const char *before, api_buf buf, const char *after) {
 	api_buf_free(buf);
 }
 
+/* Drops a must-use result on purpose: before C23, GCC warns of one even cast to void. */
+#define DISCARD(call) ((void)!(call))
+
 /* Print each of `numbers`' lists, its floats as their bits, as transcript.rs does. */
 #define PRINT_LIST(list, fmt, cast)                                           \
 	do {                                                                  \
@@ -543,7 +546,7 @@ static void log_free(void *data) {
 
 /* A lent closure: adds data's amount to the counter lent for the call. */
 static bool edit(void *data, api_Counter *counter) {
-	api_Counter_add(counter, *(const uint64_t *)data, NULL, NULL, NULL);
+	DISCARD(api_Counter_add(counter, *(const uint64_t *)data, NULL, NULL, NULL));
 	return api_Counter_edited(counter, NULL) && api_Counter_get(counter, NULL) == 6;
 }
 
@@ -713,7 +716,7 @@ static int script(void) {
 	print("name ", api_Counter_name(c, NULL), "\n");
 	printf("is d %s\n", api_Counter_is(c, str("d"), NULL) ? "true" : "false");
 	api_Counter *copy = api_Counter_clone(c, NULL);
-	api_Counter_add(copy, 1, NULL, NULL, NULL);
+	DISCARD(api_Counter_add(copy, 1, NULL, NULL, NULL));
 	printf("clone %llu original %llu\n", (unsigned long long)api_Counter_get(copy, NULL),
 		   (unsigned long long)api_Counter_get(c, NULL));
 	api_Counter_free(copy);
@@ -909,14 +912,14 @@ static int script(void) {
 	api_Registry_push(registry, moved, NULL);
 	api_Counter_free(moved);
 	api_Counter *first = api_Registry_first_get(registry, NULL);
-	api_Counter_add(first, 10, NULL, NULL, NULL);
+	DISCARD(api_Counter_add(first, 10, NULL, NULL, NULL));
 	api_Counter *lent = api_Registry_first_get(registry, NULL);
 	printf("first %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
 		   (unsigned long long)api_Counter_get(first, NULL));
 	api_Counter_free(lent);
 	api_Counter_free(first);
 	api_Counter *last = api_Registry_last(registry, NULL);
-	api_Counter_add(last, 10, NULL, NULL, NULL);
+	DISCARD(api_Counter_add(last, 10, NULL, NULL, NULL));
 	lent = api_Registry_last(registry, NULL);
 	printf("last %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
 		   (unsigned long long)api_Counter_get(last, NULL));
@@ -1603,10 +1606,10 @@ static int script(void) {
 	api_buf digits_left, digits_rest;
 	uint8_t first_digit, last_digit;
 	api_Error digit_error;
-	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
+	DISCARD(api_digit(str("7x9"), &digits_left, &first_digit, &digit_error));
 	/* The failed call took a byte too. Each buffer Rust returned it takes back. */
 	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
-	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
+	DISCARD(api_digit(digits_rest, &digits_left, &last_digit, &digit_error));
 	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
 	api_buf_free(digits_left);
 	api_Point nudged = {.x = 1, .y = 2};
@@ -1724,7 +1727,7 @@ static int script(void) {
 		api_Ledger *ledger = api_Ledger_new();
 		api_Draft *draft;
 		api_Error err;
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Draft_title_set(draft, str("minutes"), NULL);
 		api_Draft_write(draft, str("first"), NULL);
 		print("draft ", api_Draft_title_get(draft, NULL), " ");
@@ -1735,10 +1738,10 @@ static int script(void) {
 		api_Draft_free(draft);
 		print("ledger ", api_Ledger_title(ledger, NULL), " ");
 		printf("%u\n", api_Ledger_published(ledger, NULL));
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		printf("read %u %s\n", api_Draft_lines(draft, NULL), api_Draft_edited(draft, NULL) ? "true" : "false");
 		api_Draft_free(draft);
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Draft_write(draft, str("second"), NULL);
 		api_Draft_free(draft);
 		printf("dropped %u\n", api_Ledger_published(ledger, NULL));
@@ -2217,7 +2220,7 @@ static void *use_elsewhere(void *data) {
 	api_Local_bump(e->local, &e->bumped);
 	uint32_t out = 0;
 	e->poll = api_local_later_poll(e->later, (api_waker){0}, &out, &e->polled);
-	api_Local_poll_count_poll(e->count, (api_waker){0}, &out, &e->counted);
+	DISCARD(api_Local_poll_count_poll(e->count, (api_waker){0}, &out, &e->counted));
 	api_Local_free(e->local);
 	api_local_later_future_free(e->later);
 	api_Local_poll_count_future_free(e->count);
@@ -2592,7 +2595,7 @@ static int statuses(void) {
 		api_Ledger *ledger = api_Ledger_new();
 		api_Draft *draft;
 		api_Error err;
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		status = 0;
 		api_Ledger_published(ledger, &status);
 		if (status != API_STATUS_EXCLUSIVE) {
@@ -2637,7 +2640,7 @@ static int statuses(void) {
 		}
 		api_Draft_free(draft);
 		/* A close gives it back too, publishing what the draft marked. */
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Draft_write(draft, str("y"), NULL);
 		status = 0;
 		api_Draft_drop(draft, &status);
@@ -2647,7 +2650,7 @@ static int statuses(void) {
 		}
 		api_Draft_free(draft);
 		/* The ledger freed while lent drops once the draft does, which still works. */
-		api_Ledger_edit(ledger, &draft, &err, NULL);
+		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
 		api_Ledger_free(ledger);
 		api_Draft_write(draft, str("z"), NULL);
 		status = 0;
@@ -2721,7 +2724,7 @@ static int statuses(void) {
 		api_Slip *twin = api_Slip_clone(slip, NULL);
 		api_Slip_free(slip);
 		status = 0;
-		api_Slip_receipt_get(twin, &status);
+		DISCARD(api_Slip_receipt_get(twin, &status));
 		if (status != API_STATUS_LENT || api_Slip_count(twin, NULL) != 0) {
 			fprintf(stderr, "a lent slip's receipt wrote %d\n", status);
 			failed = 1;
@@ -2928,18 +2931,18 @@ static int broken(const char *which) {
 		api_Channel_clear(channel, NULL);
 	} else if (strcmp(which, "utf8") == 0) {
 		api_buf bad = {.ptr = (const uint8_t *)"\xff", .len = 1};
-		api_greet(bad, API_SHAPE_CIRCLE);
+		api_buf_free(api_greet(bad, API_SHAPE_CIRCLE));
 	} else if (strcmp(which, "finished") == 0) {
 		api_Channel *channel = api_Channel_new();
 		api_Channel_send(channel, str("x"), NULL);
 		api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 		api_waker waker = {0};
 		api_buf payload;
-		api_Channel_recv_poll(recv, waker, &payload);
+		DISCARD(api_Channel_recv_poll(recv, waker, &payload));
 		api_buf_free(payload);
-		api_Channel_recv_poll(recv, waker, &payload);
+		DISCARD(api_Channel_recv_poll(recv, waker, &payload));
 	} else if (strcmp(which, "enum") == 0) {
-		api_greet(str("x"), (api_Shape)2);
+		api_buf_free(api_greet(str("x"), (api_Shape)2));
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
 		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL, NULL);
@@ -2955,26 +2958,26 @@ static int broken(const char *which) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
 		api_Registry_edit(registry, NULL, NULL, NULL);
 	} else if (strcmp(which, "returned") == 0) {
-		api_made(1, made_view, NULL);
+		api_buf_free(api_made(1, made_view, NULL));
 	} else if (strcmp(which, "reader") == 0) {
 		api_buf bytes;
 		uint64_t at;
 		api_buf err;
-		api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err);
+		DISCARD(api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err));
 	} else if (strcmp(which, "bound") == 0) {
 		api_count((api_bounds_u64){.start = {.kind = (api_bound)3}});
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
-		api_after((api_foreign_future){0}, 1);
+		DISCARD(api_after((api_foreign_future){0}, 1));
 	} else if (strcmp(which, "started") == 0) {
 		/* A future with no poll, through a start, which the abort names. */
 		uint32_t out;
 		api_after_future *after;
-		api_after_start((api_foreign_future){0}, 1, &out, &after);
+		DISCARD(api_after_start((api_foreign_future){0}, 1, &out, &after));
 	} else if (strcmp(which, "start") == 0) {
 		/* A start with nowhere to put the handle of a future that pends. */
 		uint32_t out;
-		api_yielded_start(1, &out, NULL);
+		DISCARD(api_yielded_start(1, &out, NULL));
 	} else if (strcmp(which, "array") == 0) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;
