@@ -288,7 +288,7 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 	public func withSpan<R: ~Copyable>(_ body: (Swift.Span<Swift.UInt8>) throws -> R) rethrows -> R {
 		var result: R? = nil
 		try storage.withUnsafeBytes { raw in
-			result = try body(Swift.Span(_unsafeElements: raw.assumingMemoryBound(to: Swift.UInt8.self)))
+			result = try body(Swift.Span(_unsafeBytes: raw))
 		}
 		return result.take()!
 	}
@@ -536,7 +536,7 @@ extension Native {
 		_ body: (L) throws -> R
 	) rethrows -> R {
 		try span.withUnsafeBufferPointer { items in
-			let ptr = items.baseAddress ?? UnsafePointer(bitPattern: MemoryLayout<T>.alignment)!
+			let ptr = items.baseAddress ?? UnsafePointer(bitPattern: Swift.MemoryLayout<T>.alignment)!
 			return try body(make(ptr, items.count, nil))
 		}
 	}

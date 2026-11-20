@@ -732,6 +732,17 @@ fn main() {
 	ledger.seal();
 	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
+	println!(
+		"chunk lens {} {} {} {}",
+		api::chunks(b"abcde", 2)
+			.iter()
+			.map(|c| format!("{}", api::len(c)))
+			.collect::<Vec<_>>()
+			.join(" "),
+		api::scaled(3, 1).map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
+		api::fingerprint(&format!("{}", api::len(b"abc"))).is_err(),
+		api::len(&api::fingerprint("deadbeef").unwrap())
+	);
 	let counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	println!(
 		"counters {}",
