@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xcadf3d448a865171ULL)
+#define API_CONTRACT ((uint64_t)0x9ab5adb9b5587c50ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -100,6 +100,8 @@ typedef struct api_Marker api_Marker;
 typedef struct api_Batch api_Batch;
 typedef struct api_Batch_2 api_Batch_2;
 typedef struct api_Waiter api_Waiter;
+typedef struct api_Feed api_Feed;
+typedef struct api_Countdown api_Countdown;
 typedef struct api_Logger api_Logger;
 typedef struct api_Journal api_Journal;
 typedef struct api_Local api_Local;
@@ -1443,6 +1445,21 @@ api_Waiter_poll_future_future *api_Waiter_poll_future(api_foreign_future future_
 api_poll api_Waiter_poll_future_start(api_foreign_future future_, api_Waiter_poll_future_future **future);
 api_poll api_Waiter_poll_future_poll(api_Waiter_poll_future_future *future, api_waker waker);
 void api_Waiter_poll_future_future_free(api_Waiter_poll_future_future *future);
+void api_Feed_free(api_Feed *self);
+void api_Feed_drop(api_Feed *self, api_status *status);
+typedef struct api_Feed_next_future api_Feed_next_future;
+api_Feed_next_future *api_Feed_next(api_Feed *self, api_status *status);
+api_poll api_Feed_next_start(api_Feed *self, api_buf *out, api_Error *err, api_Feed_next_future **future, api_status *status);
+api_poll api_Feed_next_poll(api_Feed_next_future *future, api_waker waker, api_buf *out, api_Error *err);
+void api_Feed_next_future_free(api_Feed_next_future *future);
+void api_Countdown_free(api_Countdown *self);
+void api_Countdown_drop(api_Countdown *self, api_status *status);
+api_Countdown *api_Countdown_new(uint32_t from);
+typedef struct api_Countdown_next_future api_Countdown_next_future;
+api_Countdown_next_future *api_Countdown_next(api_Countdown *self, api_status *status);
+api_poll api_Countdown_next_start(api_Countdown *self, api_option_u32 *out, api_Countdown_next_future **future, api_status *status);
+api_poll api_Countdown_next_poll(api_Countdown_next_future *future, api_waker waker, api_option_u32 *out);
+void api_Countdown_next_future_free(api_Countdown_next_future *future);
 void api_Logger_free(api_Logger *self);
 api_Logger *api_Logger_new(api_Log sink);
 bool api_Logger_write(const api_Logger *self, api_buf line);
@@ -1714,6 +1731,7 @@ api_Channel_recv_nonempty_future *api_Channel_recv_nonempty(const api_Channel *s
 api_poll api_Channel_recv_nonempty_start(const api_Channel *self, api_buf *out, api_Error *err, api_Channel_recv_nonempty_future **future, api_status *status);
 api_poll api_Channel_recv_nonempty_poll(api_Channel_recv_nonempty_future *future, api_waker waker, api_buf *out, api_Error *err);
 void api_Channel_recv_nonempty_future_free(api_Channel_recv_nonempty_future *future);
+api_Feed *api_Channel_feed(const api_Channel *self, api_status *status);
 void api_Channel_send_from_thread(const api_Channel *self, api_buf payload, api_status *status);
 void api_Gap_free(api_Gap *self);
 bool api_Gap_borrowed(const api_Gap *self);

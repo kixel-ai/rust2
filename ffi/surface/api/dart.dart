@@ -1002,6 +1002,15 @@ final class Waiter extends _Object {
 	Waker context();
 	static Cancelable<void> pollFuture(Future<void> future);
 }
+final class Feed extends _Object {
+	Cancelable<typed.Uint8List?> next();
+	dasync.Stream<typed.Uint8List> asStream();
+}
+final class Countdown extends _Object {
+	factory Countdown(int from);
+	Cancelable<int?> next();
+	dasync.Stream<int> asStream();
+}
 final class Logger extends _Object {
 	factory Logger(Log sink);
 	bool write(String line);
@@ -1221,6 +1230,7 @@ final class Channel extends _Object {
 	void listen(void Function() cx);
 	Cancelable<(typed.Uint8List, U64)> recvSized();
 	Cancelable<typed.Uint8List> recvNonempty();
+	Feed feed();
 	void sendFromThread(typed.Uint8List payload);
 }
 final class Gap extends _Object {

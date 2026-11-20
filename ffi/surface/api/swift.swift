@@ -825,6 +825,29 @@ public struct Waiter: ~Copyable, @unchecked Sendable {
 	@inlinable public func context() throws -> @Sendable () -> Void
 	@inlinable nonisolated(nonsending) public static func pollFuture(_ future: @escaping @Sendable () async -> Void) async throws
 }
+public final class FeedStream: AsyncSequence, AsyncIteratorProtocol {
+	public typealias Element = Bytes
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> FeedStream
+	@inlinable nonisolated(nonsending) public func next() async throws -> Bytes?
+	@inlinable public func next(isolation actor: isolated (any Actor)?) async throws -> Bytes?
+}
+public struct Feed: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Bytes?
+	@inlinable public consuming func stream() -> FeedStream
+}
+public final class CountdownStream: AsyncSequence, AsyncIteratorProtocol {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> CountdownStream
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	@inlinable public func next(isolation actor: isolated (any Actor)?) async throws -> Swift.UInt32?
+}
+public struct Countdown: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Countdown
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@inlinable public consuming func stream() -> CountdownStream
+}
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
 	@inlinable public func write(_ line: Swift.String) -> Swift.Bool
@@ -1048,6 +1071,7 @@ public struct Channel: ~Copyable, @unchecked Sendable {
 	@inlinable public func listen(_ cx: @escaping @Sendable () -> Void) throws
 	@inlinable nonisolated(nonsending) public func recvSized() async throws -> (Bytes, Swift.UInt)
 	@inlinable nonisolated(nonsending) public func recvNonempty() async throws -> Bytes
+	@inlinable public func feed() throws -> Feed
 	@inlinable public func sendFromThread(_ payload: Bytes) throws
 }
 public final class Gap: @unchecked Sendable, CustomDebugStringConvertible, Equatable {
