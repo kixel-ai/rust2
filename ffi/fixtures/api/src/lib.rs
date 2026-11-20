@@ -2849,6 +2849,9 @@ pub struct Retry {
 	/// Its field exports, but the method of its name is refused, so the config excludes
 	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
 	pub jitter: u32,
+	/// Its field exports, but Swift refuses the method of its name, so the config excludes
+	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
+	pub spread: u64,
 }
 
 impl Retry {
@@ -2857,6 +2860,7 @@ impl Retry {
 			limit,
 			delay: None,
 			jitter: 0,
+			spread: 0,
 		}
 	}
 
@@ -2870,6 +2874,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The spread plus three optional borrowed counters, past what Swift takes.
+	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+		self.spread + among(first, second, third)
 	}
 
 	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.

@@ -79,6 +79,19 @@ pub(crate) fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	format!("error {}", abi.spell(&owned(ty)))
 }
 
+/// Record `name`, the exception class an error of type `err` throws as, which the language
+/// holds as `native`. One error key may name several classes, as Kotlin's `UShortArray` and
+/// `List<UShort>` both spell `vec_u16`, so each is known by its native type too: a type
+/// added beside it adds a class rather than renaming one, and a class that loses its name to
+/// it is a rename. The key alone names the last, as a baseline from before knew it. A
+/// generator's spelling of `native` may change, so [`name_breaks`] holds the key alone, or a
+/// native type gone from it, kept while any class of the key still bears its name.
+pub(crate) fn exception(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, err: &Type, native: &str, name: &str) {
+	let key = error_key(abi, err);
+	names.insert(format!("{key} / as {native}"), name.to_string());
+	names.insert(key, name.to_string());
+}
+
 /// Compare the names the generators actually emitted, retaining the current item's span.
 ///
 /// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
@@ -173,6 +186,18 @@ pub(crate) fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'
 				continue;
 			}
 			let new = now.get(language).and_then(|names| names.get(key));
+			// An exception known by its key alone names one class of several the key may have,
+			// as a baseline from before they were known apart wrote it, and one known by a
+			// native type no class has now was respelled or dropped: kept while one has it.
+			if key.starts_with("error ")
+				&& (key == owner || new.is_none())
+				&& now.get(language).is_some_and(|names| {
+					(names.range(format!("{owner} / as ")..))
+						.take_while(|(k, _)| k.starts_with(&format!("{owner} / as ")))
+						.any(|(_, name)| name == old)
+				}) {
+				continue;
+			}
 			// Missing parts need a name diagnostic unless the owner's structural change
 			// already reports the break, such as a removed variant or changed signature.
 			if new.is_none()

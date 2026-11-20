@@ -189,10 +189,6 @@ jobs:
       - name: Export
         run: nix develop --command just ffi moq
 
-      # Every sampled type shape round-tripped in every language; the gate runs a subset.
-      - name: Shapes
-        run: nix develop --command just ffi shapes
-
       # Longer random protocol scripts through the C ABI and each binding, against the
       # model of what each step returns; the gate runs fewer.
       - name: Protocol
@@ -215,6 +211,25 @@ jobs:
       # and off. C stays GCC's, so the export the steps above built stays fresh.
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
+
+  # Every sampled type shape round-tripped in every language: the fixed set, then shapes
+  # drawn from the day's seed, which a failure names to reproduce it. The gate runs a
+  # subset. A job of its own, since it takes as long as the export's.
+  ffi-shapes:
+    name: Shapes in every language
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Shapes
+        run: nix develop --command just ffi shapes
 
   # The pinned corpus of popular crates, each censused, exported through a facade, and
   # bound in every language: a panic, an error, or a binding that does not build fails it.
@@ -489,7 +504,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-shapes, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

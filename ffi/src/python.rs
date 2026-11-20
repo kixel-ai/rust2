@@ -1545,7 +1545,7 @@ impl<'a> Gen<'a> {
 				thrown
 			}
 		};
-		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		crate::lock::exception(&mut self.locked, self.abi, e, &py, &thrown);
 		thrown
 	}
 
