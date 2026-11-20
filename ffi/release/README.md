@@ -139,7 +139,9 @@ crate apart from it takes `web-features` and `web-example` instead.
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
    glibc 2.28), `darwin/arm64` and `ios/arm64` (the Swift package's macOS and iOS device
-   libraries; no consumer here runs iOS), and `windows/amd64` (an
+   libraries; no consumer here runs iOS), `darwin/amd64` (at the Swift package's macOS
+   floor), `android/arm64` and `android/amd64` (at the Dart package's API 24; no consumer
+   here runs Go on Android), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
    them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's

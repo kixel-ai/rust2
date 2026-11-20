@@ -55,9 +55,12 @@ WHEEL_TARGETS = [
 GO_TARGETS = {
     "x86_64-unknown-linux-gnu": "linux_amd64",
     "aarch64-unknown-linux-gnu": "linux_arm64",
+    "x86_64-apple-darwin": "darwin_amd64",
     "aarch64-apple-darwin": "darwin_arm64",
     "aarch64-apple-ios": "ios_arm64",
     "x86_64-pc-windows-gnu": "windows_amd64",
+    "x86_64-linux-android": "android_amd64",
+    "aarch64-linux-android": "android_arm64",
 }
 # Every target the Dart package ships a library for, by the oldest system it loads on, which
 # its hook checks an app's against: Flutter's own floors, Android API 24, iOS 13, and macOS
@@ -1568,7 +1571,7 @@ def staticlib(manifest, crate, lib, target, env=None):
     # Its own target directory, since cargo does not rebuild for a changed deployment target.
     target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
     # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-    linux = "linux" in target
+    linux = target.endswith("linux-gnu")
     # Uncolored, so the note below reads as written whatever the caller's terminal.
     built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--color", "never", "--locked", "--release",
                 "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
@@ -1670,7 +1673,13 @@ def build(args):
             if target in GO_TARGETS:
                 go_library(args, export_dir, lib, target, library, native, out)
         elif target in GO_TARGETS:
-            library, native = staticlib(args.manifest_path, crate, lib, target, env=reproducible(info, export_dir, target))
+            env = reproducible(info, export_dir, target)
+            # Each at its sibling's floor: the Swift package's macOS, and the Dart package's Android API.
+            if "apple-darwin" in target:
+                env["MACOSX_DEPLOYMENT_TARGET"] = SWIFT_PLATFORMS["macos"]
+            elif "android" in target:
+                env.update(android_toolchain(target, DART_TARGETS[target]))
+            library, native = staticlib(args.manifest_path, crate, lib, target, env=env)
             go_library(args, export_dir, lib, target, library, native, out)
         if target in DART_TARGETS:
             dart_library(info, args.manifest_path, export_dir, target, out)
