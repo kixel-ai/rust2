@@ -1395,6 +1395,7 @@ fun owned() {
 	reads(Bytes(window(java.nio.ByteBuffer.allocateDirect(1031).also { b -> repeat(1031) { b.put(it, 9) } }, 3, 1025)), 9, "a direct buffer's bytes")
 	buffers()
 	check(Point.getX() == 0 && Point(3, 4).x == 3, "a companion's getX keeps its Kotlin name beside x's getter")
+	check(Shape.Companion.valueOf("square") == Shape.SQUARE && Shape.valueOf("SQUARE") == Shape.SQUARE, "a companion's valueOf keeps its Kotlin name beside the enum's own")
 
 	// A call after close throws, and close frees at once, once.
 	val before = dropped()

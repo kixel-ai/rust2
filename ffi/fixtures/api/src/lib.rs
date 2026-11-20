@@ -4291,6 +4291,16 @@ impl Site {
 }
 
 impl Shape {
+	/// The shape `name` names, if any: a static whose Kotlin name, `valueOf`, a Kotlin enum
+	/// also declares on the JVM, which a companion's `@JvmStatic` function would clash with.
+	pub fn value_of(name: &str) -> Option<Shape> {
+		match name {
+			"circle" => Some(Shape::Circle),
+			"square" => Some(Shape::Square),
+			_ => None,
+		}
+	}
+
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
 

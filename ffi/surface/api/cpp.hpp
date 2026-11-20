@@ -1253,6 +1253,7 @@ namespace api {
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
+	inline ::std::optional<::api::Shape> Shape_value_of(::api::input name);
 	inline ::std::vector<::api::Shape> Shape_ALL();
 	inline ::std::vector<::api::Shape> Shape_BOTH();
 	inline bool operator==(const ::api::Event &a__, const ::api::Event &b_);

@@ -720,6 +720,7 @@ enum Shape {
 	square(4),
 	const Shape(this._c);
 	String debug();
+	static Shape? valueOf(String name);
 	static List<Shape> get ALL;
 	static List<Shape> get BOTH;
 }

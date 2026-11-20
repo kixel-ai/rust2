@@ -1175,6 +1175,7 @@ export declare function eq(a: Shadowed, b: Shadowed): boolean;
 // Shape.ts
 export type Shape = "Circle" | "Square";
 export declare function debug(self: Shape): string;
+export declare function valueOf(name: string): Shape | undefined;
 export declare function ALL(): Shape[];
 export declare function BOTH(): Shape[];
 
@@ -1771,6 +1772,7 @@ export declare function r_option_Level(p: number, o: boolean): Level | undefined
 export declare function r_option_Moment(p: number, o: boolean): Moment | undefined;
 export declare function r_option_Point(p: number, o: boolean): Point | undefined;
 export declare function r_option_Reading(p: number, o: boolean): Reading | undefined;
+export declare function r_option_Shape(p: number, o: boolean): Shape | undefined;
 export declare function r_option_Stamp(p: number, o: boolean): Stamp | undefined;
 export declare function r_option_char(p: number, o: boolean): number | undefined;
 export declare function r_option_duration(p: number, o: boolean): rt.Duration | undefined;

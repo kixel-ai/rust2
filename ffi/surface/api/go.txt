@@ -1465,6 +1465,7 @@ const (
 )
 func ShapeALL() []Shape
 func ShapeBOTH() []Shape
+func ShapeValueOf(name string) (*Shape, error)
 func (self Shape) Equal(other Shape) bool
 func (self Shape) GoString() string
 type Sheet struct {

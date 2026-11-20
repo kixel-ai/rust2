@@ -411,6 +411,7 @@ enum class Shape(internal val value: Int) {
 	SQUARE(4);
 	fun debug(): kotlin.String
 	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("valueOf_") fun valueOf(name: kotlin.String): api.Shape?
 		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<api.Shape>
 		@kotlin.jvm.JvmStatic val BOTH: kotlin.collections.List<api.Shape>
 	}

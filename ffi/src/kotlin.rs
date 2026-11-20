@@ -1865,7 +1865,23 @@ impl<'a> Gen<'a> {
 				Place::Member => names(&body),
 				Place::Static => names(&statics),
 			};
-			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
+			// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
+			let synthesized = match e.plain() {
+				true => &[
+					"values",
+					"valueOf",
+					"getEntries",
+					"name",
+					"ordinal",
+					"compareTo",
+					"getDeclaringClass",
+				][..],
+				false => &[],
+			};
+			let jvm = (synthesized.iter().map(|s| s.to_string()))
+				.chain(jvm_names(&body))
+				.chain(jvm_names(&statics));
+			let taken = kept_apart(own, jvm);
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),

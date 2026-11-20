@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x007e70a13a4d83dbULL)
+#define API_CONTRACT ((uint64_t)0xe9e73593591b8c17ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -460,6 +460,10 @@ typedef struct api_option_Reading {
 	bool some;
 	api_Reading value;
 } api_option_Reading;
+typedef struct api_option_Shape {
+	bool some;
+	api_Shape value;
+} api_option_Shape;
 typedef struct api_Stamp {
 	uint64_t opaque[1];
 } api_Stamp;
@@ -1316,6 +1320,7 @@ void api_Platform_free(api_Platform *self);
 void api_Placement_free(api_Placement *self);
 bool api_Shape_eq(const api_Shape *a, const api_Shape *b);
 api_buf api_Shape_debug(const api_Shape *self);
+api_option_Shape api_Shape_value_of(api_buf name);
 api_vec_Shape api_Shape_ALL(void);
 api_vec_Shape api_Shape_BOTH(void);
 void api_Event_free(api_Event *self);
