@@ -1544,3 +1544,20 @@ pub struct Tail<T>(T, [u8]);
 pub fn tail(bytes: &'static Tail<u8>) -> u8 {
 	bytes.0
 }
+
+/// Refused: a `Cow` a future returns inside a list would borrow what the future held, as
+/// only its own, its `Option`'s, or a tuple's is owned before the future ends.
+pub async fn cows_later(text: &str) -> Vec<std::borrow::Cow<'_, str>> {
+	vec![std::borrow::Cow::Borrowed(text)]
+}
+
+/// Refused: a future's error as bytes a `Cow` may borrow, which only a `Cow<str>`'s
+/// message escapes.
+pub async fn cow_error_later(bytes: &[u8]) -> Result<u8, std::borrow::Cow<'_, [u8]>> {
+	Err(std::borrow::Cow::Borrowed(bytes))
+}
+
+/// Refused: a `Cow` C would hand Rust, which would need its form.
+pub fn cow_param(text: std::borrow::Cow<'_, str>) -> usize {
+	text.len()
+}

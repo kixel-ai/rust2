@@ -3694,6 +3694,21 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 			_ => output,
 		};
+		// A future's output is owned before the future ends, as a `Cow` may borrow what the
+		// future holds: the glue owns one at its top, in its `Option`, or as a tuple's
+		// element, and an error's `Cow<str>` becomes its message.
+		if future {
+			if !cow_owned(tcx, ok_ty, true) {
+				errs.push(why("Cow a future returns inside a collection", ok_ty.to_string()));
+			}
+			if let ty::Adt(adt, args) = output.kind()
+				&& tcx.is_diagnostic_item(sym::Result, adt.did())
+				&& !matches!(args.type_at(1).kind(), ty::Adt(cow_adt, cow_args) if cow(tcx, cow_adt.did()) && cow_args.type_at(1).is_str())
+				&& names_cow(tcx, args.type_at(1))
+			{
+				errs.push(why("Cow a future returns in its error", args.type_at(1).to_string()));
+			}
+		}
 		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
 		// crosses only as what the glue passes on whole: an object's handle, or a value's
 		// bytes. A future and a collected iterator are taken apart instead, so it is what
@@ -6297,6 +6312,19 @@ fn cow(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// Whether `ty` holds a `Cow` anywhere.
 fn names_cow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	(ty.walk().filter_map(|arg| arg.as_type())).any(|ty| matches!(ty.kind(), ty::Adt(adt, _) if cow(tcx, adt.did())))
+}
+
+/// Whether each `Cow` in `ty` is where a future's glue owns it: `ty` itself, its
+/// `Option`'s, or, at the `top`, a tuple's element of those.
+fn cow_owned<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, top: bool) -> bool {
+	match ty.kind() {
+		ty::Adt(adt, _) if cow(tcx, adt.did()) => true,
+		ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Option, adt.did()) => {
+			matches!(args.type_at(0).kind(), ty::Adt(inner, _) if cow(tcx, inner.did())) || !names_cow(tcx, ty)
+		}
+		ty::Tuple(elements) if top => elements.iter().all(|e| cow_owned(tcx, e, false)),
+		_ => !names_cow(tcx, ty),
+	}
 }
 
 /// Whether `tr` is serde's `Serialize`, `Deserialize`, `DeserializeOwned`, or

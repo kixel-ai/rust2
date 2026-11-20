@@ -74,6 +74,9 @@ fixtures/reject/src/lib.rs:1529:1: rust2-ffi: cannot export instance `Bits<u32>`
 fixtures/reject/src/lib.rs:1535:1: rust2-ffi: cannot export fn `bits`: refused type `reject::Bits<u32>`
 fixtures/reject/src/lib.rs:1541:1: rust2-ffi: cannot export instance `Tail<u8>`: unsized type
 fixtures/reject/src/lib.rs:1544:1: rust2-ffi: cannot export fn `tail`: 'static borrow `&'static Tail<u8>`; refused type `reject::Tail<u8>`
+fixtures/reject/src/lib.rs:1550:1: rust2-ffi: cannot export fn `cows_later`: Cow a future returns inside a collection `std::vec::Vec<std::borrow::Cow<'_, str>>`
+fixtures/reject/src/lib.rs:1556:1: rust2-ffi: cannot export fn `cow_error_later`: Cow a future returns in its error `std::borrow::Cow<'_, [u8]>`
+fixtures/reject/src/lib.rs:1561:1: rust2-ffi: cannot export fn `cow_param`: Cow other than a returned string or bytes `std::borrow::Cow<'_, str>`
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`

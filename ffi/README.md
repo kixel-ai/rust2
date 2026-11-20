@@ -159,7 +159,9 @@ A field holding a reference, as `&'a mut ClientConfig` in rustls's
 `DangerousClientConfig` is, is read through it, lent where it is not `Clone`, and has no
 setter, since no borrow C holds outlives a call. A returned `Cow<'_, str>` or
 `Cow<'_, [u8]>` crosses as the string or bytes it owns, a copy C would make of a borrow
-anyway; a `Cow` anywhere else is refused, as C would hand Rust its form. Another crate's
+anyway; a `Cow` anywhere else is refused, as C would hand Rust its form. A future owns
+its output before it ends, so it may return a `Cow` only on its own, in an `Option`, or
+as a tuple's element, and an error's only as `Cow<str>`, whose message crosses. Another crate's
 type that only refused items name, as `std::net::TcpListener` in moq-tokio's
 `server::Streams` is, is one no export returns, so those items are left out with it.
 
