@@ -1685,7 +1685,10 @@ impl<'a> Gen<'a> {
 				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
+		let shown = self.abi.api.shown(ty);
+		let member = |g: &mut Self, t: &str, name: &str| crate::lock::trait_member(&mut g.locked, shown, t, name);
 		if t.display {
+			member(self, "Display", "toString");
 			members.push("toString".to_string());
 			let what = format!("{c}_to_string");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
@@ -1700,6 +1703,7 @@ impl<'a> Gen<'a> {
 			body.push(format!("\t@override\n\tString toString() {{\n\t\t{call}\n\t}}\n"));
 		}
 		if t.debug {
+			member(self, "Debug", "debug");
 			members.push("debug".to_string());
 			let what = format!("{c}_debug");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
@@ -1716,6 +1720,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.clone {
+			member(self, "Clone", "clone");
 			members.push("clone".to_string());
 			let what = format!("{c}_clone");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
@@ -1769,6 +1774,7 @@ impl<'a> Gen<'a> {
 			));
 			// Equal values hash alike only by Rust's own `Hash`, which a type without one lacks.
 			if t.hash {
+				member(self, "Hash", "hashCode");
 				let what = format!("{c}_hash");
 				let sig = Sig {
 					name: what.clone(),
@@ -1814,6 +1820,7 @@ impl<'a> Gen<'a> {
 			);
 			match suffix {
 				"cmp" => {
+					member(self, "Ord", "compareTo");
 					members.push("compareTo".to_string());
 					self.comparables.insert(name.clone());
 					body.push(format!(
@@ -1821,6 +1828,7 @@ impl<'a> Gen<'a> {
 					));
 				}
 				_ => {
+					member(self, "PartialOrd", "partialCompareTo");
 					members.push("partialCompareTo".to_string());
 					members.push("_partialCmp".to_string());
 					body.push(format!(
@@ -1830,6 +1838,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		if t.default {
+			member(self, "Default", "default_");
 			members.push("new default_".to_string());
 			let ret = match object {
 				true => Ty::Handle {
@@ -1932,7 +1941,11 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.dt(&f.ty)))
+			.map(|f| {
+				let name = field_name(&f.name);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
+				(name, self.dt(&f.ty))
+			})
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let mut body: Vec<String> = (record.fields.iter().zip(&fields))
@@ -1984,6 +1997,7 @@ impl<'a> Gen<'a> {
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let value = enum_value(&v.name);
+					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &value);
 					members.push(format!("static {value}"));
 					match limited {
 						true => format!(
@@ -2032,7 +2046,11 @@ impl<'a> Gen<'a> {
 		for (k, variant) in e.variants.iter().enumerate() {
 			let case = self.variant_class(&name, &variant.name);
 			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| (field_name(&f.name), self.dt(&f.ty)))
+				.map(|f| {
+					let name = field_name(&f.name);
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
+					(name, self.dt(&f.ty))
+				})
 				.collect();
 			let decls: String = fields.iter().map(|(f, dt)| format!("\tfinal {dt} {f};\n")).collect();
 			let params: Vec<String> = match variant.tuple {
@@ -2074,6 +2092,7 @@ impl<'a> Gen<'a> {
 			constant: false,
 		};
 		let mut members = vec!["close".to_string()];
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "close");
 		let checked = abi.checked[i];
 		let Owned {
 			own,
