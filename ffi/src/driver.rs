@@ -431,7 +431,7 @@ impl Export {
 		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
 		let rest = api.without_jni();
 		for refusal in crate::swift::refusals(&abi.without_jni(&rest)) {
-			tcx.dcx().span_err(
+			let mut err = tcx.dcx().struct_span_err(
 				refusal.function.span,
 				format!(
 					"rust2-ffi: cannot export {} `{}`: {}",
@@ -440,6 +440,10 @@ impl Export {
 					refusal.why
 				),
 			);
+			if let Some(help) = crate::help::of(refusal.construct) {
+				err = err.with_help(help);
+			}
+			err.emit();
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
 		let baseline = match self.baseline(tcx, &target) {
@@ -483,7 +487,8 @@ fn stop_on_errors(tcx: TyCtxt<'_>) -> Compilation {
 	}
 }
 
-/// Emits `refusal` as an error at its span, with every reason, any `advice`, and its notes.
+/// Emits `refusal` as an error at its span, with every reason, any `advice`, its notes, and how to
+/// change the facade.
 fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: Option<&str>) {
 	let reasons: Vec<String> = refusal
 		.why
@@ -505,6 +510,14 @@ fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: Option<&str>) {
 	);
 	for (span, note) in refusal.why.iter().filter_map(|why| why.note.as_ref()) {
 		err = err.with_span_note(*span, note.clone());
+	}
+	// One note a construct, in the order found, though several reasons may share one.
+	let mut helped: Vec<&str> = Vec::new();
+	for help in refusal.why.iter().filter_map(|why| crate::help::of(why.construct)) {
+		if !helped.contains(&help) {
+			helped.push(help);
+			err = err.with_help(help);
+		}
 	}
 	err.emit();
 }

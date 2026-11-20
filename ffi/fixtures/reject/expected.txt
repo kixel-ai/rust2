@@ -1,189 +1,367 @@
 fixtures/reject/src/lib.rs:1001:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value
+	help: take `&self`, or return the changed value instead of mutating it, or make the type an object by giving it a private field
 fixtures/reject/src/lib.rs:1019:2: rust2-ffi: cannot export method `Risky::new`: unsafe fn
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:1025:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`
+	help: take a `&mut Context`, or a waiter, which a poll registers its wake through
 fixtures/reject/src/lib.rs:1041:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`
+	help: take a `&mut Context`, or a waiter, which a poll registers its wake through
 fixtures/reject/src/lib.rs:1048:1: rust2-ffi: cannot export fn `among`: 3 optional borrowed objects, past the 2 Swift takes, which overloads each with and without it since its optional holds an object only by consuming it
+	help: take at most two optional borrowed objects, or split the function, or group them into a record
 fixtures/reject/src/lib.rs:1054:1: rust2-ffi: cannot export fn `wrapped`: error holding an object Swift cannot copy, as `Swift.Error` requires
+	help: hold values, a `String`, or a `Copy` handle in the error, since `Swift.Error` must be copyable
 fixtures/reject/src/lib.rs:1059:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`
+	help: take `&[T]` or `Vec<T>`; an array of other elements only returns
 fixtures/reject/src/lib.rs:1064:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`
+	help: remove the zero-length array, which C cannot hold
 fixtures/reject/src/lib.rs:106:1: rust2-ffi: cannot export fn `forever_mut`: 'static borrow `&'static mut [u8]`; &mut of a slice `[u8]`
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
+	help: take `&[u8]` and return the changed `Vec<u8>`, or hold the buffer in an object; C lends no buffer mutably
 fixtures/reject/src/lib.rs:1070:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`
 	fixtures/reject/src/lib.rs:1072:2: note: has this discriminant
+	help: give each variant a discriminant within `i32`, as a C enum holds
 fixtures/reject/src/lib.rs:1077:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`
 	fixtures/reject/src/lib.rs:1079:2: note: has this discriminant
+	help: give each variant a discriminant within `i32`, as a C enum holds
 fixtures/reject/src/lib.rs:1084:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`
 	fixtures/reject/src/lib.rs:1086:2: note: has this discriminant
+	help: give each variant a discriminant within `i32`, as a C enum holds
 fixtures/reject/src/lib.rs:1090:1: rust2-ffi: cannot export fn `raw`: unsafe fn
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:1095:1: rust2-ffi: cannot export fn `sum`: C-variadic function
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:1101:1: rust2-ffi: cannot export fn `custom`: uncallable ABI `"custom"`
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:1115:2: rust2-ffi: cannot export method `Raw::peek`: unsafe fn
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:1121:1: rust2-ffi: cannot export trait `Trusted`: unsafe trait
+	help: make the trait safe, or take an exported type instead of the trait
 fixtures/reject/src/lib.rs:1126:1: rust2-ffi: cannot export trait `Hazard`: unsafe fn `risk`
+	help: make it safe, or export a safe function that checks the preconditions and calls it
 fixtures/reject/src/lib.rs:112:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`
+	help: take the reference as the whole parameter, or as `Some` of an `Option`, and an owned value inside a `Box` or a struct
 fixtures/reject/src/lib.rs:1131:1: rust2-ffi: cannot export fn `trust`: trait object `dyn Trusted`
 	fixtures/reject/src/lib.rs:1121:1: note: C cannot implement `Trusted`: unsafe trait
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:1136:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`
 	fixtures/reject/src/lib.rs:1126:1: note: C cannot implement `Hazard`: unsafe fn `risk`
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:1141:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`
+	help: use `NonZero` of an integer of 64 bits or fewer
 fixtures/reject/src/lib.rs:1163:1: rust2-ffi: cannot export fn `wrap`: returned object that borrows `View<'_>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1168:1: rust2-ffi: cannot export fn `hidden_wrap`: returned object that borrows `impl std::clone::Clone + '_`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1184:1: rust2-ffi: cannot export fn `picked`: closure signature `&'static Mark`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:1189:1: rust2-ffi: cannot export fn `maybe_picked`: closure signature `std::option::Option<&'static Mark>`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:1194:1: rust2-ffi: cannot export fn `hidden_answer`: opaque type `impl std::marker::Copy`
+	help: return a named type, or an `impl Trait` hiding an exported object that captures no borrow, as `+ use<>` ensures
 fixtures/reject/src/lib.rs:1199:1: rust2-ffi: cannot export fn `hidden_items`: opaque type `impl std::marker::Copy`
+	help: return a named type, or an `impl Trait` hiding an exported object that captures no borrow, as `+ use<>` ensures
 fixtures/reject/src/lib.rs:11:1: rust2-ffi: cannot export fn `map`: foreign type `std::collections::HashMap`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:1204:1: rust2-ffi: cannot export fn `hidden_option`: opaque type `impl std::clone::Clone`
+	help: return a named type, or an `impl Trait` hiding an exported object that captures no borrow, as `+ use<>` ensures
 fixtures/reject/src/lib.rs:1209:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`
+	help: use `Vec<u8>` or `bytes::Bytes` instead of `Box<[u8]>`
 fixtures/reject/src/lib.rs:1214:1: rust2-ffi: cannot export fn `count_later`: iterator of borrows in a future or callback
+	help: take `Vec<T>` or `impl IntoIterator<Item = T>` of owned items, which the future or callback may keep
 fixtures/reject/src/lib.rs:1219:1: rust2-ffi: cannot export fn `count_opaques`: generic parameter `std::iter::Iterator`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:1224:1: rust2-ffi: cannot export fn `unpin_resolver`: trait object `dyn tls::held::Resolver + std::marker::Unpin`
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:1229:1: rust2-ffi: cannot export fn `borrowed_resolver`: returned object that borrows `std::sync::Arc<(dyn tls::held::Resolver + 'a)>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1234:1: rust2-ffi: cannot export fn `peek_resolver`: reference to a handle inside a value `std::option::Option<std::sync::Arc<dyn tls::held::Resolver>>`
+	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:1239:1: rust2-ffi: cannot export fn `peek_codec`: trait object `dyn tls::held::Codec`
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:1254:1: rust2-ffi: cannot export fn `pump_pipe`: generic parameter `tls::held::Stream`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:1259:1: rust2-ffi: cannot export fn `pump_sink`: generic parameter `tls::held::Sink`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:1264:1: rust2-ffi: cannot export fn `widen`: generic parameter `tls::held::Width`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:1280:2: rust2-ffi: cannot export method `Counter::try_bump`: `&mut self` of a value returning a Result
+	help: return the changed value with the result, or make the type an object by giving it a private field, since a failure would lose the change
 fixtures/reject/src/lib.rs:1285:2: rust2-ffi: cannot export method `Counter::bump_later`: `&mut self` of a value in a future
+	help: take `&self`, or return the changed value instead of mutating it, or make the type an object by giving it a private field
 fixtures/reject/src/lib.rs:128:1: rust2-ffi: cannot export fn `poll_ready`: Poll with no Context or waiter parameter `std::task::Poll<u32>`
+	help: take a `&mut Context`, or a waiter, which a poll registers its wake through
 fixtures/reject/src/lib.rs:1290:2: rust2-ffi: cannot export method `Counter::bump_ref`: returned borrow of a value written back `&u8`
+	help: return an owned value, or make the type an object by giving it a private field, so `&mut self` writes nothing back
 fixtures/reject/src/lib.rs:1297:1: rust2-ffi: cannot export fn `object_alone`: JObject with no &mut jni::Env
+	help: take a `&mut jni::Env` beside the `JObject`
 fixtures/reject/src/lib.rs:1302:1: rust2-ffi: cannot export fn `two_envs`: several JNI envs
+	help: take one `&mut jni::Env`
 fixtures/reject/src/lib.rs:1307:1: rust2-ffi: cannot export fn `env_later`: JNI value lent to a future
+	help: take JNI's `&mut Env` and `JObject` in a plain function, which Kotlin calls, not in a callback or a future
 fixtures/reject/src/lib.rs:1312:1: rust2-ffi: cannot export fn `env_counted`: &mut of a value beside a JNI value
+	help: take the value by value and return the changed one, or drop the JNI value
 fixtures/reject/src/lib.rs:1318:1: rust2-ffi: cannot export fn `shared_env`: JNI type other than a parameter's &mut Env or JObject `jni::Env<'_>`
+	help: take only `&mut jni::Env` or `JObject` of jni's types, and as a parameter
 fixtures/reject/src/lib.rs:1323:1: rust2-ffi: cannot export fn `java_string`: JNI type other than a parameter's &mut Env or JObject `jni::objects::JString<'_>`
+	help: take only `&mut jni::Env` or `JObject` of jni's types, and as a parameter
 fixtures/reject/src/lib.rs:1332:1: rust2-ffi: cannot export fn `visit`: trait object `dyn Visit`
 	fixtures/reject/src/lib.rs:1328:1: note: C cannot implement `Visit`: JNI value in a callback `&mut jni::Env<'_>`
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:1338:1: rust2-ffi: cannot export fn `keep_object`: 'static borrow `jni::objects::JObject<'static>`
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:1343:1: rust2-ffi: cannot export fn `bound_object`: 'static borrow `&mut jni::Env<'a>`; 'static borrow `jni::objects::JObject<'a>`
 	fixtures/reject/src/lib.rs:1343:21: note: `'a` is `'static`, as a handle outlives every call
 	fixtures/reject/src/lib.rs:1343:21: note: `'a` is `'static`, as a handle outlives every call
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:1367:2: rust2-ffi: cannot export method `Slot<u8>::view`: returned object that borrows `SlotView<'_, u8>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1373:2: rust2-ffi: cannot export method `Slot<u8>::peek`: returned object that borrows `SlotView<'_, u8>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1425:2: rust2-ffi: cannot export method `Slot<u8>::hold`: returned object that borrows `SlotHold<'a>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1433:2: rust2-ffi: cannot export method `Slot<u8>::tag`: returned object that borrows `SlotTag<'_>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1438:2: rust2-ffi: cannot export method `Slot<u8>::lens`: returned object that borrows `SlotLens<'_>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:1443:2: rust2-ffi: cannot export method `Slot<u8>::peer`: returned object that borrows `SlotPeer<'_>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:145:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`
+	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:1479:1: rust2-ffi: cannot export fn `unit_error`: unit error `std::result::Result<(), ()>`
+	help: return a `bool` for `Result<(), ()>` or an `Option<T>` for `Result<T, ()>`, or give the error a value, such as a `String` or an error type of yours
 fixtures/reject/src/lib.rs:1484:1: rust2-ffi: cannot export fn `unit_error_later`: unit error `std::result::Result<u8, ()>`
+	help: return a `bool` for `Result<(), ()>` or an `Option<T>` for `Result<T, ()>`, or give the error a value, such as a `String` or an error type of yours
 fixtures/reject/src/lib.rs:1515:1: rust2-ffi: cannot export fn `race`: instance holding a foreign future `reject::Either<((), std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>), ((), std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>)>`
+	help: name a future of `()` C implements, or make the instance own no future
 fixtures/reject/src/lib.rs:1523:1: rust2-ffi: cannot export fn `park`: instance holding a foreign future `reject::Parked<std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = ()> + std::marker::Send>>>`
+	help: name a future of `()` C implements, or make the instance own no future
 fixtures/reject/src/lib.rs:1529:1: rust2-ffi: cannot export instance `Bits<u32>`: union
+	help: use a struct or an enum
 fixtures/reject/src/lib.rs:1535:1: rust2-ffi: cannot export fn `bits`: refused type `reject::Bits<u32>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:1541:1: rust2-ffi: cannot export instance `Tail<u8>`: unsized type
+	help: pass `&str` or `&[T]` instead, or return an owned `String` or `Vec<T>`; a struct whose last field is unsized needs a sized form
 fixtures/reject/src/lib.rs:1544:1: rust2-ffi: cannot export fn `tail`: 'static borrow `&'static Tail<u8>`; refused type `reject::Tail<u8>`
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:1550:1: rust2-ffi: cannot export fn `cows_later`: Cow a future returns inside a collection `std::vec::Vec<std::borrow::Cow<'_, str>>`
+	help: return the `Cow` itself, in an `Option`, or in a tuple, or collect owned `String`s or `Vec<u8>`s instead
 fixtures/reject/src/lib.rs:1556:1: rust2-ffi: cannot export fn `cow_error_later`: Cow a future returns in its error `std::borrow::Cow<'_, [u8]>`
+	help: make the future's error `Cow<str>`, which crosses as its message, or an owned value
 fixtures/reject/src/lib.rs:1561:1: rust2-ffi: cannot export fn `cow_param`: Cow other than a returned string or bytes `std::borrow::Cow<'_, str>`
+	help: take `&str`, `&[u8]`, or an owned value instead, and return `Cow` only as a whole `Cow<str>` or `Cow<[u8]>`
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`
+	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`
+	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
 fixtures/reject/src/lib.rs:16:1: rust2-ffi: cannot export fn `generic`: generic parameter `std::marker::Copy`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:170:1: rust2-ffi: cannot export fn `sealed`: refused type `reject::Cell<tls::held::Cert>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:199:1: rust2-ffi: cannot export fn `echo`: borrowing output of a future from a function that is not async `&str`
+	help: make it an `async fn`, or return an output that borrows nothing
 fixtures/reject/src/lib.rs:204:1: rust2-ffi: cannot export fn `blame`: borrowing output of a future from a function that is not async `std::result::Result<u32, tls::held::Wrapped<'_, u8>>`
+	help: make it an `async fn`, or return an output that borrows nothing
 fixtures/reject/src/lib.rs:209:1: rust2-ffi: cannot export fn `relay`: borrowing output of a future from a function that is not async `&str`
+	help: make it an `async fn`, or return an output that borrows nothing
 fixtures/reject/src/lib.rs:214:1: rust2-ffi: cannot export fn `resolve`: borrowing output of a future from a function that is not async `&str`
+	help: make it an `async fn`, or return an output that borrows nothing
 fixtures/reject/src/lib.rs:219:1: rust2-ffi: cannot export fn `spend`: closure signature `tls::held::Token`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:21:1: rust2-ffi: cannot export fn `nested`: nested Option `std::option::Option<std::boxed::Box<std::option::Option<u32>>>`
+	help: use one `Option`, or wrap the inner one in an enum, since C has one `None` per option
 fixtures/reject/src/lib.rs:224:1: rust2-ffi: cannot export fn `mint`: closure signature `tls::held::Token`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:234:1: rust2-ffi: cannot export fn `spent`: reference to a handle inside a value `[tls::held::Token]`
+	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:244:1: rust2-ffi: cannot export fn `adopt`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:256:2: rust2-ffi: cannot export method `Cell<u8>::nest`: instance holding an instance of a type inside it `reject::Cell<reject::Cell<u8>>`
+	help: do not nest the generic type in itself at a deeper instance, as `Cell<Cell<u8>>` does
 fixtures/reject/src/lib.rs:275:2: rust2-ffi: cannot export method `Pong<reject::Ping<u8>>::ping`: instance holding an instance of a type inside it `reject::Ping<reject::Pong<reject::Ping<u8>>>`
+	help: do not nest the generic type in itself at a deeper instance, as `Cell<Cell<u8>>` does
 fixtures/reject/src/lib.rs:286:1: rust2-ffi: cannot export instance `Grow<(u32,)>`: type argument `(u32,)`
+	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
 fixtures/reject/src/lib.rs:289:2: rust2-ffi: cannot export method `Grow<u32>::grow`: refused type `reject::Grow<(u32,)>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:300:1: rust2-ffi: cannot export instance `Shell<(u32,)>`: type argument `(u32,)`
+	help: instantiate it at types that map, such as integers, `String`, or an exported type; `&str`, `Cow`, and other borrows do not
 fixtures/reject/src/lib.rs:309:1: rust2-ffi: cannot export fn `shell`: refused type `reject::Shell<(u32,)>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:30:1: rust2-ffi: cannot export fn `peek`: reference to a handle inside a value `std::boxed::Box<Opaque>`
+	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:320:1: rust2-ffi: cannot export fn `probe`: const generic `N`
+	help: pass the const parameter to a generic type in the signature, so each instance an export names supplies its values
 fixtures/reject/src/lib.rs:325:1: rust2-ffi: cannot export fn `listed`: refused type `reject::Cell<std::vec::Vec<String>>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:330:1: rust2-ffi: cannot export instance `Fixed<'a'>`: const argument `'a'`
+	help: use a `bool` or an integer below 128 bits for a const argument
 fixtures/reject/src/lib.rs:333:1: rust2-ffi: cannot export fn `fixed`: refused type `reject::Fixed<'a'>`
+	help: fix the refusal of the type it names first, or use a type that exports
 fixtures/reject/src/lib.rs:338:9: rust2-ffi: cannot export use `HashSet`: re-export of the standard library's item `std`
+	help: name the standard library's type in signatures, where it maps by role, instead of re-exporting it
 fixtures/reject/src/lib.rs:341:1: rust2-ffi: cannot export fn `lend`: Waker outside a parameter or a return
+	help: take or return a `Waker` only as a parameter or a return, not in a field or a collection
 fixtures/reject/src/lib.rs:359:1: rust2-ffi: cannot export fn `gather`: closure signature `std::vec::Vec<u8>`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:35:1: rust2-ffi: cannot export static `COUNT`: static
+	help: export a function returning the value, or a `const`
 fixtures/reject/src/lib.rs:364:1: rust2-ffi: cannot export fn `attempt`: closure signature `std::result::Result<u32, u8>`
+	help: take a `bool`, integer, `String`, opaque value, or object by reference (parameters only), and return an owned `bool`, integer, `String`, opaque value, or an `Option` of one, or a `Result` of one with a `String` error: a callback returns no reference
 fixtures/reject/src/lib.rs:369:1: rust2-ffi: cannot export fn `consume`: reader not lent as &mut `impl std::io::Read + std::io::Seek`
+	help: take the reader as `&mut R`
 fixtures/reject/src/lib.rs:374:1: rust2-ffi: cannot export fn `retain`: reader kept past the call `R`
+	help: do not return or keep the reader, which C lends only for the call
 fixtures/reject/src/lib.rs:379:1: rust2-ffi: cannot export fn `rewrite`: reader bound `std::io::Write`
+	help: bound the reader by `Read` and `Seek` alone
 fixtures/reject/src/lib.rs:384:1: rust2-ffi: cannot export fn `read_later`: reader kept past the call `impl std::io::Read + std::io::Seek`
+	help: do not return or keep the reader, which C lends only for the call
 fixtures/reject/src/lib.rs:389:1: rust2-ffi: cannot export fn `twice`: closure bound `std::clone::Clone`
+	help: bound the closure by `Fn`, `FnMut`, or `FnOnce` alone, besides `Send`, `Sync`, and a lifetime
 fixtures/reject/src/lib.rs:395:1: rust2-ffi: cannot export fn `both`: closure type taken twice `F`
+	help: take the closure's type once, with a type parameter for each closure
 fixtures/reject/src/lib.rs:39:1: rust2-ffi: cannot export macro `noop`: macro
+	help: export a function that does what the macro does, or mark the macro `#[doc(hidden)]`
 fixtures/reject/src/lib.rs:401:1: rust2-ffi: cannot export fn `read`: lent object that borrows `&Text<'_>`
+	help: name no lifetime on the lent type, or fix it to `'static`, since a handle holds it at `'static`
 fixtures/reject/src/lib.rs:406:1: rust2-ffi: cannot export fn `count_words`: Vec of references `&str`
+	help: take owned items, or only return the references: C lends nothing inside a collection, tuple, or iterator
 fixtures/reject/src/lib.rs:411:1: rust2-ffi: cannot export fn `count_some`: Vec of references `std::option::Option<&str>`
+	help: take owned items, or only return the references: C lends nothing inside a collection, tuple, or iterator
 fixtures/reject/src/lib.rs:416:1: rust2-ffi: cannot export fn `count_slice`: slice of references `&str`
+	help: take owned items, or only return the references: C lends nothing inside a collection, tuple, or iterator
 fixtures/reject/src/lib.rs:421:1: rust2-ffi: cannot export fn `peek_all`: reference to a handle inside a value `[Opaque]`
+	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:426:1: rust2-ffi: cannot export fn `none_opaque`: borrowed return that is not Clone `[Opaque]`
+	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:438:1: rust2-ffi: cannot export fn `stash`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:454:1: rust2-ffi: cannot export fn `hold`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:459:1: rust2-ffi: cannot export fn `bound`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:464:1: rust2-ffi: cannot export fn `kept`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:479:1: rust2-ffi: cannot export fn `holder`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:47:1: rust2-ffi: cannot export fn `excluded`: doc(hidden) type `Excluded`
+	help: remove `#[doc(hidden)]` from the type, or mark this item `#[doc(hidden)]` too
 fixtures/reject/src/lib.rs:494:1: rust2-ffi: cannot export fn `lender`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:510:1: rust2-ffi: cannot export fn `outlived`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:526:1: rust2-ffi: cannot export fn `paired`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:52:1: rust2-ffi: cannot export fn `letters`: Range `char`
+	help: use `Range` or `Bound` of an integer of 64 bits or fewer
 fixtures/reject/src/lib.rs:551:1: rust2-ffi: cannot export fn `pinner`: generic parameter `std::convert::Into`
+	help: bound it by a trait the exporter maps, such as `Into<String>`, `AsRef<str>`, `Fn(..)`, or `IntoIterator`, or one of the crate's own traits, or take a concrete type
 fixtures/reject/src/lib.rs:567:1: rust2-ffi: cannot export fn `grows`: growing conversion `Grows<u8>`
 	fixtures/reject/src/lib.rs:559:1: note: applies past the recursion limit
+	help: break the chain of `From` impls, which names ever more types
 fixtures/reject/src/lib.rs:599:1: rust2-ffi: cannot export fn `call`: ambiguous conversion `std::vec::Vec<u8>`
 	fixtures/reject/src/lib.rs:575:1: note: `std::string::String` converts too, which C passes alike
+	help: convert from one of the sources, as `&str` and `String` are one value, not both a `String` and a `Vec<u8>`, which C passes alike
 fixtures/reject/src/lib.rs:604:1: rust2-ffi: cannot export fn `alphabet`: Range `char`
+	help: use `Range` or `Bound` of an integer of 64 bits or fewer
 fixtures/reject/src/lib.rs:609:1: rust2-ffi: cannot export fn `naturals`: foreign type `std::ops::RangeFrom`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:614:1: rust2-ffi: cannot export fn `opaques`: borrowed return that is not Clone `Opaque`
+	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:619:1: rust2-ffi: cannot export fn `tried`: foreign type `std::vec::IntoIter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:624:1: rust2-ffi: cannot export fn `eventually`: foreign type `std::vec::IntoIter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:650:1: rust2-ffi: cannot export fn `tallied`: unmet bound `u32: std::convert::From<C>`
+	help: implement the bound for the type, or loosen it; an instance exports only where every bound holds
 fixtures/reject/src/lib.rs:655:1: rust2-ffi: cannot export fn `drain`: trait object `dyn Source`
 	fixtures/reject/src/lib.rs:629:1: note: C cannot implement `Source`: callback signature `items`
+	help: take a generic `impl Trait` or an `Arc<dyn Trait>` of one of the crate's traits C can implement, or a closure `impl Fn(..)`
 fixtures/reject/src/lib.rs:660:1: rust2-ffi: cannot export fn `summed_forever`: 'static borrow `&'static [u32]`
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:665:1: rust2-ffi: cannot export fn `retext_last`: 'static borrow `&'a [std::string::String]`
 	fixtures/reject/src/lib.rs:665:20: note: `'a` is `'static`, as a handle outlives every call
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:66:2: rust2-ffi: cannot export method `Text::view`: returned object that borrows `Text<'_>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone
 fixtures/reject/src/lib.rs:672:1: rust2-ffi: cannot export fn `outlast`: 'static borrow `&'b [std::string::String]`
 	fixtures/reject/src/lib.rs:672:20: note: `'b` is `'static`, as a handle outlives every call
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:679:1: rust2-ffi: cannot export fn `retext_into`: 'static borrow `&'a [std::string::String]`
 	fixtures/reject/src/lib.rs:679:20: note: `'a` is `'static`, as a handle outlives every call
+	help: take an owned value, such as a `String` or an `Arc<T>`, where the handle keeps it; only `&str` and `&[u8]` may be kept
 fixtures/reject/src/lib.rs:688:1: rust2-ffi: cannot export fn `ones`: foreign type `std::iter::Repeat`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:694:1: rust2-ffi: cannot export fn `long_words`: foreign type `std::iter::Filter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:6:1: rust2-ffi: cannot export fn `pair`: tuple of references `(&str, u8)`
+	help: take owned items, or only return the references: C lends nothing inside a collection, tuple, or iterator
 fixtures/reject/src/lib.rs:700:1: rust2-ffi: cannot export fn `kept_in`: foreign type `std::iter::Filter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:717:1: rust2-ffi: cannot export fn `launched`: foreign type `std::iter::Chain`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:734:1: rust2-ffi: cannot export fn `launches`: foreign type `std::iter::Flatten`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:757:1: rust2-ffi: cannot export fn `pumped`: foreign type `std::iter::Flatten`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:771:1: rust2-ffi: cannot export fn `skipped`: foreign type `std::iter::Skip`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:776:1: rust2-ffi: cannot export fn `merged`: foreign type `std::iter::Copied`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:77:1: rust2-ffi: cannot export fn `first`: borrowed return that is not Clone `Opaque`
+	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:783:1: rust2-ffi: cannot export fn `values`: foreign type `std::collections::btree_map::IntoValues`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:789:1: rust2-ffi: cannot export fn `floats`: collection not built from its items `std::collections::BTreeSet<f64>`
+	help: the collection must build from its items, which a `BTreeSet` or `BTreeMap` of a type without `Ord`, such as `f64`, cannot: key it by an ordered type, or take a `Vec<T>` and build the collection inside the facade
 fixtures/reject/src/lib.rs:794:1: rust2-ffi: cannot export fn `zeros`: foreign type `std::iter::RepeatN`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:799:1: rust2-ffi: cannot export fn `successes`: foreign type `std::iter::Flatten`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:819:1: rust2-ffi: cannot export fn `allocated`: foreign type `std::vec::IntoIter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:826:1: rust2-ffi: cannot export fn `flattened`: foreign type `std::iter::Flatten`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:850:1: rust2-ffi: cannot export fn `lent`: foreign type `std::vec::IntoIter`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:868:1: rust2-ffi: cannot export fn `halves`: foreign type `std::str::Split`
+	help: use a type that maps, such as `BTreeMap` for a `HashMap` and `Vec` for an iterator, or wrap it in a type of your own whose methods take and return mapped types
 fixtures/reject/src/lib.rs:873:1: rust2-ffi: cannot export fn `settled`: Poll with no Context or waiter parameter `std::task::Poll<u8>`
+	help: take a `&mut Context`, or a waiter, which a poll registers its wake through
 fixtures/reject/src/lib.rs:878:1: rust2-ffi: cannot export fn `poll_named`: poll's parameter taken by value that is not Copy `std::string::String`
+	help: take it by reference, or make it `Copy`, since each poll calls the function again
 fixtures/reject/src/lib.rs:884:1: rust2-ffi: cannot export fn `poll_first`: borrowed Poll `&u8`
+	help: return an owned `Poll<T>` that borrows nothing from its arguments
 fixtures/reject/src/lib.rs:890:1: rust2-ffi: cannot export fn `poll_until`: poll's parameter taken by value that is not Copy `impl Fn(u8) -> bool`
+	help: take it by reference, or make it `Copy`, since each poll calls the function again
 fixtures/reject/src/lib.rs:901:1: rust2-ffi: cannot export fn `context_later`: Context of a function returning a future
+	help: take a `Context` only in a function returning `Poll`; a function returning a future makes its own
 fixtures/reject/src/lib.rs:920:1: rust2-ffi: cannot export fn `poll_ticket`: Poll with no Context or waiter parameter `std::task::Poll<u16>`
+	help: take a `&mut Context`, or a waiter, which a poll registers its wake through
 fixtures/reject/src/lib.rs:925:1: rust2-ffi: cannot export fn `poll_both`: several task parameters
+	help: take one `Context` or one waiter, not several
 fixtures/reject/src/lib.rs:932:1: rust2-ffi: cannot export fn `poll_bump`: &mut of a value in a future
+	help: take the value by value and return the changed one, or hold it in an object changed through `&self`
 fixtures/reject/src/lib.rs:939:1: rust2-ffi: cannot export fn `peek_some`: reference to a handle inside a value `std::boxed::Box<Opaque>`
+	help: take the object as `&T` itself, not inside an `Option` or a `Box`, which move it out of the caller's handle
 fixtures/reject/src/lib.rs:944:1: rust2-ffi: cannot export fn `bump_some`: &mut of a value inside an Option `std::option::Option<&mut u32>`
+	help: take the `&mut` value directly, not inside an `Option`
 fixtures/reject/src/lib.rs:951:1: rust2-ffi: cannot export fn `rest`: returned borrow of a value written back `&[u8]`
+	help: return an owned value, or make the type an object by giving it a private field, so `&mut self` writes nothing back
 fixtures/reject/src/lib.rs:956:1: rust2-ffi: cannot export fn `fill`: returned borrow of a value written back `impl std::future::Future<Output = ()>`; &mut of a value in a future
+	help: return an owned value, or make the type an object by giving it a private field, so `&mut self` writes nothing back
+	help: take the value by value and return the changed one, or hold it in an object changed through `&self`
 fixtures/reject/src/lib.rs:961:1: rust2-ffi: cannot export fn `zero`: &mut of a slice `[u8]`
+	help: take `&[u8]` and return the changed `Vec<u8>`, or hold the buffer in an object; C lends no buffer mutably
 fixtures/reject/src/lib.rs:966:1: rust2-ffi: cannot export fn `reseat`: &mut of another crate's Arc `std::sync::Arc<dep::Size>`
+	help: take `&Arc<T>`, or the `Arc` by value, since an opaque handle cannot be replaced in place
 fixtures/reject/src/lib.rs:979:2: rust2-ffi: cannot export method `Keeper::check`: borrowed return that is not Clone `Opaque`
+	help: return an owned value or a `Clone` type, since a borrowed return crosses as a clone
 fixtures/reject/src/lib.rs:990:9: rust2-ffi: cannot export use `dep`: re-export of a whole crate `dep`
+	help: re-export the crate's items with `pub use dep::*;`, or wrap the few types a signature needs in types of your own
 fixtures/reject/src/lib.rs:993:9: rust2-ffi: cannot export use `renamed`: re-export of a whole crate `dep`
+	help: re-export the crate's items with `pub use dep::*;`, or wrap the few types a signature needs in types of your own
 fixtures/reject/src/lib.rs:99:2: rust2-ffi: cannot export method `Text::later`: returned object that borrows `impl std::future::Future<Output = Text<'_>>`
+	help: return an owned object that borrows nothing, or a guard of a `&mut self` method borrowing the receiver alone

@@ -55,14 +55,14 @@ const FOREIGN: [(&str, &str, &str); 3] = [
 
 /// The construct of another crate's type named both by value and in an `Arc`, whose handle
 /// holds the `Arc`.
-const BOTH: &str = "another crate's type both by value and in an Arc";
+pub(crate) const BOTH: &str = "another crate's type both by value and in an Arc";
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub(crate) const NOT_INFERRED: &str = "instance not inferred";
 
 /// What C can never hold: left out and listed in the census rather than refused, since
 /// exporting it would need constructors or returns the crate has no use for.
-const UNHELD: [&str; 5] = [
+pub(crate) const UNHELD: [&str; 5] = [
 	"object no export returns",
 	"value no export returns",
 	"generic type no export instantiates",

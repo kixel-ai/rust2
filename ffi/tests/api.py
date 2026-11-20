@@ -4,10 +4,12 @@
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
 # closed, the values only Python's types bound, how Python calls into the extension, or
-# what Python code expects of a package, or breaks a contract, which must fail.
+# what Python code expects of a package, under a debug CPython that all of those leak
+# nothing, or breaks a contract, which must fail.
 
 import array
 import asyncio
+import contextlib
 import copy
 import dataclasses
 import datetime
@@ -1411,9 +1413,41 @@ def broken(which):
 			raise ValueError(f"no case {which}")
 
 
+def leaks():
+	"""The other runs' checks, looped under a debug CPython: once two rounds warm the
+	interpreter, five more leave its references and memory blocks exactly as they were."""
+	check(hasattr(sys, "gettotalrefcount"), "leaks runs under a debug CPython")
+
+	def counts():
+		# Printed lines wait in the stream's buffer, and attribute lookups in the
+		# interpreter's caches, until they fill.
+		sys.stdout.flush()
+		sys._clear_internal_caches()
+		gc.collect()
+		return sys.gettotalrefcount(), sys.getallocatedblocks()
+
+	def rounds(n):
+		for _ in range(n):
+			for run in (script, checks, futures, owned, values, calls, idioms):
+				run()
+
+	with open(os.devnull, "w") as null, contextlib.redirect_stdout(null):
+		rounds(2)
+		first = counts()
+		# Each measurement held is counted by the next one.
+		before = counts()
+		rounds(5)
+		after = counts()
+	held = [b - f for b, f in zip(before, first)]
+	grown = [a - b for a, b in zip(after, before)]
+	check(grown == held, f"five rounds left the references and blocks {before} as {after}")
+
+
 match sys.argv[1:]:
 	case []:
 		script()
+	case ["leaks"]:
+		leaks()
 	case ["futures"]:
 		futures()
 	case ["owned"]:

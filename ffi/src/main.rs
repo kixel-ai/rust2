@@ -41,6 +41,7 @@ mod doc;
 mod driver;
 mod glue;
 mod go;
+mod help;
 mod ir;
 mod js;
 mod kotlin;
