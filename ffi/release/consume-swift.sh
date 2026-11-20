@@ -65,7 +65,7 @@ swift build -c release
 .build/release/Check >"$work/actual.txt"
 # The manifest SwiftPM bundled beside the executable, as an app embeds it.
 manifests=$(find .build/release/ -path "*/${module}_${module}Privacy.bundle/*" -name PrivacyInfo.xcprivacy)
-if [[ -z "$manifests" || $(wc -l <<<"$manifests") != 1 ]]; then
+if [[ -z "$manifests" || $(wc -l <<<"$manifests") -ne 1 ]]; then
     echo "the build bundled no single privacy manifest: $manifests" >&2
     exit 1
 fi
