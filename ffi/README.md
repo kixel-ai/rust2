@@ -840,7 +840,9 @@ caller imports it with no ignores.
   top-level names that clash. A keyword, a member Python gives every such class, or a
   method named as a field takes a trailing `_`. A member or top-level name may be a
   builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
-  Constructors such as `new` stay static methods: `Counter.new(1)`.
+  Constructors such as `new` stay static methods: `Counter.new(1)`. The module's `__all__`
+  lists every export, so `from moq import *` reaches one whose Rust name starts with `_`
+  too, and none of the module's own imports or helpers.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises

@@ -1940,6 +1940,8 @@ Cancelable<String> unescapedLater(String text);
 Cancelable<String?> unescapedMaybe(String? text);
 typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
+int deprecated_(int note);
+int all(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);
