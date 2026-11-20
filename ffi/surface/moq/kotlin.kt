@@ -1,3 +1,7 @@
+// FastNative.kt
+package dalvik.annotation.optimization
+@Retention(AnnotationRetention.BINARY) @Target(AnnotationTarget.FUNCTION) annotation class FastNative
+
 // moq.kt
 fun interface Waker {
 	fun wake()
