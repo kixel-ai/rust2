@@ -62,6 +62,11 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod])
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
+	// Looked up now, before a leaf can run: a `@FastNative` call refusing its borrow or an
+	// argument must not wait on another thread's lookup, which a collection pending on the
+	// leaf would stall.
+	method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
+	method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
 	true
 }
 
@@ -125,6 +130,7 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 }
 
 static REFUSED: OnceLock<usize> = OnceLock::new();
+const REFUSED_METHOD: (&CStr, &CStr) = (c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
 /// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
@@ -137,7 +143,7 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 		None => format!("{what}: an unknown status {status}"),
 	};
 	let message = std::ffi::CString::new(message).expect("no NUL in a message");
-	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &REFUSED, REFUSED_METHOD.0, REFUSED_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__refused` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
@@ -155,13 +161,14 @@ pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 }
 
 static INVALID: OnceLock<usize> = OnceLock::new();
+const INVALID_METHOD: (&CStr, &CStr) = (c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
 
 /// Throw the `_Native.__Invalid`, an `IllegalArgumentException`, an argument holding a
 /// value its Rust type cannot raises, which the native method then returns with, as
 /// [`raised`] does. Its own class tells Kotlin the call moved nothing.
 #[cold]
 fn invalid(env: *mut JNIEnv, message: &CStr) {
-	let id = method(env, &INVALID, c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	let id = method(env, &INVALID, INVALID_METHOD.0, INVALID_METHOD.1);
 	// SAFETY: `env` is this thread's, and `__invalid` takes the message.
 	unsafe {
 		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
