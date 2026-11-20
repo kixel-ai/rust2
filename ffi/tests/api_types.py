@@ -63,5 +63,6 @@ except api.FaultException.Busy as busy:
 	fault: api.Fault = busy.error
 except api.ErrorException.Overflow as overflow:
 	error: api.Error = overflow.error
+over: api.ErrorException.Overflow = api.ErrorException.Overflow(api.Error.Overflow())
 moved: api.Point = dataclasses.replace(api.Point(1, 2), x=3)
 named: tuple[str, ...] = tuple(f.name for f in dataclasses.fields(moved))

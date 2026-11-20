@@ -15,10 +15,15 @@ tree = ast.parse(open(sys.argv[1]).read())
 
 
 def loads(node, params):
-	"""Each name `node` reads, but the parameters of a function it is in."""
+	"""Each name `node` reads, but the parameters of a function whose body it is in."""
 	if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
 		a = node.args
-		params = params | {p.arg for p in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg] if p}
+		inner = params | {p.arg for p in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg] if p}
+		# Decorators, defaults, and annotations read the enclosing scope's names.
+		body = node.body if isinstance(node.body, list) else [node.body]
+		for child in ast.iter_child_nodes(node):
+			yield from loads(child, inner if any(child is b for b in body) else params)
+		return
 	if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id not in params:
 		yield node
 	for child in ast.iter_child_nodes(node):

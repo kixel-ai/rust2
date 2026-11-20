@@ -903,7 +903,7 @@ impl<'a> Gen<'a> {
 			.collect();
 		let _ = write!(
 			self.py,
-			"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\n\n\tEach variant raises its own subclass, such as `{name}.{}`, which `{name}(error)`\n\tmakes too.\"\"\"\n\n\tdef __new__(cls, error: {py}) -> {name}:\n\t\tvariant = {pick} if cls is {name} else cls\n\t\treturn _Exception.__new__(variant, error)\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\tif _typing.TYPE_CHECKING:\n{declared}{aliases}\n\n",
+			"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\n\n\tEach variant raises its own subclass, such as `{name}.{}`, which `{name}(error)`\n\tmakes too.\"\"\"\n\n\tdef __new__(cls, error: {py}) -> _typing.Self:\n\t\tvariant = {pick} if cls is {name} else cls\n\t\treturn _typing.cast(_typing.Self, _Exception.__new__(variant, error))\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\tif _typing.TYPE_CHECKING:\n{declared}{aliases}\n\n",
 			vnames[0]
 		);
 		for (vname, variant) in vnames.iter().zip(&variants) {
@@ -2397,7 +2397,8 @@ fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &
 			sets.concat()
 		);
 	}
-	// A dataclass's own `__eq__` compares tuples of its fields before Python 3.13, which take
+	// As a dataclass's, `__eq__` takes only its own class, not a subclass; the `isinstance` is for
+	// the type checkers. A dataclass's own `__eq__` compares tuples of its fields before Python 3.13, which take
 	// a value as equal to itself, so a NaN would equal itself and a numpy array would raise.
 	let eq: Vec<String> = fields
 		.iter()
@@ -2412,7 +2413,7 @@ fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &
 	};
 	let _ = write!(
 		out,
-		"\n\tdef __eq__(self, other: _object) -> _bool:\n\t\tif not _isinstance(other, {name}):\n\t\t\treturn _NotImplemented\n\t\treturn {eq}\n"
+		"\n\tdef __eq__(self, other: _object) -> _bool:\n\t\tif not _isinstance(other, {name}) or other.__class__ is not self.__class__:\n\t\t\treturn _NotImplemented\n\t\treturn {eq}\n"
 	);
 	for m in members {
 		let _ = write!(out, "\n{m}");

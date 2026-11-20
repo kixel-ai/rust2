@@ -1194,6 +1194,11 @@ def idioms():
 	# A record is a dataclass to `dataclasses`, `copy`, and `match`, as `@dataclass` made it.
 	# A subclass's fields are its record's, read first through either, and a dataclass may
 	# subclass a record.
+	class Hidden(api.Point):
+		__match_args__ = ()
+
+	check(dataclasses.asdict(Hidden(1, 2)) == {"x": 1, "y": 2}, "a subclass's own __match_args__")
+
 	class Sub(api.Point):
 		pass
 
@@ -1205,6 +1210,8 @@ def idioms():
 
 	tagged = Tagged(api.Score.of(1), 2, "t")
 	check([f.name for f in dataclasses.fields(tagged)] == ["score", "weight", "tag"], "a dataclass subclass")
+	weighted = api.Weighted(tagged.score, 2)
+	check(weighted == api.Weighted(tagged.score, 2) and weighted != tagged and tagged != weighted, "== only its own class")
 	p = api.Point(1, 2)
 	check(dataclasses.is_dataclass(p) and [f.name for f in dataclasses.fields(api.Point)] == ["x", "y"], "fields")
 	check(dataclasses.replace(p, x=5) == api.Point(5, 2) and p == api.Point(1, 2), "replace")

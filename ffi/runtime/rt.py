@@ -247,10 +247,11 @@ class _Dataclass:
 	def __get__(self, obj: _object, cls: _type[_Record]) -> _object:
 		import dataclasses
 
-		# The record that declares the fields, which a subclass of it inherits.
+		# The record that declares the fields, which a subclass of it inherits. It is the first
+		# this module made, as a subclass made elsewhere may set its own `__match_args__`.
 		owner: _typing.Any = _Record
 		for c in cls.__mro__:
-			if "__match_args__" in c.__dict__:
+			if c.__module__ == _Record.__module__ and "__match_args__" in c.__dict__:
 				owner = c
 				break
 		hints = owner.__annotations__
