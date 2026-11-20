@@ -241,8 +241,10 @@ A wider integer is a `number` up to 2^53 - 1 in magnitude, and past that an immu
 object of 32-bit limbs, `{ hi, lo }`, with `w2` and `w1` between them at 128 bits and
 `hi` signed in a signed type. Each value has one form, so `x === 0` is exact; a caller
 makes one past 2^53 with `rs.u64Of(18446744073709551615n)`. Its other operators and
-comparisons are runtime calls, `rs.u64Add(a, b)` and `rs.u64Lt(a, b)`, and `x as u32`
-is `rs.u64Low(x)`. `((hi as u64) << 32) | lo as u64` of halves of at most 32 bits is
+comparisons are runtime calls, `rs.u64Add(a, b)` and `rs.u64Lt(a, b)`, but for a `u64`'s sum
+and difference and any wide comparison of names and literals, which write the numbers' case
+at the call and leave limbs to the runtime: `typeof a === "number" && a + 1 <= 9007199254740991
+? a + 1 : rs.u64Add(a, 1)`. `x as u32` is `rs.u64Low(x)`. `((hi as u64) << 32) | lo as u64` of halves of at most 32 bits is
 one call, `rs.u64FromHalves(hi, lo)`.
 
 Each integer's inherent methods are std's, and a `NonZero`'s, a `Wrapping`'s, and a
@@ -1107,6 +1109,15 @@ they need.
   `rs.ByteSlice` too, its bytes read in place: the decode workloads then took 0.72 times
   a view's time in Chrome, 0.67 in Firefox, 0.87 in Node, and 0.71 in Bun at the
   geometric mean, with the A/A route within 0.03, and encode no slower.
+- A `u64`'s sum and difference, and a wide comparison, of names and literals write the
+  numbers' case at the call instead of calling the runtime: in a function SpiderMonkey
+  compiled large, `parts/prefix-writes`' loop of `wrapping_add` stayed a call to the
+  runtime, 4 times the time the same path written out took (`just ts bench`'s `translated`
+  against the route from before, run together: 0.21-0.49x in Firefox, 0.54x at the
+  geometric mean of the `parts/` rows in Node, 0.60x in Bun, and 0.80x in Chrome, every
+  other family within the A/A route's spread). It adds 458 bytes gzipped, 1.7%. The narrower
+  integers' sums and differences written out the same way added 340 more with no further
+  speed up, so they stay calls; so do a signed `i64`'s.
 - A run of bytes `as_chunks_mut` lends is a `Uint8Array` view, which a whole write of
   another run can't detach, so a read of one by value copies it (decided with the
   maintainer on 2026-11-03). moq writes its runs by element and reads none whole, so it

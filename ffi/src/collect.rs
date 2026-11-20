@@ -6920,7 +6920,10 @@ fn links(tcx: TyCtxt<'_>) -> Vec<String> {
 /// `rustc` picks at its size on this target: the bytes its fields always initialize fill
 /// it, so no field order leaves padding. The glue asserts the size, which is what lets
 /// another `rustc` build it; a type with padding, or bytes that depend on its value, such
-/// as a union's or `Option<u32>`'s, is a handle instead.
+/// as a union's or `Option<u32>`'s, is a handle instead. A variant without data that an
+/// enum encodes in another's niche writes the niche's whole scalar, so `None` of
+/// `Option<NonZero<u64>>` initializes its 8 bytes, but `None` of `Option<&[u8]>` only the
+/// pointer's word.
 ///
 /// The fields must also fill a model layout at each pointer width, 4 and 8 bytes, with each
 /// primitive aligned to its size. So every target decides alike, and adding one never
@@ -6941,9 +6944,40 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		/// The fewest it initializes in the model at each of `WIDTHS`, and its alignment there.
 		model: [u64; 2],
 		align: [u64; 2],
-		/// Whether it may have a niche: invalid values an enum around it could encode
-		/// another variant in.
-		niche: bool,
+		/// Whether it may have a niche, invalid values an enum around it could encode
+		/// another variant in, and the fewest bytes the scalar holding one spans.
+		niche: Option<Niche>,
+	}
+	/// The bytes of a niche's scalar, which a variant encoded in it writes whole: on this
+	/// target, and in the model at each of `WIDTHS`.
+	#[derive(Clone, Copy)]
+	struct Niche {
+		bytes: u64,
+		model: [u64; 2],
+	}
+	impl Niche {
+		/// The smaller of two niches, at each width alike.
+		fn min(self, other: Self) -> Self {
+			Self {
+				bytes: self.bytes.min(other.bytes),
+				model: [self.model[0].min(other.model[0]), self.model[1].min(other.model[1])],
+			}
+		}
+		/// A niche of `bytes` in a scalar of `least`, as rustc's layout gives it: a thin
+		/// pointer's whole word, or a wide one's first.
+		fn of(least: Least, bytes: u64) -> Option<Self> {
+			(least.bytes > 0).then(|| Self {
+				bytes,
+				model: least.model.map(|model| model * bytes / least.bytes),
+			})
+		}
+	}
+	/// The smallest of two niches, either of which may be absent.
+	fn smaller(a: Option<Niche>, b: Option<Niche>) -> Option<Niche> {
+		match (a, b) {
+			(Some(a), Some(b)) => Some(a.min(b)),
+			(a, b) => a.or(b),
+		}
 	}
 	// The fields of an aggregate, which never overlap: none when they leave the model a
 	// gap, after them, as `(u64, u32)` does on a 64-bit target, or between them where its
@@ -6966,12 +7000,12 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			bytes: 0,
 			model: [0; 2],
 			align: [repr.and_then(|r| r.align).map_or(1, |a| a.bytes()); 2],
-			niche: false,
+			niche: None,
 		};
 		for &ty in tys {
 			let field = least(tcx, env, ty)?;
 			sum.bytes = sum.bytes.checked_add(field.bytes)?;
-			sum.niche |= field.niche;
+			sum.niche = smaller(sum.niche, field.niche);
 			for w in 0..WIDTHS.len() {
 				let align = pack.map_or(field.align[w], |pack| field.align[w].min(pack));
 				if ordered && !sum.model[w].is_multiple_of(align) {
@@ -6992,24 +7026,34 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<Least> {
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
 		let size = layout.size.bytes();
-		let primitive = |niche| {
+		let primitive = |niche: bool| {
 			Some(Least {
 				bytes: size,
 				model: [size; 2],
 				align: [size.max(1); 2],
-				niche,
+				niche: niche.then_some(Niche {
+					bytes: size,
+					model: [size; 2],
+				}),
 			})
 		};
-		// A pointer is a width's bytes in the model, and a wide one two of them.
-		let pointer = |niche| {
-			let words = size / tcx.data_layout.pointer_size().bytes();
+		// A pointer is a width's bytes in the model, and a wide one two of them, whose
+		// niche is its first.
+		let pointer = |niche: bool| {
+			let word = tcx.data_layout.pointer_size().bytes();
 			Some(Least {
 				bytes: size,
-				model: WIDTHS.map(|width| width * words),
+				model: WIDTHS.map(|width| width * (size / word)),
 				align: WIDTHS,
-				niche,
+				niche: niche.then_some(Niche {
+					bytes: word,
+					model: WIDTHS,
+				}),
 			})
 		};
+		// The niche rustc's layout gives a type whose own valid range makes one, as a
+		// pattern type's or `NonNull`'s does, within the scalar or pair `least` counts.
+		let ranged = |least: Least| Niche::of(least, layout.largest_niche?.value.size(&tcx).bytes());
 		let normalized = |fields: &mut dyn Iterator<Item = &ty::FieldDef>, args| {
 			(fields.map(|field| {
 				let field = field.ty(tcx, args).skip_norm_wip();
@@ -7023,17 +7067,20 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			ty::Ref(..) | ty::FnPtr(..) => pointer(true),
 			ty::Int(_) | ty::Uint(_) | ty::Float(_) => primitive(false),
 			ty::Bool | ty::Char => primitive(true),
-			ty::Pat(base, _) => Some(Least {
-				niche: true,
-				..least(tcx, env, *base)?
-			}),
+			ty::Pat(base, _) => {
+				let base = least(tcx, env, *base)?;
+				Some(Least {
+					niche: smaller(base.niche, ranged(base)),
+					..base
+				})
+			}
 			ty::Array(element, len) => {
 				let n = len.try_to_target_usize(tcx)?;
 				let each = least(tcx, env, *element)?;
 				Some(Least {
 					bytes: each.bytes.checked_mul(n)?,
 					model: [each.model[0].checked_mul(n)?, each.model[1].checked_mul(n)?],
-					niche: each.niche && n > 0,
+					niche: each.niche.filter(|_| n > 0),
 					..each
 				})
 			}
@@ -7042,7 +7089,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let sum = fields(tcx, env, &normalized(&mut adt.all_fields(), *args)?, Some(&adt.repr()))?;
 				// A field's own valid range, as `NonNull`'s, is a niche no field shows.
 				Some(Least {
-					niche: sum.niche || layout.largest_niche.is_some(),
+					niche: sum.niche.or_else(|| ranged(sum)),
 					..sum
 				})
 			}
@@ -7061,7 +7108,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 						bytes: size,
 						model,
 						align: model,
-						niche: true,
+						niche: Some(Niche { bytes: size, model }),
 					});
 				}
 				let mut each = Vec::new();
@@ -7070,9 +7117,19 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				}
 				// With no niche to encode the others in, two or more variants take a tag
 				// of at least a byte beside each one's fields; with one, a variant's own
-				// fields may hold the tag, so they count alone.
-				let niche = each.iter().any(|v| v.niche);
-				let tag = u64::from(each.len() > 1 && !niche);
+				// fields may hold the tag, so they count alone, and a variant without data
+				// counts the smallest niche's scalar, which an encoding in it writes whole.
+				// Should a `rustc` give the enum a tag instead, it is a byte past a variant
+				// whose fields fill it, so neither it nor what holds it is ever full, and
+				// the count never reaches a value.
+				let niche = each.iter().filter_map(|v| v.niche).reduce(Niche::min);
+				let tag = u64::from(each.len() > 1 && niche.is_none());
+				if let Some(niche) = niche.filter(|_| each.len() > 1) {
+					for v in each.iter_mut().filter(|v| v.bytes == 0 && v.model == [0; 2]) {
+						v.bytes = niche.bytes;
+						v.model = niche.model;
+					}
+				}
 				let mut model = [0; 2];
 				let mut align = [1; 2];
 				for w in 0..WIDTHS.len() {
@@ -7080,11 +7137,17 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 					align[w] = each.iter().map(|v| v.align[w]).max().unwrap_or(1);
 				}
 				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
+				// A full enum is encoded in a variant's niche, whose scalar holds what values
+				// remain; any other's niche, a tag's or one only partly written, may be a byte.
+				let least = Niche {
+					bytes: 1,
+					model: [1; 2],
+				};
 				filled(Least {
 					bytes,
 					model,
 					align,
-					niche: true,
+					niche: Some(niche.filter(|_| bytes == size).unwrap_or(least)),
 				})
 			}
 			_ => None,

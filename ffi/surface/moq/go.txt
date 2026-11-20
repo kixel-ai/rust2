@@ -266,16 +266,15 @@ type CatalogChromaticity struct {
 func (self CatalogChromaticity) Equal(other CatalogChromaticity) bool
 func (self CatalogChromaticity) GoString() string
 type CatalogClock struct {
-	Handle_ *p_rt.Handle_
+	Bytes_ [2]uint64
+	Made_ bool
 }
-func NewCatalogClock(wall *p_net.Timestamp) (*CatalogClock, error)
-func (self *CatalogClock) Clone() (*CatalogClock, error)
-func (self *CatalogClock) Close() error
-func (self *CatalogClock) Equal(other *CatalogClock) (bool, error)
-func (self *CatalogClock) GoString() string
-func (self *CatalogClock) WallClock(pts *p_net.Timestamp) (p_kio.ClockWall, error)
-func (self *CatalogClock) WallGet() (*p_net.Timestamp, error)
-func (self *CatalogClock) WallSet(value *p_net.Timestamp) error
+func NewCatalogClock(wall p_net.Timestamp) (CatalogClock, error)
+func (self CatalogClock) Equal(other CatalogClock) bool
+func (self CatalogClock) GoString() string
+func (self CatalogClock) WallClock(pts p_net.Timestamp) (p_kio.ClockWall, error)
+func (self CatalogClock) WallGet() p_net.Timestamp
+func (self *CatalogClock) WallSet(value p_net.Timestamp)
 type CatalogColor struct {
 	Handle_ *p_rt.Handle_
 }
@@ -790,7 +789,7 @@ func (self CatalogVp9) Equal(other CatalogVp9) bool
 func (self CatalogVp9) GoString() string
 func (self CatalogVp9) String() string
 type ContainerFrame struct {
-	Timestamp *p_net.Timestamp
+	Timestamp p_net.Timestamp
 	Payload p_rt.Bytes
 }
 func ContainerFrameDecode(buf p_rt.Bytes) (ContainerFrame, error)
@@ -800,13 +799,13 @@ func (self ContainerFrame) WriteTo(group *p_net.GroupProducer) error
 type EchoArrival struct {
 	Handle_ *p_rt.Handle_
 }
-func NewEchoArrival(timestamp *p_net.Timestamp, wall p_kio.ClockWall) (*EchoArrival, error)
+func NewEchoArrival(timestamp p_net.Timestamp, wall p_kio.ClockWall) *EchoArrival
 func (self *EchoArrival) Clone() (*EchoArrival, error)
 func (self *EchoArrival) Close() error
 func (self *EchoArrival) Equal(other *EchoArrival) (bool, error)
 func (self *EchoArrival) GoString() string
-func (self *EchoArrival) TimestampGet() (*p_net.Timestamp, error)
-func (self *EchoArrival) TimestampSet(value *p_net.Timestamp) error
+func (self *EchoArrival) TimestampGet() (p_net.Timestamp, error)
+func (self *EchoArrival) TimestampSet(value p_net.Timestamp) error
 func (self *EchoArrival) WallGet() (p_kio.ClockWall, error)
 func (self *EchoArrival) WallSet(value p_kio.ClockWall) error
 type EchoRendition struct {
@@ -858,9 +857,9 @@ func (self *Error) String() string
 type MoqJsonTimedCatalog struct {
 	Handle_ *p_rt.Handle_
 }
-func NewMoqJsonTimedCatalog(value *Catalog, at *p_net.Timestamp) (*MoqJsonTimedCatalog, error)
-func (self *MoqJsonTimedCatalog) AtGet() (*p_net.Timestamp, error)
-func (self *MoqJsonTimedCatalog) AtSet(value *p_net.Timestamp) error
+func NewMoqJsonTimedCatalog(value *Catalog, at p_net.Timestamp) (*MoqJsonTimedCatalog, error)
+func (self *MoqJsonTimedCatalog) AtGet() (p_net.Timestamp, error)
+func (self *MoqJsonTimedCatalog) AtSet(value p_net.Timestamp) error
 func (self *MoqJsonTimedCatalog) Clone() (*MoqJsonTimedCatalog, error)
 func (self *MoqJsonTimedCatalog) Close() error
 func (self *MoqJsonTimedCatalog) Equal(other *MoqJsonTimedCatalog) (bool, error)
@@ -922,9 +921,9 @@ TYPES
 type TimedJson struct {
 	Handle_ *p_rt.Handle_
 }
-func NewTimedJson(value *p_serdejson.Json, at *p_net.Timestamp) (*TimedJson, error)
-func (self *TimedJson) AtGet() (*p_net.Timestamp, error)
-func (self *TimedJson) AtSet(value *p_net.Timestamp) error
+func NewTimedJson(value *p_serdejson.Json, at p_net.Timestamp) (*TimedJson, error)
+func (self *TimedJson) AtGet() (p_net.Timestamp, error)
+func (self *TimedJson) AtSet(value p_net.Timestamp) error
 func (self *TimedJson) Clone() (*TimedJson, error)
 func (self *TimedJson) Close() error
 func (self *TimedJson) Equal(other *TimedJson) (bool, error)
@@ -1516,7 +1515,7 @@ func (self *CatalogProducer) TextFmp4Wire(track *p_net.TrackProducer, container 
 func (self *CatalogProducer) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogProducer) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
 func (self *CatalogProducer) Timebase() (*CatalogTimebase, error)
-func (self *CatalogProducer) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogProducer) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogProducer) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogProducer) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogProducer) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1575,7 +1574,7 @@ func (self *CatalogProducerExt) TextFmp4Wire(track *p_net.TrackProducer, contain
 func (self *CatalogProducerExt) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogProducerExt) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
 func (self *CatalogProducerExt) Timebase() (*CatalogTimebaseExt, error)
-func (self *CatalogProducerExt) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogProducerExt) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogProducerExt) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogProducerExt) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogProducerExt) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1634,7 +1633,7 @@ func (self *CatalogProducerExtra) TextFmp4Wire(track *p_net.TrackProducer, conta
 func (self *CatalogProducerExtra) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogProducerExtra) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
 func (self *CatalogProducerExtra) Timebase() (*CatalogTimebaseExtra, error)
-func (self *CatalogProducerExtra) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogProducerExtra) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogProducerExtra) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogProducerExtra) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogProducerExtra) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1673,7 +1672,7 @@ func (self *CatalogReserved) TextContainer(track *p_net.TrackProducer, container
 func (self *CatalogReserved) TextFmp4Wire(track *p_net.TrackProducer, container *ContainerFmp4Wire, config *p_hang.CatalogTextConfig) (*ContainerProducerFmp4WireTextConfig, error)
 func (self *CatalogReserved) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogReserved) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
-func (self *CatalogReserved) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogReserved) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogReserved) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogReserved) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogReserved) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1713,7 +1712,7 @@ func (self *CatalogReservedExt) TextContainer(track *p_net.TrackProducer, contai
 func (self *CatalogReservedExt) TextFmp4Wire(track *p_net.TrackProducer, container *ContainerFmp4Wire, config *p_hang.CatalogTextConfig) (*ContainerProducerFmp4WireTextConfig, error)
 func (self *CatalogReservedExt) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogReservedExt) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
-func (self *CatalogReservedExt) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogReservedExt) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogReservedExt) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogReservedExt) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogReservedExt) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1753,7 +1752,7 @@ func (self *CatalogReservedExtra) TextContainer(track *p_net.TrackProducer, cont
 func (self *CatalogReservedExtra) TextFmp4Wire(track *p_net.TrackProducer, container *ContainerFmp4Wire, config *p_hang.CatalogTextConfig) (*ContainerProducerFmp4WireTextConfig, error)
 func (self *CatalogReservedExtra) TextLegacyWire(track *p_net.TrackProducer, container ContainerLegacyWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *CatalogReservedExtra) TextLocWire(track *p_net.TrackProducer, container ContainerLocWire, config *p_hang.CatalogTextConfig) (*ContainerProducerLocWireTextConfig, error)
-func (self *CatalogReservedExtra) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *CatalogReservedExtra) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *CatalogReservedExtra) TrackContainerAudioConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogAudioConfig) (*ContainerProducerContainerAudioConfig, error)
 func (self *CatalogReservedExtra) TrackContainerBinaryConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogBinaryConfig) (*ContainerProducerContainerBinaryConfig, error)
 func (self *CatalogReservedExtra) TrackContainerJsonConfig(track *p_net.TrackProducer, container *CatalogHangContainer, config *p_hang.CatalogJsonConfig) (*ContainerProducerContainerJsonConfig, error)
@@ -1785,21 +1784,21 @@ type CatalogTimebase struct {
 }
 func (self *CatalogTimebase) Clone() (*CatalogTimebase, error)
 func (self *CatalogTimebase) Close() error
-func (self *CatalogTimebase) Place(pts *p_net.Timestamp, wall p_kio.ClockWall) error
+func (self *CatalogTimebase) Place(pts p_net.Timestamp, wall p_kio.ClockWall) error
 func (self *CatalogTimebase) Reserve() (*CatalogReserved, error)
 type CatalogTimebaseExt struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *CatalogTimebaseExt) Clone() (*CatalogTimebaseExt, error)
 func (self *CatalogTimebaseExt) Close() error
-func (self *CatalogTimebaseExt) Place(pts *p_net.Timestamp, wall p_kio.ClockWall) error
+func (self *CatalogTimebaseExt) Place(pts p_net.Timestamp, wall p_kio.ClockWall) error
 func (self *CatalogTimebaseExt) Reserve() (*CatalogReservedExt, error)
 type CatalogTimebaseExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *CatalogTimebaseExtra) Clone() (*CatalogTimebaseExtra, error)
 func (self *CatalogTimebaseExtra) Close() error
-func (self *CatalogTimebaseExtra) Place(pts *p_net.Timestamp, wall p_kio.ClockWall) error
+func (self *CatalogTimebaseExtra) Place(pts p_net.Timestamp, wall p_kio.ClockWall) error
 func (self *CatalogTimebaseExtra) Reserve() (*CatalogReservedExtra, error)
 type CatalogVideoHint struct {
 	Handle_ *p_rt.Handle_
@@ -1844,15 +1843,15 @@ type Clock struct {
 func ClockAt(epoch p_kio.ClockInstant, wall p_kio.ClockWall) (*Clock, error)
 func ClockDefault() *Clock
 func NewClock() *Clock
-func (self *Clock) Capture(at p_kio.ClockInstant) (*p_net.Timestamp, error)
+func (self *Clock) Capture(at p_kio.ClockInstant) (p_net.Timestamp, error)
 func (self *Clock) Clone() (*Clock, error)
 func (self *Clock) Close() error
 func (self *Clock) Equal(other *Clock) (bool, error)
 func (self *Clock) GoString() string
-func (self *Clock) Now() (*p_net.Timestamp, error)
+func (self *Clock) Now() (p_net.Timestamp, error)
 func (self *Clock) Timescale() (p_net.Timescale, error)
 func (self *Clock) Wall() (*p_hang.CatalogClock, error)
-func (self *Clock) WallClock(pts *p_net.Timestamp) (p_kio.ClockWall, error)
+func (self *Clock) WallClock(pts p_net.Timestamp) (p_kio.ClockWall, error)
 type CodecAacAdtsError interface {
 	String() string
 	GoString() string
@@ -2104,7 +2103,7 @@ func (self *CodecH264Import) Error() string
 func (self *CodecH264Import) Finish() (*ContainerFinishedContainerVideoConfig, error)
 func (self *CodecH264Import) Initialize(buf p_rt.Bytes) error
 func (self *CodecH264Import) Name() (string, error)
-func (self *CodecH264Import) ObserveReorder(reorder *p_net.Timestamp) error
+func (self *CodecH264Import) ObserveReorder(reorder p_net.Timestamp) error
 func (self *CodecH264Import) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *CodecH264Import) ReportSkipped(frames uint64) error
 func (self *CodecH264Import) Seek(start uint64) error
@@ -2176,7 +2175,7 @@ func (self *CodecH265Import) Error() string
 func (self *CodecH265Import) Finish() (*ContainerFinishedContainerVideoConfig, error)
 func (self *CodecH265Import) Initialize(buf p_rt.Bytes) error
 func (self *CodecH265Import) Name() (string, error)
-func (self *CodecH265Import) ObserveReorder(reorder *p_net.Timestamp) error
+func (self *CodecH265Import) ObserveReorder(reorder p_net.Timestamp) error
 func (self *CodecH265Import) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *CodecH265Import) ReportSkipped(frames uint64) error
 func (self *CodecH265Import) Seek(start uint64) error
@@ -2826,7 +2825,7 @@ type ContainerFmp4Wire struct {
 func ContainerFmp4WireFromInit(initData p_rt.Bytes) (*ContainerFmp4Wire, error)
 func (self *ContainerFmp4Wire) Close() error
 type ContainerFrame struct {
-	Timestamp *p_net.Timestamp
+	Timestamp p_net.Timestamp
 	Duration *p_net.Timestamp
 	Payload p_rt.Bytes
 	Keyframe bool
@@ -3119,7 +3118,7 @@ func NewContainerProducerContainer(track *p_net.TrackProducer, container *Catalo
 func (self *ContainerProducerContainer) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainer) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainer) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainer) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainer) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainer) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainer) Close() error
 func (self *ContainerProducerContainer) Closed(ctx context.Context) error
@@ -3133,7 +3132,7 @@ func (self *ContainerProducerContainer) Estimate() (*CatalogEstimate, error)
 func (self *ContainerProducerContainer) Fail(err *p_net.Error) (*ContainerFinishedContainer, error)
 func (self *ContainerProducerContainer) Finish() (*ContainerFinishedContainer, error)
 func (self *ContainerProducerContainer) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainer) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainer) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainer) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainer) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainer) IsClosed() (bool, error)
@@ -3142,7 +3141,7 @@ func (self *ContainerProducerContainer) LiveEdge() (*p_net.Timestamp, error)
 func (self *ContainerProducerContainer) Modify() (*ContainerGuardUnit, error)
 func (self *ContainerProducerContainer) Name() (string, error)
 func (self *ContainerProducerContainer) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainer) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainer) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainer) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainer) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainer) Requests() (*p_net.TrackRequests, error)
@@ -3152,7 +3151,7 @@ func (self *ContainerProducerContainer) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerContainer) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainer) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainer) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainer) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainer) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainer) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainer) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainer, error)
 func (self *ContainerProducerContainer) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainer, error)
@@ -3163,7 +3162,7 @@ type ContainerProducerContainerAudioConfig struct {
 func (self *ContainerProducerContainerAudioConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainerAudioConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainerAudioConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainerAudioConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainerAudioConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainerAudioConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainerAudioConfig) Close() error
 func (self *ContainerProducerContainerAudioConfig) Closed(ctx context.Context) error
@@ -3177,7 +3176,7 @@ func (self *ContainerProducerContainerAudioConfig) Estimate() (*CatalogEstimate,
 func (self *ContainerProducerContainerAudioConfig) Fail(err *p_net.Error) (*ContainerFinishedContainerAudioConfig, error)
 func (self *ContainerProducerContainerAudioConfig) Finish() (*ContainerFinishedContainerAudioConfig, error)
 func (self *ContainerProducerContainerAudioConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainerAudioConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainerAudioConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainerAudioConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainerAudioConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainerAudioConfig) IsClosed() (bool, error)
@@ -3186,7 +3185,7 @@ func (self *ContainerProducerContainerAudioConfig) LiveEdge() (*p_net.Timestamp,
 func (self *ContainerProducerContainerAudioConfig) Modify() (*ContainerGuardAudioConfig, error)
 func (self *ContainerProducerContainerAudioConfig) Name() (string, error)
 func (self *ContainerProducerContainerAudioConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainerAudioConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainerAudioConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainerAudioConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainerAudioConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainerAudioConfig) Requests() (*p_net.TrackRequests, error)
@@ -3196,7 +3195,7 @@ func (self *ContainerProducerContainerAudioConfig) SetBitrate(bitrate uint64) er
 func (self *ContainerProducerContainerAudioConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainerAudioConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainerAudioConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainerAudioConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainerAudioConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainerAudioConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainerAudioConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainerAudioConfig, error)
 func (self *ContainerProducerContainerAudioConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainerAudioConfig, error)
@@ -3207,7 +3206,7 @@ type ContainerProducerContainerBinaryConfig struct {
 func (self *ContainerProducerContainerBinaryConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainerBinaryConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainerBinaryConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainerBinaryConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainerBinaryConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainerBinaryConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainerBinaryConfig) Close() error
 func (self *ContainerProducerContainerBinaryConfig) Closed(ctx context.Context) error
@@ -3221,7 +3220,7 @@ func (self *ContainerProducerContainerBinaryConfig) Estimate() (*CatalogEstimate
 func (self *ContainerProducerContainerBinaryConfig) Fail(err *p_net.Error) (*ContainerFinishedContainerBinaryConfig, error)
 func (self *ContainerProducerContainerBinaryConfig) Finish() (*ContainerFinishedContainerBinaryConfig, error)
 func (self *ContainerProducerContainerBinaryConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainerBinaryConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainerBinaryConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainerBinaryConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainerBinaryConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainerBinaryConfig) IsClosed() (bool, error)
@@ -3230,7 +3229,7 @@ func (self *ContainerProducerContainerBinaryConfig) LiveEdge() (*p_net.Timestamp
 func (self *ContainerProducerContainerBinaryConfig) Modify() (*ContainerGuardBinaryConfig, error)
 func (self *ContainerProducerContainerBinaryConfig) Name() (string, error)
 func (self *ContainerProducerContainerBinaryConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainerBinaryConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainerBinaryConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainerBinaryConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainerBinaryConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainerBinaryConfig) Requests() (*p_net.TrackRequests, error)
@@ -3240,7 +3239,7 @@ func (self *ContainerProducerContainerBinaryConfig) SetBitrate(bitrate uint64) e
 func (self *ContainerProducerContainerBinaryConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainerBinaryConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainerBinaryConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainerBinaryConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainerBinaryConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainerBinaryConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainerBinaryConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainerBinaryConfig, error)
 func (self *ContainerProducerContainerBinaryConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainerBinaryConfig, error)
@@ -3251,7 +3250,7 @@ type ContainerProducerContainerJsonConfig struct {
 func (self *ContainerProducerContainerJsonConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainerJsonConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainerJsonConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainerJsonConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainerJsonConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainerJsonConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainerJsonConfig) Close() error
 func (self *ContainerProducerContainerJsonConfig) Closed(ctx context.Context) error
@@ -3265,7 +3264,7 @@ func (self *ContainerProducerContainerJsonConfig) Estimate() (*CatalogEstimate, 
 func (self *ContainerProducerContainerJsonConfig) Fail(err *p_net.Error) (*ContainerFinishedContainerJsonConfig, error)
 func (self *ContainerProducerContainerJsonConfig) Finish() (*ContainerFinishedContainerJsonConfig, error)
 func (self *ContainerProducerContainerJsonConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainerJsonConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainerJsonConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainerJsonConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainerJsonConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainerJsonConfig) IsClosed() (bool, error)
@@ -3274,7 +3273,7 @@ func (self *ContainerProducerContainerJsonConfig) LiveEdge() (*p_net.Timestamp, 
 func (self *ContainerProducerContainerJsonConfig) Modify() (*ContainerGuardJsonConfig, error)
 func (self *ContainerProducerContainerJsonConfig) Name() (string, error)
 func (self *ContainerProducerContainerJsonConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainerJsonConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainerJsonConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainerJsonConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainerJsonConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainerJsonConfig) Requests() (*p_net.TrackRequests, error)
@@ -3284,7 +3283,7 @@ func (self *ContainerProducerContainerJsonConfig) SetBitrate(bitrate uint64) err
 func (self *ContainerProducerContainerJsonConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainerJsonConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainerJsonConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainerJsonConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainerJsonConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainerJsonConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainerJsonConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainerJsonConfig, error)
 func (self *ContainerProducerContainerJsonConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainerJsonConfig, error)
@@ -3295,7 +3294,7 @@ type ContainerProducerContainerTextConfig struct {
 func (self *ContainerProducerContainerTextConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainerTextConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainerTextConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainerTextConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainerTextConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainerTextConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainerTextConfig) Close() error
 func (self *ContainerProducerContainerTextConfig) Closed(ctx context.Context) error
@@ -3309,7 +3308,7 @@ func (self *ContainerProducerContainerTextConfig) Estimate() (*CatalogEstimate, 
 func (self *ContainerProducerContainerTextConfig) Fail(err *p_net.Error) (*ContainerFinishedContainerTextConfig, error)
 func (self *ContainerProducerContainerTextConfig) Finish() (*ContainerFinishedContainerTextConfig, error)
 func (self *ContainerProducerContainerTextConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainerTextConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainerTextConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainerTextConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainerTextConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainerTextConfig) IsClosed() (bool, error)
@@ -3318,7 +3317,7 @@ func (self *ContainerProducerContainerTextConfig) LiveEdge() (*p_net.Timestamp, 
 func (self *ContainerProducerContainerTextConfig) Modify() (*ContainerGuardTextConfig, error)
 func (self *ContainerProducerContainerTextConfig) Name() (string, error)
 func (self *ContainerProducerContainerTextConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainerTextConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainerTextConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainerTextConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainerTextConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainerTextConfig) Requests() (*p_net.TrackRequests, error)
@@ -3328,7 +3327,7 @@ func (self *ContainerProducerContainerTextConfig) SetBitrate(bitrate uint64) err
 func (self *ContainerProducerContainerTextConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainerTextConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainerTextConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainerTextConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainerTextConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainerTextConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainerTextConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainerTextConfig, error)
 func (self *ContainerProducerContainerTextConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainerTextConfig, error)
@@ -3339,7 +3338,7 @@ type ContainerProducerContainerVideoConfig struct {
 func (self *ContainerProducerContainerVideoConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerContainerVideoConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerContainerVideoConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerContainerVideoConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerContainerVideoConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerContainerVideoConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerContainerVideoConfig) Close() error
 func (self *ContainerProducerContainerVideoConfig) Closed(ctx context.Context) error
@@ -3353,7 +3352,7 @@ func (self *ContainerProducerContainerVideoConfig) Estimate() (*CatalogEstimate,
 func (self *ContainerProducerContainerVideoConfig) Fail(err *p_net.Error) (*ContainerFinishedContainerVideoConfig, error)
 func (self *ContainerProducerContainerVideoConfig) Finish() (*ContainerFinishedContainerVideoConfig, error)
 func (self *ContainerProducerContainerVideoConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerContainerVideoConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerContainerVideoConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerContainerVideoConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerContainerVideoConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerContainerVideoConfig) IsClosed() (bool, error)
@@ -3362,7 +3361,7 @@ func (self *ContainerProducerContainerVideoConfig) LiveEdge() (*p_net.Timestamp,
 func (self *ContainerProducerContainerVideoConfig) Modify() (*ContainerGuardVideoConfig, error)
 func (self *ContainerProducerContainerVideoConfig) Name() (string, error)
 func (self *ContainerProducerContainerVideoConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerContainerVideoConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerContainerVideoConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerContainerVideoConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerContainerVideoConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerContainerVideoConfig) Requests() (*p_net.TrackRequests, error)
@@ -3372,7 +3371,7 @@ func (self *ContainerProducerContainerVideoConfig) SetBitrate(bitrate uint64) er
 func (self *ContainerProducerContainerVideoConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerContainerVideoConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerContainerVideoConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerContainerVideoConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerContainerVideoConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerContainerVideoConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerContainerVideoConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerContainerVideoConfig, error)
 func (self *ContainerProducerContainerVideoConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerContainerVideoConfig, error)
@@ -3384,7 +3383,7 @@ func NewContainerProducerFmp4Wire(track *p_net.TrackProducer, container *Contain
 func (self *ContainerProducerFmp4Wire) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4Wire) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4Wire) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4Wire) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4Wire) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4Wire) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4Wire) Close() error
 func (self *ContainerProducerFmp4Wire) Closed(ctx context.Context) error
@@ -3398,7 +3397,7 @@ func (self *ContainerProducerFmp4Wire) Estimate() (*CatalogEstimate, error)
 func (self *ContainerProducerFmp4Wire) Fail(err *p_net.Error) (*ContainerFinishedFmp4Wire, error)
 func (self *ContainerProducerFmp4Wire) Finish() (*ContainerFinishedFmp4Wire, error)
 func (self *ContainerProducerFmp4Wire) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4Wire) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4Wire) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4Wire) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4Wire) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4Wire) IsClosed() (bool, error)
@@ -3407,7 +3406,7 @@ func (self *ContainerProducerFmp4Wire) LiveEdge() (*p_net.Timestamp, error)
 func (self *ContainerProducerFmp4Wire) Modify() (*ContainerGuardUnit, error)
 func (self *ContainerProducerFmp4Wire) Name() (string, error)
 func (self *ContainerProducerFmp4Wire) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4Wire) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4Wire) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4Wire) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4Wire) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4Wire) Requests() (*p_net.TrackRequests, error)
@@ -3417,7 +3416,7 @@ func (self *ContainerProducerFmp4Wire) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerFmp4Wire) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4Wire) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4Wire) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4Wire) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4Wire) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4Wire) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4Wire) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4Wire, error)
 func (self *ContainerProducerFmp4Wire) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4Wire, error)
@@ -3428,7 +3427,7 @@ type ContainerProducerFmp4WireAudioConfig struct {
 func (self *ContainerProducerFmp4WireAudioConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4WireAudioConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4WireAudioConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4WireAudioConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4WireAudioConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Close() error
 func (self *ContainerProducerFmp4WireAudioConfig) Closed(ctx context.Context) error
@@ -3442,7 +3441,7 @@ func (self *ContainerProducerFmp4WireAudioConfig) Estimate() (*CatalogEstimate, 
 func (self *ContainerProducerFmp4WireAudioConfig) Fail(err *p_net.Error) (*ContainerFinishedFmp4WireAudioConfig, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Finish() (*ContainerFinishedFmp4WireAudioConfig, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4WireAudioConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireAudioConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireAudioConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4WireAudioConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4WireAudioConfig) IsClosed() (bool, error)
@@ -3451,7 +3450,7 @@ func (self *ContainerProducerFmp4WireAudioConfig) LiveEdge() (*p_net.Timestamp, 
 func (self *ContainerProducerFmp4WireAudioConfig) Modify() (*ContainerGuardAudioConfig, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Name() (string, error)
 func (self *ContainerProducerFmp4WireAudioConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4WireAudioConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireAudioConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireAudioConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4WireAudioConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4WireAudioConfig) Requests() (*p_net.TrackRequests, error)
@@ -3461,7 +3460,7 @@ func (self *ContainerProducerFmp4WireAudioConfig) SetBitrate(bitrate uint64) err
 func (self *ContainerProducerFmp4WireAudioConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4WireAudioConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4WireAudioConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4WireAudioConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4WireAudioConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4WireAudioConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4WireAudioConfig, error)
 func (self *ContainerProducerFmp4WireAudioConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4WireAudioConfig, error)
@@ -3472,7 +3471,7 @@ type ContainerProducerFmp4WireBinaryConfig struct {
 func (self *ContainerProducerFmp4WireBinaryConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4WireBinaryConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4WireBinaryConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4WireBinaryConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Close() error
 func (self *ContainerProducerFmp4WireBinaryConfig) Closed(ctx context.Context) error
@@ -3486,7 +3485,7 @@ func (self *ContainerProducerFmp4WireBinaryConfig) Estimate() (*CatalogEstimate,
 func (self *ContainerProducerFmp4WireBinaryConfig) Fail(err *p_net.Error) (*ContainerFinishedFmp4WireBinaryConfig, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Finish() (*ContainerFinishedFmp4WireBinaryConfig, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4WireBinaryConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireBinaryConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireBinaryConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) IsClosed() (bool, error)
@@ -3495,7 +3494,7 @@ func (self *ContainerProducerFmp4WireBinaryConfig) LiveEdge() (*p_net.Timestamp,
 func (self *ContainerProducerFmp4WireBinaryConfig) Modify() (*ContainerGuardBinaryConfig, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Name() (string, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4WireBinaryConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireBinaryConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireBinaryConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4WireBinaryConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4WireBinaryConfig) Requests() (*p_net.TrackRequests, error)
@@ -3505,7 +3504,7 @@ func (self *ContainerProducerFmp4WireBinaryConfig) SetBitrate(bitrate uint64) er
 func (self *ContainerProducerFmp4WireBinaryConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4WireBinaryConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4WireBinaryConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4WireBinaryConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4WireBinaryConfig, error)
 func (self *ContainerProducerFmp4WireBinaryConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4WireBinaryConfig, error)
@@ -3516,7 +3515,7 @@ type ContainerProducerFmp4WireJsonConfig struct {
 func (self *ContainerProducerFmp4WireJsonConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4WireJsonConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4WireJsonConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4WireJsonConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4WireJsonConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Close() error
 func (self *ContainerProducerFmp4WireJsonConfig) Closed(ctx context.Context) error
@@ -3530,7 +3529,7 @@ func (self *ContainerProducerFmp4WireJsonConfig) Estimate() (*CatalogEstimate, e
 func (self *ContainerProducerFmp4WireJsonConfig) Fail(err *p_net.Error) (*ContainerFinishedFmp4WireJsonConfig, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Finish() (*ContainerFinishedFmp4WireJsonConfig, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4WireJsonConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireJsonConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireJsonConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4WireJsonConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4WireJsonConfig) IsClosed() (bool, error)
@@ -3539,7 +3538,7 @@ func (self *ContainerProducerFmp4WireJsonConfig) LiveEdge() (*p_net.Timestamp, e
 func (self *ContainerProducerFmp4WireJsonConfig) Modify() (*ContainerGuardJsonConfig, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Name() (string, error)
 func (self *ContainerProducerFmp4WireJsonConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4WireJsonConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireJsonConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireJsonConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4WireJsonConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4WireJsonConfig) Requests() (*p_net.TrackRequests, error)
@@ -3549,7 +3548,7 @@ func (self *ContainerProducerFmp4WireJsonConfig) SetBitrate(bitrate uint64) erro
 func (self *ContainerProducerFmp4WireJsonConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4WireJsonConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4WireJsonConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4WireJsonConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4WireJsonConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4WireJsonConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4WireJsonConfig, error)
 func (self *ContainerProducerFmp4WireJsonConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4WireJsonConfig, error)
@@ -3560,7 +3559,7 @@ type ContainerProducerFmp4WireTextConfig struct {
 func (self *ContainerProducerFmp4WireTextConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4WireTextConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4WireTextConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4WireTextConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4WireTextConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4WireTextConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4WireTextConfig) Close() error
 func (self *ContainerProducerFmp4WireTextConfig) Closed(ctx context.Context) error
@@ -3574,7 +3573,7 @@ func (self *ContainerProducerFmp4WireTextConfig) Estimate() (*CatalogEstimate, e
 func (self *ContainerProducerFmp4WireTextConfig) Fail(err *p_net.Error) (*ContainerFinishedFmp4WireTextConfig, error)
 func (self *ContainerProducerFmp4WireTextConfig) Finish() (*ContainerFinishedFmp4WireTextConfig, error)
 func (self *ContainerProducerFmp4WireTextConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4WireTextConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireTextConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireTextConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4WireTextConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4WireTextConfig) IsClosed() (bool, error)
@@ -3583,7 +3582,7 @@ func (self *ContainerProducerFmp4WireTextConfig) LiveEdge() (*p_net.Timestamp, e
 func (self *ContainerProducerFmp4WireTextConfig) Modify() (*ContainerGuardTextConfig, error)
 func (self *ContainerProducerFmp4WireTextConfig) Name() (string, error)
 func (self *ContainerProducerFmp4WireTextConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4WireTextConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireTextConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireTextConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4WireTextConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4WireTextConfig) Requests() (*p_net.TrackRequests, error)
@@ -3593,7 +3592,7 @@ func (self *ContainerProducerFmp4WireTextConfig) SetBitrate(bitrate uint64) erro
 func (self *ContainerProducerFmp4WireTextConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4WireTextConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4WireTextConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4WireTextConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4WireTextConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4WireTextConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4WireTextConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4WireTextConfig, error)
 func (self *ContainerProducerFmp4WireTextConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4WireTextConfig, error)
@@ -3604,7 +3603,7 @@ type ContainerProducerFmp4WireVideoConfig struct {
 func (self *ContainerProducerFmp4WireVideoConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerFmp4WireVideoConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerFmp4WireVideoConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerFmp4WireVideoConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerFmp4WireVideoConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Close() error
 func (self *ContainerProducerFmp4WireVideoConfig) Closed(ctx context.Context) error
@@ -3618,7 +3617,7 @@ func (self *ContainerProducerFmp4WireVideoConfig) Estimate() (*CatalogEstimate, 
 func (self *ContainerProducerFmp4WireVideoConfig) Fail(err *p_net.Error) (*ContainerFinishedFmp4WireVideoConfig, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Finish() (*ContainerFinishedFmp4WireVideoConfig, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerFmp4WireVideoConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireVideoConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireVideoConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerFmp4WireVideoConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerFmp4WireVideoConfig) IsClosed() (bool, error)
@@ -3627,7 +3626,7 @@ func (self *ContainerProducerFmp4WireVideoConfig) LiveEdge() (*p_net.Timestamp, 
 func (self *ContainerProducerFmp4WireVideoConfig) Modify() (*ContainerGuardVideoConfig, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Name() (string, error)
 func (self *ContainerProducerFmp4WireVideoConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerFmp4WireVideoConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerFmp4WireVideoConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerFmp4WireVideoConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerFmp4WireVideoConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerFmp4WireVideoConfig) Requests() (*p_net.TrackRequests, error)
@@ -3637,7 +3636,7 @@ func (self *ContainerProducerFmp4WireVideoConfig) SetBitrate(bitrate uint64) err
 func (self *ContainerProducerFmp4WireVideoConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerFmp4WireVideoConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerFmp4WireVideoConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerFmp4WireVideoConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerFmp4WireVideoConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerFmp4WireVideoConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerFmp4WireVideoConfig, error)
 func (self *ContainerProducerFmp4WireVideoConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerFmp4WireVideoConfig, error)
@@ -3649,7 +3648,7 @@ func NewContainerProducerLegacyWire(track *p_net.TrackProducer, container Contai
 func (self *ContainerProducerLegacyWire) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWire) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWire) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWire) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWire) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWire) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWire) Close() error
 func (self *ContainerProducerLegacyWire) Closed(ctx context.Context) error
@@ -3663,7 +3662,7 @@ func (self *ContainerProducerLegacyWire) Estimate() (*CatalogEstimate, error)
 func (self *ContainerProducerLegacyWire) Fail(err *p_net.Error) (*ContainerFinishedLegacyWire, error)
 func (self *ContainerProducerLegacyWire) Finish() (*ContainerFinishedLegacyWire, error)
 func (self *ContainerProducerLegacyWire) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWire) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWire) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWire) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWire) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWire) IsClosed() (bool, error)
@@ -3672,7 +3671,7 @@ func (self *ContainerProducerLegacyWire) LiveEdge() (*p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWire) Modify() (*ContainerGuardUnit, error)
 func (self *ContainerProducerLegacyWire) Name() (string, error)
 func (self *ContainerProducerLegacyWire) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWire) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWire) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWire) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWire) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWire) Requests() (*p_net.TrackRequests, error)
@@ -3682,7 +3681,7 @@ func (self *ContainerProducerLegacyWire) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerLegacyWire) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWire) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWire) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWire) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWire) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWire) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWire) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWire, error)
 func (self *ContainerProducerLegacyWire) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWire, error)
@@ -3693,7 +3692,7 @@ type ContainerProducerLegacyWireAudioConfig struct {
 func (self *ContainerProducerLegacyWireAudioConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWireAudioConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWireAudioConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWireAudioConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWireAudioConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Close() error
 func (self *ContainerProducerLegacyWireAudioConfig) Closed(ctx context.Context) error
@@ -3707,7 +3706,7 @@ func (self *ContainerProducerLegacyWireAudioConfig) Estimate() (*CatalogEstimate
 func (self *ContainerProducerLegacyWireAudioConfig) Fail(err *p_net.Error) (*ContainerFinishedLegacyWireAudioConfig, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Finish() (*ContainerFinishedLegacyWireAudioConfig, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWireAudioConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireAudioConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireAudioConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWireAudioConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWireAudioConfig) IsClosed() (bool, error)
@@ -3716,7 +3715,7 @@ func (self *ContainerProducerLegacyWireAudioConfig) LiveEdge() (*p_net.Timestamp
 func (self *ContainerProducerLegacyWireAudioConfig) Modify() (*ContainerGuardAudioConfig, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Name() (string, error)
 func (self *ContainerProducerLegacyWireAudioConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWireAudioConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireAudioConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireAudioConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWireAudioConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWireAudioConfig) Requests() (*p_net.TrackRequests, error)
@@ -3726,7 +3725,7 @@ func (self *ContainerProducerLegacyWireAudioConfig) SetBitrate(bitrate uint64) e
 func (self *ContainerProducerLegacyWireAudioConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWireAudioConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWireAudioConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWireAudioConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWireAudioConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWireAudioConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWireAudioConfig, error)
 func (self *ContainerProducerLegacyWireAudioConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWireAudioConfig, error)
@@ -3737,7 +3736,7 @@ type ContainerProducerLegacyWireBinaryConfig struct {
 func (self *ContainerProducerLegacyWireBinaryConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWireBinaryConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWireBinaryConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWireBinaryConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Close() error
 func (self *ContainerProducerLegacyWireBinaryConfig) Closed(ctx context.Context) error
@@ -3751,7 +3750,7 @@ func (self *ContainerProducerLegacyWireBinaryConfig) Estimate() (*CatalogEstimat
 func (self *ContainerProducerLegacyWireBinaryConfig) Fail(err *p_net.Error) (*ContainerFinishedLegacyWireBinaryConfig, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Finish() (*ContainerFinishedLegacyWireBinaryConfig, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWireBinaryConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireBinaryConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireBinaryConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) IsClosed() (bool, error)
@@ -3760,7 +3759,7 @@ func (self *ContainerProducerLegacyWireBinaryConfig) LiveEdge() (*p_net.Timestam
 func (self *ContainerProducerLegacyWireBinaryConfig) Modify() (*ContainerGuardBinaryConfig, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Name() (string, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWireBinaryConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireBinaryConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireBinaryConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWireBinaryConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWireBinaryConfig) Requests() (*p_net.TrackRequests, error)
@@ -3770,7 +3769,7 @@ func (self *ContainerProducerLegacyWireBinaryConfig) SetBitrate(bitrate uint64) 
 func (self *ContainerProducerLegacyWireBinaryConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWireBinaryConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWireBinaryConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWireBinaryConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWireBinaryConfig, error)
 func (self *ContainerProducerLegacyWireBinaryConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWireBinaryConfig, error)
@@ -3781,7 +3780,7 @@ type ContainerProducerLegacyWireJsonConfig struct {
 func (self *ContainerProducerLegacyWireJsonConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWireJsonConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWireJsonConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWireJsonConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWireJsonConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Close() error
 func (self *ContainerProducerLegacyWireJsonConfig) Closed(ctx context.Context) error
@@ -3795,7 +3794,7 @@ func (self *ContainerProducerLegacyWireJsonConfig) Estimate() (*CatalogEstimate,
 func (self *ContainerProducerLegacyWireJsonConfig) Fail(err *p_net.Error) (*ContainerFinishedLegacyWireJsonConfig, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Finish() (*ContainerFinishedLegacyWireJsonConfig, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWireJsonConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireJsonConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireJsonConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWireJsonConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWireJsonConfig) IsClosed() (bool, error)
@@ -3804,7 +3803,7 @@ func (self *ContainerProducerLegacyWireJsonConfig) LiveEdge() (*p_net.Timestamp,
 func (self *ContainerProducerLegacyWireJsonConfig) Modify() (*ContainerGuardJsonConfig, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Name() (string, error)
 func (self *ContainerProducerLegacyWireJsonConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWireJsonConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireJsonConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireJsonConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWireJsonConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWireJsonConfig) Requests() (*p_net.TrackRequests, error)
@@ -3814,7 +3813,7 @@ func (self *ContainerProducerLegacyWireJsonConfig) SetBitrate(bitrate uint64) er
 func (self *ContainerProducerLegacyWireJsonConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWireJsonConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWireJsonConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWireJsonConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWireJsonConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWireJsonConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWireJsonConfig, error)
 func (self *ContainerProducerLegacyWireJsonConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWireJsonConfig, error)
@@ -3825,7 +3824,7 @@ type ContainerProducerLegacyWireTextConfig struct {
 func (self *ContainerProducerLegacyWireTextConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWireTextConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWireTextConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWireTextConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWireTextConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWireTextConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWireTextConfig) Close() error
 func (self *ContainerProducerLegacyWireTextConfig) Closed(ctx context.Context) error
@@ -3839,7 +3838,7 @@ func (self *ContainerProducerLegacyWireTextConfig) Estimate() (*CatalogEstimate,
 func (self *ContainerProducerLegacyWireTextConfig) Fail(err *p_net.Error) (*ContainerFinishedLegacyWireTextConfig, error)
 func (self *ContainerProducerLegacyWireTextConfig) Finish() (*ContainerFinishedLegacyWireTextConfig, error)
 func (self *ContainerProducerLegacyWireTextConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWireTextConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireTextConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireTextConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWireTextConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWireTextConfig) IsClosed() (bool, error)
@@ -3848,7 +3847,7 @@ func (self *ContainerProducerLegacyWireTextConfig) LiveEdge() (*p_net.Timestamp,
 func (self *ContainerProducerLegacyWireTextConfig) Modify() (*ContainerGuardTextConfig, error)
 func (self *ContainerProducerLegacyWireTextConfig) Name() (string, error)
 func (self *ContainerProducerLegacyWireTextConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWireTextConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireTextConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireTextConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWireTextConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWireTextConfig) Requests() (*p_net.TrackRequests, error)
@@ -3858,7 +3857,7 @@ func (self *ContainerProducerLegacyWireTextConfig) SetBitrate(bitrate uint64) er
 func (self *ContainerProducerLegacyWireTextConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWireTextConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWireTextConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWireTextConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWireTextConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWireTextConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWireTextConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWireTextConfig, error)
 func (self *ContainerProducerLegacyWireTextConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWireTextConfig, error)
@@ -3869,7 +3868,7 @@ type ContainerProducerLegacyWireVideoConfig struct {
 func (self *ContainerProducerLegacyWireVideoConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLegacyWireVideoConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLegacyWireVideoConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLegacyWireVideoConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLegacyWireVideoConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Close() error
 func (self *ContainerProducerLegacyWireVideoConfig) Closed(ctx context.Context) error
@@ -3883,7 +3882,7 @@ func (self *ContainerProducerLegacyWireVideoConfig) Estimate() (*CatalogEstimate
 func (self *ContainerProducerLegacyWireVideoConfig) Fail(err *p_net.Error) (*ContainerFinishedLegacyWireVideoConfig, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Finish() (*ContainerFinishedLegacyWireVideoConfig, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLegacyWireVideoConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireVideoConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireVideoConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLegacyWireVideoConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLegacyWireVideoConfig) IsClosed() (bool, error)
@@ -3892,7 +3891,7 @@ func (self *ContainerProducerLegacyWireVideoConfig) LiveEdge() (*p_net.Timestamp
 func (self *ContainerProducerLegacyWireVideoConfig) Modify() (*ContainerGuardVideoConfig, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Name() (string, error)
 func (self *ContainerProducerLegacyWireVideoConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLegacyWireVideoConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLegacyWireVideoConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLegacyWireVideoConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLegacyWireVideoConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLegacyWireVideoConfig) Requests() (*p_net.TrackRequests, error)
@@ -3902,7 +3901,7 @@ func (self *ContainerProducerLegacyWireVideoConfig) SetBitrate(bitrate uint64) e
 func (self *ContainerProducerLegacyWireVideoConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLegacyWireVideoConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLegacyWireVideoConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLegacyWireVideoConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLegacyWireVideoConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLegacyWireVideoConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLegacyWireVideoConfig, error)
 func (self *ContainerProducerLegacyWireVideoConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLegacyWireVideoConfig, error)
@@ -3914,7 +3913,7 @@ func NewContainerProducerLocWire(track *p_net.TrackProducer, container Container
 func (self *ContainerProducerLocWire) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWire) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWire) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWire) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWire) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWire) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWire) Close() error
 func (self *ContainerProducerLocWire) Closed(ctx context.Context) error
@@ -3928,7 +3927,7 @@ func (self *ContainerProducerLocWire) Estimate() (*CatalogEstimate, error)
 func (self *ContainerProducerLocWire) Fail(err *p_net.Error) (*ContainerFinishedLocWire, error)
 func (self *ContainerProducerLocWire) Finish() (*ContainerFinishedLocWire, error)
 func (self *ContainerProducerLocWire) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWire) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWire) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWire) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWire) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWire) IsClosed() (bool, error)
@@ -3937,7 +3936,7 @@ func (self *ContainerProducerLocWire) LiveEdge() (*p_net.Timestamp, error)
 func (self *ContainerProducerLocWire) Modify() (*ContainerGuardUnit, error)
 func (self *ContainerProducerLocWire) Name() (string, error)
 func (self *ContainerProducerLocWire) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWire) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWire) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWire) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWire) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWire) Requests() (*p_net.TrackRequests, error)
@@ -3947,7 +3946,7 @@ func (self *ContainerProducerLocWire) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerLocWire) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWire) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWire) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWire) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWire) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWire) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWire) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWire, error)
 func (self *ContainerProducerLocWire) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWire, error)
@@ -3958,7 +3957,7 @@ type ContainerProducerLocWireAudioConfig struct {
 func (self *ContainerProducerLocWireAudioConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWireAudioConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWireAudioConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWireAudioConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWireAudioConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWireAudioConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWireAudioConfig) Close() error
 func (self *ContainerProducerLocWireAudioConfig) Closed(ctx context.Context) error
@@ -3972,7 +3971,7 @@ func (self *ContainerProducerLocWireAudioConfig) Estimate() (*CatalogEstimate, e
 func (self *ContainerProducerLocWireAudioConfig) Fail(err *p_net.Error) (*ContainerFinishedLocWireAudioConfig, error)
 func (self *ContainerProducerLocWireAudioConfig) Finish() (*ContainerFinishedLocWireAudioConfig, error)
 func (self *ContainerProducerLocWireAudioConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWireAudioConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWireAudioConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWireAudioConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWireAudioConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWireAudioConfig) IsClosed() (bool, error)
@@ -3981,7 +3980,7 @@ func (self *ContainerProducerLocWireAudioConfig) LiveEdge() (*p_net.Timestamp, e
 func (self *ContainerProducerLocWireAudioConfig) Modify() (*ContainerGuardAudioConfig, error)
 func (self *ContainerProducerLocWireAudioConfig) Name() (string, error)
 func (self *ContainerProducerLocWireAudioConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWireAudioConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWireAudioConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWireAudioConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWireAudioConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWireAudioConfig) Requests() (*p_net.TrackRequests, error)
@@ -3991,7 +3990,7 @@ func (self *ContainerProducerLocWireAudioConfig) SetBitrate(bitrate uint64) erro
 func (self *ContainerProducerLocWireAudioConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWireAudioConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWireAudioConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWireAudioConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWireAudioConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWireAudioConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWireAudioConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWireAudioConfig, error)
 func (self *ContainerProducerLocWireAudioConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWireAudioConfig, error)
@@ -4002,7 +4001,7 @@ type ContainerProducerLocWireBinaryConfig struct {
 func (self *ContainerProducerLocWireBinaryConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWireBinaryConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWireBinaryConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWireBinaryConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWireBinaryConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWireBinaryConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWireBinaryConfig) Close() error
 func (self *ContainerProducerLocWireBinaryConfig) Closed(ctx context.Context) error
@@ -4016,7 +4015,7 @@ func (self *ContainerProducerLocWireBinaryConfig) Estimate() (*CatalogEstimate, 
 func (self *ContainerProducerLocWireBinaryConfig) Fail(err *p_net.Error) (*ContainerFinishedLocWireBinaryConfig, error)
 func (self *ContainerProducerLocWireBinaryConfig) Finish() (*ContainerFinishedLocWireBinaryConfig, error)
 func (self *ContainerProducerLocWireBinaryConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWireBinaryConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWireBinaryConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWireBinaryConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWireBinaryConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWireBinaryConfig) IsClosed() (bool, error)
@@ -4025,7 +4024,7 @@ func (self *ContainerProducerLocWireBinaryConfig) LiveEdge() (*p_net.Timestamp, 
 func (self *ContainerProducerLocWireBinaryConfig) Modify() (*ContainerGuardBinaryConfig, error)
 func (self *ContainerProducerLocWireBinaryConfig) Name() (string, error)
 func (self *ContainerProducerLocWireBinaryConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWireBinaryConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWireBinaryConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWireBinaryConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWireBinaryConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWireBinaryConfig) Requests() (*p_net.TrackRequests, error)
@@ -4035,7 +4034,7 @@ func (self *ContainerProducerLocWireBinaryConfig) SetBitrate(bitrate uint64) err
 func (self *ContainerProducerLocWireBinaryConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWireBinaryConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWireBinaryConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWireBinaryConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWireBinaryConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWireBinaryConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWireBinaryConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWireBinaryConfig, error)
 func (self *ContainerProducerLocWireBinaryConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWireBinaryConfig, error)
@@ -4046,7 +4045,7 @@ type ContainerProducerLocWireJsonConfig struct {
 func (self *ContainerProducerLocWireJsonConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWireJsonConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWireJsonConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWireJsonConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWireJsonConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWireJsonConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWireJsonConfig) Close() error
 func (self *ContainerProducerLocWireJsonConfig) Closed(ctx context.Context) error
@@ -4060,7 +4059,7 @@ func (self *ContainerProducerLocWireJsonConfig) Estimate() (*CatalogEstimate, er
 func (self *ContainerProducerLocWireJsonConfig) Fail(err *p_net.Error) (*ContainerFinishedLocWireJsonConfig, error)
 func (self *ContainerProducerLocWireJsonConfig) Finish() (*ContainerFinishedLocWireJsonConfig, error)
 func (self *ContainerProducerLocWireJsonConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWireJsonConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWireJsonConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWireJsonConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWireJsonConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWireJsonConfig) IsClosed() (bool, error)
@@ -4069,7 +4068,7 @@ func (self *ContainerProducerLocWireJsonConfig) LiveEdge() (*p_net.Timestamp, er
 func (self *ContainerProducerLocWireJsonConfig) Modify() (*ContainerGuardJsonConfig, error)
 func (self *ContainerProducerLocWireJsonConfig) Name() (string, error)
 func (self *ContainerProducerLocWireJsonConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWireJsonConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWireJsonConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWireJsonConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWireJsonConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWireJsonConfig) Requests() (*p_net.TrackRequests, error)
@@ -4079,7 +4078,7 @@ func (self *ContainerProducerLocWireJsonConfig) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerLocWireJsonConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWireJsonConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWireJsonConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWireJsonConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWireJsonConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWireJsonConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWireJsonConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWireJsonConfig, error)
 func (self *ContainerProducerLocWireJsonConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWireJsonConfig, error)
@@ -4090,7 +4089,7 @@ type ContainerProducerLocWireTextConfig struct {
 func (self *ContainerProducerLocWireTextConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWireTextConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWireTextConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWireTextConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWireTextConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWireTextConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWireTextConfig) Close() error
 func (self *ContainerProducerLocWireTextConfig) Closed(ctx context.Context) error
@@ -4104,7 +4103,7 @@ func (self *ContainerProducerLocWireTextConfig) Estimate() (*CatalogEstimate, er
 func (self *ContainerProducerLocWireTextConfig) Fail(err *p_net.Error) (*ContainerFinishedLocWireTextConfig, error)
 func (self *ContainerProducerLocWireTextConfig) Finish() (*ContainerFinishedLocWireTextConfig, error)
 func (self *ContainerProducerLocWireTextConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWireTextConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWireTextConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWireTextConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWireTextConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWireTextConfig) IsClosed() (bool, error)
@@ -4113,7 +4112,7 @@ func (self *ContainerProducerLocWireTextConfig) LiveEdge() (*p_net.Timestamp, er
 func (self *ContainerProducerLocWireTextConfig) Modify() (*ContainerGuardTextConfig, error)
 func (self *ContainerProducerLocWireTextConfig) Name() (string, error)
 func (self *ContainerProducerLocWireTextConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWireTextConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWireTextConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWireTextConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWireTextConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWireTextConfig) Requests() (*p_net.TrackRequests, error)
@@ -4123,7 +4122,7 @@ func (self *ContainerProducerLocWireTextConfig) SetBitrate(bitrate uint64) error
 func (self *ContainerProducerLocWireTextConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWireTextConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWireTextConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWireTextConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWireTextConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWireTextConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWireTextConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWireTextConfig, error)
 func (self *ContainerProducerLocWireTextConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWireTextConfig, error)
@@ -4134,7 +4133,7 @@ type ContainerProducerLocWireVideoConfig struct {
 func (self *ContainerProducerLocWireVideoConfig) Abort(err *p_net.Error) error
 func (self *ContainerProducerLocWireVideoConfig) AbortHandle() (*p_net.TrackAbortHandle, error)
 func (self *ContainerProducerLocWireVideoConfig) AbortUnwanted(err *p_net.Error) error
-func (self *ContainerProducerLocWireVideoConfig) AppendGroup(start *p_net.Timestamp) (*p_net.GroupProducer, error)
+func (self *ContainerProducerLocWireVideoConfig) AppendGroup(start p_net.Timestamp) (*p_net.GroupProducer, error)
 func (self *ContainerProducerLocWireVideoConfig) Broadcast() (*p_net.BroadcastInfo, error)
 func (self *ContainerProducerLocWireVideoConfig) Close() error
 func (self *ContainerProducerLocWireVideoConfig) Closed(ctx context.Context) error
@@ -4148,7 +4147,7 @@ func (self *ContainerProducerLocWireVideoConfig) Estimate() (*CatalogEstimate, e
 func (self *ContainerProducerLocWireVideoConfig) Fail(err *p_net.Error) (*ContainerFinishedLocWireVideoConfig, error)
 func (self *ContainerProducerLocWireVideoConfig) Finish() (*ContainerFinishedLocWireVideoConfig, error)
 func (self *ContainerProducerLocWireVideoConfig) Finished() (*p_net.TrackPosition, error)
-func (self *ContainerProducerLocWireVideoConfig) History(until *p_net.Timestamp) error
+func (self *ContainerProducerLocWireVideoConfig) History(until p_net.Timestamp) error
 func (self *ContainerProducerLocWireVideoConfig) Info() (*p_net.TrackInfo, error)
 func (self *ContainerProducerLocWireVideoConfig) IsClone(other_ *p_net.TrackProducer) (bool, error)
 func (self *ContainerProducerLocWireVideoConfig) IsClosed() (bool, error)
@@ -4157,7 +4156,7 @@ func (self *ContainerProducerLocWireVideoConfig) LiveEdge() (*p_net.Timestamp, e
 func (self *ContainerProducerLocWireVideoConfig) Modify() (*ContainerGuardVideoConfig, error)
 func (self *ContainerProducerLocWireVideoConfig) Name() (string, error)
 func (self *ContainerProducerLocWireVideoConfig) NeedsKeyframe() (bool, error)
-func (self *ContainerProducerLocWireVideoConfig) Reorder(delay *p_net.Timestamp) error
+func (self *ContainerProducerLocWireVideoConfig) Reorder(delay p_net.Timestamp) error
 func (self *ContainerProducerLocWireVideoConfig) ReportBitrate(bitrate p_net.BandwidthRate) error
 func (self *ContainerProducerLocWireVideoConfig) ReportSkipped(frames uint64) error
 func (self *ContainerProducerLocWireVideoConfig) Requests() (*p_net.TrackRequests, error)
@@ -4167,7 +4166,7 @@ func (self *ContainerProducerLocWireVideoConfig) SetBitrate(bitrate uint64) erro
 func (self *ContainerProducerLocWireVideoConfig) SkipGroups(groups p_rt.RangeU64) error
 func (self *ContainerProducerLocWireVideoConfig) Subscribe(subscription *p_net.TrackSubscription) (*p_net.TrackSubscriber, error)
 func (self *ContainerProducerLocWireVideoConfig) Subscription() (*p_net.TrackSubscription, error)
-func (self *ContainerProducerLocWireVideoConfig) Timestamp(hint *p_net.Timestamp) (*p_net.Timestamp, error)
+func (self *ContainerProducerLocWireVideoConfig) Timestamp(hint *p_net.Timestamp) (p_net.Timestamp, error)
 func (self *ContainerProducerLocWireVideoConfig) Track() (*p_net.TrackProducer, error)
 func (self *ContainerProducerLocWireVideoConfig) WithBandwidth(allocator *p_net.BandwidthAllocator) (*ContainerProducerLocWireVideoConfig, error)
 func (self *ContainerProducerLocWireVideoConfig) WithBuffer(duration p_rt.Duration) (*ContainerProducerLocWireVideoConfig, error)
@@ -4177,7 +4176,7 @@ type ContainerRead interface {
 }
 type ContainerReadEnd struct {
 	Group uint64
-	End   *p_net.Timestamp
+	End   p_net.Timestamp
 }
 func (self ContainerReadEnd) GoString() string
 type ContainerReadFrame struct {
@@ -4186,8 +4185,8 @@ type ContainerReadFrame struct {
 }
 func (self ContainerReadFrame) GoString() string
 type ContainerReadGap struct {
-	Timestamp *p_net.Timestamp
-	Duration  *p_net.Timestamp
+	Timestamp p_net.Timestamp
+	Duration  p_net.Timestamp
 }
 func (self ContainerReadGap) GoString() string
 type ContainerReorderError interface {
@@ -4232,10 +4231,10 @@ func (self ContainerReorderErrorUndrained) Equal(other ContainerReorderError) (b
 func (self ContainerReorderErrorUndrained) GoString() string
 func (self ContainerReorderErrorUndrained) String() string
 type ContainerTimestampRewind struct {
-	Timestamp *p_net.Timestamp
-	Floor *p_net.Timestamp
+	Timestamp p_net.Timestamp
+	Floor p_net.Timestamp
 }
-func (self ContainerTimestampRewind) Equal(other ContainerTimestampRewind) (bool, error)
+func (self ContainerTimestampRewind) Equal(other ContainerTimestampRewind) bool
 func (self ContainerTimestampRewind) GoString() string
 func (self ContainerTimestampRewind) String() string
 type ContainerTsDescriptor struct {
@@ -5086,13 +5085,13 @@ func (self *JsonSnapshotJson) Error() string
 func (self *JsonSnapshotJson) Finish() error
 func (self *JsonSnapshotJson) Name() (string, error)
 func (self *JsonSnapshotJson) Refresh(ctx context.Context) error
-func (self *JsonSnapshotJson) Update(value *p_serdejson.Json, timestamp *p_net.Timestamp) error
+func (self *JsonSnapshotJson) Update(value *p_serdejson.Json, timestamp p_net.Timestamp) error
 type JsonStreamJson struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *JsonStreamJson) Abort(err *p_net.Error) error
 func (self *JsonStreamJson) AbortUnwanted(err *p_net.Error) error
-func (self *JsonStreamJson) Append(value *p_serdejson.Json, timestamp *p_net.Timestamp) error
+func (self *JsonStreamJson) Append(value *p_serdejson.Json, timestamp p_net.Timestamp) error
 func (self *JsonStreamJson) Close() error
 func (self *JsonStreamJson) Consume() (*p_net.TrackSubscriber, error)
 func (self *JsonStreamJson) Demand() (*p_net.TrackDemand, error)
@@ -5110,9 +5109,9 @@ type Pacer struct {
 }
 func PacerDefault() *Pacer
 func (self *Pacer) Close() error
-func (self *Pacer) Due(ts *p_net.Timestamp) (*p_kio.ClockInstant, error)
-func (self *Pacer) Hurry(ts *p_net.Timestamp, now p_kio.ClockInstant) (p_kio.ClockInstant, error)
-func (self *Pacer) Pace(ts *p_net.Timestamp, now p_kio.ClockInstant) (p_kio.ClockInstant, error)
+func (self *Pacer) Due(ts p_net.Timestamp) (*p_kio.ClockInstant, error)
+func (self *Pacer) Hurry(ts p_net.Timestamp, now p_kio.ClockInstant) (p_kio.ClockInstant, error)
+func (self *Pacer) Pace(ts p_net.Timestamp, now p_kio.ClockInstant) (p_kio.ClockInstant, error)
 func (self *Pacer) Slack() (p_rt.Duration, error)
 func (self *Pacer) WithDelay(delay p_rt.Duration) (*Pacer, error)
 func (self *Pacer) WithLead(lead p_rt.Duration) (*Pacer, error)
@@ -5218,9 +5217,9 @@ func (self *SyncConsumer) Changed(ctx context.Context, seen *SyncSchedule) (*Syn
 func (self *SyncConsumer) Clone() (*SyncConsumer, error)
 func (self *SyncConsumer) Close() error
 func (self *SyncConsumer) Delay() (p_rt.Duration, error)
-func (self *SyncConsumer) Due(timestamp *p_net.Timestamp) (*p_kio.ClockInstant, error)
+func (self *SyncConsumer) Due(timestamp p_net.Timestamp) (*p_kio.ClockInstant, error)
 func (self *SyncConsumer) Position(at p_kio.ClockInstant) (*p_rt.Duration, error)
-func (self *SyncConsumer) Present(timestamps []*p_net.Timestamp, now p_kio.ClockInstant) (*uint, error)
+func (self *SyncConsumer) Present(timestamps []p_net.Timestamp, now p_kio.ClockInstant) (*uint, error)
 func (self *SyncConsumer) Schedule() (*SyncSchedule, error)
 type SyncProducer struct {
 	Handle_ *p_rt.Handle_
@@ -5229,7 +5228,7 @@ func NewSyncProducer(delay p_rt.Duration) *SyncProducer
 func (self *SyncProducer) Clone() (*SyncProducer, error)
 func (self *SyncProducer) Close() error
 func (self *SyncProducer) Consume() (*SyncConsumer, error)
-func (self *SyncProducer) Due(timestamp *p_net.Timestamp) (*p_kio.ClockInstant, error)
+func (self *SyncProducer) Due(timestamp p_net.Timestamp) (*p_kio.ClockInstant, error)
 func (self *SyncProducer) Reset(delay p_rt.Duration) (*SyncProducer, error)
 func (self *SyncProducer) Track(kind ContainerKind) (*SyncTrack, error)
 type SyncSchedule struct {
@@ -5238,7 +5237,7 @@ type SyncSchedule struct {
 func (self *SyncSchedule) Clone() (*SyncSchedule, error)
 func (self *SyncSchedule) Close() error
 func (self *SyncSchedule) Delay() (p_rt.Duration, error)
-func (self *SyncSchedule) Due(timestamp *p_net.Timestamp) (*p_kio.ClockInstant, error)
+func (self *SyncSchedule) Due(timestamp p_net.Timestamp) (*p_kio.ClockInstant, error)
 func (self *SyncSchedule) Equal(other *SyncSchedule) (bool, error)
 func (self *SyncSchedule) GoString() string
 type SyncTrack struct {
@@ -5246,7 +5245,7 @@ type SyncTrack struct {
 }
 func (self *SyncTrack) Close() error
 func (self *SyncTrack) DelayChanged(ctx context.Context, seen p_rt.Duration) (p_rt.Duration, error)
-func (self *SyncTrack) Received(timestamp *p_net.Timestamp, now p_kio.ClockInstant) (bool, error)
+func (self *SyncTrack) Received(timestamp p_net.Timestamp, now p_kio.ClockInstant) (bool, error)
 func (self *SyncTrack) Reset() error
 func (self *SyncTrack) SetTarget(target p_rt.Duration) (bool, error)
 
@@ -5655,10 +5654,10 @@ func (self *DatagramConsumer) Recv(ctx context.Context) (*DatagramDatagram, erro
 func (self *DatagramConsumer) SetPriority(priority int8) error
 type DatagramDatagram struct {
 	Sequence uint64
-	Timestamp *Timestamp
+	Timestamp Timestamp
 	Payload p_rt.Bytes
 }
-func (self DatagramDatagram) Equal(other DatagramDatagram) (bool, error)
+func (self DatagramDatagram) Equal(other DatagramDatagram) bool
 func (self DatagramDatagram) GoString() string
 type DatagramInfo struct {
 	Handle_ *p_rt.Handle_
@@ -5670,7 +5669,7 @@ func (self *DatagramInfo) Equal(other *DatagramInfo) (bool, error)
 func (self *DatagramInfo) GoString() string
 func (self *DatagramInfo) PriorityGet() (int8, error)
 func (self *DatagramInfo) PrioritySet(value int8) error
-func (self *DatagramInfo) Rescale(timestamp *Timestamp) (*Timestamp, error)
+func (self *DatagramInfo) Rescale(timestamp Timestamp) (Timestamp, error)
 func (self *DatagramInfo) TimescaleGet() (*Timescale, error)
 func (self *DatagramInfo) TimescaleSet(value *Timescale) error
 func (self *DatagramInfo) WithPriority(priority int8) (*DatagramInfo, error)
@@ -5679,7 +5678,7 @@ type DatagramProducer struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *DatagramProducer) Abort(err *Error) error
-func (self *DatagramProducer) Append(timestamp *Timestamp, payload p_rt.Bytes) (uint64, error)
+func (self *DatagramProducer) Append(timestamp Timestamp, payload p_rt.Bytes) (uint64, error)
 func (self *DatagramProducer) Clone() (*DatagramProducer, error)
 func (self *DatagramProducer) Close() error
 func (self *DatagramProducer) Consume() (*DatagramConsumer, error)
@@ -5747,22 +5746,22 @@ func (self *FrameConsumer) Close() error
 func (self *FrameConsumer) ReadAll(ctx context.Context) (p_rt.Bytes, error)
 func (self *FrameConsumer) ReadChunk(ctx context.Context) (*p_rt.Bytes, error)
 func (self *FrameConsumer) SizeGet() (uint64, error)
-func (self *FrameConsumer) TimestampGet() (*Timestamp, error)
+func (self *FrameConsumer) TimestampGet() (Timestamp, error)
 type FrameFrame struct {
 	Handle_ *p_rt.Handle_
 }
-func NewFrameFrame(timestamp *Timestamp, payload p_rt.Bytes) (*FrameFrame, error)
+func NewFrameFrame(timestamp Timestamp, payload p_rt.Bytes) *FrameFrame
 func (self *FrameFrame) Arrived() (p_kio.ClockInstant, error)
 func (self *FrameFrame) Clone() (*FrameFrame, error)
 func (self *FrameFrame) Close() error
 func (self *FrameFrame) GoString() string
 func (self *FrameFrame) PayloadGet() (p_rt.Bytes, error)
 func (self *FrameFrame) PayloadSet(value p_rt.Bytes) error
-func (self *FrameFrame) TimestampGet() (*Timestamp, error)
-func (self *FrameFrame) TimestampSet(value *Timestamp) error
+func (self *FrameFrame) TimestampGet() (Timestamp, error)
+func (self *FrameFrame) TimestampSet(value Timestamp) error
 type FrameInfo struct {
 	Size uint64
-	Timestamp *Timestamp
+	Timestamp Timestamp
 }
 func (self FrameInfo) GoString() string
 type FrameProducer struct {
@@ -5774,7 +5773,7 @@ func (self *FrameProducer) Finish() (*GroupProducer, error)
 func (self *FrameProducer) Group() (*GroupProducer, error)
 func (self *FrameProducer) Remaining() (uint, error)
 func (self *FrameProducer) SizeGet() (uint64, error)
-func (self *FrameProducer) TimestampGet() (*Timestamp, error)
+func (self *FrameProducer) TimestampGet() (Timestamp, error)
 func (self *FrameProducer) Write(chunk p_rt.Bytes) error
 type GoawayConsumer struct {
 	Handle_ *p_rt.Handle_
@@ -5862,7 +5861,7 @@ func (self *GroupProducer) Ready(ctx context.Context, frame FrameInfo) error
 func (self *GroupProducer) StartAt(index uint64) error
 func (self *GroupProducer) StartGet() (uint64, error)
 func (self *GroupProducer) Timescale() (*Timescale, error)
-func (self *GroupProducer) WriteFrame(timestamp *Timestamp, data p_rt.Bytes) error
+func (self *GroupProducer) WriteFrame(timestamp Timestamp, data p_rt.Bytes) error
 type Instance struct {
 	Handle_ *p_rt.Handle_
 }
@@ -6998,31 +6997,30 @@ func (self Timescale) Equal(other Timescale) bool
 func (self Timescale) GoString() string
 func (self Timescale) String() string
 type Timestamp struct {
-	Handle_ *p_rt.Handle_
+	Bytes_ [2]uint64
+	Made_ bool
 }
-func NewTimestamp(value uint64, scale Timescale) (*Timestamp, error)
-func TimestampFromMicros(micros uint64) (*Timestamp, error)
-func TimestampFromMillis(millis uint64) (*Timestamp, error)
-func TimestampFromNanos(nanos uint64) (*Timestamp, error)
-func TimestampFromScale(value uint64, unitsPerSecond uint64) (*Timestamp, error)
-func TimestampFromSecs(seconds uint64) (*Timestamp, error)
-func TimestampUnscaled(key uint64) *Timestamp
-func TimestampZERO() *Timestamp
-func (self *Timestamp) AsMicros() (p_rt.U128, error)
-func (self *Timestamp) AsMillis() (p_rt.U128, error)
-func (self *Timestamp) AsNanos() (p_rt.U128, error)
-func (self *Timestamp) AsScale(target Timescale) (p_rt.U128, error)
-func (self *Timestamp) AsSecs() (uint64, error)
-func (self *Timestamp) CheckedAdd(rhs *Timestamp) (*Timestamp, error)
-func (self *Timestamp) CheckedSub(rhs *Timestamp) (*Timestamp, error)
-func (self *Timestamp) Clone() (*Timestamp, error)
-func (self *Timestamp) Close() error
-func (self *Timestamp) Convert(newScale Timescale) (*Timestamp, error)
-func (self *Timestamp) Equal(other *Timestamp) (bool, error)
-func (self *Timestamp) GoString() string
-func (self *Timestamp) IsZero() (bool, error)
-func (self *Timestamp) Scale() (*Timescale, error)
-func (self *Timestamp) Value() (uint64, error)
+func NewTimestamp(value uint64, scale Timescale) (Timestamp, error)
+func TimestampFromMicros(micros uint64) (Timestamp, error)
+func TimestampFromMillis(millis uint64) (Timestamp, error)
+func TimestampFromNanos(nanos uint64) (Timestamp, error)
+func TimestampFromScale(value uint64, unitsPerSecond uint64) (Timestamp, error)
+func TimestampFromSecs(seconds uint64) (Timestamp, error)
+func TimestampUnscaled(key uint64) Timestamp
+func TimestampZERO() Timestamp
+func (self Timestamp) AsMicros() (p_rt.U128, error)
+func (self Timestamp) AsMillis() (p_rt.U128, error)
+func (self Timestamp) AsNanos() (p_rt.U128, error)
+func (self Timestamp) AsScale(target Timescale) (p_rt.U128, error)
+func (self Timestamp) AsSecs() (uint64, error)
+func (self Timestamp) CheckedAdd(rhs Timestamp) (Timestamp, error)
+func (self Timestamp) CheckedSub(rhs Timestamp) (Timestamp, error)
+func (self Timestamp) Convert(newScale Timescale) (Timestamp, error)
+func (self Timestamp) Equal(other Timestamp) bool
+func (self Timestamp) GoString() string
+func (self Timestamp) IsZero() bool
+func (self Timestamp) Scale() *Timescale
+func (self Timestamp) Value() uint64
 type TrackAbortHandle struct {
 	Handle_ *p_rt.Handle_
 }
@@ -7128,8 +7126,8 @@ func (self *TrackInfo) PriorityGet() (int8, error)
 func (self *TrackInfo) PrioritySet(value int8) error
 func (self *TrackInfo) RefreshGet() (*TrackRefresh, error)
 func (self *TrackInfo) RefreshSet(value *TrackRefresh) error
-func (self *TrackInfo) Rescale(timestamp *Timestamp) (*Timestamp, error)
-func (self *TrackInfo) RescaleIn(timestamp *Timestamp, key uint64) (*Timestamp, error)
+func (self *TrackInfo) Rescale(timestamp Timestamp) (Timestamp, error)
+func (self *TrackInfo) RescaleIn(timestamp Timestamp, key uint64) (Timestamp, error)
 func (self *TrackInfo) TimescaleGet() (*Timescale, error)
 func (self *TrackInfo) TimescaleSet(value *Timescale) error
 func (self *TrackInfo) WithCompression(compression TrackCompression) (*TrackInfo, error)
@@ -7185,7 +7183,7 @@ type TrackProducer struct {
 func (self *TrackProducer) Abort(err *Error) error
 func (self *TrackProducer) AbortHandle() (*TrackAbortHandle, error)
 func (self *TrackProducer) AbortUnwanted(err *Error) error
-func (self *TrackProducer) AppendGroup(start *Timestamp) (*GroupProducer, error)
+func (self *TrackProducer) AppendGroup(start Timestamp) (*GroupProducer, error)
 func (self *TrackProducer) Broadcast() (*BroadcastInfo, error)
 func (self *TrackProducer) Clone() (*TrackProducer, error)
 func (self *TrackProducer) Close() error
@@ -7209,7 +7207,7 @@ func (self *TrackProducer) StartAt(key *uint64) error
 func (self *TrackProducer) Subscribe(subscription *TrackSubscription) (*TrackSubscriber, error)
 func (self *TrackProducer) Subscription() (*TrackSubscription, error)
 func (self *TrackProducer) SubscriptionChanged(ctx context.Context) (*TrackSubscription, error)
-func (self *TrackProducer) WriteFrame(timestamp *Timestamp, frame p_rt.Bytes) error
+func (self *TrackProducer) WriteFrame(timestamp Timestamp, frame p_rt.Bytes) error
 type TrackRange struct {
 	Start TrackAnchor
 	End *TrackAnchor
@@ -7312,14 +7310,13 @@ func TransportCloseKindDefault() TransportCloseKind
 func (self TransportCloseKind) Equal(other TransportCloseKind) bool
 func (self TransportCloseKind) GoString() string
 type TransportLimits struct {
-	Handle_ *p_rt.Handle_
+	Bytes_ [1]uint64
+	Made_ bool
 }
-func TransportLimitsDefault() *TransportLimits
-func (self *TransportLimits) Clone() (*TransportLimits, error)
-func (self *TransportLimits) Close() error
-func (self *TransportLimits) Equal(other *TransportLimits) (bool, error)
-func (self *TransportLimits) GoString() string
-func (self *TransportLimits) ReceiveWindowGet() (*uint64, error)
+func TransportLimitsDefault() TransportLimits
+func (self TransportLimits) Equal(other TransportLimits) bool
+func (self TransportLimits) GoString() string
+func (self TransportLimits) ReceiveWindowGet() *uint64
 func (self *TransportLimits) ReceiveWindowSet(value *uint64) error
 type TransportLimitsError interface {
 	String() string
@@ -7412,17 +7409,16 @@ func (self *TransportProbe) GoString() string
 func (self *TransportProbe) SetTarget(rate BandwidthRate) error
 func (self *TransportProbe) Target() (BandwidthRate, error)
 type TransportReceiveWindow struct {
-	Handle_ *p_rt.Handle_
+	Bytes_ [2]uint64
+	Made_ bool
 }
-func NewTransportReceiveWindow(connection *uint64, stream uint64) (*TransportReceiveWindow, error)
-func (self *TransportReceiveWindow) Clone() (*TransportReceiveWindow, error)
-func (self *TransportReceiveWindow) Close() error
-func (self *TransportReceiveWindow) ConnectionGet() (*uint64, error)
+func NewTransportReceiveWindow(connection *uint64, stream uint64) (TransportReceiveWindow, error)
+func (self TransportReceiveWindow) ConnectionGet() *uint64
 func (self *TransportReceiveWindow) ConnectionSet(value *uint64) error
-func (self *TransportReceiveWindow) Equal(other *TransportReceiveWindow) (bool, error)
-func (self *TransportReceiveWindow) GoString() string
-func (self *TransportReceiveWindow) StreamGet() (uint64, error)
-func (self *TransportReceiveWindow) StreamSet(value uint64) error
+func (self TransportReceiveWindow) Equal(other TransportReceiveWindow) bool
+func (self TransportReceiveWindow) GoString() string
+func (self TransportReceiveWindow) StreamGet() uint64
+func (self *TransportReceiveWindow) StreamSet(value uint64)
 type TransportWire struct {
 	Handle_ *p_rt.Handle_
 }

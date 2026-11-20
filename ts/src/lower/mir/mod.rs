@@ -2280,7 +2280,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				deferred[i] |= *lazy;
 			}
 		}
-		let fold: Vec<bool> = (0..self.pending.len()).map(|i| count[i] == 1 && !deferred[i]).collect();
+		// A constant folds into every read, however many and whether or not they run: copying
+		// it costs nothing, and a read of it written in place lets what tests it fold too.
+		let constant: Vec<bool> = (0..self.pending.len())
+			.map(|i| count[i] > 1 && self.pending[i].value.is_constant())
+			.collect();
+		let fold: Vec<bool> = (0..self.pending.len())
+			.map(|i| constant[i] || count[i] == 1 && !deferred[i])
+			.collect();
 		// Check the folded ones run in their order, after nothing they could change or be
 		// changed by.
 		let mut ok = true;
@@ -2290,6 +2297,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		for read in &reads {
 			match read {
 				Read::Ident(name, _) => match names.get(name.as_str()) {
+					Some(&i) if constant[i] => {}
 					Some(&i) if fold[i] => {
 						let p = &self.pending[i];
 						if last.is_some_and(|l| l >= p.order)
@@ -2310,7 +2318,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		// What stays pending past this statement, and what must run before it.
 		let first_folded = (0..self.pending.len())
-			.filter(|&i| fold[i])
+			.filter(|&i| fold[i] && !constant[i])
 			.map(|i| self.pending[i].order)
 			.min();
 		// A temporary held past a write of a name it reads would read the new value.
@@ -2335,6 +2343,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ok = false;
 			}
 		}
+		// What is flushed runs before the statement, so each earlier effect still held back
+		// runs before it too, in its order.
+		if let Some(latest) = flush
+			.iter()
+			.map(|&i| &self.pending[i])
+			.filter(|p| p.effect || p.memory)
+			.map(|p| p.order)
+			.max()
+		{
+			for (i, p) in self.pending.iter().enumerate() {
+				if !fold[i] && p.order < latest && (p.effect || p.memory) && !flush.contains(&i) {
+					flush.push(i);
+				}
+			}
+		}
 		if !ok {
 			self.flush(out);
 			out.extend(stmts);
@@ -2344,7 +2367,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut stmts = stmts;
 		let mut kept = Vec::new();
 		for (i, p) in pending.into_iter().enumerate() {
-			if fold[i] {
+			if constant[i] {
+				let value = located(p.value.clone(), p.loc);
+				let mut folded = 0;
+				for stmt in &mut stmts {
+					while subst_stmt(stmt, &p.name, &value) {
+						folded += 1;
+					}
+				}
+				// A read `subst` can't reach keeps the name, so it stays declared.
+				if folded < count[i] {
+					self.flush_one(p, out);
+				}
+			} else if fold[i] {
 				let value = located(p.value, p.loc);
 				for stmt in &mut stmts {
 					if subst_stmt(stmt, &p.name, &value) {
@@ -4056,7 +4091,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				return false;
 			}
 			// A constant held in a temporary compares as one written in place.
-			if compares(op) {
+			if compares(op) || *op == "&&" {
 				*e = fold(std::mem::replace(e, Expr::This));
 			}
 			true
@@ -4077,7 +4112,13 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		Expr::Cond(c, a, b) => subst(c, name, value) || subst(a, name, value) || subst(b, name, value),
+		Expr::Cond(c, a, b) => {
+			if !(subst(c, name, value) || subst(a, name, value) || subst(b, name, value)) {
+				return false;
+			}
+			*e = fold(std::mem::replace(e, Expr::This));
+			true
+		}
 		Expr::Arrow(..) | Expr::Lambda(..) => false,
 	}
 }
@@ -4470,6 +4511,30 @@ pub(crate) fn fold(e: Expr) -> Expr {
 			{
 				return Expr::lit(compare(op, a, b).to_string());
 			}
+			// The type of a constant is known: a number literal is one, a wide limb literal is
+			// an object, so the test that a name is a number, once it names a constant, is
+			// decided.
+			if let (Expr::Str(a), Expr::Str(b)) = (&l, &r)
+				&& matches!(op, "===" | "!==")
+			{
+				return Expr::lit(((a == b) == (op == "===")).to_string());
+			}
+			// A test that is already decided drops what it joins, which a test of types and
+			// numbers does nothing.
+			if op == "&&" {
+				let truth = |e: &Expr| match e.unlocated() {
+					Expr::Lit(t) if t == "true" => Some(true),
+					Expr::Lit(t) if t == "false" => Some(false),
+					_ => None,
+				};
+				match (truth(&l), truth(&r)) {
+					(Some(true), _) if is_test(&r) => return r,
+					(Some(false), _) if is_test(&r) && is_pure(&r) => return l,
+					(_, Some(true)) if is_test(&l) => return l,
+					(_, Some(false)) if is_test(&l) && is_pure(&l) => return r,
+					_ => {}
+				}
+			}
 			if let (Some(a), Some(b)) = (num(&l), num(&r)) {
 				// Integer arithmetic JS does exactly, in 32 bits for the bitwise operators. An
 				// `f64` literal is spelled with a point or an exponent, and its -0.0 is no integer.
@@ -4519,6 +4584,16 @@ pub(crate) fn fold(e: Expr) -> Expr {
 			}
 			Expr::Index(Box::new(base), Box::new(index))
 		}
+		Expr::Unary("typeof ", inner) => match inner.unlocated() {
+			Expr::Lit(t) if t.parse::<f64>().is_ok() => Expr::Str("number".into()),
+			inner if inner.is_constant() && matches!(inner, Expr::As(..)) => Expr::Str("object".into()),
+			_ => Expr::Unary("typeof ", inner),
+		},
+		Expr::Cond(c, a, b) => match fold(*c) {
+			Expr::Lit(t) if t == "true" => fold(*a),
+			Expr::Lit(t) if t == "false" => fold(*b),
+			c => Expr::Cond(Box::new(c), a, b),
+		},
 		Expr::Unary("!", inner) => match fold(*inner) {
 			Expr::Lit(t) if t == "true" => Expr::lit("false"),
 			Expr::Lit(t) if t == "false" => Expr::lit("true"),
@@ -4529,6 +4604,27 @@ pub(crate) fn fold(e: Expr) -> Expr {
 			inner => Expr::Located(loc, Box::new(inner)),
 		},
 		e => e,
+	}
+}
+
+/// Whether `e` is a boolean made by a comparison, or a literal one.
+fn is_test(e: &Expr) -> bool {
+	match e.unlocated() {
+		Expr::Binary(l, "&&", r) => is_test(l) && is_test(r),
+		Expr::Binary(_, op, _) => compares(op),
+		Expr::Lit(t) => matches!(t.as_str(), "true" | "false"),
+		_ => false,
+	}
+}
+
+/// Whether evaluating `e` does nothing and reads nothing that could throw: names,
+/// literals, and operators on them.
+fn is_pure(e: &Expr) -> bool {
+	match e.unlocated() {
+		Expr::Ident(_) | Expr::Lit(_) | Expr::Str(_) => true,
+		Expr::Unary(_, e) => is_pure(e),
+		Expr::Binary(l, _, r) => is_pure(l) && is_pure(r),
+		e => e.is_constant(),
 	}
 }
 

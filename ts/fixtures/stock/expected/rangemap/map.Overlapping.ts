@@ -28,7 +28,9 @@ export class Overlapping<K, V, R> {
 export function next$iter_Iterator_u64_u64_ops_Range_u64(self: Overlapping<rs.u64, rs.u64, rs.Range<rs.u64>>): [rs.Range<rs.u64>, rs.u64] | rs.Done {
 	const _2: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | rs.Done = (self.btmRangeIter as rs.Iter<[RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]>).next();
 	if (_2 !== rs.DONE) {
-		if (!rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0])).start, self.queryRange.end)) {
+		const _9: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0]));
+		const _12: rs.Range<rs.u64> = self.queryRange;
+		if (!(typeof _9.start === "number" && typeof _12.end === "number" ? _9.start < _12.end : rs.u64Lt(_9.start, _12.end))) {
 			return rs.DONE;
 		}
 		return [RangeStartWrapper.deref$ops_Deref_u64(_2[0]).range, _2[1]] as [rs.Range<rs.u64>, rs.u64];
@@ -39,7 +41,9 @@ export function next$iter_Iterator_u64_u64_ops_Range_u64(self: Overlapping<rs.u6
 export function next$iter_Iterator_u64_unit_ref_ops_Range_u64(self: Overlapping<rs.u64, undefined, rs.Range<rs.u64>>): [rs.Range<rs.u64>, undefined] | rs.Done {
 	const _2: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | rs.Done = (self.btmRangeIter as rs.Iter<[RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]>).next();
 	if (_2 !== rs.DONE) {
-		if (!rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0])).start, self.queryRange.end)) {
+		const _9: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0]));
+		const _12: rs.Range<rs.u64> = self.queryRange;
+		if (!(typeof _9.start === "number" && typeof _12.end === "number" ? _9.start < _12.end : rs.u64Lt(_9.start, _12.end))) {
 			return rs.DONE;
 		}
 		return [RangeStartWrapper.deref$ops_Deref_u64(_2[0]).range, undefined] as [rs.Range<rs.u64>, undefined];
@@ -51,7 +55,9 @@ export function nextBack$iter_DoubleEndedIterator_u64_u64_ops_Range_u64(self: Ov
 	while (true) {
 		const _2: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined = rs.iterToOption((self.btmRangeIter as rs.Iter<[RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]>).nextBack());
 		if (_2 !== undefined) {
-			if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0])).start, self.queryRange.end)) {
+			const _9: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0]));
+			const _12: rs.Range<rs.u64> = self.queryRange;
+			if (typeof _9.start === "number" && typeof _12.end === "number" ? _9.start < _12.end : rs.u64Lt(_9.start, _12.end)) {
 				return [RangeStartWrapper.deref$ops_Deref_u64(_2[0]).range, _2[1]] as [rs.Range<rs.u64>, rs.u64];
 			}
 		} else {
@@ -65,7 +71,9 @@ export function nextBack$iter_DoubleEndedIterator_u64_unit_ref_ops_Range_u64(sel
 	while (true) {
 		const _2: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined = rs.iterToOption((self.btmRangeIter as rs.Iter<[RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]>).nextBack());
 		if (_2 !== undefined) {
-			if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0])).start, self.queryRange.end)) {
+			const _9: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(_2[0]));
+			const _12: rs.Range<rs.u64> = self.queryRange;
+			if (typeof _9.start === "number" && typeof _12.end === "number" ? _9.start < _12.end : rs.u64Lt(_9.start, _12.end)) {
 				return [RangeStartWrapper.deref$ops_Deref_u64(_2[0]).range, undefined] as [rs.Range<rs.u64>, undefined];
 			}
 		} else {

@@ -88,8 +88,8 @@ fun main() {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
 
-	// A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
-	// so a timed frame is refused.
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
+	// untimed, so a timed frame is refused.
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")
 	try {
@@ -98,7 +98,7 @@ fun main() {
 	} catch (e: ErrorException) {
 		expect(e.message == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	}
-	expect(at.asSecs() == 1uL, "a lent timestamp stays usable")
+	expect(at.asSecs() == 1uL, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
 	val world = byteArrayOf(0xff.toByte()) + "world".encodeToByteArray()

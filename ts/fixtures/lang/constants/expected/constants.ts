@@ -36,7 +36,7 @@ export function against$u16(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-2, -2), rs.i128Ne(-2, -2), rs.i128Lt(-2, -2), rs.i128Le(-2, -2), rs.i128Gt(-2, -2), rs.i128Ge(-2, -2)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(2 as rs.char) === 2 as rs.char, (2 as rs.char) !== 2 as rs.char, (2 as rs.char) < (2 as rs.char), (2 as rs.char) <= (2 as rs.char), (2 as rs.char) > (2 as rs.char), (2 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -96,7 +96,7 @@ export function against$u64(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-1, -2), rs.i128Ne(-1, -2), rs.i128Lt(-1, -2), rs.i128Le(-1, -2), rs.i128Gt(-1, -2), rs.i128Ge(-1, -2)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(3 as rs.char) === 2 as rs.char, (3 as rs.char) !== 2 as rs.char, (3 as rs.char) < (2 as rs.char), (3 as rs.char) <= (2 as rs.char), (3 as rs.char) > (2 as rs.char), (3 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -156,7 +156,7 @@ export function against$u8(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-3, -2), rs.i128Ne(-3, -2), rs.i128Lt(-3, -2), rs.i128Le(-3, -2), rs.i128Gt(-3, -2), rs.i128Ge(-3, -2)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(1 as rs.char) === 2 as rs.char, (1 as rs.char) !== 2 as rs.char, (1 as rs.char) < (2 as rs.char), (1 as rs.char) <= (2 as rs.char), (1 as rs.char) > (2 as rs.char), (1 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -216,7 +216,7 @@ export function against$unit(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.i128Eq(-2147483648, -2), rs.i128Ne(-2147483648, -2), rs.i128Lt(-2147483648, -2), rs.i128Le(-2147483648, -2), rs.i128Gt(-2147483648, -2), rs.i128Ge(-2147483648, -2)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(255 as rs.char) === 2 as rs.char, (255 as rs.char) !== 2 as rs.char, (255 as rs.char) < (2 as rs.char), (255 as rs.char) <= (2 as rs.char), (255 as rs.char) > (2 as rs.char), (255 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {

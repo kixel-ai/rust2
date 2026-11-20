@@ -113,7 +113,6 @@ func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.T
 		}
 		reader.Close()
 		must(group.Finish()).Close()
-		at.Close()
 	}
 	ns := end(start, name, count*frames*size)
 	return span{1e3 / ns.wall, 1e3 / ns.cpu}
@@ -188,10 +187,8 @@ func round(measured bool) []result {
 	// Groups are keyed by their start, which must rise, so each starts at the next of
 	// micros, the time its frames are stamped at.
 	var micros uint64
-	demandedAt := must(net.TimestampFromMicros(micros))
+	demanded := must(track.AppendGroup(must(net.TimestampFromMicros(micros))))
 	micros++
-	demanded := must(track.AppendGroup(demandedAt))
-	demandedAt.Close()
 	demand := must(demanded.Demand())
 	start = begin()
 	for range n {
@@ -253,14 +250,10 @@ func round(measured bool) []result {
 	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	start = begin()
 	for range groups {
-		groupAt := must(net.TimestampFromMicros(micros))
-		group := must(track.AppendGroup(groupAt))
-		groupAt.Close()
+		group := must(track.AppendGroup(must(net.TimestampFromMicros(micros))))
 		for range frames {
-			at := must(net.TimestampFromMicros(micros))
+			check(group.WriteFrame(must(net.TimestampFromMicros(micros)), frame))
 			micros++
-			check(group.WriteFrame(at, frame))
-			at.Close()
 		}
 		must(group.Finish()).Close()
 	}
@@ -275,7 +268,6 @@ func round(measured bool) []result {
 			check(group.WriteFrame(at, frame))
 		}
 		must(group.Finish()).Close()
-		at.Close()
 	}
 	out = append(out, result{"write", end(start, "write", n)})
 
@@ -302,7 +294,6 @@ func round(measured bool) []result {
 		}
 		reader.Close()
 		must(group.Finish()).Close()
-		at.Close()
 	}
 	out = append(out, result{"ready", end(start, "ready", n)})
 
@@ -323,7 +314,6 @@ func round(measured bool) []result {
 		}
 		reader.Close()
 		must(group.Finish()).Close()
-		at.Close()
 	}
 	out = append(out, result{"woken", end(start, "woken", n)})
 
@@ -345,7 +335,6 @@ func round(measured bool) []result {
 			}
 			<-permits // Keep this group until its reader has consumed every frame.
 			must(group.Finish()).Close()
-			at.Close()
 		}
 	}()
 	for range groups {

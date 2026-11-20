@@ -473,11 +473,13 @@ export function copied(data: rs.ByteSlice, out: rs.String): void {
 	const rx: rs.WatchReceiver<rs.u64> = _5[1];
 	for (const b of rs.byteSliceView(data)) {
 		rs.watchSendModify(tx, (v: rs.Place<rs.u64>): undefined => {
-			v.v = rs.u64WrappingAdd(rs.u64WrappingMul(v.v, 31), b as rs.u64);
+			const _4: rs.u64 = rs.u64WrappingMul(v.v, 31);
+			const _62: rs.u64 = b as rs.u64;
+			v.v = (typeof _4 === "number" && typeof _62 === "number" && _4 + _62 <= 9007199254740991 ? _4 + _62 : rs.u64WrappingAdd(_4, _62)) as rs.u64;
 		}, true);
 		if ((b & 1) === 0) {
 			const part = rs.watchSendIfModified(tx, (v2: rs.Place<rs.u64>): boolean => {
-				v2.v = rs.u64Add(v2.v, 1);
+				v2.v = (typeof v2.v === "number" && v2.v + 1 <= 9007199254740991 ? v2.v + 1 : rs.u64Add(v2.v, 1)) as rs.u64;
 				return (b & 2) === 0;
 			}, true);
 			note(rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.fmtBool(part, f)]));
