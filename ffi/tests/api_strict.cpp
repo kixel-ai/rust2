@@ -1,6 +1,6 @@
-// What Clang refuses under `-Wconsumed -Wdangling -Werror`: each case, built alone as
-// `-DCASE=n`, breaks a contract `tests/api.cpp` otherwise reaches only at run time, or not
-// at all. With no case it builds clean.
+// What Clang 23 refuses under `-Wconsumed -Wdangling -Wlifetime-safety -Werror`: each case,
+// built alone as `-DCASE=n`, breaks a contract `tests/api.cpp` otherwise reaches only at
+// run time, or not at all. With no case it builds clean.
 #include <cstddef>
 #include <iterator>
 #include <optional>
@@ -94,5 +94,21 @@ void broken() {
 	// Handles lent rather than moved in: the call would empty the caller's vector unasked.
 	std::vector<std::tuple<api::buf, api::Counter>> counters;
 	api::Board::new_(counters);
+#elif CASE == 10
+	// A task dropped at once, which cancels its future before the callback runs.
+	auto inline_ = [](auto job) { job(); };
+	api::yielded(7).then(inline_, [](std::uint32_t) {});
+#elif CASE == 11
+	// A failure dropped unseen.
+	api::Counter c = api::Counter::new_("c", 0);
+	c.add(1);
+#elif CASE == 12
+	// A view of a buffer kept past the buffer, across statements.
+	api::view name;
+	{
+		api::buf bytes = api::Counter::new_("c", 0).name();
+		name = bytes;
+	}
+	(void)name.size();
 #endif
 }
