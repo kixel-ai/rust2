@@ -745,6 +745,9 @@ the rest cross encoded.
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
+- A **stream**'s `asFlow()` is a cold `Flow` of what its `next` yields, ending at null or
+  with what `next` throws: each collection calls `next` once per item, and cancelling it
+  cancels the pending `next`.
 - A **future Kotlin implements** is a `suspend () -> Unit`, which Rust's first poll
   launches in the calling coroutine's context, on its dispatcher, or on `Default` for one
   that does not dispatch. It runs on a job of its own, so the caller never waits on it,
