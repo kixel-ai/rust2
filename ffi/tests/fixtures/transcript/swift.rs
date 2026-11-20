@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use super::ir::{Access, Api, Family, Int, Mutability, Receiver, Type};
+use super::ir::{Access, Api, Collection, Family, Int, Mutability, Receiver, Type};
 use super::{Arm, BoundKind, Expr, FnId, Kind, Op, Owner, Pat, Piece, Spec, Step, Transcript, bound, unref};
 
 const LANGUAGE: &str = "Swift";
@@ -1175,8 +1175,8 @@ impl Emitter<'_> {
 				let (exception, wrapped) = self.exception(err);
 				let call = self.attempt(inner);
 				match wrapped {
-					true => format!("_err({exception}.self) {{ {call} }}.error"),
-					false => format!("_err({exception}.self) {{ {call} }}"),
+					true => format!("_err({exception}.self) {{{call}}}.error"),
+					false => format!("_err({exception}.self) {{{call}}}"),
 				}
 			}
 			Kind::IsErr(inner) => {
@@ -1185,7 +1185,7 @@ impl Emitter<'_> {
 				};
 				let (exception, _) = self.exception(err);
 				let call = self.attempt(inner);
-				format!("_fails({exception}.self) {{ {call} }}")
+				format!("_fails({exception}.self) {{{call}}}")
 			}
 			Kind::IsSome(inner) => format!("({} != nil)", self.expr(inner, out)),
 			Kind::IsNone(inner) => format!("({} == nil)", self.expr(inner, out)),
@@ -1228,9 +1228,9 @@ impl Emitter<'_> {
 				let x = self.param(pat);
 				let body = self.closure_value(body);
 				match self.model.unique(&item) {
-					true => format!("_each({v}) {{ {x} in {body} }}.joined(separator: \"{}\")", escape(sep)),
+					true => format!("_each({v}) {{ {x} in{body}}}.joined(separator: \"{}\")", escape(sep)),
 					false => format!(
-						"{}.map {{ {x} in {body} }}.joined(separator: \"{}\")",
+						"{}.map {{ {x} in{body}}}.joined(separator: \"{}\")",
 						postfix(&v),
 						escape(sep)
 					),
@@ -1246,7 +1246,7 @@ impl Emitter<'_> {
 				let none = self.expr(none, out);
 				let x = self.param(pat);
 				let some = self.closure_value(some);
-				format!("({}.map {{ {x} in {some} }} ?? {none})", postfix(&option))
+				format!("({}.map {{ {x} in{some}}} ?? {none})", postfix(&option))
 			}
 			Kind::Utf8(inner) => format!("String(decoding: {}, as: UTF8.self)", self.expr(inner, out)),
 			Kind::Len(inner) => {
@@ -1275,12 +1275,25 @@ impl Emitter<'_> {
 		}
 	}
 
-	/// The call `inner` makes, which throws its error, for a closure that catches it.
+	/// The body of a closure that catches the error the call `inner` throws.
 	fn attempt(&mut self, inner: &Expr) -> String {
-		let mut pre = String::new();
-		let call = self.rooted("try ", &mut pre, |this, pre| this.expr(inner, pre));
-		assert!(pre.is_empty(), "a failing call needing statements first");
-		call
+		self.inline(|this, pre| this.rooted("try ", pre, |this, pre| this.expr(inner, pre)))
+	}
+
+	/// The body of a closure returning `write`'s expression: the expression alone, or after
+	/// the statements it needs first, such as a span's local.
+	fn inline(&mut self, write: impl FnOnce(&mut Self, &mut String) -> String) -> String {
+		self.depth += 1;
+		let mut body = String::new();
+		let v = write(self, &mut body);
+		if !body.is_empty() {
+			self.line(&mut body, &format!("return {v}"));
+		}
+		self.depth -= 1;
+		match body.is_empty() {
+			true => format!(" {v} "),
+			false => format!("\n{body}{}", self.indent()),
+		}
 	}
 
 	/// Arguments labelled as `labels` say, each passed where its type is taken.
@@ -1350,12 +1363,9 @@ impl Emitter<'_> {
 		list
 	}
 
-	/// A closure's value, as its own root.
+	/// The body of a closure returning `value`, as its own root.
 	fn closure_value(&mut self, value: &Expr) -> String {
-		let mut pre = String::new();
-		let v = self.root(value, &value.ty, &mut pre);
-		assert!(pre.is_empty(), "a closure's value needing statements first");
-		v
+		self.inline(|this, pre| this.root(value, &value.ty, pre))
 	}
 
 	fn closure(&mut self, params: &[Pat], steps: &[Step], value: &Expr) -> String {
@@ -1447,6 +1457,8 @@ impl Emitter<'_> {
 				parts.push(format!("{}: {v}", labels[k]));
 			} else if self.model.inout(ty) {
 				parts.push(self.inout(arg, ty, out));
+			} else if let Some(elem) = self.spanned(ty) {
+				parts.push(self.span(arg, ty, &elem, out));
 			} else {
 				parts.push(self.value(arg, ty, out));
 			}
@@ -1455,6 +1467,54 @@ impl Emitter<'_> {
 		match f.access {
 			Access::Field { set: false, .. } | Access::Const if property => format!("{target}.{name}"),
 			_ => format!("{target}.{name}({})", parts.join(", ")),
+		}
+	}
+
+	/// The element of the span Swift takes for a slice a call borrows, or an `Option` of one:
+	/// of bytes, or of a fixed-width integer or a float.
+	fn spanned(&self, ty: &Type) -> Option<String> {
+		let ty = match ty {
+			Type::Option(inner) => inner,
+			ty => ty,
+		};
+		let Type::Ref(Mutability::Not, inner) = ty else {
+			return None;
+		};
+		match &**inner {
+			Type::Slice => Some("UInt8".to_string()),
+			Type::List(Collection::Slice, elem) => match &**elem {
+				Type::Int(Int::Usize | Int::Isize) => None,
+				Type::Int(_) | Type::F32 | Type::F64 => Some(self.sw(elem)),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	/// A slice argument a call borrows: its items held in a local slice, whose span it passes,
+	/// since an array's own `span` needs macOS 26.
+	fn span(&mut self, arg: &Expr, ty: &Type, elem: &str, out: &mut String) -> String {
+		let tmp = self.fresh("s");
+		match (ty, &arg.kind) {
+			(Type::Option(_), Kind::None) => "nil".to_string(),
+			(Type::Option(inner), Kind::Some(value)) => {
+				let v = self.root(value, inner, out);
+				self.line(
+					out,
+					&format!("let {tmp}: ArraySlice<{elem}>? = ArraySlice<{elem}>({v})"),
+				);
+				format!("{tmp}?.span")
+			}
+			(Type::Option(_), _) => {
+				let v = self.root(arg, ty, out);
+				self.line(out, &format!("let {tmp} = {v}.map {{ ArraySlice<{elem}>($0) }}"));
+				format!("{tmp}?.span")
+			}
+			_ => {
+				let v = self.root(arg, ty, out);
+				self.line(out, &format!("let {tmp} = ArraySlice<{elem}>({v})"));
+				format!("{tmp}.span")
+			}
 		}
 	}
 

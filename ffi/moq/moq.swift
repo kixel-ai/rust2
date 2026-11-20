@@ -243,7 +243,7 @@ func script() throws {
 	}
 	q.drain()
 	expect(frame.isEmpty, "a read waits for a frame")
-	try writer.writeFrame(Timestamp.unscaled(0), Bytes("hello".utf8))
+	try Bytes("hello".utf8).withSpan { try writer.writeFrame(Timestamp.unscaled(0), $0) }
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	let hello = frame.take()!
@@ -257,7 +257,7 @@ func script() throws {
 	let at = try Timestamp.fromMillis(1500)
 	expect(try at.asSecs() == 1, "1500 ms is 1 s")
 	do {
-		try writer.writeFrame(at, Bytes("late".utf8))
+		try Bytes("late".utf8).withSpan { try writer.writeFrame(at, $0) }
 		expect(false, "a timed frame on an untimed track is an error")
 	} catch let e as Moq.Error {
 		expect(try e.description == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
@@ -266,7 +266,7 @@ func script() throws {
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	let world = Bytes(Data([0xff]) + Data("world".utf8))
-	try writer.writeFrame(Timestamp.unscaled(0), world)
+	try world.withSpan { try writer.writeFrame(Timestamp.unscaled(0), $0) }
 	_ = try writer.finish()
 	try block {
 		let last = try await first.value.readFrame()
@@ -293,14 +293,14 @@ func script() throws {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	let head = Bytes(Data("OpusHead".utf8) + Data([1, 2, 0x38, 0x01, 0x44, 0xac, 0, 0, 0, 0, 0]))
-	let audio = try muxCodecOpusConfig(head)
+	let audio = try head.withSpan { try muxCodecOpusConfig($0) }
 	expect(try audio.sampleRateGet == 48000, "Opus decodes at 48 kHz")
 	expect(try audio.channelCountGet == 2, "the head is stereo")
 	expect(try audio.codecGet == .opus, "the codec is Opus")
 	expect(try audio.descriptionGet == head, "the head is the description")
 	// A truncated head is moq-mux's error.
 	do {
-		_ = try muxCodecOpusConfig(head.prefix(8))
+		_ = try head.prefix(8).withSpan { try muxCodecOpusConfig($0) }
 		expect(false, "a truncated head is an error")
 	} catch let e as MuxError {
 		expect(!"\(e)".isEmpty, "a truncated head's error has a message")
@@ -429,7 +429,7 @@ func script() throws {
 		let live = try served.route("live", OriginRouteOptions.default())
 		let liveTrack = try live.broadcast().createTrack("video", nil)
 		var liveGroup = try liveTrack.appendGroup(Timestamp.unscaled(0))
-		try liveGroup.writeFrame(Timestamp.unscaled(0), Bytes("hello".utf8))
+		try Bytes("hello".utf8).withSpan { try liveGroup.writeFrame(Timestamp.unscaled(0), $0) }
 		_ = try liveGroup.finish()
 
 		var serverConfig = TokioServerConfig.default()

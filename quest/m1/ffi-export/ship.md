@@ -20,5 +20,4 @@ then see change. A sibling planned later adds itself to `Required` here.
 ## Required
 
 - [C and C++ idioms](/quest/m1/ffi-export/cpp-idioms.md) - numeric slice views and must-use returns change the C++ API
-- [Swift spans](/quest/m1/ffi-export/swift-span.md) - lent bytes and slices change the Swift API
 - [Dart analysis](/quest/m1/ffi-export/dart-analyze.md) - lint fixes may rename generated Dart

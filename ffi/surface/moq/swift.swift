@@ -58,12 +58,13 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 	@inlinable public init()
 	@inlinable public init(_ data: Data)
 	@inlinable public init(_ bytes: some Swift.Sequence<Swift.UInt8>)
+	@inlinable public init(_ span: borrowing Swift.Span<Swift.UInt8>)
 	@inlinable public var data: Data { get }
 	@inlinable public var startIndex: Swift.Int { get }
 	@inlinable public var endIndex: Swift.Int { get }
 	@inlinable public subscript(i: Swift.Int) -> Swift.UInt8 { get }
 	@inlinable public subscript(bounds: Swift.Range<Swift.Int>) -> Bytes { get }
-	@inlinable public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R
+	@inlinable public func withSpan<R: ~Copyable>(_ body: (Swift.Span<Swift.UInt8>) throws -> R) rethrows -> R
 	@inlinable public static func == (a: Bytes, b: Bytes) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
@@ -834,7 +835,7 @@ public struct MuxCodecH264Sps: Sendable, CustomDebugStringConvertible {
 	public var codedHeight: Swift.UInt32
 	@inlinable public init(profile: Swift.UInt8, constraints: Swift.UInt8, level: Swift.UInt8, codedWidth: Swift.UInt32, codedHeight: Swift.UInt32)
 	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public static func parse(_ nal: Bytes) throws -> MuxCodecH264Sps
+	@inlinable public static func parse(_ nal: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecH264Sps
 }
 public struct MuxCodecH265VideoSignal: Sendable, CustomDebugStringConvertible, Equatable {
 	public var primaries: Swift.UInt8
@@ -849,7 +850,7 @@ public struct MuxCodecMp3Config: Sendable {
 	public var sampleRate: Swift.UInt32
 	public var channelCount: Swift.UInt32
 	@inlinable public init(sampleRate: Swift.UInt32, channelCount: Swift.UInt32)
-	@inlinable public static func parse(_ data: Bytes) throws -> MuxCodecMp3Config
+	@inlinable public static func parse(_ data: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecMp3Config
 }
 public struct MuxCodecOpusMapping: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -1945,8 +1946,8 @@ public struct HangCatalog: ~Copyable, @unchecked Sendable {
 	@inlinable public static func defaultSubscription() -> TrackSubscription
 	@inlinable public func checkRenditions() throws
 	@inlinable public func withoutExt() throws -> HangCatalog
-	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalog
-	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalog
+	@inlinable public static func fromSlice(_ v: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalog
+	@inlinable public static func fromReader(_ reader: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalog
 	@inlinable public func toJson() throws -> Swift.String
 	@inlinable public func toVec() throws -> Bytes
 	@inlinable public func toWriter(_ writer: Bytes) throws
@@ -1980,8 +1981,8 @@ public struct HangCatalogExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func skippedSet(_ value: consuming HangCatalogSkipped) throws
 	@inlinable public func checkRenditions() throws
 	@inlinable public func withoutExt() throws -> HangCatalog
-	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalogExtra
-	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalogExtra
+	@inlinable public static func fromSlice(_ v: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogExtra
+	@inlinable public static func fromReader(_ reader: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogExtra
 	@inlinable public func toJson() throws -> Swift.String
 	@inlinable public func toVec() throws -> Bytes
 	@inlinable public func toWriter(_ writer: Bytes) throws
@@ -2015,8 +2016,8 @@ public struct HangCatalogExt: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func skippedSet(_ value: consuming HangCatalogSkipped) throws
 	@inlinable public func checkRenditions() throws
 	@inlinable public func withoutExt() throws -> HangCatalog
-	@inlinable public static func fromSlice(_ v: Bytes) throws -> HangCatalogExt
-	@inlinable public static func fromReader(_ reader: Bytes) throws -> HangCatalogExt
+	@inlinable public static func fromSlice(_ v: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogExt
+	@inlinable public static func fromReader(_ reader: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogExt
 	@inlinable public func toJson() throws -> Swift.String
 	@inlinable public func toVec() throws -> Bytes
 	@inlinable public func toWriter(_ writer: Bytes) throws
@@ -2701,7 +2702,7 @@ public struct DatagramProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> DatagramProducer
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func info() throws -> DatagramInfo
-	@inlinable public mutating func append(_ timestamp: Timestamp, _ payload: Bytes) throws -> Swift.UInt64
+	@inlinable public mutating func append(_ timestamp: Timestamp, _ payload: borrowing Swift.Span<Swift.UInt8>) throws -> Swift.UInt64
 	@inlinable public mutating func insert(_ datagram: DatagramDatagram) throws
 	@inlinable public func consume() throws -> DatagramConsumer
 	@inlinable public consuming func finish() throws
@@ -2739,7 +2740,7 @@ public final class DatagramInfo: @unchecked Sendable {
 public struct FrameProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public func group() throws -> GroupProducer
 	@inlinable public func remaining() throws -> Swift.UInt
-	@inlinable public mutating func write(_ chunk: Bytes) throws
+	@inlinable public mutating func write(_ chunk: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> GroupProducer
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public var sizeGet: Swift.UInt64 { get }
@@ -2752,7 +2753,7 @@ public struct FrameFrame: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func timestampSet(_ value: Timestamp) throws
 	@inlinable public var payloadGet: Bytes { get }
 	@inlinable public mutating func payloadSet(_ value: Bytes) throws
-	@inlinable public static func new(_ timestamp: Timestamp, _ payload: Bytes) -> FrameFrame
+	@inlinable public static func new(_ timestamp: Timestamp, _ payload: borrowing Swift.Span<Swift.UInt8>) -> FrameFrame
 	@inlinable public func arrived() throws -> ClockInstant
 }
 public struct FrameConsumer: ~Copyable, @unchecked Sendable {
@@ -2765,7 +2766,7 @@ public struct FrameConsumer: ~Copyable, @unchecked Sendable {
 public struct GroupProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public func timescale() throws -> Timescale?
 	@inlinable public mutating func startAt(_ index: Swift.UInt64) throws
-	@inlinable public mutating func writeFrame(_ timestamp: Timestamp, _ data: Bytes) throws
+	@inlinable public mutating func writeFrame(_ timestamp: Timestamp, _ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func createFrame(_ frame: FrameInfo) throws -> FrameProducer
 	@inlinable public consuming func finishAt(_ end: Swift.UInt64) throws -> GroupFinished
 	@inlinable public consuming func finish() throws -> GroupFinished
@@ -2930,7 +2931,7 @@ public final class TrackProducer: @unchecked Sendable {
 	@inlinable public func info() throws -> TrackInfo
 	@inlinable public func createGroup(_ group: GroupInfo) throws -> GroupProducer
 	@inlinable public func appendGroup(_ start: Timestamp) throws -> GroupProducer
-	@inlinable public func writeFrame(_ timestamp: Timestamp, _ frame: Bytes) throws
+	@inlinable public func writeFrame(_ timestamp: Timestamp, _ frame: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func finish() throws -> TrackFinished
 	@inlinable public func fail(_ err: Error) throws -> TrackFinished
 	@inlinable public func finishAt(_ end: TrackPosition) throws
@@ -5422,7 +5423,7 @@ public struct MuxFollowInstances: ~Copyable, @unchecked Sendable {
 }
 public struct MuxImportContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved, _ `init`: borrowing MuxImportContainerInit) throws -> MuxImportContainer
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxImportContainerFinished
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func cut() throws
@@ -5430,7 +5431,7 @@ public struct MuxImportContainer: ~Copyable, @unchecked Sendable {
 }
 public struct MuxImportContainerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExtra, _ `init`: borrowing MuxImportContainerInit) throws -> MuxImportContainerExtra
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxImportContainerFinishedExtra
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func cut() throws
@@ -5438,7 +5439,7 @@ public struct MuxImportContainerExtra: ~Copyable, @unchecked Sendable {
 }
 public struct MuxImportContainerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt, _ `init`: borrowing MuxImportContainerInit) throws -> MuxImportContainerExt
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxImportContainerFinishedExt
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func cut() throws
@@ -5493,7 +5494,7 @@ public final class MuxImportTrack {
 	@inlinable public static func videoExtra(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReservedExtra, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrack
 	@inlinable public static func videoExt(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReservedExt, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrack
 	@inlinable public static func videoUnit(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReserved, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrack
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 	@inlinable public func finish() throws -> MuxImportTrackFinished
 	@inlinable public func abort(_ err: Error) throws
 	@inlinable public func abortUnwanted(_ err: Error) throws
@@ -5508,8 +5509,8 @@ public final class MuxImportTrackStream {
 	@inlinable public static func videoExtra(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReservedExtra, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrackStream
 	@inlinable public static func videoExt(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReservedExt, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrackStream
 	@inlinable public static func videoUnit(_ request: consuming TrackRequest, _ reserved: consuming MuxCatalogReserved, _ `init`: consuming MuxImportVideoInit) throws -> MuxImportTrackStream
-	@inlinable public func initialize(_ data: Bytes) throws
-	@inlinable public func decode(_ data: Bytes) throws
+	@inlinable public func initialize(_ data: borrowing Swift.Span<Swift.UInt8>) throws
+	@inlinable public func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func finish() throws -> MuxImportTrackFinished
 	@inlinable public func setEnabled(_ enabled: Swift.Bool) throws
 	@inlinable public func abort(_ err: Error) throws
@@ -5716,7 +5717,7 @@ public struct TokioTlsPeerIdentity: ~Copyable, @unchecked Sendable {
 public struct TokioTlsCertificates: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> TokioTlsCertificates
-	@inlinable public static func fromPem(_ chain: Bytes) throws -> TokioTlsCertificates
+	@inlinable public static func fromPem(_ chain: borrowing Swift.Span<Swift.UInt8>) throws -> TokioTlsCertificates
 	@inlinable public func fingerprints() -> [Swift.String]
 }
 public struct TokioTlsKeyLog: ~Copyable, @unchecked Sendable {
@@ -5998,7 +5999,7 @@ public final class MuxCodecAacImport {
 	@inlinable public func cut(_ end: Timestamp?) throws
 	@inlinable public func discontinuity() throws
 	@inlinable public func seek(_ start: Swift.UInt64) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 }
 public final class MuxCodecAnnexbError: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible {
 	@inlinable public var description: Swift.String { get }
@@ -6009,7 +6010,7 @@ public final class MuxCodecAv1Import {
 	@inlinable public static func newExtra(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExtra, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecAv1Import
 	@inlinable public static func newExt(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExt, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecAv1Import
 	@inlinable public static func newUnit(_ track: TrackProducer, _ reserved: consuming MuxCatalogReserved, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecAv1Import
-	@inlinable public func initialize(_ buf: Bytes) throws
+	@inlinable public func initialize(_ buf: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func finish() throws -> MuxContainerFinishedContainerVideoConfig
 	@inlinable public func abort(_ err: Error) throws
@@ -6023,7 +6024,7 @@ public final class MuxCodecAv1Import {
 public struct MuxCodecAv1Split: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> MuxCodecAv1Split
 	@inlinable public static func new() -> MuxCodecAv1Split
-	@inlinable public mutating func decode(_ data: Bytes, _ pts: Timestamp?) throws -> [MuxContainerFrame]
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func flush(_ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func reset() throws
 }
@@ -6038,7 +6039,7 @@ public final class MuxCodecFlacImport {
 	@inlinable public func cut(_ end: Timestamp?) throws
 	@inlinable public func discontinuity() throws
 	@inlinable public func seek(_ start: Swift.UInt64) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 }
 public struct MuxCodecH264Avc1: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> MuxCodecH264Avc1
@@ -6070,13 +6071,13 @@ public struct MuxCodecH264Avcc: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func codedWidthSet(_ value: Swift.UInt32?) throws
 	@inlinable public var codedHeightGet: Swift.UInt32? { get }
 	@inlinable public mutating func codedHeightSet(_ value: Swift.UInt32?) throws
-	@inlinable public static func parse(_ avcc: Bytes) throws -> MuxCodecH264Avcc
+	@inlinable public static func parse(_ avcc: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecH264Avcc
 }
 public final class MuxCodecH264Import {
 	@inlinable public static func newExtra(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExtra, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH264Import
 	@inlinable public static func newExt(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExt, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH264Import
 	@inlinable public static func newUnit(_ track: TrackProducer, _ reserved: consuming MuxCatalogReserved, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH264Import
-	@inlinable public func initialize(_ buf: Bytes) throws
+	@inlinable public func initialize(_ buf: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func track() throws -> TrackProducer
@@ -6095,7 +6096,7 @@ public final class MuxCodecH264Import {
 public struct MuxCodecH264Split: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> MuxCodecH264Split
 	@inlinable public static func new() -> MuxCodecH264Split
-	@inlinable public mutating func decode(_ data: Bytes, _ pts: Timestamp?) throws -> [MuxContainerFrame]
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func flush(_ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func reset() throws
 }
@@ -6121,12 +6122,12 @@ public struct MuxCodecH265Hvcc: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func spsSet(_ value: [Bytes]) throws
 	@inlinable public var ppsGet: [Bytes] { get }
 	@inlinable public mutating func ppsSet(_ value: [Bytes]) throws
-	@inlinable public static func parse(_ hvcc: Bytes) throws -> MuxCodecH265Hvcc
+	@inlinable public static func parse(_ hvcc: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecH265Hvcc
 }
 public struct MuxCodecH265Sps: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> MuxCodecH265Sps
-	@inlinable public static func parse(_ nal: Bytes) throws -> MuxCodecH265Sps
+	@inlinable public static func parse(_ nal: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecH265Sps
 	@inlinable public func size() -> (Swift.UInt32, Swift.UInt32)
 	@inlinable public func videoSignal() -> MuxCodecH265VideoSignal?
 }
@@ -6134,7 +6135,7 @@ public final class MuxCodecH265Import {
 	@inlinable public static func newExtra(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExtra, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH265Import
 	@inlinable public static func newExt(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExt, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH265Import
 	@inlinable public static func newUnit(_ track: TrackProducer, _ reserved: consuming MuxCatalogReserved, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecH265Import
-	@inlinable public func initialize(_ buf: Bytes) throws
+	@inlinable public func initialize(_ buf: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func name() throws -> Swift.String
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func track() throws -> TrackProducer
@@ -6153,7 +6154,7 @@ public final class MuxCodecH265Import {
 public struct MuxCodecH265Split: ~Copyable, @unchecked Sendable {
 	@inlinable public static func `default`() -> MuxCodecH265Split
 	@inlinable public static func new() -> MuxCodecH265Split
-	@inlinable public mutating func decode(_ data: Bytes, _ pts: Timestamp?) throws -> [MuxContainerFrame]
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func flush(_ pts: Timestamp?) throws -> [MuxContainerFrame]
 	@inlinable public mutating func reset() throws
 }
@@ -6168,7 +6169,7 @@ public final class MuxCodecMp3Import {
 	@inlinable public func cut(_ end: Timestamp?) throws
 	@inlinable public func discontinuity() throws
 	@inlinable public func seek(_ start: Swift.UInt64) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 }
 public final class MuxCodecOpusConfig: @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -6201,14 +6202,14 @@ public final class MuxCodecOpusImport {
 	@inlinable public func cut(_ end: Timestamp?) throws
 	@inlinable public func discontinuity() throws
 	@inlinable public func seek(_ start: Swift.UInt64) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 }
 public final class MuxCodecVp8Import {
 	@inlinable public static func newExtra(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExtra, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp8Import
 	@inlinable public static func newExt(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExt, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp8Import
 	@inlinable public static func newUnit(_ track: TrackProducer, _ reserved: consuming MuxCatalogReserved, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp8Import
-	@inlinable public func initialize(_ buf: Bytes) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func initialize(_ buf: borrowing Swift.Span<Swift.UInt8>) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func finish() throws -> MuxContainerFinishedContainerVideoConfig
 	@inlinable public func abort(_ err: Error) throws
@@ -6222,8 +6223,8 @@ public final class MuxCodecVp9Import {
 	@inlinable public static func newExtra(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExtra, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp9Import
 	@inlinable public static func newExt(_ track: TrackProducer, _ reserved: consuming MuxCatalogReservedExt, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp9Import
 	@inlinable public static func newUnit(_ track: TrackProducer, _ reserved: consuming MuxCatalogReserved, _ hint: consuming MuxCatalogVideoHint) throws -> MuxCodecVp9Import
-	@inlinable public func initialize(_ buf: Bytes) throws
-	@inlinable public func decode(_ frame: Bytes, _ pts: Timestamp?) throws
+	@inlinable public func initialize(_ buf: borrowing Swift.Span<Swift.UInt8>) throws
+	@inlinable public func decode(_ frame: borrowing Swift.Span<Swift.UInt8>, _ pts: Timestamp?) throws
 	@inlinable public func demand() throws -> TrackDemand
 	@inlinable public func finish() throws -> MuxContainerFinishedContainerVideoConfig
 	@inlinable public func abort(_ err: Error) throws
@@ -6236,7 +6237,7 @@ public final class MuxCodecVp9Import {
 public struct MuxContainerFlvImport: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerFlvImport
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerFlvImport
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFlvFinished
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6244,7 +6245,7 @@ public struct MuxContainerFlvImport: ~Copyable, @unchecked Sendable {
 public struct MuxContainerFlvImportExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExtra) throws -> MuxContainerFlvImportExtra
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerFlvImportExtra
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFlvFinishedExtra
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6252,7 +6253,7 @@ public struct MuxContainerFlvImportExtra: ~Copyable, @unchecked Sendable {
 public struct MuxContainerFlvImportExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt) throws -> MuxContainerFlvImportExt
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerFlvImportExt
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFlvFinishedExt
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6267,7 +6268,7 @@ public struct MuxContainerFlvFinishedExt: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func abort(_ err: Error) throws
 }
 public struct MuxContainerFmp4Wire: ~Copyable, @unchecked Sendable {
-	@inlinable public static func fromInit(_ initData: Bytes) throws -> MuxContainerFmp4Wire
+	@inlinable public static func fromInit(_ initData: borrowing Swift.Span<Swift.UInt8>) throws -> MuxContainerFmp4Wire
 }
 public final class MuxContainerFmp4Error: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible {
 	@inlinable public var description: Swift.String { get }
@@ -6279,7 +6280,7 @@ public struct MuxContainerFmp4Import: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func cut() throws
 	@inlinable public consuming func withSelect(_ select: consuming MuxSelectBroadcast) throws -> MuxContainerFmp4Import
 	@inlinable public consuming func withCmaf(_ cmaf: Swift.Bool) throws -> MuxContainerFmp4Import
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFmp4Finished
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
@@ -6291,7 +6292,7 @@ public struct MuxContainerFmp4ImportExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func cut() throws
 	@inlinable public consuming func withSelect(_ select: consuming MuxSelectBroadcast) throws -> MuxContainerFmp4ImportExtra
 	@inlinable public consuming func withCmaf(_ cmaf: Swift.Bool) throws -> MuxContainerFmp4ImportExtra
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFmp4FinishedExtra
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
@@ -6303,7 +6304,7 @@ public struct MuxContainerFmp4ImportExt: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func cut() throws
 	@inlinable public consuming func withSelect(_ select: consuming MuxSelectBroadcast) throws -> MuxContainerFmp4ImportExt
 	@inlinable public consuming func withCmaf(_ cmaf: Swift.Bool) throws -> MuxContainerFmp4ImportExt
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerFmp4FinishedExt
 	@inlinable public consuming func abort(_ err: Error) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
@@ -6334,12 +6335,12 @@ public final class MuxContainerLegacyAudio: @unchecked Sendable, CustomDebugStri
 	@inlinable public func clone() -> MuxContainerLegacyAudio
 	@inlinable public static func == (a: MuxContainerLegacyAudio, b: MuxContainerLegacyAudio) -> Swift.Bool
 	@inlinable public static func new(_ config: borrowing HangCatalogAudioConfig) throws -> MuxContainerLegacyAudio?
-	@inlinable public func duration(_ payload: Bytes) -> Timestamp?
+	@inlinable public func duration(_ payload: borrowing Swift.Span<Swift.UInt8>) -> Timestamp?
 }
 public struct MuxContainerMkvImport: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerMkvImport
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerMkvImport
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerMkvFinished
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6347,7 +6348,7 @@ public struct MuxContainerMkvImport: ~Copyable, @unchecked Sendable {
 public struct MuxContainerMkvImportExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExtra) throws -> MuxContainerMkvImportExtra
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerMkvImportExtra
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerMkvFinishedExtra
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6355,7 +6356,7 @@ public struct MuxContainerMkvImportExtra: ~Copyable, @unchecked Sendable {
 public struct MuxContainerMkvImportExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt) throws -> MuxContainerMkvImportExt
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerMkvImportExt
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ start: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerMkvFinishedExt
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6522,7 +6523,7 @@ public struct MuxContainerTsPassthrough: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt) throws -> MuxContainerTsPassthrough
 	@inlinable public consuming func withPcrPid(_ pid: Swift.UInt16) throws -> MuxContainerTsPassthrough
 	@inlinable public func track() throws -> Swift.String
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsPassthroughFinished
 	@inlinable public consuming func abort(_ err: Error) throws
 }
@@ -6530,7 +6531,7 @@ public struct MuxContainerTsPassthroughUnit: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerTsPassthroughUnit
 	@inlinable public consuming func withPcrPid(_ pid: Swift.UInt16) throws -> MuxContainerTsPassthroughUnit
 	@inlinable public func track() throws -> Swift.String
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsPassthroughFinishedUnit
 	@inlinable public consuming func abort(_ err: Error) throws
 }
@@ -6538,13 +6539,13 @@ public struct MuxContainerTsPassthroughExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExtra) throws -> MuxContainerTsPassthroughExtra
 	@inlinable public consuming func withPcrPid(_ pid: Swift.UInt16) throws -> MuxContainerTsPassthroughExtra
 	@inlinable public func track() throws -> Swift.String
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsPassthroughFinishedExtra
 	@inlinable public consuming func abort(_ err: Error) throws
 }
 public struct MuxContainerTsPrograms: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ origin: consuming OriginProducer, _ name: consuming Path, _ config: consuming MuxCatalogConfig) throws -> MuxContainerTsPrograms
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public func stats() throws -> MuxContainerTsStatsSnapshot
 	@inlinable public consuming func finish() throws -> MuxContainerTsProgramsFinished
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6563,7 +6564,7 @@ public struct MuxContainerTsRepublish: ~Copyable, @unchecked Sendable {
 	@inlinable public func broadcast() throws -> BroadcastProducer
 	@inlinable public func catalog() throws -> MuxCatalogProducerExt
 	@inlinable public func instance() throws -> Instance
-	@inlinable public mutating func decode(_ data: Bytes) throws -> MuxContainerTsRepublished?
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws -> MuxContainerTsRepublished?
 	@inlinable public func stats() throws -> MuxContainerTsStatsSnapshot
 	@inlinable public consuming func finish() throws -> MuxContainerTsRepublishFinished
 	@inlinable public consuming func abort(_ err: Error) throws
@@ -6580,7 +6581,7 @@ public struct MuxContainerTsImport: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReserved) throws -> MuxContainerTsImport
 	@inlinable public consuming func withProgram(_ program: Swift.UInt16) throws -> MuxContainerTsImport
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerTsImport
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ sequence: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsFinished
 	@inlinable public func stats() throws -> MuxContainerTsStatsSnapshot
@@ -6590,7 +6591,7 @@ public struct MuxContainerTsImportExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExtra) throws -> MuxContainerTsImportExtra
 	@inlinable public consuming func withProgram(_ program: Swift.UInt16) throws -> MuxContainerTsImportExtra
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerTsImportExtra
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ sequence: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsFinishedExtra
 	@inlinable public func stats() throws -> MuxContainerTsStatsSnapshot
@@ -6600,7 +6601,7 @@ public struct MuxContainerTsImportExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt) throws -> MuxContainerTsImportExt
 	@inlinable public consuming func withProgram(_ program: Swift.UInt16) throws -> MuxContainerTsImportExt
 	@inlinable public consuming func withContainer(_ container: consuming HangCatalogContainer) throws -> MuxContainerTsImportExt
-	@inlinable public mutating func decode(_ data: Bytes) throws
+	@inlinable public mutating func decode(_ data: borrowing Swift.Span<Swift.UInt8>) throws
 	@inlinable public mutating func seek(_ sequence: Swift.UInt64) throws
 	@inlinable public consuming func finish() throws -> MuxContainerTsFinishedExt
 	@inlinable public func stats() throws -> MuxContainerTsStatsSnapshot
@@ -6642,8 +6643,8 @@ public final class MuxCodecAacAdtsHeader: @unchecked Sendable {
 	@inlinable public func channelConfigSet(_ value: Swift.UInt8) throws
 	@inlinable public var blocksGet: Swift.UInt8 { get }
 	@inlinable public func blocksSet(_ value: Swift.UInt8) throws
-	@inlinable public static func parse(_ data: Bytes) throws -> MuxCodecAacAdtsHeader
-	@inlinable public func payload(_ packet: Bytes) throws -> Bytes
+	@inlinable public static func parse(_ data: borrowing Swift.Span<Swift.UInt8>) throws -> MuxCodecAacAdtsHeader
+	@inlinable public func payload(_ packet: borrowing Swift.Span<Swift.UInt8>) throws -> Bytes
 }
 public struct MuxContainerTsPassthroughFinished: ~Copyable, @unchecked Sendable {
 	@inlinable public func track() throws -> Swift.String
@@ -6891,7 +6892,7 @@ public struct RustlsPkiTypesCertificateDer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> RustlsPkiTypesCertificateDer
 	@inlinable public static func == (a: borrowing RustlsPkiTypesCertificateDer, b: borrowing RustlsPkiTypesCertificateDer) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
-	@inlinable public static func fromSlice(_ bytes: Bytes) -> RustlsPkiTypesCertificateDer
+	@inlinable public static func fromSlice(_ bytes: borrowing Swift.Span<Swift.UInt8>) -> RustlsPkiTypesCertificateDer
 	@inlinable public consuming func intoOwned() throws -> RustlsPkiTypesCertificateDer
 }
 public struct MoqTokioConnectResolved: ~Copyable, @unchecked Sendable {
@@ -7131,7 +7132,7 @@ public struct RustlsClientResumption: ~Copyable, @unchecked Sendable {
 public struct RustlsDistinguishedName: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> RustlsDistinguishedName
-	@inlinable public static func inSequence(_ bytes: Bytes) -> RustlsDistinguishedName
+	@inlinable public static func inSequence(_ bytes: borrowing Swift.Span<Swift.UInt8>) -> RustlsDistinguishedName
 }
 public struct MoqTokioWebsocketResolved: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -7182,7 +7183,7 @@ public struct RustlsPkiTypesDer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> RustlsPkiTypesDer
 	@inlinable public static func == (a: borrowing RustlsPkiTypesDer, b: borrowing RustlsPkiTypesDer) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
-	@inlinable public static func fromSlice(_ der: Bytes) -> RustlsPkiTypesDer
+	@inlinable public static func fromSlice(_ der: borrowing Swift.Span<Swift.UInt8>) -> RustlsPkiTypesDer
 }
 public struct MoqTokioQuicDemuxDatagram: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -7346,18 +7347,18 @@ public let HANG_CATALOG_MAX_SAFE_INTEGER: Swift.UInt64
 @inlinable public func tokioTlsParseFingerprint(_ value: Swift.String) throws -> ArrayU8x32
 @inlinable public func tokioOriginSpawn() -> OriginProducer
 @inlinable public func transportMemoryPair(_ config: consuming TransportMemoryConfig) throws -> TupleTransportMemorySessionTransportMemorySession
-@inlinable public func muxCodecAacConfig(_ `init`: Bytes) throws -> HangCatalogAudioConfig
+@inlinable public func muxCodecAacConfig(_ `init`: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogAudioConfig
 @inlinable public var MUXCODECANNEXBSTARTCODE: Bytes { get }
-@inlinable public func muxCodecAnnexbFromLengthPrefixed(_ payload: Bytes, _ lengthSize: Swift.UInt, _ prefix: Bytes?) throws -> Bytes
+@inlinable public func muxCodecAnnexbFromLengthPrefixed(_ payload: borrowing Swift.Span<Swift.UInt8>, _ lengthSize: Swift.UInt, _ prefix: borrowing Swift.Span<Swift.UInt8>?) throws -> Bytes
 @inlinable public func muxCodecAnnexbBuildPrefix(_ nals: [Bytes]) -> Bytes
-@inlinable public func muxCodecAnnexbLengthPrefixedToAnnexb(_ data: Bytes, _ lengthSize: Swift.UInt, _ out: inout Bytes) throws
-@inlinable public func muxCodecAnnexbAfterStartCode(_ b: Bytes) throws -> Swift.UInt?
-@inlinable public func muxCodecAnnexbFindStartCode(_ b: Bytes) -> (Swift.UInt, Swift.UInt)?
-@inlinable public func muxCodecFlacConfig(_ `init`: Bytes) throws -> HangCatalogAudioConfig
-@inlinable public func muxCodecH264Config(_ buf: Bytes) throws -> HangCatalogVideoConfig
-@inlinable public func muxCodecH265Config(_ buf: Bytes) throws -> HangCatalogVideoConfig
-@inlinable public func muxCodecMp3Config(_ `init`: Bytes) throws -> HangCatalogAudioConfig
+@inlinable public func muxCodecAnnexbLengthPrefixedToAnnexb(_ data: borrowing Swift.Span<Swift.UInt8>, _ lengthSize: Swift.UInt, _ out: inout Bytes) throws
+@inlinable public func muxCodecAnnexbAfterStartCode(_ b: borrowing Swift.Span<Swift.UInt8>) throws -> Swift.UInt?
+@inlinable public func muxCodecAnnexbFindStartCode(_ b: borrowing Swift.Span<Swift.UInt8>) -> (Swift.UInt, Swift.UInt)?
+@inlinable public func muxCodecFlacConfig(_ `init`: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogAudioConfig
+@inlinable public func muxCodecH264Config(_ buf: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogVideoConfig
+@inlinable public func muxCodecH265Config(_ buf: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogVideoConfig
+@inlinable public func muxCodecMp3Config(_ `init`: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogAudioConfig
 @inlinable public var MUXCODECOPUSWARMUP: RustDuration { get }
-@inlinable public func muxCodecOpusPacketSamples(_ packet: Bytes) -> Swift.UInt32?
-@inlinable public func muxCodecOpusConfig(_ `init`: Bytes) throws -> HangCatalogAudioConfig
+@inlinable public func muxCodecOpusPacketSamples(_ packet: borrowing Swift.Span<Swift.UInt8>) -> Swift.UInt32?
+@inlinable public func muxCodecOpusConfig(_ `init`: borrowing Swift.Span<Swift.UInt8>) throws -> HangCatalogAudioConfig
 @inlinable public func muxContainerMp4Repair(_ file: inout some SeekableReader) throws -> MuxContainerMp4Finish?

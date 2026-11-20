@@ -64,6 +64,11 @@ func text(_ data: Bytes) -> String {
 	String(decoding: data, as: UTF8.self)
 }
 
+/// `text`'s UTF-8, lent to `body` as a span.
+func lend<R: ~Copyable>(_ text: String, _ body: (Swift.Span<UInt8>) throws -> R) rethrows -> R {
+	try Bytes(text.utf8).withSpan(body)
+}
+
 /// Check that `body` throws for the call `function` of a Refusal a move closed.
 func closed(_ function: String, _ body: () throws -> Void) {
 	do {
@@ -263,8 +268,10 @@ func channel() {
 		print("recv \(text(try await channel.recv()))")
 		// The send happens at the call, and the future borrows the channel and the tag.
 		print("tagged \(try await channel.tagged("tag"))")
-		print("itemized \(try await channel.itemized([1, 2, 3]))")
-		print("byte_len \(try await byteLen(Bytes("abc".utf8)))")
+		let items: ArraySlice<UInt32> = [1, 2, 3]
+		print("itemized \(try await channel.itemized(items.span))")
+		let abc = Array("abc".utf8)[...]
+		print("byte_len \(try await byteLen(abc.span))")
 		try! channel.send(Bytes("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
@@ -932,7 +939,7 @@ func owned() {
 
 /// Where `bytes` start.
 func address(_ bytes: Bytes) -> UnsafeRawPointer? {
-	bytes.withUnsafeBytes { $0.baseAddress }
+	bytes.withSpan { $0.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } }
 }
 
 // A payload Rust returned, read and written back, whole and in a record: Rust takes a
@@ -958,6 +965,21 @@ func forward() {
 
 // Each breaks a contract Swift's compiler checks, so it fails to compile, built alone with
 // its flag.
+/// A digest of the bytes Rust lends, read in place.
+struct ScanDigest: Scan {
+	func scan(_ payload: Swift.Span<UInt8>, _ rest: Swift.Span<UInt8>?) -> UInt64 {
+		var sum = UInt64(payload.count) << 32
+		for i in payload.indices {
+			sum += UInt64(payload[i])
+		}
+		guard let rest else { return sum + (1 << 48) }
+		for i in rest.indices {
+			sum += UInt64(rest[i]) * 256
+		}
+		return sum
+	}
+}
+
 #if MOVED
 func moved() {
 	let c = Counter.new("c", 0)
@@ -980,6 +1002,20 @@ func lentMoved() {
 	_ = try! registry.edit { counter in
 		_ = try! counter.intoLabel(nil)
 		return false
+	}
+}
+#endif
+
+#if SPAN_KEPT
+/// Keeps a span Rust lent past the call it was lent for.
+func spanKept() {
+	lend("ab") { whole in
+		nonisolated(unsafe) var kept: Swift.Span<UInt8>? = nil
+		_ = visitChunks(whole, 1) { chunk in
+			kept = chunk
+			return 0
+		}
+		print(kept?.count ?? 0)
 	}
 }
 #endif
@@ -1078,6 +1114,26 @@ func lossless() {
 	check(strayPath.string == nil && PathBuf("a/é").string == "a/é", "a path's text is nil unless UTF-8")
 	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
 	visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
+	// Rust borrows a caller's span in place, and lends a closure each chunk of it in place.
+	lend("abcde") { whole in
+		let base = UInt64(UInt(bitPattern: whole.withUnsafeBufferPointer { $0.baseAddress }))
+		let seen = visitChunks(whole, 2) { chunk in
+			guard let chunk else { return 7 }
+			let at = chunk.withUnsafeBufferPointer { UInt64(UInt(bitPattern: $0.baseAddress)) }
+			return (at - base) * 1000 + UInt64(chunk[chunk.count - 1])
+		}
+		check(seen == [98, 2100, 4101, 7], "a closure reads each chunk of a caller's bytes in place")
+	}
+	nonisolated(unsafe) var kept: [Bytes] = []
+	_ = lend("abc") { visitChunks($0, 2) { chunk in
+		if let chunk {
+			kept.append(Bytes(chunk))
+		}
+		return 0
+	} }
+	check(kept == [Bytes("ab".utf8), Bytes("c".utf8)], "a closure keeps lent bytes by copying them")
+	let digest = scanned(ScanDigest(), Bytes("abcd".utf8))
+	check(digest == (2 << 32) + 97 + 98 + (99 + 100) * 256 + (1 << 48), "a callback reads lent bytes and none")
 	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")
 	let ip6 = Ipv6Addr(bits: U128(high: 1 << 48, low: 2))
 	let addrs = [SocketAddr.v4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max)), .v6(SocketAddrV6(ip: ip6, port: 3))]

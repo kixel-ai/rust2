@@ -1288,6 +1288,9 @@ class Part internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 interface Log {
 	fun log(level: kotlin.UByte, line: kotlin.String): kotlin.Boolean
 }
+interface Scan {
+	fun scan(payload: api.Bytes, rest: api.Bytes?): kotlin.ULong
+}
 interface Beat {
 	fun beat(): kotlin.UInt
 }
@@ -1527,6 +1530,8 @@ fun least(sets: kotlin.collections.List<kotlin.collections.List<kotlin.UInt>>): 
 fun splitLast(items: kotlin.IntArray): api.Tuple2<kotlin.IntArray, kotlin.UInt>
 fun sumU32(items: kotlin.UIntArray): kotlin.ULong
 fun doubledI64(items: kotlin.LongArray): kotlin.LongArray
+fun visitChunks(payload: api.Bytes, size: kotlin.ULong, visit: (api.Bytes?) -> kotlin.ULong): kotlin.ULongArray
+fun scanned(scan: api.Scan, payload: api.Bytes): kotlin.ULong
 fun boxedFloats(items: kotlin.DoubleArray): kotlin.DoubleArray
 fun summed(points: kotlin.collections.List<api.Point>): api.Point
 fun breadth(limits: api.LimitsDuration): api.Duration
