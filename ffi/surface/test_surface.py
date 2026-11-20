@@ -217,6 +217,20 @@ inline bool operator==(const Marker &a, const Marker &b) { return true; }
             "}",
         ])
 
+    def test_attributed_type(self):
+        source = """
+template <class T>
+class [[nodiscard]] API_POINTER(T) span {
+public:
+	const T *data() const noexcept { return nullptr; }
+};
+"""
+        self.assertEqual(self.outline(source), [
+            "template <class T> class [[nodiscard]] API_POINTER(T) span {",
+            "\tconst T *data() const noexcept;",
+            "};",
+        ])
+
 
 class Dart(unittest.TestCase):
     def outline(self, text):

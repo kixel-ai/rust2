@@ -97,7 +97,7 @@ Decided with the maintainer on 2026-11-18, in the per-language audit:
 - ✅ Breaking changes to a generated API that the audit found are children here, and land
   as soon as possible: "You're allowed to break the API absolutely. Do it sooner." They
   are the API surface lock (`ffi/surface/`), which landed first,
-  [C and C++](/quest/m1/ffi-export/cpp-idioms.md), Swift (landed),
+  C and C++, Swift (landed),
   Kotlin (landed), Python (landed), Dart (landed), and docs.
   Rejected: only the surface lock holding the pin; all of them after the pin.
 - ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as

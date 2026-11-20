@@ -215,6 +215,7 @@ CPP_TYPE = re.compile(r"^(?:template\s*<.*?>\s*)?(class|struct|union|enum|namesp
 DART_TYPE = re.compile(
     r"^(?:@\S+\s+)*(?:(?:abstract|sealed|final|base|interface|mixin)\s+)*(class|mixin|enum|extension)\b")
 ACCESS = re.compile(r"^(public|private|protected)$")
+ATTRIBUTE = re.compile(r"\[\[.*?\]\]|\b[A-Z][A-Z0-9_]*\([^()]*\)")
 
 
 def braced(text, lang):
@@ -330,7 +331,10 @@ class Braced:
             if head.startswith('extern "') or head == "extern _":
                 return "namespace"
             m = CPP_TYPE.match(head)
-            if m and first(hmask, re.compile(r"\(")) is None or (m and m.group(1) == "namespace"):
+            # A type's attributes, such as `[[nodiscard]]` or a macro's `RUST2_FFI_OWNER(T)`,
+            # hold the only parentheses its header may.
+            bare = ATTRIBUTE.sub(" ", hmask)
+            if m and first(bare, re.compile(r"\(")) is None or (m and m.group(1) == "namespace"):
                 return m.group(1)
             return None
         m = DART_TYPE.match(head)
