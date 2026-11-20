@@ -2296,7 +2296,7 @@ impl<'a> Gen<'a> {
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
-			None => back,
+			None => format!("rt::threw(env, \"{what}\");\n\t\t{back}"),
 			Some(_) => {
 				let err = outs.len() - 1;
 				let ok = match c_ok {

@@ -364,8 +364,8 @@ jobs:
         if: runner.os == 'macOS'
         run: just ffi test swift && just ffi moq-swift
 
-  # The Kotlin on ART, shrunk by R8 as an app shrinks it, and the library's abort messages
-  # and 16 KB alignment. x86_64, as moq's Android build:
+  # The Kotlin on ART under CheckJNI, shrunk by R8 as an app shrinks it, and the library's
+  # abort messages and 16 KB alignment. x86_64, as moq's Android build:
   # this image ships the Android SDK and NDK, and its KVM runs an x86_64 emulator at speed.
   ffi-android:
     name: Export to Kotlin on Android
@@ -400,6 +400,15 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
+          script: nix develop .#android --command just ffi android
+
+      # A 32-bit ABI, as moq's armv7 build is, whose pointers and usize are half a long:
+      # x86, which this runner's KVM runs at speed.
+      - name: API 24, 32-bit
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 24
+          arch: x86
           script: nix develop .#android --command just ffi android
 
       # An image whose kernel pages by 16 KB, as Google Play requires of 64-bit libraries from

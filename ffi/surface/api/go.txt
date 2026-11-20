@@ -190,6 +190,8 @@ func SameU64(v uint64) uint64
 func SameUsize(v uint) uint
 func SampleHex(sample p_rt.Bytes) string
 func Scaled(v p_rt.U128, by uint64) *p_rt.U128
+func ScanVtable_() unsafe.Pointer
+func Scanned(scan Scan, payload p_rt.Bytes) uint64
 func SecondLater(w235 p_rt.Duration) p_rt.Duration
 func Sections(entries []p_rt.Tuple2[string, *p_serdejson.Json]) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
 func Secure(alpn string) (*p_tls.Config, error)
@@ -237,6 +239,7 @@ func Total(range_ p_rt.RangeU64) uint64
 func TurnerVtable_() unsafe.Pointer
 func Unhook() error
 func Verify(cert *p_tls.Cert) (uint32, error)
+func VisitChunks(payload p_rt.Bytes, size uint, visit func(*[]byte) uint64) []uint64
 func VisitStray(visit func(string))
 func WaiterPollFuture(ctx context.Context, future func(context.Context)) error
 func Walk(steps uint64, visit func(*Cursor) uint64) uint64
@@ -1506,6 +1509,9 @@ type RightU8 struct {
 }
 func (self RightU8) Equal(other RightU8) bool
 func (self RightU8) GoString() string
+type Scan interface {
+	Scan(payload []byte, rest *[]byte) uint64
+}
 type Score struct {
 	Bytes_ [1]uint64
 	Made_ bool

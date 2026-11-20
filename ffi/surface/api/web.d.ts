@@ -1223,6 +1223,13 @@ export type RightU8 = {
 export declare function debug(self: RightU8): string;
 export declare function eq(a: RightU8, b: RightU8): boolean;
 
+// Scan.ts
+import * as rt from "./rt.ts";
+export interface Scan {
+    scan(payload: Uint8Array, rest: Uint8Array | undefined): rt.u64;
+    close?(): void;
+}
+
 // Score.ts
 import * as rt from "./rt.ts";
 import type { Mark } from "./Mark.ts";
@@ -1682,6 +1689,7 @@ export declare function f12(): number;
 export declare function f13(): number;
 export declare function f14(): number;
 export declare function f15(): number;
+export declare function f16(): number;
 export declare function f2(): number;
 export declare function f3(): number;
 export declare function f4(): number;
@@ -1962,6 +1970,7 @@ export declare function t13(f: (a0: Tally) => number, p0: number): number;
 export declare function t14(f: (a0: number) => number, p0: number): number;
 export declare function t15(f: (a0: number) => number, p0: number): number;
 export declare function t16(f: (a0: rt.PathBuf) => void, p0: number): void;
+export declare function t17(f: (a0: Uint8Array | undefined) => rt.u64, p0: number): bigint;
 export declare function t2(f: (a0: Counter) => boolean, p0: number): number;
 export declare function t3(f: (a0: Moment, a1: Waiter) => rt.Result<Moment | undefined, string>, p0: number, p1: number, p2: number, p3: number): number;
 export declare function t4(f: (a0: number) => string, r$: number, p0: number): void;
@@ -1975,6 +1984,7 @@ export declare function t_Ticket(p: number, v: Ticket): void;
 export declare function t_option_Moment(p: number, v: Moment | undefined): void;
 export declare function vt_Beat(): number;
 export declare function vt_Log(): number;
+export declare function vt_Scan(): number;
 export declare function vt_Turner(): number;
 export declare function w_Atlas(p: number, v: Atlas): void;
 export declare function w_Booth(p: number, v: Booth): void;
@@ -2158,6 +2168,7 @@ export declare function w_vec_vec_u32_2(p: number, v: number[][] | undefined): v
 export declare const imports: {
     api_web_cb_Beat_beat: (data: number) => number;
     api_web_cb_Log_log: (data: number, p0: number, p1: number) => number;
+    api_web_cb_Scan_scan: (data: number, p0: number, p1: number) => bigint;
     api_web_cb_Turner_by: (data: number) => bigint;
     api_web_cb_Turner_once: (data: number) => bigint;
     api_web_i_fn_0: (data: number, p0: bigint) => void;
@@ -2168,6 +2179,7 @@ export declare const imports: {
     api_web_i_fn_13: (data: number, p0: number) => number;
     api_web_i_fn_14: (data: number, p0: number) => number;
     api_web_i_fn_15: (data: number, p0: number) => void;
+    api_web_i_fn_16: (data: number, p0: number) => bigint;
     api_web_i_fn_2: (data: number, p0: number) => number;
     api_web_i_fn_3: (data: number, p0: number, p1: number, p2: number, p3: number) => number;
     api_web_i_fn_4: (r$: number, data: number, p0: number) => void;
@@ -2237,6 +2249,7 @@ import type { Reading } from "./Reading.ts";
 import type { Receipt } from "./Receipt.ts";
 import type { Refusal } from "./Refusal.ts";
 import type { RightLeftU8 } from "./RightLeftU8.ts";
+import type { Scan } from "./Scan.ts";
 import type { Seat } from "./Seat.ts";
 import type { Shape } from "./Shape.ts";
 import type { Size } from "./Size.ts";
@@ -2528,6 +2541,8 @@ export declare function least(sets: number[][]): number[][];
 export declare function splitLast(items: Int32Array): [Int32Array, number];
 export declare function sumU32(items: Uint32Array): rt.u64;
 export declare function doubledI64(items: BigInt64Array): BigInt64Array;
+export declare function visitChunks(payload: Uint8Array | rt.Bytes, size: number, visit: (a0: Uint8Array | undefined) => rt.u64): BigUint64Array;
+export declare function scanned(scan: Scan, payload: Uint8Array | rt.Bytes): rt.u64;
 export declare function boxedFloats(items: Float64Array): Float64Array;
 export declare function summed(points: Point[]): Point;
 export declare function breadth(limits: LimitsDuration): rt.Duration;

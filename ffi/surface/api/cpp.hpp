@@ -658,6 +658,10 @@ namespace api {
 		virtual ~Log() = default;
 		virtual bool log(::std::uint8_t level, ::api::view line) const = 0;
 	};
+	class Scan {
+		virtual ~Scan() = default;
+		virtual ::std::uint64_t scan(::api::view payload, ::std::optional<::api::view> rest) const = 0;
+	};
 	class Beat {
 		virtual ~Beat() = default;
 		virtual ::std::uint32_t beat() const = 0;
@@ -1580,6 +1584,8 @@ namespace api {
 	inline ::std::tuple<::std::vector<::std::int32_t>, ::std::uint32_t> split_last(const ::std::vector<::std::int32_t> &items_);
 	inline ::std::uint64_t sum_u32(const ::std::vector<::std::uint32_t> &items_);
 	inline ::std::vector<::std::int64_t> doubled_i64(const ::std::vector<::std::int64_t> &items_);
+	template <class F0> inline ::std::vector<::std::uint64_t> visit_chunks(::api::input payload, ::std::size_t size, F0 &&visit);
+	inline ::std::uint64_t scanned(::std::unique_ptr<::api::Scan> scan, ::api::input payload);
 	inline ::std::vector<double> boxed_floats(const ::std::vector<double> &items_);
 	inline ::api::Point summed(const ::std::vector<::api::Point> &points);
 	inline ::api::duration breadth(const ::api::Limits_duration &limits);
@@ -2092,6 +2098,7 @@ namespace api {
 	class Forged;
 	class Part;
 	class Log;
+	class Scan;
 	class Beat;
 	class Turner;
 	struct Choice_Empty;
