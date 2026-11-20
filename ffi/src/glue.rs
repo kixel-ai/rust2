@@ -328,7 +328,9 @@ impl Crate<'_> {
 				_ => ", default-features = false",
 			};
 			let line = format!("{} = {{ {keys}{features} }}\n", reached(&r.krate));
-			match r.targets == api.targets {
+			// The glue's own `Bytes` is the facade's, on every target: cargo refuses one name
+			// from two sources, and a `path` or `git` source has one for all targets.
+			match r.targets == api.targets || r.krate == "bytes" {
 				true => every.push_str(&line),
 				false => (r.targets.iter()).for_each(|t| targeted.entry(t).or_default().push_str(&line)),
 			}
@@ -336,12 +338,8 @@ impl Crate<'_> {
 		let targeted: String = (targeted.into_iter())
 			.map(|(target, lines)| format!("[target.{target:?}.dependencies]\n{lines}\n"))
 			.collect();
-		// The crate's own `bytes`, unless the facade's, which every target reaches, stands for it.
-		let own = match api
-			.reached
-			.iter()
-			.any(|r| r.krate == "bytes" && r.targets == api.targets)
-		{
+		// The crate's own `bytes`, unless the facade's stands for it.
+		let own = match api.reached.iter().any(|r| r.krate == "bytes") {
 			true => "",
 			false => "bytes = \"1\"\n",
 		};

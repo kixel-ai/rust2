@@ -4944,6 +4944,65 @@ fn reaches_bytes() {
 	export_and_build(&package, &["--offline"]);
 }
 
+/// A facade whose `bytes` is a `path` dependency that only the host's API reaches: the glue
+/// declares `bytes` once, from the facade's source, for every target, never also as the
+/// registry's, which cargo refuses as one name from two sources.
+#[test]
+fn reaches_bytes_on_the_host() {
+	// The registry's `bytes`, copied beside the facade to be its `path` dependency.
+	let source = package("reaches_bytes_source", &[]);
+	write_all(
+		&source,
+		&[(
+			"Cargo.toml",
+			"[package]\nname = \"reaches_bytes_source\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+			[dependencies]\nbytes = \"1\"\n\n[workspace]\n",
+		)],
+	);
+	run(cargo()
+		.args(["fetch", "--quiet", "--manifest-path"])
+		.arg(source.join("Cargo.toml")));
+	let metadata = run(cargo()
+		.args(["metadata", "--format-version", "1", "--offline", "--manifest-path"])
+		.arg(source.join("Cargo.toml")));
+	let metadata: serde_json::Value = serde_json::from_slice(&metadata.stdout).unwrap();
+	let registry = (metadata["packages"].as_array().unwrap().iter())
+		.find(|p| p["name"] == "bytes")
+		.map(|p| Path::new(p["manifest_path"].as_str().unwrap()).parent().unwrap().to_path_buf())
+		.unwrap();
+	let package = package(
+		"reaches_bytes_host",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"reaches_bytes_host\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\nbytes = { path = \"bytes\" }\n\n[workspace]\nexclude = [\"bytes\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"#[cfg(not(target_arch = \"wasm32\"))]\npub fn limited(bytes: bytes::Bytes) -> bytes::buf::Take<bytes::Bytes> {\n\tbytes::Buf::take(bytes, 2)\n}\n\n\
+				pub fn both() -> u32 {\n\t1\n}\n",
+			),
+		],
+	);
+	step::mirror(&registry, &package.join("bytes"));
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
+		.arg("--out")
+		.arg(&out)
+		.args(["--target", WASM, "--target", host(), "--", "--offline"])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let manifest = std::fs::read_to_string(out.join("Cargo.toml")).unwrap();
+	let declared: Vec<&str> = manifest.lines().filter(|l| l.starts_with("bytes = ")).collect();
+	assert!(
+		declared.len() == 1 && declared[0].contains("path"),
+		"bytes is declared once, from the facade's source:\n{manifest}"
+	);
+	build_offline(&out, &package.join("glue"));
+}
+
 /// A dependency the facade re-exports from, patched in for a registry dependency, is
 /// patched into the glue's build too, though the dependency goes by its library's crate
 /// name. So is a dependency of no platform's, which cargo resolves all the same.

@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xe58cb90bfdf3ae31ULL)
+#define API_CONTRACT ((uint64_t)0x06b4a9cf5dcdd72bULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -877,6 +877,9 @@ typedef struct api_clash_Any {
 typedef struct api_clash_Break {
 	uint8_t _0;
 } api_clash_Break;
+typedef struct api_clash_Escaped {
+	uint8_t new_;
+} api_clash_Escaped;
 typedef struct api_tls_policy_Lifetime {
 	uint32_t seconds;
 } api_tls_policy_Lifetime;
@@ -1430,6 +1433,11 @@ bool api_clash_Break_eq(const api_clash_Break *a, const api_clash_Break *b);
 API_MUST_USE api_buf api_clash_Break_debug(const api_clash_Break *self);
 api_clash_Break api_clash_Break_Sp(void);
 api_clash_Break api_clash_Break_SP(void);
+void api_clash_Escaped_free(api_clash_Escaped *self);
+bool api_clash_Escaped_eq(const api_clash_Escaped *a, const api_clash_Escaped *b);
+API_MUST_USE api_buf api_clash_Escaped_debug(const api_clash_Escaped *self);
+uint8_t api_clash_Escaped_delete(const api_clash_Escaped *self);
+uint8_t api_clash_Escaped_delete_(const api_clash_Escaped *self, uint8_t new_, uint8_t new__);
 void api_tls_policy_Lifetime_free(api_tls_policy_Lifetime *self);
 bool api_tls_policy_Lifetime_eq(const api_tls_policy_Lifetime *a, const api_tls_policy_Lifetime *b);
 API_MUST_USE api_buf api_tls_policy_Lifetime_debug(const api_tls_policy_Lifetime *self);

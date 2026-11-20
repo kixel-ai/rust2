@@ -4,8 +4,9 @@
 //! Each name is its C name without the prefix, in a namespace of the prefix: `moq_track`
 //! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
-//! named as its class or a field, takes a trailing `_`; so does a parameter named as a
-//! member or as anything in the namespace, which it would hide. An object is a class owning
+//! named as its class, a field, or a trait's member, takes a trailing `_`, and one a
+//! keyword's escape makes another's takes another (`delete` beside `delete_` is `delete__`);
+//! so does a parameter named as a member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
 //! share; a record a struct, and a `Copy` type with private fields a class over its C
@@ -89,6 +90,28 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		})
 		.collect();
 	h.locked = crate::lock::types(abi, &classes);
+	// Each name a trait or a name escaping alike can move, so a change that moves one, such
+	// as a reorder or a derived `Debug` beside a field `debug`, breaks the lock.
+	for (i, record) in api.records.iter().enumerate() {
+		let owner = crate::lock::type_key(&record.shown);
+		for (field, name) in record.fields.iter().zip(h.fields(i).0) {
+			h.locked.insert(format!("{owner} / field {}", field.name), name);
+		}
+	}
+	for (i, e) in api.enums.iter().enumerate() {
+		let owner = crate::lock::type_key(&e.shown);
+		if e.plain() {
+			for (v, value) in e.variants.iter().zip(h.values(i)) {
+				h.locked.insert(format!("{owner} / variant {}", v.name), value);
+			}
+		}
+		for v in &e.variants {
+			for (field, name) in v.fields.iter().zip(field_names(&v.fields)) {
+				h.locked
+					.insert(format!("{owner} / variant {} / field {}", v.name, field.name), name);
+			}
+		}
+	}
 	let mut headers = vec![(format!("{p}/rt.hpp"), h.shared(packages))];
 	let guard = format!("{}_HPP", p.to_uppercase());
 	let mut umbrella = format!(
@@ -126,13 +149,13 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	}
 }
 
-/// How a method's type holds it.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Owner {
-	/// A class's member.
-	Member,
-	/// A free function whose first parameter is the value: an enum's.
-	Free,
+/// A method its class declares, rather than a free function: an enum's methods take it first.
+#[derive(Clone, Copy)]
+struct Member<'t> {
+	/// Its name in the class.
+	name: &'t str,
+	/// The class's other names, which a parameter named alike would hide.
+	taken: &'t [String],
 }
 
 struct Header<'a> {
@@ -770,10 +793,9 @@ impl<'a> Header<'a> {
 
 		for (i, e) in api.enums.iter().enumerate().filter(|(_, e)| e.plain() && home(&e.home)) {
 			let name = self.name(&abi.enumeration(i));
-			let variants: Vec<String> = e
-				.variants
-				.iter()
-				.map(|v| format!("\t{} = {},", escape(&abi::snake(&v.name)), v.discriminant))
+			let variants: Vec<String> = (e.variants.iter())
+				.zip(self.values(i))
+				.map(|(v, value)| format!("\t{value} = {},", v.discriminant))
 				.collect();
 			self.line(format!(
 				"{}enum class{} {name} {{\n{}\n}};\n",
@@ -837,27 +859,24 @@ impl<'a> Header<'a> {
 				name: abi.object(i),
 				constant: false,
 			};
-			let name = self.name(&abi.object(i));
-			let mut taken = Self::made(object.traits, &name);
-			taken.push(name);
-			for method in object.methods.iter().filter(|m| home(&m.home)) {
-				self.function(method, Some(&owner), Some((&taken, Owner::Member)));
+			let taken = self.object_taken(i);
+			let names = self.methods(&object.methods, &owner, &taken);
+			for (method, name) in object.methods.iter().zip(&names).filter(|(m, _)| home(&m.home)) {
+				self.function(method, Some(&owner), Some(Member { name, taken: &taken }));
 			}
 		}
 		for (i, record) in api.records.iter().enumerate().filter(|(_, r)| !home(&r.home)) {
 			let owner = Ty::Struct(abi.record(i));
-			let name = self.name(&abi.record(i));
-			let mut taken: Vec<String> = record.fields.iter().map(|f| escape(&f.name)).collect();
-			taken.extend(Self::made(record.traits, &name));
-			taken.push(name);
-			for method in record.methods.iter().filter(|m| home(&m.home)) {
-				self.function(method, Some(&owner), Some((&taken, Owner::Member)));
+			let (_, taken) = self.fields(i);
+			let names = self.methods(&record.methods, &owner, &taken);
+			for (method, name) in record.methods.iter().zip(&names).filter(|(m, _)| home(&m.home)) {
+				self.function(method, Some(&owner), Some(Member { name, taken: &taken }));
 			}
 		}
 		for (i, e) in api.enums.iter().enumerate().filter(|(_, e)| !home(&e.home)) {
 			let owner = abi.ty(&Type::Enum(i));
 			for method in e.methods.iter().filter(|m| home(&m.home)) {
-				self.function(method, Some(&owner), Some((&[], Owner::Free)));
+				self.function(method, Some(&owner), None);
 			}
 		}
 		for function in api.functions.iter().filter(|f| home(&f.home)) {
@@ -960,14 +979,66 @@ impl<'a> Header<'a> {
 		functions
 	}
 
-	/// The member name of the C function `c` of the type named `owner` in C, kept apart from
-	/// the class's name and its fields.
-	fn member(&self, c: &str, owner: &str, taken: &[String]) -> String {
-		let bare = match c.strip_prefix(owner).and_then(|rest| rest.strip_prefix('_')) {
-			Some(rest) => escape(rest),
-			None => self.name(c),
+	/// The member names of `methods`, of the type `owner`, each its C name without its type's,
+	/// kept apart from `taken` and each other as [`named`] keeps them.
+	fn methods(&self, methods: &[Function], owner: &Ty, taken: &[String]) -> Vec<String> {
+		let c = match owner {
+			Ty::Struct(n) | Ty::Handle { name: n, .. } => n,
+			_ => unreachable!("a class's methods are a record's or an object's"),
 		};
-		kept_apart(bare, taken)
+		let bare: Vec<String> = (methods.iter())
+			.map(|method| {
+				let call = self.abi.export(method, Some(owner)).call.name;
+				match call.strip_prefix(c.as_str()).and_then(|rest| rest.strip_prefix('_')) {
+					Some(rest) => rest.to_string(),
+					None => call[self.abi.prefix.len() + 1..].to_string(),
+				}
+			})
+			.collect();
+		named(&bare, |n| taken.iter().any(|t| t == n))
+	}
+
+	/// The record `i`'s field names, kept apart from the members its traits export; and every
+	/// name its methods keep apart from: those, its class's, its traits' as an object's would
+	/// be, as they always have, and an opaque value's bytes `c_`.
+	fn fields(&self, i: usize) -> (Vec<String>, Vec<String>) {
+		let record = &self.abi.api.records[i];
+		let name = self.name(&self.abi.record(i));
+		let made = Self::made(record.traits, &name);
+		// A record's traits give it no `clone` or `hash`, which only an object's give.
+		let emitted = Traits {
+			clone: false,
+			hash: false,
+			..record.traits
+		};
+		let rust: Vec<String> = record.fields.iter().map(|f| f.name.clone()).collect();
+		let members = Self::made(emitted, &name);
+		let fields = named(&rust, |n| members.iter().any(|t| t == n));
+		let mut taken = fields.clone();
+		taken.extend(made);
+		taken.push(name);
+		if record.opaque.is_some() {
+			taken.push("c_".to_string());
+		}
+		(fields, taken)
+	}
+
+	/// The names the methods of the object `i` keep apart from: its traits' members, its
+	/// class's, and its handle `raw_`.
+	fn object_taken(&self, i: usize) -> Vec<String> {
+		let name = self.name(&self.abi.object(i));
+		let mut taken = Self::made(self.abi.api.objects[i].traits, &name);
+		taken.push(name);
+		taken.push("raw_".to_string());
+		taken
+	}
+
+	/// The values of the plain enum `i`, each its variant's name in snake case.
+	fn values(&self, i: usize) -> Vec<String> {
+		let rust: Vec<String> = (self.abi.api.enums[i].variants.iter())
+			.map(|v| abi::snake(&v.name))
+			.collect();
+		named(&rust, |_| false)
 	}
 
 	/// The members `traits` exports on the class `class`, which a method's name keeps apart
@@ -1095,10 +1166,16 @@ impl<'a> Header<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		let mut taken = Self::made(t, &name);
-		taken.push(name.clone());
-		for method in &object.methods {
-			let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
+		let taken = self.object_taken(i);
+		for (method, name) in object.methods.iter().zip(self.methods(&object.methods, &owner, &taken)) {
+			let (decl, member) = self.function(
+				method,
+				Some(&owner),
+				Some(Member {
+					name: &name,
+					taken: &taken,
+				}),
+			);
 			body.push(decl);
 			members.push(member);
 		}
@@ -1188,21 +1265,19 @@ impl<'a> Header<'a> {
 			self.ns
 		)];
 		let mut table = vec!["&t::free".to_string()];
-		for (n, method) in callback.methods.iter().enumerate() {
-			let mut member = escape(method.name());
-			if member == name {
-				member.push('_');
-			}
+		let rust: Vec<String> = callback.methods.iter().map(|m| m.name().to_string()).collect();
+		let names = named(&rust, |n| n == name);
+		for (n, (method, member)) in callback.methods.iter().zip(names).enumerate() {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let constant = match method.receiver {
 				Some(Receiver::Mut) => "",
 				_ => " const",
 			};
-			let params: Vec<String> = method
-				.params
-				.iter()
-				.map(|p| declare(&self.lent(&p.ty), &escape(&p.name)))
+			let rust: Vec<String> = method.params.iter().map(|p| p.name.clone()).collect();
+			let params: Vec<String> = (method.params.iter())
+				.zip(named(&rust, |_| false))
+				.map(|(p, param)| declare(&self.lent(&p.ty), &param))
 				.collect();
 			body.push(format!(
 				"{}\t{}virtual {} {member}({}){constant} = 0;",
@@ -1290,7 +1365,7 @@ impl<'a> Header<'a> {
 					self.value(&field.ty);
 				}
 				let name = self.name(&c);
-				let fields: Vec<String> = record.fields.iter().map(|f| escape(&f.name)).collect();
+				let (fields, taken) = self.fields(*i);
 				let mut body: Vec<String> = record
 					.fields
 					.iter()
@@ -1344,16 +1419,16 @@ impl<'a> Header<'a> {
 				}
 				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
-				let mut taken = fields.clone();
-				taken.extend(Self::made(t, &name));
-				taken.push(name.clone());
 				// An opaque value's bytes are its private member `c_`.
 				if record.opaque.is_some() {
-					taken.push("c_".to_string());
 					members.push("c_".to_string());
 				}
-				for method in &record.methods {
-					let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
+				for (method, name) in record.methods.iter().zip(self.methods(&record.methods, &owner, &taken)) {
+					let member = Member {
+						name: &name,
+						taken: &taken,
+					};
+					let (decl, member) = self.function(method, Some(&owner), Some(member));
 					body.push(decl);
 					members.push(member);
 				}
@@ -1394,10 +1469,9 @@ impl<'a> Header<'a> {
 				}
 				for variant in &e.variants {
 					let payload = self.name(&abi::payload(&c, &variant.name));
-					let fields: Vec<String> = variant
-						.fields
-						.iter()
-						.map(|f| format!("\t{} {}{};", self.owned(&f.ty), escape(&f.name), init(&f.ty)))
+					let fields: Vec<String> = (variant.fields.iter())
+						.zip(field_names(&variant.fields))
+						.map(|(f, field)| format!("\t{} {field}{};", self.owned(&f.ty), init(&f.ty)))
 						.collect();
 					self.line(format!("struct {payload} {{\n{}\n}};\n", fields.join("\n")).replace("{\n\n}", "{}"));
 				}
@@ -1458,7 +1532,7 @@ impl<'a> Header<'a> {
 		}
 		let owner = abi.ty(&ty);
 		for method in &e.methods {
-			self.function(method, Some(&owner), Some((&[], Owner::Free)));
+			self.function(method, Some(&owner), None);
 		}
 	}
 
@@ -1513,10 +1587,9 @@ impl<'a> Header<'a> {
 				));
 				continue;
 			}
-			let lowered: Vec<String> = record
-				.fields
-				.iter()
-				.map(|f| self.lower(&f.ty, &format!("v.{}", escape(&f.name))))
+			let lowered: Vec<String> = (record.fields.iter())
+				.zip(self.fields(i).0)
+				.map(|(f, field)| self.lower(&f.ty, &format!("v.{field}")))
 				.collect();
 			let lifted: Vec<String> = record
 				.fields
@@ -1550,11 +1623,11 @@ impl<'a> Header<'a> {
 				let member = abi::escape(&abi::snake(&variant.name));
 				let mut set = vec![format!("c.tag = {tag};")];
 				let mut fields = Vec::new();
-				for field in &variant.fields {
+				for (field, name) in variant.fields.iter().zip(field_names(&variant.fields)) {
 					set.push(format!(
 						"c.{member}.{} = {};",
 						abi::escape(&field.name),
-						self.lower(&field.ty, &format!("p.{}", escape(&field.name)))
+						self.lower(&field.ty, &format!("p.{name}"))
 					));
 					fields.push(self.lift(&field.ty, &format!("c.{member}.{}", abi::escape(&field.name))));
 				}
@@ -1667,15 +1740,11 @@ impl<'a> Header<'a> {
 				let e = &abi.api.enums[i];
 				let variant = &e.variants[v].name;
 				match e.plain() {
-					true => format!("{ns}::{}::{}", owner(doc::Owner::Enum(i)), escape(&abi::snake(variant))),
+					true => format!("{ns}::{}::{}", owner(doc::Owner::Enum(i)), self.values(i)[v]),
 					false => format!("{ns}::{}", self.name(&abi::payload(&abi.enumeration(i), variant))),
 				}
 			}
-			doc::Target::Field(i, n) => format!(
-				"{ns}::{}::{}",
-				owner(doc::Owner::Record(i)),
-				escape(&abi.api.records[i].fields[n].name)
-			),
+			doc::Target::Field(i, n) => format!("{ns}::{}::{}", owner(doc::Owner::Record(i)), self.fields(i).0[n]),
 			doc::Target::Constant(c) => format!("{ns}::{}", self.locked.get(&format!("const {}", c.path.join("::")))?),
 			doc::Target::Function(of, f) => {
 				let member = self.locked.get(&crate::lock::function_key(f))?;
@@ -1690,12 +1759,7 @@ impl<'a> Header<'a> {
 
 	/// `function`'s declaration in its class, and its member name, with its definition
 	/// among the definitions; or as a free function if it has no class.
-	fn function(
-		&mut self,
-		function: &Function,
-		owner: Option<&Ty>,
-		class: Option<(&[String], Owner)>,
-	) -> (String, String) {
+	fn function(&mut self, function: &Function, owner: Option<&Ty>, member: Option<Member<'_>>) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let d = self.d();
@@ -1703,12 +1767,12 @@ impl<'a> Header<'a> {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
 			_ => None,
 		};
-		let member = match (class, &owner_c) {
-			(Some((taken, Owner::Member)), Some(owner)) => self.member(&export.call.name, owner, taken),
-			_ => self.name(&export.call.name),
+		let free = member.is_none();
+		let (members, member) = match member {
+			Some(Member { name, taken }) => (taken, name.to_string()),
+			None => (&[][..], self.name(&export.call.name)),
 		};
 		crate::lock::function(&mut self.locked, function, &member);
-		let free = !matches!(class, Some((_, Owner::Member)));
 		let ret = match &export.future {
 			Some(future) => self.q(&future.handle),
 			None => self.output(function),
@@ -1747,12 +1811,6 @@ impl<'a> Header<'a> {
 			prelude.insert(0, format!("{d}::arena a_;"));
 		}
 		let mut templates = Vec::new();
-		// A parameter named as a member or anything in the namespace would hide it.
-		let members = match class {
-			Some((taken, Owner::Member)) => taken,
-			_ => &[],
-		};
-		let mut names: Vec<String> = Vec::new();
 		// Whether an argument takes Rust's bytes from its parameter, and the arguments that
 		// may throw, by allocating.
 		let mut taken = false;
@@ -1761,12 +1819,12 @@ impl<'a> Header<'a> {
 		// argument, its type, its `new`, and what passes the pointer, which a hoisted one holds
 		// in a `unique_ptr` until the call, so a later throw frees it.
 		let mut owned: Vec<(usize, String, String, Option<String>)> = Vec::new();
-		for param in &function.params {
+		let rust: Vec<String> = function.params.iter().map(|p| p.name.clone()).collect();
+		let names = named(&rust, |name| {
+			self.globals.contains(name) || members.iter().any(|n| n == name) || generated(name)
+		});
+		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
-			let name = parameter(&param.name, |name| {
-				self.globals.contains(name) || members.iter().chain(&names).any(|n| n == name)
-			});
-			names.push(name.clone());
 			// Any future of nothing, such as a binding's `future` of `void`, moved in.
 			if let Type::Future = param.ty {
 				let f = format!("F{}", templates.len());
@@ -1817,13 +1875,13 @@ impl<'a> Header<'a> {
 				templates.push(format!("class {f}"));
 				continue;
 			}
-			params.push(declare(&self.param(&param.ty), &name));
+			params.push(declare(&self.param(&param.ty), name));
 			if Self::takes(&param.ty) {
 				taken = true;
 			} else if self.arena(&param.ty) {
 				throwing.push(args.len());
 			}
-			args.push(self.arg(&param.ty, &name));
+			args.push(self.arg(&param.ty, name));
 		}
 		// Arguments evaluate in no set order, so those that may throw run first, and the call
 		// itself throws nothing: Rust's bytes are taken, and an allocation released to Rust,
@@ -2157,12 +2215,31 @@ fn apart(bare: &str, class: &str) -> String {
 	}
 }
 
-/// `name`, with `_` appended while `taken` holds it.
-fn kept_apart(mut name: String, taken: &[String]) -> String {
-	while taken.contains(&name) {
-		name.push('_');
+/// The C++ names of `rust`, the names of one scope, each kept apart from those `taken` holds
+/// and the rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every
+/// other, escaped, takes `_` while a name before it in Rust's order holds it. So a field
+/// `new_` stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
+fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
+	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| names[k] == rust[k] && !taken(&names[k]))
+		.collect();
+	let mut held: Vec<String> = (0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()).collect();
+	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
+	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
+	for k in moved {
+		while taken(&names[k]) || held.contains(&names[k]) {
+			names[k].push('_');
+		}
+		held.push(names[k].clone());
 	}
-	name
+	names
+}
+
+/// The C++ names of `fields`, a struct's with no other members: a data enum's payload's.
+fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+	let rust: Vec<String> = fields.iter().map(|f| f.name.clone()).collect();
+	named(&rust, |_| false)
 }
 
 /// The C++ name of the parameter `rust`, with `_` appended while `taken` holds it or it is
@@ -2468,7 +2545,7 @@ pub(crate) fn escape(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{Header, escape, kept_apart, parameter};
+	use super::{Header, escape, named, parameter};
 	use crate::ir::Traits;
 
 	#[test]
@@ -2484,11 +2561,45 @@ mod tests {
 			..Traits::default()
 		};
 		let taken = Header::made(traits, "Hasher");
+		let method = |rust: &str| named(&[rust.to_string()], |n| taken.iter().any(|t| t == n)).remove(0);
 		// rustc-hash's `FxHasher::default`, which C renames `_default_` beside `Default`'s
 		// `_default`, while C++ escapes the keyword of both to `default_`.
-		assert_eq!(kept_apart(escape("default_"), &taken), "default__");
-		assert_eq!(kept_apart(escape("default"), &taken), "default__");
-		assert_eq!(kept_apart(escape("seed"), &taken), "seed");
+		assert_eq!(method("default_"), "default__");
+		assert_eq!(method("default"), "default__");
+		assert_eq!(method("seed"), "seed");
+	}
+
+	#[test]
+	fn names_escaping_alike_stay_apart() {
+		let names = |rust: &[&str], taken: &[&str]| {
+			let rust: Vec<String> = rust.iter().map(|n| n.to_string()).collect();
+			let taken: Vec<String> = taken.iter().map(|n| n.to_string()).collect();
+			named(&rust, |n| taken.iter().any(|t| t == n))
+		};
+		// A name escaping leaves as it is keeps it, in either order.
+		assert_eq!(names(&["delete", "delete_"], &[]), ["delete__", "delete_"]);
+		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete__"]);
+		assert_eq!(
+			names(&["class", "class_", "class__"], &[]),
+			["class___", "class_", "class__"]
+		);
+		// Unless something else holds it, such as a trait's member.
+		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug__", "debug_"]);
+		assert_eq!(names(&["default", "seed"], &["default_"]), ["default__", "seed"]);
+		// And two that neither keeps move by Rust's order, not the source's.
+		assert_eq!(
+			names(&["default", "default_"], &["default_"]),
+			["default__", "default___"]
+		);
+		assert_eq!(
+			names(&["default_", "default"], &["default_"]),
+			["default___", "default__"]
+		);
+		// The macros' family escapes apart already.
+		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix__"]);
+		// A function's parameters also stay clear of the header's own locals, such as `a_`.
+		let rust = ["a_".to_string(), "a".to_string(), "new_".to_string(), "new".to_string()];
+		assert_eq!(named(&rust, super::generated), ["a__", "a", "new_", "new__"]);
 	}
 
 	#[test]

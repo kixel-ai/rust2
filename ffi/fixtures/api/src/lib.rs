@@ -4996,6 +4996,24 @@ pub mod clash {
 		}
 	}
 
+	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+	pub struct Escaped {
+		pub new: u8,
+	}
+
+	impl Escaped {
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+
+		/// `new` plus the arguments, by parameters C++ escapes alike.
+		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
+			self.new + new * 10 + new_ * 100
+		}
+	}
+
 	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
 	pub fn audible(tone: Tone) -> Result<Tone, Vec<Tone>> {
 		if tone.hz == 0 { Err(Vec::new()) } else { Ok(tone) }

@@ -432,6 +432,11 @@ data class ClashBreak(val _0: kotlin.UByte) {
 		@kotlin.jvm.JvmStatic val SP_: api.ClashBreak
 	}
 }
+data class ClashEscaped(val new: kotlin.UByte) {
+	fun debug(): kotlin.String
+	fun delete(): kotlin.UByte
+	fun delete_(new: kotlin.UByte, new2: kotlin.UByte): kotlin.UByte
+}
 data class TlsPolicyLifetime(val seconds: kotlin.UInt) {
 	fun debug(): kotlin.String
 }
