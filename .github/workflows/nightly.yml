@@ -36,7 +36,7 @@ jobs:
           getconf PAGESIZE; cat /proc/cpuinfo | grep -m1 -i 'model name\|cpu part'
 
       - name: Sanitize
-        run: nix develop .#sanitize --command bash -c 'cd ffi && for t in api_asan api_tsan api_swift_tsan; do cargo test --locked --test fixtures -- --ignored --exact $t 2>&1 | tail -40 || true; done'
+        run: nix develop .#sanitize --command bash -c 'cd ffi && export PATH=$RUST2_TS_TOOLCHAIN/bin:$PATH && for t in api_asan api_tsan api_swift_tsan; do cargo test --locked --test fixtures -- --ignored --exact $t 2>&1 | tail -40 || true; done'
 
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
