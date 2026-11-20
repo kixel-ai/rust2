@@ -936,13 +936,20 @@ impl<'a> Header<'a> {
 	}
 
 	/// The record `i`'s field names, kept apart from the members its traits export; and every
-	/// name its methods keep apart from: those, its class's, and an opaque value's bytes `c_`.
+	/// name its methods keep apart from: those, its class's, its traits' as an object's would
+	/// be, as they always have, and an opaque value's bytes `c_`.
 	fn fields(&self, i: usize) -> (Vec<String>, Vec<String>) {
 		let record = &self.abi.api.records[i];
 		let name = self.name(&self.abi.record(i));
 		let made = Self::made(record.traits, &name);
+		// A record's traits give it no `clone` or `hash`, which only an object's give.
+		let emitted = Traits {
+			clone: false,
+			hash: false,
+			..record.traits
+		};
 		let rust: Vec<String> = record.fields.iter().map(|f| f.name.clone()).collect();
-		let fields = named(&rust, &made);
+		let fields = named(&rust, &Self::made(emitted, &name));
 		let mut taken = fields.clone();
 		taken.extend(made);
 		taken.push(name);
