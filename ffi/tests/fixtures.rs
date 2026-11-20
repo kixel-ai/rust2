@@ -4968,7 +4968,12 @@ fn reaches_bytes_on_the_host() {
 	let metadata: serde_json::Value = serde_json::from_slice(&metadata.stdout).unwrap();
 	let registry = (metadata["packages"].as_array().unwrap().iter())
 		.find(|p| p["name"] == "bytes")
-		.map(|p| Path::new(p["manifest_path"].as_str().unwrap()).parent().unwrap().to_path_buf())
+		.map(|p| {
+			Path::new(p["manifest_path"].as_str().unwrap())
+				.parent()
+				.unwrap()
+				.to_path_buf()
+		})
 		.unwrap();
 	let package = package(
 		"reaches_bytes_host",
