@@ -739,7 +739,8 @@ fn main() {
 			.map(|c| format!("{}", api::len(c)))
 			.collect::<Vec<_>>()
 			.join(" "),
-		api::held_count(Some((Counter::new("h", 4),))).map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
+		api::held_count(Some((Counter::new("h", 4),)))
+			.map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
 		api::fingerprint(&format!("{}", api::len(b"abc"))).is_err(),
 		api::sum_u32(&[ledger.published(), 1])
 	);
