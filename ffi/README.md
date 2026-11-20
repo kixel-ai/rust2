@@ -434,6 +434,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   fallible call's `bool` is `<PREFIX>_MUST_USE`, C23's and C++17's `[[nodiscard]]`, or
   GCC's and Clang's `warn_unused_result` before C23, since dropping it leaks or loses an
   error. Docs are `/** */`, which Doxygen reads.
+- **Android**: the build script links the library with 16 KB pages, which Google Play
+  requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
+  panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
+  message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
+  app's stderr goes nowhere.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -486,7 +491,9 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
+  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
+  underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -688,7 +695,7 @@ the rest cross encoded.
   which is never negative or infinite in Rust and drops what is below a millisecond past
   about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
   Windows, made from them or from a `String`, and converted to one or to a
-  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  `java.nio.file.Path` by `toText()` and `toPath()` (Android's `java.nio.file` starts at API 26), which throw where it is not UTF-8;
   its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
   is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
   each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
@@ -1467,7 +1474,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   payload costs 0.2 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
   1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
   has each engine's.
-- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
+- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does; where the engine lacks that symbol, as stable Safari does, `rt` defines it as `Symbol.for("Symbol.dispose")`, which esbuild's `using` falls back to too. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
   disposed and no call holds it, so one disposed while a later argument lowers fails the
@@ -1509,7 +1516,7 @@ just ffi shapes   # round-trip every sampled type shape in every language but KN
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
-nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
@@ -1534,8 +1541,11 @@ pushed out of one, and that each object of many threads' returns, closes, and dr
 freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
+segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
+panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
+x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
+API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
