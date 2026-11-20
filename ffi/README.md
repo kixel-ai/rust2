@@ -751,7 +751,8 @@ the rest cross encoded.
 ## Python
 
 `<prefix>.py` is Python over a CPython extension that `--features python` builds into the
-same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
+same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
+free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
@@ -1537,7 +1538,8 @@ API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
-abort with its message; the Python with another contract must refuse the library.
+abort with its message; the Python with another contract must refuse the library. `api_free_threaded` imports it under
+nixpkgs' free-threaded CPython, which the dev shell names in `PYTHON_FREE_THREADED`, and checks the `ImportError`.
 `api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's

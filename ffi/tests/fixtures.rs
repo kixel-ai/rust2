@@ -1335,6 +1335,79 @@ fn api_python() {
 	);
 }
 
+/// A free-threaded CPython refuses the module with an `ImportError`: the library is for the
+/// GIL's ABI, which it would load through its explicit path and crash in. `PYTHON_FREE_THREADED`
+/// or `python3.14t` is the interpreter, which the dev shell provides.
+#[test]
+fn api_free_threaded() {
+	let python = std::env::var_os("PYTHON_FREE_THREADED").unwrap_or_else(|| "python3.14t".into());
+	let dir = api().out.join("python");
+	let probe = |code: &str| {
+		let mut cmd = Command::new(&python);
+		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
+		// which names the GIL build's packages. `-X gil=0` beats an inherited `PYTHON_GIL=1`,
+		// which would turn the GIL on in a free-threaded build.
+		cmd.args(["-X", "gil=0", "-P", "-c", code]).env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	// A GIL build would pass for the refusal's test, so check the interpreter first.
+	let build = probe("import sys; sys.exit(sys._is_gil_enabled())");
+	assert!(
+		build.status.success(),
+		"{python:?} is not a free-threaded CPython: {}",
+		String::from_utf8_lossy(&build.stderr)
+	);
+	let output = probe("import api");
+	// Exit 1 is an uncaught exception, where a crash has no code.
+	assert_eq!(
+		output.status.code(),
+		Some(1),
+		"importing under a free-threaded CPython: {output:?}"
+	);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"ImportError: api.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use"
+		),
+		"importing under a free-threaded CPython printed {stderr}"
+	);
+
+	// The suffixes of the platforms this host is not, appended on the GIL build, which
+	// loads from beside the module whatever its list holds.
+	let gil = |suffix: &str| {
+		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		cmd.args(["-P", "-c"])
+			.arg(format!(
+				"import importlib.machinery as m; m.EXTENSION_SUFFIXES.append('{suffix}'); import api"
+			))
+			.env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	for suffix in [
+		".cp314t-win_amd64.pyd",
+		"_d.cp314t-win_amd64.pyd",
+		".cpython-313t-darwin.so",
+		".cpython-315t-aarch64-linux-gnu.so",
+		".cpython-314td-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
+		assert!(
+			String::from_utf8_lossy(&output.stderr).contains("a free-threaded CPython cannot use"),
+			"{suffix} printed {output:?}"
+		);
+	}
+	for suffix in [
+		".cp314-win_amd64.pyd",
+		"_d.cp314-win_amd64.pyd",
+		".cpython-314-darwin.so",
+		".cpython-314d-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert!(output.status.success(), "{suffix} was refused: {output:?}");
+	}
+}
+
 /// Random sequences of the ownership protocol's steps through the Python, by
 /// `tests/protocol.py`, each matching what the model says each step returns.
 #[test]
