@@ -5478,8 +5478,8 @@ impl Drop for Unwound {
 	}
 }
 
-/// How many calls of [`measured`], [`negated`], [`lettered`], and [`stretched`] dropped what
-/// they held.
+/// How many calls of [`measured`], [`negated`], [`lettered`], [`bumped`], and [`stretched`]
+/// dropped what they held.
 pub fn unwound() -> u32 {
 	UNWOUND.load(std::sync::atomic::Ordering::Relaxed)
 }
@@ -5499,6 +5499,13 @@ pub fn negated(f: impl Fn() -> isize) -> isize {
 /// The letter `f` returns.
 pub fn lettered(f: impl Fn() -> char) -> char {
 	let _held = Unwound;
+	f()
+}
+
+/// `n` bumped, then the letter `f` returns: a caller catching `f`'s failure sees the bump.
+pub fn bumped(n: &mut u32, f: impl Fn() -> char) -> char {
+	let _held = Unwound;
+	*n += 1;
 	f()
 }
 

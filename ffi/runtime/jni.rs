@@ -279,19 +279,6 @@ pub fn entry<R>(env: *mut JNIEnv, f: impl FnOnce() -> R) -> R {
 	}
 }
 
-/// [`entry`] for a native method that writes an argument back once the call returns, which
-/// unwinding would skip: it aborts with the exception a closure's failed check unwound with.
-#[inline(always)]
-pub fn writing<R>(env: *mut JNIEnv, what: &str, f: impl FnOnce() -> R) -> R {
-	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
-		Ok(result) => result,
-		Err(payload) => {
-			let _ = caught_unwind::<()>(env, payload);
-			fail(env, what, "a closure's value has no Rust type to be, and the call writes an argument back");
-		}
-	}
-}
-
 #[cold]
 fn caught_unwind<R>(env: *mut JNIEnv, payload: Box<dyn std::any::Any + Send>) -> R {
 	match payload.downcast::<Unwound>() {

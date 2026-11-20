@@ -127,7 +127,7 @@ fn fn_pointer(abi: &str, params: &[Ty], ret: &Ty) -> String {
 const NO_MANGLE: &str = "#[unsafe(no_mangle)]\n";
 
 /// The macro [`unwinding`] writes each `unsafe` C function through.
-const EXPORT: &str = "/// A C function, which under `kotlin` calls its body in the module of its name as `C-unwind`,\n/// as the JNI glue calls it, so a Kotlin closure's failed check unwinds through it to the\n/// native method below: through this one, as C and every other binding call it, any\n/// unwinding aborts, as a panic does.\nmacro_rules! export {\n\t($(#[$m:meta])* fn $name:ident($($p:ident: $t:ty),* $(,)?) $(-> $r:ty)? $body:block) => {\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\t#[unsafe(no_mangle)]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? $body\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t#[unsafe(no_mangle)]\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? {\n\t\t\tunsafe { $name::unwind($($p),*) }\n\t\t}\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\tpub mod $name {\n\t\t\t#[allow(unused_imports, reason = \"what the body names\")]\n\t\t\tuse super::*;\n\n\t\t\t$(#[$m])*\n\t\t\tpub unsafe extern \"C-unwind\" fn unwind($($p: $t),*) $(-> $r)? $body\n\t\t}\n\t};\n}\n\n";
+const EXPORT: &str = "/// A C function, which under `kotlin` calls its body as `C-unwind` by the first name, as the\n/// JNI glue calls it, so a Kotlin closure's failed check unwinds through it to the native\n/// method below: through this one, as C and every other binding call it, any unwinding\n/// aborts, as a panic does.\nmacro_rules! export {\n\t($unwind:ident $(#[$m:meta])* fn $name:ident($($p:ident: $t:ty),* $(,)?) $(-> $r:ty)? $body:block) => {\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\t#[unsafe(no_mangle)]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? $body\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t#[unsafe(no_mangle)]\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? {\n\t\t\tunsafe { $unwind($($p),*) }\n\t\t}\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C-unwind\" fn $unwind($($p: $t),*) $(-> $r)? $body\n\t};\n}\n\n";
 
 /// `lib`, the crate's code, with each `unsafe` C function written through [`EXPORT`]'s
 /// macro, defined before the first.
@@ -154,10 +154,13 @@ fn unwinding(lib: &str) -> String {
 			out.push_str(EXPORT);
 			defined = true;
 		}
-		out.push_str("export! {\n");
+		let head = &head[FN.len()..];
+		let name = &head[..head.find('(').expect("a C function's parameters")];
+		// Apart from every C name, which starts with the prefix.
+		out.push_str(&format!("export! {{\nunwind_{name}\n"));
 		attrs.iter().for_each(|attr| out.push_str(attr));
 		out.push_str("fn ");
-		out.push_str(&head[FN.len()..]);
+		out.push_str(head);
 		// The body, to the brace closing it, the first line holding only one.
 		for body in lines.by_ref() {
 			out.push_str(body);
@@ -168,6 +171,19 @@ fn unwinding(lib: &str) -> String {
 		out.push_str("}\n");
 	}
 	out
+}
+
+/// `let result = call;`, which under `kotlin`, if a closure's failed check unwinds out of it,
+/// first runs `after`, which ends what the call moved and writes back what it changed, so the
+/// Kotlin caller sees both, as a Rust caller catching the panic would.
+fn unwound(call: &str, after: &str) -> String {
+	match after.is_empty() {
+		true => format!("let result = {call};"),
+		false => format!(
+			"#[cfg(not(feature = \"kotlin\"))]\n\tlet result = {call};\n\t#[cfg(feature = \"kotlin\")]\n\tlet result = match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {call})) {{\n\t\tOk(result) => result,\n\t\tErr(unwound) => {{{}\n\t\t\t::std::panic::resume_unwind(unwound)\n\t\t}}\n\t}};",
+			after.replace("\n\t", "\n\t\t\t")
+		),
+	}
 }
 
 /// Why the glue calls a function C implements as `C-unwind`.
@@ -3178,7 +3194,7 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 			params.join(", "),
 			away(&name, &params),
-			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{ended}{pending}{writes}\n\t{finish}"))
+			wrap(status, &ret, &format!("{body}\n\t{}{ended}{pending}{writes}\n\t{finish}", unwound(&call, &format!("{ended}{writes}"))))
 		));
 		if export.homed {
 			self.export(homed(&name, &params, &ret, &unsent));

@@ -980,6 +980,8 @@ fun unwinds() {
 	check(lettered { 'a'.code } == 'a'.code && unwound() == before + 2u, "the next call returns")
 	check(rejects { lettered { lettered { 0xD800 } } } && unwound() == before + 4u, "a closure's call it throws from unwinds the outer call too")
 	check(lettered { runCatching { lettered { 0xD800 } }.getOrDefault('b'.code) } == 'b'.code, "a closure may catch it")
+	val bumps = Mut(1u)
+	check(rejects { bumped(bumps) { 0xD800 } } && bumps.value == 2u, "what Rust wrote back before the closure failed crosses back: ${bumps.value}")
 	check(stretched(object : Stretch { override fun stretch() = 2uL }) == 3uL, "a callback's usize crosses")
 	check(Spawned.new { if (rejects { lettered { 0xD800 } }) 1u else 0u }.join() == 1u, "on a thread Rust attached, it unwinds to the native method the task called")
 	val start = Moment.new(0u, 1000u)!!

@@ -26,6 +26,7 @@ func BoxedTuple(bytes p_rt.Bytes) p_rt.Bytes
 func Breadth(limits LimitsDuration) p_rt.Duration
 func BumpBoth(a *Tally, b *Tally) (uint32, error)
 func BumpEither(first *Local, second *Local) (uint32, error)
+func Bumped(n *uint32, f func() rune) rune
 func ByteLen(ctx context.Context, bytes p_rt.Bytes) (uint, error)
 func Capacities22(a *Batch2, b *Batch2) (uint, error)
 func Capacities24(a *Batch2, b *Batch) (uint, error)
