@@ -1090,9 +1090,7 @@ impl<'a> Gen<'a> {
 				None => name.clone(),
 			};
 			while f.deprecated.is_some()
-				&& (["_lift", "_lower"].contains(&name.as_str())
-					|| members.contains(&name)
-					|| stored.contains(&name))
+				&& (["_lift", "_lower"].contains(&name.as_str()) || members.contains(&name) || stored.contains(&name))
 			{
 				name.push('_');
 			}
