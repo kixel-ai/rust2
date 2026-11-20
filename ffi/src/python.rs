@@ -521,9 +521,8 @@ impl<'a> Gen<'a> {
 	/// defines `__x__` names, such as the module's own `__all__` and `__getattr__`, which
 	/// one takes a trailing `_` past.
 	fn claim(&mut self, name: &str, what: String) -> String {
-		let dunder = |name: &str| {
-			name.len() > 4 && name.starts_with("__") && name.ends_with("__") && !name.ends_with("___")
-		};
+		let dunder =
+			|name: &str| name.len() > 4 && name.starts_with("__") && name.ends_with("__") && !name.ends_with("___");
 		abi::claim(&mut self.names, dunder, name, what)
 	}
 
