@@ -148,7 +148,8 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (boxed2 === undefined) {
 				boxed2 = Made.default$Default();
 			}
-			(boxed2 as Made.Made).n = rs.u64Add((boxed2 as Made.Made).n, _179);
+			const _253: Made.Made = boxed2 as Made.Made;
+			(boxed2 as Made.Made).n = (typeof _253.n === "number" && typeof _179 === "number" && _253.n + _179 <= 9007199254740991 ? _253.n + _179 : rs.u64Add(_253.n, _179)) as rs.u64;
 			let slots = undefined as Array<rs.u8 | undefined> | undefined;
 			const _184: rs.u8 | undefined = op;
 			if (slots === undefined) {
@@ -177,7 +178,9 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			cell[Symbol.dispose]();
 		} else {
 			const made2: Made.Made = made$defaults_Made();
-			const _218: rs.u64 = rs.u64Add(made2.n, op as rs.u64);
+			const _219: rs.u64 = made2.n;
+			const _220: rs.u64 = op as rs.u64;
+			const _218: rs.u64 = (typeof _219 === "number" && typeof _220 === "number" && _219 + _220 <= 9007199254740991 ? _219 + _220 : rs.u64Add(_219, _220)) as rs.u64;
 			const _224: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_218, f);
 			const arg = made2.tag;
 			const args19 = [_224, (f: rs.Formatter) => rs.fmtPad(f, arg.v)];

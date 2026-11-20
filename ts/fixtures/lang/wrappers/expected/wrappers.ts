@@ -274,7 +274,9 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b3 as rs.u64);
 		}
 		if (_33 === 2) {
-			return rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, b3 as rs.u64);
+			const _7: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
+			const _10: rs.u64 = b3 as rs.u64;
+			return (typeof _7 === "number" && typeof _10 === "number" && _7 + _10 <= 9007199254740991 ? _7 + _10 : rs.u64Add(_7, _10)) as rs.u64;
 		}
 		return rs.u64Mul(b3 as rs.u64, 7);
 	};
@@ -305,12 +307,14 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const hi: rs.u64 = _60[1];
 		const found: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
 		rs.byteVecPush(out, rs.iterAny(found, (x5: rs.u64): boolean => {
-			return rs.u64Eq(x5, hi);
+			const _35: rs.u64 = hi;
+			return typeof x5 === "number" && typeof _35 === "number" ? x5 === _35 : rs.u64Eq(x5, _35);
 		}) ? 1 : 0);
 		bounds$ops_RangeInclusive_u64(out, found);
 		const rejected: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
 		rs.byteVecPush(out, rs.iterAll(rejected, (x6: rs.u64): boolean => {
-			return rs.u64Lt(x6, hi);
+			const _36: rs.u64 = hi;
+			return typeof x6 === "number" && typeof _36 === "number" ? x6 < _36 : rs.u64Lt(x6, _36);
 		}) ? 1 : 0);
 		bounds$ops_RangeInclusive_u64(out, rejected.clone());
 		rs.byteVecPush(out, rs.iterFind(rejected, (_27: rs.u64): boolean => {
@@ -318,7 +322,9 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}) !== undefined ? 1 : 0);
 		const placed: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
 		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(placed, (x7: rs.u64): boolean => {
-			return rs.u64Eq(x7, rs.u64Add(lo, 1));
+			const _46: rs.u64 = lo;
+			const _38: rs.u64 = (typeof _46 === "number" && _46 + 1 <= 9007199254740991 ? _46 + 1 : rs.u64Add(_46, 1)) as rs.u64;
+			return typeof x7 === "number" && typeof _38 === "number" ? x7 === _38 : rs.u64Eq(x7, _38);
 		}), 238, (i9: rs.usize): rs.u8 => {
 			return i9 & 0xff;
 		}));
@@ -345,7 +351,8 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		bounds$ops_RangeInclusive_u64(out, collected);
 		const gathered: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
 		const _154: Tally.Tally = rs.iterFold(rs.iterBorrow(gathered), new Tally.Tally(0), (t: Tally.Tally, x9: rs.u64): Tally.Tally => {
-			const _010: Tally.Tally = new Tally.Tally(rs.u64Add(t._0, x9));
+			const _59: rs.u64 = t._0;
+			const _010: Tally.Tally = new Tally.Tally((typeof _59 === "number" && typeof x9 === "number" && _59 + x9 <= 9007199254740991 ? _59 + x9 : rs.u64Add(_59, x9)) as rs.u64);
 			t[Symbol.dispose]();
 			return _010;
 		});
@@ -493,10 +500,11 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			putU64(out, n2);
 			putU64(out, n2);
 			const _519: rs.u64 = option_unwrapOr$15hbiwd(rs.nonZero(b), n2);
-			const _516: boolean = rs.u64Eq(n2, _519);
+			const _516: boolean = typeof n2 === "number" && typeof _519 === "number" ? n2 === _519 : rs.u64Eq(n2, _519);
 			const args3 = [(f: rs.Formatter) => rs.u64Display(n2, f), (f: rs.Formatter) => rs.u64Debug(n2, f), (f: rs.Formatter) => rs.fmtBool(_516, f)];
 			put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2]]).v);
-			rs.byteVecPush(out, rs.u64Gt(n2, { _0: 1 }._0) ? 1 : 0);
+			const _590: Scale.Scale = { _0: 1 };
+			rs.byteVecPush(out, (typeof n2 === "number" && typeof _590._0 === "number" ? n2 > _590._0 : rs.u64Gt(n2, _590._0)) ? 1 : 0);
 			rs.byteVecPush(out, rs.cmp(n2, { _0: 1000 }._0) & 0xff);
 		}
 		rs.byteVecPush(out, rs.nonZero(rs.u64And(a, 1)) !== undefined ? 1 : 0);
@@ -515,9 +523,15 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			}
 			scale = [{ _0: 1 }, { _0: 1000 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }][_557];
 		}
-		if (!rs.u64Eq(1, scale._0)) {
-			if (!rs.u64Eq(1000, scale._0)) {
-				if (!rs.u64Eq({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, scale._0)) {
+		const _571: rs.u64 = scale._0;
+		const _572: rs.u64 = 1;
+		if (!(typeof _572 === "number" && typeof _571 === "number" ? _572 === _571 : rs.u64Eq(_572, _571))) {
+			const _568: rs.u64 = scale._0;
+			const _569: rs.u64 = 1000;
+			if (!(typeof _569 === "number" && typeof _568 === "number" ? _569 === _568 : rs.u64Eq(_569, _568))) {
+				const _565: rs.u64 = scale._0;
+				const _566: rs.u64 = { hi: 0xffffffff, lo: 0xffffffff } as rs.u64;
+				if (!(typeof _566 === "number" && typeof _565 === "number" ? _566 === _565 : rs.u64Eq(_566, _565))) {
 					name = "other";
 				} else {
 					name = "wide";

@@ -30,7 +30,11 @@ export function bumpThrice(x: rs.Place<rs.u32>, by: rs.u8): void {
 
 /** Over 2^53, where the runtime switches a `u64` to limbs. */
 export function shiftWide(x: rs.Place<rs.u64>, by: rs.u8): void {
-	x.v = rs.u64WrappingAdd(rs.u64WrappingAdd(x.v, { hi: 0x200000, lo: 0 } as rs.u64), by as rs.u64);
+	const _5: rs.u64 = x.v;
+	const _6: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
+	const _4: rs.u64 = (typeof _5 === "number" && typeof _6 === "number" && _5 + _6 <= 9007199254740991 ? _5 + _6 : rs.u64WrappingAdd(_5, _6)) as rs.u64;
+	const _9: rs.u64 = by as rs.u64;
+	x.v = (typeof _4 === "number" && typeof _9 === "number" && _4 + _9 <= 9007199254740991 ? _4 + _9 : rs.u64WrappingAdd(_4, _9)) as rs.u64;
 }
 
 /** moq-net's cache shape: the largest seen so far, read, replaced, and taken. */
@@ -1815,19 +1819,17 @@ export function adapted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let other: rs.u8 | undefined = option_map$1yjmt5m(opt, (x: rs.u8): rs.u8 => {
 		return x ^ 1;
 	});
-	const _166: boolean = rs.iterEq(rs.iterOption(opt), rs.iterOption(rs.optionAsMut(rs.place(() => other, (value8) => other = value8))), (a04: rs.u8, a14: rs.Place<rs.u8>): boolean => {
-		return a04 === a14.v;
-	}, true);
-	const _170: boolean = rs.iterEq(rs.iterResult(res), rs.iterOption(rs.optionAsMut(rs.place(() => opt, (value9) => opt = value9))), (a05: rs.u8, a15: rs.Place<rs.u8>): boolean => {
-		return a05 === a15.v;
-	}, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.iterEq(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(copy))), rs.iterSliceMut(rs.byteVecSlice(v)), (a0: rs.u8, a1: rs.Place<rs.u8>): boolean => {
 		return a0 === a1.v;
 	}, true), !rs.iterEq(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(copy))), rs.iterSliceMut(rs.byteVecSlice(v)), (a02: rs.u8, a12: rs.Place<rs.u8>): boolean => {
 		return a02 === a12.v;
 	}, true), rs.iterEq(rs.iterSkip(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(copy))), 1), rs.iterSliceMut(rs.byteVecSlice(v)), (a03: rs.u8, a13: rs.Place<rs.u8>): boolean => {
 		return a03 === a13.v;
-	}, true), _166, _170, !rs.iterEq(rs.iterSlice(rs.byteSliceView(data)), rs.iterOption(rs.resultAsMut(rs.place(() => res, (value10) => res = value10))), (a06: rs.u8, a16: rs.Place<rs.u8>): boolean => {
+	}, true), rs.iterEq(rs.iterOption(opt), rs.iterOption(rs.optionAsMut(rs.place(() => other, (value8) => other = value8))), (a04: rs.u8, a14: rs.Place<rs.u8>): boolean => {
+		return a04 === a14.v;
+	}, true), rs.iterEq(rs.iterResult(res), rs.iterOption(rs.optionAsMut(rs.place(() => opt, (value9) => opt = value9))), (a05: rs.u8, a15: rs.Place<rs.u8>): boolean => {
+		return a05 === a15.v;
+	}, true), !rs.iterEq(rs.iterSlice(rs.byteSliceView(data)), rs.iterOption(rs.resultAsMut(rs.place(() => res, (value10) => res = value10))), (a06: rs.u8, a16: rs.Place<rs.u8>): boolean => {
 		return a06 === a16.v;
 	}, true)], (a07: boolean): rs.u8 => {
 		return a07 ? 1 : 0;
@@ -1910,7 +1912,6 @@ export function compared(split: rs.u8, dataData: Uint8Array, dataStart: number, 
 	const _47: boolean = order_ !== undefined && order_ <= 0;
 	const _52: boolean = rs.iterCmp(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.cmp)) === 1;
 	const order2 = rs.iterCmp(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.cmp));
-	const _74: boolean = rs.iterEq(rs.iterChain(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterOption(rs.optionAsMut(rs.place(() => one, (value) => one = value)))), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.same), true);
 	const _57: boolean = order2 !== undefined && order2 >= 0;
 	const _62: boolean = rs.iterEq(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(b))), (a0: rs.Place<rs.u8>, a1: rs.u8): boolean => {
 		return a0.v === a1;
@@ -1918,6 +1919,7 @@ export function compared(split: rs.u8, dataData: Uint8Array, dataStart: number, 
 	const _69: boolean = !rs.iterEq(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(a))), rs.iterSliceMut(rs.byteVecSlice(b)), (a02: rs.u8, a12: rs.Place<rs.u8>): boolean => {
 		return a02 === a12.v;
 	}, true);
+	const _74: boolean = rs.iterEq(rs.iterChain(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterOption(rs.optionAsMut(rs.place(() => one, (value) => one = value)))), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.same), true);
 	const _81: boolean = rs.iterCmp(rs.iterSliceMut(rs.byteVecSlice(b)), rs.iterChain(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterOption(rs.optionAsMut(rs.place(() => one, (value2) => one = value2)))), rs.cellBy(rs.cmp)) === -1;
 	const _90: boolean = rs.iterEq(rs.iterSliceMut(rs.sliceFrom(x.items)), rs.iterSliceMut(rs.sliceFrom(y.items)), rs.cellBy(rs.same), true);
 	const _95: boolean = !rs.iterEq(rs.iterSliceMut(rs.sliceFrom(x.items)), rs.iterSliceMut(rs.sliceFrom(y.items)), rs.cellBy(rs.same), true);

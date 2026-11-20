@@ -2335,6 +2335,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ok = false;
 			}
 		}
+		// What is flushed runs before the statement, so each earlier effect still held back
+		// runs before it too, in its order.
+		if let Some(latest) = flush
+			.iter()
+			.map(|&i| &self.pending[i])
+			.filter(|p| p.effect || p.memory)
+			.map(|p| p.order)
+			.max()
+		{
+			for (i, p) in self.pending.iter().enumerate() {
+				if !fold[i] && p.order < latest && (p.effect || p.memory) && !flush.contains(&i) {
+					flush.push(i);
+				}
+			}
+		}
 		if !ok {
 			self.flush(out);
 			out.extend(stmts);

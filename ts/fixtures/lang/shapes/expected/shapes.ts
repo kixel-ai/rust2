@@ -676,8 +676,8 @@ export function mark(out: rs.ByteVec, b: rs.u8): rs.usize {
 export function order(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let taken!: Shape.Shape;
 	let _75!: rs.usize;
-	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), 0);
+	const at: (a0: rs.usize) => rs.u8 = (i3: rs.usize): rs.u8 => {
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), 0);
 	};
 	const _5: rs.u16 = mark(out, at(0)) & 0xffff;
 	const _10: rs.u16 = mark(out, at(1)) & 0xffff;
@@ -709,21 +709,105 @@ export function order(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while ((_75 = iterStart++) < iterEnd) {
 		sum = rs.usizeAdd(sum, _75);
 	}
+	let wide: rs.u64 = 0;
+	const _83: rs.u64 = mark(out, 14) as rs.u64;
+	const _86: rs.u64 = mark(out, 15) as rs.u64;
+	const iter2: rs.Range<rs.u64> = new rs.Range((typeof _86 === "number" && _86 - 4 >= 0 ? _86 - 4 : rs.u64Sub(_86, 4)) as rs.u64, _83, rs.u64Step);
+	while (true) {
+		const _90: rs.u64 | rs.Done = iter2.next();
+		if (_90 === rs.DONE) {
+			break;
+		}
+		const i2: rs.u64 = _90;
+		wide = (typeof wide === "number" && typeof i2 === "number" && wide + i2 <= 9007199254740991 ? wide + i2 : rs.u64Add(wide, i2)) as rs.u64;
+	}
+	sum = rs.usizeAdd(sum, rs.u64Low(wide));
+	const _100: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
+	const _99: rs.u64 = (typeof _100 === "number" && _100 - 1 >= 0 ? _100 - 1 : rs.u64Sub(_100, 1)) as rs.u64;
+	const _104: rs.u64 = rs.u8Rem(at(1), 2) as rs.u64;
+	const edge: rs.u64 = (typeof _99 === "number" && typeof _104 === "number" && _99 + _104 <= 9007199254740991 ? _99 + _104 : rs.u64Add(_99, _104)) as rs.u64;
+	const nudge: rs.u64 = rs.u8Rem(at(2), 3) as rs.u64;
+	const dst = out;
+	const word = (typeof edge === "number" && typeof nudge === "number" && edge + nudge <= 9007199254740991 ? edge + nudge : rs.u64WrappingAdd(edge, nudge)) as rs.u64;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
+	const dst2 = out;
+	const word4 = (typeof nudge === "number" && typeof edge === "number" && nudge - edge >= 0 ? nudge - edge : rs.u64WrappingSub(nudge, edge)) as rs.u64;
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = word5 & 255;
+	dst2.data[pos2 + 1] = (word5 >>> 8) & 255;
+	dst2.data[pos2 + 2] = (word5 >>> 16) & 255;
+	dst2.data[pos2 + 3] = (word5 >>> 24) & 255;
+	dst2.data[pos2 + 4] = word6 & 255;
+	dst2.data[pos2 + 5] = (word6 >>> 8) & 255;
+	dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
+	dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
+	dst2.length = dst2.length + 8;
+	const dst3 = out;
+	const word7 = (typeof edge === "number" && typeof nudge === "number" && edge - nudge >= 0 ? edge - nudge : rs.u64Sub(edge, nudge)) as rs.u64;
+	const word8 = rs.intWord(word7, 0);
+	const word9 = rs.intWord(word7, 32);
+	rs.byteVecReserve(dst3, 8 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = word8 & 255;
+	dst3.data[pos3 + 1] = (word8 >>> 8) & 255;
+	dst3.data[pos3 + 2] = (word8 >>> 16) & 255;
+	dst3.data[pos3 + 3] = (word8 >>> 24) & 255;
+	dst3.data[pos3 + 4] = word9 & 255;
+	dst3.data[pos3 + 5] = (word9 >>> 8) & 255;
+	dst3.data[pos3 + 6] = (word9 >>> 16) & 255;
+	dst3.data[pos3 + 7] = (word9 >>> 24) & 255;
+	dst3.length = dst3.length + 8;
+	const dst4 = out;
+	const word10 = (typeof edge === "number" && typeof nudge === "number" && edge + nudge <= 9007199254740991 ? edge + nudge : rs.u64Add(edge, nudge)) as rs.u64;
+	const word11 = rs.intWord(word10, 0);
+	const word12 = rs.intWord(word10, 32);
+	rs.byteVecReserve(dst4, 8 as rs.usize);
+	const pos4 = dst4.length;
+	dst4.data[pos4 + 0] = word11 & 255;
+	dst4.data[pos4 + 1] = (word11 >>> 8) & 255;
+	dst4.data[pos4 + 2] = (word11 >>> 16) & 255;
+	dst4.data[pos4 + 3] = (word11 >>> 24) & 255;
+	dst4.data[pos4 + 4] = word12 & 255;
+	dst4.data[pos4 + 5] = (word12 >>> 8) & 255;
+	dst4.data[pos4 + 6] = (word12 >>> 16) & 255;
+	dst4.data[pos4 + 7] = (word12 >>> 24) & 255;
+	dst4.length = dst4.length + 8;
+	const below: rs.i64 = rs.i64Sub(rs.i64Neg(rs.i64Cast(edge)), rs.u8Rem(at(3), 2) as rs.i64);
+	const _152: rs.u8 = (typeof edge === "number" && typeof nudge === "number" ? edge < nudge : rs.u64Lt(edge, nudge)) ? 1 : 0;
+	const _156: rs.u64 = (typeof edge === "number" && typeof nudge === "number" && edge + nudge <= 9007199254740991 ? edge + nudge : rs.u64Add(edge, nudge)) as rs.u64;
+	const _154: rs.u8 = (typeof _156 === "number" && typeof edge === "number" ? _156 > edge : rs.u64Gt(_156, edge)) ? 1 : 0;
+	const _160: rs.i64 = rs.i64Neg({ hi: 0x200000, lo: 0 } as rs.i64);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_152, _154, (typeof below === "number" && typeof _160 === "number" ? below <= _160 : rs.i64Le(below, _160)) ? 1 : 0)), undefined, true);
 	const len: rs.usize = data.length;
-	const _83: rs.ByteSlice = logged(data, out);
-	const _85: rs.usize = rs.min(mark(out, 14), len);
-	const _82: rs.ByteSlice = rs.byteSliceRange(_83, rs.usizeDiv(rs.min(mark(out, 15), len), 2), _85);
-	const _103: rs.usize = sum;
-	const args3 = [(f: rs.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rs.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rs.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.usizeDisplay(_63, f), (f: rs.Formatter) => rs.usizeDisplay(_103, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_82), f, rs.u8Debug)];
+	const _168: rs.ByteSlice = logged(data, out);
+	const _170: rs.usize = rs.min(mark(out, 14), len);
+	const _167: rs.ByteSlice = rs.byteSliceRange(_168, rs.usizeDiv(rs.min(mark(out, 15), len), 2), _170);
+	const _188: rs.usize = sum;
+	const args3 = [(f: rs.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rs.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rs.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.usizeDisplay(_63, f), (f: rs.Formatter) => rs.usizeDisplay(_188, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_167), f, rs.u8Debug)];
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4], " ", args3[5], " ", args3[6], " ", args3[7], " ", args3[8], " ", args3[9]]).v));
-	const _125: rs.usize = mark(out, 16);
-	const _127: rs.usize = out.length;
-	rs.byteVecPush(out, _125 & 0xff);
-	rs.byteVecPush(out, _127 & 0xff);
+	const _210: rs.usize = mark(out, 16);
+	const _212: rs.usize = out.length;
+	rs.byteVecPush(out, _210 & 0xff);
+	rs.byteVecPush(out, _212 & 0xff);
 	const part = mark(out, 17);
-	const _143: [rs.usize, rs.usize] = [mark(out, 18), mark(out, 19)];
+	const _228: [rs.usize, rs.usize] = [mark(out, 18), mark(out, 19)];
 	rs.byteVecPush(out, part & 0xff);
-	rs.byteVecPush(out, _143[0] & 0xff);
+	rs.byteVecPush(out, _228[0] & 0xff);
 	indexed(data, out);
 }
 
@@ -1029,16 +1113,23 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	let n: rs.u64 = data.length as rs.u64;
 	b6: {
-		while (!rs.u64Le(n, 1)) {
-			if (!(rs.u64Rem(n, 2) === 0)) {
-				_65 = rs.u64Add(rs.u64Mul(3, n), 1);
+		while (true) {
+			const _64: rs.u64 = n;
+			if (!(typeof _64 === "number" ? _64 <= 1 : rs.u64Le(_64, 1))) {
+				if (!(rs.u64Rem(n, 2) === 0)) {
+					const _72: rs.u64 = rs.u64Mul(3, n);
+					_65 = (typeof _72 === "number" && _72 + 1 <= 9007199254740991 ? _72 + 1 : rs.u64Add(_72, 1)) as rs.u64;
+				} else {
+					_65 = rs.u64Div(n, 2);
+				}
+				n = _65;
+				const _77: rs.u64 = n;
+				if (typeof _77 === "number" ? _77 > 100 : rs.u64Gt(_77, 100)) {
+					steps = 1;
+					break b6;
+				}
 			} else {
-				_65 = rs.u64Div(n, 2);
-			}
-			n = _65;
-			if (rs.u64Gt(n, 100)) {
-				steps = 1;
-				break b6;
+				break;
 			}
 		}
 		steps = 0;
@@ -1658,8 +1749,10 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 1, 3);
 	slice.data[slice.start] = 9;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
+	const _136: rs.u64 = total$shapes_Shape(rs.sliceFrom([shape_, { tag: "Dot" } as Shape.Shape]), out);
+	const _141: rs.u64 = total$shapes_Meters(rs.sliceFrom([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }]), out);
 	const dst2 = out;
-	const word4 = rs.u64Add(total$shapes_Shape(rs.sliceFrom([shape_, { tag: "Dot" } as Shape.Shape]), out), total$shapes_Meters(rs.sliceFrom([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }]), out));
+	const word4 = (typeof _136 === "number" && typeof _141 === "number" && _136 + _141 <= 9007199254740991 ? _136 + _141 : rs.u64Add(_136, _141)) as rs.u64;
 	const word5 = rs.intWord(word4, 0);
 	const word6 = rs.intWord(word4, 32);
 	rs.byteVecReserve(dst2, 8 as rs.usize);

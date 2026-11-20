@@ -198,7 +198,8 @@ export function decodeFrames(wire: rs.ByteSlice, version: lite_version_Version.V
 			const part2: rs.u64 | undefined = Decoder.varint(r);
 			const err2: DecodeError.DecodeError | undefined = part2 === undefined ? out$u64.err as DecodeError.DecodeError : undefined;
 			if (err2 === undefined) {
-				total = rs.u64Add(total, part2 as rs.u64);
+				const val2: rs.u64 = part2 as rs.u64;
+				total = (typeof total === "number" && typeof val2 === "number" && total + val2 <= 9007199254740991 ? total + val2 : rs.u64Add(total, val2)) as rs.u64;
 				count = rs.usizeAdd(count, 1);
 			} else {
 				return rs.Err(err2 as DecodeError.DecodeError);
@@ -244,7 +245,7 @@ export function decodeSplit(data: rs.ByteSlice, version: lite_version_Version.Ve
 				const size: rs.u64 = part2;
 				start = rs.usizeSub(end, Decoder.remaining(r));
 				last = delta;
-				total = rs.u64Add(total, size);
+				total = (typeof total === "number" && typeof size === "number" && total + size <= 9007199254740991 ? total + size : rs.u64Add(total, size)) as rs.u64;
 				count = rs.usizeAdd(count, 1);
 			} else {
 				if ((err2 as DecodeError.DecodeError).tag === "Short") {
@@ -317,7 +318,8 @@ export function ordered(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterEnd2: rs.u32 = count2;
 	while ((_28 = iterStart2++) < iterEnd2) {
 		const _38: rs.u32 = _10(rs.u32Sub(rs.u32Sub(count2, 1), _28));
-		sum = rs.u64Add(sum, option_unwrapOr$1b5hww3(rs.btreeGet(map, _38), 0) as rs.u64);
+		const _32: rs.u64 = option_unwrapOr$1b5hww3(rs.btreeGet(map, _38), 0) as rs.u64;
+		sum = (typeof sum === "number" && typeof _32 === "number" && sum + _32 <= 9007199254740991 ? sum + _32 : rs.u64Add(sum, _32)) as rs.u64;
 	}
 	const _49: rs.Range<rs.u32> = new rs.Range(1 << 14, 2 << 14);
 	const iter3: rs.Iter<[rs.u32, rs.u32]> = rs.btreeRange(map, _49);
@@ -326,7 +328,8 @@ export function ordered(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_57 === rs.DONE) {
 			break;
 		}
-		sum = rs.u64Add(sum, _57[1] as rs.u64);
+		const _61: rs.u64 = _57[1] as rs.u64;
+		sum = (typeof sum === "number" && typeof _61 === "number" && sum + _61 <= 9007199254740991 ? sum + _61 : rs.u64Add(sum, _61)) as rs.u64;
 	}
 	let iterStart3: rs.u32 = 0;
 	const iterEnd3: rs.u32 = count2;
@@ -365,7 +368,8 @@ export function hashed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			const iterEnd2: rs.u32 = count2;
 			while ((_30 = iterStart2++) < iterEnd2) {
 				const _40: rs.u32 = _11(rs.u32Sub(rs.u32Sub(count2, 1), _30));
-				sum = rs.u64Add(sum, option_unwrapOr$1b5hww3(rs.hashGet(map, _40), 0) as rs.u64);
+				const _34: rs.u64 = option_unwrapOr$1b5hww3(rs.hashGet(map, _40), 0) as rs.u64;
+				sum = (typeof sum === "number" && typeof _34 === "number" && sum + _34 <= 9007199254740991 ? sum + _34 : rs.u64Add(sum, _34)) as rs.u64;
 			}
 			let iterStart3: rs.u32 = 0;
 			const iterEnd3: rs.u32 = count2;
@@ -684,7 +688,8 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			if (_51 === rs.DONE) {
 				continue l3;
 			}
-			sum = rs.u64Add(sum, option_unwrapOr$15hbiwd(rs.hashGet(map, (_51.v as unknown) as rs.String), 0));
+			const _55: rs.u64 = option_unwrapOr$15hbiwd(rs.hashGet(map, (_51.v as unknown) as rs.String), 0);
+			sum = (typeof sum === "number" && typeof _55 === "number" && sum + _55 <= 9007199254740991 ? sum + _55 : rs.u64Add(sum, _55)) as rs.u64;
 		}
 	}
 	harness_putU64(out, sum);
@@ -727,7 +732,8 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 			break;
 		}
 		if (selector === 1) {
-			sum = rs.u64Add(sum, rs.byteSliceToArray(_48)[187] as rs.u64);
+			const _54: rs.u64 = rs.byteSliceToArray(_48)[187] as rs.u64;
+			sum = (typeof sum === "number" && typeof _54 === "number" && sum + _54 <= 9007199254740991 ? sum + _54 : rs.u64Add(sum, _54)) as rs.u64;
 		}
 		const _73: rs.usize = rs.usizeRem((((((_48.data[_48.start + 1] & 31) as rs.usize) << 8) >>> 0) | _48.data[_48.start + 2] as rs.usize) >>> 0, 3);
 		if (!(_73 < 3)) {
@@ -742,7 +748,8 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 			cc = old;
 		}
 		_48.data[_48.start + 3] = (_48.data[_48.start + 3] & 240) | cc;
-		sum = rs.u64Add(sum, cc as rs.u64);
+		const _95: rs.u64 = cc as rs.u64;
+		sum = (typeof sum === "number" && typeof _95 === "number" && sum + _95 <= 9007199254740991 ? sum + _95 : rs.u64Add(sum, _95)) as rs.u64;
 	}
 	harness_putU64(out, sum);
 }
@@ -772,7 +779,8 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				if (_25 === rs.DONE) {
 					break b0;
 				}
-				const _29: rs.u64 = rs.u64Add(1, rs.u64Mul(rs.u64Rem(_25, 64), 1024));
+				const _30: rs.u64 = rs.u64Mul(rs.u64Rem(_25, 64), 1024);
+				const _29: rs.u64 = (typeof _30 === "number" && 1 + _30 <= 9007199254740991 ? 1 + _30 : rs.u64Add(1, _30)) as rs.u64;
 				const at = rs.idx(v.items, 0);
 				v.items[at] = rs.u64Add(v.items[at], _29);
 				let i: rs.usize = 0;
@@ -781,7 +789,9 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 					if (!(l >= size2)) {
 						b7: {
 							if (rs.usizeAdd(l, 1) < size2) {
-								if (rs.u64Lt(v.items[rs.idx(v.items, rs.usizeAdd(l, 1))], v.items[rs.idx(v.items, l)])) {
+								const _50: rs.u64 = v.items[rs.idx(v.items, rs.usizeAdd(l, 1))];
+								const _55: rs.u64 = v.items[rs.idx(v.items, l)];
+								if (typeof _50 === "number" && typeof _55 === "number" ? _50 < _55 : rs.u64Lt(_50, _55)) {
 									c = rs.usizeAdd(l, 1);
 									break b7;
 								}
@@ -802,7 +812,8 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 						if (0 >= length2 - mid) {
 							rs.panic("index out of bounds: the len is " + (length2 - mid) + " but the index is " + 0);
 						}
-						if (!rs.u64Le(_66, items2[mid])) {
+						const _71: rs.u64 = items2[mid];
+						if (!(typeof _66 === "number" && typeof _71 === "number" ? _66 <= _71 : rs.u64Le(_66, _71))) {
 							const _78: rs.usize = i;
 							if (_78 >= mid) {
 								rs.panic("index out of bounds: the len is " + mid + " but the index is " + _78);
@@ -821,7 +832,10 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 						break;
 					}
 				}
-				sum = rs.u64WrappingAdd(sum, v.items[rs.idx(v.items, 0)]);
+				const at4 = rs.idx(v.items, 0);
+				const _89: rs.u64 = sum;
+				const _90: rs.u64 = v.items[at4];
+				sum = (typeof _89 === "number" && typeof _90 === "number" && _89 + _90 <= 9007199254740991 ? _89 + _90 : rs.u64WrappingAdd(_89, _90)) as rs.u64;
 			}
 		}
 		const iter2: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
@@ -838,13 +852,16 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const iterE: number = to;
 			while (iterI < iterE) {
 				const _111: number = iterI++;
-				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
+				const _116: rs.u64 = iterS[_111];
+				iterS[_111] = (typeof _116 === "number" && _116 + 1 <= 9007199254740991 ? _116 + 1 : rs.u64WrappingAdd(_116, 1)) as rs.u64;
 			}
 			const _120: rs.usize = rs.usizeSub(to, 1);
 			if (_120 >= to) {
 				rs.panic("index out of bounds: the len is " + to + " but the index is " + _120);
 			}
-			sum = rs.u64WrappingAdd(sum, items[_120]);
+			const _118: rs.u64 = sum;
+			const _119: rs.u64 = items[_120];
+			sum = (typeof _118 === "number" && typeof _119 === "number" && _118 + _119 <= 9007199254740991 ? _118 + _119 : rs.u64WrappingAdd(_118, _119)) as rs.u64;
 		}
 	}
 	harness_putU64(out, v.items[rs.idx(v.items, 0)]);
@@ -874,11 +891,15 @@ export function frames(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const rest: rs.ByteSlice = rs.bytesSlice(copy, 1);
 		const _40: rs.ByteSlice = frame;
 		rs.idx(_40, 0);
-		sum = rs.u64Add(sum, rs.u64Add(_40.data[_40.start] as rs.u64, rest.length as rs.u64));
+		const _38: rs.u64 = _40.data[_40.start] as rs.u64;
+		const _45: rs.u64 = rest.length as rs.u64;
+		const _37: rs.u64 = (typeof _38 === "number" && typeof _45 === "number" && _38 + _45 <= 9007199254740991 ? _38 + _45 : rs.u64Add(_38, _45)) as rs.u64;
+		sum = (typeof sum === "number" && typeof _37 === "number" && sum + _37 <= 9007199254740991 ? sum + _37 : rs.u64Add(sum, _37)) as rs.u64;
 		rs.bytesDrop(rest);
 		rs.bytesDrop(copy);
 		rs.bytesDrop(frame);
-		unique = rs.u64Add(unique, rs.bytesIsUnique(group) ? 1 : 0);
+		const _50: rs.u64 = rs.bytesIsUnique(group) ? 1 : 0;
+		unique = (typeof unique === "number" && typeof _50 === "number" && unique + _50 <= 9007199254740991 ? unique + _50 : rs.u64Add(unique, _50)) as rs.u64;
 	}
 	harness_putU64(out, sum);
 	harness_putU64(out, unique);
@@ -1093,8 +1114,12 @@ export function mixed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			z = rs.u64WrappingMul(rs.u64Xor(z, rs.u64Shr(z, 27)), { hi: 0x94d049bb, lo: 0x133111eb } as rs.u64);
 			sum = rs.u64Xor(sum, rs.u64Xor(z, rs.u64Shr(z, 31)));
 		} else {
-			h = rs.u64WrappingAdd(rs.u64WrappingMul(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64), i as rs.u64);
-			sum = rs.u64Xor(sum, rs.u64WrappingAdd(rs.u64Div(h, 4294967297), rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64)));
+			const _43: rs.u64 = rs.u64WrappingMul(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64);
+			const _45: rs.u64 = i as rs.u64;
+			h = (typeof _43 === "number" && typeof _45 === "number" && _43 + _45 <= 9007199254740991 ? _43 + _45 : rs.u64WrappingAdd(_43, _45)) as rs.u64;
+			const _47: rs.u64 = rs.u64Div(h, 4294967297);
+			const _50: rs.u64 = rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64);
+			sum = rs.u64Xor(sum, (typeof _47 === "number" && typeof _50 === "number" && _47 + _50 <= 9007199254740991 ? _47 + _50 : rs.u64WrappingAdd(_47, _50)) as rs.u64);
 		}
 	}
 	harness_putU64(out, sum);
@@ -1123,8 +1148,9 @@ export function rescale(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = rs.u64Low(count);
 	while ((_26 = iterStart++) < iterEnd) {
+		const _31: rs.u64 = rs.u64Mul(_26 as rs.u64, step);
 		b2: {
-			const value: rs.u64 = rs.u64Add(start, rs.u64Mul(_26 as rs.u64, step));
+			const value: rs.u64 = (typeof start === "number" && typeof _31 === "number" && start + _31 <= 9007199254740991 ? start + _31 : rs.u64Add(start, _31)) as rs.u64;
 			if (selector === 0) {
 				const _36: rs.u128 | undefined = rs.u128CheckedMul(rs.u128Cast(value), rs.u128Cast(to));
 				if (_36 === undefined) {
@@ -1146,10 +1172,10 @@ export function rescale(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 			}
 		}
 		if (scaled === undefined) {
-			overflowed = rs.u64Add(overflowed, 1);
+			overflowed = (typeof overflowed === "number" && overflowed + 1 <= 9007199254740991 ? overflowed + 1 : rs.u64Add(overflowed, 1)) as rs.u64;
 		} else {
 			last = scaled;
-			converted = rs.u64Add(converted, 1);
+			converted = (typeof converted === "number" && converted + 1 <= 9007199254740991 ? converted + 1 : rs.u64Add(converted, 1)) as rs.u64;
 		}
 	}
 	harness_putU64(out, converted);
@@ -1159,7 +1185,8 @@ export function rescale(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 
 /** `value`, or `None` past [`MAX_TIMESTAMP`], as moq-net bounds a converted timestamp. */
 export function bounded(value: rs.u128): rs.u64 | undefined {
-	if (!rs.u128Le(value, { hi: 0, w2: 0, w1: 0x1fffffff, lo: 0xffffffff } as rs.u128)) {
+	const _3: rs.u128 = { hi: 0, w2: 0, w1: 0x1fffffff, lo: 0xffffffff } as rs.u128;
+	if (!(typeof value === "number" && typeof _3 === "number" ? value <= _3 : rs.u128Le(value, _3))) {
 		return undefined;
 	}
 	return rs.u64Cast(value);
@@ -1185,10 +1212,10 @@ export function stamp(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (iter.next() !== rs.DONE) {
 		const _25: Timestamp.Timestamp | undefined = Timestamp.checkedAdd(time, step2);
 		if (_25 === undefined) {
-			overflowed = rs.u64Add(overflowed, 1);
+			overflowed = (typeof overflowed === "number" && overflowed + 1 <= 9007199254740991 ? overflowed + 1 : rs.u64Add(overflowed, 1)) as rs.u64;
 		} else {
 			time = _25;
-			stamped = rs.u64Add(stamped, 1);
+			stamped = (typeof stamped === "number" && stamped + 1 <= 9007199254740991 ? stamped + 1 : rs.u64Add(stamped, 1)) as rs.u64;
 		}
 	}
 	harness_putU64(out, stamped);
@@ -1219,14 +1246,14 @@ export function interleave(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while (iter.next() !== rs.DONE) {
 		const takeA: boolean = Timestamp.partialCmp$cmp_PartialOrd(a, b) === -1;
 		if (!takeA) {
-			b.value = rs.u64Add(b.value, bStep);
-			fromB = rs.u64Add(fromB, 1);
+			b.value = (typeof b.value === "number" && typeof bStep === "number" && b.value + bStep <= 9007199254740991 ? b.value + bStep : rs.u64Add(b.value, bStep)) as rs.u64;
+			fromB = (typeof fromB === "number" && fromB + 1 <= 9007199254740991 ? fromB + 1 : rs.u64Add(fromB, 1)) as rs.u64;
 		} else {
-			a.value = rs.u64Add(a.value, aStep);
-			fromA = rs.u64Add(fromA, 1);
+			a.value = (typeof a.value === "number" && typeof aStep === "number" && a.value + aStep <= 9007199254740991 ? a.value + aStep : rs.u64Add(a.value, aStep)) as rs.u64;
+			fromA = (typeof fromA === "number" && fromA + 1 <= 9007199254740991 ? fromA + 1 : rs.u64Add(fromA, 1)) as rs.u64;
 		}
 		if (takeA !== lastA) {
-			switches = rs.u64Add(switches, 1);
+			switches = (typeof switches === "number" && switches + 1 <= 9007199254740991 ? switches + 1 : rs.u64Add(switches, 1)) as rs.u64;
 		}
 		lastA = takeA;
 	}

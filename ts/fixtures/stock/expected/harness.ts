@@ -234,28 +234,32 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 				}
 			} else if (_10 === 3) {
 				const lo2: rs.u64 = rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Mul(a as rs.u64, 1099511627776));
-				inRange = rs.u64Le(lo2, rs.randRangeInclusive(new rs.RangeInclusive(lo2, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step), 64, false) as rs.u64);
+				const x4: rs.u64 = rs.randRangeInclusive(new rs.RangeInclusive(lo2, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step), 64, false) as rs.u64;
+				inRange = typeof lo2 === "number" && typeof x4 === "number" ? lo2 <= x4 : rs.u64Le(lo2, x4);
 			} else if (_10 === 4) {
 				const _48: [rs.i128, rs.i128] = [rs.i128Shl((a << 24) >> 24 as rs.i128, 100), rs.i128Shl((b << 24) >> 24 as rs.i128, 100)];
 				const lo3: rs.i128 = _48[0];
 				const hi2: rs.i128 = _48[1];
 				const range2 = new rs.Range(lo3, hi2, rs.i128Step);
 				const x5: rs.i128 = rs.randRange(range2.start, range2.end, 128, true) as rs.i128;
-				if (!rs.i128Le(lo3, x5)) {
+				if (!(typeof lo3 === "number" && typeof x5 === "number" ? lo3 <= x5 : rs.i128Le(lo3, x5))) {
 					inRange = false;
 				} else {
-					inRange = rs.i128Lt(x5, hi2);
+					inRange = typeof x5 === "number" && typeof hi2 === "number" ? x5 < hi2 : rs.i128Lt(x5, hi2);
 				}
 			} else if (_10 === 5) {
-				const lo4: rs.u64 = rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, a as rs.u64);
+				const _64: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
+				const _67: rs.u64 = a as rs.u64;
+				const lo4: rs.u64 = (typeof _64 === "number" && typeof _67 === "number" && _64 + _67 <= 9007199254740991 ? _64 + _67 : rs.u64Add(_64, _67)) as rs.u64;
 				const seen: boolean[] = Array.from({ length: 4 }, (): boolean => {
 					return false;
 				});
 				let iterStart: rs.i32 = 0;
 				const iterEnd: rs.i32 = 256;
 				while (iterStart++ < iterEnd) {
-					const range = new rs.Range(lo4, rs.u64Add(lo4, 4), rs.u64Step);
-					const _76: rs.usize = rs.u64Low(rs.u64Sub(rs.randRange(range.start, range.end, 64, false) as rs.u64, lo4));
+					const range = new rs.Range(lo4, (typeof lo4 === "number" && lo4 + 4 <= 9007199254740991 ? lo4 + 4 : rs.u64Add(lo4, 4)) as rs.u64, rs.u64Step);
+					const _78: rs.u64 = rs.randRange(range.start, range.end, 64, false) as rs.u64;
+					const _76: rs.usize = rs.u64Low((typeof _78 === "number" && typeof lo4 === "number" && _78 - lo4 >= 0 ? _78 - lo4 : rs.u64Sub(_78, lo4)) as rs.u64);
 					if (!(_76 < 4)) {
 						rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _76);
 					}
@@ -277,10 +281,10 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 				const lo5: rs.i64 = _91[0];
 				const hi3: rs.i64 = _91[1];
 				const x6: rs.i64 = rs.randRangeInclusive(new rs.RangeInclusive(lo5, hi3, rs.i64Step), 64, true) as rs.i64;
-				if (!rs.i64Le(lo5, x6)) {
+				if (!(typeof lo5 === "number" && typeof x6 === "number" ? lo5 <= x6 : rs.i64Le(lo5, x6))) {
 					inRange = false;
 				} else {
-					inRange = rs.i64Le(x6, hi3);
+					inRange = typeof x6 === "number" && typeof hi3 === "number" ? x6 <= hi3 : rs.i64Le(x6, hi3);
 				}
 			} else if (_10 === 7) {
 				inRange = (rs.randRange(0, { end: b }.end, 8, false) as rs.u8) < b;
@@ -289,7 +293,8 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 				if (!((rs.randRangeToInclusive({ end: b, inclusive: true }.end, 8) as rs.u8) <= b)) {
 					inRange = false;
 				} else {
-					inRange = rs.u64Le(rs.randRangeToInclusive({ end: hi4, inclusive: true }.end, 64) as rs.u64, hi4);
+					const _112: rs.u64 = rs.randRangeToInclusive({ end: hi4, inclusive: true }.end, 64) as rs.u64;
+					inRange = typeof _112 === "number" && typeof hi4 === "number" ? _112 <= hi4 : rs.u64Le(_112, hi4);
 				}
 			} else {
 				const _117: [rs.u64, rs.i16] = [rs.randInt(64, false) as rs.u64, rs.randInt(16, true) as rs.i16];
@@ -297,7 +302,7 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 				const y: rs.i16 = _117[1];
 				rs.randRng();
 				const flag: boolean = rs.randBool();
-				if (rs.u64Eq(x7, x7)) {
+				if (typeof x7 === "number" && typeof x7 === "number" ? x7 === x7 : rs.u64Eq(x7, x7)) {
 					if (y === y) {
 						if (!flag) {
 							inRange = !flag;

@@ -7787,8 +7787,9 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 		const part12 = rs.sliceFrom(copy2[1]);
 		_13(part12, out);
+		const _292: rs.String = rs.stringFrom("a");
 		const _295: rs.u8 = at(4);
-		const words: rs.String[] = [rs.stringFrom("a"), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f), 0), rs.stringNew()];
+		const words: rs.String[] = [_292, rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f), 0), rs.stringNew()];
 		const vecs: rs.ByteVec[] = [rs.byteSliceToByteVec(data), rs.byteVecFrom(Uint8Array.of(at(5)))];
 		const _308: [rs.String[], rs.ByteVec[]] = [words.map((a02: rs.String): rs.String => {
 			return rs.stringClone(a02);
@@ -8233,8 +8234,9 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}), undefined, true);
 		rs.byteVecPush(out, none.items.length & 0xff);
 		const part11 = at(3);
+		const _186: Logged.Logged = logged(part11);
 		const _194: rs.u8 = at(4);
-		const pairs: rs.Vec<[Logged.Logged, rs.String]> = rs.vecFromElem([logged(part11), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f), 0)] as [Logged.Logged, rs.String], n(5), (a02: [Logged.Logged, rs.String]): [Logged.Logged, rs.String] => {
+		const pairs: rs.Vec<[Logged.Logged, rs.String]> = rs.vecFromElem([_186, rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f), 0)] as [Logged.Logged, rs.String], n(5), (a02: [Logged.Logged, rs.String]): [Logged.Logged, rs.String] => {
 			return rs.tupleClone(a02, [Logged.clone$Clone, (a03: rs.String): rs.String => {
 				return rs.stringClone(a03);
 			}]);

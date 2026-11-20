@@ -444,7 +444,10 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const a: Tagged.Tagged<rs.String> = part;
 			const b: Tagged.Tagged<rs.String> = part2;
 			rs.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rs.Ordering | undefined ? 1 : 0) << 3) & 0xff));
-			rs.byteVecPush(out, Tagged.cmp$cmp_Ord_String(a, b) === 0 === rs.u64Eq(hash$zeros_Tagged_String(a), hash$zeros_Tagged_String(b)) ? 1 : 0);
+			const _117: boolean = Tagged.cmp$cmp_Ord_String(a, b) === 0;
+			const _120: rs.u64 = hash$zeros_Tagged_String(a);
+			const _121: rs.u64 = hash$zeros_Tagged_String(b);
+			rs.byteVecPush(out, _117 === (typeof _120 === "number" && typeof _121 === "number" ? _120 === _121 : rs.u64Eq(_120, _121)) ? 1 : 0);
 		}
 		rs.byteVecPush(out, (true ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
 		rs.byteVecPush(out, rs.cmpNothing(undefined, undefined) & 0xff);

@@ -1171,23 +1171,37 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(rs.byteSliceRange(data, i)), "✓");
 		const built: rs.Hasher = rs.buildHasher(s);
 		rs.hash64(n, built);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashFinish(built)) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashOne(rs.buildHasher(copy), n, rs.hash64)) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashOne(rs.buildHasher(s), n, rs.hash64)) ? 1 : 0);
+		const _31: rs.u64 = rs.hashOne(rs.buildHasher(s), n, rs.hash64);
+		const _33: rs.u64 = rs.hashFinish(built);
+		rs.byteVecPush(out, (typeof _31 === "number" && typeof _33 === "number" ? _31 === _33 : rs.u64Eq(_31, _33)) ? 1 : 0);
+		const _38: rs.u64 = rs.hashOne(rs.buildHasher(s), n, rs.hash64);
+		const _40: rs.u64 = rs.hashOne(rs.buildHasher(copy), n, rs.hash64);
+		rs.byteVecPush(out, (typeof _38 === "number" && typeof _40 === "number" ? _38 === _40 : rs.u64Eq(_38, _40)) ? 1 : 0);
+		const _45: rs.u64 = rs.hashOne(rs.buildHasher(s), n, rs.hash64);
+		const _47: rs.u64 = rs.hashOne(rs.buildHasher(s), n, rs.hash64);
+		rs.byteVecPush(out, (typeof _45 === "number" && typeof _47 === "number" ? _45 === _47 : rs.u64Eq(_45, _47)) ? 1 : 0);
 		const _53: rs.u64 = rs.hashOne(rs.buildHasher(other.state), text, rs.hashStr);
 		const _57: rs.String = rs.stringFrom(text);
-		rs.byteVecPush(out, rs.u64Eq(_53, rs.hashOne(rs.buildHasher(other.state), _57, rs.hashStr)) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr])), rs.hashOne(rs.buildHasher(copy), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr]))) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), { _0: b }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined), rs.hashOne(rs.buildHasher(s), { _0: b ^ 240 }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined)) ? 1 : 0);
+		const _55: rs.u64 = rs.hashOne(rs.buildHasher(other.state), _57, rs.hashStr);
+		rs.byteVecPush(out, (typeof _53 === "number" && typeof _55 === "number" ? _53 === _55 : rs.u64Eq(_53, _55)) ? 1 : 0);
+		const _61: rs.u64 = rs.hashOne(rs.buildHasher(s), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr]));
+		const _64: rs.u64 = rs.hashOne(rs.buildHasher(copy), [b, text] as [rs.u8, string], rs.hashTuple([rs.hash8, rs.hashStr]));
+		rs.byteVecPush(out, (typeof _61 === "number" && typeof _64 === "number" ? _61 === _64 : rs.u64Eq(_61, _64)) ? 1 : 0);
+		const _71: rs.u64 = rs.hashOne(rs.buildHasher(s), { _0: b }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined);
+		const _74: rs.u64 = rs.hashOne(rs.buildHasher(s), { _0: b ^ 240 }, Nibble.hash$Hash_hash_DefaultHasher as (a0: Nibble.Nibble, a1: rs.Hasher) => undefined);
+		rs.byteVecPush(out, (typeof _71 === "number" && typeof _74 === "number" ? _71 === _74 : rs.u64Eq(_71, _74)) ? 1 : 0);
 		const arc: rs.Arc<string> = new rs.Arc(text);
 		const _84: rs.Arc<string> = rs.arcClone(arc);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), _84, rs.hashArc(rs.hashStr), rs.drop), rs.hashOne(rs.buildHasher(s), arc, rs.hashArc(rs.hashStr))) ? 1 : 0);
+		const _82: rs.u64 = rs.hashOne(rs.buildHasher(s), _84, rs.hashArc(rs.hashStr), rs.drop);
+		const _86: rs.u64 = rs.hashOne(rs.buildHasher(s), arc, rs.hashArc(rs.hashStr));
+		rs.byteVecPush(out, (typeof _82 === "number" && typeof _86 === "number" ? _82 === _86 : rs.u64Eq(_82, _86)) ? 1 : 0);
 		rs.byteVecPush(out, arc.strong & 0xff);
 		const drops: rs.Cell<rs.u8> = new rs.Cell(0);
 		const counted: Counted.Counted = new Counted.Counted(b, drops);
 		const _99: rs.u64 = rs.hashOne(rs.buildHasher(s), counted, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined);
 		const _104: Counted.Counted = new Counted.Counted(b, drops);
-		rs.byteVecPush(out, rs.u64Eq(_99, rs.hashOne(rs.buildHasher(s), _104, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined, rs.drop)) ? 1 : 0);
+		const _102: rs.u64 = rs.hashOne(rs.buildHasher(s), _104, Counted.hash$Hash_hash_DefaultHasher as (a0: Counted.Counted, a1: rs.Hasher) => undefined, rs.drop);
+		rs.byteVecPush(out, (typeof _99 === "number" && typeof _102 === "number" ? _99 === _102 : rs.u64Eq(_99, _102)) ? 1 : 0);
 		rs.byteVecPush(out, drops.v);
 		counted[Symbol.dispose]();
 		rs.byteVecPush(out, drops.v);
@@ -1275,19 +1289,23 @@ export function bytes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		_83[Symbol.dispose]();
 		const _87: rs.u64 = rs.hashOne(rs.buildHasher(state), a, rs.hashBytes);
 		const _91: rs.ByteSlice = rs.byteSliceRange(_41, 0, 3);
-		rs.byteVecPush(out, rs.u64Eq(_87, rs.hashOne(rs.buildHasher(state), _91, rs.hashBytes)) ? 1 : 0);
+		const _89: rs.u64 = rs.hashOne(rs.buildHasher(state), _91, rs.hashBytes);
+		rs.byteVecPush(out, (typeof _87 === "number" && typeof _89 === "number" ? _87 === _89 : rs.u64Eq(_87, _89)) ? 1 : 0);
 		const _98: rs.ByteSlice = rs.byteSliceFrom(a);
 		const _96: rs.u64 = rs.hashOne(rs.buildHasher(state), _98, rs.hashBytes);
 		const _101: rs.ByteVec = rs.byteSliceToByteVec(_41);
-		rs.byteVecPush(out, rs.u64Eq(_96, rs.hashOne(rs.buildHasher(state), _101, rs.hashBytes)) ? 1 : 0);
+		const _99: rs.u64 = rs.hashOne(rs.buildHasher(state), _101, rs.hashBytes);
+		rs.byteVecPush(out, (typeof _96 === "number" && typeof _99 === "number" ? _96 === _99 : rs.u64Eq(_96, _99)) ? 1 : 0);
 		const _107: [Uint8Array, rs.u8] = [pair, 1];
 		const _105: rs.u64 = rs.hashOne(rs.buildHasher(state), _107, rs.hashTuple([rs.hashBytes, rs.hash8]));
 		const _110: [rs.ByteSlice, rs.u8] = [rs.byteSliceRange(_41, 0, 2), 1];
-		rs.byteVecPush(out, rs.u64Eq(_105, rs.hashOne(rs.buildHasher(state), _110, rs.hashTuple([rs.hashBytes, rs.hash8]))) ? 1 : 0);
+		const _108: rs.u64 = rs.hashOne(rs.buildHasher(state), _110, rs.hashTuple([rs.hashBytes, rs.hash8]));
+		rs.byteVecPush(out, (typeof _105 === "number" && typeof _108 === "number" ? _105 === _108 : rs.u64Eq(_105, _108)) ? 1 : 0);
 	}
 	const _116: rs.u64 = rs.hashOne(rs.buildHasher(state), Uint8Array.of(), rs.hashBytes);
 	const _120: rs.ByteVec = new rs.ByteVec();
-	rs.byteVecPush(out, rs.u64Eq(_116, rs.hashOne(rs.buildHasher(state), _120, rs.hashBytes)) ? 1 : 0);
+	const _118: rs.u64 = rs.hashOne(rs.buildHasher(state), _120, rs.hashBytes);
+	rs.byteVecPush(out, (typeof _116 === "number" && typeof _118 === "number" ? _116 === _118 : rs.u64Eq(_116, _118)) ? 1 : 0);
 }
 
 /** Log a call of `tag`'s method, given `bytes`, as its tag, their count, and them. */
@@ -2003,7 +2021,9 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side: rs.u8, bytes: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
-		const _52: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side as rs.u64, 65537), first as rs.u64) };
+		const _7: rs.u64 = rs.u64Mul(side as rs.u64, 65537);
+		const _102: rs.u64 = first as rs.u64;
+		const _52: Spread.Spread = { _0: (typeof _7 === "number" && typeof _102 === "number" && _7 + _102 <= 9007199254740991 ? _7 + _102 : rs.u64Add(_7, _102)) as rs.u64 };
 		const m: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rs.HashMap<Sided.Sided, Sided.Sided>;
 		const iterS: Uint8Array = rs.byteSliceView(bytes);
 		let iterI: number = 0;

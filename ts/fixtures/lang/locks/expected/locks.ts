@@ -25,7 +25,8 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _18: rs.u8 = rs.u8Rem(op, 8);
 		if (_18 === 0) {
 			const tally: rs.Mutex<Tally.Tally> = rs.mutexLock(shared.value);
-			tally.value.n = rs.u64Add(tally.value.n, op as rs.u64);
+			const _24: rs.u64 = op as rs.u64;
+			tally.value.n = (typeof tally.value.n === "number" && typeof _24 === "number" && tally.value.n + _24 <= 9007199254740991 ? tally.value.n + _24 : rs.u64Add(tally.value.n, _24)) as rs.u64;
 			rs.byteVecPush(tally.value.seen, op);
 			rs.mutexUnlock(tally);
 		} else if (_18 === 1) {
@@ -218,7 +219,8 @@ export function rwlocks(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _13: rs.u8 = rs.u8Rem(op, 8);
 		if (_13 === 0) {
 			const tally: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock.value);
-			tally.value.n = rs.u64Add(tally.value.n, op as rs.u64);
+			const _19: rs.u64 = op as rs.u64;
+			tally.value.n = (typeof tally.value.n === "number" && typeof _19 === "number" && tally.value.n + _19 <= 9007199254740991 ? tally.value.n + _19 : rs.u64Add(tally.value.n, _19)) as rs.u64;
 			rs.byteVecPush(tally.value.seen, op);
 			rs.refMutRelease(tally);
 		} else if (_13 === 1) {
@@ -333,7 +335,8 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const n: rs.RefCell<rs.u64> = rs.refMutMap(_16, ((t7: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t7.n, (value3) => t7.n = value3);
 			})(_16.value));
-			n.value = rs.u64Add(n.value, op as rs.u64);
+			const _19: rs.u64 = op as rs.u64;
+			n.value = (typeof n.value === "number" && typeof _19 === "number" && n.value + _19 <= 9007199254740991 ? n.value + _19 : rs.u64Add(n.value, _19)) as rs.u64;
 			locked(out);
 			const _27: rs.RefCell<rs.u64> = n;
 			const again: rs.RefCell<rs.u64> = rs.refMutMap(_27, ((n9: rs.Place<rs.u64>): rs.Place<rs.u64> => {
@@ -410,11 +413,11 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_121.ok) {
 				if (_121.value.ok) {
 					const n3: rs.RefCell<rs.u64> = _121.value.value;
-					n3.value = rs.u64Add(n3.value, 1);
+					n3.value = (typeof n3.value === "number" && n3.value + 1 <= 9007199254740991 ? n3.value + 1 : rs.u64Add(n3.value, 1)) as rs.u64;
 					rs.refMutRelease(n3);
 				} else {
 					const n4: rs.RefCell<rs.u64> = _121.value.error;
-					n4.value = rs.u64Add(n4.value, 2);
+					n4.value = (typeof n4.value === "number" && n4.value + 2 <= 9007199254740991 ? n4.value + 2 : rs.u64Add(n4.value, 2)) as rs.u64;
 					rs.refMutRelease(n4);
 				}
 			} else {
@@ -484,7 +487,8 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const n: rs.Mutex<rs.u64> = rs.mutexMap(_18, ((t7: Tally.Tally): rs.Place<rs.u64> => {
 				return rs.place(() => t7.n, (value3) => t7.n = value3);
 			})(_18.value));
-			n.value = rs.u64Add(n.value, op as rs.u64);
+			const _21: rs.u64 = op as rs.u64;
+			n.value = (typeof n.value === "number" && typeof _21 === "number" && n.value + _21 <= 9007199254740991 ? n.value + _21 : rs.u64Add(n.value, _21)) as rs.u64;
 			locked(out);
 			const _29: rs.Mutex<rs.u64> = n;
 			const again: rs.Mutex<rs.u64> = rs.mutexMap(_29, ((n8: rs.Place<rs.u64>): rs.Place<rs.u64> => {
@@ -562,12 +566,12 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_151.ok) {
 				if (_151.value.ok) {
 					const n3: rs.Mutex<rs.u64> = _151.value.value;
-					n3.value = rs.u64Add(n3.value, 1);
+					n3.value = (typeof n3.value === "number" && n3.value + 1 <= 9007199254740991 ? n3.value + 1 : rs.u64Add(n3.value, 1)) as rs.u64;
 					rs.mutexUnlock(n3);
 				} else {
 					const n4: rs.Mutex<rs.u64> = _151.value.error;
 					locked(out);
-					n4.value = rs.u64Add(n4.value, 2);
+					n4.value = (typeof n4.value === "number" && n4.value + 2 <= 9007199254740991 ? n4.value + 2 : rs.u64Add(n4.value, 2)) as rs.u64;
 					rs.mutexUnlock(n4);
 				}
 			} else {
@@ -685,7 +689,8 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _16: rs.u8 = rs.u8Rem(op, 4);
 		if (_16 === 0) {
 			const write: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			write.value.n = rs.u64Add(write.value.n, op as rs.u64);
+			const _21: rs.u64 = op as rs.u64;
+			write.value.n = (typeof write.value.n === "number" && typeof _21 === "number" && write.value.n + _21 <= 9007199254740991 ? write.value.n + _21 : rs.u64Add(write.value.n, _21)) as rs.u64;
 			rs.byteVecPush(write.value.seen, op);
 			const read: rs.RefCell<Tally.Tally> = rs.rwLockDowngrade(write);
 			rs.byteVecPush(out, held$locks_Tally(lock));

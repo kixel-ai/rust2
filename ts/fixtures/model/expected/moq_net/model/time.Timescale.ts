@@ -5,7 +5,7 @@ import { bounded } from "../../moq_net/model/time.ts";
 import type * as TimeOverflow from "../../moq_net/model/time.TimeOverflow.ts";
 
 export function eq$cmp_PartialEq(self: Timescale, other: Timescale): boolean {
-	return rs.u64Eq(self._0, other._0);
+	return typeof self._0 === "number" && typeof other._0 === "number" ? self._0 === other._0 : rs.u64Eq(self._0, other._0);
 }
 
 /**
@@ -58,10 +58,18 @@ export function tryFrom$convert_TryFrom_num_NonZero_u64(unitsPerSecond: rs.u64):
 }
 
 export function fmt$fmt_Debug(self: Timescale, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	if (!rs.u64Eq(1, self._0)) {
-		if (!rs.u64Eq(1000, self._0)) {
-			if (!rs.u64Eq(1000000, self._0)) {
-				if (!rs.u64Eq(1000000000, self._0)) {
+	const _12: rs.u64 = self._0;
+	const _13: rs.u64 = 1;
+	if (!(typeof _13 === "number" && typeof _12 === "number" ? _13 === _12 : rs.u64Eq(_13, _12))) {
+		const _9: rs.u64 = self._0;
+		const _10: rs.u64 = 1000;
+		if (!(typeof _10 === "number" && typeof _9 === "number" ? _10 === _9 : rs.u64Eq(_10, _9))) {
+			const _6: rs.u64 = self._0;
+			const _7: rs.u64 = 1000000;
+			if (!(typeof _7 === "number" && typeof _6 === "number" ? _7 === _6 : rs.u64Eq(_7, _6))) {
+				const _3: rs.u64 = self._0;
+				const _4: rs.u64 = 1000000000;
+				if (!(typeof _4 === "number" && typeof _3 === "number" ? _4 === _3 : rs.u64Eq(_4, _3))) {
 					const part = self._0;
 					return rs.fmtWriteFmt(f, ["Timescale(", (f: rs.Formatter) => rs.u64Display(part, f), ")"]);
 				}

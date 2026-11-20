@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function eq$cmp_PartialEq(self: Scale, other: Scale): boolean {
-	return rs.u64Eq(self._0, other._0);
+	return typeof self._0 === "number" && typeof other._0 === "number" ? self._0 === other._0 : rs.u64Eq(self._0, other._0);
 }
 
 export function partialCmp$cmp_PartialOrd(self: Scale, other: Scale): rs.Ordering | undefined {

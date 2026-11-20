@@ -224,7 +224,7 @@ export function lastRangeValue$u64_u64(self: RangeMap<rs.u64, rs.u64>): [rs.Rang
  * Panics if range `start >= end`.
  */
 export function insert$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<rs.u64>, value: rs.u64): void {
-	if (!rs.u64Lt(range.start, range.end)) {
+	if (!(typeof range.start === "number" && typeof range.end === "number" ? range.start < range.end : rs.u64Lt(range.start, range.end))) {
 		rs.panic("assertion failed: range.start < range.end");
 	} else {
 		const newStartWrapper: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(range);
@@ -276,7 +276,7 @@ export function insert$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<r
  * Panics if range `start >= end`.
  */
 export function insert$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Range<rs.u64>, _: undefined): void {
-	if (!rs.u64Lt(range.start, range.end)) {
+	if (!(typeof range.start === "number" && typeof range.end === "number" ? range.start < range.end : rs.u64Lt(range.start, range.end))) {
 		rs.panic("assertion failed: range.start < range.end");
 	} else {
 		const newStartWrapper: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(range);
@@ -327,7 +327,7 @@ export function insert$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Ran
  * Panics if range `start >= end`.
  */
 export function remove$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<rs.u64>): void {
-	if (!rs.u64Lt(range.start, range.end)) {
+	if (!(typeof range.start === "number" && typeof range.end === "number" ? range.start < range.end : rs.u64Lt(range.start, range.end))) {
 		rs.panic("assertion failed: range.start < range.end");
 	} else {
 		const startWrapper: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(range);
@@ -367,7 +367,7 @@ export function remove$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<r
  * Panics if range `start >= end`.
  */
 export function remove$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Range<rs.u64>): void {
-	if (!rs.u64Lt(range.start, range.end)) {
+	if (!(typeof range.start === "number" && typeof range.end === "number" ? range.start < range.end : rs.u64Lt(range.start, range.end))) {
 		rs.panic("assertion failed: range.start < range.end");
 	} else {
 		const startWrapper: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(range);
@@ -399,14 +399,15 @@ export function remove$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Ran
 }
 
 export function adjustTouchingRangesForInsert$u64_u64(self: RangeMap<rs.u64, rs.u64>, storedStartWrapper: RangeStartWrapper.RangeStartWrapper<rs.u64>, storedValue: rs.u64, newRange: rs.Range<rs.u64>, newValue: rs.u64): void {
-	if (!rs.u64Eq(storedValue, newValue)) {
+	if (!(typeof storedValue === "number" && typeof newValue === "number" ? storedValue === newValue : rs.u64Eq(storedValue, newValue))) {
 		if (overlaps$rangemap_std_ext_RangeExt_u64_ops_Range_u64(newRange, RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper).range)) {
 			rs.btreeRemove(self.btm, storedStartWrapper);
-			if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper)).start, newRange.start)) {
+			const _35: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper));
+			if (typeof _35.start === "number" && typeof newRange.start === "number" ? _35.start < newRange.start : rs.u64Lt(_35.start, newRange.start)) {
 				const _41: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(storedStartWrapper.endWrapper.range.start, newRange.start, rs.u64Step));
 				rs.btreeInsert(self.btm, _41, storedValue);
 			}
-			if (rs.u64Gt(storedStartWrapper.endWrapper.range.end, newRange.end)) {
+			if (typeof storedStartWrapper.endWrapper.range.end === "number" && typeof newRange.end === "number" ? storedStartWrapper.endWrapper.range.end > newRange.end : rs.u64Gt(storedStartWrapper.endWrapper.range.end, newRange.end)) {
 				const _53: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newRange.end, storedStartWrapper.endWrapper.range.end, rs.u64Step));
 				rs.btreeInsert(self.btm, _53, storedValue);
 			}
@@ -424,11 +425,12 @@ export function adjustTouchingRangesForInsert$u64_unit(self: RangeMap<rs.u64, un
 	if (false) {
 		if (overlaps$rangemap_std_ext_RangeExt_u64_ops_Range_u64(newRange, RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper).range)) {
 			rs.btreeRemove(self.btm, storedStartWrapper, undefined, rs.None);
-			if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper)).start, newRange.start)) {
+			const _35: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(RangeStartWrapper.deref$ops_Deref_u64(storedStartWrapper));
+			if (typeof _35.start === "number" && typeof newRange.start === "number" ? _35.start < newRange.start : rs.u64Lt(_35.start, newRange.start)) {
 				const _41: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(storedStartWrapper.endWrapper.range.start, newRange.start, rs.u64Step));
 				rs.btreeInsert(self.btm, _41, undefined, undefined, rs.None);
 			}
-			if (rs.u64Gt(storedStartWrapper.endWrapper.range.end, newRange.end)) {
+			if (typeof storedStartWrapper.endWrapper.range.end === "number" && typeof newRange.end === "number" ? storedStartWrapper.endWrapper.range.end > newRange.end : rs.u64Gt(storedStartWrapper.endWrapper.range.end, newRange.end)) {
 				const _53: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newRange.end, storedStartWrapper.endWrapper.range.end, rs.u64Step));
 				rs.btreeInsert(self.btm, _53, undefined, undefined, rs.None);
 			}
@@ -445,11 +447,12 @@ export function adjustTouchingRangesForInsert$u64_unit(self: RangeMap<rs.u64, un
 export function adjustOverlappingRangesForRemove$u64_u64(self: RangeMap<rs.u64, rs.u64>, stored: RangeStartWrapper.RangeStartWrapper<rs.u64>, storedValue: rs.u64, rangeToRemove: rs.Range<rs.u64>): void {
 	rs.btreeRemove(self.btm, stored);
 	const storedRange: RangeEndWrapper.RangeEndWrapper<rs.u64> = stored.endWrapper;
-	if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(storedRange).start, rangeToRemove.start)) {
+	const _11: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(storedRange);
+	if (typeof _11.start === "number" && typeof rangeToRemove.start === "number" ? _11.start < rangeToRemove.start : rs.u64Lt(_11.start, rangeToRemove.start)) {
 		const _16: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(storedRange.range.start, rangeToRemove.start, rs.u64Step));
 		rs.btreeInsert(self.btm, _16, storedValue);
 	}
-	if (rs.u64Gt(storedRange.range.end, rangeToRemove.end)) {
+	if (typeof storedRange.range.end === "number" && typeof rangeToRemove.end === "number" ? storedRange.range.end > rangeToRemove.end : rs.u64Gt(storedRange.range.end, rangeToRemove.end)) {
 		const _28: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(rangeToRemove.end, storedRange.range.end, rs.u64Step));
 		rs.btreeInsert(self.btm, _28, storedValue);
 	}
@@ -458,11 +461,12 @@ export function adjustOverlappingRangesForRemove$u64_u64(self: RangeMap<rs.u64, 
 export function adjustOverlappingRangesForRemove$u64_unit(self: RangeMap<rs.u64, undefined>, stored: RangeStartWrapper.RangeStartWrapper<rs.u64>, _: undefined, rangeToRemove: rs.Range<rs.u64>): void {
 	rs.btreeRemove(self.btm, stored, undefined, rs.None);
 	const storedRange: RangeEndWrapper.RangeEndWrapper<rs.u64> = stored.endWrapper;
-	if (rs.u64Lt(RangeEndWrapper.deref$ops_Deref_u64(storedRange).start, rangeToRemove.start)) {
+	const _11: rs.Range<rs.u64> = RangeEndWrapper.deref$ops_Deref_u64(storedRange);
+	if (typeof _11.start === "number" && typeof rangeToRemove.start === "number" ? _11.start < rangeToRemove.start : rs.u64Lt(_11.start, rangeToRemove.start)) {
 		const _16: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(storedRange.range.start, rangeToRemove.start, rs.u64Step));
 		rs.btreeInsert(self.btm, _16, undefined, undefined, rs.None);
 	}
-	if (rs.u64Gt(storedRange.range.end, rangeToRemove.end)) {
+	if (typeof storedRange.range.end === "number" && typeof rangeToRemove.end === "number" ? storedRange.range.end > rangeToRemove.end : rs.u64Gt(storedRange.range.end, rangeToRemove.end)) {
 		const _28: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(rangeToRemove.end, storedRange.range.end, rs.u64Step));
 		rs.btreeInsert(self.btm, _28, undefined, undefined, rs.None);
 	}

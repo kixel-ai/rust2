@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { then$0havnzo } from "./core/bool.ts";
-import { fromStr$1ikft6y as nonzero_fromStr$1ikft6y, fromStrRadix$1i96daa as nonzero_fromStrRadix$1i96daa, fromStr$0t2qzou as nonzero_fromStr$0t2qzou, fromStrRadix$0yk2yqd as nonzero_fromStrRadix$0yk2yqd, fromStr$1qv4pqe as nonzero_fromStr$1qv4pqe, fromStrRadix$1y934te as nonzero_fromStrRadix$1y934te, fromStr$1xddfo8 as nonzero_fromStr$1xddfo8, fromStrRadix$11u1rq7 as nonzero_fromStrRadix$11u1rq7, fromStr$06q0lw7 as nonzero_fromStr$06q0lw7, fromStrRadix$1ejhcoz as nonzero_fromStrRadix$1ejhcoz, fromStr$0tn1xwn as nonzero_fromStr$0tn1xwn, fromStrRadix$1dc88z1 as nonzero_fromStrRadix$1dc88z1, fromStr$0h6taf0 as nonzero_fromStr$0h6taf0, fromStrRadix$011a32r as nonzero_fromStrRadix$011a32r, fromStr$157gku3 as nonzero_fromStr$157gku3, fromStrRadix$1u0zwz8 as nonzero_fromStrRadix$1u0zwz8, fromStr$13j6y8p as nonzero_fromStr$13j6y8p, fromStrRadix$1m6epfo as nonzero_fromStrRadix$1m6epfo, fromStr$1crondi as nonzero_fromStr$1crondi, fromStrRadix$15i0o2z as nonzero_fromStrRadix$15i0o2z, fromStr$0q2xzd0 as nonzero_fromStr$0q2xzd0, fromStrRadix$09x3avk as nonzero_fromStrRadix$09x3avk, fromStr$0bvulbz as nonzero_fromStr$0bvulbz, fromStrRadix$1jg523s as nonzero_fromStrRadix$1jg523s } from "./core/num/nonzero.ts";
+import { fromStr$1ikft6y as nonzero_fromStr$1ikft6y, fromStrRadix$1i96daa as nonzero_fromStrRadix$1i96daa, fromStr$0t2qzou as nonzero_fromStr$0t2qzou, fromStrRadix$0yk2yqd as nonzero_fromStrRadix$0yk2yqd, fromStr$1qv4pqe as nonzero_fromStr$1qv4pqe, fromStrRadix$1y934te as nonzero_fromStrRadix$1y934te, fromStr$1ioqggb as nonzero_fromStr$1ioqggb, fromStrRadix$1ezo3jn as nonzero_fromStrRadix$1ezo3jn, fromStr$06q0lw7 as nonzero_fromStr$06q0lw7, fromStrRadix$1ejhcoz as nonzero_fromStrRadix$1ejhcoz, fromStr$0tn1xwn as nonzero_fromStr$0tn1xwn, fromStrRadix$1dc88z1 as nonzero_fromStrRadix$1dc88z1, fromStr$0h6taf0 as nonzero_fromStr$0h6taf0, fromStrRadix$011a32r as nonzero_fromStrRadix$011a32r, fromStr$157gku3 as nonzero_fromStr$157gku3, fromStrRadix$1u0zwz8 as nonzero_fromStrRadix$1u0zwz8, fromStr$13j6y8p as nonzero_fromStr$13j6y8p, fromStrRadix$1m6epfo as nonzero_fromStrRadix$1m6epfo, fromStr$1crondi as nonzero_fromStr$1crondi, fromStrRadix$15i0o2z as nonzero_fromStrRadix$15i0o2z, fromStr$0q2xzd0 as nonzero_fromStr$0q2xzd0, fromStrRadix$09x3avk as nonzero_fromStrRadix$09x3avk, fromStr$0bvulbz as nonzero_fromStr$0bvulbz, fromStrRadix$1jg523s as nonzero_fromStrRadix$1jg523s } from "./core/num/nonzero.ts";
 import { unwrapOr$0yvilko as option_unwrapOr$0yvilko, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$0h0w6xi as option_map$0h0w6xi, mapOr$1wbabuw as option_mapOr$1wbabuw, mapOr$19xt0tb as option_mapOr$19xt0tb } from "./core/option.ts";
-import { parse$1yfzdza, parse$1d17hvd, parse$0wntisu, parse$18h4mna, parse$1gh8p0t, parse$0jsh5gh, parse$09069e1, parse$0j8ztlu, parse$13tnb7e, parse$04z9euf, parse$1fob3ck, parse$1y4njjc, parse$1acldxi } from "./core/str.ts";
+import { parse$1yfzdza, parse$1d17hvd, parse$0wntisu, parse$18h4mna, parse$1gh8p0t, parse$0jsh5gh, parse$09069e1, parse$0j8ztlu, parse$13tnb7e, parse$04z9euf, parse$1ua39cy, parse$1y4njjc, parse$1acldxi } from "./core/str.ts";
 import { fromStr$1dw9076 as traits_fromStr$1dw9076 } from "./core/str/traits.ts";
 import { put, text } from "./harness.ts";
 import * as Counted from "./strs.Counted.ts";
@@ -355,8 +355,9 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	} else if (_8 === 3) {
 		const iter3: rs.Iter<string> = rs.iterSuccessors(s.v, (path: string): string | undefined => {
+			const _32: boolean = !(path.length === 0);
 			const _73: string = path;
-			return then$0havnzo(!(path.length === 0), (): string => {
+			return then$0havnzo(_32, (): string => {
 				return option_mapOr$19xt0tb(rs.strRfind(_73, "/"), "", (slash: rs.usize): string => {
 					return rs.strSlice(_73, 0, slash);
 				});
@@ -881,7 +882,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		} else if (_53 === 5) {
 			const radix5: rs.u32 = radix;
-			const iter8: rs.Iter<rs.Result<rs.u64, rs.ParseIntError>> = rs.iterSlice([parse$1fob3ck(_49), nonzero_fromStr$1xddfo8(_49)]);
+			const iter8: rs.Iter<rs.Result<rs.u64, rs.ParseIntError>> = rs.iterSlice([parse$1ua39cy(_49), nonzero_fromStr$1ioqggb(_49)]);
 			while (true) {
 				const _410: rs.Result<rs.u64, rs.ParseIntError> | rs.Done = iter8.next();
 				if (_410 === rs.DONE) {
@@ -897,12 +898,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					put(out, rs.fmtFormat([args169[0], "|", args169[1], "|", rs.fmtSpec({ align: ">", width: 50 }, args169[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args169[0]), "|", rs.fmtSpec({ align: ">", width: 20 }, args169[1]), "|", rs.fmtSpec({ alternate: true }, args169[1])]).v);
 				}
 			}
-			const _400: rs.Result<rs.u64, rs.ParseIntError> = parse$1fob3ck(_49);
+			const _400: rs.Result<rs.u64, rs.ParseIntError> = parse$1ua39cy(_49);
 			if (!_400.ok) {
 				const part9 = _400.error.kind;
 				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part9)]).v);
 			}
-			const _456: rs.Result<rs.u64, rs.ParseIntError> = nonzero_fromStrRadix$11u1rq7(_49, radix5);
+			const _456: rs.Result<rs.u64, rs.ParseIntError> = nonzero_fromStrRadix$1ezo3jn(_49, radix5);
 			if (_456.ok) {
 				const arg18 = _456.value;
 				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg18, f)]).v);
@@ -1475,7 +1476,11 @@ export function hinted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_38 === 8) {
 		const _112: rs.usize = rs.usizeRem(sub, 3);
 		if (_112 === 0) {
-			rs.stringExtendChars(t, rs.iterMap(new rs.Range({ hi: 0x10000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, n as rs.u64), rs.u64Step), (_210: rs.u64): rs.char => {
+			const _114: rs.String = t;
+			const _117: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
+			const _121: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
+			const _124: rs.u64 = n as rs.u64;
+			rs.stringExtendChars(_114, rs.iterMap(new rs.Range(_117, (typeof _121 === "number" && typeof _124 === "number" && _121 + _124 <= 9007199254740991 ? _121 + _124 : rs.u64Add(_121, _124)) as rs.u64, rs.u64Step), (_210: rs.u64): rs.char => {
 				return f(0);
 			}));
 		} else if (_112 === 1) {
@@ -1483,7 +1488,11 @@ export function hinted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return f(0);
 			}));
 		} else {
-			rs.stringExtendChars(t, rs.iterMap(new rs.RangeInclusive({ hi: 0x10000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, n as rs.u64), rs.u64Step), (_24: rs.u64): rs.char => {
+			const _146: rs.String = t;
+			const _149: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
+			const _153: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
+			const _156: rs.u64 = n as rs.u64;
+			rs.stringExtendChars(_146, rs.iterMap(new rs.RangeInclusive(_149, (typeof _153 === "number" && typeof _156 === "number" && _153 + _156 <= 9007199254740991 ? _153 + _156 : rs.u64Add(_153, _156)) as rs.u64, rs.u64Step), (_24: rs.u64): rs.char => {
 				return f(0);
 			}));
 		}

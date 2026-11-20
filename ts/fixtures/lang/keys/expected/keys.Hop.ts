@@ -3,7 +3,9 @@
 import * as rs from "./rs.ts";
 
 export function eq$cmp_PartialEq(self: Hop, other: Hop): boolean {
-	return rs.u64Eq(self._0, other._0);
+	const _3: rs.u64 = self._0;
+	const _4: rs.u64 = other._0;
+	return typeof _3 === "number" && typeof _4 === "number" ? _3 === _4 : rs.u64Eq(_3, _4);
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Hop, state: rs.Hasher): void {
