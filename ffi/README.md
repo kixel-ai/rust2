@@ -961,9 +961,11 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `Span<UInt8>`.
 - **Slices** a call borrows, `&[u8]` and `&[T]` of a fixed-width integer or float, are
   `borrowing Swift.Span<T>`, which Rust reads in place: an array's `span`, or before
-  Apple's 26 releases its slice's (`array[...]`), or `Bytes` lent by `withSpan`. Bytes Rust lends a closure or trait
-  method are a `Span<UInt8>` of Rust's own memory, which the compiler keeps from outliving
-  the call. A `span` property on `Bytes` waits on Swift's lifetime dependencies, still
+  Apple's 26 releases its slice's (`array[...]`), or `Bytes` lent by `withSpan`, whose
+  closure is synchronous. An `async` call takes `Bytes` copied to a slice that lives
+  across the `await`, as `let s = Array(bytes)[...]` and then `try await f(s.span)`.
+  Bytes Rust lends a closure or trait method are a `Span<UInt8>` of Rust's own memory,
+  which the compiler keeps from outliving the call. A `span` property on `Bytes` waits on Swift's lifetime dependencies, still
   experimental, and on `Data` keeping short bytes inline.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
