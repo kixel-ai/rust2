@@ -78,7 +78,9 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		})
 		.collect();
 	let mut locked = std::mem::take(&mut h.locked);
-	crate::lock::variants(abi, &mut locked, |c, v| values.get(&(c.to_string(), v.to_string())).cloned());
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		values.get(&(c.to_string(), v.to_string())).cloned()
+	});
 	h.locked = locked;
 	let mut headers = vec![(format!("{p}/rt.hpp"), h.shared(packages))];
 	let guard = format!("{}_HPP", p.to_uppercase());
@@ -1074,7 +1076,14 @@ impl<'a> Header<'a> {
 		};
 		let taken = self.object_taken(i);
 		for (method, name) in object.methods.iter().zip(self.methods(&object.methods, &owner, &taken)) {
-			let (decl, member) = self.function(method, Some(&owner), Some(Member { name: &name, taken: &taken }));
+			let (decl, member) = self.function(
+				method,
+				Some(&owner),
+				Some(Member {
+					name: &name,
+					taken: &taken,
+				}),
+			);
 			body.push(decl);
 			members.push(member);
 		}
@@ -1303,7 +1312,10 @@ impl<'a> Header<'a> {
 					members.push("c_".to_string());
 				}
 				for (method, name) in record.methods.iter().zip(self.methods(&record.methods, &owner, &taken)) {
-					let member = Member { name: &name, taken: &taken };
+					let member = Member {
+						name: &name,
+						taken: &taken,
+					};
 					let (decl, member) = self.function(method, Some(&owner), Some(member));
 					body.push(decl);
 					members.push(member);
@@ -1608,11 +1620,7 @@ impl<'a> Header<'a> {
 					false => format!("{ns}::{}", self.name(&abi::payload(&abi.enumeration(i), variant))),
 				}
 			}
-			doc::Target::Field(i, n) => format!(
-				"{ns}::{}::{}",
-				owner(doc::Owner::Record(i)),
-				self.fields(i).0[n]
-			),
+			doc::Target::Field(i, n) => format!("{ns}::{}::{}", owner(doc::Owner::Record(i)), self.fields(i).0[n]),
 			doc::Target::Constant(c) => format!("{ns}::{}", self.locked.get(&format!("const {}", c.path.join("::")))?),
 			doc::Target::Function(of, f) => {
 				let member = self.locked.get(&crate::lock::function_key(f))?;
@@ -1627,12 +1635,7 @@ impl<'a> Header<'a> {
 
 	/// `function`'s declaration in its class, and its member name, with its definition
 	/// among the definitions; or as a free function if it has no class.
-	fn function(
-		&mut self,
-		function: &Function,
-		owner: Option<&Ty>,
-		member: Option<Member<'_>>,
-	) -> (String, String) {
+	fn function(&mut self, function: &Function, owner: Option<&Ty>, member: Option<Member<'_>>) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let d = self.d();
