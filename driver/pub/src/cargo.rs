@@ -150,7 +150,8 @@ impl Workspace {
 				// whose API is the point.
 				let tests = dep.dep_kinds.iter().all(|k| k.kind.as_deref() == Some("dev"));
 				if let Some(to) = dirs.get(&dep.pkg)
-					&& to != from && !tests
+					&& to != from
+					&& !tests
 				{
 					local
 						.get_mut(to)
