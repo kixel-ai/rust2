@@ -1350,11 +1350,14 @@ impl<'tcx> Collector<'tcx> {
 						types.push(tcx.type_of(field.did).instantiate_identity().skip_norm_wip());
 					}
 					for &imp in tcx.inherent_impls(def_id) {
-						types.push(tcx.type_of(imp).instantiate_identity().skip_norm_wip());
-						for item in tcx.associated_items(imp).in_definition_order() {
-							if !tcx.visibility(item.def_id).is_public() || tcx.is_doc_hidden(item.def_id) {
-								continue;
-							}
+						// An impl spells its type only through a member in the API.
+						let members: Vec<_> = (tcx.associated_items(imp).in_definition_order())
+							.filter(|item| tcx.visibility(item.def_id).is_public() && !tcx.is_doc_hidden(item.def_id))
+							.collect();
+						if !members.is_empty() {
+							types.push(tcx.type_of(imp).instantiate_identity().skip_norm_wip());
+						}
+						for item in members {
 							match item.kind {
 								ty::AssocKind::Fn { .. } => functions.push(item.def_id),
 								ty::AssocKind::Const { .. } => {

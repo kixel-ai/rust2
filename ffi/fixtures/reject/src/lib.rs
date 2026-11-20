@@ -1628,3 +1628,10 @@ impl<T> Knot<T> {
 pub fn rope(value: u8) -> Rope<u8> {
 	Rope(value)
 }
+
+/// An impl with no public member spells nothing, so it raises no instance's depth past
+/// what the API spells: `Tie<Knot<Rope<u8>>>` stays refused.
+impl<T> Rope<Knot<Tie<T>>> {
+	#[allow(dead_code, reason = "private, so no part of the API")]
+	fn private(&self) {}
+}
