@@ -1289,8 +1289,10 @@ impl<'a> Abi<'a> {
 
 	/// Whether a call of `function`, a method of `owner` if it has one, is a leaf: proven to
 	/// run no code but the glue's, its runtime's, and std's, to wait on no lock, and to call
-	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
-	/// which runs on the isolate's own thread with no thread hop. It is the read or write of a
+	/// into no binding. Python then keeps the GIL across it, Dart makes it a leaf call,
+	/// which runs on the isolate's own thread with no thread hop, and Kotlin marks it
+	/// `@FastNative`, which ART's collector waits on, so its bound keeps a collection from
+	/// stalling behind it. It is the read or write of a
 	/// primitive `pub` field of a `Send` object reached without a `Deref`, which no object
 	/// that is not `Send` may lend.
 	///

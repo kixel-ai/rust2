@@ -249,7 +249,9 @@ def main(raw_path, build_path=None, export=None, web=None, caller=None):
 	for i, clock, rate in [(1, "CPU", "MB per CPU second"), (0, "wall", "MB/s")]:
 		print(f"### Calls (ns per call, {clock} time; load average)\n")
 		header = ["call"] + [name for _, name in langs]
-		print(table(header, [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]))
+		rows = [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]
+		# A case no language here runs, as in bench-android's Kotlin alone.
+		print(table(header, [row for row in rows if any(row[1:])]))
 		print(f"\n### Throughput ({rate}, write plus ready read; load average)\n")
 		header = ["frame"] + [name for _, name in thru]
 		rows = [[LABELS[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]

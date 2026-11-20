@@ -43,8 +43,9 @@ its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
 Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
-`--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
-those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
+`--features kotlin`, beside `kotlin/FastNative.kt`, which a build compiles with it, and
+`kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what those functions look up by
+name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
@@ -595,7 +596,12 @@ packages place it in.
 
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
-kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
+kotlinx-coroutines, and compiles with `FastNative.kt`, ART's `@FastNative` annotation,
+which Android's SDK makes public only from API 34. A leaf's native method, a primitive field
+read or write or a derived `equals` or `hashCode` the export proves waits on nothing
+([`Abi::leaf`](src/abi.rs)), takes it, so ART keeps the thread runnable across the call;
+`_Native`'s first call registers each through `RegisterNatives`, since ART binds such a
+method by its name only from Android 12, and the rules keep each. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
 call takes or returns directly, or in an `Option`, crosses as its scalars, a nested

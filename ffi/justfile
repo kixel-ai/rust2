@@ -153,7 +153,8 @@ bench-android rounds="3" checkout="":
         x86_64) target=x86_64-linux-android ;;
         *) echo "bench-android: the Android shell's toolchain has no target for the device's ABI $abi" >&2; exit 1 ;;
     esac
-    # The export merges the device's API, so its Kotlin and libraries serve both.
+    # The export merges the device's API, so its Kotlin and libraries serve both; the API
+    # stays staged in target/moq-api, as moq-api leaves it.
     {{ quote(just_executable()) }} moq-api "$target" {{ quote(checkout) }}
     {{ quote(just_executable()) }} moq-write {{ quote(checkout) }}
     out=target/export/moq
@@ -189,11 +190,12 @@ bench-android rounds="3" checkout="":
     }
     for r in $(seq {{ rounds }}); do
         run kotlin java -Djava.library.path="$out/target/release" -cp "$dir/bench.jar:$KOTLINX_COROUTINES" ExportKt
-        run kotlin-art "$adb" shell "ANDROID_DATA=$device dalvikvm -Djava.library.path=$device -cp $device/classes.dex ExportKt"
+        # dalvikvm interprets on Android 9 unless told to JIT, as an app's runtime does.
+        run kotlin-art "$adb" shell "ANDROID_DATA=$device dalvikvm -Xusejit:true -Djava.library.path=$device -cp $device/classes.dex ExportKt"
     done
     {
         printf '## Kotlin on HotSpot and ART\n\nART: Android %s (API %s), %s, %s cores.\n\n' \
-            "$("$adb" shell getprop ro.build.version.release | tr -d '\r')" "$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')" "$abi" "$("$adb" shell nproc | tr -d '\r')"
+            "$("$adb" shell getprop ro.build.version.release | tr -d '\r')" "$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')" "$abi" "$("$adb" shell grep -c ^processor /proc/cpuinfo | tr -d '\r')"
         python3 -I ../bench/ffi/report.py "$raw"
     } > "$dir/report.md"
     cat "$dir/report.md"
