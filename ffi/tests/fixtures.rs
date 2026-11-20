@@ -1249,7 +1249,8 @@ fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
-		.arg(out.join("kotlin").join("api.kt"))
+		// The generated Kotlin, `api.kt` and `FastNative.kt`.
+		.arg(out.join("kotlin"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
 		.arg(script)
 		.arg(manifest_dir().join("tests").join("protocol.kt"))

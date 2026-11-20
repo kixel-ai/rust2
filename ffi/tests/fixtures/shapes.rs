@@ -2767,10 +2767,11 @@ fn round_trip(built: &Built, language: &str) {
 			step::write(&main, kotlin(built, calls));
 			let classes = dir.join("classes");
 			let generated = built.out.join("kotlin").join(format!("{name}.kt"));
+			let fast = built.out.join("kotlin").join("FastNative.kt");
 			let jar = PathBuf::from(super::coroutines());
 			let step = Step {
 				stamp: &step::stamp(&classes),
-				reads: &[&main, &generated, &jar],
+				reads: &[&main, &generated, &fast, &jar],
 				writes: &[&classes],
 			};
 			step.run(
@@ -2779,6 +2780,7 @@ fn round_trip(built: &Built, language: &str) {
 					.args(["-J-Xmx4g", "-Werror", "-cp"])
 					.arg(&jar)
 					.arg(&generated)
+					.arg(&fast)
 					.arg(&main)
 					.arg("-d")
 					.arg(&classes),

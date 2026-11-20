@@ -26,17 +26,24 @@ use crate::rt;
 static VM: OnceLock<usize> = OnceLock::new();
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-/// Note the JVM and `class`, from its first native call, which its initializer makes. The
-/// library defines no `JNI_OnLoad`, so the crate it exports may define its own.
+/// Note the JVM and `class`, from its first native call, which its initializer makes, and
+/// register `natives` on it: the `@FastNative` methods, which ART binds by their names only
+/// from Android 12. The library defines no `JNI_OnLoad`, so the crate it exports may define
+/// its own.
 ///
 /// # Safety
-/// `env` is this thread's, and `class` the native class.
-pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
+/// `env` is this thread's, `class` the native class, and each of `natives` a function of
+/// the signature it names.
+pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod]) {
 	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
 		let mut vm: *mut JavaVM = std::ptr::null_mut();
 		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
 			fail(env, "load", "the JVM is missing");
+		}
+		// The rules keep each, so a shrunk app lacking one is a build's mistake.
+		if !natives.is_empty() && ((**env).v1_2.RegisterNatives)(env, class, natives.as_ptr(), natives.len() as jint) != JNI_OK {
+			fail(env, "load", "a native method to register is missing");
 		}
 		let _ = VM.set(vm as usize);
 		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);

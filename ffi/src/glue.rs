@@ -455,6 +455,7 @@ impl Crate<'_> {
 			&out.join("kotlin").join(format!("{}.pro", self.abi.prefix)),
 			&kotlin.rules,
 		);
+		output.file(&out.join("kotlin").join("FastNative.kt"), crate::kotlin::FAST_NATIVE);
 		output.file(&out.join("src/python/mod.rs"), &python.glue);
 		output.file(&out.join("src/python/rt.rs"), crate::python::GLUE_RUNTIME);
 		output.file(
