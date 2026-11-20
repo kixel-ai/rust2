@@ -1244,15 +1244,19 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method
-  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant in
-  upper case (`LIMIT`). A function of a type
+  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant too
+  (`limit`), as Dart's lints name one. A function of a type
   that returns it is a constructor, which may share its name with a field: an object's
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
   (`Position.group`). A type's other functions are static members. Two types whose
-  names would match are kept apart as Kotlin's are (`TokioConnect_Error`). A reserved word takes
-  a trailing `_` (`Point.default_()`), and names that clash, such as one the runtime
-  declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
-  names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
+  names would match are kept apart by a number (`Cancelled2`), as a type's name holds no
+  `_`, which Dart's lints refuse. A reserved word takes a trailing `_` (`Point.default_()`),
+  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`); names that clash,
+  such as one the runtime declares or a data enum's variant class, are kept apart the same
+  way. The glue's C names are `<prefix>_dart_`, with a `_` more for each C name of the
+  export already there. The generated file passes `dart analyze --fatal-infos` with
+  `package:lints/core.yaml`, the lints pub.dev scores a package with ([`tests/dart_lints.yaml`](tests/dart_lints.yaml)),
+  and no `ignore_for_file`.
 - **Objects** are final classes owning their handle. Of a checked type, `close()` drops
   the value through Rust's own `_drop`, as Rust's `drop` would, and frees the handle in
   the same crossing, and a `close()` while a call borrows the value, from a closure that

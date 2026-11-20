@@ -2622,6 +2622,31 @@ const TSCONFIG_PACKAGE: &str = r#"{
 }
 "#;
 
+/// The generated Dart of a small API, which uses little of the runtime and of what the
+/// generator writes per type, analyzes with no issue as well: nothing it leaves unused stays.
+#[test]
+fn dart_small_api_lints() {
+	let dir = scratch().join("edge").join("dart");
+	let out = scratch().join("edge").join("out");
+	let output = export("edge", &out, &[WASM, host()], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let lint = dir.join("lint");
+	step::write(
+		&lint.join("analysis_options.yaml"),
+		std::fs::read_to_string(manifest_dir().join("tests/dart_lints.yaml")).unwrap(),
+	);
+	step::write(
+		&lint.join("edge.dart"),
+		std::fs::read_to_string(out.join("dart").join("edge.dart")).unwrap(),
+	);
+	let step = Step {
+		stamp: &dir.join("analyze.stamp"),
+		reads: &[&lint],
+		writes: &[],
+	};
+	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
+}
+
 /// The generated Dart, analyzed with no issue, runs `tests/api.dart`'s script, which prints
 /// the native transcript, then its futures, what closing and the garbage collector free,
 /// and each contract it fails loud on, and a Dart file of another contract fails to load.
@@ -2631,12 +2656,22 @@ fn api_dart() {
 	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
 	let generated = api.out.join("dart");
+	// The analyzer reads its options from the analyzed directory, so analyze a copy with them.
+	let lint = dir.join("lint");
+	step::write(
+		&lint.join("analysis_options.yaml"),
+		std::fs::read_to_string(manifest_dir().join("tests/dart_lints.yaml")).unwrap(),
+	);
+	step::write(
+		&lint.join("api.dart"),
+		std::fs::read_to_string(generated.join("api.dart")).unwrap(),
+	);
 	let step = Step {
 		stamp: &dir.join("analyze.stamp"),
-		reads: &[&generated],
+		reads: &[&lint],
 		writes: &[],
 	};
-	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
 	// What looks like a leaf but reaches user code is no leaf call. The script catches a
 	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
 	// queued for it at once, apart from any call. Nor is one walking a length the caller
@@ -2734,7 +2769,7 @@ fn api_dart() {
 	// The same Dart, with another contract than the library's in place of its own, refuses
 	// it at the first call.
 	let source = std::fs::read_to_string(generated.join("api.dart")).unwrap();
-	let at = source.find("_contract() == 0x").expect("the Dart checks its contract") + "_contract() == 0x".len();
+	let at = source.find("contract() == 0x").expect("the Dart checks its contract") + "contract() == 0x".len();
 	let mut mismatched = source.clone();
 	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
@@ -4026,11 +4061,16 @@ fn lock() {
 	let names = locked("names");
 	assert!(!names.status.success(), "binding renames passed the lock");
 	let stderr = String::from_utf8_lossy(&names.stderr);
-	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+	// Dart's lints allow no `_` in a type's name, so it takes a number instead.
+	for (language, new) in [
+		("Kotlin", "GraphicsEncoder_Finish"),
+		("Swift", "GraphicsEncoder_Finish"),
+		("Go", "GraphicsEncoder_Finish"),
+		("Dart", "GraphicsEncoderFinish2"),
+		("Python", "GraphicsEncoder_Finish"),
+	] {
 		assert!(
-			stderr.contains(&format!(
-				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
-			)),
+			stderr.contains(&format!("its {language} name `GraphicsEncoderFinish` is now `{new}`")),
 			"missing class rename for {language}:\n{stderr}"
 		);
 	}
@@ -4064,8 +4104,8 @@ fn lock() {
 		"its Kotlin name `StringException` is now `StringException_`",
 		"its Python name `StringException` is now `StringException_`",
 		"its Swift name `StringError` is now `StringError_`",
-		"its Dart name `StringException` is now `StringException_`",
-		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Dart name `StringException` is now `StringException2`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle2`",
 		"its Go name `ModeFast` is now `ModeFast_`",
 		"its Go name `GoString` is now `GoString_`",
 		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
@@ -4096,10 +4136,14 @@ fn lock() {
 	.unwrap();
 	assert!(!output.status.success());
 	let stderr = String::from_utf8_lossy(&output.stderr);
-	for language in ["Kotlin", "Python", "Dart"] {
+	for (language, new) in [
+		("Kotlin", "StringException_"),
+		("Python", "StringException_"),
+		("Dart", "StringException2"),
+	] {
 		assert!(
 			stderr.contains(&format!(
-				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+				"exception class for `string`: its {language} name `StringException` is now `{new}`"
 			)),
 			"{stderr}"
 		);
