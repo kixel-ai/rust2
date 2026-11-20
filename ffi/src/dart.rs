@@ -100,14 +100,18 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
 	let mut locked = std::mem::take(&mut g.locked);
-	// A plain enum's value, which its traits may rename, or a data enum's variant class.
 	crate::lock::variants(abi, &mut locked, |i, v| {
-		let (class, e) = (g.class(&abi.enumeration(i)), &abi.api.enums[i]);
-		match e.plain() {
-			true => Some(format!("{class}.{}", enum_value(e.traits, v))),
-			false => g.variants.get(&(class, v.to_string())).cloned(),
-		}
+		g.variants.get(&(g.class(&abi.enumeration(i)), v.to_string())).cloned()
 	});
+	// A plain enum's values, which its traits may rename: apart from a data enum's variant
+	// classes, a name of another kind, as the enum's structural break reports.
+	for (i, e) in abi.api.enums.iter().enumerate().filter(|(_, e)| e.plain()) {
+		let class = g.class(&abi.enumeration(i));
+		for v in &e.variants {
+			let key = format!("{} / value {}", crate::lock::type_key(&e.shown), v.name);
+			locked.insert(key, format!("{class}.{}", enum_value(e.traits, &v.name)));
+		}
+	}
 	g.locked = locked;
 	let types: Vec<String> = (g.classes.keys())
 		.map(|c| g.class(c))
