@@ -1740,6 +1740,40 @@ final class Thrower implements api.SeekableReader {
   int seek(int offset, api.SeekFrom from) => throw StateError('a seek failed');
 }
 
+/// Calls proven to reach no user code are leaf calls on the isolate's thread; one that only
+/// looks like them is not, which a hook Rust calls from another thread proves: run in a leaf
+/// call, it would wait on the isolate's thread, which waits on the call.
+Future<void> leaf() async {
+  final plain = api.Plain(api.U64(3), true);
+  plain.nSet(api.U64(4));
+  check(plain.nGet == api.U64(4) && plain.onGet, 'a leaf getter reads what a leaf setter wrote');
+  check(plain == api.Plain(api.U64(4), true) && plain != api.Plain(api.U64(4), false), 'a leaf equality');
+  check(plain.hashCode == api.Plain(api.U64(4), true).hashCode, 'a leaf hash');
+  // A walk of a string the caller sized, which a leaf call would make the collector wait on.
+  final labeled = api.Labeled('a' * 100);
+  check(labeled == api.Labeled('a' * 100) && labeled != api.Labeled('b'), 'a served equality over a string');
+  check(labeled.hashCode == api.Labeled('a' * 100).hashCode, 'a served hash over a string');
+  labeled.close();
+  plain.close();
+  throws<StateError>(() => plain.nGet, 'a leaf getter of a closed object throws');
+
+  var hooked = 0;
+  api.hook(() => hooked++);
+  // A derived equality over a field whose own is written by hand.
+  check(api.Hooked(api.U64(1)) == api.Hooked(api.U64(1)), 'a hooked equality');
+  check(hooked == 1, 'a hooked equality serves the isolate');
+  // A hand-written equality that claims to be derived.
+  check(api.Forged(api.U64(1)) == api.Forged(api.U64(1)), 'a forged equality');
+  check(hooked == 2, 'a forged equality serves the isolate');
+  // A value kept on its thread lives on a home, whose getter and drop run there.
+  final pinned = api.Pinned(api.U64(5));
+  check(pinned.valueGet == api.U64(5), 'a getter of a value kept on its thread');
+  pinned.close();
+  check(hooked == 3, 'a drop on a home serves the isolate');
+  api.unhook();
+  print('leaf ok');
+}
+
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
   if (Platform.isLinux) {
@@ -1804,6 +1838,8 @@ Future<void> main(List<String> args) async {
       await lent();
     case ['bounds']:
       bounds();
+    case ['leaf']:
+      await leaf();
     case [final which]:
       broken(which);
     default:

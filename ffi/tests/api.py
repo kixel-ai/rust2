@@ -1677,6 +1677,51 @@ def calls():
 	print("calls ok")
 
 
+def leaf():
+	"""Calls proven to reach no user code keep the GIL; one that only looks like them
+	releases it, which a hook Rust calls from another thread, which takes the GIL, proves:
+	had the call kept it, the hook would deadlock against it."""
+	plain = api.Plain.new(3, True)
+	plain.n_set(4)
+	check(plain.n_get == 4 and plain.on_get, "a leaf getter reads what a leaf setter wrote")
+	check(plain == api.Plain.new(4, True) and plain != api.Plain.new(4, False), "a leaf equality")
+	check(hash(plain) == hash(api.Plain.new(4, True)), "a leaf hash")
+	labeled = api.Labeled.new("a" * 100)
+	check(labeled == api.Labeled.new("a" * 100) and labeled != api.Labeled.new("b"), "a leaf equality over a string")
+	check(hash(labeled) == hash(api.Labeled.new("a" * 100)), "a leaf hash over a string")
+
+	hooked = []
+	api.hook(lambda: hooked.append(threading.get_ident()))
+	# A derived equality over a field whose own is written by hand.
+	check(api.Hooked.new(1) == api.Hooked.new(1), "a hooked equality")
+	check(len(hooked) == 1 and hooked[0] != threading.get_ident(), "a hooked equality releases the GIL")
+	# A hand-written equality that claims to be derived.
+	check(api.Forged.new(1) == api.Forged.new(1), "a forged equality")
+	check(len(hooked) == 2 and hooked[1] != threading.get_ident(), "a forged equality releases the GIL")
+	# A getter of a value kept on its thread, after another thread freed one of its values:
+	# the getter first drops that one, whose drop runs the hook.
+	pinned = api.Pinned.new(5)
+	freed = [api.Pinned.new(6)]
+	thread = threading.Thread(target=freed.clear)
+	thread.start()
+	thread.join()
+	check(len(hooked) == 2, "a value freed elsewhere waits for its thread")
+	check(pinned.value_get == 5 and len(hooked) == 3, "a getter that drains releases the GIL")
+	# A `Send` part it lends, whose getter and equality borrow it too, so drain the same.
+	part = pinned.part()
+	for use in [lambda: part.value_get == 5, lambda: part == part]:
+		freed = [api.Pinned.new(6)]
+		thread = threading.Thread(target=freed.clear)
+		thread.start()
+		thread.join()
+		count = len(hooked)
+		check(use() and len(hooked) == count + 1, "a use of a part that drains releases the GIL")
+	api.unhook()
+	del part
+	del pinned
+	print("leaf ok")
+
+
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
 	if sys.platform == "linux":
@@ -1815,5 +1860,7 @@ match sys.argv[1:]:
 		values()
 	case ["calls"]:
 		calls()
+	case ["leaf"]:
+		leaf()
 	case [which]:
 		broken(which)

@@ -17,8 +17,8 @@ The shape tests (`ffi/tests/fixtures/shapes.rs`) cover:
 Found by the 2026-11-18 language audit: `languages!(c, cpp, kotlin, python, swift, go,
 dart)` at `shapes.rs:1623` predates the web target ([#847](https://github.com/kixel-ai/rust2/pull/847)),
 and JavaScript is where lossless `u64` and `f32` are hardest; floats exclude NaN today,
-so "every value crosses exactly" is untested for them; `Result<(), ()>` is what crashes
-once_cell ([corpus](/quest/m1/ffi-proofs/corpus.md)).
+so "every value crosses exactly" is untested for them; a `Result` whose error is `()`,
+which crashed once_cell's export, is refused since the corpus found it.
 
 A shape refused by design stays left out by the census, as today. Each new mismatch found
 goes into `KNOWN` with a fix quest, or is fixed here.

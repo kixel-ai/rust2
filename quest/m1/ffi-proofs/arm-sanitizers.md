@@ -8,6 +8,8 @@ nothing. Each one passes on x86_64 Linux.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#891](https://github.com/kixel-ai/rust2/pull/891): ✅ kept (rejected: dropping it).
+
 Found by the checkers quest
 ([kixel-ai/rust2#891](https://github.com/kixel-ai/rust2/pull/891)). The job has failed on
 every nightly since it was added on 2026-11-14, for example

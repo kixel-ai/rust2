@@ -32,6 +32,8 @@ single-threaded case on every push to main and on each PR that can move one.
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
+| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Python, and Dart alone | none |
+| hop call, hop field | Dart's handle call and field read while Rust holds a closure of the isolate | none |
 | write | `group.write_frame(at, frame)` with one `Timestamp` a group and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
@@ -211,6 +213,55 @@ them on one die or across both, whose line transfer is slower. Read the shared r
 their order of magnitude, against a handle each, at the same load. Rust's and Python's
 columns are not remeasured: Rust borrows natively, and Python's threads serialize on the
 GIL, which dwarfs the handle's own contention.
+
+## Leaf calls
+
+A leaf is a call the export proves runs no code but std's and the glue's, waits on no
+lock, and calls no binding: a primitive `pub` field of a `Send` object reached without a
+`Deref`, or a `PartialEq` or `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
+Python keeps the GIL across one, and Dart makes it a leaf call (`isLeaf`) to the C function
+itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`.
+The benchmark's u64 getter, `demand.sequence()`, is a method, which the proof cannot see
+into, so the `field` case reads `track::Info::priority` instead; `group.sequence` is a
+field too, but reached through `group::Producer`'s `Deref`, which is user code.
+
+Measured 2026-11-19 on **fedora**, an AMD Ryzen 9 9950X (16 cores, 32 threads), through
+`quest gate`, against moq `ffcb7cd9`. Before is rust2 `52070b3d` with this change's
+programs; after is this change. Each program alternated before and after for 5 rounds at a
+load average of 4 to 26, and each cell is the median wall time in ns per call.
+
+| case | before | after |
+|---|---|---|
+| C `field`, which no binding wraps | 8.1 | 8.0 |
+| Python `field` | 63.3 | 26.2 |
+| Dart `field` | 30.8 | 12.6 |
+| Dart `hop:field` | 2,296 | 12.3 |
+| Dart `hop:call`, no leaf | 2,718 | 2,549 |
+
+Dart's three levers, apart, as variants of the generated `priorityGet` built over each side's
+library, in the same rounds (wall ns):
+
+| variant | `field` | `hop:field` |
+|---|---|---|
+| through the serving thunk, in an arena holding the handle (before) | 30.8 | 2,296 |
+| through the thunk, with no arena or hold | 21.7 | 2,480 |
+| the C function directly, not as a leaf, with no arena | 21.4 | 21.5 |
+| a leaf call, in an arena holding the handle | 19.6 | 21.4 |
+| a leaf call, with no arena (after) | 12.6 | 12.3 |
+
+So the arena costs about 9 ns, `isLeaf` saves another 9, and the thunk costs nothing until
+Rust holds a closure, when it hands each call to a worker thread for 2 to 3 us. A call that
+is no leaf but holds only its receiver needs no arena either, only the hold: it now holds
+the receiver itself. Measured 2026-11-19 the same way, 5 rounds at a load of 16 to 24,
+against the leaf change alone: Dart's handle call fell from 46.1 to 37.9 ns, the u64 getter
+from 31.1 to 23.4, the record return from 56.5 to 50.0, and `frame.payload` from 65.6 to
+60.7, with `field` at 13.0; a call the arena still serves, such as the write, moved only
+within the spread of its rounds.
+
+Python's 37 ns is more than the 10 to 15 the per-language audit estimated for the GIL's
+round trip, as `rt::call` does more around it: it may look for the event loop running, and
+after the call drains what other threads freed and resumes what the call woke, all of which
+a leaf skips. A getter that is no leaf, such as `demand.sequence()`, still pays it.
 
 ## Swift's inlined calls
 
@@ -430,12 +481,21 @@ revision later, on the same host and load (1 and 3 rounds).
 | Swift | 3 | 2,147 KiB | 302 KiB | none |
 | Go | 23 | 3,554 KiB | 435 KiB | none |
 | Dart | 1 | 4,034 KiB | 376 KiB | 1,643 KiB / 62 KiB |
+| TypeScript | 684 | 4,498 KiB | 1,000 KiB | 4,535 KiB / 259 KiB |
 
 | native library | as built | stripped |
 |---|---|---|
 | `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 193,455 KiB | 104,224 KiB |
 | `libmoq.so`, with the Kotlin and Dart glue | 61,361 KiB | 46,029 KiB |
 | `python/libmoq.so`, the CPython extension | 56,145 KiB | 42,166 KiB |
+| `moq.wasm`, the wasm32 stand-in's module, with the web glue | 19,596 KiB | 17,632 KiB |
+
+| web binding | raw | gzip | brotli |
+|---|---|---|---|
+| `moq.wasm`, stripped | 17,632 KiB | 4,657 KiB | 2,893 KiB |
+| the TypeScript, 684 modules | 4,498 KiB | 1,000 KiB | 855 KiB |
+| the npm package's JavaScript and declarations | 5,670 KiB | 1,454 KiB | 1,226 KiB |
+| `export.ts` bundled by esbuild, minified | 23 KiB | 7 KiB | 7 KiB |
 
 The stand-in exports all of moq-net, kio, and moq-pattern, and hang, moq-mux, and
 moq-tokio's session side, far more than moq-ffi's UniFFI interface, so its sizes do not
@@ -444,6 +504,17 @@ source each binding builds with: the C ABI's `src/lib.rs` and runtime, which eve
 but Python's links, and `src/jni`, `src/python`, and `src/dart`. The native libraries are
 the export's default `release` build, which links all of moq's crates; "stripped" is
 `strip --strip-all` on a copy.
+
+The web rows (measured 2026-11-19 on fedora at the same moq pin, with this table's other
+rows from 2026-11-13) are the wasm32 stand-in's export, which leaves out moq-tokio, built
+with moq's release profile: fat LTO at `opt-level = 3`. A module "stripped" has no custom
+section, its names among them; each file is compressed alone, gzip at level 6 and brotli at
+11, as a host serves it. The release builder makes the packaged module at `opt-level =
+"s"` when the crate sets no level: 13,359 KiB as built, 10,981 KiB stripped, 3,250 KiB
+gzipped, and 2,135 KiB brotli'd. A caller pays for what it imports: `export.ts`, the
+TypeScript benchmark, names 13 of the 684 modules, and esbuild's bundle of it and the
+binding is 23 KiB, against 4.5 MiB of TypeScript. JSR caps a version at 20 MiB, which the
+TypeScript and the `opt-level = 3` module pass, and the `"s"` module fits.
 
 ### What a call spends
 
@@ -476,9 +547,11 @@ frame path:
    Go's object return fell from 254 to 174 and Dart's from 225 to 96, Go's ready read from
    833 to 728 and Dart's from 1,020 to 786, and Dart's woken read from 2,930 to 2,274.
    What Go has left is mostly its two cgo crossings, the call and the close, and the pool
-   that finds its P's nursery. Kotlin's
-   137 ns wall (210 CPU) is a phantom reference linked and unlinked under one global lock.
-   Every returned frame, group, and future pays it.
+   that finds its P's nursery. Since kixel-ai/rust2#880, each Kotlin thread holds one too, and
+   a close no longer links and unlinks a phantom reference under a lock: Kotlin's object return
+   fell from 124 to 118 ns median wall (from 112 to 94 at best) and from 56 to 38 on 4
+   threads at once. What it has left is mostly a checked close's two JNI crossings, its drop
+   and then its free ([TypeScript](#the-nursery) has the web's).
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is
@@ -520,7 +593,9 @@ frame path:
    its hold), Go 31 (cgo, `defer`, and its hold), and Python 37 (argument parsing and the
    GIL released and taken back, so Rust may call Python from another thread); Python's and
    Dart's hold counts are since dropped for a checked type, as below. BoltFFI's
-   Python getter, which holds the GIL, measured 63 ns.
+   Python getter, which holds the GIL, measured 63 ns. A leaf keeps the GIL in Python and
+   skips Dart's arena, and a Dart call holding only its receiver skips it too:
+   [Leaf calls](#leaf-calls).
 
 ### Per-handle baseline
 
@@ -650,8 +725,37 @@ profile), Dart 3.13.0. C and Dart are from the same run, for scale; wall ns per 
 | 64 KiB | 10,312 | 6,871 | 12,228 | 11,070 | 7,218 |
 | 1 MiB | 8,912 | 8,164 | 16,127 | 16,986 | 12,071 |
 
-An object return pays the handle's `FinalizationRegistry` entry, as Go's and Dart's pay
-their collectors'. Firefox runs every row at about 2 to 3 times Node's.
+An object return paid the handle's `FinalizationRegistry` entry, as Go's and Dart's paid
+their collectors', until [the nursery](#the-nursery). Firefox runs every row at about 2 to
+3 times Node's.
+
+### The nursery
+
+Since kixel-ai/rust2#880, the last 64 objects and lent bytes the module returned wait in a
+nursery, where disposing one frees it without a `FinalizationRegistry` entry, and only one
+pushed out undisposed registers, as Go's, Dart's, and Kotlin's objects do. Measured
+2026-11-19 on **fedora**, 5 rounds alternating with main at `52070b3d`, at a load average of
+16 to 36; median wall ns, main then this, beside Kotlin's 8 rounds at a load of 17 to 25.
+Kotlin lends only from 1 KiB, so its 100 B payload is a copy either way:
+
+| call | Kotlin | Node | Chromium | Firefox |
+|---|---|---|---|---|
+| `track.info()`, an object return | 124 / 118 | 357 / 181 | 255 / 177 | 908 / 239 |
+| `frame.payload`, 100 B | 67 / 66 | 415 / 212 | 244 / 209 | 1,008 / 227 |
+| a 100 B frame written and read, ready | 676 / 625 | 1,258 / 998 | 1,099 / 1,129 | 2,595 / 1,534 |
+| the same, read after a wake | 1,867 / 1,803 | 2,246 / 1,932 | 2,493 / 2,714 | 4,162 / 3,056 |
+
+100 B throughput rose from 57 to 78 MB/s on Node and from 27 to 56 on Firefox. Chromium's
+other rows moved both ways by up to a quarter between rounds at this load, so read only its
+object and payload rows. A lent payload now costs 205 to 255 ns at every length on all three
+engines (see below).
+
+An object dropped undisposed in a nursery no later return pushes it out of waits for the
+nursery's flush: a sentinel in a registry of its own, which a collection finds and then
+registers all the nursery holds, as a ring the GC drops does in Kotlin. In the api fixture's
+tests, a forced full collection at a time, such an object was freed by the second, on Node
+and the JVM alike, in every run, against the first on main; one pushed out by later returns
+was freed by the first, as before.
 
 ### The export's build cost
 
@@ -701,7 +805,11 @@ its crossover is near 4 KiB; JavaScriptCore's, measured in Bun 1.4.4, is between
 threshold is one constant for every engine: 64 B costs Firefox about 350 to 400 ns a
 payload from 100 B to 1 KiB, and any higher one would cost V8 more at each length below it.
 The bytes up to it now pay about 50 ns on Node and Firefox for the `rt.Bytes` around their
-copy, against a bare `Uint8Array` before.
+copy, against a bare `Uint8Array` before. Since [the nursery](#the-nursery), a lend disposed
+skips its `FinalizationRegistry` entry and costs 205 to 255 ns on all three engines (Node 207
+at 100 B against 421, Firefox 246 against 913), so SpiderMonkey's crossover falls from near
+4 KiB to between 64 and 100 B, and the one threshold suits V8 and SpiderMonkey alike;
+JavaScriptCore's was not remeasured.
 
 A lend needs a dispose: the collector cannot see wasm memory, so it never hurries to free
 what it lends. In a probe of a million 100 B lends left to the collector on Node, all

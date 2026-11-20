@@ -61,6 +61,82 @@ class Versions(unittest.TestCase):
                 package.pep440(version)
 
 
+class Baseline(unittest.TestCase):
+    def test_breaking_is_the_leftmost_nonzero_part(self):
+        for old, new, ok in [
+            ("1.2.3", "1.9.0", True), ("1.2.3", "2.0.0", False),
+            ("0.4.12", "0.4.13", True), ("0.4.12", "0.5.0", False),
+            ("0.0.3", "0.0.4", False),
+            ("1.0.0-rc.1", "1.0.0", False), ("1.0.0", "1.0.1-alpha.1", False),
+        ]:
+            self.assertEqual(package.compatible(old, new), ok, (old, new))
+
+    def test_releases_a_version_answers_to(self):
+        tags = ["moq-ffi-v0.4.10", "moq-ffi-v0.4.12", "moq-ffi-v0.5.0-rc.1", "other-v0.4.11", "moq-ffi-v0.4.11",
+                "moq-ffi-v1.2.3", "moq-ffi-v1.3.0-rc.1"]
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.12", tags), ("0.4.11", "0.4.11"))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.5.0", tags), ("0.5.0-rc.1", None))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.10", tags), (None, None))
+        # A prerelease between them leaves the stable release the baseline.
+        self.assertEqual(package.earlier_releases("moq-ffi", "1.3.0", tags), ("1.3.0-rc.1", "1.2.3"))
+
+
+def api(records, functions):
+    """An api.json of these records and functions, each a dict of its own fields."""
+    return {"api": {"records": records, "enums": [], "objects": [], "callbacks": [], "functions": functions,
+                    "constants": [], "targets": ["x86_64-unknown-linux-gnu"]}}
+
+
+def record(name, docs=""):
+    return {"path": ["moq", name], "shown": ["moq", name], "on": 1, "docs": docs, "span": {"lo": len(docs)},
+            "fields": [], "methods": []}
+
+
+def function(name, ret):
+    return {"path": ["moq", name], "shown": ["moq", name], "on": 1, "docs": "", "params": [], "ok": ret}
+
+
+class Changes(unittest.TestCase):
+    def test_types_are_named_not_indexed(self):
+        # A record added before `Track` moves its index, which changes nothing that names it.
+        old = api([record("Track")], [function("open", {"Record": 0}), function("close", None)])
+        new = api([record("Group", docs="new docs"), record("Track", docs="moved")],
+                  [function("open", {"Record": 1}), function("seek", {"Record": 0})])
+        text = package.changes(old, new, "0.4.11")
+        self.assertEqual(text, "## API changes since 0.4.11\n\n### Removed\n\n- fn `moq::close`\n"
+                               "\n### Added\n\n- fn `moq::seek`\n- struct `moq::Group`\n")
+        # An object added before the one a function's task makes moves its index too.
+        def obj(name):
+            return {**record(name), "fields": None}
+        def poll(i):
+            return {**function("poll", None), "task": {"at": 0, "kind": {"Made": {"object": i, "make": "new"}}}}
+        old = api([], [poll(0)])
+        old["api"]["objects"] = [obj("Waiter")]
+        new = api([], [poll(1)])
+        new["api"]["objects"] = [obj("Clock"), obj("Waiter")]
+        self.assertEqual(package.changes(old, new, "0.4.11"), "## API changes since 0.4.11\n\n### Added\n\n- type `moq::Clock`\n")
+
+    def test_accessors_and_nested_targets(self):
+        def method(name, access):
+            return {**function(name, None), "access": access}
+        old = api([{**record("Track"), "methods": [method("seq", {"Field": {"shared": False, "set": False}}),
+                                                     method("seq", {"Field": {"shared": False, "set": True}})],
+                    "variants": [{"name": "A", "on": 1}]}], [])
+        # A target sorting first shifts every mask, whose targets stay the same.
+        new = api([{**record("Track"), "on": 2,
+                    "methods": [{**method("seq", {"Field": {"shared": False, "set": False}}), "on": 2}],
+                    "variants": [{"name": "A", "on": 2}]}], [])
+        new["api"]["targets"] = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+        text = package.changes(old, new, "0.4.11")
+        self.assertIn("### Removed\n\n- set `moq::seq`\n", text)
+        self.assertNotIn("struct `moq::Track`", text)
+
+    def test_a_signature_change(self):
+        old = api([record("Track"), record("Group")], [function("open", {"Record": 0})])
+        new = api([record("Track"), record("Group")], [function("open", {"Record": 1})])
+        self.assertIn("### Changed\n\n- fn `moq::open`\n", package.changes(old, new, "0.4.11"))
+
+
 class Names(unittest.TestCase):
     def test_swift_module_matches_the_exporter(self):
         self.assertEqual(package.pascal("moq"), "Moq")
@@ -277,6 +353,119 @@ class Template(unittest.TestCase):
         for module in ["moq", "moq.dev/moq-ffi/", "moq.dev/moq-ffi/v2"]:
             with self.assertRaises(SystemExit):
                 package.template(info("/src"), "Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", module)
+
+    def test_web_lines_follow_the_scope(self):
+        shipped = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi", "moq")
+        self.assertIn("\n      web-manifest-path: rs/moq-ffi/Cargo.toml\n      scope: moq\n", shipped)
+        self.assertIn("@moq/moq-ffi on npm and JSR", shipped)
+        none = package.template(info("/src"), "rs/moq-ffi/Cargo.toml", "a" * 40, "moq-dev/moq-swift-ffi", "moq.dev/moq-ffi")
+        self.assertIn("      # web-manifest-path: rs/moq-ffi/Cargo.toml\n", none)
+        self.assertNotIn("\n      web-manifest-path:", none)
+        self.assertNotRegex(none, r"@[A-Z_]+@")
+
+
+def web_export(root, version="0.4.12"):
+    """The parts of an export's web/ directory a web package reads."""
+    web = root / "web"
+    web.mkdir(parents=True)
+    for stem in ("index", "rt", "glue", "Session"):
+        (web / f"{stem}.ts").write_text(f"// {stem}\n")
+        (web / f"{stem}.js").write_text(f"// {stem}\n")
+        (web / f"{stem}.d.ts").write_text(f"// {stem}\n")
+    manifest = {"name": "moq-ffi", "version": version, "description": "generated", "type": "module",
+                "sideEffects": False, "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}},
+                "files": ["*.js", "*.d.ts", "moq.wasm"]}
+    (web / "package.json").write_text(package.json.dumps(manifest))
+    (root / "moq.wasm").write_bytes(b"\0asm\1\0\0\0")
+    return web
+
+
+class Web(unittest.TestCase):
+    def test_npm_and_jsr_layouts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "LICENSE-MIT").write_text("MIT\n")
+            web = web_export(root / "export")
+            npm, jsr = package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertEqual(sorted(p.name for p in npm.iterdir()), [
+                "LICENSE-MIT", "Session.d.ts", "Session.js", "glue.d.ts", "glue.js", "index.d.ts", "index.js",
+                "moq.wasm", "package.json", "rt.d.ts", "rt.js"])
+            self.assertEqual(sorted(p.name for p in jsr.iterdir()), [
+                "LICENSE-MIT", "Session.ts", "glue.ts", "index.ts", "jsr.json", "moq.wasm", "rt.ts"])
+            manifest = package.json.loads((npm / "package.json").read_text())
+            self.assertEqual(list(manifest)[:6], ["name", "version", "description", "license", "repository", "type"])
+            self.assertEqual(manifest["name"], "@moq/moq-ffi")
+            self.assertEqual(manifest["description"], "Media over QUIC, bindings")
+            self.assertEqual(manifest["repository"], {"type": "git", "url": "git+https://github.com/moq-dev/moq"})
+            self.assertEqual(manifest["exports"]["."]["types"], "./index.d.ts")
+            self.assertIn("LICENSE-MIT", manifest["files"])
+            config = package.json.loads((jsr / "jsr.json").read_text())
+            self.assertEqual(config["name"], "@moq/moq-ffi")
+            self.assertEqual(config["exports"], {".": "./index.ts", "./Session": "./Session.ts", "./glue": "./glue.ts", "./rt": "./rt.ts"})
+
+    def test_names_a_lone_license_file_for_jsr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "terms.txt").write_text("Terms\n")
+            web = web_export(root / "export")
+            unlicensed = info(root, license=None, license_file="terms.txt")
+            npm, jsr = package.web_package(unlicensed, web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertTrue((npm / "terms.txt").is_file())
+            self.assertEqual((jsr / "LICENSE").read_text(), "Terms\n")
+            self.assertFalse((jsr / "terms.txt").exists())
+            (root / "terms.txt").unlink()
+            with self.assertRaises(SystemExit):
+                package.web_package(info(root, license=None), web, root / "export/moq.wasm", "moq", root / "out")
+
+    def test_size_unless_the_crate_chooses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "Cargo.toml"
+            manifest.write_text('[profile.release]\nlto = "fat"\n')
+            self.assertEqual(package.web_profile(manifest), {"CARGO_PROFILE_RELEASE_OPT_LEVEL": "s"})
+            manifest.write_text('[profile.release]\nopt-level = 3\n')
+            self.assertEqual(package.web_profile(manifest), {})
+
+    def test_drops_an_earlier_tarball(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = web_export(root / "export")
+            (root / "out").mkdir()
+            (root / "out/moq-moq-ffi-0.4.11.tgz").write_bytes(b"old")
+            package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertEqual(list((root / "out").glob("*.tgz")), [])
+
+    def test_refuses_another_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = web_export(root / "export", version="0.0.1")
+            with self.assertRaises(SystemExit):
+                package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+
+    def test_names_jsr_can_spell(self):
+        self.assertEqual(package.package_name(info("/src"), "moq"), "@moq/moq-ffi")
+        for scope in ("Moq", "-moq", "moq_dev", "m"):
+            with self.assertRaises(SystemExit):
+                package.package_name(info("/src"), scope)
+        with self.assertRaises(SystemExit):
+            package.package_name(info("/src", name="moq_ffi"), "moq")
+
+    def test_check_imports_the_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            check = Path(tmp) / "check.ts"
+            check.write_text('import * as api from "./web/index.ts";\nimport type * as rt from "./web/rt.ts";\n'
+                             "import * as Error_ from './web/Error_.ts';\n")
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             'import * as api from "@moq/moq-ffi";\nimport type * as rt from "@moq/moq-ffi/rt";\n'
+                             "import * as Error_ from '@moq/moq-ffi/Error_';\n")
+            check.write_text('import * as api from "./web/index.ts";\nconsole.log("./web/index.ts", await import("./web/rt.ts"));\n')
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             'import * as api from "@moq/moq-ffi";\nconsole.log("./web/index.ts", await import("@moq/moq-ffi/rt"));\n')
+            check.write_text("import * as api from /* binding */ './web/index.ts';\nimport(\n  // rt\n  './web/rt.ts');\n")
+            self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
+                             "import * as api from /* binding */ '@moq/moq-ffi';\nimport(\n  // rt\n  '@moq/moq-ffi/rt');\n")
+            check.write_text('import * as api from "./web/nested/index.ts";\n')
+            with self.assertRaises(SystemExit):
+                package.check_program(check, "@moq/moq-ffi")
 
 
 if __name__ == "__main__":

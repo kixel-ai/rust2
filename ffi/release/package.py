@@ -1,4 +1,4 @@
-"""Build and check the Python wheels, Swift package, and Go module of a crate's rust2-ffi export.
+"""Build and check the Python wheels, Swift package, Go module, and web package of a crate's rust2-ffi export.
 
 bindings.yml runs each step on the host it needs; release.yml is the caller `init` writes.
 Every fact about the package comes from Cargo metadata or the export, so nothing here
@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -62,6 +63,21 @@ LTO_SECTIONS = [".llvmbc", ".llvmcmd", "__LLVM,__bitcode", "__LLVM,__cmdline"]
 # Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
 LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
 COLLECTIONS = "https://github.com/apple/swift-collections"
+# The target the web binding serves, whose module the npm and JSR packages hold.
+WEB_TARGET = "wasm32-wasip1"
+# JSR's cap on a version's files, unpacked.
+JSR_LIMIT = 20 * 1024 * 1024
+# The license file names JSR reads, in any case.
+JSR_LICENSES = {"license", "license.md", "license.txt", "licence", "licence.md", "licence.txt"}
+# The bundlers the web package's consumers build with, as an app would take them from npm.
+BUNDLERS = {"vite": "8.3.8", "webpack": "5.112.2", "webpack-cli": "7.3.1"}
+# Runs a WASI command module on Node: native Rust's output on the web binding's target.
+WASI_RUN = """import { WASI } from "node:wasi";
+import { readFileSync } from "node:fs";
+const wasi = new WASI({ version: "preview1", args: [], env: {}, returnOnExit: false });
+const module = await WebAssembly.compile(readFileSync(process.argv[1]));
+wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));
+"""
 SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(alpha|beta|rc)\.(0|[1-9][0-9]*))?")
 
 
@@ -471,6 +487,147 @@ def exporter(manifest, features, *args):
         *args, *cargo, cwd=ROOT / "ffi")
 
 
+def version_key(version):
+    """A Cargo version's precedence: a prerelease sorts before its release."""
+    match = SEMVER.fullmatch(version)
+    if match is None:
+        raise SystemExit(f"version {version} is not X.Y.Z or X.Y.Z-(alpha|beta|rc).N")
+    major, minor, patch, pre, number = match.groups()
+    rank = {"alpha": 0, "beta": 1, "rc": 2, None: 3}[pre]
+    return int(major), int(minor), int(patch), rank, int(number or 0)
+
+
+def compatible(old, new):
+    """Whether Cargo resolves a requirement on `old` to `new`, so `new` may not break it.
+
+    The leftmost nonzero part is the breaking one; a prerelease promises nothing.
+    """
+    a, b = version_key(old), version_key(new)
+    if a[3] != 3 or b[3] != 3:
+        return False
+    for k in range(3):
+        if a[k] or b[k]:
+            return a[k] == b[k]
+    return True
+
+
+def earlier_releases(name, version, tags):
+    """The releases a version answers to, among `tags`, `<name>-v<version>`: the newest below it,
+    which its changelog follows, and the newest below it Cargo treats as compatible, whose API
+    it must not break, past any prerelease between them. Either may be None."""
+    prefix = f"{name}-v"
+    versions = [t[len(prefix):] for t in tags if t.startswith(prefix) and SEMVER.fullmatch(t[len(prefix):])]
+    below = [v for v in versions if version_key(v) < version_key(version)]
+    newest = max(below, key=version_key, default=None)
+    baseline = max((v for v in below if compatible(v, version)), key=version_key, default=None)
+    return newest, baseline
+
+
+def previous(args):
+    """The APIs of the releases this version follows and must not break, if any.
+
+    Prints GitHub outputs: `previous`, the version the changelog follows, its api.json at
+    <out>/previous/api.json, and `baseline`, the version whose API the export must not break,
+    its api.json at <out>/baseline/api.json; each empty for none.
+    """
+    info = facts(args.manifest_path)
+    releases = json.loads(output("gh", "api", "--paginate", "--slurp", f"repos/{args.repo}/releases"))
+    tags = [r["tag_name"] for page in releases for r in page if not r["draft"]]
+    found = dict(zip(("previous", "baseline"), earlier_releases(info["name"], info["version"], tags)))
+    for role, version in found.items():
+        if version is None:
+            continue
+        out = Path(args.out) / role
+        out.mkdir(parents=True, exist_ok=True)
+        tag = f"{info['name']}-v{version}"
+        fetched = subprocess.run(["gh", "release", "download", tag, "--repo", args.repo, "--pattern", "api.json",
+                                  "--dir", str(out), "--clobber"], capture_output=True, encoding="utf-8")
+        if fetched.returncode != 0 or not (out / "api.json").exists():
+            raise SystemExit(f"release {tag} has no api.json asset, which this release's API is checked against: "
+                             f"attach the api.json an export of {tag} writes\n{fetched.stderr}")
+    print("\n".join(f"{role}={version or ''}" for role, version in found.items()))
+
+
+# Each kind of item an API lists, and how a changelog names it.
+KINDS = {"records": "struct", "enums": "enum", "objects": "type", "callbacks": "trait", "functions": "fn",
+         "constants": "const"}
+
+
+def api_items(api):
+    """Each item of an export's api.json by how a changelog names it, with what it declares.
+
+    Types are named, not indexed, so an item added elsewhere changes no other; docs and
+    source spans are no part of the API.
+    """
+    api = api["api"]
+    targets = api["targets"]
+
+    def name(kind, i):
+        item = api[kind][i]
+        return "::".join(item.get("shown") or item["path"])
+
+    def resolve(value):
+        if isinstance(value, dict):
+            if isinstance(value.get("on"), int):
+                value = {**value, "on": on(value["on"])}
+            if len(value) == 1:
+                (key, inner), = value.items()
+                kind = {"Record": "records", "Enum": "enums", "Object": "objects"}.get(key)
+                if kind and isinstance(inner, int):
+                    return {key: name(kind, inner)}
+                if key == "Callback" and isinstance(inner, list) and inner and isinstance(inner[0], int):
+                    return {key: [name("callbacks", inner[0]), *resolve(inner[1:])]}
+                if key == "Made" and isinstance(inner, dict) and isinstance(inner.get("object"), int):
+                    return {key: {**resolve(inner), "object": name("objects", inner["object"])}}
+            return {k: resolve(v) for k, v in value.items() if k not in ("docs", "span", "methods")}
+        if isinstance(value, list):
+            return [resolve(v) for v in value]
+        return value
+
+    def on(value):
+        return [t for k, t in enumerate(targets) if value >> k & 1]
+
+    items = {}
+    for kind, label in KINDS.items():
+        for i, item in enumerate(api[kind]):
+            key = f"{accessor(item) if kind == 'functions' else label} `{name(kind, i)}`"
+            items[key] = resolve(item)
+            for method in item.get("methods", []) if kind != "functions" else []:
+                path = "::".join(method.get("shown") or method["path"])
+                items[f"{accessor(method)} `{path}`"] = resolve(method)
+    return items
+
+
+def accessor(function):
+    """How a changelog names a method: a field's getter and setter share its path."""
+    field = function.get("access")
+    if isinstance(field, dict) and "Field" in field:
+        return "set" if field["Field"]["set"] else "get"
+    return "fn"
+
+
+def changes(old, new, since):
+    """A Markdown changelog of `new`'s API against `old`'s, both an export's api.json."""
+    before, after = api_items(old), api_items(new)
+    sections = [
+        ("Removed", [k for k in before if k not in after]),
+        ("Changed", [k for k in before if k in after and before[k] != after[k]]),
+        ("Added", [k for k in after if k not in before]),
+    ]
+    lost = [t for t in old["api"]["targets"] if t not in new["api"]["targets"]]
+    gained = [t for t in new["api"]["targets"] if t not in old["api"]["targets"]]
+    text = f"## API changes since {since}\n"
+    if lost or gained:
+        text += "\n### Targets\n\n" + "".join(f"- Removed `{t}`\n" for t in lost) + \
+            "".join(f"- Added `{t}`\n" for t in gained)
+    for title, keys in sections:
+        if keys:
+            text += f"\n### {title}\n\n" + "".join(f"- {k}\n" for k in sorted(keys))
+    if not any(keys for _, keys in sections) and not (lost or gained):
+        text += "\nNone.\n"
+    return text
+
+
 def stage_api(args):
     """Each target's API, checked on this host, for the build hosts' exports to merge."""
     out = Path(args.out).resolve()
@@ -492,7 +649,8 @@ def export(args):
         # The export keeps a go.mod in go/, whose module its packages import each other by.
         (out / "go").mkdir(parents=True, exist_ok=True)
         (out / "go" / "go.mod").write_text(f"module {args.go_module}\n\ngo 1.24\n", newline="\n", encoding="utf-8")
-    exporter(args.manifest_path, args.features, *targets, *withs, "--out", out)
+    baseline = ["--baseline", Path(args.baseline).resolve()] if args.baseline else []
+    exporter(args.manifest_path, args.features, *targets, *withs, *baseline, "--out", out)
 
 
 def cargo(manifest, *args, env=None):
@@ -593,6 +751,7 @@ def build(args):
     for part in ("include", "swift", "python", "go"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(crate, out / "export")
+    shutil.copy(export_dir / "api.json", out / "export")
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
     # Native output for a host whose wheel or Go module a consumer runs; an iOS slice runs nowhere here.
@@ -737,8 +896,195 @@ def consume_go(proxy, check, native):
         compare(Path(native).read_bytes(), result.stdout, "Go module")
 
 
-def template(info, manifest, rust2, mirror, go_module):
-    """The caller workflow, with every identity Cargo cannot establish spelled out in it."""
+def package_name(info, scope):
+    """The web package's name on npm and JSR, `@<scope>/<crate>`, refusing what JSR cannot spell."""
+    name = f"@{scope}/{info['name']}"
+    if not re.fullmatch(r"@[a-z0-9][a-z0-9-]{1,19}/[a-z0-9][a-z0-9-]{1,57}", name):
+        raise SystemExit(f"{name} is no JSR package name: a scope and crate name of lowercase letters, digits, and hyphens")
+    return name
+
+
+def web_package(info, web_dir, wasm, scope, out):
+    """The npm package, the JavaScript and declarations, and the JSR package, the TypeScript,
+    each with the module beside them where `load` finds it and the license files."""
+    web_dir, out = Path(web_dir), Path(out)
+    lib, name = info["lib"], package_name(info, scope)
+    manifest = json.loads((web_dir / "package.json").read_text(encoding="utf-8"))
+    if manifest["version"] != info["version"]:
+        raise SystemExit(f"the export's package.json is {manifest['version']}, not the crate's {info['version']}")
+    npm, jsr = out / "npm", out / "jsr"
+    # A tarball of an earlier build, which `consume-web` would find beside this one.
+    for tarball in out.glob("*.tgz") if out.exists() else []:
+        tarball.unlink()
+    files = licenses(info)
+    # JSR takes a license from jsr.json's field, which Cargo's `license` fills, or else from
+    # a file by one of its own names.
+    jsr_names = {path: path.name for path in files}
+    if not info["license"] and not any(path.name.lower() in JSR_LICENSES for path in files):
+        if len(files) != 1:
+            raise SystemExit(f"JSR needs Cargo's `license`, or one license file, not {[p.name for p in files]}")
+        jsr_names = {files[0]: "LICENSE"}
+    for part in (npm, jsr):
+        if part.exists():
+            shutil.rmtree(part)
+        part.mkdir(parents=True)
+        shutil.copy(wasm, part / f"{lib}.wasm")
+        for path in files:
+            shutil.copy(path, part / (jsr_names[path] if part == jsr else path.name))
+    modules = []
+    for path in sorted(web_dir.iterdir()):
+        if path.name.endswith(".d.ts") or path.suffix == ".js":
+            shutil.copy(path, npm)
+        elif path.suffix == ".ts":
+            shutil.copy(path, jsr)
+            modules.append(path.stem)
+    if "index" not in modules:
+        raise SystemExit(f"{web_dir} holds no web binding")
+    # What Cargo says of the package, beside what the export wrote.
+    said = {"name": name, "version": info["version"]}
+    if info["description"]:
+        said["description"] = " ".join(info["description"].split())
+    if info["license"]:
+        said["license"] = info["license"]
+    if info["repository"]:
+        said["repository"] = {"type": "git", "url": f"git+{info['repository']}"}
+    if info["homepage"]:
+        said["homepage"] = info["homepage"]
+    manifest = {**said, **{k: v for k, v in manifest.items() if k not in said}}
+    # npm packs a license file by a name of its own only if `files` names it.
+    manifest["files"] = manifest["files"] + [p.name for p in licenses(info) if p.name not in manifest["files"]]
+    (npm / "package.json").write_text(json.dumps(manifest, indent="\t") + "\n", newline="\n", encoding="utf-8")
+    # JSR takes no export pattern: each module by its name. The module ships unexported,
+    # as Deno would link an exported one as a module of its own, whose imports none serves.
+    exports = {".": "./index.ts", **{f"./{m}": f"./{m}.ts" for m in modules if m != "index"}}
+    config = {"name": name, "version": info["version"]}
+    if info["license"]:
+        config["license"] = info["license"]
+    config["exports"] = exports
+    (jsr / "jsr.json").write_text(json.dumps(config, indent="\t") + "\n", newline="\n", encoding="utf-8")
+    size = sum(p.stat().st_size for p in jsr.iterdir())
+    if size > JSR_LIMIT:
+        raise SystemExit(f"the JSR package is {size} bytes, past JSR's {JSR_LIMIT}")
+    return npm, jsr
+
+
+def web_profile(manifest):
+    """The web module's build at `opt-level = "s"`, which a page downloads, unless the crate's
+    release profile, which the export carries, chooses its own level."""
+    with open(manifest, "rb") as f:
+        release = tomllib.load(f).get("profile", {}).get("release", {})
+    return {} if "opt-level" in release else {"CARGO_PROFILE_RELEASE_OPT_LEVEL": "s"}
+
+
+def web(args):
+    """The web binding's npm tarball and JSR package, and native Rust's output on its target."""
+    info = facts(args.manifest_path)
+    if args.version and info["version"] != args.version:
+        raise SystemExit(f"{info['name']} is {info['version']}, not the release's {args.version}")
+    out = Path(args.out).resolve()
+    export_dir = out / "export"
+    exporter(args.manifest_path, args.features, "--target", WEB_TARGET, "--out", export_dir)
+    manifest = Path(args.manifest_path).resolve()
+    run("rustup", "target", "add", WEB_TARGET, cwd=manifest.parent)
+    built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
+                  "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web",
+                  env=web_profile(export_dir / "Cargo.toml"))
+    sys.stderr.write(built.stderr)
+    wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
+    npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)
+    packed = output("npm", "pack", "--silent", "--pack-destination", out, cwd=npm).strip()
+    if not (out / packed).is_file():
+        raise SystemExit(f"npm pack wrote no {packed}")
+    shutil.rmtree(export_dir)
+    if args.example:
+        if args.example not in info["examples"]:
+            raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
+        features = ["--features", args.features] if args.features.strip() else []
+        target_dir = out / "native-target"
+        cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", manifest, "--example",
+              args.example, "--target", WEB_TARGET, "--target-dir", target_dir, *features)
+        program = target_dir / WEB_TARGET / "release" / "examples" / f"{args.example}.wasm"
+        native = run("node", "--no-warnings", "--input-type=module", "-e", WASI_RUN, program, capture_output=True)
+        (out / "native.txt").write_bytes(native.stdout)
+        shutil.rmtree(target_dir)
+
+
+def check_program(check, name):
+    """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
+    text = Path(check).read_text(encoding="utf-8")
+    # Whitespace and comments, which may separate the keyword from its specifier.
+    gap = r"(?:\s|/\*[\s\S]*?\*/|//[^\n]*\n)*"
+    # Only a specifier, after `from` or `import`, in either quote, kept as written: a string
+    # the check prints stays as the transcript has it.
+    text = re.sub(rf"""(\b(?:from|import){gap}(?:\({gap})?)(["'])\./web/([A-Za-z0-9_$]+)\.ts\2""",
+                  lambda m: m.group(1) + m.group(2) + (name if m.group(3) == "index" else f"{name}/{m.group(3)}") + m.group(2),
+                  text)
+    if re.search(rf"""\b(?:from|import){gap}(?:\({gap})?["']\./web/""", text):
+        raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
+    return text
+
+
+def consume_web(dist, check, native):
+    """Install the npm tarball into a new project, as an app would, and run the check, or else
+    a load, on Node, Deno, and Bun, and bundled by Vite and by webpack; and check the JSR
+    package as publishing it would."""
+    dist = Path(dist).resolve()
+    tarballs = list(dist.glob("*.tgz"))
+    if len(tarballs) != 1:
+        raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
+    name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
+    program = check_program(check, name) if check else (
+        f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n")
+    expected = Path(native).read_bytes() if native and check else None
+    with tempfile.TemporaryDirectory() as clean:
+        clean = Path(clean)
+        manifest = {"type": "module", "private": True, "dependencies": {name: f"file:{tarballs[0]}"},
+                    "devDependencies": BUNDLERS}
+        (clean / "package.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        run("npm", "install", "--no-audit", "--no-fund", "--ignore-scripts", cwd=clean, capture_output=True)
+        (clean / "check.ts").write_text(program, encoding="utf-8")
+        # The bundles target the browser, whose `document` Vite's preload polyfill reads;
+        # each runs on Node from where the bundler wrote it, a relative base reaching its module.
+        (clean / "index.html").write_text('<!doctype html><script type="module" src="./check.ts"></script>\n', encoding="utf-8")
+        (clean / "vite.config.js").write_text(
+            'export default { base: "./", build: { target: "es2024", modulePreload: { polyfill: false } } };\n', encoding="utf-8")
+        run("node", "--no-warnings", "--input-type=module", "-e",
+            'import { stripTypeScriptTypes } from "node:module"; import { readFileSync, writeFileSync } from "node:fs";'
+            ' writeFileSync("check.js", stripTypeScriptTypes(readFileSync("check.ts", "utf8")));', cwd=clean)
+        (clean / "webpack.config.js").write_text(
+            'export default { mode: "production", entry: "./check.js", target: ["web", "es2024"],'
+            ' experiments: { outputModule: true },'
+            ' output: { module: true, path: new URL("./webpack", import.meta.url).pathname, filename: "check.js" } };\n',
+            encoding="utf-8")
+        run("npx", "--no-install", "vite", "build", "--logLevel", "warn", cwd=clean, capture_output=True)
+        run("npx", "--no-install", "webpack", "--no-stats", cwd=clean, capture_output=True)
+        bundled = list((clean / "dist" / "assets").glob("*.js"))
+        if len(bundled) != 1:
+            raise SystemExit(f"Vite wrote {len(bundled)} scripts")
+        consumers = {
+            "Node": ["node", "check.ts"],
+            "Deno": ["deno", "run", "--allow-read", "--allow-env", "check.ts"],
+            "Bun": ["bun", "check.ts"],
+            "Vite": ["node", bundled[0]],
+            "webpack": ["node", "webpack/check.js"],
+        }
+        # JSR's own checks of the TypeScript package, its types against Deno's included.
+        run("deno", "publish", "--dry-run", "--allow-dirty", cwd=dist / "jsr", capture_output=True,
+            env={**os.environ, "NO_COLOR": "1", "DENO_NO_UPDATE_CHECK": "1"})
+        for consumer, command in consumers.items():
+            result = subprocess.run([str(a) for a in command], capture_output=True, cwd=clean,
+                                    env={**os.environ, "NO_COLOR": "1", "DENO_NO_UPDATE_CHECK": "1"})
+            sys.stderr.buffer.write(result.stderr)
+            if result.returncode:
+                raise SystemExit(f"{consumer} failed on the installed package with status {result.returncode}")
+            if expected is not None:
+                compare(expected, result.stdout, f"{consumer}'s installed package")
+
+
+def template(info, manifest, rust2, mirror, go_module, scope=None):
+    """The caller workflow, with every identity Cargo cannot establish spelled out in it.
+    With a scope, it ships the crate's own web package; without, the lines that would are
+    left commented out."""
     if not re.fullmatch(r"[0-9a-f]{40}", rust2):
         raise SystemExit("pin rust2 by a full commit SHA")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", mirror):
@@ -747,6 +1093,14 @@ def template(info, manifest, rust2, mirror, go_module):
     if not re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+(/[A-Za-z0-9._~-]+)*", go_module):
         raise SystemExit(f"the Go module must be a path a proxy serves, such as example.com/name, not {go_module!r}")
     check_major(go_module, go_version(info["version"]))
+    indent = "      "
+    if scope:
+        name = package_name(info, scope)
+        web = (f"{indent}# The web package, {name} on npm and JSR: delete these two lines to ship none.\n"
+               f"{indent}web-manifest-path: {manifest}\n{indent}scope: {scope}")
+    else:
+        web = (f"{indent}# The web package on npm and JSR, @<scope>/{info['name']}, for a crate that builds for wasm32-wasip1:\n"
+               f"{indent}# web-manifest-path: {manifest}\n{indent}# scope: <scope>")
     values = {
         "GO_MODULE": go_module,
         "NAME": info["name"],
@@ -756,6 +1110,7 @@ def template(info, manifest, rust2, mirror, go_module):
         "MIRROR": mirror,
         "MIRROR_OWNER": mirror.split("/")[0],
         "MIRROR_REPO": mirror.split("/")[1],
+        "WEB": web,
     }
     text = (HERE / "release.yml").read_text(encoding="utf-8")
     for key, value in values.items():
@@ -774,7 +1129,7 @@ def init(args):
     rust2 = args.rust2 or output("git", "-C", HERE, "rev-parse", "HEAD").strip()
     relative = manifest.resolve().relative_to(root).as_posix()
     path = root / ".github" / "workflows" / f"release-{info['name']}.yml"
-    text = template(info, relative, rust2, args.swift_mirror, args.go_module)
+    text = template(info, relative, rust2, args.swift_mirror, args.go_module, args.scope)
     if path.exists() and path.read_text(encoding="utf-8") != text:
         raise SystemExit(f"{path} exists; delete it to write the release workflow")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -797,10 +1152,30 @@ def main():
         p.add_argument("targets", nargs="+")
         if name == "export":
             p.add_argument("--api", required=True)
+            p.add_argument("--baseline", help="the api.json of the release this one must not break")
             p.add_argument("--go-module", default="", help="the Go module path; the export's own, the prefix, by default")
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+    p = sub.add_parser("previous", help="fetch the API of the release this version follows")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--repo", required=True, metavar="OWNER/REPO", help="the repository whose releases to read")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("changes", help="print the API changelog of one api.json against another")
+    p.add_argument("--old", help="the previous release's api.json; none for a first release")
+    p.add_argument("--new", required=True)
+    p.add_argument("--since", default="", help="the previous release's version")
+    p = sub.add_parser("web", help="export, build, and pack the web binding for npm and JSR")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--features", default="")
+    p.add_argument("--scope", required=True, help="the npm and JSR scope, without its @")
+    p.add_argument("--version", default="", help="the release's version, which the crate's must equal")
+    p.add_argument("--example", default="")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("consume-web", help="run a check program, or a load, on the installed npm package")
+    p.add_argument("--dist", required=True, help="what `web` wrote")
+    p.add_argument("--check")
+    p.add_argument("--native")
     p = sub.add_parser("digest", help="print the hash of the generated bindings")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
@@ -839,6 +1214,7 @@ def main():
     p.add_argument("--go-module", required=True, metavar="PATH",
                    help="the Go module's path, which a proxy you run serves, /vN suffix included")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
+    p.add_argument("--scope", help="the npm and JSR scope of the crate's web package, without its @; without it, none ships")
     args = parser.parse_args()
     # winapi links MinGW import libraries of its own, from cargo's registry, where nothing
     # linking the Go module's static library finds them: the system's serve every check and
@@ -857,6 +1233,18 @@ def main():
         export(args)
     elif args.command == "build":
         build(args)
+    elif args.command == "previous":
+        previous(args)
+    elif args.command == "changes":
+        new = json.loads(Path(args.new).read_text(encoding="utf-8"))
+        if args.old:
+            print(changes(json.loads(Path(args.old).read_text(encoding="utf-8")), new, args.since), end="")
+        else:
+            print("## API\n\nThe first release.\n", end="")
+    elif args.command == "web":
+        web(args)
+    elif args.command == "consume-web":
+        consume_web(args.dist, args.check, args.native)
     elif args.command == "digest":
         print(digest(args.export, facts(args.manifest_path)["lib"]))
     elif args.command == "swift":

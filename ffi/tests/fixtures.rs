@@ -6,6 +6,8 @@
 //! The reject fixture's export must fail at each item it cannot export, and generated
 //! type shapes round-trip in every language ([`shapes`]).
 
+#[path = "fixtures/corpus.rs"]
+mod corpus;
 #[path = "fixtures/protocol.rs"]
 mod protocol;
 #[path = "fixtures/shapes.rs"]
@@ -54,6 +56,15 @@ fn cargo() -> Command {
 	let mut cmd = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
 	cmd.env("PATH", step::path());
 	cmd
+}
+
+/// The shared library a crate of the lib `name` builds.
+fn shared(name: &str) -> String {
+	match (cfg!(windows), cfg!(target_os = "macos")) {
+		(true, _) => format!("{name}.dll"),
+		(_, true) => format!("lib{name}.dylib"),
+		_ => format!("lib{name}.so"),
+	}
 }
 
 fn run(cmd: &mut Command) -> Output {
@@ -795,10 +806,12 @@ fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
 		reads: &[src, &link.include, &link.staticlib],
 		writes: &[exe],
 	};
-	step.run(&mut cxx_command(link, standard, plain, src, exe));
+	step.run(&mut cxx_command(link, standard, plain, src, exe, true));
 }
 
-fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+/// The C++ compile of `src` against `link` into `exe`, linked or, for a library
+/// whose host lacks the symbols it calls, compiled to an object nothing links.
+fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path, linked: bool) -> Command {
 	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
@@ -821,9 +834,14 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		});
 		let mut obj = OsString::from("-Fo");
 		obj.push(exe.with_extension("obj"));
+		cmd.arg("-I").arg(include).arg(src).arg(obj);
+		if !linked {
+			cmd.arg("-c");
+			return cmd;
+		}
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
-		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
+		cmd.arg(out);
 		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
@@ -844,11 +862,13 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 		"-I",
 	])
 	.arg(include)
-	.arg(src)
-	.arg(&link.staticlib)
-	.args(link.native)
-	.arg("-o")
-	.arg(exe);
+	.arg(src);
+	if linked {
+		cmd.arg(&link.staticlib).args(link.native);
+	} else {
+		cmd.arg("-c");
+	}
+	cmd.arg("-o").arg(exe);
 	cmd
 }
 
@@ -1330,7 +1350,7 @@ fn python_checks(interpreter: &std::ffi::OsStr) {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls"] {
+	for case in ["futures", "owned", "values", "calls", "leaf"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
@@ -1823,7 +1843,7 @@ fn wasm_transcript() -> String {
 }
 
 /// The api fixture's web binding, beside copies of `tests/api.ts` and `tests/protocol.ts`
-/// as a caller's project holds them, type-checked with no issue, and the module the crate's `web` feature builds
+/// as a caller's project holds them, type-checked with no issue by `tsc` and by Deno, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
 struct Web {
 	dir: PathBuf,
@@ -1853,6 +1873,13 @@ fn web() -> &'static Web {
 		);
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
+		// Deno's own types too, which JSR checks a package with as it publishes.
+		run(Command::new("deno")
+			.args(["check", "api.ts", "protocol.ts"])
+			.current_dir(&dir)
+			.env("DENO_DIR", scratch().join("deno"))
+			.env("DENO_NO_UPDATE_CHECK", "1")
+			.env("NO_COLOR", "1"));
 		Web {
 			dir,
 			wasm: target.join(WEB).join("debug").join("api.wasm"),
@@ -2043,6 +2070,86 @@ fn api_web() {
 	);
 }
 
+/// The web binding as a registry serves it: packed by npm with the module beside it,
+/// installed from that tarball into a project of its own, and `tests/api.ts` importing it by
+/// the package's name type-checks against its declarations alone, with no `skipLibCheck`.
+/// The script runs the package's JavaScript, which `load` finds the module beside by
+/// default: every check on Node, which strips no type under `node_modules`, and the
+/// transcript on Deno and Bun.
+#[test]
+fn api_web_package() {
+	let api = api();
+	let web = web();
+	let dir = scratch().join("api").join("web-package");
+	let package = dir.join("package");
+	step::mirror(&api.out.join("web"), &package);
+	step::copy(&web.wasm, &package.join("api.wasm"));
+	let manifest: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(package.join("package.json")).unwrap()).unwrap();
+	let name = manifest["name"].as_str().expect("package.json names the package");
+	let npm = |dir: &Path| {
+		let mut cmd = Command::new("npm");
+		cmd.current_dir(dir)
+			.env("npm_config_cache", scratch().join("npm"))
+			.env("npm_config_update_notifier", "false")
+			.env("npm_config_fund", "false")
+			.env("npm_config_audit", "false");
+		cmd
+	};
+	let packed = run(npm(&package).args(["pack", "--silent", "--pack-destination"]).arg(&dir));
+	let tarball = dir.join(String::from_utf8_lossy(&packed.stdout).trim());
+	let consumer = dir.join("consumer");
+	if consumer.exists() {
+		std::fs::remove_dir_all(&consumer).unwrap();
+	}
+	let dependency = serde_json::json!({ name: format!("file:{}", tarball.display()) });
+	step::write(
+		&consumer.join("package.json"),
+		serde_json::json!({ "type": "module", "private": true, "dependencies": dependency }).to_string(),
+	);
+	run(npm(&consumer).args(["install", "--offline", "--ignore-scripts"]));
+	// What npm installed is the package's JavaScript and declarations, not its TypeScript.
+	let installed = consumer.join("node_modules").join(name);
+	assert!(installed.join("index.js").exists() && installed.join("index.d.ts").exists());
+	assert!(installed.join("api.wasm").exists());
+	assert!(
+		!installed.join("index.ts").exists(),
+		"the npm package ships its TypeScript"
+	);
+	let script = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
+	let script = script
+		.replace("\"./web/index.ts\"", &format!("\"{name}\""))
+		.replace("\"./web/", &format!("\"{name}/"))
+		.replace(".ts\";\n", "\";\n");
+	assert!(
+		!script.contains("./web/"),
+		"api.ts imports the binding by a path the rewrite missed"
+	);
+	step::write(&consumer.join("api.ts"), script);
+	step::write(&consumer.join("tsconfig.json"), TSCONFIG_PACKAGE);
+	run(Command::new("tsc").arg("-p").arg(&consumer));
+	let runtime = |runtime: &str, case: Option<&str>| {
+		let mut cmd = Command::new(runtime);
+		if runtime == "deno" {
+			cmd.args(["run", "--allow-read", "--allow-env"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1");
+		}
+		cmd.arg("api.ts").args(case).current_dir(&consumer);
+		Ran::from(output(&mut cmd))
+	};
+	web_checks("node's package", &WEB_CASES, &mut |case| runtime("node", case));
+	for other in ["deno", "bun"] {
+		let ran = runtime(other, None);
+		assert!(ran.ok, "{other}'s transcript of the package failed:\n{}", ran.stderr);
+		assert_eq!(
+			ran.stdout, web.transcript,
+			"{other}'s transcript of the package differs from native Rust's"
+		);
+	}
+}
+
 /// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
 /// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
 /// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
@@ -2107,7 +2214,29 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "protocol.ts", "web/*.ts"]
+	"include": ["api.ts", "protocol.ts", "web/*.ts"],
+	"exclude": ["web/*.d.ts"]
+}
+"#;
+
+/// What `tsc` checks a caller of the web binding's npm package with: as `TSCONFIG`, but
+/// resolving the package as Node does, through its `exports` and declarations alone.
+const TSCONFIG_PACKAGE: &str = r#"{
+	"compilerOptions": {
+		"strict": true,
+		"noEmit": true,
+		"pretty": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"target": "es2024",
+		"lib": ["es2024", "esnext.disposable", "dom"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true,
+		"types": []
+	},
+	"include": ["api.ts"]
 }
 "#;
 
@@ -2125,6 +2254,39 @@ fn api_dart() {
 		writes: &[],
 	};
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	// What looks like a leaf but reaches user code is no leaf call. The script catches a
+	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
+	// queued for it at once, apart from any call. Nor is one walking a length the caller
+	// picks, which would stall the isolate group's collector until it returns.
+	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
+	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
+	assert!(
+		[
+			"api_Plain_eq",
+			"api_Plain_hash",
+			"api_Plain_n_get",
+			"api_Plain_n_set",
+			"api_contract"
+		]
+		.into_iter()
+		.all(leaf),
+		"a leaf is a leaf call"
+	);
+	assert!(
+		[
+			"api_Hooked_eq",
+			"api_Forged_eq",
+			"api_Pinned_value_get",
+			"api_Part_value_get",
+			"api_Part_eq",
+			"api_Part_hash",
+			"api_Labeled_eq",
+			"api_Labeled_hash"
+		]
+		.into_iter()
+		.all(|symbol| !leaf(symbol)),
+		"a call reaching user code or walking a caller's length is no leaf call"
+	);
 	let lib = api.lib.join(PYTHON_LIB);
 	let exe = dart_compile(
 		"api",
@@ -2139,7 +2301,7 @@ fn api_dart() {
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
+	for case in ["futures", "owned", "closed", "bytes", "bounds", "leaf"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	// The protocol scripts, through `tests/protocol.dart`.
@@ -2234,6 +2396,30 @@ fn api_dart_protocol_nightly() {
 /// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
 fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+	let (mut cmd, kernel) = dart_kernel(name, dir, package, lib, main);
+	// The snapshot names the library by path, so a change to it rebuilds nothing.
+	let step = Step {
+		stamp: &step::stamp(&kernel.dill),
+		reads: &[main, package, &kernel.config, &kernel.assets, &kernel.version],
+		writes: &[&kernel.dill],
+	};
+	step.run(&mut cmd);
+	kernel.dill
+}
+
+/// What a Dart kernel compile reads and writes besides its program and package.
+struct Kernel {
+	config: PathBuf,
+	assets: PathBuf,
+	/// The SDK's version file, which keys a rebuild on the SDK.
+	version: PathBuf,
+	dill: PathBuf,
+}
+
+/// The compile of `main` to a kernel snapshot in `dir`, against the package `name` at
+/// `package` and its native library `lib`, with the package config and native assets it
+/// reads written.
+fn dart_kernel(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> (Command, Kernel) {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -2266,26 +2452,24 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 		),
 	);
 	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
-	// The snapshot names the library by path, so a change to it rebuilds nothing.
-	let step = Step {
-		stamp: &step::stamp(&dill),
-		reads: &[main, package, &config, &assets, &sdk.join("version")],
-		writes: &[&dill],
+	let mut cmd = Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")));
+	cmd.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
+		.arg("--platform")
+		.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
+		.arg("--packages")
+		.arg(&config)
+		.arg("--native-assets")
+		.arg(&assets)
+		.arg("-o")
+		.arg(&dill)
+		.arg(main);
+	let kernel = Kernel {
+		config,
+		assets,
+		version: sdk.join("version"),
+		dill,
 	};
-	step.run(
-		Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
-			.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
-			.arg("--platform")
-			.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
-			.arg("--packages")
-			.arg(&config)
-			.arg("--native-assets")
-			.arg(&assets)
-			.arg("-o")
-			.arg(&dill)
-			.arg(main),
-	);
-	dill
+	(cmd, kernel)
 }
 
 /// The Dart VM running a kernel snapshot, with asserts on.

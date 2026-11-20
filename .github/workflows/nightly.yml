@@ -216,6 +216,35 @@ jobs:
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
 
+  # The pinned corpus of popular crates, each censused, exported through a facade, and
+  # bound in every language: a panic, an error, or a binding that does not build fails it.
+  # Their build scripts run here, on a runner of its own holding no secret.
+  ffi-corpus:
+    name: Export the crate corpus (${{ matrix.shard }}/4)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Corpus
+        run: nix develop --command just ffi corpus
+        env:
+          CORPUS_SHARD: ${{ matrix.shard }}/4
+
+      - name: Summarize
+        if: ${{ !cancelled() }}
+        run: cat ffi/target/tmp/corpus-${{ matrix.shard }}-of-4/report.md >> "$GITHUB_STEP_SUMMARY"
+
   # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
   # carries: a job of its own, so a browser's failure hides no other result.
   ffi-web:
@@ -457,7 +486,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [bindings, gate, ts, bench, ffi-api, ffi, ffi-corpus, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

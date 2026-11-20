@@ -21,6 +21,7 @@ import { packets } from "./packets.ts";
 import { parts } from "./parts.ts";
 import { decodeStrings, encodeStrings, join, keyed } from "./strings.ts";
 import { push } from "./push.ts";
+import { mixed } from "./mixed.ts";
 import { rescale } from "./rescale.ts";
 import { ordered } from "./sorted.ts";
 import { interleave, stamp } from "./timestamp.ts";
@@ -89,6 +90,8 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return join(selector, data);
 		case 22:
 			return keyed(selector, data);
+		case 23:
+			return mixed(selector, data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}
