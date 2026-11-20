@@ -435,9 +435,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where it ends
-  in `_`, and for `free`, the table's own: `delete`, `free`, and `type` are `delete_`,
-  `free_`, and `type_`.
+  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where GNU
+  dialects predefine it as a macro (`i386`, `linux`, `unix`), where C and C++ reserve it
+  (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
+  `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
+  `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
 - **Closures** are a function and its data, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
   with a `free`, which Rust calls once it drops the closure, done or not, maybe before
