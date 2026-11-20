@@ -30,6 +30,9 @@ def loads(node, params):
 		yield from loads(child, params)
 
 
+# A default is read in the enclosing scope, and the body reads the parameter.
+assert [n.lineno for n in loads(ast.parse("def f(len=len):\n\tlen"), frozenset()) if n.id == "len"] == [1]
+
 bare = sorted(
 	f"{sys.argv[1]}:{n.lineno}: {n.id}"
 	for n in loads(tree, frozenset())
