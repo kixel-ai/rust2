@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x81c497ba984e751bULL)
+#define API_CONTRACT ((uint64_t)0x47692e4e23e63e96ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -118,6 +118,7 @@ typedef struct api_Site api_Site;
 typedef struct api_Trail api_Trail;
 typedef struct api_Worker api_Worker;
 typedef struct api_Handle api_Handle;
+typedef struct api_Holder api_Holder;
 typedef struct api_Area api_Area;
 typedef struct api_Counter api_Counter;
 typedef struct api_Meter api_Meter;
@@ -1078,8 +1079,18 @@ typedef struct api_Beat {
 	const api_Beat_vtable *vtable;
 	void *data;
 } api_Beat;
+typedef struct api_Turner_vtable {
+	void (*free)(void *data);
+	uint64_t (*by)(void *data);
+	uint64_t (*once)(void *data);
+} api_Turner_vtable;
+typedef struct api_Turner {
+	const api_Turner_vtable *vtable;
+	void *data;
+} api_Turner;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
+#define API_URL ((uint64_t)1000ULL)
 #define API_STEP ((uint64_t)1ULL)
 void api_Parcel_free(api_Parcel *self);
 void api_Weighted_free(api_Weighted *self);
@@ -1296,6 +1307,7 @@ void api_Knob_free(api_Knob *self);
 bool api_Knob_eq(const api_Knob *a, const api_Knob *b);
 api_buf api_Knob_debug(const api_Knob *self);
 api_Knob api_Knob_default(void);
+uint64_t api_Knob_doubled(const api_Knob *self);
 void api_polar_Point_free(api_polar_Point *self);
 bool api_polar_Point_eq(const api_polar_Point *a, const api_polar_Point *b);
 api_buf api_polar_Point_debug(const api_polar_Point *self);
@@ -1569,6 +1581,10 @@ api_Handle_later_future *api_Handle_later(uint32_t count);
 api_poll api_Handle_later_start(uint32_t count, api_Handle **out, api_Handle_later_future **future);
 api_poll api_Handle_later_poll(api_Handle_later_future *future, api_waker waker, api_Handle **out);
 void api_Handle_later_future_free(api_Handle_later_future *future);
+void api_Holder_free(api_Holder *self);
+api_Holder *api_Holder_new(uint64_t level);
+uint64_t api_Holder_level_get(const api_Holder *self);
+uint64_t api_Holder_doubled(const api_Holder *self);
 void api_Area_free(api_Area *self);
 bool api_Area_borrowed(const api_Area *self);
 api_Area *api_Area_clone(const api_Area *self);
@@ -2277,6 +2293,7 @@ api_level_later_future *api_level_later(api_Dial dial);
 api_poll api_level_later_start(api_Dial dial, uint64_t *out, api_level_later_future **future);
 api_poll api_level_later_poll(api_level_later_future *future, api_waker waker, uint64_t *out);
 void api_level_later_future_free(api_level_later_future *future);
+bool api_turned(api_Dial dial, api_Turner turner, api_Dial *out, api_Error *err);
 uint64_t api_crowded(api_Reading reading, api_Stamp a, api_Stamp b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118);
 uint64_t api_crammed(api_Moment a, api_Moment b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118, uint64_t n119, uint64_t n120, uint64_t n121, uint64_t n122, uint64_t n123);
 uint32_t api_jni_one(void);

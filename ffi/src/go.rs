@@ -3310,18 +3310,25 @@ fn doc_link(
 		),
 		doc::Target::Field(i, n) => {
 			let (krate, name) = owner(doc::Owner::Record(i));
-			let field = field_name(&api.records[i].fields[n].name);
+			let record = &api.records[i];
+			let key = format!(
+				"{} / field {}",
+				crate::lock::type_key(&record.shown),
+				record.fields[n].name
+			);
+			let field = locked.get(&key)?;
 			return Some(format!("[{}.{field}]", in_package(set, here, krate, name)));
 		}
 		doc::Target::Constant(c) => (&c.home.krate, locked.get(&format!("const {}", c.path.join("::")))?),
 		doc::Target::Function(of, f) => {
 			let member = locked.get(&crate::lock::function_key(f))?;
-			let (krate, name) = match of {
-				Some(of) => {
-					let (krate, name) = owner(of);
+			// A method with a receiver in its type's package is the type's; any other is a
+			// function of its own package, named for the type already.
+			let (krate, name) = match of.map(owner) {
+				Some((krate, name)) if f.receiver.is_some() && *krate == f.home.krate => {
 					(krate, format!("{name}.{member}"))
 				}
-				None => (&f.home.krate, member.clone()),
+				_ => (&f.home.krate, member.clone()),
 			};
 			return Some(format!("[{}]", in_package(set, here, krate, &name)));
 		}

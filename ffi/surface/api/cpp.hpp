@@ -34,7 +34,8 @@ namespace api {
 	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
-	[[deprecated("pass a step to `Dial::turn`")]] inline constexpr ::std::uint64_t STEP = API_STEP;
+	inline constexpr ::std::uint64_t URL = API_URL;
+	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
 	class RUST2_FFI_CONSUMABLE Board {
 		RUST2_FFI_UNCONSUMED Board(Board &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Board &operator=(Board &&other) noexcept = default;
@@ -259,6 +260,13 @@ namespace api {
 		static ::api::Handle new_(::std::uint32_t count);
 		RUST2_FFI_CALLABLE ::std::uint32_t count() const;
 		static ::api::Handle_later_future later(::std::uint32_t count);
+	};
+	class RUST2_FFI_CONSUMABLE Holder {
+		RUST2_FFI_UNCONSUMED Holder(Holder &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Holder &operator=(Holder &&other) noexcept = default;
+		static ::api::Holder new_(::std::uint64_t level);
+		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t level_get() const;
+		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t doubled() const;
 	};
 	class RUST2_FFI_CONSUMABLE Counter {
 		RUST2_FFI_UNCONSUMED Counter(Counter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -629,6 +637,11 @@ namespace api {
 	class Beat {
 		virtual ~Beat() = default;
 		virtual ::std::uint32_t beat() const = 0;
+	};
+	class Turner {
+		virtual ~Turner() = default;
+		virtual ::std::uint64_t by() const = 0;
+		[[deprecated("turn `Turner::by` instead")]] virtual ::std::uint64_t once() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -1056,6 +1069,7 @@ namespace api {
 		friend bool operator!=(const Knob &a__, const Knob &b_);
 		::api::buf debug() const;
 		static Knob default_();
+		::std::uint64_t doubled() const;
 	};
 	struct polar_Point {
 		::std::uint8_t turns;
@@ -1582,6 +1596,7 @@ namespace api {
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
+	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
 	inline ::std::uint64_t crowded(const ::api::Reading &reading, const ::api::Stamp &a__, const ::api::Stamp &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118);
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
@@ -1979,6 +1994,7 @@ namespace api {
 	class Trail;
 	class Worker;
 	class Handle;
+	class Holder;
 	class Area;
 	class Counter;
 	class Meter;
@@ -2025,6 +2041,7 @@ namespace api {
 	class Part;
 	class Log;
 	class Beat;
+	class Turner;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;

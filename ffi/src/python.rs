@@ -1442,8 +1442,13 @@ impl<'a> Gen<'a> {
 						.map(|(name, p)| format!("{name}: {}", self.py_lent(&p.ty))),
 				)
 				.collect();
+			// Type checkers flag a call of a deprecated method of an implementation too.
+			let deprecated = match deprecator(method.deprecated.as_deref()) {
+				d if d.is_empty() => d,
+				d => format!("\t{d}"),
+			};
 			body.push(format!(
-				"\t@_abc.abstractmethod\n\tdef {member}({}) -> {}:\n{}\t\t...\n",
+				"{deprecated}\t@_abc.abstractmethod\n\tdef {member}({}) -> {}:\n{}\t\t...\n",
 				params.join(", "),
 				self.py_param(&method.ok),
 				docstring(

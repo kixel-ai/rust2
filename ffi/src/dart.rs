@@ -2774,10 +2774,19 @@ impl<'a> Gen<'a> {
 			),
 			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 			doc::Target::Function(of, f) => {
+				// The lock holds a member as its type declares it: `static <name>`, or `new
+				// <name>` for a constructor, unnamed where the name is empty, which dartdoc
+				// links as `new`.
 				let member = self.locked.get(&crate::lock::function_key(f))?;
+				let member = member.strip_prefix("static ").unwrap_or(member);
+				let member = match member.strip_prefix("new ") {
+					Some("") => "new",
+					Some(named) => named,
+					None => member,
+				};
 				match of {
 					Some(of) => format!("{}.{member}", owner(of)),
-					None => member.clone(),
+					None => member.to_string(),
 				}
 			}
 		})

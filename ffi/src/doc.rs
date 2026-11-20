@@ -36,6 +36,8 @@ fn options() -> Options {
 pub(crate) enum Ns {
 	Type,
 	Value,
+	/// A value that `field@` says is a field, not a method of its name.
+	Field,
 	Macro,
 }
 
@@ -71,9 +73,10 @@ fn disambiguator(kind: &str) -> Option<Ns> {
 	match kind {
 		"struct" | "enum" | "trait" | "union" | "mod" | "module" | "type" | "tyalias" | "typealias" | "prim"
 		| "primitive" => Some(Ns::Type),
-		"fn" | "function" | "method" | "tymethod" | "const" | "constant" | "static" | "value" | "field" | "variant" => {
+		"fn" | "function" | "method" | "tymethod" | "const" | "constant" | "static" | "value" | "variant" => {
 			Some(Ns::Value)
 		}
+		"field" => Some(Ns::Field),
 		"macro" | "derive" | "attr" => Some(Ns::Macro),
 		_ => None,
 	}
@@ -156,25 +159,24 @@ fn rewrite(docs: &str, mut link: impl FnMut(&Found<'_>) -> Option<String>) -> St
 					edits.push((range, String::new()));
 				}
 			}
+			// A reference image is written inline, as the definitions it names go.
+			Event::Start(Tag::Image {
+				link_type,
+				dest_url,
+				title,
+				..
+			}) if !matches!(link_type, LinkType::Inline) => {
+				let alt = inner(&mut events, TagEnd::Image).map_or("", |r| &docs[r]);
+				let title = match title.is_empty() {
+					true => String::new(),
+					false => format!(" \"{}\"", title.replace('"', "\\\"")),
+				};
+				edits.push((range, format!("![{alt}](<{dest_url}>{title})")));
+			}
 			Event::Start(Tag::Link {
 				link_type, dest_url, ..
 			}) if rustc_resolve::rustdoc::may_be_doc_link(link_type) => {
-				// The label's extent, from the events inside the link.
-				let mut inner: Option<Range<usize>> = None;
-				let mut depth = 0;
-				for (event, at) in events.by_ref() {
-					match event {
-						Event::End(TagEnd::Link) if depth == 0 => break,
-						Event::Start(_) => depth += 1,
-						Event::End(_) => depth -= 1,
-						_ => {}
-					}
-					inner = Some(match inner {
-						Some(r) => r.start.min(at.start)..r.end.max(at.end),
-						None => at,
-					});
-				}
-				let label: String = inner
+				let label: String = inner(&mut events, TagEnd::Link)
 					.map(|r| docs[r].replace(['\n', '\r'], " ").replace(['[', ']'], ""))
 					.unwrap_or_default();
 				let dest = dest_url.to_string();
@@ -204,6 +206,26 @@ fn rewrite(docs: &str, mut link: impl FnMut(&Found<'_>) -> Option<String>) -> St
 	}
 	let text = drop_empty(&apply(docs, edits));
 	tidy(&text)
+}
+
+/// The extent of what `events` hold before the `end` of the tag they are inside, which
+/// they are then past.
+fn inner<'a>(events: &mut impl Iterator<Item = (Event<'a>, Range<usize>)>, end: TagEnd) -> Option<Range<usize>> {
+	let mut inner: Option<Range<usize>> = None;
+	let mut depth = 0;
+	for (event, at) in events.by_ref() {
+		match event {
+			Event::End(e) if depth == 0 && e == end => break,
+			Event::Start(_) => depth += 1,
+			Event::End(_) => depth -= 1,
+			_ => {}
+		}
+		inner = Some(match inner {
+			Some(r) => r.start.min(at.start)..r.end.max(at.end),
+			None => at,
+		});
+	}
+	inner
 }
 
 /// `text` with each of `edits`' ranges replaced, ignoring one inside an earlier one.
@@ -362,6 +384,12 @@ pub(crate) enum Owner {
 	Callback(usize),
 }
 
+/// The path a link names a field by, apart from a method of its name, as rustdoc's
+/// `field@` keeps it: `<type>::field@<name>`.
+pub(crate) fn field(owner: &[String], name: &str) -> String {
+	format!("{}::field@{name}", owner.join("::"))
+}
+
 /// Each item a link may name, by its path: an instance of a generic type, or a function of
 /// one, by its first.
 fn index<'a>(api: &'a Api) -> HashMap<String, Target<'a>> {
@@ -372,7 +400,7 @@ fn index<'a>(api: &'a Api) -> HashMap<String, Target<'a>> {
 	for (i, r) in api.records.iter().enumerate() {
 		add(r.path.join("::"), Target::Record(i));
 		for (n, f) in r.fields.iter().enumerate() {
-			add(format!("{}::{}", r.path.join("::"), f.name), Target::Field(i, n));
+			add(field(&r.path, &f.name), Target::Field(i, n));
 		}
 	}
 	for (i, e) in api.enums.iter().enumerate() {
@@ -410,9 +438,15 @@ fn index<'a>(api: &'a Api) -> HashMap<String, Target<'a>> {
 	)
 	.flat_map(|(owner, methods)| methods.iter().map(move |f| (Some(owner), f)));
 	for (owner, f) in owned.chain(api.functions.iter().map(|f| (None, f))) {
-		// A getter before its setter, which shares its path.
-		if !matches!(f.access, crate::ir::Access::Field { set: true, .. }) {
-			add(f.path.join("::"), Target::Function(owner, f));
+		// A field's getter is the field, before its setter, which shares its path.
+		match f.access {
+			crate::ir::Access::Field { set: true, .. } => {}
+			crate::ir::Access::Field { set: false, .. } => {
+				if let Some((name, path)) = f.path.split_last() {
+					add(field(path, name), Target::Function(owner, f));
+				}
+			}
+			_ => add(f.path.join("::"), Target::Function(owner, f)),
 		}
 	}
 	index
@@ -486,6 +520,16 @@ mod tests {
 			canonical(docs, resolve),
 			"Call [`Self::abort`](rust2:moq::Track::abort) or [the close](rust2-text:moq::Track::close) on [`Track`](rust2:moq::Track), else `Vec`.\n\n\
 			See [its docs](https://example.com) and [`Error::Timeout`](rust2:moq::Error::Timeout), not rustdoc."
+		);
+	}
+
+	/// A reference image keeps its target, written inline, as its definition goes.
+	#[test]
+	fn images_kept() {
+		let docs = "See ![the flow][flow] and ![`Track`](rust2-not-a-link.png).\n\n[flow]: https://example.com/flow.png \"Flow\"";
+		assert_eq!(
+			canonical(docs, resolve),
+			"See ![the flow](<https://example.com/flow.png> \"Flow\") and ![`Track`](rust2-not-a-link.png)."
 		);
 	}
 

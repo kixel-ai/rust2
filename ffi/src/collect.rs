@@ -1631,7 +1631,7 @@ impl<'tcx> Collector<'tcx> {
 		let tcx = self.tcx;
 		let namespaces: Vec<Namespace> = match ns {
 			Some(crate::doc::Ns::Type) => vec![Namespace::TypeNS],
-			Some(crate::doc::Ns::Value) => vec![Namespace::ValueNS, Namespace::TypeNS],
+			Some(crate::doc::Ns::Value | crate::doc::Ns::Field) => vec![Namespace::ValueNS, Namespace::TypeNS],
 			Some(crate::doc::Ns::Macro) => return None,
 			None => vec![Namespace::TypeNS, Namespace::ValueNS],
 		};
@@ -1652,7 +1652,23 @@ impl<'tcx> Collector<'tcx> {
 			},
 		};
 		let mut out = self.item_path(base)?;
-		out.extend(rest.split("::").filter(|s| !s.is_empty()).map(String::from));
+		// A member is a field where `field@` says so, or where the type has no associated
+		// item of its name, which rustdoc looks for first.
+		let field = |member: &str| {
+			let adt = matches!(tcx.def_kind(base), DefKind::Struct | DefKind::Union);
+			let has = |name: &str| adt && tcx.adt_def(base).all_fields().any(|f| f.name.as_str() == name);
+			let associated = (tcx.inherent_impls(base).iter()).any(|&i| {
+				tcx.associated_item_def_ids(i)
+					.iter()
+					.any(|&a| tcx.item_name(a).as_str() == member)
+			});
+			has(member) && (ns == Some(crate::doc::Ns::Field) || !associated)
+		};
+		match rest {
+			"" => {}
+			member if !member.contains("::") && field(member) => out.push(format!("field@{member}")),
+			rest => out.extend(rest.split("::").map(String::from)),
+		}
 		Some(out.join("::"))
 	}
 
@@ -1668,7 +1684,12 @@ impl<'tcx> Collector<'tcx> {
 			_ => return None,
 		};
 		let mut path = self.item_path(owner)?;
-		path.push(tcx.item_name(def_id).to_string());
+		let name = tcx.item_name(def_id);
+		// A field apart from a method of its name, as `doc::field` keys it.
+		path.push(match tcx.def_kind(def_id) {
+			DefKind::Field => format!("field@{name}"),
+			_ => name.to_string(),
+		});
 		Some(path)
 	}
 
@@ -2659,7 +2680,16 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let mut all = Vec::new();
 		for (key, ty, derefs, mutable) in chain {
-			let members = match key.and_then(|key| self.decls.get(&key).cloned()) {
+			let decl = key.and_then(|key| self.decls.get(&key).cloned());
+			// A member of a deprecated type leaves its type's deprecation to the type, which
+			// the object reaching it does not carry: the member takes it on.
+			let inherited = match decl {
+				Some(Decl::Object(u)) => self.api.objects[u].deprecated.clone(),
+				Some(Decl::Value(u) | Decl::Record(u)) => self.api.records[u].deprecated.clone(),
+				Some(Decl::Enum(u)) => self.api.enums[u].deprecated.clone(),
+				_ => None,
+			};
+			let members = match decl {
 				Some(Decl::Object(u)) => self.api.objects[u].methods.clone(),
 				Some(Decl::Value(u)) => self.api.records[u].methods.clone(),
 				// A record's fields cross with it, so reaching them through the object takes
@@ -2693,6 +2723,7 @@ impl<'tcx> Collector<'tcx> {
 					m.path = [&path[..], &[name(&m.path)]].concat();
 					m.shown = [&shown[..], &[name(&m.shown)]].concat();
 					m.derefs = derefs;
+					m.deprecated = m.deprecated.or_else(|| inherited.clone());
 					m
 				})
 				.collect();

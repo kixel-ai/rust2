@@ -682,7 +682,6 @@ pub(crate) fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 	}
 }
 
-/// A C comment holding `docs`, each line indented by `indent`, or nothing for none.
 /// `docs`, then the note of `deprecated`, where it has one: C's compilers would warn of the
 /// C++ header's own calls, so the header only says so.
 fn deprecation(docs: &str, deprecated: Option<&str>) -> String {
@@ -726,6 +725,7 @@ fn link(abi: &Abi<'_>, target: crate::doc::Target<'_>) -> String {
 	}
 }
 
+/// A C comment holding `docs`, each line indented by `indent`, or nothing for none.
 fn comment(docs: &str, indent: &str) -> String {
 	if docs.is_empty() {
 		return String::new();

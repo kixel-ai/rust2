@@ -5030,7 +5030,8 @@ impl Key {
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
 /// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
 /// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method
-/// [`Log::log`], [`Spawned`], which the web lacks, and [`Vec`], which no binding has, and
+/// [`Log::log`], [`Spawned`], which the web lacks, a method [`clash::Span::width`] and the
+/// [field](field@clash::Span::width) of its name, [`Vec`], which no binding has, and
 /// [a link with its own text](Self::turn).
 ///
 /// # Examples
@@ -5088,6 +5089,37 @@ pub struct Knob {
 	pub level: u64,
 }
 
+#[allow(deprecated, reason = "it is the type it deprecates")]
+impl Knob {
+	/// Its level, twice.
+	pub fn doubled(&self) -> u64 {
+		self.level * 2
+	}
+}
+
+/// A knob behind a handle, which reaches its deprecated type's methods, deprecated too.
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+pub struct Holder {
+	knob: Knob,
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl Holder {
+	/// A knob at `level`.
+	pub fn new(level: u64) -> Self {
+		Self { knob: Knob { level } }
+	}
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl std::ops::Deref for Holder {
+	type Target = Knob;
+
+	fn deref(&self) -> &Knob {
+		&self.knob
+	}
+}
+
 /// The knob of `dial`.
 #[deprecated]
 #[allow(deprecated, reason = "it returns the type it deprecates")]
@@ -5101,6 +5133,25 @@ pub async fn level_later(dial: Dial) -> u64 {
 	dial.level
 }
 
-/// The step a [`Dial`] turned by before [`Dial::turn`] took any.
-#[deprecated(note = "pass a step to [`Dial::turn`]")]
+/// What turns a [`Dial`], implemented in each binding.
+pub trait Turner {
+	/// How far to turn.
+	fn by(&self) -> u64;
+
+	/// How far to turn once.
+	#[deprecated(note = "turn [`Turner::by`] instead")]
+	fn once(&self) -> u64;
+}
+
+/// `dial` turned as `turner` says, and once more.
+#[allow(deprecated, reason = "it calls the method it deprecates")]
+pub fn turned(dial: Dial, turner: impl Turner) -> Result<Dial, Error> {
+	dial.turn(turner.by())?.turn(turner.once())
+}
+
+/// The most a [`Dial`] turns, a name the web's globals take too: [`URL`] links its own.
+pub const URL: u64 = LIMIT;
+
+/// The step a [`Dial`] turned by before [`Dial::turn`] took any, at most [`URL`].
+#[deprecated(note = "pass a step to [`Dial::turn`], whose `}` or `{` alone stays in the note")]
 pub const STEP: u64 = 1;

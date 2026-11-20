@@ -1406,13 +1406,18 @@ impl<'a> Gen<'a> {
 				Type::Unit => String::new(),
 				_ => format!(" -> {}", self.sw(&method.ok)),
 			};
+			// The trampoline calls the requirement, which an `@available` deprecation would warn
+			// of, and Swift has no way to silence one: its docs say it instead, to the
+			// implementation Rust calls.
+			let mut text = self.function_docs(method, doc::sections(&method.docs).body);
+			match method.deprecated.as_deref() {
+				Some("") => text.push_str("\n\nDeprecated."),
+				Some(note) => text.push_str(&format!("\n\nDeprecated: {note}")),
+				None => {}
+			}
 			body.push(format!(
 				"{}\tfunc {member}({}){ret}",
-				docs(
-					&self.function_docs(method, doc::sections(&method.docs).body),
-					method.deprecated.as_deref(),
-					"\t"
-				),
+				docs(text.trim(), None, "\t"),
 				params.join(", ")
 			));
 			let ps: Vec<String> = (0..method.params.len()).map(|k| format!("p{k}_")).collect();
@@ -2705,8 +2710,7 @@ fn inlinable(swift: &str) -> String {
 				written = Some(format!("{tabs}{attributes}{attribute}{modifiers}{rest}"));
 			}
 		}
-		let opens = line.matches('{').count();
-		let closes = line.matches('}').count();
+		let (opens, closes) = braces(line);
 		if !code.starts_with("//") {
 			match opens.cmp(&closes) {
 				std::cmp::Ordering::Greater => {
@@ -2726,6 +2730,26 @@ fn inlinable(swift: &str) -> String {
 	}
 	assert!(scopes.is_empty(), "the generated Swift's braces balance");
 	out
+}
+
+/// The braces `line` opens and closes outside its string literals, such as a deprecation's
+/// message, whose escapes, `\u{301}` among them, stay inside the literal.
+fn braces(line: &str) -> (usize, usize) {
+	let (mut opens, mut closes) = (0, 0);
+	let mut chars = line.chars();
+	let mut quoted = false;
+	while let Some(c) = chars.next() {
+		match (quoted, c) {
+			(true, '\\') => {
+				chars.next();
+			}
+			(_, '"') => quoted = !quoted,
+			(false, '{') => opens += 1,
+			(false, '}') => closes += 1,
+			_ => {}
+		}
+	}
+	(opens, closes)
 }
 
 /// Swift doc comments holding `docs`, each line indented by `indent`, or nothing for none,

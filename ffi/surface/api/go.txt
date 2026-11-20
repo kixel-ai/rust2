@@ -4,6 +4,7 @@ CONSTANTS
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
 const STEP uint64 = 1
+const URL uint64 = 1000
 
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
@@ -230,6 +231,7 @@ func Title(formal bool) *string
 func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
+func TurnerVtable_() unsafe.Pointer
 func Unhook() error
 func Verify(cert *p_tls.Cert) (uint32, error)
 func VisitStray(visit func(string))
@@ -760,6 +762,7 @@ type Dial struct {
 	Before uint64
 }
 func DialDefault() Dial
+func Turned(dial Dial, turner Turner) (Dial, error)
 func (self Dial) Equal(other Dial) bool
 func (self Dial) GoString() string
 func (self Dial) Max() Dial
@@ -902,6 +905,13 @@ func (self Hits) HitsGet() uint64
 func (self *Hits) HitsSet(value uint64)
 func (self Hits) MissesGet() uint64
 func (self *Hits) MissesSet(value uint64)
+type Holder struct {
+	Handle_ *p_rt.Handle_
+}
+func NewHolder(level uint64) *Holder
+func (self *Holder) Close() error
+func (self *Holder) Doubled() (uint64, error)
+func (self *Holder) LevelGet() (uint64, error)
 type Hooked struct {
 	Handle_ *p_rt.Handle_
 }
@@ -947,6 +957,7 @@ type Knob struct {
 }
 func KnobDefault() Knob
 func NewKnob(dial Dial) Knob
+func (self Knob) Doubled() uint64
 func (self Knob) Equal(other Knob) bool
 func (self Knob) GoString() string
 type Label struct {
@@ -1642,6 +1653,10 @@ func (self *Trail) Iter() ([]Point, error)
 func (self *Trail) Labels() ([]Label, error)
 func (self *Trail) Names() ([]string, error)
 func (self *Trail) Points() ([]Point, error)
+type Turner interface {
+	By() uint64
+	Once() uint64
+}
 type VecClashTone int32
 const (
 	VecClashToneError_ VecClashTone = 0
