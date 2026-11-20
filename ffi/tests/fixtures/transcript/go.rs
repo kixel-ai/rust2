@@ -1381,8 +1381,46 @@ impl Emitter<'_> {
 					ty => panic!("== of {ty:?}"),
 				}
 			}
+			// A value of the API orders through `PartialCompare`, whose false is unordered, and
+			// with `Ord` through `Compare`.
+			Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::Cmp
+				if matches!(ty, Type::Record(_) | Type::Enum(_) | Type::Object(_)) =>
+			{
+				self.lent(&x);
+				self.lent(&y);
+				let fails = matches!(ty, Type::Object(_)) || fails(self.t, &ty);
+				if op == Op::Cmp {
+					let made = self.hoist(
+						&format!("{x}.Compare({y})"),
+						&[Type::Int(Int::I8)],
+						fails,
+						Failure::Panic,
+						true,
+						out,
+					);
+					return made.values[0].clone();
+				}
+				let made = self.hoist(
+					&format!("{x}.PartialCompare({y})"),
+					&[Type::Int(Int::I8), Type::Bool],
+					fails,
+					Failure::Panic,
+					true,
+					out,
+				);
+				let sym = match op {
+					Op::Lt => "<",
+					Op::Le => "<=",
+					Op::Gt => ">",
+					_ => ">=",
+				};
+				format!("({} && {} {sym} 0)", made.values[1], made.values[0])
+			}
 			Op::Lt => format!("({x} < {y})"),
+			Op::Le => format!("({x} <= {y})"),
 			Op::Gt => format!("({x} > {y})"),
+			Op::Ge => format!("({x} >= {y})"),
+			Op::Cmp => unreachable!("`cmp` of a value of the API"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let Type::Int(_) = ty else {
 					panic!("arithmetic on {ty:?}")

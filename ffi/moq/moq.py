@@ -89,6 +89,11 @@ def local(loop):
 	# so a timed frame is refused.
 	at = moq.Timestamp.from_millis(1500)
 	expect(at.as_secs() == 1, "1500 ms is 1 s")
+	# Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	second = moq.Timestamp.from_secs(1)
+	key = moq.Timestamp.unscaled(0)
+	expect(second < at and at > second, "1 s is before 1500 ms")
+	expect(not key < at and not key >= at, "an unscaled key is unordered against a time")
 	try:
 		writer.write_frame(at, b"late")
 		expect(False, "a timed frame on an untimed track is an error")

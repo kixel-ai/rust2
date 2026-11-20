@@ -129,8 +129,9 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
 | a type implementing `PartialEq` and `Hash` | beside `<T>_eq`, `uint64_t <T>_hash`, its `Hash` through std's hasher with its fixed keys, so equal values hash alike in every binding |
-| `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
-| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
+| a type implementing `PartialOrd` with itself | `int8_t <T>_partial_cmp(a, b)`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or 2 when the two are unordered; with `Ord`, `int8_t <T>_cmp(a, b)` too, -1, 0, or 1. Every binding's `<` and its kin call `_partial_cmp`, as Rust's do, and its total order, where it has one, `_cmp` |
+| `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq` and ordered by `_cmp`, with none of its methods |
+| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR`, ordered by tracing's `Ord`, the more verbose after the less |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |
@@ -176,8 +177,8 @@ is the call's. A signature may not lend C's borrow for one that is `'static`, bu
 exclusive lend: a `&mut self` method of an object returning an object, bare or as a
 `Result`'s `Ok`, that borrows the receiver's lifetime alone and is not `Copy`, as a lock's
 guard does, which its handle holds with the receiver's exclusive borrow; a copy would
-carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `Debug`, `Display`,
-`Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
+carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `PartialOrd`, `Ord`,
+`Debug`, `Display`, `Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
 `'static` form, and its `Deref` target must name no lifetime. So must each of the
 method's own bounds naming the receiver's lifetime, as the binding's lend gives the call a
 borrow of any lifetime. A parameter is a reference
@@ -498,7 +499,10 @@ packages place it in.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
-  `std::hash` hashes it. A type whose copies may share one value, by the rule below,
+  `std::hash` hashes it. Every type implementing `PartialOrd` has `<`, `<=`, `>`, and `>=`,
+  through Rust's `partial_cmp`, and from C++20 `<=>`: a `std::weak_ordering` through `cmp`
+  with `Ord`, since Rust's `Equal` promises agreement with `==` alone, and else a
+  `std::partial_ordering`. A type whose copies may share one value, by the rule below,
   owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
   into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
   `const`, and `self` methods are `&&`, so a call that moves the value out reads
@@ -629,7 +633,10 @@ the rest cross encoded.
   the GC frees it once it collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
-  hash folded as `Long.hashCode` folds it, or 0 without one. A value that is not `Send`
+  hash folded as `Long.hashCode` folds it, or 0 without one. `PartialOrd` is
+  `partialCompareTo`, null when unordered, and `Ord` makes it `Comparable`, whose
+  `compareTo`, and so `<`, is Rust's `cmp`; an enum class's `compareTo` stays Kotlin's
+  own by declaration order, which Kotlin makes final. A value that is not `Send`
   throws an `IllegalStateException` when used on another thread than the one that made
   it, and closed or collected on another, it drops on its own at its next call or as it
   exits. A future that is not `Send` made from none lives on a home, so a coroutine a
@@ -792,7 +799,7 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. An object, as
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. `PartialOrd` is `<`, `<=`, `>`, and `>=`, through Rust's `partial_cmp`, each false when the two are unordered. An object, as
   an opaque value and a record, takes weak references (`weakref.ref`). A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
@@ -916,7 +923,8 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
   `Equatable` unless it throws, as below, and `Hashable` with `Hash`, whose `hash(into:)`
-  combines Rust's hash; `Display` is `description` and `Debug`
+  combines Rust's hash; `PartialOrd` is `<`, `<=`, `>`, and `>=`, through Rust's
+  `partial_cmp`, and with `Ord` makes it `Comparable` unless it throws; `Display` is `description` and `Debug`
   `debugDescription`, which Swift conforms no noncopyable type to yet. A `Copy` object,
   which Rust copies where it takes one by value, and an object thrown as an error, which
   `Swift.Error` requires be copyable, are final classes instead, whose handle a call
@@ -1114,7 +1122,9 @@ other than one in its own form, `module <path>` and `go 1.24`.
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
   interface's. Positional fields are `V0`, `V1`, and so on. `Display` is `String()`,
-  `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
+  `Debug` `GoString()`, `PartialEq` `Equal(other)`, `PartialOrd` `PartialCompare(other)`,
+  -1, 0, or 1 and false when unordered, and `Ord` `Compare(other)`, the shape
+  `slices.SortFunc` takes, all through Rust's, and `Default` a
   function of the package, `PointDefault()`. An object's exported `Handle_` field, and a
   trait's `<Trait>Vtable_` function, are how one generated package reaches another's,
   since cgo gives each its own C types: callers use neither. An **opaque value** is a
@@ -1249,7 +1259,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
   over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, and
   `Hash` `hashCode`, all through Rust's; without `Hash`, `hashCode` throws an
-  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `Default` is a
+  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `PartialOrd` is
+  `<`, `<=`, `>`, `>=`, and `partialCompareTo`, null when unordered, through Rust's
+  `partial_cmp`, and `Ord` makes it `Comparable`, whose `compareTo` is Rust's `cmp`. `Default` is a
   constructor, `default_()`. An
   **opaque value** is a final class of its bytes as `int`s, with a private constructor,
   so only Rust makes one. It never changes: a `&mut self` method, a field's setter
@@ -1502,7 +1514,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   once it drops an implementation, and **closures** are functions: each is a C function
   the module imports from `rust2`, whose data is a token the binding finds the value by, so
   JavaScript never writes the module's function table. Its std traits are functions of its
-  module: `toString`, `debug`, an object's `clone`, `eq`, with `Hash` `hash`, and `default`.
+  module: `toString`, `debug`, an object's `clone`, `eq`, with `Hash` `hash`, `partialCmp`
+  from `PartialOrd`, undefined when unordered, `cmp` from `Ord`, the shape
+  `Array.prototype.sort` takes, and `default`.
 - **Futures** are an `rt.Call`, a `Promise` with `cancel()`: the call polls once as it is
   made, and each wake polls again on a microtask, never inside the wake. Cancelling frees
   the future in Rust, losing nothing, and rejects with `rt.Cancelled`. A future JavaScript

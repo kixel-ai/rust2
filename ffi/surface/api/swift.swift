@@ -572,6 +572,17 @@ public struct Qualifiers: Sendable, Equatable {
 	@inlinable public init(api: Swift.Double, kotlin: Swift.Double)
 	@inlinable public static func == (a: Qualifiers, b: Qualifiers) -> Swift.Bool
 }
+public struct Version: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
+	public var major: Swift.UInt16
+	public var minor: Swift.UInt16
+	@inlinable public init(major: Swift.UInt16, minor: Swift.UInt16)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func < (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func <= (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func > (a: Version, b: Version) -> Swift.Bool
+	@inlinable public static func >= (a: Version, b: Version) -> Swift.Bool
+}
 public struct PolarPoint: Sendable, CustomDebugStringConvertible, Equatable {
 	public var turns: Swift.UInt8
 	public var distance: Swift.UInt32
@@ -744,13 +755,23 @@ public enum Builtin: Sendable, Equatable {
 	case native(Swift.Double)
 	@inlinable public static func == (a: Builtin, b: Builtin) -> Swift.Bool
 }
+public enum Tier: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
+	case low
+	case high
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func < (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func <= (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func > (a: Tier, b: Tier) -> Swift.Bool
+	@inlinable public static func >= (a: Tier, b: Tier) -> Swift.Bool
+}
 public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
 	case none
 	case match(Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
 }
-public enum Level: Sendable, CustomStringConvertible, Hashable {
+public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case trace
 	case debug
 	case info
@@ -758,6 +779,10 @@ public enum Level: Sendable, CustomStringConvertible, Hashable {
 	case error
 	@inlinable public var description: Swift.String { get }
 	@inlinable public static func == (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func < (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func <= (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func > (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func >= (a: Level, b: Level) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct Board: ~Copyable, @unchecked Sendable {
@@ -1171,6 +1196,18 @@ public struct C: ~Copyable, @unchecked Sendable {
 #if compiler(>=6.4)
 extension C: Equatable {}
 #endif
+public struct Quantity: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func < (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func > (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Quantity, b: borrowing Quantity) -> Swift.Bool
+	@inlinable public static func new(_ value: Swift.Int64, _ unit: Swift.Unicode.Scalar) -> Quantity
+}
+#if compiler(>=6.4)
+extension Quantity: Equatable {}
+#endif
 public struct Key: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Key
@@ -1205,6 +1242,10 @@ public struct Url: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Url
 	@inlinable public static func == (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func parse(_ input: Swift.String) throws -> Url
 }
@@ -1212,10 +1253,14 @@ public struct Json: ~Copyable, @unchecked Sendable {
 	@inlinable public static func parse(_ input: Swift.String) throws -> Json
 	@inlinable public func toText() throws -> Swift.String
 }
-public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable {
+public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Instant
 	@inlinable public static func == (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func < (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func <= (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func > (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func >= (a: Instant, b: Instant) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct StdIoError: ~Copyable, @unchecked Sendable {}

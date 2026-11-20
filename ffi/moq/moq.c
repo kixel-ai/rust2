@@ -224,6 +224,13 @@ int main(void) {
 	uint64_t secs = 0;
 	CHECK(moq_Timestamp_from_millis(1500, &at, &overflow));
 	CHECK(moq_Timestamp_as_secs(at, &secs, &overflow, NULL) && secs == 1);
+	/* Timestamps order in time across scales, and a scaled one and an unscaled key not at all. */
+	moq_Timestamp *second = NULL;
+	CHECK(moq_Timestamp_from_secs(1, &second, &overflow));
+	CHECK(moq_Timestamp_partial_cmp(second, at, NULL) == -1);
+	CHECK(moq_Timestamp_partial_cmp(at, second, NULL) == 1);
+	CHECK(moq_Timestamp_partial_cmp(key, at, NULL) == 2);
+	moq_Timestamp_free(second);
 	CHECK(!moq_group_Producer_write_frame(writer, at, str("late"), &err, NULL));
 	CHECK(err != NULL && is(moq_Error_to_string(err, NULL), "frame timestamp doesn't fit its track"));
 	moq_Error_free(err);

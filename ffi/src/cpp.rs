@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
-use crate::ir::{Closure, Family, Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Closure, Family, Function, Int, Literal, Order, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
@@ -34,6 +34,28 @@ pub(crate) struct Output {
 	/// Each header by its path under `include/`.
 	pub(crate) files: Vec<(String, String)>,
 	pub(crate) names: BTreeMap<String, String>,
+}
+
+/// A comparison operator: its signature, its body, and whether it is C++20's alone.
+struct Operator {
+	head: String,
+	body: String,
+	cpp20: bool,
+}
+
+impl Operator {
+	/// `text` inside the guard of a C++20 operator.
+	fn guarded(&self, text: String) -> String {
+		match self.cpp20 {
+			true => format!("#if defined(__cpp_lib_three_way_comparison)\n{text}\n#endif"),
+			false => text,
+		}
+	}
+
+	/// Its definition, inline as a friend defined in its class is.
+	fn define(&self, prefix: &str) -> String {
+		self.guarded(format!("{prefix}{} {{\n{}}}", self.head, self.body))
+	}
 }
 
 /// The headers for `abi`: the umbrella `<prefix>.hpp`, the shared `<prefix>/rt.hpp`, and a
@@ -149,6 +171,39 @@ impl<'a> Header<'a> {
 		let a = parameter("a", |n| self.globals.contains(n));
 		let b = parameter("b", |n| self.globals.contains(n) || n == a);
 		(a, b)
+	}
+
+	/// The comparison operators of a type ordered by `ord`, each taking `params`, whose
+	/// body runs the first of what `call` gives of a C suffix and returns through the
+	/// second, the C call: `<` and its kin from `partial_cmp`, as Rust's are, and from
+	/// C++20 `<=>`, from `cmp` with `Ord` and else from `partial_cmp`.
+	fn orders(&self, ord: Order, params: &str, call: &dyn Fn(&str) -> (String, String)) -> Vec<Operator> {
+		let d = self.d();
+		let (pre, partial) = call("partial_cmp");
+		let mut ops: Vec<Operator> = [
+			("<", "less"),
+			("<=", "less_equal"),
+			(">", "greater"),
+			(">=", "greater_equal"),
+		]
+		.into_iter()
+		.map(|(op, test)| Operator {
+			head: format!("bool operator{op}({params})"),
+			body: format!("{pre}\treturn {d}::{test}({partial});\n"),
+			cpp20: false,
+		})
+		.collect();
+		let (ordering, suffix) = match ord {
+			Order::Total => ("weak_ordering", "cmp"),
+			_ => ("partial_ordering", "partial_cmp"),
+		};
+		let (pre, compare) = call(suffix);
+		ops.push(Operator {
+			head: format!("::std::{ordering} operator<=>({params})"),
+			body: format!("{pre}\treturn {d}::{ordering}({compare});\n"),
+			cpp20: true,
+		});
+		ops
 	}
 
 	/// `name`, declared in the namespace.
@@ -555,7 +610,7 @@ impl<'a> Header<'a> {
 			self.line(format!("#include <{include}>"));
 		}
 		self.line(
-			"#if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)\n#include <coroutine>\n#endif\n",
+			"#if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)\n#include <coroutine>\n#endif\n#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && __has_include(<compare>)\n#include <compare>\n#endif\n",
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		// Whether a call makes a value that is not `Send`, whose thread an executor drains.
@@ -969,6 +1024,22 @@ impl<'a> Header<'a> {
 				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 			));
 		}
+		if t.ord != Order::None {
+			let (a, b) = self.operands();
+			let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
+				(
+					String::new(),
+					format!("::{c}_{suffix}({a}.raw_.get(), {b}.raw_.get(){status})"),
+				)
+			});
+			for op in ops {
+				body.push(op.guarded(format!(
+					"\tfriend {} {{\n\t{}\n\t}}",
+					op.head,
+					op.body.trim_end().replace('\n', "\n\t")
+				)));
+			}
+		}
 		if t.hash {
 			let hash = apart("hash", &name);
 			body.push(format!(
@@ -1204,6 +1275,22 @@ impl<'a> Header<'a> {
 						self.value_status(ty),
 					));
 				}
+				if t.ord != Order::None {
+					let (a, b) = self.operands();
+					let (scope, status) = (self.scope([ty]), self.value_status(ty));
+					let (lower_a, lower_b) = (self.lower(ty, &a), self.lower(ty, &b));
+					let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
+						(
+							format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
+							format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+						)
+					});
+					// Declared friends, as `==` is, and defined after the class.
+					for op in ops {
+						body.push(op.guarded(format!("\tfriend {};", op.head)));
+						self.def(format!("{}\n", op.define("inline ")));
+					}
+				}
 				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
@@ -1289,6 +1376,18 @@ impl<'a> Header<'a> {
 			self.def(format!(
 				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c}_eq(&c_a_, &c_b_{status});\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
 			));
+		}
+		if t.ord != Order::None {
+			let (a_, b_) = (declare(&param, &a), declare(&param, &b));
+			let ops = self.orders(t.ord, &format!("{a_}, {b_}"), &|suffix| {
+				(
+					format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
+					format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+				)
+			});
+			for op in ops {
+				self.def(format!("{}\n", op.define("inline ")));
+			}
 		}
 		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {
 			if on {

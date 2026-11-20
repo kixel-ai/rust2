@@ -1370,6 +1370,14 @@ type Qualifiers struct {
 	Kotlin float64
 }
 func (self Qualifiers) Equal(other Qualifiers) bool
+type Quantity struct {
+	Handle_ *p_rt.Handle_
+}
+func NewQuantity(value int64, unit rune) (*Quantity, error)
+func (self *Quantity) Close() error
+func (self *Quantity) Equal(other *Quantity) (bool, error)
+func (self *Quantity) GoString() string
+func (self *Quantity) PartialCompare(other *Quantity) (int, bool, error)
 type Reading struct {
 	Ok     bool
 	Level  float32
@@ -1613,6 +1621,15 @@ func ReissueLent(ticket Ticket, swap func(Ticket) Ticket) Ticket
 func (self Ticket) Equal(other Ticket) bool
 func (self Ticket) GoString() string
 func (self Ticket) Number() uint32
+type Tier int32
+const (
+	TierLow  Tier = 0
+	TierHigh Tier = 1
+)
+func (self Tier) Compare(other Tier) int
+func (self Tier) Equal(other Tier) bool
+func (self Tier) GoString() string
+func (self Tier) PartialCompare(other Tier) (int, bool)
 type Token struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1652,6 +1669,14 @@ func (self *Verbosity) Close() error
 func (self *Verbosity) Filter() (*p_tracingcore.Level, error)
 func (self *Verbosity) LevelGet() (p_tracingcore.Level, error)
 func (self *Verbosity) LevelSet(value p_tracingcore.Level) error
+type Version struct {
+	Major uint16
+	Minor uint16
+}
+func (self Version) Compare(other Version) int
+func (self Version) Equal(other Version) bool
+func (self Version) GoString() string
+func (self Version) PartialCompare(other Version) (int, bool)
 type Waiter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1882,8 +1907,10 @@ type Instant struct {
 }
 func (self *Instant) Clone() (*Instant, error)
 func (self *Instant) Close() error
+func (self *Instant) Compare(other *Instant) (int, error)
 func (self *Instant) Equal(other *Instant) (bool, error)
 func (self *Instant) GoString() string
+func (self *Instant) PartialCompare(other *Instant) (int, bool, error)
 
 package tls // import "api/tls"
 
@@ -1929,7 +1956,9 @@ const (
 	LevelWarn  Level = 3
 	LevelError Level = 4
 )
+func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
+func (self Level) PartialCompare(other Level) (int, bool)
 func (self Level) String() string
 
 package url // import "api/url"
@@ -1941,7 +1970,9 @@ type Url struct {
 func UrlParse(input string) (*Url, error)
 func (self *Url) Clone() (*Url, error)
 func (self *Url) Close() error
+func (self *Url) Compare(other *Url) (int, error)
 func (self *Url) Equal(other *Url) (bool, error)
 func (self *Url) GoString() string
+func (self *Url) PartialCompare(other *Url) (int, bool, error)
 func (self *Url) String() string
 

@@ -149,7 +149,11 @@ pub(crate) enum Op {
 	Eq,
 	Ne,
 	Lt,
+	Le,
 	Gt,
+	Ge,
+	/// `a.cmp(&b) as i8`: Rust's `Ord`, -1, 0, or 1.
+	Cmp,
 	Add,
 	Sub,
 	Mul,

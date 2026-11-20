@@ -993,7 +993,10 @@ impl Emitter<'_> {
 			Op::Eq => compare("=="),
 			Op::Ne => compare("!="),
 			Op::Lt => compare("<"),
+			Op::Le => compare("<="),
 			Op::Gt => compare(">"),
+			Op::Ge => compare(">="),
+			Op::Cmp => format!("{a}.compareTo({b})"),
 			Op::And => compare("&&"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let Type::Int(int) = unref(ty).base() else {

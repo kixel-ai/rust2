@@ -16,7 +16,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Receiver, Type};
+use crate::ir::{
+	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Receiver, Type,
+};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -1832,6 +1834,12 @@ impl<'a> Abi<'a> {
 		}
 		if traits.hash {
 			claim("hash");
+		}
+		if traits.ord != Order::None {
+			claim("partial_cmp");
+		}
+		if traits.ord == Order::Total {
+			claim("cmp");
 		}
 		if traits.display {
 			claim("to_string");

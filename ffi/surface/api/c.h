@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xcadf3d448a865171ULL)
+#define API_CONTRACT ((uint64_t)0x5dc92f21dacf6b64ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -144,6 +144,7 @@ typedef struct api_Stack api_Stack;
 typedef struct api_Refusal api_Refusal;
 typedef struct api_Fault api_Fault;
 typedef struct api_c api_c;
+typedef struct api_Quantity api_Quantity;
 typedef struct api_Key api_Key;
 typedef struct api_clash_Seed api_clash_Seed;
 typedef struct api_clash_Empty_string api_clash_Empty_string;
@@ -178,6 +179,10 @@ typedef enum api_Family {
 typedef enum api_VecClashTone {
 	API_VECCLASHTONE_ERROR = 0,
 } api_VecClashTone;
+typedef enum api_Tier {
+	API_TIER_LOW = 0,
+	API_TIER_HIGH = 1,
+} api_Tier;
 typedef enum api_Level {
 	API_LEVEL_TRACE = 0,
 	API_LEVEL_DEBUG = 1,
@@ -810,6 +815,10 @@ typedef struct api_Qualifiers {
 	double api;
 	double kotlin;
 } api_Qualifiers;
+typedef struct api_Version {
+	uint16_t major;
+	uint16_t minor;
+} api_Version;
 typedef struct api_polar_Turn {
 	uint8_t part;
 } api_polar_Turn;
@@ -1284,6 +1293,11 @@ bool api_a_eq(const api_a *a, const api_a *b);
 api_buf api_a_debug(const api_a *self);
 void api_Qualifiers_free(api_Qualifiers *self);
 bool api_Qualifiers_eq(const api_Qualifiers *a, const api_Qualifiers *b);
+void api_Version_free(api_Version *self);
+bool api_Version_eq(const api_Version *a, const api_Version *b);
+int8_t api_Version_partial_cmp(const api_Version *a, const api_Version *b);
+int8_t api_Version_cmp(const api_Version *a, const api_Version *b);
+api_buf api_Version_debug(const api_Version *self);
 void api_polar_Point_free(api_polar_Point *self);
 bool api_polar_Point_eq(const api_polar_Point *a, const api_polar_Point *b);
 api_buf api_polar_Point_debug(const api_polar_Point *self);
@@ -1371,11 +1385,17 @@ bool api_b_eq(const api_b *a, const api_b *b);
 api_buf api_b_debug(const api_b *self);
 void api_Builtin_free(api_Builtin *self);
 bool api_Builtin_eq(const api_Builtin *a, const api_Builtin *b);
+bool api_Tier_eq(const api_Tier *a, const api_Tier *b);
+int8_t api_Tier_partial_cmp(const api_Tier *a, const api_Tier *b);
+int8_t api_Tier_cmp(const api_Tier *a, const api_Tier *b);
+api_buf api_Tier_debug(const api_Tier *self);
 void api_clash_Candidate_free(api_clash_Candidate *self);
 bool api_clash_Candidate_eq(const api_clash_Candidate *a, const api_clash_Candidate *b);
 api_buf api_clash_Candidate_debug(const api_clash_Candidate *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
+int8_t api_Level_partial_cmp(const api_Level *a, const api_Level *b);
+int8_t api_Level_cmp(const api_Level *a, const api_Level *b);
 api_buf api_Level_to_string(const api_Level *self);
 void api_Board_free(api_Board *self);
 void api_Board_drop(api_Board *self, api_status *status);
@@ -1841,6 +1861,11 @@ void api_c_free(api_c *self);
 bool api_c_eq(const api_c *a, const api_c *b);
 api_buf api_c_debug(const api_c *self);
 api_c *api_c_new(uint8_t value);
+void api_Quantity_free(api_Quantity *self);
+bool api_Quantity_eq(const api_Quantity *a, const api_Quantity *b);
+int8_t api_Quantity_partial_cmp(const api_Quantity *a, const api_Quantity *b);
+api_buf api_Quantity_debug(const api_Quantity *self);
+api_Quantity *api_Quantity_new(int64_t value, uint32_t unit);
 void api_Key_free(api_Key *self);
 bool api_Key_borrowed(const api_Key *self);
 api_Key *api_Key_clone(const api_Key *self);
@@ -1869,6 +1894,8 @@ bool api_Url_borrowed(const api_Url *self);
 api_Url *api_Url_clone(const api_Url *self, api_status *status);
 bool api_Url_eq(const api_Url *a, const api_Url *b, api_status *status);
 uint64_t api_Url_hash(const api_Url *self, api_status *status);
+int8_t api_Url_partial_cmp(const api_Url *a, const api_Url *b, api_status *status);
+int8_t api_Url_cmp(const api_Url *a, const api_Url *b, api_status *status);
 api_buf api_Url_to_string(const api_Url *self, api_status *status);
 api_buf api_Url_debug(const api_Url *self, api_status *status);
 bool api_Url_parse(api_buf input, api_Url **out, api_buf *err);
@@ -1881,6 +1908,8 @@ bool api_Instant_borrowed(const api_Instant *self);
 api_Instant *api_Instant_clone(const api_Instant *self);
 bool api_Instant_eq(const api_Instant *a, const api_Instant *b);
 uint64_t api_Instant_hash(const api_Instant *self);
+int8_t api_Instant_partial_cmp(const api_Instant *a, const api_Instant *b);
+int8_t api_Instant_cmp(const api_Instant *a, const api_Instant *b);
 api_buf api_Instant_debug(const api_Instant *self);
 void api_std_io_Error_free(api_std_io_Error *self);
 void api_std_io_Error_drop(api_std_io_Error *self, api_status *status);

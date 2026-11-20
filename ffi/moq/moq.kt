@@ -92,6 +92,13 @@ fun main() {
 	// so a timed frame is refused.
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")
+	// Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	Timestamp.fromSecs(1u).use { second ->
+		Timestamp.unscaled(0u).use { key ->
+			expect(second.partialCompareTo(at) == -1 && at.partialCompareTo(second) == 1, "1 s is before 1500 ms")
+			expect(key.partialCompareTo(at) == null, "an unscaled key is unordered against a time")
+		}
+	}
 	try {
 		writer.writeFrame(at, Bytes("late".encodeToByteArray()))
 		expect(false, "a timed frame on an untimed track is an error")

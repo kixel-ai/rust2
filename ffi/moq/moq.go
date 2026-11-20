@@ -166,6 +166,15 @@ func script() {
 	// untimed, so a timed frame is refused.
 	at := must(net.TimestampFromMillis(1500))
 	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
+	// Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+	second := must(net.TimestampFromSecs(1))
+	key := net.TimestampUnscaled(0)
+	order, ordered, err := second.PartialCompare(at)
+	expect(err == nil && ordered && order == -1, "1 s is before 1500 ms")
+	_, ordered, err = key.PartialCompare(at)
+	expect(err == nil && !ordered, "an unscaled key is unordered against a time")
+	second.Close()
+	key.Close()
 	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	expect(must(at.AsSecs()) == 1, "a lent timestamp stays usable")

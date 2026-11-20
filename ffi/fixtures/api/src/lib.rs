@@ -5066,6 +5066,40 @@ pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
 	v
 }
 
+/// A version: a record whose derived `Ord` is a total order, `major` first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Version {
+	pub major: u16,
+	pub minor: u16,
+}
+
+/// A quantity: an object whose hand-written `PartialOrd` leaves quantities of two units
+/// unordered, as moq's timestamps of two scales are, so it has no `Ord`.
+#[derive(Debug, PartialEq)]
+pub struct Quantity {
+	value: i64,
+	unit: char,
+}
+
+impl Quantity {
+	pub fn new(value: i64, unit: char) -> Quantity {
+		Quantity { value, unit }
+	}
+}
+
+impl PartialOrd for Quantity {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		(self.unit == other.unit).then(|| self.value.cmp(&other.value))
+	}
+}
+
+/// A tier: an enum whose derived `Ord` orders its variants as declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+	Low,
+	High,
+}
+
 /// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by
 /// Rust's, as a map keyed by it needs.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

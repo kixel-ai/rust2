@@ -31,7 +31,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 use crate::config;
 use crate::ir::{
 	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Held, Home, Int, Jni,
-	Literal, Mutability, Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
+	Literal, Mutability, Object, On, Order, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -1815,10 +1815,12 @@ impl<'tcx> Collector<'tcx> {
 				methods: Vec::new(),
 				// Its `Debug` is left out: Dart would name it as it names the `Debug` level,
 				// and it prints only what `Display` and the variant's name already say.
+				// Its `Ord` puts the more verbose level after the less.
 				traits: Traits {
 					clone: true,
 					eq: true,
 					hash: true,
+					ord: Order::Total,
 					display: true,
 					debug: false,
 					default: false,
@@ -1943,6 +1945,7 @@ impl<'tcx> Collector<'tcx> {
 					clone: true,
 					eq: true,
 					hash: true,
+					ord: Order::Total,
 					debug: true,
 					..Traits::default()
 				},
@@ -1954,6 +1957,7 @@ impl<'tcx> Collector<'tcx> {
 					clone: true,
 					eq: true,
 					hash: true,
+					ord: Order::Total,
 					display: true,
 					debug: true,
 					default: false,
@@ -2980,6 +2984,13 @@ impl<'tcx> Collector<'tcx> {
 					.must_apply_modulo_regions()
 			})
 		};
+		// `PartialOrd` with itself, as `PartialEq` is.
+		let partial_ord = tcx.lang_items().partial_ord_trait().is_some_and(|tr| {
+			let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(env);
+			infcx
+				.type_implements_trait(tr, [self_ty, self_ty], env)
+				.must_apply_modulo_regions()
+		});
 		let mut traits = Traits {
 			clone: implements(sym::Clone),
 			eq: tcx.lang_items().eq_trait().is_some_and(|tr| {
@@ -2989,6 +3000,11 @@ impl<'tcx> Collector<'tcx> {
 					.must_apply_modulo_regions()
 			}),
 			hash: implements(sym::Hash),
+			ord: match (partial_ord, implements(sym::Ord)) {
+				(false, _) => Order::None,
+				(true, false) => Order::Partial,
+				(true, true) => Order::Total,
+			},
 			display: implements(sym::Display),
 			debug: implements(sym::Debug),
 			default: implements(sym::Default),
@@ -5161,6 +5177,8 @@ impl<'tcx> Collector<'tcx> {
 			sym::Clone,
 			sym::PartialEq,
 			sym::Hash,
+			sym::PartialOrd,
+			sym::Ord,
 			sym::Debug,
 			rustc_span::sym::Display,
 		];
@@ -5168,7 +5186,13 @@ impl<'tcx> Collector<'tcx> {
 			.chain(lang.deref_trait())
 			.chain(lang.deref_mut_trait())
 			.collect();
-		let trait_ref = |tr: DefId, ty: Ty<'tcx>| match Some(tr) == tcx.get_diagnostic_item(sym::PartialEq) {
+		// The comparisons take the type twice, as `Self` and as the other side.
+		let paired = |tr: DefId| {
+			[sym::PartialEq, sym::PartialOrd]
+				.iter()
+				.any(|&name| Some(tr) == tcx.get_diagnostic_item(name))
+		};
+		let trait_ref = |tr: DefId, ty: Ty<'tcx>| match paired(tr) {
 			true => ty::TraitRef::new(tcx, tr, [ty, ty]),
 			false => ty::TraitRef::new(tcx, tr, [ty]),
 		};

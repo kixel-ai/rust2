@@ -104,7 +104,7 @@ Decided with the maintainer on 2026-11-18, in the per-language audit:
 - ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as
   decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),
   [speed](/quest/m1/ffi-speed/README.md), [rule cost](/quest/m1/ffi-rules/README.md),
-  [packaging](/quest/m1/ffi-packaging/README.md), [ordering](/quest/m1/ffi-ord.md), and
+  [packaging](/quest/m1/ffi-packaging/README.md), ordering (landed), and
   [stream adapters](/quest/m1/ffi-streams.md).
 - Dropped: a per-function contract in place of the whole-header hash, since moq links
   statically and the strict check is what fails loud; C layout `_Static_assert`s, since

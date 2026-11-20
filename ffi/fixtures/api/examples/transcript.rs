@@ -15,7 +15,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Waiter, Window,
+	Stamp, Tally, Tier, Version, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -960,6 +960,43 @@ fn main() {
 		"key {} {}",
 		a.hash_of() == api::Key::new("a").hash_of(),
 		a.hash_of() == b.hash_of()
+	);
+	// A version orders by its derived `Ord`, and its `<` by `PartialOrd`, which agrees.
+	let (v1, v2) = (Version { major: 1, minor: 2 }, Version { major: 1, minor: 10 });
+	println!(
+		"version {} {} {} {} {} {} {}",
+		v1 < v2,
+		v1 <= v2,
+		v1 > v2,
+		v1 >= v2,
+		v1.cmp(&v2) as i8,
+		v2.cmp(&v1) as i8,
+		v1.cmp(&v1) as i8
+	);
+	// A quantity orders by its hand-written `PartialOrd`, which leaves two units unordered.
+	let (m1, m2, g1) = (
+		api::Quantity::new(1, 'm'),
+		api::Quantity::new(2, 'm'),
+		api::Quantity::new(1, 'g'),
+	);
+	println!(
+		"quantity {} {} {} {} {} {} {} {} {}",
+		m1 < m2,
+		m1 <= m2,
+		m1 > m2,
+		m1 >= m2,
+		m1 <= api::Quantity::new(1, 'm'),
+		m1 < g1,
+		m1 <= g1,
+		m1 > g1,
+		m1 >= g1
+	);
+	println!(
+		"tier {} {} {} {}",
+		Tier::Low < Tier::High,
+		Tier::Low >= Tier::Low,
+		Tier::High.cmp(&Tier::Low) as i8,
+		Tier::Low.cmp(&Tier::High) as i8
 	);
 	println!(
 		"lossless ip {} {}",

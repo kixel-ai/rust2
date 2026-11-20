@@ -68,6 +68,18 @@ inline std::string flag(bool value) {
 	return value ? "true" : "false";
 }
 
+// Rust's `Ord` of two values: through `<=>` from C++20, which calls `cmp`, and before it
+// through `<`, which calls `partial_cmp`.
+template <class T>
+std::int8_t cmp(const T &a, const T &b) {
+#if defined(__cpp_lib_three_way_comparison)
+	auto order = a <=> b;
+	return order < 0 ? -1 : order > 0 ? 1 : 0;
+#else
+	return a < b ? -1 : b < a ? 1 : 0;
+#endif
+}
+
 // Zeros before `digits` up to `width`.
 inline std::string pad(std::string digits, int width) {
 	if (static_cast<int>(digits.size()) < width) {
@@ -1203,10 +1215,13 @@ impl Emitter<'_> {
 			Kind::Binary(op, a, b) => {
 				let (a, b) = (self.value(a, &a.ty, Place::Read), self.value(b, &b.ty, Place::Read));
 				let (op, arithmetic) = match op {
+					Op::Cmp => return format!("rs::cmp({a}, {b})"),
 					Op::Eq => ("==", false),
 					Op::Ne => ("!=", false),
 					Op::Lt => ("<", false),
+					Op::Le => ("<=", false),
 					Op::Gt => (">", false),
+					Op::Ge => (">=", false),
 					Op::And => ("&&", false),
 					Op::Add => ("+", true),
 					Op::Sub => ("-", true),

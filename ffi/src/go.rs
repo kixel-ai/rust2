@@ -42,7 +42,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Collection, Function, Home, Int, Literal, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -1846,6 +1846,65 @@ impl<'a> Gen<'a> {
 				body,
 			));
 		}
+		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `PartialCompare`, and with
+		// `Ord` its `cmp` as `Compare`, the shape `slices.SortFunc` takes.
+		for &suffix in crate::c::comparisons(t.ord) {
+			let (member, docs, zero, results, done) = match suffix {
+				"cmp" => (
+					"Compare",
+					"Compare is Rust's Ord: -1, 0, or 1 as self is less than, equal to, or greater than other.",
+					"0",
+					vec!["int".to_string()],
+					"return int(r_)",
+				),
+				_ => (
+					"PartialCompare",
+					"PartialCompare is Rust's PartialOrd: -1, 0, or 1 as self is less than, equal to, or greater than\nother, and false when the two are unordered.",
+					"0, false",
+					vec!["int".to_string(), "bool".to_string()],
+					"if r_ == 2 {\n\treturn 0, false{ok}\n}\nreturn int(r_), true",
+				),
+			};
+			let failed = |e: &str| format!("{zero}, {e}");
+			let (open, this) = match closable {
+				true => open(&failed),
+				false => open(&|_: &str| unreachable!("a value holding no object is never closed")),
+			};
+			let (results, ok) = match closable || limited {
+				true => ([results, vec!["error".to_string()]].concat(), ", nil"),
+				false => (results, ""),
+			};
+			let done = format!("{}{ok}", done.replace("{ok}", ok));
+			let sig = || sig(suffix, 2, Ty::Int(Int::I8));
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
+			let body = match (object, arena) {
+				(true, _) => format!(
+					"{open}{}\n{}{done}",
+					hold(&slot, "other", "o_", "os_", &closed),
+					checked(sig(), &[this, format!("(*C.{c})(o_)")], &failed)
+				),
+				(false, true) if closable => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\n{}{done}",
+					failed("a_.err"),
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, true) => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, false) => format!(
+					"{open}c_other_ := lower_{c}(other)\n{}{done}",
+					checked(sig(), &[this, "c_other_".to_string()], &failed)
+				),
+			};
+			methods.push(method(
+				docs,
+				member,
+				vec![("other".to_string(), name.clone())],
+				results,
+				body,
+			));
+		}
 		let default = t.default.then(|| {
 			let func = format!("{}Default", name.trim_start_matches('*'));
 			// A value that is not `Send` is made on a home, which its calls then run on.
@@ -1882,6 +1941,8 @@ impl<'a> Gen<'a> {
 					"GoString" => ("debug", "err_.Error()".to_string()),
 					"Clone" => ("clone", "nil, err_".to_string()),
 					"Equal" => ("eq", "false, err_".to_string()),
+					"Compare" => ("cmp", "0, err_".to_string()),
+					"PartialCompare" => ("partial_cmp", "0, false, err_".to_string()),
 					_ => ("default", format!("{zero}, err_")),
 				};
 				method.body = format!(
@@ -1962,6 +2023,8 @@ impl<'a> Gen<'a> {
 			(t.display, "String"),
 			(t.debug, "GoString"),
 			(t.eq, "Equal"),
+			(t.ord != Order::None, "PartialCompare"),
+			(t.ord == Order::Total, "Compare"),
 			(self.errored(&Type::Record(i)), "Error"),
 		];
 		let mut taken: BTreeSet<String> = (methods.iter())

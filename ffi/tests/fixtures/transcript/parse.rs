@@ -767,6 +767,7 @@ impl Scope<'_> {
 			syn::Expr::Field(f) => self.field(f),
 			syn::Expr::Struct(s) => self.structure(s, None),
 			syn::Expr::Binary(b) => self.binary(b),
+			syn::Expr::Cast(c) => self.ordering(c),
 			syn::Expr::Macro(m) if m.mac.path.is_ident("format") => {
 				Expr::new(Kind::Format(self.format(&m.mac)), Type::String)
 			}
@@ -1240,7 +1241,9 @@ impl Scope<'_> {
 			syn::BinOp::Eq(_) => Op::Eq,
 			syn::BinOp::Ne(_) => Op::Ne,
 			syn::BinOp::Lt(_) => Op::Lt,
+			syn::BinOp::Le(_) => Op::Le,
 			syn::BinOp::Gt(_) => Op::Gt,
+			syn::BinOp::Ge(_) => Op::Ge,
 			syn::BinOp::Add(_) => Op::Add,
 			syn::BinOp::Sub(_) => Op::Sub,
 			syn::BinOp::Mul(_) => Op::Mul,
@@ -1262,10 +1265,29 @@ impl Scope<'_> {
 			}
 		};
 		let ty = match op {
-			Op::Eq | Op::Ne | Op::Lt | Op::Gt | Op::And => Type::Bool,
+			Op::Eq | Op::Ne | Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::And => Type::Bool,
+			Op::Cmp => unreachable!("no operator is `cmp`"),
 			_ => unref(&left.ty).clone(),
 		};
 		Expr::new(Kind::Binary(op, Box::new(left), Box::new(right)), ty)
+	}
+
+	/// `a.cmp(&b) as i8`: Rust's `Ord` of two values of the API, as an integer, since
+	/// `Ordering` itself is no type of the subset.
+	fn ordering(&mut self, c: &syn::ExprCast) -> Expr {
+		let syn::Expr::MethodCall(m) = &*c.expr else {
+			fail(c, "a cast of anything but `cmp`")
+		};
+		if m.method != "cmp" || m.args.len() != 1 || !matches!(&*c.ty, syn::Type::Path(t) if t.path.is_ident("i8")) {
+			fail(c, "a cast of anything but `cmp` as i8");
+		}
+		let a = self.infer(&m.receiver);
+		let want = unref(&a.ty).clone();
+		if !matches!(want.base(), Type::Record(_) | Type::Enum(_) | Type::Object(_)) {
+			fail(c, "`cmp` of no type of the API");
+		}
+		let b = self.check(&m.args[0], &want);
+		Expr::new(Kind::Binary(Op::Cmp, Box::new(a), Box::new(b)), Type::Int(Int::I8))
 	}
 
 	fn field(&mut self, f: &syn::ExprField) -> Expr {

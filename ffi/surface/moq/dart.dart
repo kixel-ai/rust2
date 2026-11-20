@@ -179,11 +179,17 @@ final class TimeOverflow implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Timescale {
+final class Timescale implements Comparable<Timescale> {
 	@override String toString();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Timescale other);
+	bool operator <(Timescale other);
+	bool operator <=(Timescale other);
+	bool operator >(Timescale other);
+	bool operator >=(Timescale other);
+	@override int compareTo(Timescale other);
 	static Timescale get SECOND;
 	static Timescale get MILLI;
 	static Timescale get MICRO;
@@ -191,10 +197,16 @@ final class Timescale {
 	factory Timescale(U64 unitsPerSecond);
 	U64 asU64();
 }
-final class ClockInstant {
+final class ClockInstant implements Comparable<ClockInstant> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(ClockInstant other);
+	bool operator <(ClockInstant other);
+	bool operator <=(ClockInstant other);
+	bool operator >(ClockInstant other);
+	bool operator >=(ClockInstant other);
+	@override int compareTo(ClockInstant other);
 	static ClockInstant get ZERO;
 	factory ClockInstant.now();
 	RustDuration elapsed();
@@ -214,10 +226,16 @@ final class ClockElapsed implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class ClockWall {
+final class ClockWall implements Comparable<ClockWall> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(ClockWall other);
+	bool operator <(ClockWall other);
+	bool operator <=(ClockWall other);
+	bool operator >(ClockWall other);
+	bool operator >=(ClockWall other);
+	@override int compareTo(ClockWall other);
 	static ClockWall get UNIX_EPOCH;
 	static ClockWall get MOQ_EPOCH;
 	factory ClockWall.now();
@@ -463,10 +481,16 @@ final class StatsWithdrawals {
 	StatsWithdrawals add(StatsWithdrawals other);
 	bool regressed(StatsWithdrawals previous);
 }
-final class BandwidthRate {
+final class BandwidthRate implements Comparable<BandwidthRate> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(BandwidthRate other);
+	bool operator <(BandwidthRate other);
+	bool operator <=(BandwidthRate other);
+	bool operator >(BandwidthRate other);
+	bool operator >=(BandwidthRate other);
+	@override int compareTo(BandwidthRate other);
 	factory BandwidthRate.default_();
 	static BandwidthRate get ZERO;
 	factory BandwidthRate.fromBps(U64 bps);
@@ -491,12 +515,18 @@ final class FrameInfo {
 	const FrameInfo({required this.size, required this.timestamp});
 	String debug();
 }
-final class GroupInfo {
+final class GroupInfo implements Comparable<GroupInfo> {
 	final U64 start;
 	const GroupInfo({required this.start});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(GroupInfo other);
+	bool operator <(GroupInfo other);
+	bool operator <=(GroupInfo other);
+	bool operator >(GroupInfo other);
+	bool operator >=(GroupInfo other);
+	@override int compareTo(GroupInfo other);
 }
 final class TrackDelay {
 	final RustDuration? min;
@@ -509,10 +539,16 @@ final class TrackDelay {
 	TrackDelay withMin(RustDuration? min);
 	TrackDelay withMax(RustDuration? max);
 }
-final class TrackPosition {
+final class TrackPosition implements Comparable<TrackPosition> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(TrackPosition other);
+	bool operator <(TrackPosition other);
+	bool operator <=(TrackPosition other);
+	bool operator >(TrackPosition other);
+	bool operator >=(TrackPosition other);
+	@override int compareTo(TrackPosition other);
 	factory TrackPosition.default_();
 	U64 get groupGet;
 	TrackPosition groupSet(U64 value);
@@ -521,28 +557,46 @@ final class TrackPosition {
 	factory TrackPosition(U64 group, U64 frame);
 	factory TrackPosition.group(U64 group);
 }
-final class TrackRange {
+final class TrackRange implements Comparable<TrackRange> {
 	final TrackAnchor start;
 	final TrackAnchor? end;
 	const TrackRange({required this.start, required this.end});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(TrackRange other);
+	bool operator <(TrackRange other);
+	bool operator <=(TrackRange other);
+	bool operator >(TrackRange other);
+	bool operator >=(TrackRange other);
+	@override int compareTo(TrackRange other);
 	factory TrackRange.live();
 	factory TrackRange.oldest();
 }
-final class OriginCost {
+final class OriginCost implements Comparable<OriginCost> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(OriginCost other);
+	bool operator <(OriginCost other);
+	bool operator <=(OriginCost other);
+	bool operator >(OriginCost other);
+	bool operator >=(OriginCost other);
+	@override int compareTo(OriginCost other);
 	factory OriginCost.default_();
 	factory OriginCost(U64 cost);
 	U64 value();
 }
-final class OriginPriority {
+final class OriginPriority implements Comparable<OriginPriority> {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(OriginPriority other);
+	bool operator <(OriginPriority other);
+	bool operator <=(OriginPriority other);
+	bool operator >(OriginPriority other);
+	bool operator >=(OriginPriority other);
+	@override int compareTo(OriginPriority other);
 	factory OriginPriority.default_();
 	factory OriginPriority(int priority);
 	int value();
@@ -1178,11 +1232,17 @@ enum TrackCompression {
 	String debug();
 	factory TrackCompression.default_();
 }
-sealed class TrackAnchor {
+sealed class TrackAnchor implements Comparable<TrackAnchor> {
 	const TrackAnchor();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(TrackAnchor other);
+	bool operator <(TrackAnchor other);
+	bool operator <=(TrackAnchor other);
+	bool operator >(TrackAnchor other);
+	bool operator >=(TrackAnchor other);
+	@override int compareTo(TrackAnchor other);
 }
 final class TrackAnchorRelative extends TrackAnchor {
 	final U64 $0;
@@ -1979,7 +2039,7 @@ enum MoqSockUdpEcnCodepoint {
 	String debug();
 	static MoqSockUdpEcnCodepoint? fromBits(int x);
 }
-enum Level {
+enum Level implements Comparable<Level> {
 	trace(0),
 	debug(1),
 	info(2),
@@ -1987,6 +2047,12 @@ enum Level {
 	error(4),
 	const Level(this._c);
 	@override String toString();
+	int? partialCompareTo(Level other);
+	bool operator <(Level other);
+	bool operator <=(Level other);
+	bool operator >(Level other);
+	bool operator >=(Level other);
+	@override int compareTo(Level other);
 }
 final class Park extends _Object {
 	String debug();
@@ -2023,22 +2089,34 @@ final class Driver extends _Object {
 	String debug();
 	ClockInstant? poll(ClockInstant now, Waiter waiter);
 }
-final class Instance extends _Object {
+final class Instance extends _Object implements Comparable<Instance> {
 	@override String toString();
 	String debug();
 	Instance clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Instance other);
+	bool operator <(Instance other);
+	bool operator <=(Instance other);
+	bool operator >(Instance other);
+	bool operator >=(Instance other);
+	@override int compareTo(Instance other);
 	factory Instance.random();
 	String asStr();
 	bool isMinted();
 }
-final class Path extends _Object {
+final class Path extends _Object implements Comparable<Path> {
 	@override String toString();
 	String debug();
 	Path clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Path other);
+	bool operator <(Path other);
+	bool operator <=(Path other);
+	bool operator >(Path other);
+	bool operator >=(Path other);
+	@override int compareTo(Path other);
 	factory Path.default_();
 	factory Path(String s);
 	factory Path.fromStatic(String s);
@@ -2054,12 +2132,18 @@ final class Path extends _Object {
 	Path? tryResolve(PathRelative rel);
 	PathRelative? relative(Path base);
 }
-final class Pattern extends _Object {
+final class Pattern extends _Object implements Comparable<Pattern> {
 	@override String toString();
 	String debug();
 	Pattern clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Pattern other);
+	bool operator <(Pattern other);
+	bool operator <=(Pattern other);
+	bool operator >(Pattern other);
+	bool operator >=(Pattern other);
+	@override int compareTo(Pattern other);
 	factory Pattern.default_();
 	factory Pattern(List<Segment> segments);
 	factory Pattern.all();
@@ -2175,6 +2259,11 @@ final class Timestamp extends _Object {
 	Timestamp clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Timestamp other);
+	bool operator <(Timestamp other);
+	bool operator <=(Timestamp other);
+	bool operator >(Timestamp other);
+	bool operator >=(Timestamp other);
 	static Timestamp get ZERO;
 	factory Timestamp(U64 value, Timescale scale);
 	factory Timestamp.unscaled(U64 key);
@@ -2218,11 +2307,17 @@ final class Versions extends _Object {
 	bool contains(Version version);
 	List<Version> iter();
 }
-final class Specificity extends _Object {
+final class Specificity extends _Object implements Comparable<Specificity> {
 	String debug();
 	Specificity clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Specificity other);
+	bool operator <(Specificity other);
+	bool operator <=(Specificity other);
+	bool operator >(Specificity other);
+	bool operator >=(Specificity other);
+	@override int compareTo(Specificity other);
 }
 final class ClockClock extends _Object {
 	String debug();
@@ -2465,12 +2560,18 @@ final class MuxError extends _Object implements Exception {
 	String debug();
 	MuxError clone();
 }
-final class TokioDuration extends _Object {
+final class TokioDuration extends _Object implements Comparable<TokioDuration> {
 	@override String toString();
 	String debug();
 	TokioDuration clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(TokioDuration other);
+	bool operator <(TokioDuration other);
+	bool operator <=(TokioDuration other);
+	bool operator >(TokioDuration other);
+	bool operator >=(TokioDuration other);
+	@override int compareTo(TokioDuration other);
 	factory TokioDuration.default_();
 }
 final class TokioBackoff extends _Object {
@@ -7651,23 +7752,35 @@ final class MoqTokioQuicDemuxDatagram extends _Object {
 final class MoqSockDemuxPin extends _Object {
 	String debug();
 }
-final class Url extends _Object {
+final class Url extends _Object implements Comparable<Url> {
 	@override String toString();
 	String debug();
 	Url clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Url other);
+	bool operator <(Url other);
+	bool operator <=(Url other);
+	bool operator >(Url other);
+	bool operator >=(Url other);
+	@override int compareTo(Url other);
 	factory Url.parse(String input);
 }
 final class Json extends _Object {
 	factory Json.parse(String input);
 	String toText();
 }
-final class Instant extends _Object {
+final class Instant extends _Object implements Comparable<Instant> {
 	String debug();
 	Instant clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Instant other);
+	bool operator <(Instant other);
+	bool operator <=(Instant other);
+	bool operator >(Instant other);
+	bool operator >=(Instant other);
+	@override int compareTo(Instant other);
 }
 final class RustlsServerConfig extends _Object {
 	RustlsServerConfig clone();

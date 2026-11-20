@@ -125,6 +125,11 @@ Future<void> local() async {
   // so a timed frame is refused.
   final at = moq.Timestamp.fromMillis(moq.U64(1500));
   expect(at.asSecs() == moq.U64(1), '1500 ms is 1 s');
+  // Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
+  final second = moq.Timestamp.fromSecs(moq.U64(1));
+  final key = moq.Timestamp.unscaled(moq.U64(0));
+  expect(second < at && at > second && second.partialCompareTo(at) == -1, '1 s is before 1500 ms');
+  expect(!(key < at) && !(key >= at) && key.partialCompareTo(at) == null, 'an unscaled key is unordered against a time');
   throws<moq.Error>(
     () => writer.writeFrame(at, utf8.encode('late')),
     (e) => '$e' == "frame timestamp doesn't fit its track",

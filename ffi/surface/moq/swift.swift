@@ -261,10 +261,14 @@ public struct TimeOverflow: Sendable, CustomStringConvertible, CustomDebugString
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: TimeOverflow, b: TimeOverflow) -> Swift.Bool
 }
-public struct Timescale: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Hashable {
+public struct Timescale: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var description: Swift.String { get }
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Timescale, b: Timescale) -> Swift.Bool
+	@inlinable public static func < (a: Timescale, b: Timescale) -> Swift.Bool
+	@inlinable public static func <= (a: Timescale, b: Timescale) -> Swift.Bool
+	@inlinable public static func > (a: Timescale, b: Timescale) -> Swift.Bool
+	@inlinable public static func >= (a: Timescale, b: Timescale) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static var SECOND: Timescale { get }
 	@inlinable public static var MILLI: Timescale { get }
@@ -273,9 +277,13 @@ public struct Timescale: Sendable, CustomStringConvertible, CustomDebugStringCon
 	@inlinable public static func new(_ unitsPerSecond: Swift.UInt64) throws -> Timescale
 	@inlinable public func asU64() -> Swift.UInt64
 }
-public struct ClockInstant: Sendable, CustomDebugStringConvertible, Hashable {
+public struct ClockInstant: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClockInstant, b: ClockInstant) -> Swift.Bool
+	@inlinable public static func < (a: ClockInstant, b: ClockInstant) -> Swift.Bool
+	@inlinable public static func <= (a: ClockInstant, b: ClockInstant) -> Swift.Bool
+	@inlinable public static func > (a: ClockInstant, b: ClockInstant) -> Swift.Bool
+	@inlinable public static func >= (a: ClockInstant, b: ClockInstant) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static var ZERO: ClockInstant { get }
 	@inlinable public static func now() -> ClockInstant
@@ -295,9 +303,13 @@ public struct ClockElapsed: Sendable, CustomStringConvertible, CustomDebugString
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClockElapsed, b: ClockElapsed) -> Swift.Bool
 }
-public struct ClockWall: Sendable, CustomDebugStringConvertible, Hashable {
+public struct ClockWall: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClockWall, b: ClockWall) -> Swift.Bool
+	@inlinable public static func < (a: ClockWall, b: ClockWall) -> Swift.Bool
+	@inlinable public static func <= (a: ClockWall, b: ClockWall) -> Swift.Bool
+	@inlinable public static func > (a: ClockWall, b: ClockWall) -> Swift.Bool
+	@inlinable public static func >= (a: ClockWall, b: ClockWall) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static var UNIXEPOCH: ClockWall { get }
 	@inlinable public static var MOQEPOCH: ClockWall { get }
@@ -531,9 +543,13 @@ public struct StatsWithdrawals: Sendable, CustomDebugStringConvertible, Equatabl
 	@inlinable public mutating func add(_ other: StatsWithdrawals)
 	@inlinable public func regressed(_ previous: StatsWithdrawals) -> Swift.Bool
 }
-public struct BandwidthRate: Sendable, CustomDebugStringConvertible, Hashable {
+public struct BandwidthRate: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
+	@inlinable public static func < (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
+	@inlinable public static func <= (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
+	@inlinable public static func > (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
+	@inlinable public static func >= (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func `default`() -> BandwidthRate
 	@inlinable public static var ZERO: BandwidthRate { get }
@@ -558,11 +574,15 @@ public struct FrameInfo: Sendable {
 	@inlinable public init(size: Swift.UInt64, timestamp: Timestamp)
 	@inlinable public var debugDescription: Swift.String { get }
 }
-public struct GroupInfo: Sendable, CustomDebugStringConvertible, Hashable {
+public struct GroupInfo: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	public var start: Swift.UInt64
 	@inlinable public init(start: Swift.UInt64)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: GroupInfo, b: GroupInfo) -> Swift.Bool
+	@inlinable public static func < (a: GroupInfo, b: GroupInfo) -> Swift.Bool
+	@inlinable public static func <= (a: GroupInfo, b: GroupInfo) -> Swift.Bool
+	@inlinable public static func > (a: GroupInfo, b: GroupInfo) -> Swift.Bool
+	@inlinable public static func >= (a: GroupInfo, b: GroupInfo) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct TrackDelay: Sendable, CustomDebugStringConvertible, Equatable {
@@ -575,9 +595,13 @@ public struct TrackDelay: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public func withMin(_ min: RustDuration?) -> TrackDelay
 	@inlinable public func withMax(_ max: RustDuration?) -> TrackDelay
 }
-public struct TrackPosition: Sendable, CustomDebugStringConvertible, Hashable {
+public struct TrackPosition: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: TrackPosition, b: TrackPosition) -> Swift.Bool
+	@inlinable public static func < (a: TrackPosition, b: TrackPosition) -> Swift.Bool
+	@inlinable public static func <= (a: TrackPosition, b: TrackPosition) -> Swift.Bool
+	@inlinable public static func > (a: TrackPosition, b: TrackPosition) -> Swift.Bool
+	@inlinable public static func >= (a: TrackPosition, b: TrackPosition) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func `default`() -> TrackPosition
 	@inlinable public var groupGet: Swift.UInt64 { get }
@@ -587,26 +611,38 @@ public struct TrackPosition: Sendable, CustomDebugStringConvertible, Hashable {
 	@inlinable public static func new(_ group: Swift.UInt64, _ frame: Swift.UInt64) -> TrackPosition
 	@inlinable public static func group(_ group: Swift.UInt64) -> TrackPosition
 }
-public struct TrackRange: Sendable, CustomDebugStringConvertible, Hashable {
+public struct TrackRange: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	public var start: TrackAnchor
 	public var end: TrackAnchor?
 	@inlinable public init(start: TrackAnchor, end: TrackAnchor?)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: TrackRange, b: TrackRange) -> Swift.Bool
+	@inlinable public static func < (a: TrackRange, b: TrackRange) -> Swift.Bool
+	@inlinable public static func <= (a: TrackRange, b: TrackRange) -> Swift.Bool
+	@inlinable public static func > (a: TrackRange, b: TrackRange) -> Swift.Bool
+	@inlinable public static func >= (a: TrackRange, b: TrackRange) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func live() -> TrackRange
 	@inlinable public static func oldest() -> TrackRange
 }
-public struct OriginCost: Sendable, CustomDebugStringConvertible, Equatable {
+public struct OriginCost: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: OriginCost, b: OriginCost) -> Swift.Bool
+	@inlinable public static func < (a: OriginCost, b: OriginCost) -> Swift.Bool
+	@inlinable public static func <= (a: OriginCost, b: OriginCost) -> Swift.Bool
+	@inlinable public static func > (a: OriginCost, b: OriginCost) -> Swift.Bool
+	@inlinable public static func >= (a: OriginCost, b: OriginCost) -> Swift.Bool
 	@inlinable public static func `default`() -> OriginCost
 	@inlinable public static func new(_ cost: Swift.UInt64) -> OriginCost
 	@inlinable public func value() -> Swift.UInt64
 }
-public struct OriginPriority: Sendable, CustomDebugStringConvertible, Hashable {
+public struct OriginPriority: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: OriginPriority, b: OriginPriority) -> Swift.Bool
+	@inlinable public static func < (a: OriginPriority, b: OriginPriority) -> Swift.Bool
+	@inlinable public static func <= (a: OriginPriority, b: OriginPriority) -> Swift.Bool
+	@inlinable public static func > (a: OriginPriority, b: OriginPriority) -> Swift.Bool
+	@inlinable public static func >= (a: OriginPriority, b: OriginPriority) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func `default`() -> OriginPriority
 	@inlinable public static func new(_ priority: Swift.Int8) -> OriginPriority
@@ -1126,12 +1162,16 @@ public enum TrackCompression: Sendable, CustomDebugStringConvertible, Hashable {
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func `default`() -> TrackCompression
 }
-public enum TrackAnchor: Sendable, CustomDebugStringConvertible, Hashable {
+public enum TrackAnchor: Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	case relative(Swift.UInt64)
 	case oldest
 	case time(Swift.UInt64)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: TrackAnchor, b: TrackAnchor) -> Swift.Bool
+	@inlinable public static func < (a: TrackAnchor, b: TrackAnchor) -> Swift.Bool
+	@inlinable public static func <= (a: TrackAnchor, b: TrackAnchor) -> Swift.Bool
+	@inlinable public static func > (a: TrackAnchor, b: TrackAnchor) -> Swift.Bool
+	@inlinable public static func >= (a: TrackAnchor, b: TrackAnchor) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public enum TrackOrder: Sendable, CustomDebugStringConvertible, Hashable {
@@ -1585,7 +1625,7 @@ public enum MoqSockUdpEcnCodepoint: Sendable, CustomDebugStringConvertible, Equa
 	@inlinable public static func == (a: MoqSockUdpEcnCodepoint, b: MoqSockUdpEcnCodepoint) -> Swift.Bool
 	@inlinable public static func fromBits(_ x: Swift.UInt8) -> MoqSockUdpEcnCodepoint?
 }
-public enum Level: Sendable, CustomStringConvertible, Hashable {
+public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case trace
 	case debug
 	case info
@@ -1593,6 +1633,10 @@ public enum Level: Sendable, CustomStringConvertible, Hashable {
 	case error
 	@inlinable public var description: Swift.String { get }
 	@inlinable public static func == (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func < (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func <= (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func > (a: Level, b: Level) -> Swift.Bool
+	@inlinable public static func >= (a: Level, b: Level) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct Park: ~Copyable, @unchecked Sendable {
@@ -1635,6 +1679,10 @@ public struct Instance: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Instance
 	@inlinable public static func == (a: borrowing Instance, b: borrowing Instance) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Instance, b: borrowing Instance) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Instance, b: borrowing Instance) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Instance, b: borrowing Instance) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Instance, b: borrowing Instance) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func random() -> Instance
 	@inlinable public func asStr() throws -> Swift.String
@@ -1645,6 +1693,10 @@ public struct Path: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Path
 	@inlinable public static func == (a: borrowing Path, b: borrowing Path) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Path, b: borrowing Path) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Path, b: borrowing Path) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Path, b: borrowing Path) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Path, b: borrowing Path) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func `default`() -> Path
 	@inlinable public static func new(_ s: Swift.String) throws -> Path
@@ -1666,6 +1718,10 @@ public struct Pattern: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Pattern
 	@inlinable public static func == (a: borrowing Pattern, b: borrowing Pattern) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Pattern, b: borrowing Pattern) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Pattern, b: borrowing Pattern) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Pattern, b: borrowing Pattern) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Pattern, b: borrowing Pattern) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func `default`() -> Pattern
 	@inlinable public static func new(_ segments: [Segment]) throws -> Pattern
@@ -1780,6 +1836,10 @@ public final class Timestamp: @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Timestamp
 	@inlinable public static func == (a: Timestamp, b: Timestamp) throws -> Swift.Bool
+	@inlinable public static func < (a: Timestamp, b: Timestamp) throws -> Swift.Bool
+	@inlinable public static func <= (a: Timestamp, b: Timestamp) throws -> Swift.Bool
+	@inlinable public static func > (a: Timestamp, b: Timestamp) throws -> Swift.Bool
+	@inlinable public static func >= (a: Timestamp, b: Timestamp) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static var ZERO: Timestamp { get }
 	@inlinable public static func new(_ value: Swift.UInt64, _ scale: Timescale) throws -> Timestamp
@@ -1824,10 +1884,14 @@ public struct Versions: ~Copyable, @unchecked Sendable {
 	@inlinable public func contains(_ version: Version) throws -> Swift.Bool
 	@inlinable public func iter() throws -> [Version]
 }
-public final class Specificity: @unchecked Sendable, CustomDebugStringConvertible, Hashable {
+public final class Specificity: @unchecked Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Specificity
 	@inlinable public static func == (a: Specificity, b: Specificity) -> Swift.Bool
+	@inlinable public static func < (a: Specificity, b: Specificity) -> Swift.Bool
+	@inlinable public static func <= (a: Specificity, b: Specificity) -> Swift.Bool
+	@inlinable public static func > (a: Specificity, b: Specificity) -> Swift.Bool
+	@inlinable public static func >= (a: Specificity, b: Specificity) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct ClockClock: ~Copyable, @unchecked Sendable {
@@ -2081,11 +2145,15 @@ public final class MuxError: @unchecked Sendable, CustomStringConvertible, Custo
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> MuxError
 }
-public final class TokioDuration: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible, Hashable {
+public final class TokioDuration: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var description: Swift.String { get }
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> TokioDuration
 	@inlinable public static func == (a: TokioDuration, b: TokioDuration) -> Swift.Bool
+	@inlinable public static func < (a: TokioDuration, b: TokioDuration) -> Swift.Bool
+	@inlinable public static func <= (a: TokioDuration, b: TokioDuration) -> Swift.Bool
+	@inlinable public static func > (a: TokioDuration, b: TokioDuration) -> Swift.Bool
+	@inlinable public static func >= (a: TokioDuration, b: TokioDuration) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 	@inlinable public static func `default`() -> TokioDuration
 }
@@ -7204,6 +7272,10 @@ public struct Url: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> Url
 	@inlinable public static func == (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func < (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func <= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func > (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
+	@inlinable public static func >= (a: borrowing Url, b: borrowing Url) throws -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func parse(_ input: Swift.String) throws -> Url
 }
@@ -7211,10 +7283,14 @@ public struct Json: ~Copyable, @unchecked Sendable {
 	@inlinable public static func parse(_ input: Swift.String) throws -> Json
 	@inlinable public func toText() throws -> Swift.String
 }
-public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable {
+public final class Instant: @unchecked Sendable, CustomDebugStringConvertible, Hashable, Comparable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Instant
 	@inlinable public static func == (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func < (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func <= (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func > (a: Instant, b: Instant) -> Swift.Bool
+	@inlinable public static func >= (a: Instant, b: Instant) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
 public struct RustlsServerConfig: ~Copyable, @unchecked Sendable {

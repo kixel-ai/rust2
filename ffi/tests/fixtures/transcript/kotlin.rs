@@ -3,7 +3,7 @@
 
 use std::fmt::Write;
 
-use super::ir::{Access, Collection, Int, Mutability, Receiver, Type};
+use super::ir::{Access, Collection, Int, Mutability, Order, Receiver, Type};
 use super::{
 	Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, each_expr, unref, walk,
 };
@@ -693,11 +693,25 @@ impl Emitter<'_> {
 			Kind::Binary(op, a, b) => {
 				let ty = unref(&a.ty).base().clone();
 				let (a, b) = (self.value(a, &ty, out), self.value(b, &ty, out));
+				// A partial order has no `compareTo`, only `partialCompareTo`, null when unordered.
+				if self.t.api.traits(&ty).is_some_and(|t| t.ord == Order::Partial)
+					&& let Some(test) = match op {
+						Op::Lt => Some("it == -1"),
+						Op::Le => Some("it <= 0"),
+						Op::Gt => Some("it == 1"),
+						Op::Ge => Some("it >= 0"),
+						_ => None,
+					} {
+					return format!("({a}.partialCompareTo({b})?.let {{ {test} }} ?: false)");
+				}
 				let sym = match op {
+					Op::Cmp => return format!("Integer.signum({a}.compareTo({b})).toByte()"),
 					Op::Eq => "==",
 					Op::Ne => "!=",
 					Op::Lt => "<",
+					Op::Le => "<=",
 					Op::Gt => ">",
+					Op::Ge => ">=",
 					Op::Add => "+",
 					Op::Sub => "-",
 					Op::Mul => "*",

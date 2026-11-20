@@ -127,9 +127,11 @@ class ArrayU8x6(bytes: ByteArray) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
-@kotlin.jvm.JvmInline value class Timescale internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class Timescale internal constructor(internal val bits: Long) : kotlin.Comparable<Timescale> {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.Timescale): kotlin.Int?
+	override fun compareTo(other: moq.Timescale): kotlin.Int
 	fun asU64(): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic val SECOND: moq.Timescale
@@ -139,8 +141,10 @@ class ArrayU8x6(bytes: ByteArray) {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
-@kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) : kotlin.Comparable<ClockInstant> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.ClockInstant): kotlin.Int?
+	override fun compareTo(other: moq.ClockInstant): kotlin.Int
 	fun elapsed(): moq.Duration
 	fun durationSince(earlier: moq.ClockInstant): moq.Duration
 	fun checkedDurationSince(earlier: moq.ClockInstant): moq.Duration?
@@ -160,8 +164,10 @@ class ArrayU8x6(bytes: ByteArray) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 }
-@kotlin.jvm.JvmInline value class ClockWall internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class ClockWall internal constructor(internal val bits: Long) : kotlin.Comparable<ClockWall> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.ClockWall): kotlin.Int?
+	override fun compareTo(other: moq.ClockWall): kotlin.Int
 	fun checkedDurationSince(earlier: moq.ClockWall): moq.Duration?
 	fun saturatingDurationSince(earlier: moq.ClockWall): moq.Duration
 	fun checkedAdd(duration: moq.Duration): moq.ClockWall?
@@ -426,8 +432,10 @@ class StatsWithdrawals internal constructor() {
 		@kotlin.jvm.JvmStatic fun default(): moq.StatsWithdrawals
 	}
 }
-@kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) : kotlin.Comparable<BandwidthRate> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.BandwidthRate): kotlin.Int?
+	override fun compareTo(other: moq.BandwidthRate): kotlin.Int
 	fun asBps(): kotlin.ULong
 	fun scaled(factor: kotlin.Double): moq.BandwidthRate
 	fun absDiff(other: moq.BandwidthRate): moq.BandwidthRate
@@ -445,8 +453,10 @@ data class DatagramDatagram(val sequence: kotlin.ULong, val timestamp: moq.Times
 data class FrameInfo(val size: kotlin.ULong, val timestamp: moq.Timestamp) {
 	fun debug(): kotlin.String
 }
-data class GroupInfo(val start: kotlin.ULong) {
+data class GroupInfo(val start: kotlin.ULong) : kotlin.Comparable<GroupInfo> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.GroupInfo): kotlin.Int?
+	override fun compareTo(other: moq.GroupInfo): kotlin.Int
 }
 data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
 	fun debug(): kotlin.String
@@ -456,10 +466,12 @@ data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
 		@kotlin.jvm.JvmStatic fun default(): moq.TrackDelay
 	}
 }
-class TrackPosition internal constructor() {
+class TrackPosition internal constructor() : kotlin.Comparable<TrackPosition> {
 	fun debug(): kotlin.String
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.TrackPosition): kotlin.Int?
+	override fun compareTo(other: moq.TrackPosition): kotlin.Int
 	val groupGet: kotlin.ULong
 	fun groupSet(value: kotlin.ULong): moq.TrackPosition
 	val frameGet: kotlin.ULong
@@ -470,23 +482,29 @@ class TrackPosition internal constructor() {
 		@kotlin.jvm.JvmStatic fun group(group: kotlin.ULong): moq.TrackPosition
 	}
 }
-data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
+data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) : kotlin.Comparable<TrackRange> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.TrackRange): kotlin.Int?
+	override fun compareTo(other: moq.TrackRange): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic fun live(): moq.TrackRange
 		@kotlin.jvm.JvmStatic fun oldest(): moq.TrackRange
 	}
 }
-@kotlin.jvm.JvmInline value class OriginCost internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class OriginCost internal constructor(internal val bits: Long) : kotlin.Comparable<OriginCost> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.OriginCost): kotlin.Int?
+	override fun compareTo(other: moq.OriginCost): kotlin.Int
 	fun value(): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.OriginCost
 		@kotlin.jvm.JvmStatic fun new(cost: kotlin.ULong): moq.OriginCost
 	}
 }
-@kotlin.jvm.JvmInline value class OriginPriority internal constructor(internal val bits: Long) {
+@kotlin.jvm.JvmInline value class OriginPriority internal constructor(internal val bits: Long) : kotlin.Comparable<OriginPriority> {
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.OriginPriority): kotlin.Int?
+	override fun compareTo(other: moq.OriginPriority): kotlin.Int
 	fun value(): kotlin.Byte
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.OriginPriority
@@ -906,11 +924,13 @@ enum class TrackCompression(internal val value: Int) {
 		@kotlin.jvm.JvmStatic fun default(): moq.TrackCompression
 	}
 }
-sealed class TrackAnchor {
+sealed class TrackAnchor : kotlin.Comparable<TrackAnchor> {
 	data class Relative(val _0: kotlin.ULong) : TrackAnchor()
 	data object Oldest : TrackAnchor()
 	data class Time(val _0: kotlin.ULong) : TrackAnchor()
 	fun debug(): kotlin.String
+	fun partialCompareTo(other: moq.TrackAnchor): kotlin.Int?
+	override fun compareTo(other: moq.TrackAnchor): kotlin.Int
 }
 enum class TrackOrder(internal val value: Int) {
 	ASCENDING(0),
@@ -1359,6 +1379,7 @@ enum class Level(internal val value: Int) {
 	WARN(3),
 	ERROR(4);
 	final override fun toString(): kotlin.String
+	fun partialCompareTo(other: moq.Level): kotlin.Int?
 	companion object {}
 }
 class Park internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1407,26 +1428,30 @@ class Driver internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun debug(): kotlin.String
 	@kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
-class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instance> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): moq.Instance
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Instance): kotlin.Int?
+	override fun compareTo(other: moq.Instance): kotlin.Int
 	fun asStr(): kotlin.String
 	fun isMinted(): kotlin.Boolean
 	companion object {
 		@kotlin.jvm.JvmStatic fun random(): moq.Instance
 	}
 }
-class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Path> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): moq.Path
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Path): kotlin.Int?
+	override fun compareTo(other: moq.Path): kotlin.Int
 	fun hasPrefix(prefix: moq.Path): kotlin.Boolean
 	fun stripPrefix(prefix: moq.Path): moq.Path?
 	fun head(n: kotlin.ULong): moq.Path?
@@ -1444,13 +1469,15 @@ class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 		@kotlin.jvm.JvmStatic fun empty(): moq.Path
 	}
 }
-class Pattern internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Pattern internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Pattern> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): moq.Pattern
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Pattern): kotlin.Int?
+	override fun compareTo(other: moq.Pattern): kotlin.Int
 	fun asStr(): kotlin.String
 	fun segments(): kotlin.collections.List<moq.Segment>
 	fun head(): kotlin.String
@@ -1582,6 +1609,7 @@ class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun clone(): moq.Timestamp
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Timestamp): kotlin.Int?
 	fun value(): kotlin.ULong
 	fun scale(): moq.Timescale?
 	fun isZero(): kotlin.Boolean
@@ -1633,12 +1661,14 @@ class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 		@kotlin.jvm.JvmStatic fun all(): moq.Versions
 	}
 }
-class Specificity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Specificity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Specificity> {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.Specificity
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Specificity): kotlin.Int?
+	override fun compareTo(other: moq.Specificity): kotlin.Int
 }
 class ClockClock internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -1931,13 +1961,15 @@ class MuxError internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun debug(): kotlin.String
 	fun clone(): moq.MuxError
 }
-class TokioDuration internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class TokioDuration internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<TokioDuration> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): moq.TokioDuration
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.TokioDuration): kotlin.Int?
+	override fun compareTo(other: moq.TokioDuration): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.TokioDuration
 	}
@@ -7957,13 +7989,15 @@ class MoqSockDemuxPin internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun close()
 	fun debug(): kotlin.String
 }
-class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Url> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): moq.Url
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Url): kotlin.Int?
+	override fun compareTo(other: moq.Url): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): moq.Url
 	}
@@ -7975,12 +8009,14 @@ class Json internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): moq.Json
 	}
 }
-class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instant> {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.Instant
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: moq.Instant): kotlin.Int?
+	override fun compareTo(other: moq.Instant): kotlin.Int
 }
 class RustlsServerConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()

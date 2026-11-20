@@ -33,6 +33,46 @@ namespace detail {
 
 struct access;
 
+// The operators of a `partial_cmp`'s result: -1 less, 0 equal, 1 greater, or 2 when
+// unordered, which none of them is.
+inline bool less(::std::int8_t c) noexcept {
+	return c == -1;
+}
+
+inline bool less_equal(::std::int8_t c) noexcept {
+	return c == -1 || c == 0;
+}
+
+inline bool greater(::std::int8_t c) noexcept {
+	return c == 1;
+}
+
+inline bool greater_equal(::std::int8_t c) noexcept {
+	return c == 0 || c == 1;
+}
+
+#if defined(__cpp_lib_three_way_comparison)
+// A `partial_cmp`'s result as C++20's ordering of it.
+inline ::std::partial_ordering partial_ordering(::std::int8_t c) noexcept {
+	switch (c) {
+	case -1:
+		return ::std::partial_ordering::less;
+	case 0:
+		return ::std::partial_ordering::equivalent;
+	case 1:
+		return ::std::partial_ordering::greater;
+	default:
+		return ::std::partial_ordering::unordered;
+	}
+}
+
+// An `Ord`'s `cmp`: weak, since Rust's `Equal` promises agreement with `==` alone, not
+// that equal values can stand in for each other.
+inline ::std::weak_ordering weak_ordering(::std::int8_t c) noexcept {
+	return c < 0 ? ::std::weak_ordering::less : c > 0 ? ::std::weak_ordering::greater : ::std::weak_ordering::equivalent;
+}
+#endif
+
 // A `[u8; N]`'s C struct, of its bytes, and back.
 template <class C, ::std::size_t N> C lower_array(const ::std::array<::std::uint8_t, N> &a) noexcept {
 	static_assert(sizeof(C::items) == N, "an array's C struct holds its N bytes");

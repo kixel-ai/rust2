@@ -1369,25 +1369,27 @@ impl Emitter<'_> {
 		}
 		let (a, b) = (self.expr(a), self.expr(b));
 		let operand = unref(&a.ty).base().clone();
+		// A value of the API compares through its C function, a record or an enum by address.
+		let by_address = match &operand {
+			Type::Record(_) | Type::Enum(_) => Some(true),
+			Type::Object(_) => Some(false),
+			_ => None,
+		};
+		let compare = |s: &mut Self, suffix: &str, ty: &Type| {
+			let by_address = by_address.expect("a value of the API");
+			let name = format!("{}_{suffix}", s.type_name(&operand));
+			let (a, b) = match by_address {
+				true => (s.place(a.clone()), s.place(b.clone())),
+				false => (a.clone(), b.clone()),
+			};
+			let amp = if by_address { "&" } else { "" };
+			let call = s.invoke(&name, vec![format!("{amp}{}", a.c), format!("{amp}{}", b.c)]);
+			s.bound(call, ty).c
+		};
 		let c = match op {
 			Op::Eq | Op::Ne => {
-				let equal = match &operand {
-					Type::Record(_) => Some(true),
-					Type::Enum(_) => Some(true),
-					Type::Object(_) => Some(false),
-					_ => None,
-				};
-				let eq = match equal {
-					Some(by_address) => {
-						let name = format!("{}_eq", self.type_name(&operand));
-						let (a, b) = match by_address {
-							true => (self.place(a), self.place(b)),
-							false => (a, b),
-						};
-						let amp = if by_address { "&" } else { "" };
-						let call = self.invoke(&name, vec![format!("{amp}{}", a.c), format!("{amp}{}", b.c)]);
-						self.bound(call, &Type::Bool).c
-					}
+				let eq = match by_address {
+					Some(_) => compare(self, "eq", &Type::Bool),
 					None => format!("({} == {})", a.c, b.c),
 				};
 				match op {
@@ -1395,8 +1397,21 @@ impl Emitter<'_> {
 					_ => format!("(!{eq})"),
 				}
 			}
+			// `partial_cmp` is -1, 0, 1, or 2 when unordered.
+			Op::Lt | Op::Le | Op::Gt | Op::Ge if by_address.is_some() => {
+				let r = compare(self, "partial_cmp", &Type::Int(Int::I8));
+				match op {
+					Op::Lt => format!("({r} == -1)"),
+					Op::Le => format!("({r} == -1 || {r} == 0)"),
+					Op::Gt => format!("({r} == 1)"),
+					_ => format!("({r} == 0 || {r} == 1)"),
+				}
+			}
+			Op::Cmp => compare(self, "cmp", &Type::Int(Int::I8)),
 			Op::Lt => format!("({} < {})", a.c, b.c),
+			Op::Le => format!("({} <= {})", a.c, b.c),
 			Op::Gt => format!("({} > {})", a.c, b.c),
+			Op::Ge => format!("({} >= {})", a.c, b.c),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let symbol = match op {
 					Op::Add => "+",

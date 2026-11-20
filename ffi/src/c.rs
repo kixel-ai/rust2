@@ -6,7 +6,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Sig, Ty};
-use crate::ir::{Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Function, Int, Literal, Order, Receiver, Traits, Type};
 
 /// The header for `abi`, as `<prefix>.h`, its contract: a hash of what it declares, which
 /// the library returns from `<prefix>_contract`, and the C names it gives each item.
@@ -332,6 +332,11 @@ impl Header<'_> {
 			if t.hash {
 				self.line(format!("uint64_t {name}_hash(const {name} *self{status});"));
 			}
+			for suffix in comparisons(t.ord) {
+				self.line(format!(
+					"int8_t {name}_{suffix}(const {name} *a, const {name} *b{status});"
+				));
+			}
 			if t.display {
 				self.line(format!("{p}_buf {name}_to_string(const {name} *self{status});"));
 			}
@@ -502,6 +507,9 @@ impl Header<'_> {
 		}
 		if traits.hash {
 			self.line(format!("uint64_t {name}_hash({this}{status});"));
+		}
+		for suffix in comparisons(traits.ord) {
+			self.line(format!("int8_t {name}_{suffix}({a}, {b}{status});"));
 		}
 		if traits.display {
 			self.line(format!("{p}_buf {name}_to_string({this}{status});"));
@@ -686,6 +694,16 @@ fn comment(docs: &str, indent: &str) -> String {
 		out.push('\n');
 	}
 	out
+}
+
+/// The C suffixes of the comparisons a type ordered by `ord` exports: `partial_cmp` for any
+/// `PartialOrd`, and `cmp` too for `Ord`.
+pub(crate) fn comparisons(ord: Order) -> &'static [&'static str] {
+	match ord {
+		Order::None => &[],
+		Order::Partial => &["partial_cmp"],
+		Order::Total => &["partial_cmp", "cmp"],
+	}
 }
 
 fn has(traits: Traits) -> bool {

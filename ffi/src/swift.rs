@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Int, Literal, Mutability, On, Order, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -929,8 +929,38 @@ impl<'a> Gen<'a> {
 				),
 			}
 		};
+		// The body calling `{c}_<suffix>` of `a` and `b`, returning `lift` of its result.
+		let binary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, lift),
+				(true, false) => {
+					let with = |h: &str| match status {
+						true => format!("try {h}.handle.with(\"{what}\")"),
+						false => format!("{h}.handle.with"),
+					};
+					format!(
+						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
+						with("a"),
+						with("b"),
+						call(&format!("{what}(a_, b_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
+					value(&what),
+					lower.replacen("self.", "a.", 1),
+					lower.replacen("self.", "b.", 1),
+					call(&format!("{what}(&ca_, &cb_"), &what, lift)
+				),
+			}
+		};
 		let throws = match status {
 			true => " throws",
+			false => "",
+		};
+		let borrowing = match unique {
+			true => "borrowing ",
 			false => "",
 		};
 		// A property's body, in a getter that throws if the call can.
@@ -975,37 +1005,38 @@ impl<'a> Gen<'a> {
 					false => "Equatable",
 				});
 			}
-			let what = format!("{c}_eq");
 			let same = |r: &str| r.to_string();
-			let compare = match (object, unique) {
-				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, &same),
-				(true, false) => {
-					let with = |h: &str| match status {
-						true => format!("try {h}.handle.with(\"{what}\")"),
-						false => format!("{h}.handle.with"),
-					};
-					format!(
-						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
-						with("a"),
-						with("b"),
-						call(&format!("{what}(a_, b_"), &what, &same).replace("\n\t\t", "\n\t\t\t")
-					)
-				}
-				(false, _) => format!(
-					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
-					value(&what),
-					lower.replacen("self.", "a.", 1),
-					lower.replacen("self.", "b.", 1),
-					call(&format!("{what}(&ca_, &cb_"), &what, &same)
-				),
-			};
-			let borrowing = match unique {
-				true => "borrowing ",
-				false => "",
-			};
+			let compare = binary("eq", &same);
 			body.push(format!(
 				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
 			));
+		}
+		// `<` and its kin through Rust's `partial_cmp`, as Rust's are: -1, 0, 1, or 2 when
+		// unordered, which none of them is. A total order is `Comparable`, whose other
+		// operators these replace.
+		if t.ord != Order::None {
+			if t.ord == Order::Total && !status {
+				protocols.push("Comparable");
+			}
+			let ordering = |r: &str| r.to_string();
+			body.push(format!(
+				"\t/// Rust's `partial_cmp`: -1, 0, 1, or 2 when unordered.\n\tstatic func _partialCmp(_ a: {borrowing}{name}, _ b: {borrowing}{name}){throws} -> Swift.Int8 {{\n\t\t{}\n\t}}\n",
+				binary("partial_cmp", &ordering)
+			));
+			let try_ = match status {
+				true => "try ",
+				false => "",
+			};
+			for (op, test) in [
+				("<", "c_ == -1"),
+				("<=", "c_ == -1 || c_ == 0"),
+				(">", "c_ == 1"),
+				(">=", "c_ == 0 || c_ == 1"),
+			] {
+				body.push(format!(
+					"\tpublic static func {op} (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\tlet c_ = {try_}_partialCmp(a, b)\n\t\treturn {test}\n\t}}\n"
+				));
+			}
 		}
 		if t.hash {
 			members.push("hash(into:)".to_string());

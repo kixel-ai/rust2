@@ -607,6 +607,20 @@ final class Qualifiers {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Version implements Comparable<Version> {
+	final int major;
+	final int minor;
+	const Version({required this.major, required this.minor});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Version other);
+	bool operator <(Version other);
+	bool operator <=(Version other);
+	bool operator >(Version other);
+	bool operator >=(Version other);
+	@override int compareTo(Version other);
+}
 final class PolarPoint {
 	final int turns;
 	final int distance;
@@ -915,6 +929,18 @@ final class BuiltinNative extends Builtin {
 	final double $0;
 	const BuiltinNative(this.$0);
 }
+enum Tier implements Comparable<Tier> {
+	low(0),
+	high(1),
+	const Tier(this._c);
+	String debug();
+	int? partialCompareTo(Tier other);
+	bool operator <(Tier other);
+	bool operator <=(Tier other);
+	bool operator >(Tier other);
+	bool operator >=(Tier other);
+	@override int compareTo(Tier other);
+}
 sealed class ClashCandidate {
 	const ClashCandidate();
 	String debug();
@@ -928,7 +954,7 @@ final class ClashCandidateMatch extends ClashCandidate {
 	final int $0;
 	const ClashCandidateMatch(this.$0);
 }
-enum Level {
+enum Level implements Comparable<Level> {
 	trace(0),
 	debug(1),
 	info(2),
@@ -936,6 +962,12 @@ enum Level {
 	error(4),
 	const Level(this._c);
 	@override String toString();
+	int? partialCompareTo(Level other);
+	bool operator <(Level other);
+	bool operator <=(Level other);
+	bool operator >(Level other);
+	bool operator >=(Level other);
+	@override int compareTo(Level other);
 }
 final class Board extends _Object {
 	factory Board(List<(String, Counter)> counters);
@@ -1342,6 +1374,17 @@ final class C extends _Object {
 	@override int get hashCode;
 	factory C(int value);
 }
+final class Quantity extends _Object {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int? partialCompareTo(Quantity other);
+	bool operator <(Quantity other);
+	bool operator <=(Quantity other);
+	bool operator >(Quantity other);
+	bool operator >=(Quantity other);
+	factory Quantity(int value, String unit);
+}
 final class Key extends _Object {
 	String debug();
 	Key clone();
@@ -1368,23 +1411,35 @@ final class TlsSession extends _Object {
 	String alpn();
 	TlsPolicyLifetime lifetime();
 }
-final class Url extends _Object {
+final class Url extends _Object implements Comparable<Url> {
 	@override String toString();
 	String debug();
 	Url clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Url other);
+	bool operator <(Url other);
+	bool operator <=(Url other);
+	bool operator >(Url other);
+	bool operator >=(Url other);
+	@override int compareTo(Url other);
 	factory Url.parse(String input);
 }
 final class Json extends _Object {
 	factory Json.parse(String input);
 	String toText();
 }
-final class Instant extends _Object {
+final class Instant extends _Object implements Comparable<Instant> {
 	String debug();
 	Instant clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	int? partialCompareTo(Instant other);
+	bool operator <(Instant other);
+	bool operator <=(Instant other);
+	bool operator >(Instant other);
+	bool operator >=(Instant other);
+	@override int compareTo(Instant other);
 }
 final class StdIoError extends _Object {
 }
