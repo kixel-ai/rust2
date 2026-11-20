@@ -4794,6 +4794,44 @@ pub struct DoubleArray {
 	pub len: u32,
 }
 
+/// The value of `errno`, a macro `<cerrno>` defines: a C++ function of this name must not
+/// be rewritten as `(*__errno_location ())`.
+pub fn errno() -> i32 {
+	7
+}
+
+/// A function named as `assert`, which `<cassert>` defines as a macro.
+pub fn assert(holds: bool) -> bool {
+	holds
+}
+
+/// A function named as `offsetof`, which `<cstddef>` defines as a macro.
+pub fn offsetof(field: u8) -> u8 {
+	field
+}
+
+/// A record of fields named as macros a C library's headers define, which each binding
+/// keeps apart.
+pub mod macros {
+	/// A record of fields named as `stdin`, `stdout`, and `stderr`, macros on some C libraries.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Streams {
+		pub stdin: u8,
+		pub stdout: u8,
+		pub stderr: u8,
+		pub errno: u8,
+	}
+
+	/// The sum of `streams`' fields, and `errno`, a parameter named as the macro.
+	pub fn streamed(streams: Streams, errno: u8) -> u32 {
+		u32::from(streams.stdin)
+			+ u32::from(streams.stdout)
+			+ u32::from(streams.stderr)
+			+ u32::from(streams.errno)
+			+ u32::from(errno)
+	}
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]

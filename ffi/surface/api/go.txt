@@ -15,6 +15,7 @@ func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)
 func ApplyU32(pair PairU32, f func(uint32) uint32) uint32
 func Area(size p_dep.Size) uint64
 func AreaScaledPoint(self *p_dep.Area, by Point) (uint64, error)
+func Assert(holds bool) bool
 func Attempt(check func() error) error
 func BeatVtable_() unsafe.Pointer
 func Beats(beat Beat) (uint32, error)
@@ -73,6 +74,7 @@ func End(limit uint64) p_rt.BoundU64
 func Ends(limit uint64) (p_rt.BoundU64, p_rt.BoundU64)
 func Entries(entries []p_rt.Tuple2[string, *p_serdejson.Json], tag string) ([]p_rt.Tuple2[string, *p_serdejson.Json], error)
 func Erased(receipt *Receipt) (uint32, error)
+func Errno() int32
 func Excuse(note p_rt.Bytes, entry p_rt.Tuple2[p_rt.Bytes, *Refusal]) (uint, error)
 func Extended(duration p_rt.Duration, by p_rt.Duration) *p_rt.Duration
 func Failure(message string) (*p_core.IoError, error)
@@ -132,6 +134,7 @@ func LogVtable_() unsafe.Pointer
 func LogWaker(log Log) (func(), error)
 func Longest(words []string) (uint, error)
 func Louder(filter *p_tracingcore.Level) *p_tracingcore.Level
+func MacrosStreamed(streams MacrosStreams, errno uint8) uint32
 func Made(n uint32, make_ func(uint32) string) string
 func Marked(apiMarked *Mark) (uint64, error)
 func MarkerY() int32
@@ -145,6 +148,7 @@ func Nudge(point *Point, by int32)
 func NudgeBy(point *Point, refusal *Refusal) error
 func OfferedLen(alpns []p_rt.Bytes) uint
 func Offset(by func() uint32, byData uint32) uint32
+func Offsetof(field uint8) uint8
 func OnFirstThread() bool
 func PRIMES() []uint32
 func Parents(paths []string) ([]*string, error)
@@ -1142,6 +1146,14 @@ func (self LongArray) Also(f func(uint64))
 func (self LongArray) C() uint64
 func (self LongArray) Equal(other LongArray) bool
 func (self LongArray) GoString() string
+type MacrosStreams struct {
+	Stdin  uint8
+	Stdout uint8
+	Stderr uint8
+	Errno  uint8
+}
+func (self MacrosStreams) Equal(other MacrosStreams) bool
+func (self MacrosStreams) GoString() string
 type Mark struct {
 	Handle_ *p_rt.Handle_
 }

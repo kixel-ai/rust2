@@ -7,9 +7,12 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <assert.h>
+#include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -867,6 +870,13 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* A field and a parameter named as `errno`, a macro of <errno.h>, which take a trailing `_`
+	 * rather than expand. */
+	api_macros_Streams streams = {1, 2, 3, 4};
+	if (streams.errno_ != 4 || api_macros_streamed(streams, 5) != 15 || api_errno() != 7) {
+		tr_fail("names of C library macros");
+	}
+
 	/* A name takes a copy: the caller's buffer is its own again. */
 	api_Name *name = api_Name_owned(str("a"));
 	char text[] = "c";

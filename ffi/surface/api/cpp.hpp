@@ -1207,6 +1207,15 @@ namespace api {
 		friend bool operator!=(const polar_Turn &a__, const polar_Turn &b_);
 		::api::buf debug() const;
 	};
+	struct macros_Streams {
+		::std::uint8_t stdin_;
+		::std::uint8_t stdout_;
+		::std::uint8_t stderr_;
+		::std::uint8_t errno_;
+		friend bool operator==(const macros_Streams &a__, const macros_Streams &b_);
+		friend bool operator!=(const macros_Streams &a__, const macros_Streams &b_);
+		::api::buf debug() const;
+	};
 	struct clash_Tone {
 		::std::uint16_t hz;
 		friend bool operator==(const clash_Tone &a__, const clash_Tone &b_);
@@ -1441,6 +1450,7 @@ namespace api {
 	inline bool operator==(const Knob &a__, const Knob &b_);
 	inline bool operator==(const polar_Point &a__, const polar_Point &b_);
 	inline bool operator==(const polar_Turn &a__, const polar_Turn &b_);
+	inline bool operator==(const macros_Streams &a__, const macros_Streams &b_);
 	inline bool operator==(const clash_Tone &a__, const clash_Tone &b_);
 	inline bool operator==(const clash_TONE &a__, const clash_TONE &b_);
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
@@ -1756,6 +1766,9 @@ namespace api {
 	inline ::api::Page page();
 	inline ::std::uint32_t beats(::std::unique_ptr<::api::Beat> beat);
 	inline ::std::int32_t same(double a__, double b_);
+	inline ::std::int32_t errno_();
+	inline bool assert_(bool holds);
+	inline ::std::uint8_t offsetof_(::std::uint8_t field);
 	inline ::api::result<::std::tuple<::api::buf, ::std::optional<::std::tuple<::std::uint8_t, ::std::int16_t, ::std::uint32_t, ::std::uint64_t>>, ::std::vector<::api::buf>>, ::api::Error> return_values(::api::Point &point, bool fail);
 	inline ::api::result<::api::Counter, ::api::Error> return_moved(::api::Counter counter, bool fail);
 	inline ::api::NonZeros non_zeros();
@@ -1787,6 +1800,7 @@ namespace api {
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
 	inline ::std::optional<::api::polar_Point> polar_point(::std::uint32_t distance);
+	inline ::std::uint32_t macros_streamed(const ::api::macros_Streams &streams, ::std::uint8_t errno_);
 	inline ::api::clash_Any clash_any(::api::input type_url);
 	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
 	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
@@ -2175,6 +2189,7 @@ namespace api {
 	struct Knob;
 	struct polar_Point;
 	struct polar_Turn;
+	struct macros_Streams;
 	struct clash_Tone;
 	struct clash_TONE;
 	struct clash_Span;

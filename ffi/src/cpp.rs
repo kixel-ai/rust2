@@ -2541,12 +2541,10 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	// Macros GNU dialects predefine, as CMake's default `-std=gnu++17` does. Each name of
-	// one and trailing `_`s takes another, so `unix` and `unix_` stay apart.
-	const MACROS: &[&str] = &["i386", "linux", "unix"];
+	// Each name of a macro and trailing `_`s takes another, so `unix` and `unix_` stay apart.
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || MACROS.contains(&name.trim_end_matches('_')) || crate::abi::reserved(name) => {
+		_ if KEYWORDS.contains(&name) || abi::MACROS.contains(&name.trim_end_matches('_')) || abi::reserved(name) => {
 			format!("{name}_")
 		}
 		_ => name.to_string(),
@@ -2618,6 +2616,9 @@ mod tests {
 		assert_eq!(escape("unix_"), "unix__");
 		assert_eq!(escape("linux__"), "linux___");
 		assert_eq!(escape("unixes"), "unixes");
+		// And the C library's, which `<cerrno>` and `<cstddef>` define.
+		assert_eq!(escape("errno"), "errno_");
+		assert_eq!(escape("offsetof_"), "offsetof__");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
 		// A reserved name always takes one more, `__GNUC__` being a macro itself.

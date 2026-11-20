@@ -1384,6 +1384,8 @@ fun clash() {
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")
+	// Names of C library macros, which C and C++ keep apart.
+	check(errno() == 7 && assert(true) && offsetof(3u) == 3.toUByte() && MacrosStreams(1u, 2u, 3u, 4u).errno == 4.toUByte() && macrosStreamed(MacrosStreams(1u, 2u, 3u, 4u), 5u) == 15u, "names of C library macros")
 }
 
 fun returns() {

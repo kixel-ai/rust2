@@ -2044,10 +2044,18 @@ pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 		.collect()
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword or reserve
-/// for itself with `_` appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
-/// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
-/// another, so no two names escape to one.
+/// Lowercase macros that would rewrite a name of the same spelling in a program including
+/// the header: those GNU dialects predefine, as CMake's default `-std=gnu11` and
+/// `-std=gnu++17` do, and those of the C library's headers, which C++'s own and a C
+/// program's, such as `<errno.h>`, include.
+pub(crate) const MACROS: &[&str] = &[
+	"assert", "errno", "i386", "linux", "offsetof", "stderr", "stdin", "stdout", "unix",
+];
+
+/// A name that C or C++, which includes the header, would read as a keyword or macro or
+/// reserve for itself with `_` appended, and one starting with a digit with `_` prepended.
+/// Appended, since MSVC reads `_inline`, `_asm`, and `_try` as keywords too; a name
+/// already ending in `_` takes another, so no two names escape to one.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -2148,10 +2156,6 @@ pub(crate) fn escape(name: &str) -> String {
 		"wchar_t",
 		"xor",
 		"xor_eq",
-		// Macros GNU dialects predefine, as CMake's default `-std=gnu11` and `-std=gnu++17` do.
-		"i386",
-		"linux",
-		"unix",
 	];
 	// `out0`, `out1`, ... are a returned tuple's.
 	let out = name
@@ -2159,7 +2163,9 @@ pub(crate) fn escape(name: &str) -> String {
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || reserved(name) || KEYWORDS.contains(&name) => format!("{name}_"),
+		_ if out || name.ends_with('_') || reserved(name) || KEYWORDS.contains(&name) || MACROS.contains(&name) => {
+			format!("{name}_")
+		}
 		_ => name.to_string(),
 	}
 }
