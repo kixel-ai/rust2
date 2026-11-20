@@ -2926,8 +2926,6 @@ impl<'tcx> Collector<'tcx> {
 		accessors
 	}
 
-	/// A type's inherent `pub` methods, from each impl that applies to it, and the std
-	/// traits it implements.
 	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,
 	/// so what the method changes would be lost.
 	fn unmutated(&mut self, methods: Vec<Function>) -> Vec<Function> {
@@ -2957,6 +2955,8 @@ impl<'tcx> Collector<'tcx> {
 		kept
 	}
 
+	/// A type's inherent `pub` methods, from each impl that applies to it, and the std
+	/// traits it implements.
 	fn methods(&mut self, site: &Site<'tcx>) -> (Vec<Function>, Traits) {
 		let tcx = self.tcx;
 		let def_id = site.key.def_id;
