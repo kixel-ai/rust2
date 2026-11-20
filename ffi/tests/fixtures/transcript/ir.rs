@@ -161,7 +161,11 @@ pub(crate) struct Instance {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize)]
 pub(crate) enum Access {
 	Call,
-	Field { shared: bool, set: bool },
+	Field {
+		set: bool,
+		#[serde(default)]
+		through: bool,
+	},
 	Const,
 	Parse,
 	Text,

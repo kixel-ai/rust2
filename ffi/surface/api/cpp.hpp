@@ -44,6 +44,12 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::api::buf, ::api::Counter>> ranked() const;
 		RUST2_FFI_CALLABLE ::api::Counter best() const;
 	};
+	class RUST2_FFI_CONSUMABLE Tab {
+		RUST2_FFI_UNCONSUMED Tab(Tab &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tab &operator=(Tab &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Ledger ledger_get() const;
+		RUST2_FFI_CALLABLE ::api::buf label_get() const;
+	};
 	class RUST2_FFI_CONSUMABLE Receipt {
 		RUST2_FFI_UNCONSUMED Receipt(Receipt &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Receipt &operator=(Receipt &&other) noexcept = default;
@@ -73,6 +79,8 @@ namespace api {
 		static ::api::Pad_u16 wide();
 		RUST2_FFI_CALLABLE ::std::uint16_t tag() const;
 		RUST2_FFI_CALLABLE ::std::uint16_t title() const;
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t lines() const;
 		RUST2_FFI_CALLABLE ::api::buf describe() const;
 	};
 	class RUST2_FFI_CONSUMABLE Pad_u8 {
@@ -95,6 +103,8 @@ namespace api {
 		Marker &operator=(Marker &&other) noexcept = default;
 		static ::api::Marker new_(::api::input label, ::std::int32_t x, ::std::int32_t y);
 		RUST2_FFI_CALLABLE ::api::buf label() const;
+		RUST2_FFI_CALLABLE ::std::int32_t x() const;
+		static ::std::int32_t y();
 		RUST2_FFI_CALLABLE ::std::int32_t x_get() const;
 		RUST2_FFI_CALLABLE void x_set(::std::int32_t value);
 		RUST2_FFI_CALLABLE ::std::int32_t y_get() const;
@@ -164,6 +174,8 @@ namespace api {
 		Retry &operator=(Retry &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> limit_get() const;
 		RUST2_FFI_CALLABLE void limit_set(const ::std::optional<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> delay_get() const;
+		RUST2_FFI_CALLABLE void delay_set(const ::std::optional<::std::uint32_t> &value);
 		static ::api::Retry new_(const ::std::optional<::std::uint32_t> &limit);
 		RUST2_FFI_CALLABLE ::std::uint32_t limit() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t delay() const;
@@ -191,11 +203,15 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Slot_u32 {
 		RUST2_FFI_UNCONSUMED Slot_u32(Slot_u32 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u32 &operator=(Slot_u32 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint32_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint32_t value);
 		static ::api::Slot_u32 new_(::std::uint32_t value);
 	};
 	class RUST2_FFI_CONSUMABLE Slot_u8 {
 		RUST2_FFI_UNCONSUMED Slot_u8(Slot_u8 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u8 &operator=(Slot_u8 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint8_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint8_t value);
 		static ::api::Slot_u8 new_(::std::uint8_t value);
 		RUST2_FFI_CALLABLE ::std::uint16_t value() const;
 	};
@@ -339,6 +355,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::Receipt receipt();
 		RUST2_FFI_CALLABLE ::api::Receipt noted();
 		RUST2_FFI_CALLABLE ::api::Filed_Receipt file_Receipt(::api::Receipt item);
+		RUST2_FFI_CALLABLE ::api::Tab tab();
 		RUST2_FFI_CALLABLE ::api::Slip slip();
 	};
 	class RUST2_FFI_CONSUMABLE Slip {
@@ -447,6 +464,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
 		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::Node> next_get() const;
+		RUST2_FFI_CALLABLE void next_set(::std::optional<::api::Node> value);
 		static ::api::Node new_(::std::uint64_t value, ::std::optional<::api::Node> next);
 		RUST2_FFI_CALLABLE void push(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::std::uint64_t sum() const;
@@ -533,6 +552,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Counter(const ::api::Counter &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Size(const ::api::Size &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Wrap_u32(const ::api::Wrap_u32 &from) const;
+		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_polar_Point(const ::api::polar_Point &from) const;
 	};
 	class RUST2_FFI_CONSUMABLE Refusal {
 		RUST2_FFI_UNCONSUMED Refusal(Refusal &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -897,6 +917,7 @@ namespace api {
 		friend bool operator==(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		friend bool operator!=(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		::api::buf debug() const;
+		::api::Pair_Size_u8 swap() const;
 	};
 	struct Right_u8 {
 		::std::uint8_t value;
@@ -1070,6 +1091,14 @@ namespace api {
 		double kotlin;
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
+	};
+	struct Spot {
+		::std::uint32_t x;
+		::std::uint32_t y;
+		friend bool operator==(const Spot &a__, const Spot &b_);
+		friend bool operator!=(const Spot &a__, const Spot &b_);
+		::api::buf debug() const;
+		static ::api::result<::api::Spot, ::api::buf> deserialize(::api::Json deserializer);
 	};
 	struct Deprecated {
 		bool on;
@@ -1309,6 +1338,7 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Spot &a__, const Spot &b_);
 	inline bool operator==(const Deprecated &a__, const Deprecated &b_);
 	inline bool operator==(const Dial &a__, const Dial &b_);
 	inline bool operator==(const Knob &a__, const Knob &b_);
@@ -1469,7 +1499,6 @@ namespace api {
 	inline ::std::size_t len(::api::input payload);
 	inline ::api::buf hex(::api::input payload);
 	inline ::api::buf timed_hex(::api::input payload);
-	inline ::api::buf timed_text(const ::api::Json &value);
 	inline ::api::buf sample_hex(::api::input sample);
 	inline ::api::buf queued_hex(::api::input queued);
 	inline ::api::buf tick_name(const ::api::Label &tick);
@@ -1627,6 +1656,10 @@ namespace api {
 	inline ::api::socket_addr_v4 same_socket_addr_v4(::api::socket_addr_v4 v);
 	inline ::api::socket_addr_v6 same_socket_addr_v6(::api::socket_addr_v6 v);
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
+	inline ::api::buf unescaped(::api::input text);
+	inline ::api::unescaped_later_future unescaped_later(::api::input text);
+	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
+	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
@@ -1989,6 +2022,7 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Spot;
 	struct Deprecated;
 	struct Dial;
 	struct Knob;
@@ -2002,6 +2036,7 @@ namespace api {
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
+	class Tab;
 	class Receipt;
 	class Draft;
 	class Filed_Receipt;
@@ -2169,6 +2204,8 @@ namespace api {
 	using byte_len_future = ::api::future<detail::byte_len_future_op>;
 	using parse_later_future = ::api::future<detail::parse_later_future_op>;
 	using either_later_future = ::api::future<detail::either_later_future_op>;
+	using unescaped_later_future = ::api::future<detail::unescaped_later_future_op>;
+	using unescaped_maybe_future = ::api::future<detail::unescaped_maybe_future_op>;
 	using level_later_future = ::api::future<detail::level_later_future_op>;
 	using emit_later_future = ::api::future<detail::emit_later_future_op>;
 	using log_on_drop_future = ::api::future<detail::log_on_drop_future_op>;

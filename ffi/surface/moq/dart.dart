@@ -6836,6 +6836,7 @@ final class MuxContainerTsMpegts extends _Object {
 	void muxRateSet(U64? value);
 	MuxContainerTsPassthroughTrack? get passthroughGet;
 	void passthroughSet(MuxContainerTsPassthroughTrack? value);
+	factory MuxContainerTsMpegts.deserialize(Json deserializer);
 	bool isEmpty();
 }
 final class MuxContainerTsPassthroughTrack extends _Object {
@@ -7571,6 +7572,7 @@ final class MoqTokioListenForward extends _Object {
 }
 final class RustlsClientDangerDangerousClientConfig extends _Object {
 	String debug();
+	RustlsClientConfig get cfgGet;
 }
 final class RustlsClientResumption extends _Object {
 	String debug();
@@ -7707,6 +7709,8 @@ const transportSetupReceiveWindow = U64.fromBits(131102);
 const hangCatalogMaxSafeInteger = U64.fromBits(9007199254740991);
 String get implementation;
 List<String> get alpns;
+String escape(String content);
+String unescape(String segment);
 ClockInstant clockNow();
 ClockWall clockWall();
 (ClockInstant, ClockWall) clockOrigin();

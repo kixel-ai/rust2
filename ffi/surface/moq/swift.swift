@@ -6399,6 +6399,7 @@ public struct MuxContainerTsMpegts: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func muxRateSet(_ value: Swift.UInt64?) throws
 	@inlinable public func passthroughGet() throws -> MuxContainerTsPassthroughTrack?
 	@inlinable public mutating func passthroughSet(_ value: consuming MuxContainerTsPassthroughTrack?) throws
+	@inlinable public static func deserialize(_ deserializer: consuming Json) throws -> MuxContainerTsMpegts
 	@inlinable public func isEmpty() throws -> Swift.Bool
 }
 public struct MuxContainerTsPassthroughTrack: ~Copyable, @unchecked Sendable {
@@ -7118,6 +7119,7 @@ public struct MoqTokioListenForward: ~Copyable, @unchecked Sendable {
 }
 public struct RustlsClientDangerDangerousClientConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public func cfgGet() throws -> RustlsClientConfig
 }
 public struct RustlsClientResumption: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -7312,6 +7314,8 @@ public let TRANSPORT_SETUP_RECEIVE_WINDOW: Swift.UInt64
 public let HANG_CATALOG_MAX_SAFE_INTEGER: Swift.UInt64
 @inlinable public var IMPLEMENTATION: Swift.String { get }
 @inlinable public var ALPNS: [Swift.String] { get }
+@inlinable public func escape(_ content: Swift.String) -> Swift.String
+@inlinable public func unescape(_ segment: Swift.String) -> Swift.String
 @inlinable public func clockNow() -> ClockInstant
 @inlinable public func clockWall() -> ClockWall
 @inlinable public func clockOrigin() -> (ClockInstant, ClockWall)
