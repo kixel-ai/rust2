@@ -181,7 +181,7 @@ impl Maps {
 	}
 }
 
-/// `item` with what may differ between targets alike cleared: its span, docs, targets,
+/// `item` with what may differ between targets alike cleared: its span, docs, deprecation, targets,
 /// and `clear`'s, which clears its members, compared on their own.
 fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	let mut item = item.clone();
@@ -193,6 +193,7 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
+		f.deprecated = None;
 		f.on = On::ALL;
 	})
 }
@@ -201,9 +202,13 @@ pub(crate) fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
+		r.deprecated = None;
 		r.on = On::ALL;
 		r.methods.clear();
-		r.fields.iter_mut().for_each(|f| f.docs.clear());
+		r.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
 		// Merged apart: one binding holds the largest, and each target asserts its own size.
 		if let Some(opaque) = &mut r.opaque {
 			opaque.size = 0;
@@ -219,6 +224,7 @@ pub(crate) fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
+		e.deprecated = None;
 		e.on = On::ALL;
 		e.methods.clear();
 		e.variants.clear();
@@ -231,7 +237,10 @@ pub(crate) fn bare_variant(v: &Variant) -> Variant {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
 		v.discriminant = 0;
-		v.fields.iter_mut().for_each(|f| f.docs.clear());
+		v.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
 	})
 }
 
@@ -239,6 +248,7 @@ pub(crate) fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
+		o.deprecated = None;
 		o.on = On::ALL;
 		o.methods.clear();
 		unleaf(&mut o.traits);
@@ -264,6 +274,7 @@ pub(crate) fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 		c.methods = c.methods.iter().map(bare_function).collect();
 	})
@@ -273,6 +284,7 @@ pub(crate) fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 	})
 }
@@ -819,12 +831,14 @@ mod tests {
 			span: DUMMY_SP,
 			on: On(on),
 			docs: String::new(),
+			deprecated: None,
 			variants: vec![Variant {
 				name: "V".into(),
 				discriminant: 0,
 				fields: vec![Field {
 					name: "0".into(),
 					docs: String::new(),
+					deprecated: None,
 					ty: Type::Enum(ty),
 				}],
 				tuple: true,
@@ -868,6 +882,7 @@ mod tests {
 				span: DUMMY_SP,
 				on: On::ALL,
 				docs: String::new(),
+				deprecated: None,
 				value: crate::ir::Literal::Bool(true),
 			}],
 			crates: vec!["f".into()],

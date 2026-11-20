@@ -3,6 +3,7 @@ package api // import "api/api"
 CONSTANTS
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
+const STEP uint64 = 1
 
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
@@ -753,6 +754,15 @@ type Der struct {
 func DerFromSlice(bytes p_rt.Bytes) *Der
 func (self *Der) Bytes() (p_rt.Bytes, error)
 func (self *Der) Close() error
+type Dial struct {
+	Level uint64
+	Before uint64
+}
+func DialDefault() Dial
+func (self Dial) Equal(other Dial) bool
+func (self Dial) GoString() string
+func (self Dial) Max() Dial
+func (self Dial) Turn(by uint64) (Dial, error)
 type Digest struct {
 	Handle_ *p_rt.Handle_
 }
@@ -931,6 +941,13 @@ func (self *Key) Close() error
 func (self *Key) Equal(other *Key) (bool, error)
 func (self *Key) GoString() string
 func (self *Key) HashOf() (uint64, error)
+type Knob struct {
+	Level uint64
+}
+func KnobDefault() Knob
+func NewKnob(dial Dial) Knob
+func (self Knob) Equal(other Knob) bool
+func (self Knob) GoString() string
 type Label struct {
 	Name string
 	At   *Point

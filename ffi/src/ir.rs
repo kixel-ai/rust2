@@ -210,6 +210,10 @@ pub(crate) struct Record {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) fields: Vec<Field>,
 	/// Whether its fields are positional, named `0`, `1`, ...
 	pub(crate) tuple: bool,
@@ -277,6 +281,10 @@ pub(crate) struct Field {
 	/// Its Rust name: a number for a positional field.
 	pub(crate) name: String,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) ty: Type,
 }
 
@@ -293,6 +301,10 @@ pub(crate) struct Enum {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) variants: Vec<Variant>,
 	/// Whether another crate can match it without a wildcard arm.
 	pub(crate) exhaustive: bool,
@@ -335,6 +347,10 @@ pub(crate) struct Object {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time. One that is
 	/// not `Send` is not, as only its thread borrows it.
 	pub(crate) sync: bool,
@@ -399,6 +415,10 @@ pub(crate) struct Callback {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	/// Its required methods, each taking `&self` or `&mut self`.
 	pub(crate) methods: Vec<Function>,
 }
@@ -442,6 +462,10 @@ pub(crate) struct Function {
 	pub(crate) on: On,
 	/// Its doc comment, as Markdown.
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) receiver: Option<Receiver>,
 	pub(crate) params: Vec<Param>,
 	/// Where among Rust's parameters each `()` one sits, which C does not pass.
@@ -589,6 +613,10 @@ pub(crate) struct Constant {
 	/// The targets it compiles on.
 	pub(crate) on: On,
 	pub(crate) docs: String,
+	/// Its `#[deprecated]` note, if it is deprecated: empty for none. A baseline written
+	/// before it has none.
+	#[serde(default)]
+	pub(crate) deprecated: Option<String>,
 	pub(crate) value: Literal,
 }
 

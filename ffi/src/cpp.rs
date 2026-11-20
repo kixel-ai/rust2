@@ -25,6 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
+use crate::doc;
 use crate::ir::{Closure, Family, Function, Int, Literal, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
@@ -78,6 +79,22 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	}
 	umbrella.push_str(&format!("\n#endif // {guard}\n"));
 	headers.insert(0, (format!("{p}.hpp"), umbrella));
+	// Each link once every name is final, and the headers' own uses of what they deprecate
+	// kept from warning, which a consumer's still do.
+	let deprecates = headers.iter().any(|(_, text)| text.contains("[[deprecated"));
+	for (_, text) in &mut headers {
+		let render = |link: &doc::Link<'_>| {
+			let target = h.link(link.target)?;
+			Some(match link.text {
+				Some(text) => format!("@ref {} \"{text}\"", target.trim_end_matches("()")),
+				None => target,
+			})
+		};
+		*text = doc::links(text, api, render);
+		if deprecates {
+			*text = quiet(text);
+		}
+	}
 	match h.errors.is_empty() {
 		true => Ok(Output {
 			files: headers,
@@ -630,8 +647,9 @@ impl<'a> Header<'a> {
 			}
 			let alias = self.global(&self.name(&name));
 			self.line(format!(
-				"{}using {alias} = ::std::variant<{}>;",
+				"{}using {alias}{} = ::std::variant<{}>;",
 				docs(&e.docs, ""),
+				suffixed(e.deprecated.as_deref()),
 				payloads.join(", ")
 			));
 		}
@@ -692,8 +710,9 @@ impl<'a> Header<'a> {
 				.map(|v| format!("\t{} = {},", escape(&abi::snake(&v.name)), v.discriminant))
 				.collect();
 			self.line(format!(
-				"{}enum class {name} {{\n{}\n}};\n",
+				"{}enum class{} {name} {{\n{}\n}};\n",
 				docs(&e.docs, ""),
+				suffixed(e.deprecated.as_deref()),
 				variants.join("\n")
 			));
 		}
@@ -708,8 +727,9 @@ impl<'a> Header<'a> {
 			self.locked
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			self.line(format!(
-				"{}inline constexpr {ty} {name} = {};",
+				"{}{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
+				prefixed(constant.deprecated.as_deref()),
 				abi.constant(&constant.path)
 			));
 		}
@@ -997,8 +1017,9 @@ impl<'a> Header<'a> {
 		}
 		self.distinct(&name, &abi.api.rust(&object.path, &object.args), &members);
 		self.line(format!(
-			"{}class RUST2_FFI_CONSUMABLE {name} {{\n{}\n}};\n",
+			"{}class{} RUST2_FFI_CONSUMABLE {name} {{\n{}\n}};\n",
 			docs(text.trim(), ""),
+			suffixed(object.deprecated.as_deref()),
 			body.join("\n")
 		));
 	}
@@ -1097,8 +1118,9 @@ impl<'a> Header<'a> {
 				.map(|p| declare(&self.lent(&p.ty), &escape(&p.name)))
 				.collect();
 			body.push(format!(
-				"{}\tvirtual {} {member}({}){constant} = 0;",
-				docs(&method.docs, "\t"),
+				"{}\t{}virtual {} {member}({}){constant} = 0;",
+				docs(&self.function_docs(method, String::new()), "\t"),
+				prefixed(method.deprecated.as_deref()),
 				self.owned(&method.ok),
 				params.join(", ")
 			));
@@ -1135,8 +1157,9 @@ impl<'a> Header<'a> {
 		}
 		self.distinct(&name, &callback.path.join("::"), &members);
 		self.line(format!(
-			"{}class {name} {{\n{}\n}};\n",
+			"{}class{} {name} {{\n{}\n}};\n",
 			docs(text.trim(), ""),
+			suffixed(callback.deprecated.as_deref()),
 			body.join("\n")
 		));
 		self.def(format!(
@@ -1185,7 +1208,15 @@ impl<'a> Header<'a> {
 					.fields
 					.iter()
 					.zip(&fields)
-					.map(|(f, field)| format!("{}\t{} {field}{};", docs(&f.docs, "\t"), self.owned(&f.ty), init(&f.ty)))
+					.map(|(f, field)| {
+						format!(
+							"{}\t{}{} {field}{};",
+							docs(&f.docs, "\t"),
+							prefixed(f.deprecated.as_deref()),
+							self.owned(&f.ty),
+							init(&f.ty)
+						)
+					})
 					.collect();
 				body.push(String::new());
 				let mut members = fields.clone();
@@ -1232,15 +1263,17 @@ impl<'a> Header<'a> {
 							record.docs
 						);
 						self.line(format!(
-							"{}class {name} {{\npublic:\n{}\n\nprivate:\n\tfriend struct {d}::access;\n\n\texplicit {name}(const ::{c} &c) noexcept : c_(c) {{}}\n\n\t::{c} c_;\n}};\n",
+							"{}class{} {name} {{\npublic:\n{}\n\nprivate:\n\tfriend struct {d}::access;\n\n\texplicit {name}(const ::{c} &c) noexcept : c_(c) {{}}\n\n\t::{c} c_;\n}};\n",
 							docs(text.trim(), ""),
+							suffixed(record.deprecated.as_deref()),
 							body.join("\n"),
 							d = self.d()
 						));
 					}
 					None => self.line(format!(
-						"{}struct {name} {{\n{}\n}};\n",
+						"{}struct{} {name} {{\n{}\n}};\n",
 						docs(&record.docs, ""),
+						suffixed(record.deprecated.as_deref()),
 						body.join("\n")
 					)),
 				}
@@ -1476,6 +1509,64 @@ impl<'a> Header<'a> {
 			.as_ref()
 			.map(|err| format!("{output}::err({})", self.lift(&owned(err), "c_err_")));
 		(declared, ok, err)
+	}
+
+	/// `text`, a function's docs without its sections, then its `# Errors`, naming the
+	/// error its `result` holds, and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(errors) = &sections.errors {
+			let what = match &function.err {
+				Some(err) => format!("Its `result` holds a `{}` error: ", self.owned(err)),
+				None => String::new(),
+			};
+			text.push_str(&format!("\n\n# Errors\n\n{what}{errors}"));
+		}
+		if let Some(panics) = &sections.panics {
+			text.push_str(&format!("\n\n# Aborts\n\n{panics}"));
+		}
+		text.trim().to_string()
+	}
+
+	/// What Doxygen links for `target`, if C++ has it.
+	fn link(&self, target: doc::Target<'_>) -> Option<String> {
+		let abi = self.abi;
+		let ns = &self.ns;
+		let owner = |owner: doc::Owner| match owner {
+			doc::Owner::Record(i) => self.name(&abi.record(i)),
+			doc::Owner::Enum(i) => self.name(&abi.enumeration(i)),
+			doc::Owner::Object(i) => self.name(&abi.object(i)),
+			doc::Owner::Callback(i) => self.name(&abi.callback(i)),
+		};
+		Some(match target {
+			doc::Target::Record(i) => format!("{ns}::{}", owner(doc::Owner::Record(i))),
+			doc::Target::Enum(i) => format!("{ns}::{}", owner(doc::Owner::Enum(i))),
+			doc::Target::Object(i) => format!("{ns}::{}", owner(doc::Owner::Object(i))),
+			doc::Target::Callback(i) => format!("{ns}::{}", owner(doc::Owner::Callback(i))),
+			doc::Target::Variant(i, v) => {
+				let e = &abi.api.enums[i];
+				let variant = &e.variants[v].name;
+				match e.plain() {
+					true => format!("{ns}::{}::{}", owner(doc::Owner::Enum(i)), escape(&abi::snake(variant))),
+					false => format!("{ns}::{}", self.name(&abi::payload(&abi.enumeration(i), variant))),
+				}
+			}
+			doc::Target::Field(i, n) => format!(
+				"{ns}::{}::{}",
+				owner(doc::Owner::Record(i)),
+				escape(&abi.api.records[i].fields[n].name)
+			),
+			doc::Target::Constant(c) => format!("{ns}::{}", self.locked.get(&format!("const {}", c.path.join("::")))?),
+			doc::Target::Function(of, f) => {
+				let member = self.locked.get(&crate::lock::function_key(f))?;
+				match of {
+					// An enum's methods are free functions.
+					Some(doc::Owner::Enum(_)) | None => format!("{ns}::{member}()"),
+					Some(of) => format!("{ns}::{}::{member}()", owner(of)),
+				}
+			}
+		})
 	}
 
 	/// `function`'s declaration in its class, and its member name, with its definition
@@ -1714,15 +1805,7 @@ impl<'a> Header<'a> {
 			true => String::new(),
 			false => format!("template <{}>\n", templates.join(", ")),
 		};
-		// Defined in the header of the crate it belongs to, which may follow its class's.
-		if function.home.krate == self.krate {
-			self.def(format!(
-				"{template}inline {ret} {scope}{member}({}){qualifier} {{\n\t{}\n}}\n",
-				params.join(", "),
-				body.join("\n\t")
-			));
-		}
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Future = param.ty {
 				text.push_str(&format!(
@@ -1756,6 +1839,24 @@ impl<'a> Header<'a> {
 				}
 			}
 		}
+		let text = self.function_docs(function, text);
+		// Defined in the header of the crate it belongs to, which may follow its class's;
+		// a free function's definition is its declaration, which carries its docs.
+		if function.home.krate == self.krate {
+			let docs = match scope.is_empty() {
+				true => format!(
+					"{}{template}{}",
+					docs(&text, ""),
+					prefixed(function.deprecated.as_deref())
+				),
+				false => template.clone(),
+			};
+			self.def(format!(
+				"{docs}inline {ret} {scope}{member}({}){qualifier} {{\n\t{}\n}}\n",
+				params.join(", "),
+				body.join("\n\t")
+			));
+		}
 		// An object's method is callable only before a move empties it, and one taking
 		// `self` empties it.
 		let prefix = match (is_static, free, owner) {
@@ -1765,9 +1866,10 @@ impl<'a> Header<'a> {
 			_ => "",
 		};
 		let declaration = format!(
-			"{}\t{}{prefix}{ret} {member}({}){qualifier};",
-			docs(text.trim(), "\t"),
+			"{}\t{}{}{prefix}{ret} {member}({}){qualifier};",
+			docs(&text, "\t"),
 			template.replace('\n', "\n\t"),
+			prefixed(function.deprecated.as_deref()),
 			params.join(", ")
 		);
 		(declaration, member)
@@ -2032,6 +2134,48 @@ fn init(ty: &Type) -> &'static str {
 		Type::Box(inner) => init(inner),
 		Type::Tuple(elements) if elements.iter().any(|e| init(e).is_empty()) => "",
 		_ => "{}",
+	}
+}
+
+/// `header` with no warning of a use of a deprecated item between its include guard's
+/// lines: the generated code's own uses, which a consumer's are not.
+fn quiet(header: &str) -> String {
+	const PUSH: &str = "#if defined(__GNUC__) || defined(__clang__)\n#pragma GCC diagnostic push\n#pragma GCC diagnostic ignored \"-Wdeprecated-declarations\"\n#elif defined(_MSC_VER)\n#pragma warning(push)\n#pragma warning(disable : 4996)\n#endif\n";
+	const POP: &str = "#if defined(__GNUC__) || defined(__clang__)\n#pragma GCC diagnostic pop\n#elif defined(_MSC_VER)\n#pragma warning(pop)\n#endif\n";
+	let (Some(start), Some(end)) = (header.find("\n#define "), header.rfind("\n#endif")) else {
+		return header.to_string();
+	};
+	let start = start + header[start + 1..].find('\n').map_or(0, |n| n + 1) + 1;
+	format!(
+		"{}{PUSH}{}{POP}{}",
+		&header[..start],
+		&header[start..end + 1],
+		&header[end + 1..]
+	)
+}
+
+/// `[[deprecated]]` with `deprecated`'s note, where it has one.
+fn attribute(deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some("") => "[[deprecated]]".to_string(),
+		Some(note) => format!("[[deprecated({note:?})]]"),
+		None => String::new(),
+	}
+}
+
+/// [`attribute`] before a declaration, which a space then follows.
+fn prefixed(deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some(_) => format!("{} ", attribute(deprecated)),
+		None => String::new(),
+	}
+}
+
+/// [`attribute`] after a class's or alias's key word or name, which a space then precedes.
+fn suffixed(deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some(_) => format!(" {}", attribute(deprecated)),
+		None => String::new(),
 	}
 }
 

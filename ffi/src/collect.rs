@@ -1598,6 +1598,98 @@ impl<'tcx> Collector<'tcx> {
 		None
 	}
 
+	/// `def_id`'s doc comment, in [`crate::doc`]'s canonical form.
+	fn docs(&self, def_id: DefId) -> String {
+		let tcx = self.tcx;
+		let module = doc_module(tcx, def_id);
+		// Looked up only once a link is found: rustc keeps a module's resolutions only where
+		// one of its items' docs links.
+		let mut resolutions = None;
+		crate::doc::canonical(&raw_docs(tcx, def_id), |path, ns| {
+			let map = *resolutions.get_or_insert_with(|| match module.as_local() {
+				Some(local) => tcx
+					.resolutions(())
+					.doc_link_resolutions
+					.get(&rustc_hir::def_id::LocalModId::new_unchecked(local)),
+				None => Some(tcx.doc_link_resolutions(rustc_hir::def_id::ModId::new_unchecked(module))),
+			});
+			self.link(def_id, map?, path, ns)
+		})
+	}
+
+	/// The path in the IR of what a link of `def_id`'s doc comment names, by its path as
+	/// rustc's resolver caches it, in `map`, the resolutions of its module: an item, or a
+	/// member of a type, as `Self::abort` or `Error::Timeout` names one.
+	fn link(
+		&self,
+		def_id: DefId,
+		map: &rustc_middle::middle::resolve::DocLinkResMap,
+		path: &str,
+		ns: Option<crate::doc::Ns>,
+	) -> Option<String> {
+		use rustc_hir::def::Namespace;
+		let tcx = self.tcx;
+		let namespaces: Vec<Namespace> = match ns {
+			Some(crate::doc::Ns::Type) => vec![Namespace::TypeNS],
+			Some(crate::doc::Ns::Value) => vec![Namespace::ValueNS, Namespace::TypeNS],
+			Some(crate::doc::Ns::Macro) => return None,
+			None => vec![Namespace::TypeNS, Namespace::ValueNS],
+		};
+		let resolved = |path: &str, ns: Namespace| match map.get(&(rustc_span::Symbol::intern(path), ns)) {
+			Some(Some(Res::Def(_, did))) => Some(*did),
+			_ => None,
+		};
+		let (base, rest) = match path.split_once("::") {
+			_ if path == "Self" => (doc_self(tcx, def_id)?, ""),
+			Some(("Self", rest)) => (doc_self(tcx, def_id)?, rest),
+			_ => match namespaces.iter().find_map(|&ns| resolved(path, ns)) {
+				Some(did) => (did, ""),
+				// A member of a type, which rustc resolves the type of alone.
+				None => {
+					let (ty, member) = path.rsplit_once("::")?;
+					(resolved(ty, Namespace::TypeNS)?, member)
+				}
+			},
+		};
+		let mut out = self.item_path(base)?;
+		out.extend(rest.split("::").filter(|s| !s.is_empty()).map(String::from));
+		Some(out.join("::"))
+	}
+
+	/// The path in the IR of `def_id`, an item the walk met or a member of one.
+	fn item_path(&self, def_id: DefId) -> Option<Vec<String>> {
+		let tcx = self.tcx;
+		if let Some((_, path)) = self.items.iter().find(|(item, _)| *item == def_id) {
+			return Some(path.clone());
+		}
+		let owner = match tcx.def_kind(def_id) {
+			DefKind::Ctor(..) => return self.item_path(tcx.parent(def_id)),
+			DefKind::Variant | DefKind::Field | DefKind::AssocFn | DefKind::AssocConst { .. } => doc_self(tcx, def_id)?,
+			_ => return None,
+		};
+		let mut path = self.item_path(owner)?;
+		path.push(tcx.item_name(def_id).to_string());
+		Some(path)
+	}
+
+	/// `def_id`'s `#[deprecated]` note, if it is deprecated: its own, or an enclosing
+	/// module's, but not its type's, whose own deprecation covers its members.
+	fn deprecated(&self, def_id: DefId) -> Option<String> {
+		let tcx = self.tcx;
+		let deprecation = tcx.lookup_deprecation(def_id).filter(|d| d.is_in_effect())?;
+		let owner = doc_self(tcx, def_id).filter(|&owner| owner != def_id);
+		if owner.and_then(|owner| tcx.lookup_deprecation(owner)).is_some_and(|of| {
+			format!("{:?}", (of.since, of.note)) == format!("{:?}", (deprecation.since, deprecation.note))
+		}) {
+			return None;
+		}
+		Some(
+			deprecation
+				.note
+				.map_or_else(String::new, |note| crate::doc::plain(note.as_str())),
+		)
+	}
+
 	/// Decide how each type and trait is exported, before any signature names one.
 	fn declare(&mut self) {
 		let tcx = self.tcx;
@@ -1644,7 +1736,8 @@ impl<'tcx> Collector<'tcx> {
 		// Number each kind in item order, with placeholders filled in by `define`.
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
-			let docs = docs(tcx, def_id);
+			let docs = self.docs(def_id);
+			let deprecated = self.deprecated(def_id);
 			let home = self.home(def_id);
 			for site in self.sites(def_id, &path) {
 				let Some(decl) = self.decls.get_mut(&site.key) else {
@@ -1663,6 +1756,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							fields: Vec::new(),
 							tuple: false,
 							methods: Vec::new(),
@@ -1681,6 +1775,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							variants: Vec::new(),
 							exhaustive: true,
 							methods: Vec::new(),
@@ -1701,6 +1796,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							fields: Vec::new(),
 							tuple: false,
 							methods: Vec::new(),
@@ -1725,6 +1821,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							sync,
 							send,
 							copy,
@@ -1744,6 +1841,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							methods: Vec::new(),
 						});
 					}
@@ -1770,6 +1868,7 @@ impl<'tcx> Collector<'tcx> {
 						span: object.span,
 						on: object.on,
 						docs: object.docs,
+						deprecated: object.deprecated,
 						fields: Vec::new(),
 						tuple: false,
 						methods: object.methods,
@@ -1800,6 +1899,7 @@ impl<'tcx> Collector<'tcx> {
 				span: tcx.def_span(def_id),
 				on: On::ALL,
 				docs: "`tracing::Level`: how verbose a span or event is, from the most to the least.".to_string(),
+				deprecated: None,
 				variants: (variants.iter().zip(0..))
 					.map(|(name, discriminant)| Variant {
 						name: name.to_string(),
@@ -1869,6 +1969,7 @@ impl<'tcx> Collector<'tcx> {
 				span,
 				on: On::ALL,
 				docs,
+				deprecated: self.deprecated(def_id),
 				sync: true,
 				send: true,
 				copy: false,
@@ -1909,6 +2010,7 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			on: On::ALL,
 			docs: docs.to_string(),
+			deprecated: None,
 			receiver: None,
 			params: vec![Param {
 				name: "input".to_string(),
@@ -1969,6 +2071,7 @@ impl<'tcx> Collector<'tcx> {
 						span,
 						on: On::ALL,
 						docs: "The document as JSON text.".to_string(),
+						deprecated: None,
 						receiver: Some(Receiver::Ref),
 						params: Vec::new(),
 						units: Vec::new(),
@@ -2009,6 +2112,7 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			on: On::ALL,
 			docs: docs.to_string(),
+			deprecated: None,
 			sync: true,
 			send: true,
 			copy: implements(tcx, self_ty, def_id, sym::Copy),
@@ -2294,7 +2398,8 @@ impl<'tcx> Collector<'tcx> {
 				match self.ty(ty, Pos::Field) {
 					Ok(ty) => fields.push(Field {
 						name: field.name.to_string(),
-						docs: docs(tcx, field.did),
+						docs: self.docs(field.did),
+						deprecated: self.deprecated(field.did),
 						ty,
 					}),
 					Err(why) => errs.push(why),
@@ -2829,7 +2934,8 @@ impl<'tcx> Collector<'tcx> {
 						shown: shown.clone(),
 						span,
 						on: On::ALL,
-						docs: docs(tcx, field.did),
+						docs: self.docs(field.did),
+						deprecated: self.deprecated(field.did),
 						receiver: Some(receiver),
 						params,
 						units: Vec::new(),
@@ -3845,15 +3951,15 @@ impl<'tcx> Collector<'tcx> {
 			None => None,
 		};
 		// What interning costs, which the caller cannot see from the parameter's type.
-		let mut docs = docs(tcx, def_id);
+		let mut docs = self.docs(def_id);
 		for param in params.iter().filter(|p| p.interned) {
-			if !docs.is_empty() {
-				docs.push_str("\n\n");
-			}
-			docs.push_str(&format!(
-				"`{}` must live as long as the program, so each distinct value passed is copied once and never freed: memory grows with each distinct value.",
-				param.name
-			));
+			docs = crate::doc::note(
+				&docs,
+				&format!(
+					"`{}` must live as long as the program, so each distinct value passed is copied once and never freed: memory grows with each distinct value.",
+					param.name
+				),
+			);
 		}
 		match (errs.is_empty(), ok) {
 			(true, Some(ok)) => Ok(Function {
@@ -3862,6 +3968,7 @@ impl<'tcx> Collector<'tcx> {
 				span: tcx.def_span(def_id),
 				on: On::ALL,
 				docs,
+				deprecated: self.deprecated(def_id),
 				receiver,
 				params,
 				units,
@@ -5715,7 +5822,8 @@ impl<'tcx> Collector<'tcx> {
 							home,
 							span,
 							on: On::ALL,
-							docs: docs(tcx, def_id),
+							docs: self.docs(def_id),
+							deprecated: self.deprecated(def_id),
 							value,
 						});
 						return None;
@@ -5735,7 +5843,8 @@ impl<'tcx> Collector<'tcx> {
 				shown: path,
 				span,
 				on: On::ALL,
-				docs: docs(tcx, def_id),
+				docs: self.docs(def_id),
+				deprecated: self.deprecated(def_id),
 				receiver: None,
 				params: Vec::new(),
 				units: Vec::new(),
@@ -6557,7 +6666,7 @@ fn signed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, bits: u128) -> i128 {
 }
 
 /// An item's doc comment, each line as written after `///`.
-fn docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+fn raw_docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	#[expect(deprecated, reason = "doc comments are no parsed attribute to find")]
 	let attrs = tcx.get_all_attrs(def_id);
 	let lines: Vec<String> = attrs
@@ -6571,6 +6680,32 @@ fn docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 		})
 		.collect();
 	lines.join("\n").trim().to_string()
+}
+
+/// The module whose scope an item's doc comment resolves its links in.
+fn doc_module(tcx: TyCtxt<'_>, mut def_id: DefId) -> DefId {
+	while tcx.def_kind(def_id) != DefKind::Mod {
+		def_id = tcx.parent(def_id);
+	}
+	def_id
+}
+
+/// What `Self` names in an item's doc comment: the type it is or belongs to.
+fn doc_self(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
+	match tcx.def_kind(def_id) {
+		DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait | DefKind::TyAlias => Some(def_id),
+		DefKind::Field | DefKind::Variant | DefKind::AssocFn | DefKind::AssocConst { .. } | DefKind::AssocTy => {
+			let parent = tcx.parent(def_id);
+			match tcx.def_kind(parent) {
+				DefKind::Impl { .. } => match tcx.type_of(parent).instantiate_identity().skip_norm_wip().kind() {
+					ty::Adt(adt, _) => Some(adt.did()),
+					_ => None,
+				},
+				_ => doc_self(tcx, parent),
+			}
+		}
+		_ => None,
+	}
 }
 
 /// Whether `tr` is `Send`, `Sync`, or `Sized`, which a foreign implementation or a lent

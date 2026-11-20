@@ -32,6 +32,7 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::config::Package;
+use crate::doc;
 use crate::glue::rs;
 use crate::ir::{Access, Closure, Family, Function, Int, Literal, Type};
 use crate::kotlin::strip_refs;
@@ -281,6 +282,16 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 		}
 		files.push((format!("{name}.ts"), trim(out)));
 	}
+	// Each link once every name is final.
+	for (_, ts) in &mut files {
+		*ts = doc::links(ts, abi.api, |link| {
+			let (target, own) = g.link(link.target)?;
+			Some(match link.text.or(own.as_deref()) {
+				Some(text) => format!("{{@link {target} | {text}}}"),
+				None => format!("{{@link {target}}}"),
+			})
+		});
+	}
 	let mut emitted = Vec::new();
 	for (name, ts) in &files {
 		let (js, dts) = crate::js::emit(name, ts)?;
@@ -425,6 +436,64 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The TypeScript name of the C type `c`.
+	/// `text`, a function's docs without its sections, then its `# Errors`, naming the
+	/// error its `Err` holds, and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(errors) = &sections.errors {
+			let what = match &function.err {
+				Some(err) => format!("Its `Err` holds a `{}`: ", self.tt(err)),
+				None => String::new(),
+			};
+			let _ = write!(text, "\n\n# Errors\n\n{what}{errors}");
+		}
+		if let Some(panics) = &sections.panics {
+			let _ = write!(text, "\n\n# Aborts\n\n{panics}");
+		}
+		text.trim().to_string()
+	}
+
+	/// What TSDoc links for `target`, if TypeScript has it, and the text it shows where the
+	/// target alone does not name it: a variant is a tag of its union, which no declaration
+	/// names.
+	fn link(&self, target: doc::Target<'_>) -> Option<(String, Option<String>)> {
+		let abi = self.abi;
+		let owner = |owner: doc::Owner| match owner {
+			doc::Owner::Record(i) => self.class(&abi.record(i)),
+			doc::Owner::Enum(i) => self.class(&abi.enumeration(i)),
+			doc::Owner::Object(i) => self.class(&abi.object(i)),
+			doc::Owner::Callback(i) => self.class(&abi.callback(i)),
+		};
+		Some((
+			match target {
+				doc::Target::Record(i) => owner(doc::Owner::Record(i)),
+				doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
+				doc::Target::Object(i) => owner(doc::Owner::Object(i)),
+				doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
+				doc::Target::Variant(i, v) => {
+					let class = owner(doc::Owner::Enum(i));
+					let tag = &abi.api.enums[i].variants[v].name;
+					return Some((class.clone(), Some(format!("{class} \"{tag}\""))));
+				}
+				doc::Target::Field(i, n) => format!(
+					"{}.{}",
+					owner(doc::Owner::Record(i)),
+					field_names(&abi.api.records[i].fields)[n]
+				),
+				doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
+				doc::Target::Function(of, f) => {
+					let member = self.locked.get(&crate::lock::function_key(f))?;
+					match of {
+						Some(of) => format!("{}.{member}", owner(of)),
+						None => member.clone(),
+					}
+				}
+			},
+			None,
+		))
+	}
+
 	fn class(&self, c: &str) -> String {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
@@ -1459,8 +1528,13 @@ fn param_name(name: &str) -> String {
 	}
 }
 
-/// JSDoc holding `docs`, each line indented by `indent`, or nothing for none.
-fn docs(docs: &str, indent: &str) -> String {
+/// JSDoc holding `docs`, each line indented by `indent`, or nothing for none, then
+/// `@deprecated` with its note where `deprecated` has one.
+fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
+	let docs = match deprecated {
+		Some(note) => format!("{docs}\n\n@deprecated {note}"),
+		None => docs.to_string(),
+	};
 	let docs = docs.trim();
 	if docs.is_empty() {
 		return String::new();
@@ -1973,7 +2047,10 @@ impl Gen<'_> {
 			if local != name {
 				self.out().renames.insert(local.clone(), name.clone());
 			}
-			let code = format!("{}export const {local}: {ty} = {value};\n\n", docs(&constant.docs, ""));
+			let code = format!(
+				"{}export const {local}: {ty} = {value};\n\n",
+				docs(&constant.docs, constant.deprecated.as_deref(), "")
+			);
 			self.out().body.push_str(&code);
 		}
 		for i in 0..api.records.len() {
@@ -2037,14 +2114,27 @@ impl Gen<'_> {
 					"{rust}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.\n\n{}",
 					record.docs
 				);
-				format!("{}export type {name} = rt.Opaque<\"{name}\">;\n\n", docs(&text, ""))
+				format!(
+					"{}export type {name} = rt.Opaque<\"{name}\">;\n\n",
+					docs(&text, record.deprecated.as_deref(), "")
+				)
 			}
 			None => {
 				let fields: Vec<String> = (record.fields.iter().zip(field_names(&record.fields)))
-					.map(|(f, name)| format!("{}\t{name}: {};\n", docs(&f.docs, "\t"), self.tt(&f.ty)))
+					.map(|(f, name)| {
+						format!(
+							"{}\t{name}: {};\n",
+							docs(&f.docs, f.deprecated.as_deref(), "\t"),
+							self.tt(&f.ty)
+						)
+					})
 					.collect();
 				let text = format!("{rust}\n\n{}", record.docs);
-				format!("{}export type {name} = {{\n{}}};\n\n", docs(&text, ""), fields.concat())
+				format!(
+					"{}export type {name} = {{\n{}}};\n\n",
+					docs(&text, record.deprecated.as_deref(), ""),
+					fields.concat()
+				)
 			}
 		};
 		self.start(&name, declaration);
@@ -2087,7 +2177,13 @@ impl Gen<'_> {
 			false => format!("\n\t| {}", variants.join("\n\t| ")),
 		};
 		let text = format!("{rust}\n\n{}", e.docs);
-		self.start(&name, format!("{}export type {name} = {union};\n\n", docs(&text, "")));
+		self.start(
+			&name,
+			format!(
+				"{}export type {name} = {union};\n\n",
+				docs(&text, e.deprecated.as_deref(), "")
+			),
+		);
 		let mut taken = BTreeSet::new();
 		self.traits(&ty, &c, e.traits, &mut taken);
 		self.methods(&e.methods, &abi.ty(&ty), &ty, &mut taken);
@@ -2110,7 +2206,10 @@ impl Gen<'_> {
 		);
 		self.start(
 			&name,
-			format!("{}export type {name} = rt.Handle<\"{name}\">;\n\n", docs(&text, "")),
+			format!(
+				"{}export type {name} = rt.Handle<\"{name}\">;\n\n",
+				docs(&text, object.deprecated.as_deref(), "")
+			),
 		);
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -2174,7 +2273,11 @@ impl Gen<'_> {
 			let ok = self.tt(&method.ok);
 			members.push(format!(
 				"{}\t{member}({}): {ok};\n",
-				docs(&method.docs, "\t"),
+				docs(
+					&self.function_docs(method, String::new()),
+					method.deprecated.as_deref(),
+					"\t"
+				),
 				params.join(", ")
 			));
 		}
@@ -2187,7 +2290,7 @@ impl Gen<'_> {
 			&name,
 			format!(
 				"{}export interface {name} {{\n{}}}\n\n",
-				docs(&text, ""),
+				docs(&text, callback.deprecated.as_deref(), ""),
 				members.join("\n")
 			),
 		);
@@ -2649,7 +2752,7 @@ impl Gen<'_> {
 		}
 		self.module = module;
 
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		if handed.is_some() {
 			text.push_str(
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
@@ -2682,9 +2785,10 @@ impl Gen<'_> {
 		if local != member {
 			self.out().renames.insert(local.clone(), member.clone());
 		}
+		let text = self.function_docs(function, text);
 		Some(format!(
 			"{}export function {local}({}): {ret_t} {{\n{}\n}}\n",
-			docs(&text, ""),
+			docs(&text, function.deprecated.as_deref(), ""),
 			params.join(", "),
 			indent(&wrap(&lines))
 		))
@@ -2736,6 +2840,7 @@ mod tests {
 			.map(|name| crate::ir::Field {
 				name: name.to_string(),
 				docs: String::new(),
+				deprecated: None,
 				ty: Type::Unit,
 			})
 			.collect()

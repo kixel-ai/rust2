@@ -1672,6 +1672,26 @@ def calls():
 	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
 	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
 	check(api.Registry.first_get.__doc__ is None, "a property without docs has no docstring")
+
+	# A deprecated function warns at each call, as Python's own do, and still runs.
+	import warnings
+
+	with warnings.catch_warnings(record=True) as caught:
+		warnings.simplefilter("always")
+		knob = api.knob(api.Dial(level=3, before=0))
+		dial = api.Dial(level=3, before=0).max()
+		turned = api.Dial(level=3, before=0).turn(2)
+	warned = [(w.category, str(w.message), w.filename == __file__) for w in caught]
+	check(
+		warned
+		== [
+			(DeprecationWarning, "knob() is deprecated", True),
+			(DeprecationWarning, "Dial.max() is deprecated: turn it by `LIMIT` with `Dial::turn`", True),
+		],
+		f"deprecated calls warn at the caller: {warned}",
+	)
+	check(knob.level == 3 and dial == api.Dial(level=api.LIMIT, before=3), "a deprecated call runs")
+	check(turned == api.Dial(level=5, before=3), "a turn")
 	print("calls ok")
 
 

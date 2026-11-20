@@ -101,6 +101,16 @@ pub fn raise<T>(exc: *mut PyObject, msg: &str) -> R<T> {
 	Err(Raised)
 }
 
+/// Warn of a call of a deprecated item, as `msg` says: a `DeprecationWarning`, which raises
+/// where warnings are errors.
+pub fn deprecated(msg: &CStr) -> R<()> {
+	// SAFETY: the GIL is held, and the category is a static warning type.
+	match unsafe { PyErr_WarnEx(PyExc_DeprecationWarning, msg.as_ptr(), 1) } {
+		0 => Ok(()),
+		_ => Err(Raised),
+	}
+}
+
 /// Raise for a call of `what`, or a value of it crossing in, which the library's target
 /// lacks: the binding serves other targets, which have it.
 pub fn missing<T>(what: &str) -> R<T> {

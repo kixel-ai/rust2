@@ -5026,3 +5026,74 @@ impl Key {
 		)
 	}
 }
+
+/// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
+/// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
+/// function [`advance`], a constant [`LIMIT`], an object [`Counter`], and [`Vec`], which no
+/// binding has, and [a link with its own text](Self::turn).
+///
+/// # Examples
+///
+/// ```
+/// let dial = api::Dial::default();
+/// assert_eq!(dial.level, 0);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Dial {
+	/// How far it is turned, below [`LIMIT`].
+	pub level: u64,
+	/// What [`Self::level`] was before the last turn.
+	#[deprecated(note = "keep the [`Dial`] from before the turn")]
+	pub before: u64,
+}
+
+impl Dial {
+	/// The dial turned `by` more.
+	///
+	/// # Errors
+	///
+	/// [`Error::Overflow`] past [`LIMIT`].
+	///
+	/// # Panics
+	///
+	/// When `by` is zero.
+	#[allow(deprecated, reason = "it keeps the field it deprecates")]
+	pub fn turn(self, by: u64) -> Result<Dial, Error> {
+		assert!(by != 0, "a turn by nothing");
+		match self.level.checked_add(by) {
+			Some(level) if level <= LIMIT => Ok(Dial {
+				level,
+				before: self.level,
+			}),
+			_ => Err(Error::Overflow),
+		}
+	}
+
+	/// The dial turned all the way: use [`Self::turn`].
+	#[deprecated(since = "0.2.0", note = "turn it by [`LIMIT`] with [`Dial::turn`]")]
+	pub fn max(self) -> Dial {
+		#[allow(deprecated, reason = "it keeps the field it deprecates")]
+		Dial {
+			level: LIMIT,
+			before: self.level,
+		}
+	}
+}
+
+/// A knob, deprecated as a whole: [`Dial`] replaces it.
+#[deprecated(note = "use [`Dial`]")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Knob {
+	pub level: u64,
+}
+
+/// The knob of `dial`.
+#[deprecated]
+#[allow(deprecated, reason = "it returns the type it deprecates")]
+pub fn knob(dial: Dial) -> Knob {
+	Knob { level: dial.level }
+}
+
+/// The step a [`Dial`] turned by before [`Dial::turn`] took any.
+#[deprecated(note = "pass a step to [`Dial::turn`]")]
+pub const STEP: u64 = 1;
