@@ -2440,8 +2440,8 @@ fn cpp_int(int: Int) -> &'static str {
 	}
 }
 
-/// A name C++ would read as a keyword or a header's macro with `_` appended, and one
-/// starting with a digit with `_` prepended, as C's are.
+/// A name C++ would read as a keyword or a header's macro or reserves for itself with `_`
+/// appended, and one starting with a digit with `_` prepended, as C's are.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -2550,7 +2550,13 @@ pub(crate) fn escape(name: &str) -> String {
 		_ if KEYWORDS.contains(&name) => format!("{name}_"),
 		_ => {
 			let stem = name.trim_end_matches('_');
-			abi::unmacroed(stem, name.len() - stem.len(), |name| name == "i386")
+			let trailing = name.len() - stem.len();
+			// A reserved name, which the implementation may make a keyword such as `_Bool`,
+			// never keeps its own spelling, so its family counts from `stem_`.
+			match abi::reserved(name) {
+				true => abi::unmacroed(&format!("{stem}_"), trailing, |name| name == "i386"),
+				false => abi::unmacroed(stem, trailing, |name| name == "i386"),
+			}
 		}
 	}
 }
@@ -2624,15 +2630,16 @@ mod tests {
 		assert_eq!(escape("h_addr"), "h_addr_");
 		// Reserved, but defined by glibc and exported by libc.
 		assert_eq!(escape("__WALL"), "__WALL_");
-		// Apart from a macro ending in `_`, and from each other.
-		assert_eq!(escape("__attribute_pure__"), "__attribute_pure___");
-		assert_eq!(escape("__attribute_pure___"), "__attribute_pure____");
-		assert_eq!(escape("__attribute_pure_"), "__attribute_pure_");
+		// Reserved, so counting from `__attribute_pure_`: apart from the macro
+		// `__attribute_pure__`, and from each other.
+		assert_eq!(escape("__attribute_pure"), "__attribute_pure_");
+		assert_eq!(escape("__attribute_pure_"), "__attribute_pure___");
+		assert_eq!(escape("__attribute_pure__"), "__attribute_pure____");
 		// Past both of a family's macros, `_STRING_H` and `_STRING_H_`.
 		assert_eq!(escape("_STRING_H"), "_STRING_H__");
 		assert_eq!(escape("_STRING_H_"), "_STRING_H___");
 		assert_eq!(crate::abi::escape("_STRING_H"), "_STRING_H__");
-		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H____");
+		assert_eq!(crate::abi::escape("_STRING_H_"), "_STRING_H___");
 		assert_eq!(crate::abi::escape("bool"), "bool_");
 		assert_eq!(crate::abi::escape("bool_"), "bool__");
 		assert_eq!(crate::abi::escape("or__"), "or___");
@@ -2654,6 +2661,12 @@ mod tests {
 		assert_eq!(escape("offsetof_"), "offsetof__");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
+		// A reserved name never keeps its own spelling, so its family counts from `stem_`,
+		// past `__GNUC__`, a macro itself.
+		assert_eq!(escape("__cplusplus"), "__cplusplus_");
+		assert_eq!(escape("__GNUC__"), "__GNUC____");
+		assert_eq!(escape("_Bool"), "_Bool_");
+		assert_eq!(escape("_bool"), "_bool");
 	}
 
 	#[test]

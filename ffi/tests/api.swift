@@ -26,6 +26,12 @@ final class Print: Log {
 	}
 }
 
+// The Undo callback: each method returns its own digit.
+final class Edits: Undo {
+	func delete(_ n: UInt32) -> UInt32 { n - 1 }
+	func free() -> UInt32 { 2 }
+	func type() -> UInt8 { 3 }
+}
 
 /// A Log that counts its frees.
 final class DropLog: Log {

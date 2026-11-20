@@ -87,6 +87,18 @@ final class Print extends api.Log {
   void close() => print('freed');
 }
 
+/// The Undo callback: each method returns its own digit.
+final class Edits extends api.Undo {
+  @override
+  int delete(int n) => n - 1;
+
+  @override
+  int free() => 2;
+
+  @override
+  int type() => 3;
+}
+
 /// Bytes in hex, two digits each.
 String _hex(List<int> bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 

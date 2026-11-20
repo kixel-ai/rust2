@@ -15,7 +15,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Tier, Version, Waiter, Window,
+	Stamp, Tally, Tier, Undo, Version, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -35,6 +35,23 @@ impl Log for Print {
 impl Drop for Print {
 	fn drop(&mut self) {
 		println!("freed");
+	}
+}
+
+/// An edit history whose methods each return their own digit, as each language's does.
+struct Edits;
+
+impl Undo for Edits {
+	fn delete(&self, n: u32) -> u32 {
+		n - 1
+	}
+
+	fn free(&self) -> u32 {
+		2
+	}
+
+	fn r#type(&self) -> u8 {
+		3
 	}
 }
 
@@ -426,6 +443,8 @@ fn main() {
 	println!("noted {before} {}", noted.count());
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
+	// Each method its own table member, whatever C, C++, or Rust reads its name as.
+	println!("undone {}", api::undone(Edits, 5));
 	let logger = Logger::new(Box::new(Print));
 	println!("write {}", logger.write("hi"));
 	drop(logger);

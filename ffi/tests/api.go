@@ -50,6 +50,13 @@ func (Print) Log(level uint8, line string) bool {
 	return level%2 == 0
 }
 
+// Edits is the transcript's Undo: each method returns its own digit.
+type Edits struct{}
+
+func (Edits) Delete(n uint32) uint32 { return n - 1 }
+func (Edits) Free() uint32           { return 2 }
+func (Edits) Type() uint8            { return 3 }
+
 // list is items as Rust's Debug prints a slice, each by show.
 func list[T any](items []T, show func(T) string) string {
 	shown := make([]string, len(items))

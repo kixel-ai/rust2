@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x2ef7e7855318264aULL)
+#define MOQ_CONTRACT ((uint64_t)0x77bee5e297e546daULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -8446,7 +8446,7 @@ moq_option_u64 moq_mux_container_ts_Mpegts_mux_rate_get(const moq_mux_container_
 void moq_mux_container_ts_Mpegts_mux_rate_set(moq_mux_container_ts_Mpegts *self, moq_option_u64 value, moq_status *status);
 MOQ_MUST_USE moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_Mpegts_passthrough_get(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_Mpegts_passthrough_set(moq_mux_container_ts_Mpegts *self, moq_mux_container_ts_PassthroughTrack *value, moq_status *status);
-MOQ_MUST_USE bool moq_mux_container_ts_Mpegts_deserialize(moq_Json *__deserializer, moq_mux_container_ts_Mpegts **out, moq_buf *err, moq_status *status);
+MOQ_MUST_USE bool moq_mux_container_ts_Mpegts_deserialize(moq_Json *__deserializer_, moq_mux_container_ts_Mpegts **out, moq_buf *err, moq_status *status);
 bool moq_mux_container_ts_Mpegts_is_empty(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_PassthroughTrack_free(moq_mux_container_ts_PassthroughTrack *self);
 void moq_mux_container_ts_PassthroughTrack_drop(moq_mux_container_ts_PassthroughTrack *self, moq_status *status);

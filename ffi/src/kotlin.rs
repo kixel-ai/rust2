@@ -2266,7 +2266,7 @@ impl<'a> Gen<'a> {
 				(&c_params, &c_ret),
 				(&name, Some(&member)),
 			);
-			table.push(format!("{}: Some({trampoline})", method.name()));
+			table.push(format!("{}: Some({trampoline})", abi::member(method)));
 		}
 		self.distinct(&rust, &members);
 		let text = format!(

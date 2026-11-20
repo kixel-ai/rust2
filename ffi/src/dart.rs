@@ -2407,7 +2407,7 @@ impl<'a> Gen<'a> {
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c}_vtable.{m}\", \"the function is null\"));{cast}\n\t{called}\n}}\n\n",
 				decls.concat(),
 				rs(&ret),
-				m = method.name(),
+				m = abi::member(method),
 			);
 		}
 		let tables = format!("_tables${}", mangle(self.bare(c)));

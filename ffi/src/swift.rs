@@ -1624,7 +1624,7 @@ impl<'a> Gen<'a> {
 			closure_params.extend(ps);
 			table.push(format!(
 				"{}: {{ {} in {call} }}",
-				method.name(),
+				abi::member(method),
 				closure_params.join(", ")
 			));
 		}

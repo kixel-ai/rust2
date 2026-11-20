@@ -93,13 +93,7 @@ fn foreign_path(path: &[String]) -> String {
 
 /// A Rust name as the glue writes it: a keyword raw, as socket2's `Socket::type` needs.
 fn ident(name: &str) -> String {
-	const KEYWORDS: &[&str] = &[
-		"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
-		"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod",
-		"move", "mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type",
-		"typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
-	];
-	match KEYWORDS.contains(&name) {
+	match abi::RUST_KEYWORDS.contains(&name) {
 		true => format!("r#{name}"),
 		false => name.to_string(),
 	}
@@ -2270,13 +2264,14 @@ impl Gen<'_> {
 		let mut methods = String::new();
 		for method in &callback.methods {
 			let method_name = method.name();
+			let member = abi::member(method);
 			let c_params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(method.params.iter().map(|p| rs(&self.abi.ty(&p.ty))))
 				.collect();
 			let ret = rs(&self.abi.ty(&method.ok));
 			let _ = writeln!(
 				table,
-				"\tpub {method_name}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
+				"\tpub {member}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
 				c_params.join(", ")
 			);
 			let receiver = match method.receiver {
@@ -2300,7 +2295,8 @@ impl Gen<'_> {
 				.collect();
 			let _ = write!(
 				methods,
-				"\tfn {method_name}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{method_name}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{method_name} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				ident(method_name),
 				params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				self.rust(&method.ok),
 				args.join(", "),
