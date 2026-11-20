@@ -2059,21 +2059,25 @@ def consume_web(dist, check, native):
     if len(tarballs) != 1:
         raise SystemExit(f"{dist} holds {len(tarballs)} npm tarballs")
     name = json.loads((dist / "npm" / "package.json").read_text(encoding="utf-8"))["name"]
-    # The check's modules, each importing the package; `check.ts` runs, importing the others by path.
     if check:
         check_program_in(check, ("check.ts",))
-        modules = {p.name: check_program(p, name) for p in sorted(Path(check).glob("*.ts"))}
-    else:
-        modules = {"check.ts": f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n"}
     expected = Path(native).read_bytes() if native and check else None
     with tempfile.TemporaryDirectory() as clean:
         clean = Path(clean)
+        # The check's directory whole, each TypeScript module in it importing the package;
+        # `check.ts` runs, reaching the rest by path. The project's own files then replace any
+        # it holds of the same names.
+        if check:
+            shutil.copytree(check, clean, dirs_exist_ok=True)
+            for module in clean.rglob("*.ts"):
+                module.write_text(check_program(module, name), encoding="utf-8")
+        else:
+            (clean / "check.ts").write_text(
+                f"import * as binding from {json.dumps(name)};\n\nawait binding.load();\n", encoding="utf-8")
         manifest = {"type": "module", "private": True, "dependencies": {name: f"file:{tarballs[0]}"},
                     "devDependencies": BUNDLERS}
         (clean / "package.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         run("npm", "install", "--no-audit", "--no-fund", "--ignore-scripts", cwd=clean, capture_output=True)
-        for module, program in modules.items():
-            (clean / module).write_text(program, encoding="utf-8")
         # The bundles target the browser, whose `document` Vite's preload polyfill reads;
         # each runs on Node from where the bundler wrote it, a relative base reaching its module.
         (clean / "index.html").write_text('<!doctype html><script type="module" src="./check.ts"></script>\n', encoding="utf-8")
