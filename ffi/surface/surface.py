@@ -865,7 +865,7 @@ def files(export):
     for lang, glob, name, outline, label in [
         ("kotlin", "kotlin/*.kt", "kotlin.kt", lambda t: indented(t, "kotlin"), "// {}"),
         ("swift", "swift/*.swift", "swift.swift", lambda t: indented(t, "swift"), "// {}"),
-        ("dart", "dart/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
+        ("dart", "dart/lib/*.dart", "dart.dart", lambda t: braced(t, "dart"), "// {}"),
         ("python", "python/*.py", "python.pyi", python_stub, "# {}"),
     ]:
         sources = sorted(export.glob(glob))

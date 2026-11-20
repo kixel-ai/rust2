@@ -1,8 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
-C and C++ archives, a Go module, and a web package on npm and JSR. Two halves, split where
-Cargo's knowledge ends:
+C and C++ archives, a Go module, a Dart package on pub.dev, and a web package on npm and JSR.
+Two halves, split where Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -10,9 +10,10 @@ Cargo's knowledge ends:
   exporter gives the crate's library. It builds, repairs, and checks the packages in clean
   consumers, and publishes nothing.
 - **The release workflow**, the caller's own file, which `package.py init` writes once.
-  It holds what Cargo cannot establish: who may publish to PyPI, npm, and JSR, the scope
-  the web package is named under, where the XCFramework is hosted, which repository
-  SwiftPM resolves the package from, the Go module's path, and which tag releases.
+  It holds what Cargo cannot establish: who may publish to PyPI, pub.dev, npm, and JSR, the
+  scope the web package is named under, where the XCFramework and the Dart libraries are
+  hosted, which repository SwiftPM resolves the package from, the Go module's path, and
+  which tag releases.
 
 ## Adopting it
 
@@ -36,6 +37,11 @@ outside the repository:
   resolves a `github.com` path by git alone, so its consumers set `GOPROXY` to the proxy. No
   job publishes it: a git mirror holds no library over GitHub's 100 MiB, and a proxy is the
   caller's to run.
+- for the Dart package, publish its first version by hand, the `<crate>-pub` artifact's
+  `package/` after its libraries are on the release, as pub.dev configures automated
+  publishing only for a package it holds; then, on its admin page, enable publishing from
+  GitHub Actions for this repository, with the tag pattern `<crate>-v{{version}}` and the
+  `pub` environment required, and make that environment one only release tags may deploy to;
 - for the web package, publish its first version by hand, as npm configures a trusted
   publisher only for a package it holds, then register the workflow and the `npm`
   environment as its trusted publisher; and create the package in the JSR scope and link
@@ -55,8 +61,10 @@ A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 The builder takes the crate's `Cargo.toml`, the `go-module` path, which without it is the
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check`, `swift-check`, `c-check`, and `go-check` programs that must print it through
-the installed packages, and `reproduce`, which builds everything twice. Without a check, a consumer only imports the module, or links a
+`python-check`, `swift-check`, `c-check`, `go-check`, and `dart-check` programs that must
+print it through the installed packages, and `reproduce`, which builds everything twice.
+A `dart-check` prints through `print`, which a Flutter app on Android passes to its log,
+not through `stdout`. Without a check, a consumer only imports the module, or links a
 function of each C and C++ header. A `c-check` is C or C++ by its extension. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
@@ -80,7 +88,8 @@ crate apart from it takes `web-features` and `web-example` instead.
    missing ([Targets](/ffi/README.md#targets)). A job checks that every host generated the
    same binding.
 4. Builds each target with the crate's own toolchain, as rustup resolves it from the
-   crate's directory; only the export runs on rust2's nightly.
+   crate's directory; only the export runs on rust2's nightly. Android's targets build, and
+   stage their APIs, on Linux through the NDK Flutter defaults to, r28.
 5. Python: a `cp311-abi3` wheel per target, the oldest CPython the generated extension's
    stable ABI loads in, holding the module as `<lib>/__init__.py` beside its library, with
    PEP 639 license metadata and a complete hashed RECORD. Each is repaired by its platform's
@@ -141,10 +150,25 @@ crate apart from it takes `web-features` and `web-example` instead.
    limit, each platform's library moves to a module of its own, whose one package's `#cgo`
    line links it and which the runtime imports under that platform's build constraint, so
    `go get` downloads only the platform it builds for.
-9. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
+9. Dart: the export's `dart/`, a package `package:<lib>/<lib>.dart` names, whose
+   `hook/build.dart` bundles its library as the native asset its `@Native` functions find
+   ([Dart](/ffi/README.md#dart)). Each target's library, the C ABI with its Dart glue,
+   `<crate>-<version>-dart-<target>.so`, `.dylib`, or `.dll`: Linux x64 and arm64 (against
+   glibc 2.28), macOS arm64 and x64 (at 10.15), iOS arm64 and its arm64 simulator (at 13.0),
+   Windows x64, and Android arm64, armv7, and x86_64 (at API 24), Flutter's floors. The
+   package adds `hook/release.json`, naming each at
+   `https://github.com/<repo>/releases/download/<crate>-v<version>/` by size and SHA-256,
+   and the oldest system it loads on, where an app could target an older one; the hook
+   downloads its target's into the build's shared cache, refusing other bytes, and refuses
+   an app targeting an older system. Its pubspec takes Cargo's description, repository,
+   and homepage; `LICENSE` holds each license file's text, or else Cargo's SPDX expression,
+   as pub reads no other name; `README.md` is the crate's readme, or else a line naming
+   the crate; and `CHANGELOG.md` is `changes.md` under the version. `dart pub publish
+   --dry-run` must find no warning, and the analyzer no issue with the lints pub.dev scores by.
+10. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
    the previous release's, by kind and Rust path; the caller's release publishes the first
    as an asset and the second as its notes.
-10. Consumers, with no checkout, Rust, or source path: each wheel installed with
+11. Consumers, with no checkout, Rust, or source path: each wheel installed with
     `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
     from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
     and the iOS Simulator, then consumed by a new executable package that runs the check;
@@ -152,9 +176,17 @@ crate apart from it takes `web-features` and `web-example` instead.
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
     its zip into a new module that requires it, vetted, built with the newest Go and no
-    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and Windows.
+    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and Windows; and the Dart
+    package, its libraries served from the loopback, in a new Dart app by `dart run` and
+    from `dart build cli`'s bundle on Linux x64 and arm64, macOS, and Windows, on the newest
+    Dart and on Linux on 3.10, the oldest the package takes, after a hook served a library
+    of other bytes refused it; and in a new Flutter app on an Android emulator at API 24,
+    run in debug, then again after a hot restart, which keeps the library and Rust's
+    statics but not the isolate.
     With an `example`, each must print native Rust's stdout byte for byte.
-11. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
+    Beside them, on Linux x64, a new Dart app on the export's own package, whose hook builds
+    the crate with Cargo, as in a checkout.
+12. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
     TypeScript, its JavaScript and declarations, and a `package.json`
     ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
     `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
@@ -172,7 +204,7 @@ rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
 wheels, C++ consumers, and web package must print its native transcript, and on moq's
 stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
-`moq/moq.cpp`, and `moq/moq.go`, with its wasm32 stand-in as the web package.
+`moq/moq.cpp`, `moq/moq.go`, and `moq/moq.dart`, with its wasm32 stand-in as the web package.
 
 ## Reproducible builds
 
@@ -190,8 +222,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with `/Brepro`.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
   With `reproduce: true`, every build host builds a second time, from a new export at the same
-  path, and `package.py same` fails unless each wheel, static library, and C archive, the Go
-  module's included, matches byte for byte, and the web job packs its npm tarball twice; rust2 turns it on
+  path, and `package.py same` fails unless each wheel, static library, C archive, and Dart
+  library, the Go module's included, matches byte for byte, and the web job packs its npm tarball twice; rust2 turns it on
   for its api fixture. It doubles the build, so a large crate may leave it to a nightly.
 - **Not yet.** The exporter writes the crate's absolute path into the generated crate's
   version, which cargo hashes into every symbol, so a rebuild must keep the crate at the
@@ -206,7 +238,7 @@ the crates the binding links (normal dependencies, platform-neutral, with each r
 crate's checksum from `Cargo.lock`), which every wheel also carries in
 `.dist-info/sboms/` (PEP 770) and the build hosts must agree on. The caller's `attest` job
 runs on a tag, before anything is published, and gives every wheel, the XCFramework, the Go
-module's `.zip` and `.mod`, each C archive, and the npm tarball a build provenance
+module's `.zip` and `.mod`, each C archive, each Dart library, and the npm tarball a build provenance
 attestation and an SBOM attestation (the tarball's from its own `sbom.cdx.json`), which
 `gh attestation verify <file> --repo <owner>/<repo>` checks. Only that job holds `id-token` and `attestations`
 write; the builder stays read-only. PyPI's trusted publishing uploads its own PEP 740
@@ -222,7 +254,6 @@ binding.
 | Destination | Builder work | What only the caller can say |
 | --- | --- | --- |
 | Maven Central | An AAR with classes.jar, JNI libraries per Android ABI and the generated R8 rules; POM, sources and javadoc jars | The verified groupId namespace, publisher authorization, and signing key |
-| pub.dev | The generated Dart library with a native-assets build hook and per-platform archives, pubspec, and license | Publisher authorization and the archives' download host |
 | NuGet | Needs a C# generator first: the managed assembly and RID-specific native assets | Package ID ownership, credentials, and target frameworks |
 
 Cargo's `repository` can suggest a Go module path or a Maven namespace but cannot prove

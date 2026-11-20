@@ -1,12 +1,12 @@
 name: Release @NAME@ bindings
 
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
-# below, exports @NAME@'s pub API, builds its Python wheels, Swift package, C archives, and
-# web package, and checks them in clean consumers, all read-only. The jobs after it publish
+# below, exports @NAME@'s pub API, builds its Python wheels, Swift package, C archives, Go
+# module, pub.dev package, and web package, and checks them in clean consumers, all read-only. The jobs after it publish
 # only a tag's build, once `attest` has signed it:
 #
 # - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
-#   XCFramework, the Go module's .zip and .mod, each C archive, and the npm tarball, from
+#   XCFramework, the Go module's .zip and .mod, each C archive, each Dart library, and the npm tarball, from
 #   this repository's GitHub, checked with `gh attestation verify`.
 # - PyPI: the project @NAME@, through the trusted publisher this repository registers there
 #   for this workflow and the `pypi` environment.
@@ -15,6 +15,9 @@ name: Release @NAME@ bindings
 #   The mirror's token comes from a GitHub App installed on it, whose ID and key live in
 #   the `swift-mirror` environment.
 # - C and C++: <crate>-<version>-<target>.tar.gz, or .zip on Windows, on the same release.
+# - pub.dev: the package its pubspec names, through pub.dev's automated publishing from this
+#   repository's @NAME@-v{{version}} tags in the `pub` environment, once the same release
+#   hosts <crate>-<version>-dart-<target>.<ext>, each library its build hook downloads.
 # - npm and JSR: the web package, when the build makes one, through the trusted publisher
 #   npm registers for this workflow and the `npm` environment, and JSR's link to this
 #   repository, each with provenance.
@@ -122,6 +125,7 @@ jobs:
             artifacts/go/**/@v/*.zip
             artifacts/go/**/@v/*.mod
             artifacts/c/*
+            artifacts/dart/*
             artifacts/web/*.tgz
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
@@ -131,6 +135,7 @@ jobs:
             artifacts/go/**/@v/*.zip
             artifacts/go/**/@v/*.mod
             artifacts/c/*
+            artifacts/dart/*
           sbom-path: artifacts/sbom.cdx.json
       # The npm tarball's own, from the web export's dependencies.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -186,7 +191,8 @@ jobs:
         with:
           packages-dir: dist/wheels/
 
-  # The XCFramework the mirror's Package.swift names and each target's C archive, uploaded
+  # The XCFramework the mirror's Package.swift names, each target's C archive, and each Dart
+  # library the pub.dev package's hook downloads, uploaded
   # once: a consumer that resolved a checksum must never see other bytes at that URL. The
   # release stays a draft until its assets are up, as an immutable release takes none once
   # published. The release's API, api.json, is an asset too: the next release's build checks
@@ -222,7 +228,7 @@ jobs:
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$PRERELEASE" --title "$TAG" --notes-file release/changes.md
           fi
           shopt -s nullglob
-          for path in "$XCFRAMEWORK" release/api.json dist/c/*; do
+          for path in "$XCFRAMEWORK" release/api.json dist/c/* dist/dart/*; do
             asset=$(basename "$path")
             if gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir existing; then
               cmp "existing/$asset" "$path" || { echo "::error::$TAG already hosts another $asset"; exit 1; }
@@ -302,6 +308,37 @@ jobs:
           git diff --cached --quiet || git commit --quiet -m "$VERSION"
           git tag "$VERSION"
           git push --quiet --atomic origin HEAD "refs/tags/$VERSION"
+
+  # The package, once the release hosts every library its hook downloads. pub.dev takes it
+  # from a tag push alone, by the OIDC token setup-dart makes. A rerun publishes only a
+  # version pub.dev lacks, and fails on one it hosts with other files.
+  pub:
+    needs: [build, tag, attest, github-release]
+    runs-on: ubuntu-24.04
+    environment: pub
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-pub
+          path: pub
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: stable
+      - name: Publish
+        working-directory: pub/package
+        run: |
+          name=$(sed -n 's/^name: //p' pubspec.yaml)
+          version=$(sed -n 's/^version: //p' pubspec.yaml)
+          if url=$(curl -sf "https://pub.dev/api/packages/$name/versions/$version" | jq -er .archive_url); then
+            mkdir ../hosted
+            curl -sfL "$url" | tar -xz -C ../hosted
+            diff -r . ../hosted || { echo "::error::pub.dev hosts another $name $version"; exit 1; }
+            echo "pub.dev already hosts $name $version"
+            exit 0
+          fi
+          dart pub publish --force
 
   # A rerun publishes only a version npm lacks, and fails on one it hosts with other bytes.
   npm:

@@ -257,7 +257,7 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, and the Dart package `dart/`, whose glue its `dart` feature builds.
 	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
@@ -367,7 +367,7 @@ impl Crate<'_> {
 			kotlin = [\"dep:jni-sys\"]\n\
 			# The CPython extension python/{lib}.py loads.\n\
 			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
-			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
+			# What dart/lib/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
 			web = []\n\
@@ -463,7 +463,16 @@ impl Crate<'_> {
 		);
 		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
 		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
-		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
+		let package = out.join("dart");
+		output.file(
+			&package.join("pubspec.yaml"),
+			&crate::dart::pubspec(facade, &self.abi.prefix)?,
+		);
+		output.file(
+			&package.join("lib").join(format!("{}.dart", self.abi.prefix)),
+			&dart.dart,
+		);
+		output.file(&package.join("hook").join("build.dart"), crate::dart::HOOK);
 		if let Some(web) = web {
 			output.file(&out.join("src/web/mod.rs"), &web.glue);
 			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
