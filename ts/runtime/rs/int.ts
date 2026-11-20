@@ -963,21 +963,16 @@ function compare(a: Limbs, b: Limbs): number {
 	return a.lo === b.lo ? 0 : a.lo < b.lo ? -1 : 1;
 }
 
-// The high half of the last `mul32`.
-let mulHi = 0;
-
-/** The full product of two uint32s: its low half, with the high one in `mulHi`. */
-function mul32(a: number, b: number): number {
+/** The high half of the full product of two uint32s; its low half is `Math.imul(a, b) >>> 0`. */
+function mulHigh(a: number, b: number): number {
 	const a0 = a & 0xffff;
 	const a1 = a >>> 16;
 	const b0 = b & 0xffff;
 	const b1 = b >>> 16;
-	const p00 = a0 * b0;
 	const p01 = a0 * b1;
 	const p10 = a1 * b0;
-	const mid = (p00 >>> 16) + (p01 & 0xffff) + (p10 & 0xffff);
-	mulHi = a1 * b1 + (p01 >>> 16) + (p10 >>> 16) + (mid >>> 16);
-	return (((mid & 0xffff) << 16) | (p00 & 0xffff)) >>> 0;
+	const mid = ((a0 * b0) >>> 16) + (p01 & 0xffff) + (p10 & 0xffff);
+	return a1 * b1 + (p01 >>> 16) + (p10 >>> 16) + (mid >>> 16);
 }
 
 // Which way the last sum left the type's range: 1 past its maximum, -1 below its
@@ -1058,8 +1053,7 @@ function wrappingProduct(a: Wide, b: Wide, signed: boolean): Wide {
 function wrappingProduct64(a: Wide, b: Wide, signed: boolean): Wide {
 	const xl = loOf(a);
 	const yl = loOf(b);
-	const lo = mul32(xl, yl);
-	return join(high(mulHi + Math.imul(hiOf(a), yl) + Math.imul(xl, hiOf(b)), signed), lo);
+	return join(high(mulHigh(xl, yl) + Math.imul(hiOf(a), yl) + Math.imul(xl, hiOf(b)), signed), Math.imul(xl, yl) >>> 0);
 }
 
 /** Whether `a` is a multiple of `b`, unsigned: of 0, only 0 is. */
@@ -1110,8 +1104,8 @@ function product64(a: Wide, b: Wide, signed: boolean): Wide | undefined {
 	// Two high halves pass 2^64. Otherwise one factor is below 2^32, and its product with
 	// the other's high half must be too: past 2^53 that sum rounds, but stays past it.
 	if (xh !== 0 && yh !== 0) return undefined;
-	const lo = mul32(xl, yl);
-	const hi = mulHi + xh * yl + xl * yh;
+	const lo = Math.imul(xl, yl) >>> 0;
+	const hi = mulHigh(xl, yl) + xh * yl + xl * yh;
 	if (!signed) return hi > 0xffffffff ? undefined : join(hi, lo);
 	if (!negative) return hi > 0x7fffffff ? undefined : join(hi, lo);
 	if (hi > 0x80000000 || (hi === 0x80000000 && lo !== 0)) return undefined;
@@ -1131,10 +1125,10 @@ function product128(a: number, b: number): Limbs {
 	const xl = x >>> 0;
 	const yh = Math.floor(y / TWO32);
 	const yl = y >>> 0;
-	const w0 = mul32(xl, yl);
+	const w0 = Math.imul(xl, yl) >>> 0;
 	const m1 = xh * yl;
 	const m2 = xl * yh;
-	const s1 = mulHi + (m1 >>> 0) + (m2 >>> 0);
+	const s1 = mulHigh(xl, yl) + (m1 >>> 0) + (m2 >>> 0);
 	const s2 = xh * yh + Math.floor(m1 / TWO32) + Math.floor(m2 / TWO32) + Math.floor(s1 / TWO32);
 	const w1 = s1 >>> 0;
 	const w2 = s2 >>> 0;
