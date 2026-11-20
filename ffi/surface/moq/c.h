@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x795cd35cc0fc5623ULL)
+#define MOQ_CONTRACT ((uint64_t)0x2ef7e7855318264aULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -821,11 +821,11 @@ typedef enum moq_moq_sock_udp_EcnCodepoint {
 	MOQ_MOQ_SOCK_UDP_ECNCODEPOINT_CE = 3,
 } moq_moq_sock_udp_EcnCodepoint;
 typedef enum moq_Level {
-	MOQ_LEVEL_TRACE = 0,
-	MOQ_LEVEL_DEBUG = 1,
+	MOQ_LEVEL_ERROR = 0,
+	MOQ_LEVEL_WARN = 1,
 	MOQ_LEVEL_INFO = 2,
-	MOQ_LEVEL_WARN = 3,
-	MOQ_LEVEL_ERROR = 4,
+	MOQ_LEVEL_DEBUG = 3,
+	MOQ_LEVEL_TRACE = 4,
 } moq_Level;
 typedef enum moq_bound {
 	MOQ_BOUND_UNBOUNDED = 0,

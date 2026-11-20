@@ -1003,6 +1003,8 @@ final class RankRanked extends Rank {
 enum Tier implements Comparable<Tier> {
 	low(0),
 	high(1),
+	compareTo_(2),
+	partialCompareTo_(3),
 	const Tier(this._c);
 	String debug();
 	int? partialCompareTo(Tier other);
@@ -1026,11 +1028,11 @@ final class ClashCandidateMatch extends ClashCandidate {
 	const ClashCandidateMatch(this.$0);
 }
 enum Level implements Comparable<Level> {
-	trace(0),
-	debug(1),
+	error(0),
+	warn(1),
 	info(2),
-	warn(3),
-	error(4),
+	debug(3),
+	trace(4),
 	const Level(this._c);
 	@override String toString();
 	int? partialCompareTo(Level other);

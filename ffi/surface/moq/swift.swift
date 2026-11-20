@@ -1679,11 +1679,11 @@ public enum MoqSockUdpEcnCodepoint: Sendable, CustomDebugStringConvertible, Equa
 	@inlinable public static func fromBits(_ x: Swift.UInt8) -> MoqSockUdpEcnCodepoint?
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
-	case trace
-	case debug
-	case info
-	case warn
 	case error
+	case warn
+	case info
+	case debug
+	case trace
 	@inlinable public var description: Swift.String { get }
 	@inlinable public static func == (a: Level, b: Level) -> Swift.Bool
 	@inlinable public static func < (a: Level, b: Level) -> Swift.Bool

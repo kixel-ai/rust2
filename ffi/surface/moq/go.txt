@@ -8983,11 +8983,11 @@ package tracingcore // import "moq/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
 func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool

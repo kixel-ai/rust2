@@ -811,6 +811,8 @@ public enum Rank: Sendable, CustomDebugStringConvertible, Equatable, Comparable 
 public enum Tier: Sendable, CustomDebugStringConvertible, Equatable, Comparable {
 	case low
 	case high
+	case compareTo
+	case partialCompareTo
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Tier, b: Tier) -> Swift.Bool
 	@inlinable public static func < (a: Tier, b: Tier) -> Swift.Bool
@@ -825,11 +827,11 @@ public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
-	case trace
-	case debug
-	case info
-	case warn
 	case error
+	case warn
+	case info
+	case debug
+	case trace
 	@inlinable public var description: Swift.String { get }
 	@inlinable public static func == (a: Level, b: Level) -> Swift.Bool
 	@inlinable public static func < (a: Level, b: Level) -> Swift.Bool

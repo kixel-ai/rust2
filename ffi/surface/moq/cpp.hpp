@@ -9866,11 +9866,11 @@ namespace std {
 #include "rt.hpp"
 namespace moq {
 	enum class Level {
-		trace = 0,
-		debug = 1,
+		error = 0,
+		warn = 1,
 		info = 2,
-		warn = 3,
-		error = 4,
+		debug = 3,
+		trace = 4,
 	};
 	inline bool operator==(::moq::Level a, ::moq::Level b);
 	inline bool operator!=(::moq::Level a, ::moq::Level b);

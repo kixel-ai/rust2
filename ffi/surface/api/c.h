@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xeb005b408519187fULL)
+#define API_CONTRACT ((uint64_t)0x9addadd9264acb2eULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -195,13 +195,15 @@ typedef enum api_VecClashTone {
 typedef enum api_Tier {
 	API_TIER_LOW = 0,
 	API_TIER_HIGH = 1,
+	API_TIER_COMPARE_TO = 2,
+	API_TIER_PARTIAL_COMPARE_TO = 3,
 } api_Tier;
 typedef enum api_Level {
-	API_LEVEL_TRACE = 0,
-	API_LEVEL_DEBUG = 1,
+	API_LEVEL_ERROR = 0,
+	API_LEVEL_WARN = 1,
 	API_LEVEL_INFO = 2,
-	API_LEVEL_WARN = 3,
-	API_LEVEL_ERROR = 4,
+	API_LEVEL_DEBUG = 3,
+	API_LEVEL_TRACE = 4,
 } api_Level;
 typedef enum api_bound {
 	API_BOUND_UNBOUNDED = 0,

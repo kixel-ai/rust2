@@ -569,7 +569,9 @@ sealed class Rank : kotlin.Comparable<Rank> {
 }
 enum class Tier(internal val value: Int) {
 	LOW(0),
-	HIGH(1);
+	HIGH(1),
+	COMPARE_TO(2),
+	PARTIAL_COMPARE_TO(3);
 	fun debug(): kotlin.String
 	fun partialCompareTo(other: api.Tier): kotlin.Int?
 	companion object {}
@@ -580,11 +582,11 @@ sealed class ClashCandidate {
 	fun debug(): kotlin.String
 }
 enum class Level(internal val value: Int) {
-	TRACE(0),
-	DEBUG(1),
+	ERROR(0),
+	WARN(1),
 	INFO(2),
-	WARN(3),
-	ERROR(4);
+	DEBUG(3),
+	TRACE(4);
 	final override fun toString(): kotlin.String
 	fun partialCompareTo(other: api.Level): kotlin.Int?
 	companion object {}

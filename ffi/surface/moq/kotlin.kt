@@ -1433,11 +1433,11 @@ enum class MoqSockUdpEcnCodepoint(internal val value: Int) {
 	}
 }
 enum class Level(internal val value: Int) {
-	TRACE(0),
-	DEBUG(1),
+	ERROR(0),
+	WARN(1),
 	INFO(2),
-	WARN(3),
-	ERROR(4);
+	DEBUG(3),
+	TRACE(4);
 	final override fun toString(): kotlin.String
 	fun partialCompareTo(other: moq.Level): kotlin.Int?
 	companion object {}

@@ -703,7 +703,7 @@ export declare function debug(self: LeftU8): string;
 export declare function eq(a: LeftU8, b: LeftU8): boolean;
 
 // Level.ts
-export type Level = "Trace" | "Debug" | "Info" | "Warn" | "Error";
+export type Level = "Error" | "Warn" | "Info" | "Debug" | "Trace";
 export declare function toString(self: Level): string;
 export declare function partialCmp(a: Level, b: Level): number | undefined;
 export declare function cmp(a: Level, b: Level): number;
@@ -1479,7 +1479,7 @@ export declare function clones(): number;
 export { new$ as new };
 
 // Tier.ts
-export type Tier = "Low" | "High";
+export type Tier = "Low" | "High" | "CompareTo" | "PartialCompareTo";
 export declare function debug(self: Tier): string;
 export declare function partialCmp(a: Tier, b: Tier): number | undefined;
 export declare function cmp(a: Tier, b: Tier): number;

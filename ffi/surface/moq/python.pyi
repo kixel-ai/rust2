@@ -1873,11 +1873,11 @@ class MoqSockUdpEcnCodepoint(_enum.Enum):
     @_staticmethod
     def from_bits(x: _int) -> MoqSockUdpEcnCodepoint | None: ...
 class Level(_enum.Enum):
-    TRACE = 0
-    DEBUG = 1
+    ERROR = 0
+    WARN = 1
     INFO = 2
-    WARN = 3
-    ERROR = 4
+    DEBUG = 3
+    TRACE = 4
     def __lt__(self, other: _object) -> _bool: ...
     def __le__(self, other: _object) -> _bool: ...
     def __gt__(self, other: _object) -> _bool: ...

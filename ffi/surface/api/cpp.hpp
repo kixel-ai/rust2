@@ -35,6 +35,8 @@ namespace api {
 	enum class Tier {
 		low = 0,
 		high = 1,
+		compare_to = 2,
+		partial_compare_to = 3,
 	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
@@ -2469,11 +2471,11 @@ namespace api {
 #include "rt.hpp"
 namespace api {
 	enum class Level {
-		trace = 0,
-		debug = 1,
+		error = 0,
+		warn = 1,
 		info = 2,
-		warn = 3,
-		error = 4,
+		debug = 3,
+		trace = 4,
 	};
 	inline bool operator==(::api::Level a__, ::api::Level b_);
 	inline bool operator!=(::api::Level a__, ::api::Level b_);

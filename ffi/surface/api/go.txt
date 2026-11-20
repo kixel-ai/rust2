@@ -1738,8 +1738,10 @@ func (self Ticket) GoString() string
 func (self Ticket) Number() uint32
 type Tier int32
 const (
-	TierLow  Tier = 0
-	TierHigh Tier = 1
+	TierLow              Tier = 0
+	TierHigh             Tier = 1
+	TierCompareTo        Tier = 2
+	TierPartialCompareTo Tier = 3
 )
 func (self Tier) Compare(other Tier) int
 func (self Tier) Equal(other Tier) bool
@@ -2069,11 +2071,11 @@ package tracingcore // import "api/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
 func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
