@@ -193,15 +193,26 @@ impl Hold {
 		if let Some(closed) = self.drop_free(refused) {
 			return closed;
 		}
-		let Some(slot) = self.hold(column) else {
+		loop {
+			let n = self.state.load(SeqCst);
+			// Another close is deciding, which may leave it open: wait for its outcome.
+			if n & CLOSING != 0 {
+				thread::yield_now();
+				continue;
+			}
+			if n & CLOSED != 0 {
+				return true;
+			}
+			let Some(slot) = self.hold(column) else {
+				continue;
+			};
+			self.release(slot);
+			if refused {
+				return false;
+			}
+			self.abandon();
 			return true;
-		};
-		self.release(slot);
-		if refused {
-			return false;
 		}
-		self.abandon();
-		true
 	}
 
 	/// No hold is left, and the handle was freed once, or not at all while still open.
@@ -378,6 +389,20 @@ fn checked_close_refused() {
 		assert!(!hold.checked_close(0, true));
 		held.join().unwrap();
 		assert!(call(&hold, 0));
+		hold.settled(false);
+	});
+}
+
+/// Two checked closes Rust refuses: neither reports the handle closed while the other's
+/// refused drop reopens it.
+#[test]
+fn checked_closes_refused() {
+	model(|| {
+		let hold = Hold::new(2, false);
+		let other = hold.clone();
+		let first = thread::spawn(move || other.checked_close(1, true));
+		assert!(!hold.checked_close(0, true));
+		assert!(!first.join().unwrap());
 		hold.settled(false);
 	});
 }

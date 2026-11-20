@@ -499,6 +499,10 @@ class __Handle(
 	// Plain: a free that misses an eviction's write leaves a cleanup that finds it closed.
 	private var cleanup: __Collected? = null
 
+	// The thread whose close drops the value in one crossing, while it does. Plain: only that
+	// thread finds itself here, as it writes and clears it while [CLOSING] is set.
+	private var closer: java.lang.Thread? = null
+
 	init {
 		if (free != null) __Nursery.push(owner, this)
 	}
@@ -563,35 +567,17 @@ class __Handle(
 		freed(STATE.addAndGet(this, -HELD))
 	}
 
-	/** Close it as [__Handle] says; again, it does nothing. */
-	fun close() {
+	/**
+	 * Close it as [__Handle] says, [owner] reachable until it returns, so a cleanup of the
+	 * owner never waits out a drop; again, it does nothing.
+	 */
+	fun close(owner: Any) {
 		if (drop != null) {
-			// Held by no call, as soon after its return: claimed closed so none starts, then
-			// the value dropped and the handle freed in one crossing. A call meanwhile throws
-			// as closed, as one racing any close may, and a `Drop` that calls back into Kotlin
-			// finds it closed rather than waiting on itself.
-			if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
-				try {
-					drop.close(raw, true)
-				} catch (e: Throwable) {
-					state = HELD
-					throw e
-				}
-				cleanup?.stop()
-				state = CLOSED
-				return
-			}
-			val slot = try {
-				hold()
-			} catch (_: IllegalStateException) {
-				return
-			}
 			try {
-				drop.close(raw, false)
+				return closeChecked(drop)
 			} finally {
-				release(slot)
+				__Keep.fence(owner)
 			}
-			return abandon()
 		}
 		while (true) {
 			val n = state
@@ -613,6 +599,50 @@ class __Handle(
 		}
 		state = CLOSED
 		freed(CLOSED)
+	}
+
+	// [close] of a handle whose value Rust checks.
+	private fun closeChecked(drop: __Close) {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile throws as
+		// closed, as one racing any close may, and a `Drop` that calls back into Kotlin finds
+		// it closed rather than waiting on itself.
+		if (STATE.compareAndSet(this, HELD, CLOSED or CLOSING)) {
+			closer = java.lang.Thread.currentThread()
+			try {
+				drop.close(raw, true)
+			} catch (e: Throwable) {
+				closer = null
+				state = HELD
+				throw e
+			}
+			closer = null
+			cleanup?.stop()
+			state = CLOSED
+			return
+		}
+		while (true) {
+			val n = state
+			// Another close is deciding: wait for its outcome, which may leave it open, unless
+			// this is that close's drop calling back.
+			if (n and CLOSING != 0L) {
+				if (closer === java.lang.Thread.currentThread()) return
+				java.lang.Thread.yield()
+				continue
+			}
+			if (n and CLOSED != 0L) return
+			val slot = try {
+				hold()
+			} catch (_: IllegalStateException) {
+				continue
+			}
+			try {
+				drop.close(raw, false)
+			} finally {
+				release(slot)
+			}
+			return abandon()
+		}
 	}
 
 	// Whether a call holds it in the table.

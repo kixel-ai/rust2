@@ -2054,11 +2054,11 @@ impl<'a> Gen<'a> {
 					),
 				);
 				format!(
-					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
+					"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\", if (lent) null else _Native.__Close {{ p, free -> _Native.{bare}_drop(p, free) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 				)
 			}
 			false => format!(
-				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close()\n"
+				"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close(this)\n"
 			),
 		}];
 		let mut statics = Vec::new();
