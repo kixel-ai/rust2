@@ -195,9 +195,11 @@ holding exactly the files it would upload, and anyone with the commit can check 
   for its api fixture. It doubles the build, so a large crate may leave it to a nightly.
 - **Not yet.** The exporter writes the crate's facade, and the patches and crates it
   resolves with, relative to its export, so two checkouts of one commit export the same
-  bytes (an export whose own path holds a symlink, or on another drive from the crate,
-  keeps the absolute path). A rebuild must still keep the crate at the same path, as a rerun
-  does: cargo hashes the absolute path of a path crate outside the generated crate's
+  bytes while the export keeps its position relative to the crate (an export at another
+  depth writes another relative path, so another version hash and other glue symbols; one
+  whose own path holds a symlink, or on another drive from the crate, keeps the absolute
+  path). A rebuild must still keep the crate at the same path, and the export at the same
+  place beside it, as a rerun does: cargo hashes the absolute path of a path crate outside the generated crate's
   workspace, the facade, into its symbols
   ([planned](/quest/m1/ffi-packaging/relocatable.md)). So must the export directory of a
   Windows GNU library, which is the Go module's: dlltool names the import library's symbols

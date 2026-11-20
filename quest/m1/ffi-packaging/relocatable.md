@@ -13,7 +13,9 @@ Decided with the maintainer on 2026-11-19, in the pick of [#874](https://github.
 Done: the generated crate's manifest names the facade, each `[patch]` path, and each
 path crate it reaches relative to its export, so its version hash, and with it every
 symbol of the glue crate, is the same from any checkout. Two exports of one commit at
-other paths are byte for byte equal (`export_is_relocatable`). It stays absolute where no
+other paths are byte for byte equal while each keeps its position relative to its crate
+(`export_is_relocatable`); an export at another depth writes another relative path, so
+another hash. It stays absolute where no
 relative path reads right: an export whose own path holds a symlink (cargo joins `..`
 lexically), or on another Windows drive from the crate.
 
@@ -33,7 +35,8 @@ a fixed-name directory (a symlink, a junction on Windows) to the common ancestor
 crate's workspace and the export, and runs cargo on the manifest, the target directories,
 and the remap prefixes through it, never resolved. Cargo then hashes the same facade path
 and dlltool the same target directory wherever the checkout is. `reproduce` then moves both
-the source and the export for its second copy. Only CI shows it on macOS and Windows, which
+the source and the export for its second copy, keeping the export's depth below the common
+ancestor. Only CI shows it on macOS and Windows, which
 the linked directory and `Path.resolve()` calls in `package.py` could break: try it there.
 The alternative for the dlltool path alone is a target directory under a fixed absolute
 root, which leaves the facade's hash.
