@@ -1048,6 +1048,11 @@ final class Countdown extends _Object {
 	Cancelable<int?> next();
 	dasync.Stream<int> asStream();
 }
+final class Retired extends _Object {
+	factory Retired(int from);
+	@Deprecated('count with `Countdown`') Cancelable<int?> next();
+	@Deprecated('count with `Countdown`') dasync.Stream<int> asStream();
+}
 final class Logger extends _Object {
 	factory Logger(Log sink);
 	bool write(String line);

@@ -134,6 +134,12 @@ namespace api {
 		static ::api::Countdown new_(::std::uint32_t from);
 		RUST2_FFI_CALLABLE ::api::Countdown_next_future next();
 	};
+	class RUST2_FFI_CONSUMABLE Retired {
+		RUST2_FFI_UNCONSUMED Retired(Retired &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Retired &operator=(Retired &&other) noexcept = default;
+		static ::api::Retired new_(::std::uint32_t from);
+		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
+	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Logger &operator=(Logger &&other) noexcept = default;
@@ -2020,6 +2026,7 @@ namespace api {
 	class Waiter;
 	class Feed;
 	class Countdown;
+	class Retired;
 	class Logger;
 	class Journal;
 	class Local;
@@ -2145,6 +2152,7 @@ namespace api {
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;
 	using Feed_next_future = ::api::future<detail::Feed_next_future_op>;
 	using Countdown_next_future = ::api::future<detail::Countdown_next_future_op>;
+	using Retired_next_future = ::api::future<detail::Retired_next_future_op>;
 	using Local_later_future = ::api::future<detail::Local_later_future_op>;
 	using Local_poll_count_future = ::api::future<detail::Local_poll_count_future_op>;
 	using LocalWaiter_poll_ready_future = ::api::future<detail::LocalWaiter_poll_ready_future_op>;

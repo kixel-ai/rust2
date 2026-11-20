@@ -881,6 +881,18 @@ public struct Countdown: ~Copyable, @unchecked Sendable {
 	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
 	@inlinable public consuming func stream() -> CountdownStream
 }
+@available(*, deprecated, message: "count with `Countdown`") public final class RetiredStream: Swift.AsyncSequence, Swift.AsyncIteratorProtocol {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> RetiredStream
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	@inlinable public func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Swift.UInt32?
+}
+public struct Retired: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Retired
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable public consuming func stream() -> RetiredStream
+}
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
 	@inlinable public func write(_ line: Swift.String) -> Swift.Bool

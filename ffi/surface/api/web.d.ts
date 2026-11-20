@@ -1189,6 +1189,14 @@ export declare function _0_set(self: Resolving, value: TlsResolver): void;
 export declare function new$(name: string): Resolving;
 export { new$ as new };
 
+// Retired.ts
+import * as rt from "./rt.ts";
+export type Retired = rt.Handle<"Retired">;
+export declare function new$(from: number): Retired;
+export declare function next(self: Retired): rt.Call<number | undefined>;
+export declare function values(self: Retired): rt.Stream<number>;
+export { new$ as new };
+
 // Retry.ts
 import * as rt from "./rt.ts";
 export type Retry = rt.Handle<"Retry">;
@@ -1730,6 +1738,7 @@ export declare const k_Receipt: rt.Kind;
 export declare const k_Refusal: rt.Kind;
 export declare const k_Registry: rt.Kind;
 export declare const k_Resolving: rt.Kind;
+export declare const k_Retired: rt.Kind;
 export declare const k_Retry: rt.Kind;
 export declare const k_Sheet: rt.Kind;
 export declare const k_Site: rt.Kind;
@@ -1774,6 +1783,7 @@ export declare function p_Handle_later(f: number, w$: number): [boolean, Handle]
 export declare function p_LocalWaiter_poll_ready(f: number, w$: number): [boolean, number];
 export declare function p_Local_later(f: number, w$: number): [boolean, number];
 export declare function p_Local_poll_count(f: number, w$: number): [boolean, number];
+export declare function p_Retired_next(f: number, w$: number): [boolean, number | undefined];
 export declare function p_Tally_bump_later(f: number, w$: number): [boolean, number];
 export declare function p_Waiter_poll_future(f: number, w$: number): [boolean, void];
 export declare function p_after(f: number, w$: number): [boolean, number];

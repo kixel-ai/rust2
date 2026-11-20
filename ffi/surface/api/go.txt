@@ -1479,6 +1479,13 @@ func NewResolving(name string) (*Resolving, error)
 func (self *Resolving) Close() error
 func (self *Resolving) V0Get() (*p_tls.Resolver, error)
 func (self *Resolving) V0Set(value *p_tls.Resolver) error
+type Retired struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRetired(from uint32) *Retired
+func (self *Retired) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Retired) Close() error
+func (self *Retired) Next(ctx context.Context) (*uint32, error)
 type Retry struct {
 	Handle_ *p_rt.Handle_
 }

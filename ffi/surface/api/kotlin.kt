@@ -667,6 +667,14 @@ class Countdown internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Countdown
 	}
 }
+class Retired internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	@kotlin.Deprecated("count with `Countdown`") suspend fun next(): kotlin.UInt?
+	@kotlin.Deprecated("count with `Countdown`") fun asFlow(): kotlinx.coroutines.flow.Flow<kotlin.UInt>
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Retired
+	}
+}
 class Logger internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun write(line: kotlin.String): kotlin.Boolean
