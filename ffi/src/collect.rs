@@ -1322,8 +1322,9 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Visit every type the API spells at its own parameters: each function's, constant's,
-	/// and trait method's signature as inference names it, with its bounds, and each type's defaults, `pub` fields,
-	/// and inherent impls with their `pub` methods and constants.
+	/// and trait method's signature as inference names it, with its bounds and the impls of
+	/// the traits they name, and each type's defaults, `pub` fields, and inherent impls with
+	/// their `pub` methods and constants.
 	fn spells(&self, visitor: &mut Depth<'_>) {
 		let tcx = self.tcx;
 		let mut functions = Vec::new();
@@ -1368,12 +1369,40 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		types.visit_with(visitor);
+		let mut traits = Vec::new();
+		let mut bounded = |clause: ty::Clause<'tcx>, traits: &mut Vec<DefId>| {
+			if let Some(bound) = clause.as_trait_clause()
+				&& self.exported(bound.def_id().krate)
+				&& !traits.contains(&bound.def_id())
+			{
+				traits.push(bound.def_id());
+			}
+		};
 		for def_id in functions {
 			// As inference names it: normalized, and a future as what it resolves to.
 			self.spelled(def_id, ty::GenericArgs::identity_for_item(tcx, def_id))
 				.visit_with(visitor);
 			for clause in tcx.clauses_of(def_id).instantiate_identity(tcx).clauses {
-				clause.skip_norm_wip().visit_with(visitor);
+				let clause = clause.skip_norm_wip();
+				clause.visit_with(visitor);
+				bounded(clause, &mut traits);
+			}
+		}
+		// Each impl of a trait a bound names, which a parameter may take as its implementor,
+		// a blanket impl's own bounds included, as `implementors` follows them.
+		let mut i = 0;
+		while let Some(&tr) = traits.get(i) {
+			i += 1;
+			for imp in tcx.all_impls(tr).filter(|imp| self.exported(imp.krate)) {
+				let ty = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
+				match ty.kind() {
+					ty::Param(_) => {
+						for clause in tcx.clauses_of(imp).instantiate_identity(tcx).clauses {
+							bounded(clause.skip_norm_wip(), &mut traits);
+						}
+					}
+					_ => ty.visit_with(visitor),
+				}
 			}
 		}
 	}
