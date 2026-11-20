@@ -6,8 +6,8 @@ name: Release @NAME@ bindings
 # only a tag's build, once `attest` has signed it:
 #
 # - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
-#   XCFramework, and the Go module's .zip and .mod, from this repository's GitHub, checked
-#   with `gh attestation verify`.
+#   XCFramework, the Go module's .zip and .mod, each C archive, and the npm tarball, from
+#   this repository's GitHub, checked with `gh attestation verify`.
 # - PyPI: the project @NAME@, through the trusted publisher this repository registers there
 #   for this workflow and the `pypi` environment.
 # - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
@@ -305,7 +305,7 @@ jobs:
 
   # A rerun publishes only a version npm lacks, and fails on one it hosts with other bytes.
   npm:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     if: needs.build.outputs.web == 'true'
     runs-on: ubuntu-24.04
     environment: npm
@@ -338,7 +338,7 @@ jobs:
 
   # JSR skips a version it already hosts.
   jsr:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     if: needs.build.outputs.web == 'true'
     runs-on: ubuntu-24.04
     environment: jsr
