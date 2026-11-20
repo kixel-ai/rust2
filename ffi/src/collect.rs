@@ -1664,7 +1664,7 @@ impl<'tcx> Collector<'tcx> {
 		}
 		let owner = match tcx.def_kind(def_id) {
 			DefKind::Ctor(..) => return self.item_path(tcx.parent(def_id)),
-			DefKind::Variant | DefKind::Field | DefKind::AssocFn | DefKind::AssocConst { .. } => doc_self(tcx, def_id)?,
+			DefKind::Variant | DefKind::Field | DefKind::AssocFn | DefKind::AssocConst => doc_self(tcx, def_id)?,
 			_ => return None,
 		};
 		let mut path = self.item_path(owner)?;
@@ -6694,7 +6694,7 @@ fn doc_module(tcx: TyCtxt<'_>, mut def_id: DefId) -> DefId {
 fn doc_self(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
 	match tcx.def_kind(def_id) {
 		DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait | DefKind::TyAlias => Some(def_id),
-		DefKind::Field | DefKind::Variant | DefKind::AssocFn | DefKind::AssocConst { .. } | DefKind::AssocTy => {
+		DefKind::Field | DefKind::Variant | DefKind::AssocFn | DefKind::AssocConst | DefKind::AssocTy => {
 			let parent = tcx.parent(def_id);
 			match tcx.def_kind(parent) {
 				DefKind::Impl { .. } => match tcx.type_of(parent).instantiate_identity().skip_norm_wip().kind() {
