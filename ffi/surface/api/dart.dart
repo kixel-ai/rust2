@@ -135,7 +135,6 @@ final class RangeU64 {
 }
 final class ArrayU8x4 {
 	ArrayU8x4(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;

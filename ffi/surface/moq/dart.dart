@@ -135,7 +135,6 @@ final class RangeU64 {
 }
 final class ArrayU8x16 {
 	ArrayU8x16(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -143,7 +142,6 @@ final class ArrayU8x16 {
 }
 final class ArrayU8x2 {
 	ArrayU8x2(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -151,7 +149,6 @@ final class ArrayU8x2 {
 }
 final class ArrayU8x32 {
 	ArrayU8x32(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -159,7 +156,6 @@ final class ArrayU8x32 {
 }
 final class ArrayU8x4 {
 	ArrayU8x4(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -167,7 +163,6 @@ final class ArrayU8x4 {
 }
 final class ArrayU8x6 {
 	ArrayU8x6(List<int> bytes);
-	int operator [](int index);
 	typed.Uint8List toBytes();
 	@override bool operator ==(Object other);
 	@override int get hashCode;

@@ -124,6 +124,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			.into_iter()
 			.chain(g.helpers.values())
 			.chain(g.structs.values())
+			.chain(g.natives.values())
 			.map(String::as_str)
 			.collect();
 		calls(&code, "_on(") > 0
@@ -152,6 +153,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		bool _contract() => {contract_fn}() == 0x{contract:016x};\n\n\
 		{on_fn}\
 		/// Throws unless [status], which the call [what] wrote, is zero: a run-time check failed.\n\
+		// ignore: unused_element\n\
 		void _status(int status, String what) {{\n\tif (status == 0) return;\n\t_n.status.value = 0;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) {{\n\t\tn++;\n\t}}\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
 	);
 	for (name, params, ret, dart_params, dart_ret) in [
@@ -592,12 +594,22 @@ impl<'a> Gen<'a> {
 		}
 		for (name, (owned, lent, freeing)) in std::mem::take(&mut self.constructors) {
 			// Each declares itself once.
-			if calls(&name, "_") == 1 {
+			let owned_unused = calls(&name, "_") == 1;
+			let lent_unused = calls(&name, "_lent") == 1;
+			if owned_unused {
 				self.types = self.types.replace(&owned, "");
 				self.natives.retain(|_, decl| !decl.contains(&format!(" {freeing}(")));
 			}
-			if calls(&name, "_lent") == 1 {
-				self.types = self.types.replace(&lent, "");
+			// A class nothing makes, an object only ever passed to Rust, keeps one constructor, as
+			// Dart's implicit one would call `_Object()`, which takes arguments.
+			if lent_unused {
+				let kept = match owned_unused {
+					true => format!(
+						"\t// The class's only constructor, which no Dart code calls.\n\t// ignore: unused_element\n{lent}"
+					),
+					false => String::new(),
+				};
+				self.types = self.types.replace(&lent, &kept);
 			}
 		}
 	}
@@ -1498,7 +1510,7 @@ impl<'a> Gen<'a> {
 			let name = Abi::array_class(*n);
 			let s = self.struct_class(&Ty::Struct(c.clone()));
 			let of = format!(
-				"static {name} _of({s} c) => {name}._(typed.Uint8List.fromList([for (var i = 0; i < {n}; i++) c.items[i]]));\n\n\t"
+				"{name}._(this._bytes);\n\n\tstatic {name} _of({s} c) => {name}._(typed.Uint8List.fromList([for (var i = 0; i < {n}; i++) c.items[i]]));\n\n\t"
 			);
 			let write = format!(
 				"void _write({s} c) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tc.items[i] = _bytes[i];\n\t\t}}\n\t}}\n\n\t"
@@ -1506,7 +1518,7 @@ impl<'a> Gen<'a> {
 			self.arrays.insert(name.clone(), (of.clone(), write.clone()));
 			let _ = write!(
 				self.types,
-				"/// A Rust `[u8; {n}]`: exactly {n} bytes, copied in and out, so it never changes.\nfinal class {name} {{\n\tfinal typed.Uint8List _bytes;\n\n\t/// A copy of [bytes], which must hold exactly {n}, each from 0 through 255.\n\t{name}(List<int> bytes) : _bytes = typed.Uint8List.fromList(bytes) {{\n\t\tif (bytes.length != {n} || bytes.any((b) => b < 0 || b > 255)) {{\n\t\t\tthrow ArgumentError.value(bytes, 'bytes', 'is no [u8; {n}]');\n\t\t}}\n\t}}\n\n\t{name}._(this._bytes);\n\n\tint operator [](int index) => _bytes[index];\n\n\ttyped.Uint8List toBytes() => typed.Uint8List.fromList(_bytes);\n\n\t{of}{write}@override\n\tbool operator ==(Object other) => other is {name} && _equal(other._bytes);\n\n\tbool _equal(typed.Uint8List other) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tif (other[i] != _bytes[i]) return false;\n\t\t}}\n\t\treturn true;\n\t}}\n\n\t@override\n\tint get hashCode => Object.hashAll(_bytes);\n\n\t@override\n\tString toString() => _bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();\n}}\n\n"
+				"/// A Rust `[u8; {n}]`: exactly {n} bytes, copied in and out, so it never changes.\nfinal class {name} {{\n\tfinal typed.Uint8List _bytes;\n\n\t/// A copy of [bytes], which must hold exactly {n}, each from 0 through 255.\n\t{name}(List<int> bytes) : _bytes = typed.Uint8List.fromList(bytes) {{\n\t\tif (bytes.length != {n} || bytes.any((b) => b < 0 || b > 255)) {{\n\t\t\tthrow ArgumentError.value(bytes, 'bytes', 'is no [u8; {n}]');\n\t\t}}\n\t}}\n\n\tint operator [](int index) => _bytes[index];\n\n\ttyped.Uint8List toBytes() => typed.Uint8List.fromList(_bytes);\n\n\t{of}{write}@override\n\tbool operator ==(Object other) => other is {name} && _equal(other._bytes);\n\n\tbool _equal(typed.Uint8List other) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tif (other[i] != _bytes[i]) return false;\n\t\t}}\n\t\treturn true;\n\t}}\n\n\t@override\n\tint get hashCode => Object.hashAll(_bytes);\n\n\t@override\n\tString toString() => _bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();\n}}\n\n"
 			);
 		}
 		for constant in &api.constants {

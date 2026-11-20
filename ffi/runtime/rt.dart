@@ -102,11 +102,13 @@ final class RustDuration implements Comparable<RustDuration> {
   @override
   String toString() => '${secs.toRadixString(10)}.${nanos.toString().padLeft(9, '0')}s';
 
+  // ignore: unused_element
   void _put(_Duration c) {
     c.secs = secs.bits;
     c.nanos = nanos;
   }
 
+  // ignore: unused_element
   static RustDuration _of(_Duration c) => RustDuration._(U64.fromBits(c.secs), c.nanos);
 }
 
@@ -122,6 +124,7 @@ final class PathBuf {
   /// byte or, on Windows, they are not WTF-8.
   PathBuf.fromBytes(List<int> bytes) : _bytes = _osPath(bytes);
 
+  // ignore: unused_element
   PathBuf._(this._bytes);
 
   /// Its bytes, which never change.
@@ -167,6 +170,7 @@ sealed class IpAddr {
   @override
   String toString() => toInternetAddress().address;
 
+  // ignore: unused_element
   static void _put(_IpAddr c, IpAddr v) {
     switch (v) {
       case Ipv4Addr():
@@ -178,6 +182,7 @@ sealed class IpAddr {
     }
   }
 
+  // ignore: unused_element
   static IpAddr _of(_IpAddr c) => c.v6 ? Ipv6Addr._of(c.ip.v6) : Ipv4Addr._of(c.ip.v4);
 }
 
@@ -303,6 +308,7 @@ sealed class SocketAddr {
   IpAddr get ip;
   int get port;
 
+  // ignore: unused_element
   static void _put(_SocketAddr c, SocketAddr v) {
     switch (v) {
       case SocketAddrV4():
@@ -314,6 +320,7 @@ sealed class SocketAddr {
     }
   }
 
+  // ignore: unused_element
   static SocketAddr _of(_SocketAddr c) => c.v6 ? SocketAddrV6._of(c.addr.v6) : SocketAddrV4._of(c.addr.v4);
 }
 
@@ -484,6 +491,7 @@ extension type Cancelable<T>._(Future<T> _future) implements Future<T> {
 
 /// The future of `call`, whose start left the future in Rust that pended: polled again
 /// here with a waker, which its first poll had no use for.
+// ignore: unused_element
 Cancelable<T> _call<T>(_Call<T> call) {
   final future = call._done.future;
   _n.calls[future] = call;
@@ -534,6 +542,7 @@ final class _Call<T> {
   }
 
   /// Complete it with what Rust returned, from its poll.
+  // ignore: unused_element
   void _ready(T value) => _done.complete(value);
 
   /// Complete it with the error Rust returned, from its poll.
@@ -802,6 +811,7 @@ abstract base class _Object implements ffi.Finalizable {
 
   /// The garbage collector's hold of an owned one's handle, from when the nursery pushed it
   /// out until freed.
+  // ignore: unused_field
   ffi.Pointer<ffi.Void> _own = ffi.nullptr;
 
   /// Its slot in the nursery while there, else -1.
@@ -829,6 +839,7 @@ abstract base class _Object implements ffi.Finalizable {
   }
 
   /// The handle for a leaf call, which needs no hold: no Dart runs to close it meanwhile.
+  // ignore: unused_element
   ffi.Pointer<ffi.Void> get _live {
     if (_closed) throw StateError('$_type is closed');
     return _raw;

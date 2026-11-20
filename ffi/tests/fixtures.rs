@@ -2037,6 +2037,31 @@ const TSCONFIG_PACKAGE: &str = r#"{
 }
 "#;
 
+/// The generated Dart of a small API, which uses little of the runtime and of what the
+/// generator writes per type, analyzes with no issue as well: nothing it leaves unused stays.
+#[test]
+fn dart_small_api_lints() {
+	let dir = scratch().join("edge").join("dart");
+	let out = scratch().join("edge").join("out");
+	let output = export("edge", &out, &[WASM, host()], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let lint = dir.join("lint");
+	step::write(
+		&lint.join("analysis_options.yaml"),
+		std::fs::read_to_string(manifest_dir().join("tests/dart_lints.yaml")).unwrap(),
+	);
+	step::write(
+		&lint.join("edge.dart"),
+		std::fs::read_to_string(out.join("dart").join("edge.dart")).unwrap(),
+	);
+	let step = Step {
+		stamp: &dir.join("analyze.stamp"),
+		reads: &[&lint],
+		writes: &[],
+	};
+	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
+}
+
 /// The generated Dart, analyzed with no issue, runs `tests/api.dart`'s script, which prints
 /// the native transcript, then its futures, what closing and the garbage collector free,
 /// and each contract it fails loud on, and a Dart file of another contract fails to load.
