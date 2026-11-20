@@ -981,6 +981,13 @@ fun unwinds() {
 	check(rejects { lettered { lettered { 0xD800 } } } && unwound() == before + 4u, "a closure's call it throws from unwinds the outer call too")
 	check(lettered { runCatching { lettered { 0xD800 } }.getOrDefault('b'.code) } == 'b'.code, "a closure may catch it")
 	check(stretched(object : Stretch { override fun stretch() = 2uL }) == 3uL, "a callback's usize crosses")
+	check(Spawned.new { if (rejects { lettered { 0xD800 } }) 1u else 0u }.join() == 1u, "on a thread Rust attached, it unwinds to the native method the task called")
+	val start = Moment.new(0u, 1000u)!!
+	for (pending in 0..1) {
+		var calls = 0
+		val polled = runCatching { runBlocking { drive(start) { _, _ -> if (++calls > pending) lettered { 0xD800 }; null } } }.exceptionOrNull()
+		check(polled is IllegalArgumentException, "a future's ${if (pending == 0) "first" else "second"} poll unwinds: $polled")
+	}
 	val max = usizeMax()
 	check(measured { max - 1uL } == max && measured { max } == 0uL, "a closure's usize crosses to the target's most")
 	val range = isizeRange()

@@ -72,6 +72,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		fails: false,
 		on: On::ALL,
 		slots: 0,
+		writes_back: false,
 		room: 0,
 	};
 	for name in g.classes.values() {
@@ -631,6 +632,10 @@ struct Gen<'a> {
 	on: On,
 	/// The most scalars a returned record crosses in, which each thread's slots hold.
 	slots: usize,
+	/// Whether the function being written writes an argument back, as a `Mut` or a value's
+	/// `&mut self` handed back, which a closure's failed check unwinding past would skip: its
+	/// native method aborts on one instead, describing it.
+	writes_back: bool,
 	/// The JVM parameter slots the function being written may still spend on a record's
 	/// scalars.
 	room: usize,
@@ -1559,7 +1564,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray?"),
 				&checked(
-					&format!("crate::{c}_{suffix}({rust_self})"),
+					&format!("crate::{c}_{suffix}::unwind({rust_self})"),
 					&format!("{c}_{suffix}"),
 					"rt::owned(env, ret)",
 				),
@@ -1572,7 +1577,7 @@ impl<'a> Gen<'a> {
 			if !t.hash {
 				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
 			}
-			let call = format!("crate::{c}_hash({rust_self})");
+			let call = format!("crate::{c}_hash::unwind({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
 			g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body);
 			format!(
@@ -1612,7 +1617,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
-					&format!("crate::{c}_clone(p0 as usize as _)"),
+					&format!("crate::{c}_clone::unwind(p0 as usize as _)"),
 					&format!("{c}_clone"),
 					"ret as usize as jlong",
 				),
@@ -1633,7 +1638,7 @@ impl<'a> Gen<'a> {
 					(
 						vec![("jlong", "Long"); words.len()],
 						format!(
-							"crate::{c}_eq(&{}, &{})",
+							"crate::{c}_eq::unwind(&{}, &{})",
 							from_kotlin(&opaque, a),
 							from_kotlin(&opaque, b)
 						),
@@ -1644,7 +1649,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{c}_eq::unwind(&r.get(), &r.get()) }".replace("{c}", c),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
@@ -1661,7 +1666,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long"), ("jlong", "Long")],
 				("jboolean", "Boolean"),
 				&checked(
-					&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
+					&format!("crate::{c}_eq::unwind(p0 as usize as _, p1 as usize as _)"),
 					&format!("{c}_eq"),
 					"ret",
 				),
@@ -1683,14 +1688,14 @@ impl<'a> Gen<'a> {
 			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
 				true => (
 					vec![("jlong", "Long"); 2],
-					(String::new(), format!("crate::{c}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					(String::new(), format!("crate::{c}_{suffix}::unwind(p0 as usize as _, p1 as usize as _)")),
 					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
 				),
 				false => (
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					(
 						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
-						format!("crate::{c}_{suffix}(&x, &y)"),
+						format!("crate::{c}_{suffix}::unwind(&x, &y)"),
 					),
 					format!(
 						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
@@ -1722,19 +1727,21 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => (
 					"jlong",
 					"Long",
-					format!("crate::{c}_default() as usize as jlong"),
+					format!("crate::{c}_default::unwind() as usize as jlong"),
 					format!("{class}(_Native.{bare}_default())"),
 				),
 				Type::Enum(i) if self.abi.api.enums[*i].plain() => (
 					"jint",
 					"Int",
-					format!("crate::{c}_default()"),
+					format!("crate::{c}_default::unwind()"),
 					format!("{class}.of(_Native.{bare}_default())"),
 				),
 				_ => (
 					"jbyteArray",
 					"ByteArray",
-					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{c}_default());\n\t\tw.array(env)"),
+					format!(
+						"let mut w = rt::Writer::default();\n\t\tw.put(crate::{c}_default::unwind());\n\t\tw.array(env)"
+					),
 					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
@@ -2142,7 +2149,7 @@ impl<'a> Gen<'a> {
 			&format!("{bare}_free"),
 			&[("jlong", "Long")],
 			("()", "Unit"),
-			&format!("crate::{c}_free(p0 as usize as _)"),
+			&format!("crate::{c}_free::unwind(p0 as usize as _)"),
 		);
 		let mut body = vec![match abi.checked[i] {
 			true => {
@@ -2151,7 +2158,7 @@ impl<'a> Gen<'a> {
 					&[("jlong", "Long")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
+						"let mut status = 0;\n\t\tcrate::{c}_drop::unwind(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
 					),
 				);
 				format!(
@@ -2498,14 +2505,25 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut all = vec!["env: *mut JNIEnv".to_string(), "_: jclass".to_string()];
 		all.extend(rust);
-		let _ = write!(
-			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {ret} {{\n\trt::entry(env, move || -> {ret} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
+		let head = format!(
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {}",
 			mangle(&self.abi.prefix),
 			mangle(bare),
 			all.join(", "),
-			ret = ret.0
+			ret.0
 		);
+		let _ = match self.writes_back {
+			true => write!(
+				self.glue,
+				"{head} {{\n\trt::writing(env, \"{}_{bare}\", move || -> {} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
+				self.abi.prefix, ret.0
+			),
+			false => write!(
+				self.glue,
+				"{head} {{\n\trt::entry(env, move || -> {} {{\n\t\tunsafe {{\n\t\t\t{body}\n\t\t}}\n\t}})\n}}\n\n",
+				ret.0
+			),
+		};
 	}
 
 	/// `text`, a function's docs without its sections, then its `# Errors` as `@throws` of
@@ -2610,6 +2628,7 @@ impl<'a> Gen<'a> {
 		let on = std::mem::replace(&mut self.on, function.on);
 		let code = self.function_on(function, owner, owner_ty, place, taken);
 		self.on = on;
+		self.writes_back = false;
 		code
 	}
 
@@ -2640,6 +2659,7 @@ impl<'a> Gen<'a> {
 			export.future.is_some(),
 			written,
 		);
+		self.writes_back = written || handed.is_some();
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -2846,7 +2866,7 @@ impl<'a> Gen<'a> {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
 				Some(h) => h.call(&args),
-				None => format!("crate::{made}({})", args.join(", ")),
+				None => format!("crate::{made}::unwind({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result
 			// for, is thrown once the native method returns with nothing else done.
@@ -2877,7 +2897,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.glue,
-				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}::unwind(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}::unwind(f as _) }}\n}}\n\n",
 				poll.name,
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),

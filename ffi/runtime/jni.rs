@@ -179,6 +179,7 @@ pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 		fail(env, what, "a call into Kotlin is out of memory");
 	}
 	// Popped however `f` ends, unwinding included.
+	UPCALLS.with(|n| n.set(n.get() + 1));
 	let frame = Frame(env);
 	let result = f(env);
 	threw(env, what);
@@ -186,11 +187,18 @@ pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 	result
 }
 
+thread_local! {
+	/// How many [`upcall`]s this thread is in. On a thread Rust attached, a native method is
+	/// below a call into Kotlin only through an outer one, which called into Kotlin first.
+	static UPCALLS: Cell<u32> = const { Cell::new(0) };
+}
+
 /// The local frame an [`upcall`] pushed, popped once dropped.
 struct Frame(*mut JNIEnv);
 
 impl Drop for Frame {
 	fn drop(&mut self) {
+		UPCALLS.with(|n| n.set(n.get() - 1));
 		// SAFETY: the frame's thread pushed it, and no exception is pending: `threw`
 		// aborts on one, and `unwinds` clears what it unwinds with.
 		unsafe { ((**self.0).v1_2.PopLocalFrame)(self.0, std::ptr::null_mut()) };
@@ -212,9 +220,9 @@ pub fn unwinds(env: *mut JNIEnv, what: &str) {
 static UNWOUND: OnceLock<usize> = OnceLock::new();
 
 /// Unwind with the `__Unwound` of the exception pending if it is the binding's `__Invalid`
-/// or `__Unwound`, aborting if no native method is below to throw it: a thread Rust
-/// attached runs no Kotlin, and a library built to abort on a panic cannot unwind. Any
-/// other stays pending.
+/// or `__Unwound`, aborting if no native method is below to throw it, as on a thread Rust
+/// attached that no outer [`upcall`] called into Kotlin on, or if a library built to abort
+/// on a panic cannot unwind. Any other stays pending.
 #[cold]
 fn unwind(env: *mut JNIEnv, what: &str) {
 	// SAFETY: `env` is this thread's, and an exception is pending.
@@ -231,7 +239,8 @@ fn unwind(env: *mut JNIEnv, what: &str) {
 			((**env).v1_2.Throw)(env, thrown);
 			return;
 		}
-		if cfg!(not(panic = "unwind")) || ATTACHED.with(|attached| attached.0.get()) {
+		let below = !ATTACHED.with(|attached| attached.0.get()) || UPCALLS.with(Cell::get) > 1;
+		if cfg!(not(panic = "unwind")) || !below {
 			((**env).v1_2.Throw)(env, unwound);
 			fail(env, what, "a closure's value has no Rust type to be, and no Kotlin call to throw to");
 		}
@@ -267,6 +276,19 @@ pub fn entry<R>(env: *mut JNIEnv, f: impl FnOnce() -> R) -> R {
 	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
 		Ok(result) => result,
 		Err(payload) => caught_unwind(env, payload),
+	}
+}
+
+/// [`entry`] for a native method that writes an argument back once the call returns, which
+/// unwinding would skip: it aborts with the exception a closure's failed check unwound with.
+#[inline(always)]
+pub fn writing<R>(env: *mut JNIEnv, what: &str, f: impl FnOnce() -> R) -> R {
+	match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+		Ok(result) => result,
+		Err(payload) => {
+			let _ = caught_unwind::<()>(env, payload);
+			fail(env, what, "a closure's value has no Rust type to be, and the call writes an argument back");
+		}
 	}
 }
 
@@ -901,9 +923,12 @@ pub unsafe fn start(
 		data: std::ptr::null_mut(),
 	};
 	let mut status = 0;
+	// A poll that unwinds frees what Kotlin has no handle yet to free.
+	let mut started = Started { future, free, node: std::ptr::null_mut() };
 	// SAFETY: the caller's contract.
 	let ready = unsafe { poll(future, none, &mut w, &mut status) };
 	if ready || status != 0 {
+		std::mem::forget(started);
 		// SAFETY: as above, and it finished, or is never polled again.
 		unsafe { free(future) };
 		return match status {
@@ -916,8 +941,11 @@ pub unsafe fn start(
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
+	started.node = node;
 	// SAFETY: as above, and `node` holds a reference for this.
-	if unsafe { poll(future, give(node), &mut w, &mut status) } {
+	let ready = unsafe { poll(future, give(node), &mut w, &mut status) };
+	std::mem::forget(started);
+	if ready {
 		// SAFETY: as above.
 		unsafe {
 			free(future);
@@ -930,6 +958,25 @@ pub unsafe fn start(
 	w.put(future);
 	w.put(node.cast::<c_void>());
 	Some(w)
+}
+
+/// A future [`start`] polls, and the waker node made for it, if any, freed once dropped.
+struct Started {
+	future: *mut c_void,
+	free: unsafe fn(*mut c_void),
+	node: *mut Node,
+}
+
+impl Drop for Started {
+	fn drop(&mut self) {
+		// SAFETY: `start`'s contract; Kotlin got neither, so this is their only free.
+		unsafe {
+			(self.free)(self.future);
+			if !self.node.is_null() {
+				unref(self.node.cast());
+			}
+		}
+	}
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
