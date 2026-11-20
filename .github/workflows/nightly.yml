@@ -245,7 +245,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: cat ffi/target/tmp/corpus-${{ matrix.shard }}-of-4/report.md >> "$GITHUB_STEP_SUMMARY"
 
-  # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
+  # The api fixture's web test in headless Chromium, Firefox, and WebKit, which only the bench shell
   # carries: a job of its own, so a browser's failure hides no other result.
   ffi-web:
     name: Web binding in browsers
@@ -349,7 +349,8 @@ jobs:
         if: runner.os == 'macOS'
         run: just ffi test swift && just ffi moq-swift
 
-  # The Kotlin on ART, shrunk by R8 as an app shrinks it. x86_64, as moq's Android build:
+  # The Kotlin on ART, shrunk by R8 as an app shrinks it, and the library's abort messages
+  # and 16 KB alignment. x86_64, as moq's Android build:
   # this image ships the Android SDK and NDK, and its KVM runs an x86_64 emulator at speed.
   ffi-android:
     name: Export to Kotlin on Android
@@ -385,6 +386,18 @@ jobs:
           api-level: 35
           arch: x86_64
           script: nix develop .#android --command just ffi android
+
+      # An image whose kernel pages by 16 KB, as Google Play requires of 64-bit libraries from
+      # 2027-02-01: the library must load there, and its segments must align to that.
+      - name: API 35, 16 KB pages
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          script: |
+            test "$($ANDROID_HOME/platform-tools/adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
+            nix develop .#android --command just ffi android
 
   ffi-bench:
     name: Bench the bindings

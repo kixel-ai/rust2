@@ -21,14 +21,16 @@ use crate::ir::{
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
+const ANDROID: &str = include_str!("../runtime/rt/android.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
 const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
-/// crate which it builds for, as the `cfg` [`CFG`]. On macOS, a CPython extension leaves
-/// Python's symbols for the interpreter that loads it to resolve.
+/// crate which it builds for, as the `cfg` [`CFG`]. On Android, it aligns the library to
+/// 16 KB pages. On macOS, a CPython extension leaves Python's symbols for the interpreter
+/// that loads it to resolve.
 fn build(targets: &[String]) -> String {
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
 	let list = list.join(", ");
@@ -45,6 +47,11 @@ fn build(targets: &[String]) -> String {
 		\t\tpanic!(\"exported for {names}, not {{target}}: export again with --target {{target}}\");\n\
 		\t}}\n\
 		\tprintln!(\"cargo::rustc-cfg={CFG}=\\\"{{target}}\\\"\");\n\
+		\t// rustc leaves Android's page size to the NDK, whose r27 and older align to 4 KB, and\n\
+		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
 		}}\n",
@@ -377,7 +384,7 @@ impl Crate<'_> {
 		// Only Kotlin passes a JNI value, so every other language exports the rest.
 		let rest = self.abi.api.without_jni();
 		let rest = self.abi.without_jni(&rest);
-		let (header, contract) = crate::c::header(&rest, &self.packages());
+		let (header, contract, c) = crate::c::header(&rest, &self.packages());
 		let cpp = crate::cpp::headers(&rest, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(&rest, &self.packages(), contract)?;
@@ -387,6 +394,7 @@ impl Crate<'_> {
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
+			("C", c),
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
 			("Python", python.names),
@@ -429,6 +437,7 @@ impl Crate<'_> {
 		output.file(&out.join("src/lib.rs"), &generator.out);
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("src/rt/android.rs"), ANDROID);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("src/rt/thread.rs"), THREAD);
 		output.file(&out.join("src/rt/future.rs"), FUTURE);

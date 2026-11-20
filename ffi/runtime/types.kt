@@ -223,7 +223,7 @@ class PathBuf private constructor(bytes: ByteArray, given: Boolean) {
 		throw kotlin.IllegalArgumentException("$this is not UTF-8", e)
 	}
 
-	/** This as a `java.nio.file.Path`, throwing `IllegalArgumentException` where its bytes are not UTF-8. */
+	/** This as a `java.nio.file.Path`, throwing `IllegalArgumentException` where its bytes are not UTF-8. Android has `java.nio.file` from API 26. */
 	fun toPath(): java.nio.file.Path = java.nio.file.Paths.get(toText())
 
 	override fun equals(other: Any?): Boolean = other is PathBuf && bytes.contentEquals(other.bytes)
