@@ -3448,7 +3448,11 @@ fn reject() {
 	let out = scratch().join("reject").join("out");
 	let output = export("reject", &out, &[], &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
-	let errors = errors(&output);
+	let errors = refusals(&output);
+	// Every refusal says how to change the facade.
+	for error in &errors {
+		assert!(error.contains("\n\thelp: "), "no help for {error}");
+	}
 	let expected = std::fs::read_to_string(manifest_dir().join("fixtures/reject/expected.txt")).unwrap();
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
 		std::fs::write(
@@ -3558,6 +3562,16 @@ fn lacks() {
 /// Each of rust2-ffi's errors the export printed, sorted: at its span, then each of its
 /// notes at its own.
 fn errors(output: &Output) -> Vec<String> {
+	diagnostics(output, false)
+}
+
+/// [`errors`], each with its `help:` notes after its span notes, which a refusal carries
+/// for how to change the facade. A baseline break's names a path, so [`errors`] leaves it out.
+fn refusals(output: &Output) -> Vec<String> {
+	diagnostics(output, true)
+}
+
+fn diagnostics(output: &Output, helps: bool) -> Vec<String> {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let lines: Vec<&str> = stderr.lines().collect();
 	let at = |i: usize| {
@@ -3580,6 +3594,12 @@ fn errors(output: &Output) -> Vec<String> {
 		{
 			let error = errors.last_mut().expect("a note follows its error");
 			*error += &format!("\n\t{}: note: {note}", at(i));
+		} else if helps
+			&& ours
+			&& let Some(help) = line.trim_start().strip_prefix("= help: ")
+		{
+			let error = errors.last_mut().expect("a help follows its error");
+			*error += &format!("\n\thelp: {help}");
 		}
 	}
 	errors.sort();
