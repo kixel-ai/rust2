@@ -1082,12 +1082,22 @@ impl<'a> Gen<'a> {
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| unquote(f)).collect();
 		// A deprecated field is stored apart, under `_` and its name, so its own code's uses
 		// do not warn as a caller's do: Swift has no way to silence one.
-		let stored: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, _))| match f.deprecated {
+		// Apart from the fields and the record's own `_lift` and `_lower` too.
+		let mut stored: Vec<String> = Vec::new();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			let mut name = match f.deprecated {
 				Some(_) => format!("_{}", unquote(name)),
 				None => name.clone(),
-			})
-			.collect();
+			};
+			while f.deprecated.is_some()
+				&& (["_lift", "_lower"].contains(&name.as_str())
+					|| members.contains(&name)
+					|| stored.contains(&name))
+			{
+				name.push('_');
+			}
+			stored.push(name);
+		}
 		members.extend(stored.iter().filter(|s| !fields.iter().any(|(f, _)| f == *s)).cloned());
 		let mut body: Vec<String> = (record.fields.iter().zip(&fields).zip(&stored))
 			.map(|((f, (name, sw)), stored)| {

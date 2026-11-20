@@ -359,7 +359,7 @@ data class Qualifiers(val api: kotlin.Double, val kotlin: kotlin.Double) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 }
-data class Deprecated(val on: kotlin.Boolean) {
+data class Deprecated(val on: kotlin.Boolean, @kotlin.Deprecated("") val lower: kotlin.UInt) {
 	fun debug(): kotlin.String
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Deprecated

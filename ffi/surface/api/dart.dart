@@ -609,7 +609,8 @@ final class Qualifiers {
 }
 final class Deprecated_ {
 	final bool on;
-	const Deprecated_({required this.on});
+	@deprecated final int lower;
+	const Deprecated_({required this.on, required this.lower});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;

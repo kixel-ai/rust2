@@ -499,6 +499,53 @@ pub(crate) fn links(out: &str, api: &Api, mut render: impl FnMut(&Link<'_>) -> O
 	result
 }
 
+/// The docs of one item on two targets as one, keeping each link either resolved: they
+/// differ only where a link one target resolved is only its label on the other, as for an
+/// item the other lacks. None where they differ otherwise.
+pub(crate) fn merge(ours: &str, theirs: &str) -> Option<String> {
+	let (mut a, mut b) = (ours, theirs);
+	let mut out = String::with_capacity(ours.len().max(theirs.len()));
+	while !a.is_empty() || !b.is_empty() {
+		match (resolved(a), resolved(b)) {
+			(Some((link, _)), Some((other, _))) if link == other => {}
+			(Some((link, label)), _) if b.starts_with(label) => {
+				out.push_str(link);
+				a = &a[link.len()..];
+				b = &b[label.len()..];
+				continue;
+			}
+			(_, Some((link, label))) if a.starts_with(label) => {
+				out.push_str(link);
+				a = &a[label.len()..];
+				b = &b[link.len()..];
+				continue;
+			}
+			_ => {}
+		}
+		let c = a.chars().next()?;
+		if !b.starts_with(c) {
+			return None;
+		}
+		out.push(c);
+		a = &a[c.len_utf8()..];
+		b = &b[c.len_utf8()..];
+	}
+	Some(out)
+}
+
+/// The resolved link `text` opens with, and its label.
+fn resolved(text: &str) -> Option<(&str, &str)> {
+	let rest = text.strip_prefix('[')?;
+	let close = rest.find(']')?;
+	let label = &rest[..close];
+	let dest = &rest[close..];
+	if !dest.starts_with(LINK) || label.contains('[') {
+		return None;
+	}
+	let end = 1 + close + dest.find(')')? + 1;
+	Some((&text[..end], label))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -511,6 +558,19 @@ mod tests {
 			_ if path == "Track" => Some("moq::Track".to_string()),
 			_ => None,
 		}
+	}
+
+	/// Each target's docs resolve the link to the item only it has, and their merge both.
+	#[test]
+	fn merge_keeps_each_link() {
+		let unix = "Use [`Fd`](rust2:a::Fd) or `Handle`, [the docs](rust2-text:a::Fd).";
+		let windows = "Use `Fd` or [`Handle`](rust2:a::Handle), the docs.";
+		let both = "Use [`Fd`](rust2:a::Fd) or [`Handle`](rust2:a::Handle), [the docs](rust2-text:a::Fd).";
+		assert_eq!(merge(unix, windows).as_deref(), Some(both));
+		assert_eq!(merge(windows, unix).as_deref(), Some(both));
+		assert_eq!(merge(both, both).as_deref(), Some(both));
+		assert_eq!(merge("[a] b", "[a] b").as_deref(), Some("[a] b"));
+		assert_eq!(merge(unix, "Other docs."), None);
 	}
 
 	#[test]

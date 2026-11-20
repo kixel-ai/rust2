@@ -5048,6 +5048,9 @@ impl Key {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Deprecated {
 	pub on: bool,
+	/// Named as the Swift record's own conversion, which its stored field must not be.
+	#[deprecated]
+	pub lower: u32,
 }
 
 /// A function named as Dart's deprecation annotation, which the deprecated items after it

@@ -181,9 +181,14 @@ impl Maps {
 	}
 }
 
-/// `ours` as the docs of the target whose links resolve more: a link to an item one target
-/// lacks resolves only where it has it, and each binding drops the links it cannot follow.
+/// `ours` with each link `theirs` resolves too: a link to an item one target lacks resolves
+/// only where it has it, and each binding drops the links it cannot follow. Docs that
+/// differ in more than links, as `cfg_attr` can make them, keep the side that resolves more.
 fn linked(ours: &mut String, theirs: String) {
+	if let Some(merged) = crate::doc::merge(ours, &theirs) {
+		*ours = merged;
+		return;
+	}
 	let links = |docs: &str| docs.matches(crate::doc::LINK).count();
 	if links(&theirs) > links(ours) {
 		*ours = theirs;

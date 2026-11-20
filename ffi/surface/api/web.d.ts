@@ -383,6 +383,7 @@ export declare function at(self: Cursor): rt.u64;
 // Deprecated.ts
 export type Deprecated = {
     on: boolean;
+    lower: number;
 };
 export declare function debug(self: Deprecated): string;
 export declare function eq(a: Deprecated, b: Deprecated): boolean;

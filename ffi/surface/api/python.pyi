@@ -376,6 +376,7 @@ class Qualifiers:
 @_dataclass(slots=True, repr=False)
 class Deprecated:
     on: _bool
+    lower: _int
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> Deprecated: ...
