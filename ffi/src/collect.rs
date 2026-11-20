@@ -6786,11 +6786,10 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		/// A niche of `bytes` in a scalar of `least`, as rustc's layout gives it: a thin
 		/// pointer's whole word, or a wide one's first.
 		fn of(least: Least, bytes: u64) -> Option<Self> {
-			Some(Self {
+			(least.bytes > 0).then(|| Self {
 				bytes,
 				model: least.model.map(|model| model * bytes / least.bytes),
 			})
-			.filter(|_| least.bytes > 0)
 		}
 	}
 	/// The smallest of two niches, either of which may be absent.
@@ -6938,10 +6937,11 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				}
 				// With no niche to encode the others in, two or more variants take a tag
 				// of at least a byte beside each one's fields; with one, a variant's own
-				// fields may hold the tag, so they count alone, but for a variant without
-				// data, which an encoding in the niche writes whole. Should a `rustc` give
-				// it a tag instead, the enum is a byte past a variant whose fields fill it,
-				// so it is never full, and a wrong count here never reaches a value.
+				// fields may hold the tag, so they count alone, and a variant without data
+				// counts the smallest niche's scalar, which an encoding in it writes whole.
+				// Should a `rustc` give the enum a tag instead, it is a byte past a variant
+				// whose fields fill it, so neither it nor what holds it is ever full, and
+				// the count never reaches a value.
 				let niche = each.iter().filter_map(|v| v.niche).reduce(Niche::min);
 				let tag = u64::from(each.len() > 1 && niche.is_none());
 				if let Some(niche) = niche.filter(|_| each.len() > 1) {
