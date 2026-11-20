@@ -36,7 +36,6 @@ const KNOWN: &[(&str, &str)] = &[
 	("hyper", "/quest/m1/ffi-corpus-bugs.md"),
 	("icu_locale_core", "/quest/m1/ffi-apart.md"),
 	("itertools", "/quest/m1/ffi-apart.md"),
-	("js-sys", "/quest/m1/ffi-inference.md"),
 	("libc", "/quest/m1/ffi-apart.md"),
 	("log", "/quest/m1/ffi-apart.md"),
 	("nu-ansi-term", "/quest/m1/ffi-apart.md"),

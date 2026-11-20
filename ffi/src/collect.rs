@@ -57,6 +57,9 @@ const FOREIGN: [(&str, &str, &str); 3] = [
 /// holds the `Arc`.
 pub(crate) const BOTH: &str = "another crate's type both by value and in an Arc";
 
+/// The construct of an instance nesting generic types deeper than any type the API spells.
+pub(crate) const DEEPER: &str = "instance deeper than any type the API spells";
+
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub(crate) const NOT_INFERRED: &str = "instance not inferred";
 
@@ -238,6 +241,13 @@ struct Collector<'tcx> {
 	instances: Vec<Site<'tcx>>,
 	/// Instances that do not export, and why.
 	rejected: rustc_data_structures::fx::FxHashMap<Key<'tcx>, Why>,
+	/// The items the walk reached, as `items` lists them.
+	listed: rustc_data_structures::fx::FxHashSet<DefId>,
+	/// The generic types instances are inferred of.
+	generic: rustc_data_structures::fx::FxHashSet<DefId>,
+	/// How deeply the deepest type the API spells nests `generic`'s types, which bounds an
+	/// inferred instance's own nesting.
+	deepest: usize,
 	/// Whether instances are still being inferred, before any type is declared: each type
 	/// then counts as mapping, so inference takes every choice typing could.
 	inferring: bool,
@@ -428,6 +438,9 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 			},
 			instances: Vec::new(),
 			rejected: Default::default(),
+			listed: Default::default(),
+			generic: Default::default(),
+			deepest: 0,
 			inferring: true,
 			left_out: Default::default(),
 			impls: Default::default(),
@@ -829,9 +842,17 @@ impl<'tcx> Collector<'tcx> {
 	/// and the implementations of the traits bounding each parameter, and each instance a
 	/// signature the export maps names, at every choice its bounds allow. An instance adds
 	/// its own fields and methods, so this repeats until it infers no more, which it does:
-	/// no instance holds one of its own type, so each is no deeper than the generic types.
+	/// no instance holds one of its own type, nor nests generic types deeper than a type the
+	/// API spells.
 	fn infer(&mut self) {
 		let tcx = self.tcx;
+		self.listed = self.items.iter().map(|&(def_id, _)| def_id).collect();
+		self.generic = (self.items.iter())
+			.map(|&(def_id, _)| def_id)
+			.filter(|&def_id| {
+				matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum | DefKind::Union) && self.typed(def_id)
+			})
+			.collect();
 		let mut candidates: Vec<Ty<'tcx>> = Vec::new();
 		for (def_id, _) in self.items.clone() {
 			if !matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum) || !self.typed(def_id) {
@@ -876,19 +897,33 @@ impl<'tcx> Collector<'tcx> {
 					.map(|args| Ty::new_adt(tcx, adt, tcx.mk_args(&args))),
 			);
 		}
+		let mut spelled = Depth::new(&self.generic);
+		candidates.visit_with(&mut spelled);
+		self.spells(&mut spelled);
+		self.deepest = spelled.max;
 		let mut seen = rustc_data_structures::fx::FxHashSet::default();
+		let mut held = rustc_data_structures::fx::FxHashSet::default();
 		loop {
 			let inferred = self.instances.len();
 			let named = self.named();
-			// Each with the instances inside it, which its export needs.
+			for &ty in candidates.iter().chain(&named) {
+				if held.insert(ty) {
+					self.held_forms(ty);
+				}
+			}
+			// Each with the instances inside it, which its export needs, normalized, as a
+			// field or a bound may name its instance's argument by an associated type.
 			let types: Vec<Ty<'tcx>> = (candidates.iter().chain(&named))
+				.map(|&ty| match ty.has_aliases() {
+					true => tcx
+						.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(ty))
+						.unwrap_or(ty),
+					false => ty,
+				})
 				.flat_map(|ty| ty.walk())
 				.filter_map(|arg| arg.as_type())
 				.filter(|&ty| seen.insert(ty))
 				.collect();
-			for ty in candidates.iter().chain(&named) {
-				self.held_forms(*ty);
-			}
 			for ty in types {
 				match self.admit(ty) {
 					Some((key, Ok(site))) if !self.instances.iter().any(|other| other.key == key) => {
@@ -1269,9 +1304,75 @@ impl<'tcx> Collector<'tcx> {
 		found
 	}
 
+	/// How deeply `ty` nests the generic types instances are inferred of.
+	fn depth(&self, ty: Ty<'tcx>) -> usize {
+		let mut depth = Depth::new(&self.generic);
+		ty.visit_with(&mut depth);
+		depth.max
+	}
+
+	/// Visit every type the API spells at its own parameters: each function's, constant's,
+	/// and trait method's signature with its bounds, and each type's defaults, `pub` fields,
+	/// and inherent impls with their `pub` methods and constants.
+	fn spells(&self, visitor: &mut Depth<'_>) {
+		let tcx = self.tcx;
+		let mut functions = Vec::new();
+		let mut types = Vec::new();
+		for &(def_id, _) in &self.items {
+			match tcx.def_kind(def_id) {
+				DefKind::Fn => functions.push(def_id),
+				DefKind::Const => types.push(tcx.type_of(def_id).instantiate_identity().skip_norm_wip()),
+				DefKind::Trait => {
+					for item in tcx.associated_items(def_id).in_definition_order() {
+						if let ty::AssocKind::Fn { .. } = item.kind {
+							functions.push(item.def_id);
+						}
+					}
+				}
+				DefKind::Struct | DefKind::Enum | DefKind::Union => {
+					for param in &tcx.generics_of(def_id).own_params {
+						if let Some(default) = param.default_value(tcx) {
+							default.instantiate_identity().skip_norm_wip().visit_with(visitor);
+						}
+					}
+					for field in tcx.adt_def(def_id).all_fields().filter(|field| in_api(tcx, field)) {
+						types.push(tcx.type_of(field.did).instantiate_identity().skip_norm_wip());
+					}
+					for &imp in tcx.inherent_impls(def_id) {
+						types.push(tcx.type_of(imp).instantiate_identity().skip_norm_wip());
+						for item in tcx.associated_items(imp).in_definition_order() {
+							if !tcx.visibility(item.def_id).is_public() || tcx.is_doc_hidden(item.def_id) {
+								continue;
+							}
+							match item.kind {
+								ty::AssocKind::Fn { .. } => functions.push(item.def_id),
+								ty::AssocKind::Const { .. } => {
+									types.push(tcx.type_of(item.def_id).instantiate_identity().skip_norm_wip())
+								}
+								_ => {}
+							}
+						}
+					}
+				}
+				_ => {}
+			}
+		}
+		types.visit_with(visitor);
+		for def_id in functions {
+			tcx.fn_sig(def_id)
+				.instantiate_identity()
+				.skip_norm_wip()
+				.visit_with(visitor);
+			for clause in tcx.clauses_of(def_id).instantiate_identity(tcx).clauses {
+				clause.skip_norm_wip().visit_with(visitor);
+			}
+		}
+	}
+
 	/// The instance `ty` is, if it is an exported generic type at arguments without type
-	/// parameters, or why it does not export: an argument holds an instance of a type
-	/// inside it, which could otherwise name ever deeper instances, or a bound is unmet.
+	/// parameters, or why it does not export: an argument holds an instance of a type inside
+	/// it, or it nests generic types deeper than any type the API spells, either of which
+	/// could otherwise name ever deeper instances, or a bound is unmet.
 	fn admit(&mut self, ty: Ty<'tcx>) -> Option<(Key<'tcx>, Result<Site<'tcx>, Why>)> {
 		let tcx = self.tcx;
 		let ty::Adt(adt, args) = *ty.kind() else {
@@ -1303,6 +1404,9 @@ impl<'tcx> Collector<'tcx> {
 				key,
 				Err(why("instance holding an instance of a type inside it", spelled)),
 			));
+		}
+		if self.depth(ty) > self.deepest {
+			return Some((key, Err(why(DEEPER, spelled))));
 		}
 		let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(TypingEnv::fully_monomorphized());
 		for clause in tcx.clauses_of(def_id).instantiate(tcx, args).clauses {
@@ -4554,8 +4658,8 @@ impl<'tcx> Collector<'tcx> {
 	/// The types a type parameter exports at each of, where no one type is the rules':
 	/// each type the exports implement a trait bounding it for, or a reference to it where
 	/// that meets the bounds too, which leaves C its handle; and, as an argument of a
-	/// generic type the signature names, each argument of an instance that meets its
-	/// bounds where each generic type the signature names is an instance.
+	/// generic type the signature names, what it is in each instance of that type, where
+	/// that meets its bounds and each generic type the signature names is an instance.
 	fn each(&self, def_id: DefId, param: Ty<'tcx>, base: &[ty::GenericArg<'tcx>]) -> Vec<Ty<'tcx>> {
 		let tcx = self.tcx;
 		let at = |candidate: Ty<'tcx>| self.at(def_id, param, base, candidate);
@@ -4588,38 +4692,55 @@ impl<'tcx> Collector<'tcx> {
 			_ => None,
 		};
 		let spelled = |args| self.spelled(def_id, args);
-		let argument = spelled(tcx.mk_args(base))
-			.into_iter()
-			.filter_map(exported)
-			.any(|(_, args)| args.iter().any(|arg| arg.walk().any(|a| a == param.into())));
-		for site in self.instances.iter().filter(|_| argument) {
-			for candidate in site.args.types().filter(|ty| !(iterated && ty.is_ref())) {
-				let erased = tcx.erase_and_anonymize_regions(candidate);
-				if found
-					.iter()
-					.any(|&f| tcx.erase_and_anonymize_regions(f.peel_refs()) == erased)
-				{
+		let ty::Param(p) = param.kind() else {
+			unreachable!("a generic type argument is a parameter");
+		};
+		// What `param` is in each instance of a generic type the signature holds it in, as
+		// `Foo<T>` offers `X` for `Foo<X>`; an instance of another type, or an argument at
+		// another position, offers nothing, so no choice feeds an unrelated signature.
+		let mut offered: Vec<Ty<'tcx>> = Vec::new();
+		for holder in spelled(tcx.mk_args(base)) {
+			let Some((adt, args)) = exported(holder) else { continue };
+			if !args.iter().any(|arg| arg.walk().any(|a| a == param.into())) {
+				continue;
+			}
+			for site in self.instances.iter().filter(|site| site.key.def_id == adt) {
+				let mut args = base.to_vec();
+				if !matches(tcx, holder, self.site_ty(site), &mut args) {
 					continue;
 				}
-				let Some(args) = at(candidate) else {
-					continue;
-				};
-				// A type naming a parameter not yet chosen is checked once it is.
-				let named = (spelled(args).into_iter().filter_map(exported))
-					.filter(|(_, args)| !args.has_non_region_param())
-					.all(|(adt, args)| {
-						let key = self.key(adt, *args);
-						match self.inferring {
-							true => self.instances.iter().any(|site| site.key == key),
-							false => matches!(
-								self.decls.get(&key),
-								Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
-							),
-						}
-					});
-				if named {
-					found.push(candidate);
+				let candidate = args[p.index as usize].expect_ty();
+				if candidate != param && !offered.contains(&candidate) {
+					offered.push(candidate);
 				}
+			}
+		}
+		for candidate in offered.into_iter().filter(|ty| !(iterated && ty.is_ref())) {
+			let erased = tcx.erase_and_anonymize_regions(candidate);
+			if found
+				.iter()
+				.any(|&f| tcx.erase_and_anonymize_regions(f.peel_refs()) == erased)
+			{
+				continue;
+			}
+			let Some(args) = at(candidate) else {
+				continue;
+			};
+			// A type naming a parameter not yet chosen is checked once it is.
+			let named = (spelled(args).into_iter().filter_map(exported))
+				.filter(|(_, args)| !args.has_non_region_param())
+				.all(|(adt, args)| {
+					let key = self.key(adt, *args);
+					match self.inferring {
+						true => self.instances.iter().any(|site| site.key == key),
+						false => matches!(
+							self.decls.get(&key),
+							Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
+						),
+					}
+				});
+			if named {
+				found.push(candidate);
 			}
 		}
 		found
@@ -4697,11 +4818,17 @@ impl<'tcx> Collector<'tcx> {
 		mapped
 	}
 
-	/// Whether `ty` names an export's type, which maps only once declared.
+	/// Whether `ty` names an export's type, which maps only once declared: an item the walk
+	/// reached, or one a later pass reaches by its own crate's path. Another type of an
+	/// exported crate, as wasm-bindgen's `JsValue` is to js-sys, never maps.
 	fn names_export(&self, ty: Ty<'tcx>) -> bool {
-		ty.walk()
-			.filter_map(|arg| arg.as_type())
-			.any(|ty| matches!(ty.kind(), ty::Adt(adt, _) if self.exported(adt.did().krate)))
+		ty.walk().filter_map(|arg| arg.as_type()).any(|ty| match ty.kind() {
+			ty::Adt(adt, _) => {
+				let did = adt.did();
+				self.exported(did.krate) && (self.listed.contains(&did) || self.reachable(did))
+			}
+			_ => false,
+		})
 	}
 
 	/// The closure a type parameter takes, if an `Fn` trait bounds it, which C implements as
@@ -6402,6 +6529,30 @@ impl<'tcx> Collector<'tcx> {
 
 /// Each type a visited value names, at any depth.
 struct Types<'tcx>(Vec<Ty<'tcx>>);
+
+/// How deeply the types visited nest generic types, each inside another's arguments one
+/// level deeper.
+struct Depth<'a> {
+	generic: &'a rustc_data_structures::fx::FxHashSet<DefId>,
+	at: usize,
+	max: usize,
+}
+
+impl<'a> Depth<'a> {
+	fn new(generic: &'a rustc_data_structures::fx::FxHashSet<DefId>) -> Self {
+		Self { generic, at: 0, max: 0 }
+	}
+}
+
+impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for Depth<'_> {
+	fn visit_ty(&mut self, ty: Ty<'tcx>) {
+		let own = matches!(ty.kind(), ty::Adt(adt, _) if self.generic.contains(&adt.did())) as usize;
+		self.at += own;
+		self.max = self.max.max(self.at);
+		ty.super_visit_with(self);
+		self.at -= own;
+	}
+}
 
 impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for Types<'tcx> {
 	fn visit_ty(&mut self, ty: Ty<'tcx>) {
