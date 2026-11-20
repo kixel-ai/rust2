@@ -372,6 +372,49 @@ fn affine(api: &Api) -> Vec<bool> {
 	}
 }
 
+/// Whether a handle of each object may be lent through a chain of lenders as long as the
+/// caller makes it, as by calling a `view(&self) -> &Self` on each handle it returned: a
+/// shared borrow of it walks that chain, so its cost has no bound. True of each object a
+/// cycle of lending methods reaches; any other's chain is at most one handle per object.
+fn chained(api: &Api) -> Vec<bool> {
+	let lent: Vec<Vec<usize>> = (api.objects.iter())
+		.map(|object| {
+			let mut lent = Vec::new();
+			for f in object.methods.iter().filter(|f| f.lends) {
+				api.handles(&f.ok, &mut lent, &mut Vec::new());
+			}
+			lent
+		})
+		.collect();
+	past_cycles(&lent)
+}
+
+/// Whether a cycle of `edges`, each node's successors, reaches each node.
+fn past_cycles(edges: &[Vec<usize>]) -> Vec<bool> {
+	let n = edges.len();
+	// The nodes reachable in one edge or more from `from`.
+	let reach = |from: usize| {
+		let mut seen = vec![false; n];
+		let mut stack = edges[from].clone();
+		while let Some(j) = stack.pop() {
+			if !std::mem::replace(&mut seen[j], true) {
+				stack.extend(&edges[j]);
+			}
+		}
+		seen
+	};
+	let mut past = vec![false; n];
+	for i in 0..n {
+		let seen = reach(i);
+		if seen[i] {
+			for (j, seen) in seen.into_iter().enumerate() {
+				past[j] |= seen;
+			}
+		}
+	}
+	past
+}
+
 /// `ty` as a clone of each borrow it holds.
 fn owned(ty: &Type) -> Type {
 	match ty {
@@ -413,6 +456,8 @@ pub(crate) struct Abi<'a> {
 	pub(crate) held: Vec<bool>,
 	/// Whether each object is not `Send` or may be lent from one: see [`affine`].
 	affine: Vec<bool>,
+	/// Whether each object's chain of lenders has no bound: see [`chained`].
+	chained: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -435,6 +480,7 @@ impl<'a> Abi<'a> {
 			checked: checked(api),
 			held: held(api),
 			affine: affine(api),
+			chained: chained(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -498,6 +544,7 @@ impl<'a> Abi<'a> {
 			checked: self.checked.clone(),
 			held: self.held.clone(),
 			affine: self.affine.clone(),
+			chained: self.chained.clone(),
 		}
 	}
 
@@ -1303,7 +1350,8 @@ impl<'a> Abi<'a> {
 	/// Its value is `Send`, so its borrow runs no `Thread::own`, whose drain would drop what
 	/// other threads queued of the thread's values that are not `Send`, by any `Drop`; a
 	/// handle lent from another borrows that one too, so no owner up its chain of lenders
-	/// may be other than `Send` either. A field
+	/// may be other than `Send` either, and that chain is no longer than the export's objects
+	/// are many, as no cycle of lending methods reaches the object. A field
 	/// reached through `Deref`, of an enum, or of anything but a primitive would run user
 	/// code to read, clone, or drop. So it ends in a bounded number of steps whoever holds
 	/// the GIL, and since it runs no Python, nothing in it needs the GIL either.
@@ -1324,15 +1372,21 @@ impl<'a> Abi<'a> {
 			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if primitive(&param.ty)),
 			_ => false,
 		};
-		field && !self.affine[*i] && function.derefs == 0 && function.err.is_none() && !function.future
+		field
+			&& !self.affine[*i]
+			&& !self.chained[*i]
+			&& function.derefs == 0
+			&& function.err.is_none()
+			&& !function.future
 	}
 
 	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
 	/// says: its impl is derived or std's down to primitives, and it borrows only the handle
-	/// of a `Send` object no other that is not `Send` may lend, or as a value, none.
+	/// of a `Send` object no other that is not `Send` may lend, through a chain of lenders
+	/// with a bound, or as a value, none.
 	pub(crate) fn leaf_trait(&self, ty: &Type, hash: bool) -> bool {
 		let (traits, handles) = match ty {
-			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i]),
+			Type::Object(i) => (self.api.objects[*i].traits, self.affine[*i] || self.chained[*i]),
 			Type::Record(i) => (self.api.records[*i].traits, self.holds_handles(ty)),
 			Type::Enum(i) => (self.api.enums[*i].traits, self.holds_handles(ty)),
 			_ => return false,
@@ -2142,7 +2196,14 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest, unique};
+	use super::{apart, past_cycles, shortest, unique};
+
+	#[test]
+	fn past_cycles_marks_what_a_cycle_reaches() {
+		// 0 lends itself and 1; 2 lends 3 and 3 lends 2, which lends 4; 5 lends 6.
+		let edges = [vec![0, 1], vec![], vec![3, 4], vec![2], vec![], vec![6], vec![]];
+		assert_eq!(past_cycles(&edges), [true, true, true, true, true, false, false]);
+	}
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {

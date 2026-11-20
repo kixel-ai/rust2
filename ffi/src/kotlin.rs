@@ -183,7 +183,10 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		// the JVM and the class, and registers the leaves' native methods.\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1contract(env: *mut JNIEnv, class: jclass) -> jlong {{\n\
-		\tunsafe {{ rt::load(env, class, &[\n{fast}\t]) }};\n\
+		\tif !unsafe {{ rt::load(env, class, &[\n{fast}\t]) }} {{\n\
+		\t\t// The pending exception throws in place of the contract, which Kotlin never reads.\n\
+		\t\treturn 0;\n\
+		\t}}\n\
 		\t0x{contract:016x}u64 as jlong\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\

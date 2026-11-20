@@ -31,19 +31,25 @@ static CLASS: OnceLock<usize> = OnceLock::new();
 /// from Android 12. The library defines no `JNI_OnLoad`, so the crate it exports may define
 /// its own.
 ///
+/// Returns false, with the JVM's `NoSuchMethodError` pending, when `class` lacks one of
+/// `natives`: a Kotlin file from another build, or a shrinker dropping a method the rules
+/// keep. The caller returns at once, so the class's initializer throws it.
+///
 /// # Safety
 /// `env` is this thread's, `class` the native class, and each of `natives` a function of
 /// the signature it names.
-pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod]) {
+pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod]) -> bool {
 	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
 		let mut vm: *mut JavaVM = std::ptr::null_mut();
 		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
 			fail(env, "load", "the JVM is missing");
 		}
-		// The rules keep each, so a shrunk app lacking one is a build's mistake.
 		if !natives.is_empty() && ((**env).v1_2.RegisterNatives)(env, class, natives.as_ptr(), natives.len() as jint) != JNI_OK {
-			fail(env, "load", "a native method to register is missing");
+			if !((**env).v1_2.ExceptionCheck)(env) {
+				fail(env, "load", "registering the native methods failed with no exception");
+			}
+			return false;
 		}
 		let _ = VM.set(vm as usize);
 		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);
@@ -56,6 +62,7 @@ pub unsafe fn load(env: *mut JNIEnv, class: jclass, natives: &[JNINativeMethod])
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
+	true
 }
 
 /// The class holding the Kotlin functions Rust calls.

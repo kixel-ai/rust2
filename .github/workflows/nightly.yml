@@ -411,19 +411,6 @@ jobs:
           arch: x86
           script: nix develop .#android --command just ffi android
 
-      # The binding benchmark's Kotlin rows on ART beside HotSpot's, into the run's summary:
-      # no threshold fails the step. Four cores, for its threaded cases.
-      - name: Bench on API 35
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
-          api-level: 35
-          arch: x86_64
-          cores: 4
-          script: nix develop .#android --command just ffi bench-android
-
-      - name: Summarize the bench
-        run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
-
       # An image whose kernel pages by 16 KB, as Google Play requires of 64-bit libraries from
       # 2027-02-01: the library must load there, and its segments must align to that.
       - name: API 35, 16 KB pages
@@ -435,6 +422,20 @@ jobs:
           script: |
             test "$($ANDROID_HOME/platform-tools/adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
             nix develop .#android --command just ffi android
+
+      # The binding benchmark's Kotlin rows on ART beside HotSpot's, into the run's summary:
+      # no threshold fails the step. Four cores, for its threaded cases. Last, so a failed
+      # measurement can't skip a correctness gate above.
+      - name: Bench on API 35
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          cores: 4
+          script: nix develop .#android --command just ffi bench-android
+
+      - name: Summarize the bench
+        run: cat ffi/target/bench-android/report.md >> "$GITHUB_STEP_SUMMARY"
 
   ffi-bench:
     name: Bench the bindings

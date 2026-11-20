@@ -1552,6 +1552,7 @@ just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top cra
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
+nix develop .#android --command just ffi bench-android  # the benchmark's Kotlin rows on HotSpot and, shrunk by R8, on ART on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri

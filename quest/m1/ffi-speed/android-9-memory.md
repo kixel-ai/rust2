@@ -15,8 +15,9 @@ the device then thrashes and its system server restarts. It does so with and wit
 `@FastNative`, and on main's generator too. `just ffi android`, the api fixture, passes
 there. Bisect by case first: the bench's loops make and close millions of handles, frames,
 and timestamps, so a leak per call, such as a JNI reference ART 9 keeps or a handle freed
-only by the collector, is the first suspect. `just ffi bench-android` runs it with
-`ANDROID_HOME` naming an SDK with the API 28 image.
+only by the collector, is the first suspect. `just ffi bench-android` runs it on the device
+adb reaches, so start an API 28 emulator and make it the only device, or name it in
+`ANDROID_SERIAL`.
 
 Public API: none expected.
 
