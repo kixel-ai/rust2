@@ -1004,7 +1004,7 @@ impl<'a> Header<'a> {
 	fn fields(&self, i: usize) -> (Vec<String>, Vec<String>) {
 		let record = &self.abi.api.records[i];
 		let name = self.name(&self.abi.record(i));
-		let _made = Self::made(record.traits, &name);
+		let made = Self::made(record.traits, &name);
 		// A record's traits give it no `clone` or `hash`, which only an object's give.
 		let emitted = Traits {
 			clone: false,
@@ -1012,8 +1012,8 @@ impl<'a> Header<'a> {
 			..record.traits
 		};
 		let rust: Vec<String> = record.fields.iter().map(|f| f.name.clone()).collect();
-		let made = Self::made(emitted, &name);
-		let fields = named(&rust, |n| made.iter().any(|t| t == n));
+		let members = Self::made(emitted, &name);
+		let fields = named(&rust, |n| members.iter().any(|t| t == n));
 		let mut taken = fields.clone();
 		taken.extend(made);
 		taken.push(name);
