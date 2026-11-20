@@ -439,6 +439,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Must-use returns**: a function returning a handle, a buffer, a waker, a value holding
+  any of those or a `Vec`, such as a record with a `String` field, a poll, or a fallible
+  call's `bool` is `<PREFIX>_MUST_USE`, C23's and C++17's `[[nodiscard]]`, or
+  GCC's and Clang's `warn_unused_result` before C23, since dropping it leaks or loses an
+  error. Docs are `/** */`, which Doxygen reads.
 - **Android**: the build script links the library with 16 KB pages, which Google Play
   requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
   panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
@@ -551,8 +556,14 @@ packages place it in.
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
-  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
-  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float. One whose
+  refuses for a view or `str()` of a temporary `buf`, and from Clang 23 `-Wlifetime-safety`
+  for one kept past its `buf` across statements: `buf` is a `[[gsl::Owner]]`, and `view`,
+  `slice`, and `items` are `[[gsl::Pointer]]`s. A `Vec<T>` is a `std::vector`. A list
+  parameter of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, as
+  `&[f32]` or `Vec<u64>`, is a `slice<T>`, which Rust reads in place and copies only if it
+  keeps it: a pointer and a count, or any contiguous range of `T`, such as a
+  `std::vector`, a `std::array`, a C array, a braced list, or from C++20 a
+  `std::span<const T>`, which it converts back to. One whose
   items hold bytes is taken as `items` of `view`s, which points into a `std::vector` of them
   in place and converts any other range whose items convert and outlive the call, such as a
   returned `std::vector<buf>`, but not a range of temporaries. A `std::vector` moved in
@@ -561,7 +572,9 @@ packages place it in.
   handle is taken as `taken`, a `std::vector` of them moved in as it is, or any other such
   range moved in, each handle moved out of it. A socket address is a `socket_addr`, an IP
   address an `ip_addr`, and a `u128` a `u128`, each the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
-  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
+  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`. A `result`, `future`, `task`, or
+  `buf` is `[[nodiscard]]`, as Rust's `Result` and futures are `#[must_use]`: dropping
+  one unread loses an error, cancels a call, or reads bytes for nothing.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** are any callable, taken by a template parameter, which Rust calls from any
   thread, one call at a time. One lent for a call Rust calls only during the call; one Rust
@@ -583,8 +596,10 @@ packages place it in.
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
   a `task` that cancels when destroyed, after which the callback has finished or never
-  runs and the executor is never called again; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine on the
-  executor. An executor is any callable taking a `void()` job to run once, later, on any
+  runs and the executor is never called again: a `task` dropped before its executor starts
+  the job never runs, though one dropped at once may lose that race to an executor on
+  another thread; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine
+  on the executor. An executor is any callable taking a `void()` job to run once, later, on any
   thread: never inline, since a wake may come from inside Rust. Each wake that lands while
   the future polls polls it again, and a future has one poller at a time, since awaiting
   it moves it.

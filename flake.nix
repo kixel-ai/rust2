@@ -293,6 +293,9 @@
             nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
+            # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
+            # compiler on PATH has.
+            RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
             # The free-threaded CPython the generated Python must refuse. By path, since its
             # python3 would shadow the GIL build's on PATH.
