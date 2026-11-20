@@ -822,7 +822,8 @@ impl<'a> Gen<'a> {
 			let mut members = Vec::new();
 			let mut payloads = Vec::new();
 			for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
-				let payload_class = private_type(&abi::payload(&name, &variant.name));
+				let payload = abi::payload(&name, &variant.name);
+				let payload_class = private_type(&payload);
 				let mut decls = Vec::new();
 				let mut tys = Vec::new();
 				for field in &variant.fields {
