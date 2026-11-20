@@ -73,6 +73,17 @@ func text(_ data: Bytes) -> String {
 	String(decoding: data, as: UTF8.self)
 }
 
+/// `text`'s UTF-8, lent to `body` as a span.
+func lend<R: ~Copyable>(_ text: String, _ body: (Swift.Span<UInt8>) throws -> R) rethrows -> R {
+	try Bytes(text.utf8).withSpan(body)
+}
+
+/// `items`, lent to `body` as a span: an array's own `span` needs macOS 26, its slice's none.
+func lend<T, R: ~Copyable>(_ items: [T], _ body: (Swift.Span<T>) throws -> R) rethrows -> R {
+	let slice = items[...]
+	return try body(slice.span)
+}
+
 /// Check that `body` throws for the call `function` of a Refusal a move closed.
 func closed(_ function: String, _ body: () throws -> Void) {
 	do {
@@ -313,7 +324,7 @@ func script() {
 		}
 	}
 	for needle in ["lo", "x"] {
-		if let found = find(Bytes("hello".utf8), Bytes(needle.utf8)) {
+		if let found = lend("hello", { haystack in lend(needle) { find(haystack, $0) } }) {
 			print("find \(found.0) \(found.1)")
 		} else {
 			print("find none")
@@ -453,11 +464,11 @@ func script() {
 	print("window \(window.contains(4)) \(window.contains(6)) \(debug(window))")
 
 	print(greet("x", .square))
-	print("len \(len(Bytes("abc".utf8)))")
+	print("len \(lend("abc") { len($0) })")
 	let binary = Bytes([0xff, 0, 0x61])
 	print("hex \(hex(binary))")
 	print("timed hex \(timedHex(binary))")
-	print("sample hex \(sampleHex(binary))")
+	print("sample hex \(binary.withSpan { sampleHex($0) })")
 	print("queued hex \(queuedHex(binary))")
 	print("tick \(tickName(Label(name: "tick", at: nil, ttl: nil)))")
 	print("rooted \(rootedName(Label(name: "rooted", at: nil, ttl: nil)))")
@@ -592,8 +603,10 @@ func script() {
 		print("recv \(text(try await channel.recv()))")
 		// The send happens at the call, and the future borrows the channel and the tag.
 		print("tagged \(try await channel.tagged("tag"))")
-		print("itemized \(try await channel.itemized([1, 2, 3]))")
-		print("byte_len \(try await byteLen(Bytes("abc".utf8)))")
+		let items: ArraySlice<UInt32> = [1, 2, 3]
+		print("itemized \(try await channel.itemized(items.span))")
+		let abc = Array("abc".utf8)[...]
+		print("byte_len \(try await byteLen(abc.span))")
 		try! channel.send(Bytes("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
@@ -740,7 +753,7 @@ func script() {
 	print("sentence \(sentence(words)) \(sentence(nil))")
 	print("sentence \(sentence([]))|")
 	print("either \(either("abc")) \(either(nil))")
-	print("prefixed \(String(decoding: prefixed(Bytes("cd".utf8), Bytes("ab".utf8)), as: UTF8.self)) \(String(decoding: prefixed(Bytes("cd".utf8), nil), as: UTF8.self))")
+	print("prefixed \(String(decoding: lend("cd", { cd in lend("ab") { prefixed(cd, $0) } }), as: UTF8.self)) \(String(decoding: lend("cd") { prefixed($0, nil) }, as: UTF8.self))")
 	print("coordinates \(coordinates(Point(x: 2, y: 3))) \(coordinates(nil))")
 	do {
 		// An optional borrowed handle is an overload with it and one without; one borrowed
@@ -828,12 +841,12 @@ func script() {
 	do {
 		let config = secure("h3")
 		print("secure \(try! alpnLent(config)) \(try! alpn(config.clone()))")
-		let cert = certify(Bytes("der".utf8))
+		let cert = lend("der") { certify($0) }
 		let certLength = try! certLen(cert)
 		let der = text(try! certDer(cert))
 		var chain = UniqueArray<TlsCert>()
-		chain.append(certify(Bytes("a".utf8)))
-		chain.append(certify(Bytes("bc".utf8)))
+		chain.append(lend("a") { certify($0) })
+		chain.append(lend("bc") { certify($0) })
 		print("cert \(certLength) \(der) \(try! chainLen(chain))")
 		// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
 		print("resolver \(try! resolved(resolver("r1")))")
@@ -857,8 +870,8 @@ func script() {
 		print("offered_len \(offeredLen([Bytes("h3".utf8), Bytes("moq-00".utf8)]))")
 		print("join_words \(joinWords(["a", "b", "c"]))")
 		// Bytes that must be `'static`, interned.
-		print("der \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
-		print("der again \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
+		print("der \(text(lend("der") { Der.fromSlice($0) }.bytes()))")
+		print("der again \(text(lend("der") { Der.fromSlice($0) }.bytes()))")
 		let session = try! resume("h3", 60)
 		print("resume \(session.alpn()) \(session.lifetime().seconds)")
 		do {
@@ -936,7 +949,7 @@ func script() {
 			check(false, "a sealed ledger throws an Error")
 		}
 	}
-	print("chunks \(chunks(Bytes("abcde".utf8), 2).map { Array($0) })")
+	print("chunks \(lend("abcde") { chunks($0, 2) }.map { Array($0) })")
 	var counters = counters(["x", "y"])
 	print("counters \(listed(counters) { "\(try! $0.name()) \(try! $0.get())" })")
 	// Each counter moves in.
@@ -955,8 +968,8 @@ func script() {
 	let edges = Numbers.edges()
 	let nan = Measure.new(Double.nan, false)
 	print("float equal \(edges == edges) \(edges == Numbers.edges()) \(Numbers.zero(true) == Numbers.zero(false)) \(nan == nan) \(Measure.new(-0.0, true) == Measure.new(0.0, false))")
-	print("sum u32 \(sumU32([])) \(sumU32([UInt32.max, UInt32.max, 2]))")
-	print("doubled i64 \(doubledI64([Int64.min, -1, 0, Int64.max]))")
+	print("sum u32 \(lend([UInt32]()) { sumU32($0) }) \(lend([UInt32.max, UInt32.max, 2]) { sumU32($0) })")
+	print("doubled i64 \(lend([Int64.min, -1, 0, Int64.max]) { doubledI64($0) })")
 	print("boxed floats \(boxedFloats([-0.0, Double(bitPattern: 0x7ff8_0000_0000_0001)]).map(\.bitPattern))")
 	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
 	let noneSum = summed([])
@@ -969,7 +982,7 @@ func script() {
 	let high = String(decoding: limits.high, as: UTF8.self)
 	print("limits \(low) \(high) breadth \(waits.secs * 1000 + UInt64(waits.nanos) / 1_000_000)")
 	let parts = String(decoding: Api.joined([Bytes("ab".utf8), Bytes(), Bytes("c".utf8)]), as: UTF8.self)
-	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Bytes("hello".utf8)))")
+	print("joined \(parts) \(Api.joined([]).count) read \(lend("hello") { readLen($0) })")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
 	print("json \(try! encode(doc))")
 	print("timed text \(try! timedText(doc))")
@@ -1544,7 +1557,7 @@ func owned() {
 
 /// Where `bytes` start.
 func address(_ bytes: Bytes) -> UnsafeRawPointer? {
-	bytes.withUnsafeBytes { $0.baseAddress }
+	bytes.withSpan { $0.withUnsafeBufferPointer { UnsafeRawPointer($0.baseAddress) } }
 }
 
 // A payload Rust returned, read and written back, whole and in a record: Rust takes a
@@ -1570,6 +1583,21 @@ func forward() {
 
 // Each breaks a contract Swift's compiler checks, so it fails to compile, built alone with
 // its flag.
+/// A digest of the bytes Rust lends, read in place.
+struct ScanDigest: Scan {
+	func scan(_ payload: Swift.Span<UInt8>, _ rest: Swift.Span<UInt8>?) -> UInt64 {
+		var sum = UInt64(payload.count) << 32
+		for i in payload.indices {
+			sum += UInt64(payload[i])
+		}
+		guard let rest else { return sum + (1 << 48) }
+		for i in rest.indices {
+			sum += UInt64(rest[i]) * 256
+		}
+		return sum
+	}
+}
+
 #if MOVED
 func moved() {
 	let c = Counter.new("c", 0)
@@ -1592,6 +1620,20 @@ func lentMoved() {
 	_ = try! registry.edit { counter in
 		_ = try! counter.intoLabel(nil)
 		return false
+	}
+}
+#endif
+
+#if SPAN_KEPT
+/// Keeps a span Rust lent past the call it was lent for.
+func spanKept() {
+	lend("ab") { whole in
+		nonisolated(unsafe) var kept: Swift.Span<UInt8>? = nil
+		_ = visitChunks(whole, 1) { chunk in
+			kept = chunk
+			return 0
+		}
+		print(kept?.count ?? 0)
 	}
 }
 #endif
@@ -1687,6 +1729,18 @@ func lossless() {
 	print("lossless path \(hexBytes(samePath("a/é").bytes)) \(hexBytes(samePath(strayPath).bytes))")
 	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
 	visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
+	// Rust borrows a caller's span in place, and lends a closure each chunk of it in place.
+	lend("abcde") { whole in
+		let base = UInt64(UInt(bitPattern: whole.withUnsafeBufferPointer { $0.baseAddress }))
+		let seen = visitChunks(whole, 2) { chunk in
+			guard let chunk else { return 7 }
+			let at = chunk.withUnsafeBufferPointer { UInt64(UInt(bitPattern: $0.baseAddress)) }
+			return (at - base) * 1000 + UInt64(chunk[chunk.count - 1])
+		}
+		check(seen == [98, 2100, 4101, 7], "a closure reads each chunk of a caller's bytes in place")
+	}
+	let digest = scanned(ScanDigest(), Bytes("abcd".utf8))
+	check(digest == (2 << 32) + 97 + 98 + (99 + 100) * 256 + (1 << 48), "a callback reads lent bytes and none")
 	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")
 	let v4 = sameSocketAddrV4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max))
 	let ip6 = Ipv6Addr(bits: U128(high: 1 << 48, low: 2))

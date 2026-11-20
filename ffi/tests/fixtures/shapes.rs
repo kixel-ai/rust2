@@ -1201,7 +1201,8 @@ fn python(built: &Built, calls: &[Call]) -> String {
 
 /// The Swift driver, in the generated module's `main.swift`: each shape's calls in a
 /// function of its own, since type-checking them as one body of top-level code takes
-/// tens of gigabytes.
+/// tens of gigabytes, and `lend`, which lends bytes or an array to a `digest_N` borrowing
+/// a slice as the span it takes.
 fn swift(calls: &[Call], source: &str) -> String {
 	// Whether the generated `func` throws, as one taking a checked handle does.
 	let throws = |function: &str| {
@@ -1219,17 +1220,32 @@ fn swift(calls: &[Call], source: &str) -> String {
 		true => "try! ",
 		false => "",
 	};
+	// `digest_N` of the value `v`, lent as a span where it borrows a slice.
+	let digest = |n: usize, v: String| {
+		match source.contains(&format!("public func digest{n}(_ v: borrowing Swift.Span<")) {
+			true => {
+				let t = match throws(&format!("digest{n}")) {
+					true => "try ",
+					false => "",
+				};
+				format!("lend({v}) {{ {t}digest{n}($0) }}")
+			}
+			false => format!("digest{n}({v})"),
+		}
+	};
 	let shapes = by_shape(calls, |call| {
 		let value = match call {
 			Call::Echo(n, seed) => format!(
-				"{}digest{n}(echo{n}(make{n}({seed})))",
-				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")])
+				"{}{}",
+				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")]),
+				digest(n, format!("echo{n}(make{n}({seed}))"))
 			),
 			Call::Lent(n, seed) => {
 				format!(
-					"{}lent{n}({seed}) {{ {}digest{n}($0) }}",
+					"{}lent{n}({seed}) {{ {}{} }}",
 					tr(&[format!("lent{n}")]),
-					closed(format!("digest{n}"))
+					closed(format!("digest{n}")),
+					digest(n, "$0".to_string())
 				)
 			}
 			Call::Peek(n, seed) => {
@@ -1247,11 +1263,14 @@ fn swift(calls: &[Call], source: &str) -> String {
 				)
 			}
 			// The future throws, so `try` always marks the call.
-			Call::Later(n, seed) => format!("try await digest{n}(later{n}(make{n}({seed})))"),
+			Call::Later(n, seed) => format!("try await {}", digest(n, format!("later{n}(make{n}({seed}))"))),
 		};
 		format!("\tprint(\"{} \\({value})\")", call.label())
 	});
-	let mut out = String::new();
+	let mut out = String::from(
+		"func lend<R>(_ bytes: Bytes, _ body: (Swift.Span<UInt8>) throws -> R) rethrows -> R {\n\ttry bytes.withSpan(body)\n}\n\n\
+		func lend<T, R>(_ items: [T], _ body: (Swift.Span<T>) throws -> R) rethrows -> R {\n\tlet slice = items[...]\n\treturn try body(slice.span)\n}\n\n",
+	);
 	for (n, lines) in &shapes {
 		let _ = writeln!(out, "func shape{n}() async throws {{\n{lines}}}\n");
 	}

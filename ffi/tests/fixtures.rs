@@ -1417,6 +1417,7 @@ fn api_swift() {
 			"missing reinitialization of inout parameter 'counter' after consume",
 		),
 		("LENT_KEPT", "implicit conversion to 'Tally?' is consuming"),
+		("SPAN_KEPT", "lifetime-dependent variable 'kept' escapes its scope"),
 	] {
 		let step = Step {
 			stamp: &dir.join(format!("{case}.stamp")),
