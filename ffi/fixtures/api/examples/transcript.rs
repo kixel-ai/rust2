@@ -739,9 +739,9 @@ fn main() {
 			.map(|c| format!("{}", api::len(c)))
 			.collect::<Vec<_>>()
 			.join(" "),
-		api::scaled(3, 1).map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
+		api::held_count(Some((Counter::new("h", 4),))).map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
 		api::fingerprint(&format!("{}", api::len(b"abc"))).is_err(),
-		api::len(&api::fingerprint("deadbeef").unwrap())
+		api::sum_u32(&[ledger.published(), 1])
 	);
 	let counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	println!(
