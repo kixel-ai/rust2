@@ -1763,6 +1763,9 @@ and cgocheck2, and `tests/api.py`'s checks on a debug build of the newest CPytho
 blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` and the
 protocol scripts from `tests/miri/protocol.rs` under Miri with strict provenance. The
 protocol scripts' C driver runs under each sanitizer too.
+On aarch64 the glue builds without outline atomics (`-Ctarget-feature=-outline-atomics`): the
+instrumented `compiler_builtins` would answer the runtime's own atomics, before its shadow
+exists, and crash it in `__asan_init`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
