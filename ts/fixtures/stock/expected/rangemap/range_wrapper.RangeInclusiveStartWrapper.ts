@@ -20,7 +20,9 @@ export function new$u64(range: rs.RangeInclusive<rs.u64>): RangeInclusiveStartWr
 }
 
 export function eq$cmp_PartialEq_u64(self: RangeInclusiveStartWrapper<rs.u64>, other: RangeInclusiveStartWrapper<rs.u64>): boolean {
-	return rs.u64Eq(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(self))), rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(other))));
+	const _4: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(self)));
+	const _8: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(deref$ops_Deref_u64(other)));
+	return typeof _4 === "number" && typeof _8 === "number" ? _4 === _8 : rs.u64Eq(_4, _8);
 }
 
 export function cmp$cmp_Ord_u64(self: RangeInclusiveStartWrapper<rs.u64>, other: RangeInclusiveStartWrapper<rs.u64>): rs.Ordering {

@@ -362,7 +362,9 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return rs.hashFinish(h2);
 		};
 		const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-		rs.byteVecPush(out, rs.u64Eq(_443({ _0: first }), _443({ _0: first ^ 240 })) ? 1 : 0);
+		const _450: rs.u64 = _443({ _0: first });
+		const _454: rs.u64 = _443({ _0: first ^ 240 });
+		rs.byteVecPush(out, (typeof _450 === "number" && typeof _454 === "number" ? _450 === _454 : rs.u64Eq(_450, _454)) ? 1 : 0);
 		const _461: [rs.Hasher, Tally.Tally] = [rs.hasher(), { n: first as rs.u16 }];
 		const h: rs.Hasher = _461[0];
 		const counted: Tally.Tally = copy$collections_Tally(_461[1]);
@@ -370,7 +372,9 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.hash16(counted.n, _466);
 		const want: rs.Hasher = rs.hasher();
 		rs.hash16(rs.u16Add(first as rs.u16, 1), want);
-		rs.byteVecPush(out, rs.u64Eq(rs.hashFinish(h), rs.hashFinish(want)) ? 1 : 0);
+		const _479: rs.u64 = rs.hashFinish(h);
+		const _481: rs.u64 = rs.hashFinish(want);
+		rs.byteVecPush(out, (typeof _479 === "number" && typeof _481 === "number" ? _479 === _481 : rs.u64Eq(_479, _481)) ? 1 : 0);
 		rs.hashRetain(ranks, (r2: Rank.Rank, t17: Tally.Tally): boolean => {
 			if (!(rs.u16Rem(t17.n, 2) === 0)) {
 				return Rank.eq$cmp_PartialEq(r2, { tag: "Low" } as Rank.Rank);
@@ -4726,9 +4730,10 @@ export function cellEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	putOrder(rs.cellBy(rs.cmpOption(rs.cmp))(oa, ob), log, out);
 	putCmp(rs.cellBy(rs.cmpOption(rs.cmp))(oa, ob), log, out);
 	const _261: rs.u16 = at(0);
+	const _258: rs.RefCell<rs.String> = new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_261, f), 0));
 	const _267: rs.u16 = at(1);
-	const _257: [rs.RefCell<rs.String>, rs.RefCell<rs.String>] = [new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_261, f), 0)), new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_267, f), 0))];
-	const sa: rs.RefCell<rs.String> = _257[0];
+	const _257: [rs.RefCell<rs.String>, rs.RefCell<rs.String>] = [_258, new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_267, f), 0))];
+	const sa: rs.RefCell<rs.String> = _258;
 	const sb: rs.RefCell<rs.String> = _257[1];
 	putEq(rs.refCellBy(rs.eqStr)(sa, sb), log, out);
 	putEq(!rs.refCellBy(rs.eqStr)(sa, sb), log, out);

@@ -13,7 +13,9 @@ Chromium 157 and Firefox 159): the translation wins cold start (5.7 ms against 8
 Chrome) and size (26 KB gzipped against 66), wins varint decode, group encode and decode,
 and hash maps in Chrome, and loses 64-bit math past 2^53 (`time/*` 6 to 12 times),
 formatting (6.8), string encode (30), and non-byte slices (`parts/*` 2.5 to 7.4). Firefox
-is uniformly worse (`parts/*` up to 50 times).
+ran `parts/prefix-writes` up to 50 times slower, from calls it kept in large functions, which
+[the Firefox profile](https://github.com/kixel-ai/rust2/pull/901) wrote out for a `u64`'s sums
+and differences; the rest of its gap is [the limbs](/quest/m2/wasm/ts-speed/limbs.md).
 
 Decided with the maintainer on 2026-11-18: ✅ the whole pass in m2, before the gate,
 slice scalarization included (rejected: only the cheap levers in m2; all of it in m3

@@ -603,9 +603,9 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		}
 		const _339: rs.Arc<[rs.u8, rs.u8]> = new rs.Arc([a, b] as [rs.u8, rs.u8]);
 		const hold: rs.Arc<Any.Any> = new rs.ArcDyn(_339, new of$tuple2_u8_u8(_339.value));
-		const _358: Any.Any = hold.value;
 		const held: rs.Arc<Any.Any>[] = [rs.arcClone(hold), rs.arcClone(hold)];
 		const _354: rs.usize = hold.strong;
+		const _358: Any.Any = hold.value;
 		const _357: [rs.u8, rs.u8] | undefined = _358 instanceof of$tuple2_u8_u8 ? _358.v : undefined;
 		const args55 = [(f: rs.Formatter) => rs.usizeDisplay(_354, f), (f: rs.Formatter) => rs.fmtOption(_357, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
 		put(out, rs.fmtFormat([args55[0], " ", args55[1], " "]).v);
@@ -647,13 +647,13 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			const shared: rs.Arc<Keyed.Keyed> = new rs.ArcDyn(_477, new of$u32(_477.value));
 			const weak2: rs.Weak<Any.Any> = new rs.Weak(shared);
 			const any4: rs.Arc<Any.Any> = shared;
-			const _496: Any.Any = any4.value;
 			const _491: boolean = isSomeAnd$11ghftu(rs.weakUpgrade(weak2), (a2: rs.Arc<Any.Any>): boolean => {
 				const _32: Any.Any = a2.value;
 				const _04: boolean = _32 instanceof of$u32 || _32 instanceof ofPlace$u32;
 				a2[Symbol.dispose]();
 				return _04;
 			});
+			const _496: Any.Any = any4.value;
 			const _495: rs.u32 | undefined = _496 instanceof of$u32 ? _496.v : _496 instanceof ofPlace$u32 ? _496.v.v : undefined;
 			const args62 = [(f: rs.Formatter) => rs.fmtBool(_491, f), (f: rs.Formatter) => rs.fmtOption(_495, f, rs.u32Debug)];
 			put(out, rs.fmtFormat([args62[0], " ", args62[1], " "]).v);

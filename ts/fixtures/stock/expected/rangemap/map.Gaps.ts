@@ -28,11 +28,12 @@ export function next$iter_Iterator_u64_u64(self: Gaps<rs.u64, rs.u64>): rs.Range
 			break;
 		}
 		const _11: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
-		if (!rs.u64Le(self.queryEnd as rs.u64, _11.range.start)) {
+		const _30: rs.u64 = self.queryEnd as rs.u64;
+		if (!(typeof _30 === "number" && typeof _11.range.start === "number" ? _30 <= _11.range.start : rs.u64Le(_30, _11.range.start))) {
 			const old = self.candidateStart as rs.u64;
 			(self.candidateStart as rs.u64) = _11.range.end;
 			const originalStart: rs.u64 = old;
-			if (!rs.u64Lt(originalStart, _11.range.start)) {
+			if (!(typeof originalStart === "number" && typeof _11.range.start === "number" ? originalStart < _11.range.start : rs.u64Lt(originalStart, _11.range.start))) {
 				(self.candidateStart as rs.u64) = _11.range.end;
 			} else {
 				return new rs.Range(originalStart, _11.range.start, rs.u64Step);
@@ -41,7 +42,9 @@ export function next$iter_Iterator_u64_u64(self: Gaps<rs.u64, rs.u64>): rs.Range
 			break;
 		}
 	}
-	if (!rs.u64Lt(self.candidateStart as rs.u64, self.queryEnd as rs.u64)) {
+	const _31: rs.u64 = self.candidateStart as rs.u64;
+	const _32: rs.u64 = self.queryEnd as rs.u64;
+	if (!(typeof _31 === "number" && typeof _32 === "number" ? _31 < _32 : rs.u64Lt(_31, _32))) {
 		return rs.DONE;
 	}
 	const gap2: rs.Range<rs.u64> = new rs.Range(self.candidateStart as rs.u64, self.queryEnd as rs.u64, rs.u64Step);
@@ -57,11 +60,12 @@ export function next$iter_Iterator_u64_unit(self: Gaps<rs.u64, undefined>): rs.R
 			break;
 		}
 		const _11: RangeEndWrapper.RangeEndWrapper<rs.u64> = RangeStartWrapper.deref$ops_Deref_u64(_6[0]);
-		if (!rs.u64Le(self.queryEnd as rs.u64, _11.range.start)) {
+		const _30: rs.u64 = self.queryEnd as rs.u64;
+		if (!(typeof _30 === "number" && typeof _11.range.start === "number" ? _30 <= _11.range.start : rs.u64Le(_30, _11.range.start))) {
 			const old = self.candidateStart as rs.u64;
 			(self.candidateStart as rs.u64) = _11.range.end;
 			const originalStart: rs.u64 = old;
-			if (!rs.u64Lt(originalStart, _11.range.start)) {
+			if (!(typeof originalStart === "number" && typeof _11.range.start === "number" ? originalStart < _11.range.start : rs.u64Lt(originalStart, _11.range.start))) {
 				(self.candidateStart as rs.u64) = _11.range.end;
 			} else {
 				return new rs.Range(originalStart, _11.range.start, rs.u64Step);
@@ -70,7 +74,9 @@ export function next$iter_Iterator_u64_unit(self: Gaps<rs.u64, undefined>): rs.R
 			break;
 		}
 	}
-	if (!rs.u64Lt(self.candidateStart as rs.u64, self.queryEnd as rs.u64)) {
+	const _31: rs.u64 = self.candidateStart as rs.u64;
+	const _32: rs.u64 = self.queryEnd as rs.u64;
+	if (!(typeof _31 === "number" && typeof _32 === "number" ? _31 < _32 : rs.u64Lt(_31, _32))) {
 		return rs.DONE;
 	}
 	const gap2: rs.Range<rs.u64> = new rs.Range(self.candidateStart as rs.u64, self.queryEnd as rs.u64, rs.u64Step);

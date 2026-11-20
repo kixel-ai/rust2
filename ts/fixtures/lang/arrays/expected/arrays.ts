@@ -762,8 +762,9 @@ export function givenN$0(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteSliceLastChunk(_126[1], 0);
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(buf));
+	const _140: rs.ByteSlice | undefined = rs.byteSliceLastChunk(rs.byteVecSlice(buf), 0);
 	const _144: rs.ByteSlice = rs.byteSliceFrom(a);
-	const old2: Uint8Array | undefined = option_map$10o993m(rs.byteSliceLastChunk(rs.byteVecSlice(buf), 0), (_t: rs.ByteSlice): Uint8Array => {
+	const old2: Uint8Array | undefined = option_map$10o993m(_140, (_t: rs.ByteSlice): Uint8Array => {
 		return rs.byteSliceToArray(_144);
 	});
 	const cloned2: Uint8Array | undefined = copy$Option_array0_u8(rs.optionMap(rs.byteSliceLastChunk(rs.byteVecSlice(buf), 0), rs.byteSliceView));
@@ -896,8 +897,9 @@ export function givenN$1(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(buf));
+	const _140: rs.ByteSlice | undefined = rs.byteSliceLastChunk(rs.byteVecSlice(buf), 1);
 	const _144: rs.ByteSlice = rs.byteSliceFrom(a);
-	const old2: Uint8Array | undefined = option_map$10o993m(rs.byteSliceLastChunk(rs.byteVecSlice(buf), 1), (t: rs.ByteSlice): Uint8Array => {
+	const old2: Uint8Array | undefined = option_map$10o993m(_140, (t: rs.ByteSlice): Uint8Array => {
 		const _36: Uint8Array = rs.byteSliceToArray(_144);
 		const old4 = rs.byteSliceToArray(t);
 		t.data.set(_36, t.start);
@@ -1033,8 +1035,9 @@ export function givenN$3(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(buf));
+	const _140: rs.ByteSlice | undefined = rs.byteSliceLastChunk(rs.byteVecSlice(buf), 3);
 	const _144: rs.ByteSlice = rs.byteSliceFrom(a);
-	const old2: Uint8Array | undefined = option_map$10o993m(rs.byteSliceLastChunk(rs.byteVecSlice(buf), 3), (t: rs.ByteSlice): Uint8Array => {
+	const old2: Uint8Array | undefined = option_map$10o993m(_140, (t: rs.ByteSlice): Uint8Array => {
 		const _36: Uint8Array = rs.byteSliceToArray(_144);
 		const old4 = rs.byteSliceToArray(t);
 		t.data.set(_36, t.start);
@@ -1170,8 +1173,9 @@ export function givenN$40(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(buf));
+	const _140: rs.ByteSlice | undefined = rs.byteSliceLastChunk(rs.byteVecSlice(buf), 40);
 	const _144: rs.ByteSlice = rs.byteSliceFrom(a);
-	const old2: Uint8Array | undefined = option_map$10o993m(rs.byteSliceLastChunk(rs.byteVecSlice(buf), 40), (t: rs.ByteSlice): Uint8Array => {
+	const old2: Uint8Array | undefined = option_map$10o993m(_140, (t: rs.ByteSlice): Uint8Array => {
 		const _36: Uint8Array = rs.byteSliceToArray(_144);
 		const old4 = rs.byteSliceToArray(t);
 		t.data.set(_36, t.start);

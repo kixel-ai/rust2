@@ -99,7 +99,7 @@ Decided with the maintainer on 2026-11-18, in the per-language audit:
   are the API surface lock (`ffi/surface/`), which landed first,
   C and C++, [Swift](/quest/m1/ffi-export/swift-span.md),
   Kotlin (landed), Python (landed),
-  [Dart](/quest/m1/ffi-export/dart-analyze.md), and [docs](/quest/m1/ffi-export/docs.md).
+  [Dart](/quest/m1/ffi-export/dart-analyze.md), and docs.
   Rejected: only the surface lock holding the pin; all of them after the pin.
 - ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as
   decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),

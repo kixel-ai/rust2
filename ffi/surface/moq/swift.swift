@@ -273,6 +273,30 @@ public struct Timescale: Sendable, CustomStringConvertible, CustomDebugStringCon
 	@inlinable public static func new(_ unitsPerSecond: Swift.UInt64) throws -> Timescale
 	@inlinable public func asU64() -> Swift.UInt64
 }
+public struct Timestamp: Sendable, CustomDebugStringConvertible, Hashable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Timestamp, b: Timestamp) -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher)
+	@inlinable public static var ZERO: Timestamp { get }
+	@inlinable public static func new(_ value: Swift.UInt64, _ scale: Timescale) throws -> Timestamp
+	@inlinable public static func unscaled(_ key: Swift.UInt64) -> Timestamp
+	@inlinable public static func fromScale(_ value: Swift.UInt64, _ unitsPerSecond: Swift.UInt64) throws -> Timestamp
+	@inlinable public static func fromSecs(_ seconds: Swift.UInt64) throws -> Timestamp
+	@inlinable public static func fromMillis(_ millis: Swift.UInt64) throws -> Timestamp
+	@inlinable public static func fromMicros(_ micros: Swift.UInt64) throws -> Timestamp
+	@inlinable public static func fromNanos(_ nanos: Swift.UInt64) throws -> Timestamp
+	@inlinable public func value() -> Swift.UInt64
+	@inlinable public func scale() -> Timescale?
+	@inlinable public func isZero() -> Swift.Bool
+	@inlinable public func convert(_ newScale: Timescale) throws -> Timestamp
+	@inlinable public func asScale(_ target: Timescale) throws -> U128
+	@inlinable public func asSecs() throws -> Swift.UInt64
+	@inlinable public func asMillis() throws -> U128
+	@inlinable public func asMicros() throws -> U128
+	@inlinable public func asNanos() throws -> U128
+	@inlinable public func checkedAdd(_ rhs: Timestamp) throws -> Timestamp
+	@inlinable public func checkedSub(_ rhs: Timestamp) throws -> Timestamp
+}
 public struct ClockInstant: Sendable, CustomDebugStringConvertible, Hashable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClockInstant, b: ClockInstant) -> Swift.Bool
@@ -531,6 +555,22 @@ public struct StatsWithdrawals: Sendable, CustomDebugStringConvertible, Equatabl
 	@inlinable public mutating func add(_ other: StatsWithdrawals)
 	@inlinable public func regressed(_ previous: StatsWithdrawals) -> Swift.Bool
 }
+public struct TransportReceiveWindow: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: TransportReceiveWindow, b: TransportReceiveWindow) -> Swift.Bool
+	@inlinable public var connectionGet: NonZero<Swift.UInt64>? { get }
+	@inlinable public mutating func connectionSet(_ value: NonZero<Swift.UInt64>?)
+	@inlinable public var streamGet: Swift.UInt64 { get }
+	@inlinable public mutating func streamSet(_ value: Swift.UInt64)
+	@inlinable public static func new(_ connection: NonZero<Swift.UInt64>?, _ stream: Swift.UInt64) -> TransportReceiveWindow
+}
+public struct TransportLimits: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: TransportLimits, b: TransportLimits) -> Swift.Bool
+	@inlinable public static func `default`() -> TransportLimits
+	@inlinable public var receiveWindowGet: NonZero<Swift.UInt64>? { get }
+	@inlinable public mutating func receiveWindowSet(_ value: NonZero<Swift.UInt64>?)
+}
 public struct BandwidthRate: Sendable, CustomDebugStringConvertible, Hashable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: BandwidthRate, b: BandwidthRate) -> Swift.Bool
@@ -544,15 +584,15 @@ public struct BandwidthRate: Sendable, CustomDebugStringConvertible, Hashable {
 	@inlinable public func scaled(_ factor: Swift.Double) -> BandwidthRate
 	@inlinable public func absDiff(_ other: BandwidthRate) -> BandwidthRate
 }
-public struct DatagramDatagram: Sendable {
+public struct DatagramDatagram: Sendable, CustomDebugStringConvertible, Equatable {
 	public var sequence: Swift.UInt64
 	public var timestamp: Timestamp
 	public var payload: Bytes
 	@inlinable public init(sequence: Swift.UInt64, timestamp: Timestamp, payload: Bytes)
 	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public static func == (a: DatagramDatagram, b: DatagramDatagram) throws -> Swift.Bool
+	@inlinable public static func == (a: DatagramDatagram, b: DatagramDatagram) -> Swift.Bool
 }
-public struct FrameInfo: Sendable {
+public struct FrameInfo: Sendable, CustomDebugStringConvertible {
 	public var size: Swift.UInt64
 	public var timestamp: Timestamp
 	@inlinable public init(size: Swift.UInt64, timestamp: Timestamp)
@@ -618,6 +658,14 @@ public struct HangCatalogAac: Sendable, CustomStringConvertible, CustomDebugStri
 	@inlinable public var description: Swift.String { get }
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: HangCatalogAac, b: HangCatalogAac) -> Swift.Bool
+}
+public struct HangCatalogClock: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: HangCatalogClock, b: HangCatalogClock) -> Swift.Bool
+	@inlinable public var wallGet: Timestamp { get }
+	@inlinable public mutating func wallSet(_ value: Timestamp)
+	@inlinable public static func new(_ wall: Timestamp) throws -> HangCatalogClock
+	@inlinable public func wallClock(_ pts: Timestamp) throws -> ClockWall
 }
 public struct HangCatalogPriorities: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -721,7 +769,7 @@ public struct HangCatalogDisplay: Sendable, CustomDebugStringConvertible, Equata
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: HangCatalogDisplay, b: HangCatalogDisplay) -> Swift.Bool
 }
-public struct HangContainerFrame: Sendable {
+public struct HangContainerFrame: Sendable, CustomDebugStringConvertible {
 	public var timestamp: Timestamp
 	public var payload: Bytes
 	@inlinable public init(timestamp: Timestamp, payload: Bytes)
@@ -730,7 +778,7 @@ public struct HangContainerFrame: Sendable {
 	@inlinable public static func decode(_ buf: Bytes) throws -> HangContainerFrame
 	@inlinable public func writeTo(_ group: inout GroupProducer) throws
 }
-public struct MuxContainerFrame: Sendable {
+public struct MuxContainerFrame: Sendable, CustomDebugStringConvertible {
 	public var timestamp: Timestamp
 	public var duration: Timestamp?
 	public var payload: Bytes
@@ -738,13 +786,13 @@ public struct MuxContainerFrame: Sendable {
 	@inlinable public init(timestamp: Timestamp, duration: Timestamp?, payload: Bytes, keyframe: Swift.Bool)
 	@inlinable public var debugDescription: Swift.String { get }
 }
-public struct MuxContainerTimestampRewind: Sendable {
+public struct MuxContainerTimestampRewind: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
 	public var timestamp: Timestamp
 	public var floor: Timestamp
 	@inlinable public init(timestamp: Timestamp, floor: Timestamp)
 	@inlinable public var description: Swift.String { get }
 	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public static func == (a: MuxContainerTimestampRewind, b: MuxContainerTimestampRewind) throws -> Swift.Bool
+	@inlinable public static func == (a: MuxContainerTimestampRewind, b: MuxContainerTimestampRewind) -> Swift.Bool
 }
 public struct MuxContainerPlayout: Sendable, CustomDebugStringConvertible, Equatable {
 	public var delay: TrackDelay
@@ -1279,7 +1327,7 @@ public enum MuxContainerKind: Sendable, CustomDebugStringConvertible, Equatable 
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: MuxContainerKind, b: MuxContainerKind) -> Swift.Bool
 }
-public enum MuxContainerRead: Sendable {
+public enum MuxContainerRead: Sendable, CustomDebugStringConvertible {
 	case frame(group: Swift.UInt64, frame: MuxContainerFrame)
 	case gap(timestamp: Timestamp, duration: Timestamp)
 	case end(group: Swift.UInt64, end: Timestamp)
@@ -1775,31 +1823,6 @@ public final class Error: @unchecked Sendable {
 	@inlinable public static func fromTransportError(_ err: Error) throws -> Error
 	@inlinable public static func fromTransportMemoryError(_ err: TransportMemoryError) -> Error
 	@inlinable public func retry() throws -> Retry
-}
-public final class Timestamp: @unchecked Sendable {
-	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public func clone() throws -> Timestamp
-	@inlinable public static func == (a: Timestamp, b: Timestamp) throws -> Swift.Bool
-	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
-	@inlinable public static var ZERO: Timestamp { get }
-	@inlinable public static func new(_ value: Swift.UInt64, _ scale: Timescale) throws -> Timestamp
-	@inlinable public static func unscaled(_ key: Swift.UInt64) -> Timestamp
-	@inlinable public static func fromScale(_ value: Swift.UInt64, _ unitsPerSecond: Swift.UInt64) throws -> Timestamp
-	@inlinable public static func fromSecs(_ seconds: Swift.UInt64) throws -> Timestamp
-	@inlinable public static func fromMillis(_ millis: Swift.UInt64) throws -> Timestamp
-	@inlinable public static func fromMicros(_ micros: Swift.UInt64) throws -> Timestamp
-	@inlinable public static func fromNanos(_ nanos: Swift.UInt64) throws -> Timestamp
-	@inlinable public func value() throws -> Swift.UInt64
-	@inlinable public func scale() throws -> Timescale?
-	@inlinable public func isZero() throws -> Swift.Bool
-	@inlinable public func convert(_ newScale: Timescale) throws -> Timestamp
-	@inlinable public func asScale(_ target: Timescale) throws -> U128
-	@inlinable public func asSecs() throws -> Swift.UInt64
-	@inlinable public func asMillis() throws -> U128
-	@inlinable public func asMicros() throws -> U128
-	@inlinable public func asNanos() throws -> U128
-	@inlinable public func checkedAdd(_ rhs: Timestamp) throws -> Timestamp
-	@inlinable public func checkedSub(_ rhs: Timestamp) throws -> Timestamp
 }
 public final class Version: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible, Hashable {
 	@inlinable public var description: Swift.String { get }
@@ -2497,24 +2520,6 @@ public struct TransportProbe: ~Copyable, @unchecked Sendable {
 	@inlinable public func target() -> BandwidthRate
 	@inlinable public func setTarget(_ rate: BandwidthRate)
 }
-public final class TransportReceiveWindow: @unchecked Sendable {
-	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public func clone() throws -> TransportReceiveWindow
-	@inlinable public static func == (a: TransportReceiveWindow, b: TransportReceiveWindow) throws -> Swift.Bool
-	@inlinable public var connectionGet: NonZero<Swift.UInt64>? { get }
-	@inlinable public func connectionSet(_ value: NonZero<Swift.UInt64>?) throws
-	@inlinable public var streamGet: Swift.UInt64 { get }
-	@inlinable public func streamSet(_ value: Swift.UInt64) throws
-	@inlinable public static func new(_ connection: NonZero<Swift.UInt64>?, _ stream: Swift.UInt64) -> TransportReceiveWindow
-}
-public final class TransportLimits: @unchecked Sendable {
-	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public func clone() throws -> TransportLimits
-	@inlinable public static func == (a: TransportLimits, b: TransportLimits) throws -> Swift.Bool
-	@inlinable public static func `default`() -> TransportLimits
-	@inlinable public var receiveWindowGet: NonZero<Swift.UInt64>? { get }
-	@inlinable public func receiveWindowSet(_ value: NonZero<Swift.UInt64>?) throws
-}
 public struct BandwidthLimit: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() throws -> BandwidthLimit
@@ -2747,7 +2752,7 @@ public struct FrameFrame: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func timestampSet(_ value: Timestamp) throws
 	@inlinable public var payloadGet: Bytes { get }
 	@inlinable public mutating func payloadSet(_ value: Bytes) throws
-	@inlinable public static func new(_ timestamp: Timestamp, _ payload: Bytes) throws -> FrameFrame
+	@inlinable public static func new(_ timestamp: Timestamp, _ payload: Bytes) -> FrameFrame
 	@inlinable public func arrived() throws -> ClockInstant
 }
 public struct FrameConsumer: ~Copyable, @unchecked Sendable {
@@ -3209,7 +3214,7 @@ public struct HangEchoArrival: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func timestampSet(_ value: Timestamp) throws
 	@inlinable public var wallGet: ClockWall { get }
 	@inlinable public mutating func wallSet(_ value: ClockWall) throws
-	@inlinable public static func new(_ timestamp: Timestamp, _ wall: ClockWall) throws -> HangEchoArrival
+	@inlinable public static func new(_ timestamp: Timestamp, _ wall: ClockWall) -> HangEchoArrival
 }
 public struct HangCatalogSkipped: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -3319,15 +3324,6 @@ public struct HangCatalogBinaryConfig: ~Copyable, @unchecked Sendable {
 	@inlinable public func extraGet() throws -> UniqueArray<TupleStringJson>
 	@inlinable public mutating func extraSet(_ value: consuming UniqueArray<TupleStringJson>) throws
 	@inlinable public static func new(_ mode: HangCatalogMode) -> HangCatalogBinaryConfig
-}
-public final class HangCatalogClock: @unchecked Sendable {
-	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public func clone() throws -> HangCatalogClock
-	@inlinable public static func == (a: HangCatalogClock, b: HangCatalogClock) throws -> Swift.Bool
-	@inlinable public var wallGet: Timestamp { get }
-	@inlinable public func wallSet(_ value: Timestamp) throws
-	@inlinable public static func new(_ wall: Timestamp) throws -> HangCatalogClock
-	@inlinable public func wallClock(_ pts: Timestamp) throws -> ClockWall
 }
 public struct HangCatalogContainer: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
@@ -5619,7 +5615,7 @@ public struct MuxSelectAudio: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func codec(_ codec: HangCatalogAudioCodecKind) throws -> MuxSelectAudio
 }
 public struct MuxSyncTrack: ~Copyable, @unchecked Sendable {
-	@inlinable public func received(_ timestamp: Timestamp, _ now: ClockInstant) throws -> Swift.Bool
+	@inlinable public func received(_ timestamp: Timestamp, _ now: ClockInstant) -> Swift.Bool
 	@inlinable public func reset()
 	@inlinable public func setTarget(_ target: RustDuration) -> Swift.Bool
 	@inlinable nonisolated(nonsending) public func delayChanged(_ seen: RustDuration) async throws -> RustDuration
@@ -5629,7 +5625,7 @@ public final class MuxSyncSchedule: @unchecked Sendable, CustomDebugStringConver
 	@inlinable public func clone() -> MuxSyncSchedule
 	@inlinable public static func == (a: MuxSyncSchedule, b: MuxSyncSchedule) -> Swift.Bool
 	@inlinable public func delay() -> RustDuration
-	@inlinable public func due(_ timestamp: Timestamp) throws -> ClockInstant?
+	@inlinable public func due(_ timestamp: Timestamp) -> ClockInstant?
 }
 public struct MuxSyncProducer: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> MuxSyncProducer

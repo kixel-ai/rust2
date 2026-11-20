@@ -32,8 +32,9 @@ export function last$iter_Iterator_wasm_bindgen_JsValue(self: ArrayIter<rs.JsVal
 }
 
 export function nth$iter_Iterator_wasm_bindgen_JsValue(self: ArrayIter<rs.JsValue>, n: rs.usize): rs.JsValue | rs.None {
+	const _3: rs.u32 | undefined = rs.iterNth(self.range, n);
 	const _6: rs.JsValue = self.array;
-	return option_map$1tgzvu4(rs.iterNth(self.range, n), (index: rs.u32): rs.JsValue => {
+	return option_map$1tgzvu4(_3, (index: rs.u32): rs.JsValue => {
 		return rs.jsAny(_6)[index] as rs.JsValue;
 	});
 }
@@ -47,8 +48,9 @@ export function nextBack$iter_DoubleEndedIterator_wasm_bindgen_JsValue(self: Arr
 }
 
 export function nthBack$iter_DoubleEndedIterator_wasm_bindgen_JsValue(self: ArrayIter<rs.JsValue>, n: rs.usize): rs.JsValue | rs.None {
+	const _3: rs.u32 | undefined = rs.iterNthBack(self.range, n);
 	const _6: rs.JsValue = self.array;
-	return option_map$1tgzvu4(rs.iterNthBack(self.range, n), (index: rs.u32): rs.JsValue => {
+	return option_map$1tgzvu4(_3, (index: rs.u32): rs.JsValue => {
 		return rs.jsAny(_6)[index] as rs.JsValue;
 	});
 }

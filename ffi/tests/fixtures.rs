@@ -4189,7 +4189,14 @@ fn opaque_values() {
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Mixed(u32, u64, u32);\n\npub fn mixed() -> Mixed {\n\tMixed(1, 2, 3)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct MixedWord(usize, u64);\n\npub fn mixed_word() -> MixedWord {\n\tMixedWord(1, 2)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Words(u64, usize, usize);\n\npub fn words() -> Words {\n\tWords(1, 2, 3)\n}\n\n\
-		#[derive(Clone, Copy)]\n#[repr(u8)]\nenum Kind {\n\tA,\n\tB,\n}\n\n#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Ordered(u64, u32, u16, u8, Kind);\n\npub fn ordered() -> Ordered {\n\tOrdered(1, 2, 3, 4, Kind::B)\n}\n";
+		#[derive(Clone, Copy)]\n#[repr(u8)]\nenum Kind {\n\tA,\n\tB,\n}\n\n#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Ordered(u64, u32, u16, u8, Kind);\n\npub fn ordered() -> Ordered {\n\tOrdered(1, 2, 3, 4, Kind::B)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Scaled {\n\tvalue: u64,\n\tscale: Option<std::num::NonZero<u64>>,\n}\n\npub fn scaled() -> Scaled {\n\tScaled { value: 1, scale: None }\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Lent(Option<&'static u32>);\n\npub fn lent() -> Lent {\n\tLent(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Nested(Option<Option<bool>>);\n\npub fn nested() -> Nested {\n\tNested(Some(None))\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Chars(Option<char>);\n\npub fn chars() -> Chars {\n\tChars(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Unset(Option<u32>);\n\npub fn unset() -> Unset {\n\tUnset(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Narrow(Option<(u32, std::num::NonZero<u32>)>);\n\npub fn narrow() -> Narrow {\n\tNarrow(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Sliced(Option<&'static [u8]>);\n\npub fn sliced() -> Sliced {\n\tSliced(None)\n}\n";
 	let package = package("opaque_values", &[("src/lib.rs", lib)]);
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
@@ -4207,8 +4214,12 @@ fn opaque_values() {
 	);
 	// A `bool` beside integers that fill the struct; a tag byte beside each variant's byte;
 	// fields in an order `repr(C)` keeps that leaves no gap, a `repr(u8)` tag among them;
-	// two `usize`s after a `u64`, which fill it at either pointer width.
-	for value in ["Flag", "Tagged", "Ordered", "Words"] {
+	// two `usize`s after a `u64`, which fill it at either pointer width; a `None` that writes
+	// its niche's whole scalar, a `u64`'s, a pointer's at either width, a `bool`'s an outer
+	// `None` shares with an inner one, or a `char`'s.
+	for value in [
+		"Flag", "Tagged", "Ordered", "Words", "Scaled", "Lent", "Nested", "Chars",
+	] {
 		assert!(
 			header.contains(&format!("}} opaque_values_{value};")),
 			"{value} is no opaque value:\n{header}"
@@ -4217,8 +4228,20 @@ fn opaque_values() {
 	// Padding after each `u8`; a tag and a `u16` short of a `u32`'s room; a niche the tag
 	// may hide in, leaving `B` a byte short; padding after the `u32` on a 64-bit target,
 	// though none on wasm32, so a handle on both; a `u64` that `repr(C)` keeps after a `u32`,
-	// or after a `usize`, which is a gap on wasm32 alone.
-	for handle in ["Pairs", "Wide", "Niched", "Word", "Mixed", "MixedWord"] {
+	// or after a `usize`, which is a gap on wasm32 alone; a `None` with no niche, writing
+	// only its tag, or with a niche narrower than its payload, a `NonZero<u32>`'s beside a
+	// `u32`, or a slice's pointer beside its length.
+	for handle in [
+		"Pairs",
+		"Wide",
+		"Niched",
+		"Word",
+		"Mixed",
+		"MixedWord",
+		"Unset",
+		"Narrow",
+		"Sliced",
+	] {
 		assert!(
 			header.contains(&format!("void opaque_values_{handle}_free(")),
 			"{handle} is no handle:\n{header}"

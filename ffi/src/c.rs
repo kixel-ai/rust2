@@ -19,6 +19,10 @@ pub(crate) fn header(abi: &Abi<'_>, packages: &str) -> (String, u64, BTreeMap<St
 	};
 	h.write();
 	h.name_items();
+	h.out = crate::doc::links(&h.out, abi.api, |l| match l.text {
+		Some(_) => None,
+		None => Some(link(abi, l.target)),
+	});
 	// Platform independent, so a header names the same contract wherever it is generated.
 	let mut hasher = StableHasher::new();
 	hasher.write(h.out.as_bytes());
@@ -207,7 +211,7 @@ impl Header<'_> {
 				.collect();
 			self.line(format!(
 				"{}typedef enum {name} {{\n{}\n}} {name};\n",
-				comment(&e.docs, ""),
+				comment(&deprecation(&e.docs, e.deprecated.as_deref()), ""),
 				variants.join("\n")
 			));
 		}
@@ -264,7 +268,7 @@ impl Header<'_> {
 			let docs = format!(
 				"{}: implemented in C. Rust calls free once it drops the implementation, and\nmay call the others from any thread.\n\n{}",
 				callback.path.join("::"),
-				callback.docs
+				deprecation(&callback.docs, callback.deprecated.as_deref())
 			);
 			self.line(format!(
 				"{}typedef struct {name}_vtable {{\n{}\n}} {name}_vtable;\n\ntypedef struct {name} {{\n\tconst {name}_vtable *vtable;\n\tvoid *data;\n}} {name};\n",
@@ -280,7 +284,7 @@ impl Header<'_> {
 			};
 			self.line(format!(
 				"{}#define {} {value}",
-				comment(&constant.docs, ""),
+				comment(&deprecation(&constant.docs, constant.deprecated.as_deref()), ""),
 				abi.constant(&constant.path)
 			));
 		}
@@ -313,7 +317,11 @@ impl Header<'_> {
 		}
 		for (i, object) in api.objects.iter().enumerate() {
 			let name = abi.object(i);
-			let docs = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
+			let docs = format!(
+				"{}\n\n{}",
+				abi.api.rust(&object.path, &object.args),
+				deprecation(&object.docs, object.deprecated.as_deref())
+			);
 			self.line(comment(docs.trim(), "").trim_end());
 			self.line(format!("void {name}_free({name} *self);"));
 			if abi.checked[i] {
@@ -438,7 +446,7 @@ impl Header<'_> {
 			if let Some(opaque) = &record.opaque {
 				self.line(format!(
 					"{}typedef struct {name} {{\n\t/** Its bytes, which only Rust reads: copy it, but never make or change one. */\n\t{} opaque[{}];\n}} {name};\n",
-					comment(&record.docs, ""),
+					comment(&deprecation(&record.docs, record.deprecated.as_deref()), ""),
 					c_unit(opaque.unit()),
 					opaque.units()
 				));
@@ -452,11 +460,17 @@ impl Header<'_> {
 				.fields
 				.iter()
 				.zip(&fields)
-				.map(|(f, ty)| format!("{}\t{};", comment(&f.docs, "\t"), self.decl(ty, &abi::escape(&f.name))))
+				.map(|(f, ty)| {
+					format!(
+						"{}\t{};",
+						comment(&deprecation(&f.docs, f.deprecated.as_deref()), "\t"),
+						self.decl(ty, &abi::escape(&f.name))
+					)
+				})
 				.collect();
 			self.line(format!(
 				"{}typedef struct {name} {{\n{}\n}} {name};\n",
-				comment(&record.docs, ""),
+				comment(&deprecation(&record.docs, record.deprecated.as_deref()), ""),
 				decls.join("\n")
 			));
 			return;
@@ -540,7 +554,8 @@ impl Header<'_> {
 	fn function(&mut self, function: &Function, owner: Option<&Ty>) {
 		let export = self.abi.export(function, owner);
 		crate::lock::function(&mut self.names, function, &export.call.name);
-		let mut docs = function.docs.clone();
+		let sections = crate::doc::sections(&function.docs);
+		let mut docs = sections.body;
 		// What the call moves out of the caller's handles, which are then only freed.
 		// A handle taken by value: one taken `&mut` is not `const` either, but stays.
 		let receiver = function.receiver.map(|r| r == Receiver::Owned);
@@ -615,6 +630,13 @@ impl Header<'_> {
 				api.named(function.on).join(", ")
 			));
 		}
+		if let Some(errors) = &sections.errors {
+			docs.push_str(&format!("\n\n# Errors\n\n{errors}"));
+		}
+		if let Some(panics) = &sections.panics {
+			docs.push_str(&format!("\n\n# Aborts\n\n{panics}"));
+		}
+		let docs = deprecation(&docs, function.deprecated.as_deref());
 		self.out.push_str(&comment(docs.trim(), ""));
 		if let Some(future) = &export.future {
 			let handle = &future.handle;
@@ -680,6 +702,49 @@ pub(crate) fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 			decl(abi, ret, &format!("(*{name})({})", params.join(", ")))
 		}
 		Ty::Data => format!("void *{name}"),
+	}
+}
+
+/// `docs`, then the note of `deprecated`, where it has one: C's compilers would warn of the
+/// C++ header's own calls, so the header only says so.
+fn deprecation(docs: &str, deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some("") => format!("{docs}\n\nDeprecated."),
+		Some(note) => format!("{docs}\n\nDeprecated: {note}"),
+		None => docs.to_string(),
+	}
+	.trim()
+	.to_string()
+}
+
+/// The C name a link in the header's comments names for `target`.
+fn link(abi: &Abi<'_>, target: crate::doc::Target<'_>) -> String {
+	use crate::doc::{Owner, Target};
+	let api = abi.api;
+	let owner = |owner: Owner| match owner {
+		Owner::Record(i) => Ty::Struct(abi.record(i)),
+		Owner::Enum(i) => abi.ty(&Type::Enum(i)),
+		Owner::Object(i) => Ty::Handle {
+			name: abi.object(i),
+			constant: false,
+		},
+		Owner::Callback(i) => Ty::Struct(abi.callback(i)),
+	};
+	match target {
+		Target::Record(i) => abi.record(i),
+		Target::Enum(i) => abi.enumeration(i),
+		Target::Object(i) => abi.object(i),
+		Target::Callback(i) => abi.callback(i),
+		Target::Variant(i, v) => format!(
+			"{}_{}",
+			abi.enumeration(i).to_uppercase(),
+			abi::snake(&api.enums[i].variants[v].name).to_uppercase()
+		),
+		Target::Field(i, n) => format!("{}.{}", abi.record(i), abi::escape(&api.records[i].fields[n].name)),
+		Target::Constant(c) => abi.constant(&c.path),
+		// A callback's method is its table's member.
+		Target::Function(Some(Owner::Callback(i)), f) => format!("{}_vtable.{}", abi.callback(i), f.name()),
+		Target::Function(of, f) => format!("{}()", abi.export(f, of.map(owner).as_ref()).call.name),
 	}
 }
 

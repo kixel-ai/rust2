@@ -1571,7 +1571,8 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 6] = (word2 >>> 8) & 255;
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v4)), v4) ? 1 : 0);
+		const _112: rs.u64 = rs.u64FromBeBytes(rs.u64ToBeBytes(v4));
+		rs.byteVecPush(out2, (typeof _112 === "number" && typeof v4 === "number" ? _112 === v4 : rs.u64Eq(_112, v4)) ? 1 : 0);
 	};
 	const putOpt: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u64 | undefined): undefined => {
 		if (v5 === undefined) {
@@ -1622,9 +1623,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_22(out, part96);
 		const part97 = rs.u64SaturatingMul(a, b);
 		_22(out, part97);
-		const part98 = rs.u64WrappingAdd(a, b);
+		const part98 = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64WrappingAdd(a, b)) as rs.u64;
 		_22(out, part98);
-		const part99 = rs.u64WrappingSub(a, b);
+		const part99 = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64WrappingSub(a, b)) as rs.u64;
 		_22(out, part99);
 		const part100 = rs.u64WrappingMul(a, b);
 		_22(out, part100);
@@ -1857,9 +1858,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part53 = rs.intIlog10(a, 64, false);
 		_27(out, part53);
 	} else if (_30 === 15) {
-		_22(out, rs.u64Add(a, b));
+		_22(out, (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64);
 	} else if (_30 === 16) {
-		_22(out, rs.u64Sub(a, b));
+		_22(out, (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64);
 	} else if (_30 === 17) {
 		_22(out, rs.u64Mul(a, b));
 	} else if (_30 === 18) {
@@ -2135,7 +2136,8 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v4)), v4) ? 1 : 0);
+		const _112: rs.u128 = rs.u128FromBeBytes(rs.u128ToBeBytes(v4));
+		rs.byteVecPush(out2, (typeof _112 === "number" && typeof v4 === "number" ? _112 === v4 : rs.u128Eq(_112, v4)) ? 1 : 0);
 	};
 	const putOpt: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u128 | undefined): undefined => {
 		if (v5 === undefined) {
@@ -4799,7 +4801,8 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 6] = (word2 >>> 8) & 255;
 		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v8)), v8) ? 1 : 0);
+		const _112: rs.i64 = rs.i64FromBeBytes(rs.i64ToBeBytes(v8));
+		rs.byteVecPush(out2, (typeof _112 === "number" && typeof v8 === "number" ? _112 === v8 : rs.i64Eq(_112, v8)) ? 1 : 0);
 	};
 	const putOpt: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i64 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -4918,8 +4921,8 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_22(out, part85);
 		const part86 = rs.intSignum(a, 64, true);
 		_22(out, part86);
-		rs.byteVecPush(out, rs.i64Gt(a, 0) ? 1 : 0);
-		rs.byteVecPush(out, rs.i64Lt(a, 0) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" ? a > 0 : rs.i64Gt(a, 0)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" ? a < 0 : rs.i64Lt(a, 0)) ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 64, true);
 		putOpt(out, part87);
 		const dst3 = out;
@@ -5188,10 +5191,10 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			_22(out, _537);
 		}
 		const dst6 = out;
-		const byte2 = rs.i64Gt(s2, 0) ? 1 : 0;
-		const byte3 = rs.i64Lt(s2, 0) ? 1 : 0;
-		const byte4 = rs.i64Gt(w, 0) ? 1 : 0;
-		const byte5 = rs.i64Lt(w, 0) ? 1 : 0;
+		const byte2 = (typeof s2 === "number" ? s2 > 0 : rs.i64Gt(s2, 0)) ? 1 : 0;
+		const byte3 = (typeof s2 === "number" ? s2 < 0 : rs.i64Lt(s2, 0)) ? 1 : 0;
+		const byte4 = (typeof w === "number" ? w > 0 : rs.i64Gt(w, 0)) ? 1 : 0;
+		const byte5 = (typeof w === "number" ? w < 0 : rs.i64Lt(w, 0)) ? 1 : 0;
 		rs.byteVecReserve(dst6, 4 as rs.usize);
 		const pos6 = dst6.length;
 		dst6.data[pos6 + 0] = byte2;
@@ -5259,8 +5262,8 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.data[pos7 + 7] = word15 & 255;
 				dst7.length = dst7.length + 8;
 				const dst8 = out;
-				const byte6 = rs.i64Gt(x, 0) ? 1 : 0;
-				const byte7 = rs.i64Lt(x, 0) ? 1 : 0;
+				const byte6 = (typeof x === "number" ? x > 0 : rs.i64Gt(x, 0)) ? 1 : 0;
+				const byte7 = (typeof x === "number" ? x < 0 : rs.i64Lt(x, 0)) ? 1 : 0;
 				rs.byteVecReserve(dst8, 2 as rs.usize);
 				const pos8 = dst8.length;
 				dst8.data[pos8 + 0] = byte6;
@@ -5375,7 +5378,8 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 14] = (word2 >>> 8) & 255;
 		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v8)), v8) ? 1 : 0);
+		const _112: rs.i128 = rs.i128FromBeBytes(rs.i128ToBeBytes(v8));
+		rs.byteVecPush(out2, (typeof _112 === "number" && typeof v8 === "number" ? _112 === v8 : rs.i128Eq(_112, v8)) ? 1 : 0);
 	};
 	const putOpt: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i128 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -5494,8 +5498,8 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_22(out, part85);
 		const part86 = rs.intSignum(a, 128, true);
 		_22(out, part86);
-		rs.byteVecPush(out, rs.i128Gt(a, 0) ? 1 : 0);
-		rs.byteVecPush(out, rs.i128Lt(a, 0) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" ? a > 0 : rs.i128Gt(a, 0)) ? 1 : 0);
+		rs.byteVecPush(out, (typeof a === "number" ? a < 0 : rs.i128Lt(a, 0)) ? 1 : 0);
 		const part87 = rs.intCheckedIsqrt(a, 128, true);
 		putOpt(out, part87);
 		const dst3 = out;
@@ -5794,10 +5798,10 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			_22(out, _537);
 		}
 		const dst6 = out;
-		const byte2 = rs.i128Gt(s2, 0) ? 1 : 0;
-		const byte3 = rs.i128Lt(s2, 0) ? 1 : 0;
-		const byte4 = rs.i128Gt(w, 0) ? 1 : 0;
-		const byte5 = rs.i128Lt(w, 0) ? 1 : 0;
+		const byte2 = (typeof s2 === "number" ? s2 > 0 : rs.i128Gt(s2, 0)) ? 1 : 0;
+		const byte3 = (typeof s2 === "number" ? s2 < 0 : rs.i128Lt(s2, 0)) ? 1 : 0;
+		const byte4 = (typeof w === "number" ? w > 0 : rs.i128Gt(w, 0)) ? 1 : 0;
+		const byte5 = (typeof w === "number" ? w < 0 : rs.i128Lt(w, 0)) ? 1 : 0;
 		rs.byteVecReserve(dst6, 4 as rs.usize);
 		const pos6 = dst6.length;
 		dst6.data[pos6 + 0] = byte2;
@@ -5875,8 +5879,8 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				dst7.data[pos7 + 15] = word23 & 255;
 				dst7.length = dst7.length + 16;
 				const dst8 = out;
-				const byte6 = rs.i128Gt(x, 0) ? 1 : 0;
-				const byte7 = rs.i128Lt(x, 0) ? 1 : 0;
+				const byte6 = (typeof x === "number" ? x > 0 : rs.i128Gt(x, 0)) ? 1 : 0;
+				const byte7 = (typeof x === "number" ? x < 0 : rs.i128Lt(x, 0)) ? 1 : 0;
 				rs.byteVecReserve(dst8, 2 as rs.usize);
 				const pos8 = dst8.length;
 				dst8.data[pos8 + 0] = byte6;
