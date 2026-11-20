@@ -43,9 +43,8 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::walk::{self, Arg, Buffer, Optional, Value};
 use crate::ir::{
-	Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Traits, Type, Variant,
+	Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Traits, Type, Variant,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
@@ -301,7 +300,7 @@ fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeM
 		.chain(&api.functions);
 	let mut keys = BTreeMap::new();
 	for function in all {
-		let Some(err) = function.err.as_ref().map(walk::owned) else {
+		let Some(err) = function.err.as_ref().map(strip_refs) else {
 			continue;
 		};
 		if matches!(err.base(), Type::Record(_) | Type::Enum(_) | Type::Object(_)) {
@@ -1153,115 +1152,124 @@ impl<'a> Gen<'a> {
 	/// what it needs of until the call returns.
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		let abi = self.abi;
-		match walk::value(ty) {
-			Value::Array(n) => {
-				self.array(n);
-				format!("lower_{}({e})", abi.array(n))
+		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lower_{}({e})", abi.array(*n))
 			}
-			Value::Text => format!("a_.bufString({e})"),
-			Value::Path => format!("a_.bufPath({e})"),
-			Value::Bytes => format!("a_.bufView({e})"),
-			Value::Bool => format!("C.bool({e})"),
-			Value::Int(int) => format!("C.{}({e})", c_int(int)),
-			Value::NonZero(int) => format!("C.{}(nonZero_(a_, {e}))", c_int(int)),
-			Value::F32 => format!("C.float({e})"),
-			Value::F64 => format!("C.double({e})"),
-			Value::Char => format!("a_.char({e})"),
-			Value::U128 => format!("lowerU128_({e})"),
-			Value::Duration => format!("lowerDuration_({e})"),
-			Value::SocketAddr(family) => format!("lower{}_({e})", pascal(abi::addr(true, family))),
-			Value::IpAddr(family) => format!("lower{}_({e})", pascal(abi::addr(false, family))),
-			Value::Waker => format!("waker_({e})"),
-			Value::Range(ty) => {
+			Type::Str | Type::String => format!("a_.bufString({e})"),
+			Type::Path | Type::PathBuf => format!("a_.bufPath({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
+			Type::Unit => unreachable!("no value is unit"),
+			Type::Bool => format!("C.bool({e})"),
+			Type::Int(int) => format!("C.{}({e})", c_int(*int)),
+			Type::NonZero(int) => format!("C.{}(nonZero_(a_, {e}))", c_int(*int)),
+			Type::F32 => format!("C.float({e})"),
+			Type::F64 => format!("C.double({e})"),
+			Type::Char => format!("a_.char({e})"),
+			Type::U128 => format!("lowerU128_({e})"),
+			Type::Duration => format!("lowerDuration_({e})"),
+			Type::SocketAddr(family) => format!("lower{}_({e})", pascal(abi::addr(true, *family))),
+			Type::IpAddr(family) => format!("lower{}_({e})", pascal(abi::addr(false, *family))),
+			Type::Waker => format!("waker_({e})"),
+			Type::Reader | Type::Future => unreachable!("{ty:?} crosses only as a parameter"),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
 			}
-			Value::List(elem) => {
-				let c = abi.list(elem);
-				self.lower_list(&c, elem);
+			Type::List(_, inner) => {
+				let c = abi.list(inner);
+				self.lower_list(&c, inner);
 				format!("lower_{c}(a_, {e})")
 			}
-			Value::Option(Optional::Object(i)) => {
-				self.convert(&Type::Object(i));
-				format!("holdOption_{}(a_, {e})", abi.object(i))
-			}
-			Value::Option(Optional::Text) => format!("a_.bufStringOption({e})"),
-			Value::Option(Optional::Path) => format!("a_.bufPathOption({e})"),
-			Value::Option(Optional::Bytes) => format!("a_.bufViewOption({e})"),
-			Value::Option(Optional::List(elem)) => {
-				let c = abi.list(elem);
-				self.lower_list(&c, elem);
-				let name = format!("lower_option_{c}");
-				let go = self.go(&Type::List(Collection::Vec, Box::new(elem.clone())));
-				self.helper(&name, |_| {
-					format!(
-						"func {name}(a_ *arena_, v *{go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn lower_{c}(a_, *v)\n}}\n\n"
-					)
-				});
-				format!("{name}(a_, {e})")
-			}
-			Value::Option(Optional::Some(inner)) => {
-				let c = abi.option(inner);
-				let arena = self.arena(inner);
-				let inner = inner.clone();
-				self.helper(&format!("lower_{c}"), |g| {
-					let (go, value) = (format!("*{}", g.go(&inner)), g.lower(&inner, "*v"));
-					let param = g.arena_param(&inner);
-					format!(
-						"func lower_{c}({param}v {go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn C.{c}{{some: true, value: {value}}}\n}}\n\n"
-					)
-				});
-				match arena {
-					true => format!("lower_{c}(a_, {e})"),
-					false => format!("lower_{c}({e})"),
+			Type::Option(inner) => match inner.base() {
+				object @ Type::Object(i) => {
+					self.convert(object);
+					format!("holdOption_{}(a_, {e})", abi.object(*i))
 				}
+				Type::Str | Type::String => format!("a_.bufStringOption({e})"),
+				Type::Path | Type::PathBuf => format!("a_.bufPathOption({e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufViewOption({e})"),
+				Type::List(_, elem) => {
+					let c = abi.list(elem);
+					self.lower_list(&c, elem);
+					let name = format!("lower_option_{c}");
+					let go = self.go(inner);
+					self.helper(&name, |_| {
+						format!(
+							"func {name}(a_ *arena_, v *{go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn lower_{c}(a_, *v)\n}}\n\n"
+						)
+					});
+					format!("{name}(a_, {e})")
+				}
+				_ => {
+					let c = abi.option(inner);
+					let arena = self.arena(inner);
+					let inner = (**inner).clone();
+					self.helper(&format!("lower_{c}"), |g| {
+						let (go, value) = (format!("*{}", g.go(&inner)), g.lower(&inner, "*v"));
+						let param = g.arena_param(&inner);
+						format!(
+							"func lower_{c}({param}v {go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn C.{c}{{some: true, value: {value}}}\n}}\n\n"
+						)
+					});
+					match arena {
+						true => format!("lower_{c}(a_, {e})"),
+						false => format!("lower_{c}({e})"),
+					}
+				}
+			},
+			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
+			Type::Record(_) | Type::Enum(_) => {
+				self.convert(ty);
+				let c = match abi.ty(ty) {
+					Ty::Struct(c) | Ty::Enum(c) => c,
+					other => unreachable!("a value is a struct or enum, not {other:?}"),
+				};
+				format!("lower_{c}({}{e})", self.arena_arg(ty))
 			}
-			Value::Record(i) => {
-				let ty = Type::Record(i);
-				self.convert(&ty);
-				format!("lower_{}({}{e})", abi.record(i), self.arena_arg(&ty))
-			}
-			Value::Enum(i) => {
-				let ty = Type::Enum(i);
-				self.convert(&ty);
-				format!("lower_{}({}{e})", abi.enumeration(i), self.arena_arg(&ty))
-			}
-			Value::Object(i) => {
+			Type::Object(i) => {
 				let e = match e.starts_with('*') {
 					true => format!("({e})"),
 					false => e.to_string(),
 				};
-				format!("(*C.{})(a_.hold({e}.Handle_, {e}))", abi.object(i))
+				format!("(*C.{})(a_.hold({e}.Handle_, {e}))", abi.object(*i))
 			}
-			Value::Callback(i) => {
-				self.convert(&Type::Callback(i, crate::ir::Dyn::Impl));
-				format!("lower_{}({e})", abi.callback(i))
+			Type::Callback(i, _) => {
+				self.convert(ty);
+				format!("lower_{}({e})", abi.callback(*i))
 			}
-			Value::Single(element) => {
-				let c = abi.tuple(std::slice::from_ref(element));
-				let value = self.lower(element, e);
-				format!("C.{c}{{_0: {value}}}")
-			}
-			Value::Tuple(elements) => {
-				let c = abi.tuple(elements);
-				let ty = Type::Tuple(elements.to_vec());
-				let arena = self.arena(&ty);
-				self.helper(&format!("lower_{c}"), |g| {
-					let go = g.go(&ty);
-					let fields: Vec<String> = (elements.iter().enumerate())
-						.map(|(k, el)| format!("_{k}: {}", g.lower(el, &format!("v.V{k}"))))
-						.collect();
-					let param = g.arena_param(&ty);
-					format!(
-						"func lower_{c}({param}v {go}) C.{c} {{\n\treturn C.{c}{{{}}}\n}}\n\n",
-						fields.join(", ")
-					)
-				});
-				match arena {
-					true => format!("lower_{c}(a_, {e})"),
-					false => format!("lower_{c}({e})"),
+			Type::Tuple(elements) => match &elements[..] {
+				[element] => {
+					let c = abi.tuple(elements);
+					let value = self.lower(element, e);
+					format!("C.{c}{{_0: {value}}}")
 				}
-			}
+				elements => {
+					let c = abi.tuple(elements);
+					let arena = self.arena(ty);
+					let elements = elements.to_vec();
+					let ty = ty.clone();
+					self.helper(&format!("lower_{c}"), |g| {
+						let go = g.go(&ty);
+						let fields: Vec<String> = (elements.iter().enumerate())
+							.map(|(k, el)| format!("_{k}: {}", g.lower(el, &format!("v.V{k}"))))
+							.collect();
+						let param = g.arena_param(&ty);
+						format!(
+							"func lower_{c}({param}v {go}) C.{c} {{\n\treturn C.{c}{{{}}}\n}}\n\n",
+							fields.join(", ")
+						)
+					});
+					match arena {
+						true => format!("lower_{c}(a_, {e})"),
+						false => format!("lower_{c}({e})"),
+					}
+				}
+			},
+			Type::Closure(..) => unreachable!("a closure lowers to its trampoline"),
 		}
 	}
 
@@ -1288,87 +1296,97 @@ impl<'a> Gen<'a> {
 	/// The Go value of the C value `e` of type `ty`, which it takes ownership of.
 	fn lift(&mut self, ty: &Type, e: &str) -> String {
 		let abi = self.abi;
-		match walk::value(ty) {
-			Value::Text | Value::Path => format!("liftString_({e})"),
-			Value::Bytes => format!("liftBytes_({e})"),
-			Value::Bool => format!("bool({e})"),
-			Value::Int(int) | Value::NonZero(int) => format!("{}({e})", go_int(int)),
-			Value::F32 => format!("float32({e})"),
-			Value::F64 => format!("float64({e})"),
-			Value::Char => format!("rune({e})"),
-			Value::U128 => format!("liftU128_({e})"),
-			Value::Duration => format!("liftDuration_({e})"),
-			Value::Array(n) => {
-				self.array(n);
-				format!("lift_{}({e})", abi.array(n))
+		match ty {
+			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("liftString_({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("liftBytes_({e})"),
+			Type::Bool => format!("bool({e})"),
+			Type::Int(int) | Type::NonZero(int) => format!("{}({e})", go_int(*int)),
+			Type::F32 => format!("float32({e})"),
+			Type::F64 => format!("float64({e})"),
+			Type::Char => format!("rune({e})"),
+			Type::U128 => format!("liftU128_({e})"),
+			Type::Duration => format!("liftDuration_({e})"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lift_{}({e})", abi.array(*n))
 			}
-			Value::SocketAddr(family) => format!("lift{}_({e})", pascal(abi::addr(true, family))),
-			Value::IpAddr(family) => format!("lift{}_({e})", pascal(abi::addr(false, family))),
-			Value::Range(ty) => {
+			Type::SocketAddr(family) => format!("lift{}_({e})", pascal(abi::addr(true, *family))),
+			Type::IpAddr(family) => format!("lift{}_({e})", pascal(abi::addr(false, *family))),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lift_{}({e})", abi.range(ty))
 			}
-			Value::List(elem) => {
-				let c = abi.list(elem);
-				self.lift_list(&c, elem);
+			Type::List(_, inner) => {
+				let c = abi.list(inner);
+				self.lift_list(&c, inner);
 				format!("lift_{c}({e})")
 			}
-			Value::Option(Optional::Object(i)) | Value::Object(i) => {
-				self.convert(&Type::Object(i));
-				format!("own_{}({e})", abi.object(i))
-			}
-			Value::Option(Optional::Text | Optional::Path) => format!("liftStringOption_({e})"),
-			Value::Option(Optional::Bytes) => format!("liftBytesOption_({e})"),
-			Value::Option(Optional::List(elem)) => {
-				let c = abi.list(elem);
-				self.lift_list(&c, elem);
-				let name = format!("lift_option_{c}");
-				let go = self.go(&Type::List(Collection::Vec, Box::new(elem.clone())));
-				self.helper(&name, |_| {
-					format!(
-						"func {name}(c C.{c}) *{go} {{\n\tif c.ptr == nil {{\n\t\treturn nil\n\t}}\n\tv := lift_{c}(c)\n\treturn &v\n}}\n\n"
-					)
-				});
-				format!("{name}({e})")
-			}
-			Value::Option(Optional::Some(inner)) => {
-				let c = abi.option(inner);
-				let inner = inner.clone();
-				self.helper(&format!("lift_{c}"), |g| {
-					let value = g.lift(&inner, "c.value");
-					let go = g.go(&inner);
-					format!(
-						"func lift_{c}(c C.{c}) *{go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn &v\n}}\n\n"
-					)
-				});
+			Type::Option(inner) => match inner.base() {
+				object @ Type::Object(i) => {
+					self.convert(object);
+					format!("own_{}({e})", abi.object(*i))
+				}
+				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("liftStringOption_({e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("liftBytesOption_({e})"),
+				Type::List(_, elem) => {
+					let c = abi.list(elem);
+					self.lift_list(&c, elem);
+					let name = format!("lift_option_{c}");
+					let go = self.go(inner);
+					self.helper(&name, |_| {
+						format!(
+							"func {name}(c C.{c}) *{go} {{\n\tif c.ptr == nil {{\n\t\treturn nil\n\t}}\n\tv := lift_{c}(c)\n\treturn &v\n}}\n\n"
+						)
+					});
+					format!("{name}({e})")
+				}
+				_ => {
+					let c = abi.option(inner);
+					let inner = (**inner).clone();
+					self.helper(&format!("lift_{c}"), |g| {
+						let value = g.lift(&inner, "c.value");
+						let go = g.go(&inner);
+						format!(
+							"func lift_{c}(c C.{c}) *{go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn &v\n}}\n\n"
+						)
+					});
+					format!("lift_{c}({e})")
+				}
+			},
+			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
+			Type::Record(_) | Type::Enum(_) => {
+				self.convert(ty);
+				let c = match abi.ty(ty) {
+					Ty::Struct(c) | Ty::Enum(c) => c,
+					other => unreachable!("a value is a struct or enum, not {other:?}"),
+				};
 				format!("lift_{c}({e})")
 			}
-			Value::Record(i) => {
-				self.convert(&Type::Record(i));
-				format!("lift_{}({e})", abi.record(i))
+			Type::Object(i) => {
+				self.convert(ty);
+				format!("own_{}({e})", abi.object(*i))
 			}
-			Value::Enum(i) => {
-				self.convert(&Type::Enum(i));
-				format!("lift_{}({e})", abi.enumeration(i))
-			}
-			Value::Waker => format!("liftWaker_({e})"),
-			Value::Single(element) => self.lift(element, &format!("{e}._0")),
-			Value::Tuple(elements) => {
-				let c = abi.tuple(elements);
-				let ty = Type::Tuple(elements.to_vec());
-				self.helper(&format!("lift_{c}"), |g| {
-					let go = g.go(&ty);
-					let fields: Vec<String> = (elements.iter().enumerate())
-						.map(|(k, el)| format!("V{k}: {}", g.lift(el, &format!("c._{k}"))))
-						.collect();
-					format!(
-						"func lift_{c}(c C.{c}) {go} {{\n\treturn {go}{{{}}}\n}}\n\n",
-						fields.join(", ")
-					)
-				});
-				format!("lift_{c}({e})")
-			}
-			Value::Callback(_) => unreachable!("{ty:?} is never returned"),
+			Type::Waker => format!("liftWaker_({e})"),
+			Type::Tuple(elements) => match &elements[..] {
+				[element] => self.lift(element, &format!("{e}._0")),
+				elements => {
+					let c = abi.tuple(elements);
+					let elements = elements.to_vec();
+					let ty = ty.clone();
+					self.helper(&format!("lift_{c}"), |g| {
+						let go = g.go(&ty);
+						let fields: Vec<String> = (elements.iter().enumerate())
+							.map(|(k, el)| format!("V{k}: {}", g.lift(el, &format!("c._{k}"))))
+							.collect();
+						format!(
+							"func lift_{c}(c C.{c}) {go} {{\n\treturn {go}{{{}}}\n}}\n\n",
+							fields.join(", ")
+						)
+					});
+					format!("lift_{c}({e})")
+				}
+			},
+			other => unreachable!("{other:?} is never returned"),
 		}
 	}
 
@@ -1394,12 +1412,13 @@ impl<'a> Gen<'a> {
 	/// The Go value of the C value `e` of type `ty`, which C lends a callback or closure
 	/// for its call: bytes and text copied, and a scalar as it is.
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
-		match walk::value(ty) {
-			Value::Bytes => format!("lentBytes_({e})"),
-			Value::Option(Optional::Bytes) => format!("lentBytesOption_({e})"),
-			Value::Option(Optional::Text | Optional::Path) => format!("lentStringOption_({e})"),
-			Value::Text | Value::Path => format!("lentString_({e})"),
-			_ => self.lift(ty, e),
+		match (ty.buffer(), ty) {
+			(Some(Type::Bytes), _) => format!("lentBytes_({e})"),
+			(Some(Type::Option(inner)), _) if *inner == Type::Bytes => format!("lentBytesOption_({e})"),
+			(Some(Type::Option(_)), _) => format!("lentStringOption_({e})"),
+			(Some(_), _) => format!("lentString_({e})"),
+			(None, Type::Ref(_, inner)) => self.lift_lent(inner, e),
+			(None, ty) => self.lift(ty, e),
 		}
 	}
 
@@ -1520,7 +1539,7 @@ impl<'a> Gen<'a> {
 	/// its Go name, as `call` begins, with ctx: an `iter.Seq2` named `All`, deprecated as
 	/// `function` is.
 	fn stream(&mut self, function: &Function, item: &Type, next: &str, call: &str) -> Method {
-		let item = walk::owned(item);
+		let item = strip_refs(item);
 		let go = self.go(&item);
 		// An object is already a pointer, nil for none; any other item is one's target.
 		let value = match item.base() {
@@ -2549,20 +2568,20 @@ impl<'a> Gen<'a> {
 				params.join(", ")
 			));
 			let export = format!("{p}Go_{}_{}", self.bare(&c), method.name());
-			let foreign = walk::method(abi, method);
-			let args: Vec<String> = (foreign.params.iter())
-				.map(|(p, _, lent)| match *lent {
-					walk::Lent::Value(ty) => self.lift_lent(ty, p),
-					walk::Lent::Object(..) => unreachable!("a trait's method takes no object"),
-				})
+			let ps: Vec<String> = (0..method.params.len()).map(|k| format!("p{k}")).collect();
+			let args: Vec<String> = (method.params.iter().zip(&ps))
+				.map(|(p, e)| self.lift_lent(&p.ty, e))
 				.collect();
 			let call = format!("given_(data).({name}).{member}({})", args.join(", "));
-			let call = match foreign.ret {
-				walk::Return::Unit => format!("\t{call}\n"),
-				walk::Return::Value(ok) => format!("\treturn {}\n", self.lower_scalar(ok, &call)),
-				walk::Return::Result { .. } => unreachable!("a trait's method returns no Result"),
+			let ret_ty = abi.ty(&method.ok);
+			let c_params: Vec<(String, Ty)> = (method.params.iter().zip(&ps))
+				.map(|(param, n)| (n.clone(), abi.ty(&param.ty)))
+				.collect();
+			let call = match method.ok {
+				Type::Unit => format!("\t{call}\n"),
+				_ => format!("\treturn {}\n", self.lower_scalar(&method.ok, &call)),
 			};
-			self.export(&export, &foreign.c_params, &foreign.c_ret, &call);
+			self.export(&export, &c_params, &ret_ty, &call);
 			table.push(format!("\tv.{} = (*[0]byte)(C.{export})\n", cgo_field(method.name())));
 		}
 		self.distinct(&rust, &members);
@@ -2655,38 +2674,52 @@ impl<'a> Gen<'a> {
 			self.closures.len()
 		);
 		self.closures.insert(closure.clone(), name.clone());
-		let foreign = walk::closure(self.abi, closure);
+		let lent = &closure.params;
+		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}")).collect();
 		let mut body = format!("\tf_ := lent_(data).({go})\n");
 		let mut args = Vec::new();
-		for (k, (p, _, lent)) in foreign.params.iter().enumerate() {
-			match *lent {
-				walk::Lent::Object(i) => {
-					self.convert(&Type::Object(i));
+		for (k, (ty, p)) in lent.iter().zip(&ps).enumerate() {
+			match ty {
+				Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
+					let Type::Object(i) = **object else { unreachable!() };
+					self.convert(object);
 					let l = format!("l{k}_");
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
 					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
 				}
-				walk::Lent::Value(ty) => args.push(self.lift_lent(ty, p)),
+				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
 		let call = format!("f_({})", args.join(", "));
-		match foreign.ret {
-			walk::Return::Unit => {
-				let _ = writeln!(body, "\t{call}");
-			}
-			walk::Return::Value(ok) => {
-				let _ = writeln!(body, "\treturn {}", self.returned(ok, &call));
-			}
-			walk::Return::Result { ok, err } => {
-				match ok {
-					None => {
-						let _ = writeln!(body, "\terr_ := {call}");
+		let mut params: Vec<(String, Ty)> = lent
+			.iter()
+			.zip(&ps)
+			.map(|(ty, p)| (p.clone(), self.abi.ty(ty)))
+			.collect();
+		let ret_ty = match &closure.err {
+			None => {
+				match &closure.ok {
+					Type::Unit => {
+						let _ = writeln!(body, "\t{call}");
 					}
-					Some(_) => {
-						let _ = writeln!(body, "\tr_, err_ := {call}");
+					ok => {
+						let _ = writeln!(body, "\treturn {}", self.returned(ok, &call));
 					}
 				}
+				self.abi.ty(&closure.ok)
+			}
+			Some(err) => {
+				let ok = match &closure.ok {
+					Type::Unit => {
+						let _ = writeln!(body, "\terr_ := {call}");
+						None
+					}
+					ok => {
+						let _ = writeln!(body, "\tr_, err_ := {call}");
+						Some(ok)
+					}
+				};
 				let _ = writeln!(
 					body,
 					"\tif err_ != nil {{\n\t\t*e_ = {}\n\t\treturn false\n\t}}",
@@ -2694,11 +2727,14 @@ impl<'a> Gen<'a> {
 				);
 				if let Some(ok) = ok {
 					let _ = writeln!(body, "\t*o_ = {}", self.returned(ok, "r_"));
+					params.push(("o_".to_string(), Ty::Out(Box::new(self.abi.ty(ok)))));
 				}
 				let _ = writeln!(body, "\treturn true");
+				params.push(("e_".to_string(), Ty::Out(Box::new(self.abi.ty(err)))));
+				Ty::Bool
 			}
-		}
-		self.export(&name, &foreign.c_params, &foreign.c_ret, &body);
+		};
+		self.export(&name, &params, &ret_ty, &body);
 		name
 	}
 
@@ -2727,7 +2763,7 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) if elements.len() == 1 => self.close(&elements[0], e, depth),
 			Type::Tuple(elements) => {
 				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| walk::moved(self.abi, ty))
+					.filter(|(_, ty)| moved(self.abi, ty))
 					.map(|(k, ty)| self.close(ty, &format!("{e}.V{k}"), depth))
 					.collect();
 				closes.join("; ")
@@ -2801,14 +2837,19 @@ impl<'a> Gen<'a> {
 
 		crate::lock::function(&mut self.locked, function, &member);
 
-		let walked = walk::call(abi, function, owner, &export);
-		let oks: Vec<Type> = walked.oks.iter().map(|ok| ok.ty.clone()).collect();
-		let err = walked.err.clone();
+		// A tuple of one returned whole is its element, written through its one out pointer.
+		// Only a tuple returned whole is written element by element.
+		let oks: Vec<Type> = match &function.ok {
+			Type::Unit => Vec::new(),
+			Type::Tuple(elements) => elements.iter().map(strip_refs).collect(),
+			ok => vec![strip_refs(ok)],
+		};
+		let err = function.err.as_ref().map(strip_refs);
 		let mut results: Vec<String> = oks.iter().map(|ty| self.go(ty)).collect();
 		// A call that takes an object, as its receiver or held in any value it takes,
 		// returns an error once that object is closed, as one taking text or a char does
 		// once Rust's type does not hold it.
-		let status = walked.status;
+		let status = export.call.status().is_some();
 		let everywhere = abi.api.everywhere(function.on);
 		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.fails(ty))
 			|| function.params.iter().any(|p| self.fails(&p.ty))
@@ -2832,26 +2873,29 @@ impl<'a> Gen<'a> {
 		let mut checked = false;
 		let mut arena = false;
 		let mut args: Vec<String> = Vec::new();
+		let mut c_params = export.call.params.iter();
 		let mut go_receiver = None;
-		if let Some(receiving) = &walked.receiver {
+		if let Some(receiver) = receiver {
+			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			let go = self.go(&ty);
 			// A value's `&mut self` is a pointer receiver, which Rust writes back through.
-			let pointer = matches!(receiving, walk::Receiving::Value { written: true });
+			let pointer = matches!(c, Ty::InOut(_));
 			go_receiver = Some(match pointer {
 				true => format!("self *{go}"),
 				false => format!("self {go}"),
 			});
-			match *receiving {
-				walk::Receiving::Handle { c, moves: moved } => {
+			match c {
+				Ty::Handle { name, .. } => {
 					let slot = self.qualify(Packages::RT, "Slot_");
 					prelude.push(hold(&slot, "self", "h_", "s_", &fail("self.Handle_.Closed()")));
-					args.push(format!("(*C.{c})(h_)"));
-					if moved {
+					args.push(format!("(*C.{name})(h_)"));
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
 						moves.push("self.Handle_.Moved()".to_string());
 					}
 				}
-				walk::Receiving::Value { .. } => {
+				_ => {
 					let c = match abi.ty(&ty) {
 						Ty::Struct(c) | Ty::Enum(c) => c,
 						other => unreachable!("a value is a struct or enum, not {other:?}"),
@@ -2877,7 +2921,7 @@ impl<'a> Gen<'a> {
 		// Whether an argument is a parameter's own buffer, and the arguments converted from
 		// Go values, which may panic, such as on a nil enum.
 		let mut bufs = false;
-		let mut lowered_at = Vec::new();
+		let mut lowered = Vec::new();
 		// The callbacks, which give Rust a handle only the call releases.
 		let mut callbacks = Vec::new();
 		let mut params = Vec::new();
@@ -2885,24 +2929,31 @@ impl<'a> Gen<'a> {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
 		}
 		let names = self.locals(&function.params);
-		for lowered in &walked.params {
-			let (k, param, name) = (lowered.k, lowered.param, names[lowered.k].clone());
+		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
+			let (_, c) = c_params.next().expect("each parameter has its C one");
+			if let Type::Closure(closure) = &param.ty {
+				c_params.next().expect("a closure has its data");
+				if closure.kept {
+					c_params.next().expect("a kept closure has its free");
+				}
+			}
+			let name = name.clone();
 			// A value passed for `&mut`: the call reads it and writes back what it left.
-			if let Arg::Written(inner) = lowered.arg {
+			if param.ty.written() {
+				let inner = param.ty.base();
 				params.push((name.clone(), format!("*{}", self.go(inner))));
 				arena |= self.arena(inner);
 				checked |= self.fails(inner);
-				lowered_at.push(args.len());
+				lowered.push(args.len());
 				args.push(self.lower(inner, &format!("(*{name})")));
 				continue;
 			}
 			params.push((name.clone(), self.go_arg(&param.ty)));
-			if lowered.moves {
+			if moved(abi, &param.ty) {
 				moves.push(self.close(&param.ty, &name, 0));
 			}
-			match lowered.arg {
-				Arg::Written(_) => unreachable!("written back above"),
-				Arg::Closure(closure) => {
+			match (&param.ty, c) {
+				(Type::Closure(closure), _) => {
 					let trampoline = self.trampoline(&param.ty, closure);
 					args.push(format!("(*[0]byte)(C.{trampoline})"));
 					match closure.kept {
@@ -2919,20 +2970,20 @@ impl<'a> Gen<'a> {
 					}
 				}
 				// Lent for the call through a handle the call deletes once it returns.
-				Arg::Reader => {
+				(_, Ty::ForeignReader) => {
 					let k_ = format!("k{k}_");
 					let reader = self.qualify(Packages::RT, "Reader_");
 					prelude.push(format!("{k_} := cgo.NewHandle({reader}({name}))\ndefer {k_}.Delete()"));
 					args.push(format!("reader_(&{k_})"));
 				}
-				Arg::Callback(i) => {
-					self.convert(&param.ty);
+				(ty @ Type::Callback(i, _), _) => {
+					self.convert(ty);
 					callbacks.push(args.len());
-					args.push(format!("lower_{}({name})", abi.callback(i)))
+					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
-				Arg::Waker => args.push(format!("waker_({name})")),
+				(Type::Waker, _) => args.push(format!("waker_({name})")),
 				// Its body runs under the caller's context, when the call takes one.
-				Arg::Future => {
+				(Type::Future, _) => {
 					let ctx = match function.future {
 						true => "ctx",
 						false => "context.Background()",
@@ -2940,25 +2991,25 @@ impl<'a> Gen<'a> {
 					args.push(format!("future_({ctx}, {name})"))
 				}
 				// Checked before the call, as a char lowered in the arena is, but needing none.
-				Arg::Char => {
+				(Type::Char, _) => {
 					prelude.push(format!(
 						"if err_ := checkRune_({name}); err_ != nil {{\n\t{}\n}}",
 						fail("err_")
 					));
 					args.push(format!("C.uint32_t({name})"));
 				}
-				Arg::NonZero(int) => {
+				(Type::NonZero(int), _) => {
 					prelude.push(format!("if {name} == 0 {{\n\t{}\n}}", fail("errNonZero_")));
-					args.push(format!("C.{}({name})", c_int(int)));
+					args.push(format!("C.{}({name})", c_int(*int)));
 				}
-				Arg::Buffer { holds, optional } => {
+				(ty, Ty::Buf) => {
 					// Text and paths are checked before the call.
-					let check = match (holds, optional) {
-						(Buffer::Text, false) => Some("checkString_"),
-						(Buffer::Path, false) => Some("checkPath_"),
-						(Buffer::Text, true) => Some("checkStringOption_"),
-						(Buffer::Path, true) => Some("checkPathOption_"),
-						(Buffer::Bytes, _) => None,
+					let check = match ty.buffer() {
+						Some(Type::String) => Some("checkString_"),
+						Some(Type::PathBuf) => Some("checkPath_"),
+						Some(Type::Option(inner)) if *inner == Type::String => Some("checkStringOption_"),
+						Some(Type::Option(inner)) if *inner == Type::PathBuf => Some("checkPathOption_"),
+						_ => None,
 					};
 					if let Some(check) = check {
 						prelude.push(format!(
@@ -2966,32 +3017,38 @@ impl<'a> Gen<'a> {
 							fail("err_")
 						));
 					}
-					let call = match (holds, optional) {
-						(Buffer::Bytes, false) => format!("bufTake_({name})"),
-						(Buffer::Bytes, true) => format!("bufTakeOption_({name})"),
-						(_, false) => format!("bufString_({name})"),
-						(_, true) => format!("bufStringOption_({name})"),
+					let call = match ty.buffer() {
+						Some(Type::String | Type::PathBuf) => format!("bufString_({name})"),
+						Some(Type::Bytes) => format!("bufTake_({name})"),
+						Some(Type::Option(inner)) => match *inner {
+							Type::Bytes => format!("bufTakeOption_({name})"),
+							_ => format!("bufStringOption_({name})"),
+						},
+						other => unreachable!("a buffer holds {other:?}"),
 					};
 					bufs = true;
 					args.push(call);
 				}
-				Arg::Handle { c, optional } => {
+				(ty, Ty::Handle { name: c, .. }) => {
 					let h = format!("h{k}_");
 					let failed = fail(&format!("{name}.Handle_.Closed()"));
-					let slot = self.qualify(Packages::RT, "Slot_");
-					match optional {
-						true => {
+					match ty.base() {
+						Type::Option(_) => {
+							let slot = self.qualify(Packages::RT, "Slot_");
 							let held = hold(&slot, &name, &h, "s_", &failed).replacen(":=", "=", 1);
 							let held = held.replace('\n', "\n\t");
 							prelude.push(format!(
 								"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"
 							));
 						}
-						false => prelude.push(hold(&slot, &name, &h, &format!("{h}s"), &failed)),
+						_ => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							prelude.push(hold(&slot, &name, &h, &format!("{h}s"), &failed));
+						}
 					}
 					args.push(format!("(*C.{c})({h})"));
 				}
-				Arg::Value(ty) if self.holds(ty) => {
+				(ty, _) if self.holds(ty) => {
 					// Lowered before the call, which a closed object it holds fails.
 					arena = true;
 					let local = format!("c{k}_");
@@ -2999,14 +3056,15 @@ impl<'a> Gen<'a> {
 					args.push(local);
 					checked = true;
 				}
-				Arg::Value(ty) => {
+				(ty, _) => {
 					arena |= self.arena(ty);
 					checked |= self.fails(ty);
-					lowered_at.push(args.len());
+					lowered.push(args.len());
 					args.push(self.lower(ty, &name));
 				}
 			}
 		}
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
 		// A failed check writes its status, whose error the call returns; once it passed,
 		// each handle the call moved out of closes.
 		let status_error = match status {
@@ -3034,7 +3092,7 @@ impl<'a> Gen<'a> {
 		// Converted first, as a conversion may panic or fail the call: then the arena frees
 		// Rust's buffers it lowered, and no parameter's own buffer is shared yet.
 		if arena || bufs {
-			for &i in &lowered_at {
+			for &i in &lowered {
 				body.push(format!("l{i}_ := {}", args[i]));
 				args[i] = format!("l{i}_");
 			}
@@ -3071,7 +3129,7 @@ impl<'a> Gen<'a> {
 			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
-				let out = format!("c_{}_", walked.oks[k].out);
+				let out = out_name(&function.ok, k);
 				ready.push(format!("r{k}_ = {}", self.lift(ty, &out)));
 			}
 			ready.push("return true, nil".to_string());
@@ -3225,7 +3283,7 @@ impl<'a> Gen<'a> {
 				(None, false) if call.is_empty() => {
 					let mut values: Vec<String> = (oks.iter().enumerate())
 						.map(|(k, ty)| {
-							let out = format!("c_{}_", walked.oks[k].out);
+							let out = out_name(&function.ok, k);
 							self.lift(ty, &out)
 						})
 						.collect();
@@ -3237,7 +3295,7 @@ impl<'a> Gen<'a> {
 				(Some(err), _) => {
 					let mut values: Vec<String> = Vec::new();
 					for (k, ty) in oks.iter().enumerate() {
-						let out = format!("c_{}_", walked.oks[k].out);
+						let out = out_name(&function.ok, k);
 						values.push(self.lift(ty, &out));
 					}
 					values.push("nil".to_string());
@@ -3254,13 +3312,13 @@ impl<'a> Gen<'a> {
 						body.push("return nil".to_string());
 					}
 				}
-				(None, false) if !walked.outs.is_empty() => {
+				(None, false) if !outs.is_empty() => {
 					if !call.is_empty() {
 						body.push(call);
 					}
 					let mut values: Vec<String> = (oks.iter().enumerate())
 						.map(|(k, ty)| {
-							let out = format!("c_{}_", walked.oks[k].out);
+							let out = out_name(&function.ok, k);
 							self.lift(ty, &out)
 						})
 						.collect();
@@ -3451,6 +3509,13 @@ fn then(first: &str, rest: &str) -> String {
 	}
 }
 
+/// The C name of the out value holding the `k`th of what `declared` returns.
+fn out_name(declared: &Type, k: usize) -> String {
+	match declared {
+		Type::Tuple(_) => format!("c_out{k}_"),
+		_ => "c_out_".to_string(),
+	}
+}
 
 fn poll_ready(abi: &Abi<'_>) -> String {
 	format!("C.{}_POLL_READY", abi.prefix.to_uppercase())
@@ -3465,7 +3530,28 @@ fn block(elem: &Type) -> bool {
 	Type::List(Collection::Vec, Box::new(elem.clone())).block().is_some()
 }
 
+/// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
+/// a list, or a tuple, unless `Copy`, and never through a reference.
+fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
+	match ty {
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
+		_ => false,
+	}
+}
 
+/// `ty` returned: a borrow is returned as a clone, so owned.
+fn strip_refs(ty: &Type) -> Type {
+	match ty {
+		Type::Ref(_, inner) => strip_refs(inner),
+		Type::Option(inner) => Type::Option(Box::new(strip_refs(inner))),
+		Type::Box(inner) => Type::Box(Box::new(strip_refs(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(strip_refs(inner))),
+		Type::Tuple(elements) => Type::Tuple(elements.iter().map(strip_refs).collect()),
+		ty => ty.clone(),
+	}
+}
 
 /// The Go type of an integer.
 fn go_int(int: Int) -> &'static str {

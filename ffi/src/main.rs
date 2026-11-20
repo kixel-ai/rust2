@@ -49,7 +49,6 @@ mod lock;
 mod merge;
 mod python;
 mod swift;
-mod walk;
 mod wasm;
 mod web;
 

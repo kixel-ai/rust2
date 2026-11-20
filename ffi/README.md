@@ -1651,7 +1651,9 @@ typed subset of Rust checked against the export's `api.json`: an item it cannot 
 a construct a language's writer cannot spell, fails the test naming it. Each function the
 example defines is a hook each language's test writes by hand under the same name, for what
 tests its idiom, such as futures and readers, or prints a value no two bindings shape alike.
-A new rule's case is a few lines of `main`, which every language then runs.
+A new rule's case is a few lines of `main`, which every language then runs; a new value
+type's rule adds none, as the shape tests below cover it, unless it needs an idiom or
+protocol test of its own.
 `tests/api.c` runs the script through the C, and its transcript must match the native one
 line for line; then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
