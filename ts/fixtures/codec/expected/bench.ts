@@ -1185,8 +1185,7 @@ export function rescale(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 
 /** `value`, or `None` past [`MAX_TIMESTAMP`], as moq-net bounds a converted timestamp. */
 export function bounded(value: rs.u128): rs.u64 | undefined {
-	const _3: rs.u128 = { hi: 0, w2: 0, w1: 0x1fffffff, lo: 0xffffffff } as rs.u128;
-	if (!(typeof value === "number" && typeof _3 === "number" ? value <= _3 : rs.u128Le(value, _3))) {
+	if (!rs.u128Le(value, { hi: 0, w2: 0, w1: 0x1fffffff, lo: 0xffffffff } as rs.u128)) {
 		return undefined;
 	}
 	return rs.u64Cast(value);

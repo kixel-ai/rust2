@@ -30,9 +30,7 @@ export function bumpThrice(x: rs.Place<rs.u32>, by: rs.u8): void {
 
 /** Over 2^53, where the runtime switches a `u64` to limbs. */
 export function shiftWide(x: rs.Place<rs.u64>, by: rs.u8): void {
-	const _5: rs.u64 = x.v;
-	const _6: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-	const _4: rs.u64 = (typeof _5 === "number" && typeof _6 === "number" && _5 + _6 <= 9007199254740991 ? _5 + _6 : rs.u64WrappingAdd(_5, _6)) as rs.u64;
+	const _4: rs.u64 = rs.u64WrappingAdd(x.v, { hi: 0x200000, lo: 0 } as rs.u64) as rs.u64;
 	const _9: rs.u64 = by as rs.u64;
 	x.v = (typeof _4 === "number" && typeof _9 === "number" && _4 + _9 <= 9007199254740991 ? _4 + _9 : rs.u64WrappingAdd(_4, _9)) as rs.u64;
 }

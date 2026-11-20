@@ -248,9 +248,7 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 					inRange = typeof x5 === "number" && typeof hi2 === "number" ? x5 < hi2 : rs.i128Lt(x5, hi2);
 				}
 			} else if (_10 === 5) {
-				const _64: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
-				const _67: rs.u64 = a as rs.u64;
-				const lo4: rs.u64 = (typeof _64 === "number" && typeof _67 === "number" && _64 + _67 <= 9007199254740991 ? _64 + _67 : rs.u64Add(_64, _67)) as rs.u64;
+				const lo4: rs.u64 = rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, a as rs.u64) as rs.u64;
 				const seen: boolean[] = Array.from({ length: 4 }, (): boolean => {
 					return false;
 				});

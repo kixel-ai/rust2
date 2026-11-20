@@ -1476,11 +1476,7 @@ export function hinted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_38 === 8) {
 		const _112: rs.usize = rs.usizeRem(sub, 3);
 		if (_112 === 0) {
-			const _114: rs.String = t;
-			const _117: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
-			const _121: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
-			const _124: rs.u64 = n as rs.u64;
-			rs.stringExtendChars(_114, rs.iterMap(new rs.Range(_117, (typeof _121 === "number" && typeof _124 === "number" && _121 + _124 <= 9007199254740991 ? _121 + _124 : rs.u64Add(_121, _124)) as rs.u64, rs.u64Step), (_210: rs.u64): rs.char => {
+			rs.stringExtendChars(t, rs.iterMap(new rs.Range({ hi: 0x10000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, n as rs.u64) as rs.u64, rs.u64Step), (_210: rs.u64): rs.char => {
 				return f(0);
 			}));
 		} else if (_112 === 1) {
@@ -1488,11 +1484,7 @@ export function hinted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return f(0);
 			}));
 		} else {
-			const _146: rs.String = t;
-			const _149: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
-			const _153: rs.u64 = { hi: 0x10000000, lo: 0 } as rs.u64;
-			const _156: rs.u64 = n as rs.u64;
-			rs.stringExtendChars(_146, rs.iterMap(new rs.RangeInclusive(_149, (typeof _153 === "number" && typeof _156 === "number" && _153 + _156 <= 9007199254740991 ? _153 + _156 : rs.u64Add(_153, _156)) as rs.u64, rs.u64Step), (_24: rs.u64): rs.char => {
+			rs.stringExtendChars(t, rs.iterMap(new rs.RangeInclusive({ hi: 0x10000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x10000000, lo: 0 } as rs.u64, n as rs.u64) as rs.u64, rs.u64Step), (_24: rs.u64): rs.char => {
 				return f(0);
 			}));
 		}

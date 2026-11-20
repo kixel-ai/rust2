@@ -36,19 +36,7 @@ export function against$u16(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	const _114: rs.i128 = -2;
-	const _115: rs.i128 = -2;
-	const _117: rs.i128 = -2;
-	const _118: rs.i128 = -2;
-	const _120: rs.i128 = -2;
-	const _121: rs.i128 = -2;
-	const _123: rs.i128 = -2;
-	const _124: rs.i128 = -2;
-	const _126: rs.i128 = -2;
-	const _127: rs.i128 = -2;
-	const _129: rs.i128 = -2;
-	const _130: rs.i128 = -2;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof _114 === "number" && typeof _115 === "number" ? _114 === _115 : rs.i128Eq(_114, _115), typeof _117 === "number" && typeof _118 === "number" ? _117 !== _118 : rs.i128Ne(_117, _118), typeof _120 === "number" && typeof _121 === "number" ? _120 < _121 : rs.i128Lt(_120, _121), typeof _123 === "number" && typeof _124 === "number" ? _123 <= _124 : rs.i128Le(_123, _124), typeof _126 === "number" && typeof _127 === "number" ? _126 > _127 : rs.i128Gt(_126, _127), typeof _129 === "number" && typeof _130 === "number" ? _129 >= _130 : rs.i128Ge(_129, _130)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([true, false, false, true, false, true], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(2 as rs.char) === 2 as rs.char, (2 as rs.char) !== 2 as rs.char, (2 as rs.char) < (2 as rs.char), (2 as rs.char) <= (2 as rs.char), (2 as rs.char) > (2 as rs.char), (2 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -108,19 +96,7 @@ export function against$u64(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	const _114: rs.i128 = -1;
-	const _115: rs.i128 = -2;
-	const _117: rs.i128 = -1;
-	const _118: rs.i128 = -2;
-	const _120: rs.i128 = -1;
-	const _121: rs.i128 = -2;
-	const _123: rs.i128 = -1;
-	const _124: rs.i128 = -2;
-	const _126: rs.i128 = -1;
-	const _127: rs.i128 = -2;
-	const _129: rs.i128 = -1;
-	const _130: rs.i128 = -2;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof _114 === "number" && typeof _115 === "number" ? _114 === _115 : rs.i128Eq(_114, _115), typeof _117 === "number" && typeof _118 === "number" ? _117 !== _118 : rs.i128Ne(_117, _118), typeof _120 === "number" && typeof _121 === "number" ? _120 < _121 : rs.i128Lt(_120, _121), typeof _123 === "number" && typeof _124 === "number" ? _123 <= _124 : rs.i128Le(_123, _124), typeof _126 === "number" && typeof _127 === "number" ? _126 > _127 : rs.i128Gt(_126, _127), typeof _129 === "number" && typeof _130 === "number" ? _129 >= _130 : rs.i128Ge(_129, _130)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, true, true], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(3 as rs.char) === 2 as rs.char, (3 as rs.char) !== 2 as rs.char, (3 as rs.char) < (2 as rs.char), (3 as rs.char) <= (2 as rs.char), (3 as rs.char) > (2 as rs.char), (3 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -180,19 +156,7 @@ export function against$u8(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	const _114: rs.i128 = -3;
-	const _115: rs.i128 = -2;
-	const _117: rs.i128 = -3;
-	const _118: rs.i128 = -2;
-	const _120: rs.i128 = -3;
-	const _121: rs.i128 = -2;
-	const _123: rs.i128 = -3;
-	const _124: rs.i128 = -2;
-	const _126: rs.i128 = -3;
-	const _127: rs.i128 = -2;
-	const _129: rs.i128 = -3;
-	const _130: rs.i128 = -2;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof _114 === "number" && typeof _115 === "number" ? _114 === _115 : rs.i128Eq(_114, _115), typeof _117 === "number" && typeof _118 === "number" ? _117 !== _118 : rs.i128Ne(_117, _118), typeof _120 === "number" && typeof _121 === "number" ? _120 < _121 : rs.i128Lt(_120, _121), typeof _123 === "number" && typeof _124 === "number" ? _123 <= _124 : rs.i128Le(_123, _124), typeof _126 === "number" && typeof _127 === "number" ? _126 > _127 : rs.i128Gt(_126, _127), typeof _129 === "number" && typeof _130 === "number" ? _129 >= _130 : rs.i128Ge(_129, _130)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(1 as rs.char) === 2 as rs.char, (1 as rs.char) !== 2 as rs.char, (1 as rs.char) < (2 as rs.char), (1 as rs.char) <= (2 as rs.char), (1 as rs.char) > (2 as rs.char), (1 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {
@@ -252,19 +216,7 @@ export function against$unit(out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, false, false, false, false], (a010: boolean): rs.u8 => {
 		return a010 ? 1 : 0;
 	})), undefined, true);
-	const _114: rs.i128 = -2147483648;
-	const _115: rs.i128 = -2;
-	const _117: rs.i128 = -2147483648;
-	const _118: rs.i128 = -2;
-	const _120: rs.i128 = -2147483648;
-	const _121: rs.i128 = -2;
-	const _123: rs.i128 = -2147483648;
-	const _124: rs.i128 = -2;
-	const _126: rs.i128 = -2147483648;
-	const _127: rs.i128 = -2;
-	const _129: rs.i128 = -2147483648;
-	const _130: rs.i128 = -2;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof _114 === "number" && typeof _115 === "number" ? _114 === _115 : rs.i128Eq(_114, _115), typeof _117 === "number" && typeof _118 === "number" ? _117 !== _118 : rs.i128Ne(_117, _118), typeof _120 === "number" && typeof _121 === "number" ? _120 < _121 : rs.i128Lt(_120, _121), typeof _123 === "number" && typeof _124 === "number" ? _123 <= _124 : rs.i128Le(_123, _124), typeof _126 === "number" && typeof _127 === "number" ? _126 > _127 : rs.i128Gt(_126, _127), typeof _129 === "number" && typeof _130 === "number" ? _129 >= _130 : rs.i128Ge(_129, _130)], (a011: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([false, true, true, true, false, false], (a011: boolean): rs.u8 => {
 		return a011 ? 1 : 0;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(255 as rs.char) === 2 as rs.char, (255 as rs.char) !== 2 as rs.char, (255 as rs.char) < (2 as rs.char), (255 as rs.char) <= (2 as rs.char), (255 as rs.char) > (2 as rs.char), (255 as rs.char) >= (2 as rs.char)], (a012: boolean): rs.u8 => {

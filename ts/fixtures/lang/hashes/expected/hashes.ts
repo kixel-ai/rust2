@@ -2197,8 +2197,8 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	Tallied.default$Default();
 	const held: Tallied.Tallied = { tag: first, state: undefined };
 	const cloned: Tallied.Tallied = Tallied.clone$Clone(held);
-	rs.byteVecPush(out, true ? 1 : 0);
-	rs.byteVecPush(out, false ? 1 : 0);
+	rs.byteVecPush(out, 1);
+	rs.byteVecPush(out, 0);
 	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, cloned) ? 1 : 0);
 	const _36: Tallied.Tallied = Tallied.default$Default();
 	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, _36) ? 1 : 0);
@@ -2300,7 +2300,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.data[pos3 + 6] = (word9 >>> 16) & 255;
 	dst3.data[pos3 + 7] = (word9 >>> 24) & 255;
 	dst3.length = dst3.length + 8;
-	rs.byteVecPush(out, true ? 1 : 0);
+	rs.byteVecPush(out, 1);
 	const _195: rs.HashMap<Key.Key, rs.u8> = rs.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
 		return undefined;
 	});

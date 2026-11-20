@@ -1752,9 +1752,7 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_56 === 0) {
 			walk$ops_Range_u64(new rs.Range(0, n, rs.u64Step), steps, out);
 		} else if (_56 === 1) {
-			const _60: rs.u64 = { hi: 0x80000000, lo: 0 } as rs.u64;
-			const _64: rs.u64 = { hi: 0x80000000, lo: 0 } as rs.u64;
-			walk$ops_Range_u64(new rs.Range(_60, (typeof _64 === "number" && typeof n === "number" && _64 + n <= 9007199254740991 ? _64 + n : rs.u64Add(_64, n)) as rs.u64, rs.u64Step), steps, out);
+			walk$ops_Range_u64(new rs.Range({ hi: 0x80000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x80000000, lo: 0 } as rs.u64, n) as rs.u64, rs.u64Step), steps, out);
 		} else if (_56 === 2) {
 			walk$ops_Range_i64(new rs.Range(rs.i64Neg(rs.i64Cast(n)), rs.i64Cast(m), rs.i64Step), steps, out);
 		} else {

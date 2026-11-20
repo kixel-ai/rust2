@@ -722,8 +722,7 @@ export function order(data: rs.ByteSlice, out: rs.ByteVec): void {
 		wide = (typeof wide === "number" && typeof i2 === "number" && wide + i2 <= 9007199254740991 ? wide + i2 : rs.u64Add(wide, i2)) as rs.u64;
 	}
 	sum = rs.usizeAdd(sum, rs.u64Low(wide));
-	const _100: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-	const _99: rs.u64 = (typeof _100 === "number" && _100 - 1 >= 0 ? _100 - 1 : rs.u64Sub(_100, 1)) as rs.u64;
+	const _99: rs.u64 = rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 1) as rs.u64;
 	const _104: rs.u64 = rs.u8Rem(at(1), 2) as rs.u64;
 	const edge: rs.u64 = (typeof _99 === "number" && typeof _104 === "number" && _99 + _104 <= 9007199254740991 ? _99 + _104 : rs.u64Add(_99, _104)) as rs.u64;
 	const nudge: rs.u64 = rs.u8Rem(at(2), 3) as rs.u64;

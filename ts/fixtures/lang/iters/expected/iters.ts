@@ -1450,8 +1450,7 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst.data[pos + 6] = (word2 >>> 8) & 255;
 	dst.data[pos + 7] = word2 & 255;
 	dst.length = dst.length + 8;
-	const _205: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-	const _204: rs.u64 = (typeof _205 === "number" && _205 - 2 >= 0 ? _205 - 2 : rs.u64Sub(_205, 2)) as rs.u64;
+	const _204: rs.u64 = rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2) as rs.u64;
 	const _209: rs.u64 = rs.u64Rem(a as rs.u64, 4);
 	const edge: rs.u64 = (typeof _204 === "number" && typeof _209 === "number" && _204 + _209 <= 9007199254740991 ? _204 + _209 : rs.u64Add(_204, _209)) as rs.u64;
 	const past: rs.Range<rs.u64> = new rs.Range(edge, (typeof edge === "number" && edge + 4 <= 9007199254740991 ? edge + 4 : rs.u64Add(edge, 4)) as rs.u64, rs.u64Step);
@@ -6398,8 +6397,7 @@ export function rangeFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			rs.iterExtendBytes(out4, rs.iterSlice(rs.isizeToBeBytes(x3).reverse()), undefined, true);
 		});
 	} else if (_12 === 12) {
-		const _51: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-		const _50: rs.u64 = (typeof _51 === "number" && _51 - 2 >= 0 ? _51 - 2 : rs.u64Sub(_51, 2)) as rs.u64;
+		const _50: rs.u64 = rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2) as rs.u64;
 		const _55: rs.u64 = near as rs.u64;
 		fromTop$u64_iters_range_froms_closure12((typeof _50 === "number" && typeof _55 === "number" && _50 + _55 <= 9007199254740991 ? _50 + _55 : rs.u64Add(_50, _55)) as rs.u64, data, how, out, (x: rs.u64, out2: rs.ByteVec): undefined => {
 			rs.iterExtendBytes(out2, rs.iterSlice(rs.u64ToBeBytes(x).reverse()), undefined, true);
@@ -7315,8 +7313,7 @@ export function rangeMethods(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 	const at: rs.usize[] = rs.arrayMap([0, 1], (i: rs.usize): rs.usize => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0) as rs.usize;
 	});
-	const _8: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-	const past53: rs.u64 = (typeof _8 === "number" && _8 + 1 <= 9007199254740991 ? _8 + 1 : rs.u64Add(_8, 1)) as rs.u64;
+	const past53: rs.u64 = rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, 1) as rs.u64;
 	const past64: rs.u128 = rs.u128Add(rs.u128Shl(1, 64), 1);
 	const _17: rs.u8 = rs.u8Rem(kind, 19);
 	if (_17 === 0) {

@@ -84,7 +84,7 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2]]).v));
 			drop$Result_sync_MutexGuard_u32_sync_TryLockError_sync_MutexGuard_u32(guard);
 		} else if (_18 === 6) {
-			rs.byteVecPush(out, false ? 1 : 0);
+			rs.byteVecPush(out, 0);
 		} else {
 			const tally4: rs.Mutex<Tally.Tally> = rs.mutexLock(shared.value);
 			rs.byteVecPush(out, tally4.value.seen.length & 0xff);

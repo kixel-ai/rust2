@@ -274,9 +274,7 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b3 as rs.u64);
 		}
 		if (_33 === 2) {
-			const _7: rs.u64 = { hi: 0x200000, lo: 0 } as rs.u64;
-			const _10: rs.u64 = b3 as rs.u64;
-			return (typeof _7 === "number" && typeof _10 === "number" && _7 + _10 <= 9007199254740991 ? _7 + _10 : rs.u64Add(_7, _10)) as rs.u64;
+			return rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, b3 as rs.u64) as rs.u64;
 		}
 		return rs.u64Mul(b3 as rs.u64, 7);
 	};
@@ -524,14 +522,10 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			scale = [{ _0: 1 }, { _0: 1000 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }][_557];
 		}
 		const _571: rs.u64 = scale._0;
-		const _572: rs.u64 = 1;
-		if (!(typeof _572 === "number" && typeof _571 === "number" ? _572 === _571 : rs.u64Eq(_572, _571))) {
+		if (!(typeof _571 === "number" ? 1 === _571 : rs.u64Eq(1, _571))) {
 			const _568: rs.u64 = scale._0;
-			const _569: rs.u64 = 1000;
-			if (!(typeof _569 === "number" && typeof _568 === "number" ? _569 === _568 : rs.u64Eq(_569, _568))) {
-				const _565: rs.u64 = scale._0;
-				const _566: rs.u64 = { hi: 0xffffffff, lo: 0xffffffff } as rs.u64;
-				if (!(typeof _566 === "number" && typeof _565 === "number" ? _566 === _565 : rs.u64Eq(_566, _565))) {
+			if (!(typeof _568 === "number" ? 1000 === _568 : rs.u64Eq(1000, _568))) {
+				if (!rs.u64Eq({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, scale._0)) {
 					name = "other";
 				} else {
 					name = "wide";
