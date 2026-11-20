@@ -2215,21 +2215,15 @@ fn apart(bare: &str, class: &str) -> String {
 	}
 }
 
-/// `name`, with `_` appended while `taken` holds it.
-fn kept_apart(mut name: String, taken: &[String]) -> String {
-	while taken.contains(&name) {
-		name.push('_');
-	}
-	name
-}
-
 /// The C++ names of `rust`, the names of one scope, each kept apart from those `taken` holds
 /// and the rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every
 /// other, escaped, takes `_` while a name before it in Rust's order holds it. So a field
 /// `new_` stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
 fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
-	let kept: Vec<bool> = (0..rust.len()).map(|k| names[k] == rust[k] && !taken(&names[k])).collect();
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| names[k] == rust[k] && !taken(&names[k]))
+		.collect();
 	let mut held: Vec<String> = (0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()).collect();
 	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
 	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
@@ -2553,7 +2547,7 @@ pub(crate) fn escape(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{Header, escape, kept_apart, named, parameter};
+	use super::{Header, escape, named, parameter};
 	use crate::ir::Traits;
 
 	#[test]
@@ -2569,11 +2563,12 @@ mod tests {
 			..Traits::default()
 		};
 		let taken = Header::made(traits, "Hasher");
+		let method = |rust: &str| named(&[rust.to_string()], |n| taken.iter().any(|t| t == n)).remove(0);
 		// rustc-hash's `FxHasher::default`, which C renames `_default_` beside `Default`'s
 		// `_default`, while C++ escapes the keyword of both to `default_`.
-		assert_eq!(kept_apart(escape("default_"), &taken), "default__");
-		assert_eq!(kept_apart(escape("default"), &taken), "default__");
-		assert_eq!(kept_apart(escape("seed"), &taken), "seed");
+		assert_eq!(method("default_"), "default__");
+		assert_eq!(method("default"), "default__");
+		assert_eq!(method("seed"), "seed");
 	}
 
 	#[test]
