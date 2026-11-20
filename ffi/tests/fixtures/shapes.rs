@@ -2120,7 +2120,12 @@ fn swift(calls: &[Call], source: &str) -> String {
 		let label = call.label();
 		let make = |seed: u64| format!("{}make{n}({seed})", tr(&[format!("make{n}")]));
 		// `digest_N` of `v`, lent as a span where it borrows a slice.
-		let lent = source.contains(&format!("public func digest{n}(_ v: borrowing Swift.Span<"));
+		// Whether `function` borrows its last argument, a slice, as a span.
+		let spans = |function: &str| {
+			let at = source.find(&format!("public func {function}(")).unwrap();
+			source[at..].lines().next().unwrap().contains("borrowing Swift.Span<")
+		};
+		let lent = spans(&format!("digest{n}"));
 		let digested = |v: &str| match lent {
 			true => format!("lend({v}) {{ {}digest{n}($0) }}", tr(&[format!("digest{n}")])),
 			false => format!("digest{n}({v})"),
@@ -2160,6 +2165,13 @@ fn swift(calls: &[Call], source: &str) -> String {
 					digest("v")
 				);
 			}
+			Kind::Pair if spans(&format!("pair{n}")) => format!(
+				"{}lend({}) {{ {}pair{n}({}, {seed}, $0) }}",
+				tr(&[format!("pair{n}"), format!("make{n}")]),
+				make(other),
+				tr(&[format!("pair{n}")]),
+				make(seed)
+			),
 			Kind::Pair => format!(
 				"{}pair{n}({}, {seed}, {})",
 				tr(&[format!("pair{n}")]),
@@ -2168,6 +2180,12 @@ fn swift(calls: &[Call], source: &str) -> String {
 			),
 			Kind::Maybe => match seed % 2 {
 				0 => format!("{}maybe{n}(nil)", tr(&[format!("maybe{n}")])),
+				_ if spans(&format!("maybe{n}")) => format!(
+					"{}lend({}) {{ {}maybe{n}($0) }}",
+					tr(&[format!("maybe{n}"), format!("make{n}")]),
+					make(seed),
+					tr(&[format!("maybe{n}")])
+				),
 				_ => format!("{}maybe{n}({})", tr(&[format!("maybe{n}")]), make(seed)),
 			},
 			Kind::Held => {
