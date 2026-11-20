@@ -40,8 +40,8 @@ macro_rules! noop {
 	() => {};
 }
 
-/// Left out by the config, so it refuses nothing itself, but a signature naming it is
-/// refused.
+/// Hidden, so it refuses nothing itself, but a signature naming it is refused.
+#[doc(hidden)]
 pub struct Excluded;
 
 pub fn excluded() -> Excluded {
@@ -321,11 +321,6 @@ pub fn probe<const N: usize>(x: impl Into<Probe<u8>>) {
 	let _ = x;
 }
 
-/// An instance the config excludes.
-pub fn excluded_cell(cell: Cell<u16>) -> u16 {
-	cell.0
-}
-
 /// An instance whose type argument is no value or handle, so it cannot name it.
 pub fn listed(cell: Cell<Vec<String>>) -> usize {
 	cell.0.len()
@@ -445,7 +440,8 @@ pub fn stash(value: impl Into<Excluded>) -> u32 {
 	0
 }
 
-/// Excluded, borrowing what it converts from.
+/// Hidden, borrowing what it converts from.
+#[doc(hidden)]
 pub struct Held<'a>(pub &'a u32);
 
 impl<'a> From<&'a u32> for Held<'a> {
@@ -469,7 +465,8 @@ pub fn kept<'a>(value: impl Into<Held<'a>> + 'static) -> u32 {
 	*value.into().0
 }
 
-/// Excluded, what converts into a `Held<'static>`.
+/// Hidden, what converts into a `Held<'static>`.
+#[doc(hidden)]
 pub struct Holder(pub Held<'static>);
 
 impl<T: Into<Held<'static>>> From<T> for Holder {
@@ -483,7 +480,8 @@ pub fn holder(value: impl Into<Holder>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into a `Held<'a>`, at the lifetime the parameter names.
+/// Hidden, what converts into a `Held<'a>`, at the lifetime the parameter names.
+#[doc(hidden)]
 pub struct Lender<'a>(pub Held<'a>);
 
 impl<'a, T: Into<Held<'a>>> From<T> for Lender<'a> {
@@ -497,7 +495,8 @@ pub fn lender(value: impl Into<Lender<'static>>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into a `Held<'b>` for a `'b` that outlives its own `'a`.
+/// Hidden, what converts into a `Held<'b>` for a `'b` that outlives its own `'a`.
+#[doc(hidden)]
 pub struct Outlived<'a>(pub Held<'a>);
 
 impl<'a, 'b: 'a, T: Into<Held<'b>>> From<T> for Outlived<'a> {
@@ -512,7 +511,8 @@ pub fn outlived(value: impl Into<Outlived<'static>>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, two lifetimes, what converts into a `Held` for the second converting into it.
+/// Hidden, two lifetimes, what converts into a `Held` for the second converting into it.
+#[doc(hidden)]
 pub struct Paired<'a, 'b>(pub &'a u32, pub Held<'b>);
 
 impl<'a, 'b, T: Into<Held<'b>>> From<T> for Paired<'a, 'b> {
@@ -527,7 +527,8 @@ pub fn paired(value: impl Into<Paired<'static, 'static>>) -> u32 {
 	*value.into().1.0
 }
 
-/// Excluded, a `'static` borrow, from what converts into one.
+/// Hidden, a `'static` borrow, from what converts into one.
+#[doc(hidden)]
 pub struct Pinned(pub &'static u32);
 
 impl<T: Into<&'static u32>> From<T> for Pinned {
@@ -536,7 +537,8 @@ impl<T: Into<&'static u32>> From<T> for Pinned {
 	}
 }
 
-/// Excluded, what converts into a `Pinned`.
+/// Hidden, what converts into a `Pinned`.
+#[doc(hidden)]
 pub struct Pinner(pub Pinned);
 
 impl<T: Into<Pinned>> From<T> for Pinner {
@@ -550,7 +552,8 @@ pub fn pinner(value: impl Into<Pinner>) -> u32 {
 	*value.into().0.0
 }
 
-/// Excluded, what converts into one of a `Vec` of its type, and so into ever larger ones.
+/// Hidden, what converts into one of a `Vec` of its type, and so into ever larger ones.
+#[doc(hidden)]
 pub struct Grows<T>(pub Vec<T>);
 
 impl<T, U: Into<Grows<Vec<T>>> + Copy> From<U> for Grows<T> {
@@ -565,7 +568,8 @@ pub fn grows(value: impl Into<Grows<u8>>) -> usize {
 	value.into().0.len()
 }
 
-/// Excluded, a name from a string, or from bytes that need not be UTF-8.
+/// Hidden, a name from a string, or from bytes that need not be UTF-8.
+#[doc(hidden)]
 pub struct Called(pub String);
 
 impl From<String> for Called {
@@ -580,7 +584,8 @@ impl From<Vec<u8>> for Called {
 	}
 }
 
-/// Excluded, what converts into a name.
+/// Hidden, what converts into a name.
+#[doc(hidden)]
 pub struct Caller(pub Called);
 
 impl<T: Into<Called>> From<T> for Caller {
@@ -986,9 +991,6 @@ pub use dep;
 
 /// The same crate whole, by another name.
 pub use ::dep as renamed;
-
-/// A crate whole, which the config excludes, so nothing refuses it.
-pub use ::dep as Shed;
 
 /// A value whose poll changes it, which C passes as a copy.
 pub struct Tally {

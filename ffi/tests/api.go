@@ -912,7 +912,6 @@ func script() {
 	fmt.Printf("joined %s %d read %d\n", api.Joined(parts).Copy(), len(api.Joined(nil).Copy()), api.ReadLen(rt.NewBytes([]byte("hello"))))
 	doc := must(serdejson.JsonParse(`{"b": [1, 2.5, null], "a": "é"}`))
 	fmt.Printf("json %s\n", must(api.Encode(doc)))
-	fmt.Printf("timed text %s\n", must(api.TimedText(doc)))
 	tagged2 := must(api.Tagged(doc, "t"))
 	fmt.Printf("tagged %s\n", must(tagged2.ToText()))
 	tagged2.Close()

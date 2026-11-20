@@ -634,20 +634,24 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	);
 	super::write_all(
 		&dir,
-		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")],
+		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib)],
 	);
 	// The api fixture's versions, resolved offline.
 	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 
+	// What the census refuses, the crate leaves out, as the export would fail on it.
 	let refused = refused(&dir);
 	let exported = |item: Item, n: usize| !refused.iter().any(|path| *path == item.name(n));
-	let mut excludes: Vec<&String> = refused.iter().collect();
-	excludes.sort();
-	let config = excludes
-		.iter()
-		.map(|path| format!("    \"{path}\",\n"))
-		.collect::<String>();
-	super::step::write(&dir.join("ffi.toml"), format!("exclude = [\n{config}]\n"));
+	let mut kept = lib;
+	for path in &refused {
+		let item = ["pub fn ", "pub async fn ", "pub struct ", "pub enum "]
+			.iter()
+			.map(|head| format!("{head}{path}"))
+			.find(|item| kept.contains(&format!("{item}(")) || kept.contains(&format!("{item} ")))
+			.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no item of the crate's"));
+		kept = kept.replacen(&item, &format!("#[cfg(any())]\n{item}"), 1);
+	}
+	super::write_all(&dir, &[("src/lib.rs", &kept)]);
 
 	let mut calls = Vec::new();
 	for n in 0..shapes.len() {
@@ -712,27 +716,31 @@ fn later<T>(f: impl Future<Output = T>) -> T {
 fn main() {
 ";
 
-/// The paths the census of the crate in `dir` refuses: its config that exports what maps.
+/// The paths the census of the crate in `dir` refuses, Swift's refusals included.
 fn refused(dir: &Path) -> Vec<String> {
 	let census = dir.join("census");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(dir.join("Cargo.toml"))
 		.arg("--census")
 		.arg(&census)
 		.env("CARGO_TARGET_DIR", dir.join("build")));
 	let name = dir.file_name().unwrap().to_string_lossy();
 	let report = std::fs::read_to_string(census.join(format!("{name}.md"))).unwrap();
-	let Some((_, config)) = report.split_once("## The config that exports what maps") else {
-		return Vec::new();
+	let section = |heading: &str| -> Vec<String> {
+		let Some((_, rest)) = report.split_once(heading) else {
+			return Vec::new();
+		};
+		(rest.lines().skip(1))
+			.take_while(|line| !line.starts_with("## "))
+			.filter_map(|line| Some(line.split_once('`')?.1.split_once('`')?.0.to_string()))
+			.collect()
 	};
-	config
-		.lines()
-		.skip_while(|line| *line != "exclude = [")
-		.skip(1)
-		.take_while(|line| *line != "]")
-		.map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_string())
-		.collect()
+	let mut refused = section("## Refused items");
+	refused.extend(section("## Refused by Swift"));
+	refused.sort();
+	refused.dedup();
+	refused
 }
 
 /// Each variant of the IR's `Type`, from its source.
@@ -775,8 +783,8 @@ fn build(name: &str, shapes: &[Shape]) -> Built {
 	let krate = emit(name, shapes);
 	let out = krate.dir.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(krate.dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(krate.dir.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", krate.dir.join("build")));

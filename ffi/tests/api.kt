@@ -708,7 +708,6 @@ fun script() {
 	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen(Bytes("hello".encodeToByteArray()))}")
 	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
 	println("json ${encode(doc)}")
-	println("timed text ${timedText(doc)}")
 	tagged(doc, "t").use { tagged -> println("tagged ${tagged.toText()}") }
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.
 	val jsonEntries = entries(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))), "t")

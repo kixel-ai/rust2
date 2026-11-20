@@ -989,7 +989,6 @@ async function script(): Promise<void> {
 	print(`joined ${parts} ${api.joined([]).length} read ${dec(api.readLen(enc("hello")))}`);
 	const doc = unwrap(Json.parse('{"b": [1, 2.5, null], "a": "é"}'));
 	print(`json ${api.encode(doc)}`);
-	print(`timed text ${api.timedText(doc)}`);
 	const tagged = api.tagged(doc, "t");
 	print(`tagged ${Json.toText(tagged)}`);
 	close(tagged);

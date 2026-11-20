@@ -1029,15 +1029,10 @@ def consume_python(check, native, module):
 
 
 def exporter(manifest, features, *args):
-    """Run rust2-ffi from this checkout on the package, with its ffi.toml if it keeps one."""
+    """Run rust2-ffi from this checkout on the package."""
     manifest = Path(manifest).resolve()
-    config = manifest.parent / "ffi.toml"
-    if not config.exists():
-        # The exporter still requires a config file; an empty one leaves nothing out.
-        config = Path(tempfile.mkdtemp()) / "ffi.toml"
-        config.write_text("", encoding="utf-8")
     cargo = ["--", "--features", features] if features.strip() else []
-    run("cargo", "run", "--locked", "--release", "--quiet", "--", "--config", config, "--manifest-path", manifest,
+    run("cargo", "run", "--locked", "--release", "--quiet", "--", "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi")
 
 

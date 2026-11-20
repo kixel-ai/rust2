@@ -1900,7 +1900,6 @@ static int script(void) {
 		return 1;
 	}
 	print("json ", api_encode(doc, NULL), "\n");
-	print("timed text ", api_timed_text(doc, NULL), "\n");
 	api_Json *tagged = api_tagged(doc, str("t"), NULL);
 	api_Json_free(doc);
 	print("tagged ", api_Json_to_text(tagged, NULL), "\n");

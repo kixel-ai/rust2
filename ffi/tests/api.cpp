@@ -1186,7 +1186,6 @@ int script() {
 
 	api::Json doc = api::Json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
 	print("json ", api::encode(doc), "\n");
-	print("timed text ", api::timed_text(doc), "\n");
 	api::Json tagged = api::tagged(std::move(doc), "t");
 	print("tagged ", tagged.to_text(), "\n");
 	{

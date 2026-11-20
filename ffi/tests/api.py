@@ -763,7 +763,6 @@ def script():
 	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
-	print(f"timed text {api.timed_text(doc)}")
 	tagged = api.tagged(doc, "t")
 	print(f"tagged {tagged.to_text()}")
 	# A JSON object's entries cross as pairs of a key and its document, each moved in.

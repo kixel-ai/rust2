@@ -280,9 +280,6 @@ struct Collector<'tcx> {
 	range_bounds: Option<DefId>,
 	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
-	/// Another crate's types an opaque handle would hold that [`Self::prune`] dropped, as no
-	/// export names them, so none returns them either.
-	pruned: Vec<DefId>,
 	/// Types a signature names that the root does not reach, each exported by its public
 	/// path in its own crate.
 	reach: Vec<DefId>,
@@ -447,7 +444,6 @@ pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
-			pruned: Vec::new(),
 			reach: reach.to_vec(),
 			dependencies: facade.crates.clone(),
 			unreached: Default::default(),
@@ -2136,11 +2132,6 @@ impl<'tcx> Collector<'tcx> {
 				!self.foreign_value(did) && api.objects[i].opaque.is_some() && !held.contains(&Type::Object(i))
 			})
 			.map(|&(def_id, _)| Key { def_id, args: None });
-		// One only refused items name, such as a field whose getter is refused for not being
-		// `Clone`, is no less unheld, which leaves those items out.
-		let pruned = (self.pruned.iter())
-			.map(|&def_id| Key { def_id, args: None })
-			.filter(|key| !self.orphans.contains(key));
 		(self.decls.iter())
 			.filter_map(|(&key, decl)| match decl {
 				Decl::Object(i) if !held.contains(&Type::Object(*i)) => Some(key),
@@ -2148,7 +2139,6 @@ impl<'tcx> Collector<'tcx> {
 				_ => None,
 			})
 			.chain(opaque)
-			.chain(pruned)
 			.collect()
 	}
 
@@ -2589,10 +2579,7 @@ impl<'tcx> Collector<'tcx> {
 				true => drop(self.api.records.remove(gone)),
 				false => drop(self.api.objects.remove(gone)),
 			}
-			let (did, _) = self.foreign.remove(n);
-			if !value {
-				self.pruned.push(did);
-			}
+			self.foreign.remove(n);
 			let values: Vec<bool> = (self.foreign[n..].iter())
 				.map(|&(did, _)| self.foreign_value(did))
 				.collect();
@@ -2665,9 +2652,9 @@ impl<'tcx> Collector<'tcx> {
 			let read = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, held);
 			// A field that is an object but not `Clone` is lent from the receiver's handle,
 			// as a method's borrowed return of one is.
-			// So is an `Option` of one, as `Some` of the borrow.
+			// So is an `Option` of one, as `Some` of the borrow, through a `Box` too.
 			let object = match held.kind() {
-				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Option, adt.did()) => args.type_at(0),
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Option, adt.did()) => unboxed(args.type_at(0)),
 				_ => held,
 			};
 			let lends = !self.is_clone(held)
@@ -2684,7 +2671,15 @@ impl<'tcx> Collector<'tcx> {
 					None => Ok(None),
 				};
 				match (get, set) {
-					(Ok(get), Ok(set)) => Ok((get, set)),
+					(Ok(get), Ok(set)) => Ok((Some(get), set)),
+					// A value that has no copy to return and no handle to lend from, as another
+					// crate's is not, is still written: its getter alone is refused, and the
+					// setter keeps the type in the API, so one no export returns leaves out
+					// both.
+					(Err(get), Ok(Some(set))) if get.construct == "borrowed return that is not Clone" => {
+						self.refuse(&shown, "field", span, vec![get]);
+						Ok((None, Some(set)))
+					}
 					(get, set) => {
 						let mut whys: Vec<Why> = get.err().into_iter().collect();
 						// A type neither way maps is one reason, not two.
@@ -2735,10 +2730,12 @@ impl<'tcx> Collector<'tcx> {
 						instance: None,
 						home: Home::default(),
 					};
-					let lent = lends && lent(&get);
-					let mut getter = accessor(Receiver::Ref, Vec::new(), get, false);
-					getter.lends = lent;
-					accessors.push(getter);
+					if let Some(get) = get {
+						let lent = lends && lent(&get);
+						let mut getter = accessor(Receiver::Ref, Vec::new(), get, false);
+						getter.lends = lent;
+						accessors.push(getter);
+					}
 					if let Some(set) = set {
 						let value = Param {
 							name: "value".to_string(),
@@ -5792,12 +5789,16 @@ impl<'tcx> Collector<'tcx> {
 					// another crate's value, which a handle holds only erased and by value.
 					(Type::Object(_), Pos::Return, Mutability::Not)
 						if self.lending.take() && self.opaque_value(*inner).is_none() => {}
-					// A borrowed `Option` of one is lent as `Some` of a borrow of it, so C holds the
-					// handle the bare borrow would be.
+					// A borrowed `Option` of one, or of a `Box` of one, is lent as `Some` of a borrow
+					// of it, so C holds the handle the bare borrow would be.
 					(Type::Option(object), Pos::Return, Mutability::Not)
-						if matches!(**object, Type::Object(_))
+						if let Type::Object(_) | Type::Box(_) = &**object
+							&& let object = match &**object {
+								Type::Box(boxed) => boxed,
+								_ => object,
+							} && matches!(**object, Type::Object(_))
 							&& let ty::Adt(_, args) = inner.kind()
-							&& self.opaque_value(args.type_at(0)).is_none()
+							&& self.opaque_value(unboxed(args.type_at(0))).is_none()
 							&& self.lending.take() =>
 					{
 						return Ok(Type::Option(Box::new(Type::Ref(Mutability::Not, object.clone()))));
@@ -6259,6 +6260,14 @@ fn returns(api: &Api, ty: &Type, objects: &mut Vec<Type>) {
 			.flat_map(|v| &v.fields)
 			.for_each(|f| returns(api, &f.ty, objects)),
 		_ => {}
+	}
+}
+
+/// What `ty` boxes, if it is a `Box`, else `ty`.
+fn unboxed(ty: Ty<'_>) -> Ty<'_> {
+	match ty.kind() {
+		ty::Adt(adt, args) if adt.is_box() => args.type_at(0),
+		_ => ty,
 	}
 }
 

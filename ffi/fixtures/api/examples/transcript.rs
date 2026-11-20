@@ -487,6 +487,7 @@ fn main() {
 		next: Some(Box::new(Node { value: 2, next: None })),
 	};
 	println!("node {}", list.sum());
+	println!("node next {}", list.next.as_deref().map_or(0, |next| next.value));
 
 	let tally = Tally::new();
 	tally.bump();
@@ -759,6 +760,7 @@ fn main() {
 	drop(draft);
 	println!("dropped {}", ledger.published());
 	println!("receipt {}", ledger.receipt().count());
+	println!("tab {}", ledger.tab().ledger.published());
 	// Members a `Deref` reaches: past an unexported target, beside a method of the same
 	// name, and a field a method's path shares.
 	let mut marker = api::Marker::new("m", 3, 5);
@@ -861,7 +863,16 @@ fn main() {
 	);
 	let doc: serde_json::Value = r#"{"b": [1, 2.5, null], "a": "\u00e9"}"#.parse().expect("a JSON document");
 	println!("json {}", api::encode(&doc));
-	println!("timed text {}", api::timed_text(&doc));
+	println!(
+		"cow {} {} {} {}",
+		api::unescaped(r"a\b"),
+		api::unescaped("plain"),
+		api::unzeroed(&[1, 0, 2]).len(),
+		api::unzeroed(&[3]).len()
+	);
+	let spot = api::Spot::deserialize(serde_json::json!([1, 2])).unwrap();
+	println!("spot {} {}", spot.x, spot.y);
+	println!("spot err {}", api::Spot::deserialize(serde_json::json!("x")).unwrap_err());
 	println!("tagged {}", api::tagged(doc, "t"));
 	let entries = api::entries(
 		[("b", "[1]"), ("a", "2")]

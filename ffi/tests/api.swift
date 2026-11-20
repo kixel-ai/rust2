@@ -972,7 +972,6 @@ func script() {
 	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Bytes("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
 	print("json \(try! encode(doc))")
-	print("timed text \(try! timedText(doc))")
 	let tagged = try! tagged(doc, "t")
 	print("tagged \(try! tagged.toText())")
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.

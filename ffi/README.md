@@ -9,7 +9,7 @@ whole public API is not generally exportable: generic and borrow signatures can
 be refused, and the census also lists API items left out by those rules.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -56,18 +56,9 @@ An export again rewrites only the files whose content changed, and removes from
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
-```toml
-# ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. A type
-# no facade module re-exports goes by its crate's name and its public path there. Each
-# must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
-# `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
-# method or constant shares with a field names the method, and `field@` the field.
-# A `cfg`-stripped item is found through a glob re-export only while its source module
-# keeps an exported item; under a glob of a module a `cfg` empties, the exclude fails as
-# naming nothing exported.
-exclude = ["track::Producer::poll_closed"]
-```
+It reads no config: the package is in the current directory unless `--manifest-path` says
+where, and an item the rules cannot export fails the export at its span. Nothing leaves an
+item out but the source itself: `#[doc(hidden)]`, or a `cfg` that leaves it out of a build.
 
 ## Rules
 
@@ -149,7 +140,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read`, not bounded by `Seek` | `&[u8]` |
 | `impl Iterator<Item = X>` taken | `Vec<X>`, whose items Rust iterates; for `X` of `&str` or `&[u8]`, an array of buffers C lends for the call; an iterator of other references, or one a future or a callback takes, is refused |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| another type parameter | `serde_json::Value` for a serde `Serialize`, `Deserialize`, or `Deserializer` bound, as a derived `deserialize` takes, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
@@ -164,11 +155,19 @@ maps, which may name more. Inference finishes before any type is mapped, so mapp
 never adds an instance. An instance that holds an instance of a type inside it, such as
 `Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
+A field holding a reference, as `&'a mut ClientConfig` in rustls's
+`DangerousClientConfig` is, is read through it, lent where it is not `Clone`, and has no
+setter, since no borrow C holds outlives a call. A returned `Cow<'_, str>` or
+`Cow<'_, [u8]>` crosses as the string or bytes it owns, a copy C would make of a borrow
+anyway; a `Cow` anywhere else is refused, as C would hand Rust its form. Another crate's
+type that only refused items name, as `std::net::TcpListener` in moq-tokio's
+`server::Streams` is, is one no export returns, so those items are left out with it.
+
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
-alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`, through a `Box` too: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
@@ -229,7 +228,7 @@ A target's check may need its own C toolchain, as moq's `aws-lc-sys` and `ring` 
 for a check, which only its own host may have. `--api file` writes one target's API, with
 the spans of its items, instead of exporting; an export elsewhere adds it with
 `--with file`, as though it had checked that target too. Both must check the same
-package, features, and `exclude`, from the same sources: a staged span's file is relative
+package and features, from the same sources: a staged span's file is relative
 to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
 dropped for the other target's span where the file differs.
 
@@ -258,7 +257,7 @@ API breaks the one in `file`, with an error at each item that names how:
   A tuple's struct, known by its Rust spelling, is renamed the same way when another
   tuple's elements run together into its name.
 
-An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
+An item is known by its kind and Rust path. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
@@ -461,10 +460,7 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
-  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
-  `exclude` of a type or method by the generic type's path leaves it out of every
-  instance, and by the instance's path
-  (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
 
 ## C++
 
@@ -1342,13 +1338,9 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, then the `exclude` list that exports the rest, and
-what else it left out, such as what C can never hold and the traits C cannot implement, and why.
-That list is checked by collecting again with it: it holds what Swift alone refuses, and
-not an instance only refused items named, which nothing names once they are left out.
-It ignores the config's `exclude`, but lists each exclude that leaves out an item that
-would export, and fails on it, so the list holds only what the export refuses. It also
-fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+lists each refused item at its span, with what Swift alone refuses, each of which fails the
+export, and what else it left out, such as what C can never hold and the traits C cannot
+implement, and why. It fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
 rather than in the crate.
 
 ## TypeScript (web)
@@ -1562,7 +1554,7 @@ until the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
-<crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
+<crate>::*;`. Each is censused, then, where the census refuses nothing, exported, and
 its glue, C and C++ programs including its headers (compiled, not linked, since a crate
 may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
 built; a panic, an error, or a binding that does not build fails it, a refusal not.

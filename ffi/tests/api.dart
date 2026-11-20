@@ -797,7 +797,6 @@ Future<void> script() async {
   print('joined $parts ${api.joined([]).length} read ${api.readLen(utf8.encode('hello'))}');
   final doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}');
   print('json ${api.encode(doc)}');
-  print('timed text ${api.timedText(doc)}');
   final tagged = api.tagged(doc, 't');
   print('tagged ${tagged.toText()}');
   tagged.close();
