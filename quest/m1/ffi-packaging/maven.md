@@ -16,8 +16,7 @@ The artifactId and version come from the crate; the groupId is the caller's, sin
 `repository` can only suggest a Maven namespace it cannot prove the publisher owns
 (`ffi/release/README.md`'s "Other registries" table).
 
+The generated crate's build script already aligns each Android library to 16 KB pages, which Play
+requires from 2027-02-01.
+
 Public API: the Maven coordinates.
-
-## Required
-
-- [16 KB pages](/quest/m1/ffi-android.md) - the libraries the AAR ships are aligned for Play

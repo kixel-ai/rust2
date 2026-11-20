@@ -945,6 +945,26 @@ fn api_android() {
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
 
+	// Every segment aligns to the 16 KB pages Google Play requires of a 64-bit library from
+	// 2027-02-01, whichever NDK built it: r27 and older align to 4 KB unless told otherwise.
+	let lib = dir.join("lib").join(&abi).join("libapi.so");
+	let segments = run(Command::new("readelf").args(["--wide", "--program-headers"]).arg(&lib));
+	let segments = String::from_utf8_lossy(&segments.stdout);
+	let aligns: Vec<u64> = segments
+		.lines()
+		.filter(|line| line.trim_start().starts_with("LOAD"))
+		.map(|line| {
+			let align = line.split_whitespace().last().unwrap();
+			u64::from_str_radix(align.trim_start_matches("0x"), 16).unwrap()
+		})
+		.collect();
+	assert!(!aligns.is_empty(), "readelf listed no LOAD segment:\n{segments}");
+	assert!(
+		aligns.iter().all(|&align| align >= 16384),
+		"{} is not aligned to 16 KB pages:\n{segments}",
+		lib.display()
+	);
+
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
@@ -1008,6 +1028,61 @@ fn api_android() {
 		cmd
 	};
 	kotlin(&api.transcript, &art);
+
+	// An abort or a panic must reach logcat and bionic's abort message, which the tombstone
+	// shows: an app's stderr goes nowhere. The tombstone is logged as the crash dump
+	// finishes, after the process died, and one from an earlier run may still arrive, so the
+	// case prints its process id, and the read takes the abort message that follows the
+	// tombstone of that process.
+	for (case, logged, tombstone) in [
+		(
+			"callback threw",
+			"api::Log::log: a call into Kotlin threw",
+			"Abort message: 'api::Log::log: a call into Kotlin threw'",
+		),
+		(
+			"panicked",
+			"called `Option::unwrap()` on a `None` value",
+			"Abort message: 'panicked at",
+		),
+	] {
+		run(Command::new(&adb).args(["logcat", "-c"]));
+		let mut cmd = Command::new(&adb);
+		cmd.arg("shell").arg(format!(
+			"echo $$; ANDROID_DATA={DEVICE} exec dalvikvm -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt '{case}'"
+		));
+		let output = self::output(&mut cmd);
+		failed(&output, case);
+		let stdout = String::from_utf8_lossy(&output.stdout);
+		let pid = stdout.lines().next().unwrap_or_default().trim().to_string();
+		assert!(
+			pid.parse::<u32>().is_ok(),
+			"{case} printed no process id first: {stdout}"
+		);
+		let ours = format!("pid: {pid},");
+		let log = run(Command::new(&adb).args(["logcat", "-d", "-s", "rust2-ffi:F"]));
+		let log = String::from_utf8_lossy(&log.stdout);
+		assert!(log.contains(logged), "{case} logged {log}");
+		// Read the dump as it arrives, bounded by the device-side timeout.
+		let mut reader = Command::new(&adb)
+			.args(["shell", "timeout", "120", "logcat", "-s", "DEBUG:F"])
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut found = false;
+		let mut dump = String::new();
+		for line in std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap())) {
+			let line = line.unwrap();
+			found |= line.contains(&ours);
+			if found && line.contains("Abort message") {
+				dump = line;
+				break;
+			}
+		}
+		let _ = reader.kill();
+		let _ = reader.wait();
+		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump:?}");
+	}
 }
 
 /// The gate's Kotlin protocol scripts, fewer than C's, as each costs the JVM more.
@@ -1107,16 +1182,14 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"Native$__Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
+		("panicked", "called `Option::unwrap()` on a `None` value"),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		(
-			"outlived",
-			"Native$__Refused: api_Meter_count: a handle lent from another outlived it",
-		),
+		("outlived", "api_Meter_count: a handle lent from another outlived it"),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the
 		// status reports a core though none is written.
@@ -1260,6 +1333,79 @@ fn api_python() {
 		stderr.contains("api.py and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// A free-threaded CPython refuses the module with an `ImportError`: the library is for the
+/// GIL's ABI, which it would load through its explicit path and crash in. `PYTHON_FREE_THREADED`
+/// or `python3.14t` is the interpreter, which the dev shell provides.
+#[test]
+fn api_free_threaded() {
+	let python = std::env::var_os("PYTHON_FREE_THREADED").unwrap_or_else(|| "python3.14t".into());
+	let dir = api().out.join("python");
+	let probe = |code: &str| {
+		let mut cmd = Command::new(&python);
+		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
+		// which names the GIL build's packages. `-X gil=0` beats an inherited `PYTHON_GIL=1`,
+		// which would turn the GIL on in a free-threaded build.
+		cmd.args(["-X", "gil=0", "-P", "-c", code]).env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	// A GIL build would pass for the refusal's test, so check the interpreter first.
+	let build = probe("import sys; sys.exit(sys._is_gil_enabled())");
+	assert!(
+		build.status.success(),
+		"{python:?} is not a free-threaded CPython: {}",
+		String::from_utf8_lossy(&build.stderr)
+	);
+	let output = probe("import api");
+	// Exit 1 is an uncaught exception, where a crash has no code.
+	assert_eq!(
+		output.status.code(),
+		Some(1),
+		"importing under a free-threaded CPython: {output:?}"
+	);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"ImportError: api.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use"
+		),
+		"importing under a free-threaded CPython printed {stderr}"
+	);
+
+	// The suffixes of the platforms this host is not, appended on the GIL build, which
+	// loads from beside the module whatever its list holds.
+	let gil = |suffix: &str| {
+		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		cmd.args(["-P", "-c"])
+			.arg(format!(
+				"import importlib.machinery as m; m.EXTENSION_SUFFIXES.append('{suffix}'); import api"
+			))
+			.env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	for suffix in [
+		".cp314t-win_amd64.pyd",
+		"_d.cp314t-win_amd64.pyd",
+		".cpython-313t-darwin.so",
+		".cpython-315t-aarch64-linux-gnu.so",
+		".cpython-314td-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
+		assert!(
+			String::from_utf8_lossy(&output.stderr).contains("a free-threaded CPython cannot use"),
+			"{suffix} printed {output:?}"
+		);
+	}
+	for suffix in [
+		".cp314-win_amd64.pyd",
+		"_d.cp314-win_amd64.pyd",
+		".cpython-314-darwin.so",
+		".cpython-314d-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert!(output.status.success(), "{suffix} was refused: {output:?}");
+	}
 }
 
 /// Random sequences of the ownership protocol's steps through the Python, by
@@ -1867,6 +2013,15 @@ fn api_web() {
 	);
 }
 
+/// Where the engine lacks `Symbol.dispose`, as stable Safari does, the web runtime defines it
+/// as the registry's symbol before its classes key a method on it, which `dispose.ts` checks.
+#[test]
+fn web_without_dispose() {
+	run(Command::new("node")
+		.arg(manifest_dir().join("tests").join("dispose.ts"))
+		.arg(manifest_dir().join("runtime").join("rt.ts")));
+}
+
 /// The web binding as a registry serves it: packed by npm with the module beside it,
 /// installed from that tarball into a project of its own, and `tests/api.ts` importing it by
 /// the package's name type-checks against its declarations alone, with no `skipLibCheck`.
@@ -1947,30 +2102,43 @@ fn api_web_package() {
 	}
 }
 
-/// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
-/// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
-/// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
+/// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
+/// carries, WebKit on Linux alone, where nixpkgs builds it: `tests/browser.ts` bundles the
+/// script and runs each case in a frame of its own.
+/// Firefox and WebKit expose no garbage collector to a page, so they run neither `owned` nor
+/// `bytes`. The script's `using` runs in WebKit as the engine has it, and lowered as `tsc` and
+/// esbuild lower it, each of which keys on `Symbol.dispose`. Playwright's WebKit has the symbol,
+/// which stable Safari lacks: `web_without_dispose` covers its absence.
 #[test]
 #[ignore = "the nightly's, in the bench shell: just ffi browsers"]
 fn api_browsers() {
 	let web = web();
-	for browser in ["chromium", "firefox"] {
+	for (browser, lowering) in [
+		("chromium", "bun"),
+		("firefox", "bun"),
+		("webkit", "native"),
+		("webkit", "esbuild"),
+		("webkit", "tsc"),
+	]
+	.into_iter()
+	.filter(|(browser, _)| *browser != "webkit" || cfg!(target_os = "linux"))
+	{
 		let cases: Vec<&str> = match browser {
-			"firefox" => WEB_CASES
+			"chromium" => WEB_CASES.to_vec(),
+			_ => WEB_CASES
 				.into_iter()
 				.filter(|c| !matches!(*c, "owned" | "bytes"))
 				.collect(),
-			_ => WEB_CASES.to_vec(),
 		};
 		let all = std::iter::once("-")
 			.chain(cases.iter().copied())
 			.chain(WEB_BROKEN.iter().map(|(case, _)| *case));
 		let output = run(Command::new("bun")
 			.arg(manifest_dir().join("tests").join("browser.ts"))
-			.arg(browser)
+			.args([browser, lowering])
 			.arg(&web.dir)
 			.arg(&web.wasm)
-			.arg(scratch().join("api").join(browser))
+			.arg(scratch().join("api").join(format!("{browser}-{lowering}")))
 			.args(all));
 		let mut runs: std::collections::HashMap<String, Ran> = String::from_utf8_lossy(&output.stdout)
 			.lines()
@@ -1985,7 +2153,7 @@ fn api_browsers() {
 				(text("case"), ran)
 			})
 			.collect();
-		web_checks(browser, &cases, &mut |case| {
+		web_checks(&format!("{browser} ({lowering})"), &cases, &mut |case| {
 			let case = case.unwrap_or("-");
 			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
 		});
@@ -1999,6 +2167,7 @@ const TSCONFIG: &str = r#"{
 		"strict": true,
 		"noEmit": true,
 		"pretty": false,
+		"noImplicitOverride": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"target": "es2024",

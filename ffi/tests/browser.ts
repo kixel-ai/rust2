@@ -1,26 +1,73 @@
-// Runs tests/api.ts's cases in one headless browser, Chromium or Firefox, as Node runs
-// them: Bun bundles the script and its binding for the page, and each case runs in a
+// Runs tests/api.ts's cases in one headless browser, Chromium, Firefox, or WebKit, as Node
+// runs them: the script and its binding are bundled for the page, and each case runs in a
 // frame of its own, a fresh realm, against a `process` that serves the module's bytes, the
 // case, and the garbage collector where the browser exposes it. Each case posts whether it
 // finished and what it printed, which this prints as a line of JSON.
 //
-// usage: bun browser.ts <chromium|firefox> <script-dir> <module.wasm> <out-dir> <case>...
+// How `using` in the script reaches the page is the bundle's: `bun` is Bun's bundler, which
+// lowers it; `native` leaves it to the engine; `esbuild` and `tsc` lower it as a consumer's
+// build would, to the helper that falls back to `Symbol.for("Symbol.dispose")` and to the one
+// that throws without `Symbol.dispose`, which stable Safari lacks.
+//
+// usage: bun browser.ts <chromium|firefox|webkit> <bun|native|esbuild|tsc> <script-dir> <module.wasm> <out-dir> <case>...
 // where a case is `-` for the transcript.
 
 import { mkdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-const [browser, dirArg, wasmPath, outArg, ...cases] = process.argv.slice(2);
-if (!browser || !dirArg || !wasmPath || !outArg || cases.length === 0) {
-	throw new Error("usage: browser.ts <chromium|firefox> <script-dir> <module.wasm> <out-dir> <case>...");
+const [browser, lowering, dirArg, wasmPath, outArg, ...cases] = process.argv.slice(2);
+if (!browser || !lowering || !dirArg || !wasmPath || !outArg || cases.length === 0) {
+	throw new Error("usage: browser.ts <chromium|firefox|webkit> <bun|native|esbuild|tsc> <script-dir> <module.wasm> <out-dir> <case>...");
 }
 const out = resolve(outArg);
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 
-const bundled = await Bun.build({ entrypoints: [join(dirArg, "api.ts")], target: "browser", format: "esm" });
-if (!bundled.success) throw new AggregateError(bundled.logs, "bundling api.ts failed");
-await Bun.write(join(out, "api.js"), bundled.outputs[0]!);
+/** Runs a build tool, failing with its output. */
+async function build(...command: string[]): Promise<void> {
+	const tool = Bun.spawn(command, { stdout: "pipe", stderr: "pipe" });
+	const [stdout, stderr, code] = await Promise.all([tool.stdout.text(), tool.stderr.text(), tool.exited]);
+	if (code !== 0) throw new Error(`${command.join(" ")} exited with ${code}:\n${stdout}${stderr}`);
+}
+
+const entry = join(dirArg, "api.ts");
+const bundle = join(out, "api.js");
+switch (lowering) {
+	case "bun": {
+		const bundled = await Bun.build({ entrypoints: [entry], target: "browser", format: "esm" });
+		if (!bundled.success) throw new AggregateError(bundled.logs, "bundling api.ts failed");
+		await Bun.write(bundle, bundled.outputs[0]!);
+		break;
+	}
+	case "native":
+		await build("esbuild", entry, "--bundle", "--format=esm", "--target=esnext", `--outfile=${bundle}`);
+		break;
+	case "esbuild":
+		await build("esbuild", entry, "--bundle", "--format=esm", "--target=es2022", `--outfile=${bundle}`);
+		break;
+	case "tsc": {
+		// The script's own `tsc` emit, lowered to ES2022 as a project's build would, then bundled.
+		const emitted = join(out, "tsc");
+		await build(
+			"tsc",
+			"-p",
+			dirArg,
+			"--noEmit",
+			"false",
+			"--outDir",
+			emitted,
+			"--target",
+			"es2022",
+			"--rewriteRelativeImportExtensions",
+			"--allowImportingTsExtensions",
+			"false",
+		);
+		await build("esbuild", join(emitted, "api.js"), "--bundle", "--format=esm", "--target=esnext", `--outfile=${bundle}`);
+		break;
+	}
+	default:
+		throw new Error(`no lowering ${lowering}`);
+}
 
 // The frame of one case: a `process` as api.ts reads Node's, then the script. What it
 // printed, and whether it finished, go back once it settles; an exit or a throw ends it.
@@ -133,6 +180,10 @@ const command = (() => {
 			];
 		case "firefox":
 			return ["firefox", "--headless", "--no-remote", "--profile", profile, server.url.href];
+		// The `webkit-headless` the bench shell carries: Playwright's WPE build, which exposes
+		// no garbage collector, as Firefox does not.
+		case "webkit":
+			return ["webkit-headless", server.url.href];
 		default:
 			throw new Error(`no browser ${browser}`);
 	}

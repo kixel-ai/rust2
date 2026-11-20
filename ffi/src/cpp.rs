@@ -2317,9 +2317,12 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
+	// Macros GNU dialects predefine, as CMake's default `-std=gnu++17` does. Each name of
+	// one and trailing `_`s takes another, so `unix` and `unix_` stay apart.
+	const MACROS: &[&str] = &["i386", "linux", "unix"];
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) => format!("{name}_"),
+		_ if KEYWORDS.contains(&name) || MACROS.contains(&name.trim_end_matches('_')) => format!("{name}_"),
 		_ => name.to_string(),
 	}
 }
@@ -2347,6 +2350,16 @@ mod tests {
 		assert_eq!(kept_apart(escape("default_"), &taken), "default__");
 		assert_eq!(kept_apart(escape("default"), &taken), "default__");
 		assert_eq!(kept_apart(escape("seed"), &taken), "seed");
+	}
+
+	#[test]
+	fn predefined_macros_escape_apart() {
+		assert_eq!(escape("unix"), "unix_");
+		assert_eq!(escape("unix_"), "unix__");
+		assert_eq!(escape("linux__"), "linux___");
+		assert_eq!(escape("unixes"), "unixes");
+		// A keyword keeps its single escape, so a field `type_` stays `type_`.
+		assert_eq!(escape("type_"), "type_");
 	}
 
 	#[test]
