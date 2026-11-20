@@ -58,12 +58,13 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 	@inlinable public init()
 	@inlinable public init(_ data: Data)
 	@inlinable public init(_ bytes: some Swift.Sequence<Swift.UInt8>)
+	@inlinable public init(_ span: borrowing Swift.Span<Swift.UInt8>)
 	@inlinable public var data: Data { get }
 	@inlinable public var startIndex: Swift.Int { get }
 	@inlinable public var endIndex: Swift.Int { get }
 	@inlinable public subscript(i: Swift.Int) -> Swift.UInt8 { get }
 	@inlinable public subscript(bounds: Swift.Range<Swift.Int>) -> Bytes { get }
-	@inlinable public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R
+	@inlinable public func withSpan<R: ~Copyable>(_ body: (Swift.Span<Swift.UInt8>) throws -> R) rethrows -> R
 	@inlinable public static func == (a: Bytes, b: Bytes) -> Swift.Bool
 	@inlinable public func hash(into hasher: inout Swift.Hasher)
 }
@@ -721,7 +722,7 @@ public enum Clash: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public func reading(_ kotlin: Swift.UInt32) -> Reading
 	@inlinable public static func listed(_ java: [Swift.UInt32], _ kotlin: inout Swift.UInt32) -> [[Swift.UInt32]]
 	@inlinable nonisolated(nonsending) public static func after(_ first: @escaping @Sendable () async -> Void, _ kotlin: Swift.Double) async throws -> Clash
-	@inlinable public func joined(_ lent: Bytes, _ owned: Bytes, _ maybe: Bytes?) -> Bytes
+	@inlinable public func joined(_ lent: borrowing Swift.Span<Swift.UInt8>, _ owned: Bytes, _ maybe: Bytes?) -> Bytes
 	@inlinable nonisolated(nonsending) public func tagged(_ tag: Swift.String) async throws -> Swift.String
 	@inlinable public func stamp(_ kotlin: Swift.UInt64) -> Stamp
 	@inlinable public func moment(_ kotlin: Swift.UInt64) -> Moment
@@ -926,7 +927,7 @@ public struct Codecs: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func ids() throws -> Swift.UInt32
 }
 public struct Der: ~Copyable, @unchecked Sendable {
-	@inlinable public static func fromSlice(_ bytes: Bytes) -> Der
+	@inlinable public static func fromSlice(_ bytes: borrowing Swift.Span<Swift.UInt8>) -> Der
 	@inlinable public func bytes() -> Bytes
 }
 public struct Verbosity: ~Copyable, @unchecked Sendable {
@@ -1080,7 +1081,7 @@ public struct Channel: ~Copyable, @unchecked Sendable {
 	@inlinable public func notify(_ waker: @escaping @Sendable () -> Void) throws
 	@inlinable nonisolated(nonsending) public func sendLater(_ payload: Bytes) async throws
 	@inlinable nonisolated(nonsending) public func tagged(_ tag: Swift.String) async throws -> Swift.String
-	@inlinable nonisolated(nonsending) public func itemized(_ items: [Swift.UInt32]?) async throws -> Swift.UInt
+	@inlinable nonisolated(nonsending) public func itemized(_ items: borrowing Swift.Span<Swift.UInt32>?) async throws -> Swift.UInt
 	@inlinable nonisolated(nonsending) public func pollTake() async throws -> Bytes
 	@inlinable nonisolated(nonsending) public mutating func pollMeasure(_ extra: Swift.UInt) async throws -> Swift.UInt
 	@inlinable public func listen(_ cx: @escaping @Sendable () -> Void) throws
@@ -1303,6 +1304,9 @@ public struct Part: ~Copyable, @unchecked Sendable {
 public protocol Log: Sendable {
 	func log(_ level: Swift.UInt8, _ line: Swift.String) -> Swift.Bool
 }
+public protocol Scan: Sendable {
+	func scan(_ payload: Swift.Span<Swift.UInt8>, _ rest: Swift.Span<Swift.UInt8>?) -> Swift.UInt64
+}
 public protocol Beat: Sendable {
 	func beat() -> Swift.UInt32
 }
@@ -1345,7 +1349,7 @@ public let URL: Swift.UInt64
 @inlinable public func corner(_ unit: Swift.Bool) throws -> (Swift.UInt32, Swift.UInt32)
 @inlinable nonisolated(nonsending) public func cornerLater() async throws -> (Swift.UInt32, Swift.UInt32)
 @inlinable public func spread(_ n: Swift.UInt64) -> (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)?
-@inlinable public func find(_ haystack: Bytes, _ needle: Bytes) -> (Swift.UInt, Swift.UInt)?
+@inlinable public func find(_ haystack: borrowing Swift.Span<Swift.UInt8>, _ needle: borrowing Swift.Span<Swift.UInt8>) -> (Swift.UInt, Swift.UInt)?
 @inlinable public func rows(_ points: [Point]) -> [(Swift.String, Shape, Point)]
 @inlinable public func port(_ text: Swift.String) throws -> Swift.UInt16
 @inlinable public func span(_ start: Swift.UInt32, _ end: Swift.UInt32) -> Swift.UInt32
@@ -1431,11 +1435,11 @@ public let URL: Swift.UInt64
 @inlinable public func walk(_ steps: Swift.UInt64, _ visit: @Sendable (borrowing Cursor) -> Swift.UInt64) -> Swift.UInt64
 @inlinable public func each(_ steps: Swift.UInt32, _ visit: @Sendable (Swift.UInt32) -> Void) -> Swift.UInt32
 @inlinable public func peek(_ tally: borrowing Tally, _ peek: @Sendable (borrowing Tally) -> Swift.UInt32) throws -> Swift.UInt32
-@inlinable public func len(_ payload: Bytes) -> Swift.UInt
+@inlinable public func len(_ payload: borrowing Swift.Span<Swift.UInt8>) -> Swift.UInt
 @inlinable public func hex(_ payload: Bytes) -> Swift.String
 @inlinable public func timedHex(_ payload: Bytes) -> Swift.String
 @inlinable public func timedText(_ value: borrowing Json) throws -> Swift.String
-@inlinable public func sampleHex(_ sample: Bytes) -> Swift.String
+@inlinable public func sampleHex(_ sample: borrowing Swift.Span<Swift.UInt8>) -> Swift.String
 @inlinable public func queuedHex(_ queued: Bytes) -> Swift.String
 @inlinable public func tickName(_ tick: Label) -> Swift.String
 @inlinable public func rootedName(_ rooted: Label) -> Swift.String
@@ -1496,8 +1500,8 @@ public let URL: Swift.UInt64
 @inlinable public func secure(_ alpn: Swift.String) -> TlsConfig
 @inlinable public func alpn(_ config: consuming TlsConfig) throws -> Swift.String
 @inlinable public func alpnLent(_ config: borrowing TlsConfig) throws -> Swift.String
-@inlinable public func certify(_ der: Bytes) -> TlsCert
-@inlinable nonisolated(nonsending) public func byteLen(_ bytes: Bytes) async throws -> Swift.UInt
+@inlinable public func certify(_ der: borrowing Swift.Span<Swift.UInt8>) -> TlsCert
+@inlinable nonisolated(nonsending) public func byteLen(_ bytes: borrowing Swift.Span<Swift.UInt8>) async throws -> Swift.UInt
 @inlinable public func certLen(_ cert: borrowing TlsCert) throws -> Swift.UInt
 @inlinable public func certDer(_ cert: consuming TlsCert) throws -> Bytes
 @inlinable public func chainLen(_ chain: consuming UniqueArray<TlsCert>) throws -> Swift.UInt
@@ -1516,10 +1520,10 @@ public let URL: Swift.UInt64
 @inlinable public func resume(_ alpn: Swift.String, _ seconds: Swift.UInt32) throws -> TlsSession
 @inlinable public func either(_ text: Swift.String?) -> Swift.UInt
 @inlinable nonisolated(nonsending) public func eitherLater(_ text: Swift.String?) async throws -> Swift.UInt
-@inlinable public func prefixed(_ payload: Bytes, _ prefix: Bytes?) -> Bytes
-@inlinable public func sumLists(_ a: [Swift.Int32], _ b: [Swift.Int32]?, _ c: [Swift.Int32]?) -> Swift.Int32
+@inlinable public func prefixed(_ payload: borrowing Swift.Span<Swift.UInt8>, _ prefix: borrowing Swift.Span<Swift.UInt8>?) -> Bytes
+@inlinable public func sumLists(_ a: [Swift.Int32], _ b: borrowing Swift.Span<Swift.Int32>?, _ c: [Swift.Int32]?) -> Swift.Int32
 @inlinable public func coordinates(_ point: Point?) -> Swift.Int32
-@inlinable public func chunks(_ bytes: Bytes, _ size: Swift.UInt) -> [Bytes]
+@inlinable public func chunks(_ bytes: borrowing Swift.Span<Swift.UInt8>, _ size: Swift.UInt) -> [Bytes]
 @inlinable public func counters(_ names: [Swift.String]) -> UniqueArray<Counter>
 @inlinable public func worth(_ some: consuming UniqueArray<Counter>?, _ boxed: consuming UniqueArray<Counter>) throws -> Swift.UInt64
 @inlinable public func heldCount(_ held: consuming Counter?) throws -> Swift.UInt64?
@@ -1529,15 +1533,17 @@ public let URL: Swift.UInt64
 @inlinable public func sums(_ rows: [[Swift.UInt32]]) -> [Swift.UInt32]
 @inlinable public func least(_ sets: [[Swift.UInt32]]) -> [[Swift.UInt32]]
 @inlinable public func splitLast(_ items: [Swift.Int32]) -> ([Swift.Int32], Swift.UInt32)
-@inlinable public func sumU32(_ items: [Swift.UInt32]) -> Swift.UInt64
-@inlinable public func doubledI64(_ items: [Swift.Int64]) -> [Swift.Int64]
+@inlinable public func sumU32(_ items: borrowing Swift.Span<Swift.UInt32>) -> Swift.UInt64
+@inlinable public func doubledI64(_ items: borrowing Swift.Span<Swift.Int64>) -> [Swift.Int64]
+@inlinable public func visitChunks(_ payload: borrowing Swift.Span<Swift.UInt8>, _ size: Swift.UInt, _ visit: @Sendable (Swift.Span<Swift.UInt8>?) -> Swift.UInt64) -> [Swift.UInt64]
+@inlinable public func scanned(_ scan: any Scan, _ payload: Bytes) -> Swift.UInt64
 @inlinable public func boxedFloats(_ items: [Swift.Double]) -> [Swift.Double]
 @inlinable public func summed(_ points: [Point]) -> Point
 @inlinable public func breadth(_ limits: LimitsDuration) -> RustDuration
 @inlinable public func byteLimits(_ low: Bytes, _ high: Bytes) -> LimitsBytes
 @inlinable public func joined(_ parts: [Bytes]) -> Bytes
 @inlinable public func firstOf(_ items: [Swift.String]) -> Swift.String?
-@inlinable public func readLen(_ reader: Bytes) -> Swift.UInt64
+@inlinable public func readLen(_ reader: borrowing Swift.Span<Swift.UInt8>) -> Swift.UInt64
 @inlinable public func longest(_ words: [Swift.String]) -> Swift.UInt
 @inlinable public func encode(_ value: borrowing Json) throws -> Swift.String
 @inlinable public func tagged(_ doc: consuming Json, _ tag: Swift.String) throws -> Json

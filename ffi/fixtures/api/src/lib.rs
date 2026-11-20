@@ -4179,6 +4179,26 @@ pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
 	items.iter().map(|v| v.wrapping_mul(2)).collect()
 }
 
+/// What `visit` returns for each chunk of `payload` of up to `size` bytes, which is not 0,
+/// each lent in place, then for none.
+pub fn visit_chunks(payload: &[u8], size: usize, mut visit: impl FnMut(Option<&[u8]>) -> u64) -> Vec<u64> {
+	let mut seen: Vec<u64> = payload.chunks(size).map(|chunk| visit(Some(chunk))).collect();
+	seen.push(visit(None));
+	seen
+}
+
+/// A reader of lent bytes: a callback interface, implemented in C.
+pub trait Scan {
+	/// A digest of `payload` and `rest`, if any, each lent for the call.
+	fn scan(&self, payload: &[u8], rest: Option<&[u8]>) -> u64;
+}
+
+/// What `scan` returns for each half of `payload`, each lent in place, then for none.
+pub fn scanned(scan: impl Scan, payload: Vec<u8>) -> u64 {
+	let (head, tail) = payload.split_at(payload.len() / 2);
+	scan.scan(head, Some(tail)) + scan.scan(&[], None)
+}
+
 /// `items` back as Rust took them, boxed.
 pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
 	items

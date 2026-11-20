@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x94abd9ec69c35430ULL)
+#define API_CONTRACT ((uint64_t)0x3a7d442889ffa6f1ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1094,6 +1094,14 @@ typedef struct api_Log {
 	const api_Log_vtable *vtable;
 	void *data;
 } api_Log;
+typedef struct api_Scan_vtable {
+	void (*free)(void *data);
+	uint64_t (*scan)(void *data, api_buf payload, api_buf rest);
+} api_Scan_vtable;
+typedef struct api_Scan {
+	const api_Scan_vtable *vtable;
+	void *data;
+} api_Scan;
 typedef struct api_Beat_vtable {
 	void (*free)(void *data);
 	uint32_t (*beat)(void *data);
@@ -2265,6 +2273,8 @@ API_MUST_USE api_vec_vec_u32 api_least(api_vec_vec_u32 sets);
 void api_split_last(api_vec_i32 items, api_vec_i32 *out0, uint32_t *out1);
 uint64_t api_sum_u32(api_vec_u32 items);
 API_MUST_USE api_vec_i64 api_doubled_i64(api_vec_i64 items);
+API_MUST_USE api_vec_u64 api_visit_chunks(api_buf payload, size_t size, uint64_t (*visit)(void *data, api_buf), void *visit_data);
+uint64_t api_scanned(api_Scan scan, api_buf payload);
 API_MUST_USE api_vec_f64 api_boxed_floats(api_vec_f64 items);
 api_Point api_summed(api_vec_Point points);
 api_duration api_breadth(api_Limits_duration limits);

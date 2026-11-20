@@ -1,7 +1,7 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
 // native Rust does on wasm32-wasip1, through the TypeScript tests/fixtures/transcript
 // writes from it, transcript.ts, which calls the functions exported here that
-// transcript.rs defines. It runs on Node or Deno, from beside the binding's `web`
+// transcript.rs defines. It runs on Node, Deno, or Bun, from beside the binding's `web`
 // directory, or in a browser, through tests/browser.ts's `process`. RUST2_WASM is the path
 // of the module, built with the crate's `web` feature; without it, the script loads the
 // module its package holds, as `load` does by default. tests/fixtures.rs compares the
@@ -601,14 +601,19 @@ async function futures(): Promise<void> {
 	print("futures ok");
 }
 
-/** Node's garbage collector, which a flag exposes. */
+/** The garbage collector: Bun's own, else V8's, which a flag exposes. */
 let gc: (() => void) | undefined;
 
 /** Run the garbage collector until `done()`, failing past a deadline. */
 async function collect(done: () => boolean, what: string): Promise<void> {
 	if (gc === undefined) {
-		process.getBuiltinModule("node:v8").setFlagsFromString("--expose-gc");
-		gc = process.getBuiltinModule("node:vm").runInNewContext("gc");
+		const bun = (globalThis as { Bun?: { gc(force: boolean): void } }).Bun;
+		if (bun !== undefined) {
+			gc = () => bun.gc(true);
+		} else {
+			process.getBuiltinModule("node:v8").setFlagsFromString("--expose-gc");
+			gc = process.getBuiltinModule("node:vm").runInNewContext("gc");
+		}
 	}
 	const deadline = Date.now() + 10000;
 	while (!done()) {
