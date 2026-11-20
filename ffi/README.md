@@ -279,9 +279,9 @@ An item is known by its kind and Rust path. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, Dart, and TypeScript generators' own
-public names. Each table holds every name its binding gives: a function, type, constant,
-field, variant, a variant's field, tuple, exception class, and the member a std trait
-exports, keyed by kind and Rust path, as `type api::Point / field x` and
+public names. Each table holds the names its binding declares: a function, type, constant,
+field, variant, a variant's field, exception class, the member a std trait exports, and in C
+and Swift a tuple's struct, keyed by kind and Rust path, as `type api::Point / field x` and
 `type api::Point / Clone`. A clash that renames a kept class, function, or member reports its language
 and old and new names at the item's span. An error type's exception class is known by its
 error type and the type the language holds it as, since Kotlin's `UShortArray` and

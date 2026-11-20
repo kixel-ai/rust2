@@ -431,8 +431,24 @@ impl Transcript {
 	}
 
 	/// `language`'s name for the exception an error of `ty` throws as.
+	///
+	/// The lock keys a class by the error's C spelling and, beside it, the type the language
+	/// holds it as; the key alone names only the last class written. Where one key names
+	/// several classes, as Kotlin's `Vec<u16>` and `BTreeSet<u16>` do, the transcript cannot
+	/// tell which is `ty`'s, so it refuses rather than pick one.
 	pub(crate) fn error(&self, language: &str, ty: &Type) -> &str {
-		self.named(language, &format!("error {}", self.spell(ty)))
+		let key = format!("error {}", self.spell(ty));
+		let prefix = format!("{key} / as ");
+		let mut classes = self.names[language]
+			.range(prefix.clone()..)
+			.take_while(|(k, _)| k.starts_with(&prefix))
+			.map(|(_, name)| name.as_str());
+		if let Some(first) = classes.next()
+			&& let Some(other) = classes.find(|name| *name != first)
+		{
+			panic!("{language} names both {first} and {other} for {key}, which the transcript cannot tell apart");
+		}
+		self.named(language, &key)
 	}
 
 	/// `language`'s name for the field `field` of the record `ty`.
