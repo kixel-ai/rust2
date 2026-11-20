@@ -6549,6 +6549,7 @@ export { new$ as new };
 
 // MuxContainerTsMpegts.ts
 import * as rt from "./rt.ts";
+import type { Json } from "./Json.ts";
 import type { MuxContainerTsDescriptor } from "./MuxContainerTsDescriptor.ts";
 import type { MuxContainerTsPassthroughTrack } from "./MuxContainerTsPassthroughTrack.ts";
 import type { MuxContainerTsProgram } from "./MuxContainerTsProgram.ts";
@@ -6571,6 +6572,7 @@ export declare function muxRateGet(self: MuxContainerTsMpegts): rt.u64 | undefin
 export declare function muxRateSet(self: MuxContainerTsMpegts, value: rt.u64 | undefined): void;
 export declare function passthroughGet(self: MuxContainerTsMpegts): MuxContainerTsPassthroughTrack | undefined;
 export declare function passthroughSet(self: MuxContainerTsMpegts, value: MuxContainerTsPassthroughTrack | undefined): void;
+export declare function deserialize(deserializer: Json): rt.Result<MuxContainerTsMpegts, string>;
 export declare function isEmpty(self: MuxContainerTsMpegts): boolean;
 export { default$ as default };
 
@@ -10487,6 +10489,8 @@ export declare const TRANSPORT_SETUP_RECEIVE_WINDOW: rt.u64;
 export declare const HANG_CATALOG_MAX_SAFE_INTEGER: rt.u64;
 export declare function IMPLEMENTATION(): string;
 export declare function ALPNS(): string[];
+export declare function escape(content: string): string;
+export declare function unescape(segment: string): string;
 export declare function clockNow(): ClockInstant;
 export declare function clockWall(): ClockWall;
 export declare function clockOrigin(): [ClockInstant, ClockWall];

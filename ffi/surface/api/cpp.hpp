@@ -44,6 +44,12 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::api::buf, ::api::Counter>> ranked() const;
 		RUST2_FFI_CALLABLE ::api::Counter best() const;
 	};
+	class RUST2_FFI_CONSUMABLE Tab {
+		RUST2_FFI_UNCONSUMED Tab(Tab &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tab &operator=(Tab &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Ledger ledger_get() const;
+		RUST2_FFI_CALLABLE ::api::buf label_get() const;
+	};
 	class RUST2_FFI_CONSUMABLE Receipt {
 		RUST2_FFI_UNCONSUMED Receipt(Receipt &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Receipt &operator=(Receipt &&other) noexcept = default;
@@ -73,6 +79,8 @@ namespace api {
 		static ::api::Pad_u16 wide();
 		RUST2_FFI_CALLABLE ::std::uint16_t tag() const;
 		RUST2_FFI_CALLABLE ::std::uint16_t title() const;
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t lines() const;
 		RUST2_FFI_CALLABLE ::api::buf describe() const;
 	};
 	class RUST2_FFI_CONSUMABLE Pad_u8 {
@@ -95,6 +103,8 @@ namespace api {
 		Marker &operator=(Marker &&other) noexcept = default;
 		static ::api::Marker new_(::api::input label, ::std::int32_t x, ::std::int32_t y);
 		RUST2_FFI_CALLABLE ::api::buf label() const;
+		RUST2_FFI_CALLABLE ::std::int32_t x() const;
+		static ::std::int32_t y();
 		RUST2_FFI_CALLABLE ::std::int32_t x_get() const;
 		RUST2_FFI_CALLABLE void x_set(::std::int32_t value);
 		RUST2_FFI_CALLABLE ::std::int32_t y_get() const;
@@ -182,6 +192,8 @@ namespace api {
 		Retry &operator=(Retry &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> limit_get() const;
 		RUST2_FFI_CALLABLE void limit_set(const ::std::optional<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> delay_get() const;
+		RUST2_FFI_CALLABLE void delay_set(const ::std::optional<::std::uint32_t> &value);
 		static ::api::Retry new_(const ::std::optional<::std::uint32_t> &limit);
 		RUST2_FFI_CALLABLE ::std::uint32_t limit() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t delay() const;
@@ -209,11 +221,15 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Slot_u32 {
 		RUST2_FFI_UNCONSUMED Slot_u32(Slot_u32 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u32 &operator=(Slot_u32 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint32_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint32_t value);
 		static ::api::Slot_u32 new_(::std::uint32_t value);
 	};
 	class RUST2_FFI_CONSUMABLE Slot_u8 {
 		RUST2_FFI_UNCONSUMED Slot_u8(Slot_u8 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u8 &operator=(Slot_u8 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint8_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint8_t value);
 		static ::api::Slot_u8 new_(::std::uint8_t value);
 		RUST2_FFI_CALLABLE ::std::uint16_t value() const;
 	};
@@ -357,6 +373,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::Receipt receipt();
 		RUST2_FFI_CALLABLE ::api::Receipt noted();
 		RUST2_FFI_CALLABLE ::api::Filed_Receipt file_Receipt(::api::Receipt item);
+		RUST2_FFI_CALLABLE ::api::Tab tab();
 		RUST2_FFI_CALLABLE ::api::Slip slip();
 	};
 	class RUST2_FFI_CONSUMABLE Slip {
@@ -408,7 +425,7 @@ namespace api {
 		RUST2_FFI_CALLABLE void notify(const ::api::waker &waker_) const;
 		RUST2_FFI_CALLABLE ::api::Channel_send_later_future send_later(::api::input payload) const;
 		RUST2_FFI_CALLABLE ::api::Channel_tagged_future tagged(::api::input tag) const;
-		RUST2_FFI_CALLABLE ::api::Channel_itemized_future itemized(const ::std::optional<::std::vector<::std::uint32_t>> &items_) const;
+		RUST2_FFI_CALLABLE ::api::Channel_itemized_future itemized(::std::optional<::api::slice<::std::uint32_t>> items_) const;
 		RUST2_FFI_CALLABLE ::api::Channel_poll_take_future poll_take() const;
 		RUST2_FFI_CALLABLE ::api::Channel_poll_measure_future poll_measure(::std::size_t extra);
 		RUST2_FFI_CALLABLE void listen(const ::api::waker &cx) const;
@@ -466,6 +483,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
 		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::Node> next_get() const;
+		RUST2_FFI_CALLABLE void next_set(::std::optional<::api::Node> value);
 		static ::api::Node new_(::std::uint64_t value, ::std::optional<::api::Node> next);
 		RUST2_FFI_CALLABLE void push(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::std::uint64_t sum() const;
@@ -552,6 +571,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Counter(const ::api::Counter &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Size(const ::api::Size &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Wrap_u32(const ::api::Wrap_u32 &from) const;
+		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_polar_Point(const ::api::polar_Point &from) const;
 	};
 	class RUST2_FFI_CONSUMABLE Refusal {
 		RUST2_FFI_UNCONSUMED Refusal(Refusal &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -916,6 +936,7 @@ namespace api {
 		friend bool operator==(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		friend bool operator!=(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		::api::buf debug() const;
+		::api::Pair_Size_u8 swap() const;
 	};
 	struct Right_u8 {
 		::std::uint8_t value;
@@ -1089,6 +1110,14 @@ namespace api {
 		double kotlin;
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
+	};
+	struct Spot {
+		::std::uint32_t x;
+		::std::uint32_t y;
+		friend bool operator==(const Spot &a__, const Spot &b_);
+		friend bool operator!=(const Spot &a__, const Spot &b_);
+		::api::buf debug() const;
+		static ::api::result<::api::Spot, ::api::buf> deserialize(::api::Json deserializer);
 	};
 	struct Deprecated {
 		bool on;
@@ -1328,6 +1357,7 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Spot &a__, const Spot &b_);
 	inline bool operator==(const Deprecated &a__, const Deprecated &b_);
 	inline bool operator==(const Dial &a__, const Dial &b_);
 	inline bool operator==(const Knob &a__, const Knob &b_);
@@ -1354,7 +1384,7 @@ namespace api {
 	inline ::api::Clash Clash_of(double value);
 	inline ::api::buf Clash_bytes(const ::api::Clash &self);
 	inline ::api::Reading Clash_reading(const ::api::Clash &self, ::std::uint32_t kotlin);
-	inline ::std::vector<::std::vector<::std::uint32_t>> Clash_listed(const ::std::vector<::std::uint32_t> &java, ::std::uint32_t &kotlin);
+	inline ::std::vector<::std::vector<::std::uint32_t>> Clash_listed(::api::slice<::std::uint32_t> java, ::std::uint32_t &kotlin);
 	template <class F0> inline ::api::Clash_after_future Clash_after(F0 first, double kotlin);
 	inline ::api::buf Clash_joined(const ::api::Clash &self, ::api::input lent, ::api::input owned, ::std::optional<::api::input> maybe);
 	inline ::api::Clash_tagged_future Clash_tagged(const ::api::Clash &self, ::api::input tag);
@@ -1488,7 +1518,6 @@ namespace api {
 	inline ::std::size_t len(::api::input payload);
 	inline ::api::buf hex(::api::input payload);
 	inline ::api::buf timed_hex(::api::input payload);
-	inline ::api::buf timed_text(const ::api::Json &value);
 	inline ::api::buf sample_hex(::api::input sample);
 	inline ::api::buf queued_hex(::api::input queued);
 	inline ::api::buf tick_name(const ::api::Label &tick);
@@ -1571,7 +1600,7 @@ namespace api {
 	inline ::std::size_t either(::std::optional<::api::input> text);
 	inline ::api::either_later_future either_later(::std::optional<::api::input> text);
 	inline ::api::buf prefixed(::api::input payload, ::std::optional<::api::input> prefix);
-	inline ::std::int32_t sum_lists(const ::std::vector<::std::int32_t> &a__, const ::std::optional<::std::vector<::std::int32_t>> &b_, const ::std::optional<::std::vector<::std::int32_t>> &c_);
+	inline ::std::int32_t sum_lists(::api::slice<::std::int32_t> a__, ::std::optional<::api::slice<::std::int32_t>> b_, ::std::optional<::api::slice<::std::int32_t>> c_);
 	inline ::std::int32_t coordinates(const ::std::optional<::api::Point> &point);
 	inline ::std::vector<::api::buf> chunks(::api::input bytes, ::std::size_t size);
 	inline ::std::vector<::api::Counter> counters(const ::api::items<::api::view> &names);
@@ -1582,12 +1611,12 @@ namespace api {
 	inline ::std::uint32_t less(::std::uint32_t value, ::std::uint32_t _value);
 	inline ::std::vector<::std::uint32_t> sums(const ::std::vector<::std::vector<::std::uint32_t>> &rows);
 	inline ::std::vector<::std::vector<::std::uint32_t>> least(const ::std::vector<::std::vector<::std::uint32_t>> &sets);
-	inline ::std::tuple<::std::vector<::std::int32_t>, ::std::uint32_t> split_last(const ::std::vector<::std::int32_t> &items_);
-	inline ::std::uint64_t sum_u32(const ::std::vector<::std::uint32_t> &items_);
-	inline ::std::vector<::std::int64_t> doubled_i64(const ::std::vector<::std::int64_t> &items_);
+	inline ::std::tuple<::std::vector<::std::int32_t>, ::std::uint32_t> split_last(::api::slice<::std::int32_t> items_);
+	inline ::std::uint64_t sum_u32(::api::slice<::std::uint32_t> items_);
+	inline ::std::vector<::std::int64_t> doubled_i64(::api::slice<::std::int64_t> items_);
 	template <class F0> inline ::std::vector<::std::uint64_t> visit_chunks(::api::input payload, ::std::size_t size, F0 &&visit);
 	inline ::std::uint64_t scanned(::std::unique_ptr<::api::Scan> scan, ::api::input payload);
-	inline ::std::vector<double> boxed_floats(const ::std::vector<double> &items_);
+	inline ::std::vector<double> boxed_floats(::api::slice<double> items_);
 	inline ::api::Point summed(const ::std::vector<::api::Point> &points);
 	inline ::api::duration breadth(const ::api::Limits_duration &limits);
 	inline ::api::Limits_bytes byte_limits(::api::input low, ::api::input high);
@@ -1646,6 +1675,10 @@ namespace api {
 	inline ::api::socket_addr_v4 same_socket_addr_v4(::api::socket_addr_v4 v);
 	inline ::api::socket_addr_v6 same_socket_addr_v6(::api::socket_addr_v6 v);
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
+	inline ::api::buf unescaped(::api::input text);
+	inline ::api::unescaped_later_future unescaped_later(::api::input text);
+	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
+	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
@@ -1801,6 +1834,8 @@ namespace api {
 #endif
 namespace api {
 	#if defined(__clang__)
+	#define RUST2_FFI_OWNER(T) [[gsl::Owner(T)]]
+	#define RUST2_FFI_POINTER(T) [[gsl::Pointer(T)]]
 	#define RUST2_FFI_LIFETIMEBOUND [[clang::lifetimebound]]
 	#define RUST2_FFI_CONSUMABLE [[clang::consumable(unconsumed)]]
 	#define RUST2_FFI_CALLABLE [[clang::callable_when("unconsumed", "unknown")]]
@@ -1808,6 +1843,8 @@ namespace api {
 	#define RUST2_FFI_UNCONSUMED [[clang::return_typestate(unconsumed)]]
 	#define RUST2_FFI_MOVED_FROM [[clang::return_typestate(consumed)]]
 	#else
+	#define RUST2_FFI_OWNER(T)
+	#define RUST2_FFI_POINTER(T)
 	#define RUST2_FFI_LIFETIMEBOUND
 	#define RUST2_FFI_CONSUMABLE
 	#define RUST2_FFI_CALLABLE
@@ -1823,7 +1860,7 @@ namespace api {
 		borrow &operator=(const borrow &) = delete;
 		T *operator->() const noexcept;
 	};
-	class view {
+	class RUST2_FFI_POINTER(::std::uint8_t) view {
 		view() noexcept : data_(detail::bytes(nullptr, 0)), size_(0);
 		view(const void *data, ::std::size_t size) noexcept : data_(detail::bytes(data, size)), size_(size);
 		view(const char *text) noexcept : view(text, ::std::strlen(text));
@@ -1835,7 +1872,26 @@ namespace api {
 		const ::std::uint8_t *end() const noexcept;
 		::std::string_view str() const noexcept;
 	};
-	class buf {
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Winit-list-lifetime"
+	#endif
+	template <class T> class RUST2_FFI_POINTER(T) slice {
+		slice() noexcept : data_(nullptr), size_(0);
+		slice(const T *data, ::std::size_t size) noexcept : data_(data), size_(size);
+		template <::std::size_t N> slice(const T (&array RUST2_FFI_LIFETIMEBOUND)[N]) noexcept : data_(array), size_(N);
+		slice(::std::initializer_list<T> list RUST2_FFI_LIFETIMEBOUND) noexcept : data_(list.begin()), size_(list.size());
+		template <class R, class = ::std::enable_if_t<::std::is_same_v< ::std::remove_cv_t<::std::remove_pointer_t<decltype(::std::declval<const R &>().data())>>, T>>, class = decltype(::std::declval<const R &>().size())> slice(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept : data_(range.data()), size_(range.size());
+		const T *data() const noexcept;
+		::std::size_t size() const noexcept;
+		bool empty() const noexcept;
+		const T *begin() const noexcept;
+		const T *end() const noexcept;
+	};
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic pop
+	#endif
+	class [[nodiscard]] RUST2_FFI_OWNER(::std::uint8_t) buf {
 		buf() noexcept;
 		explicit buf(view bytes) : buf();
 		buf(const buf &other) : buf();
@@ -1860,7 +1916,7 @@ namespace api {
 		input &operator=(input &&) = delete;
 		~input();
 	};
-	template <class T> class items {
+	template <class T> class RUST2_FFI_POINTER(T) items {
 		items(const ::std::vector<T> &vector RUST2_FFI_LIFETIMEBOUND) noexcept : data_(vector.data()), size_(vector.size());
 		items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size());
 		template <class R, class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> && !::std::is_same_v<::std::decay_t<R>, items> && detail::lasting<const R, T> && ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>> items(const R &range RUST2_FFI_LIFETIMEBOUND);
@@ -1882,7 +1938,7 @@ namespace api {
 		::std::size_t size() const noexcept;
 		bool empty() const noexcept;
 	};
-	template <class T, class E> class result {
+	template <class T, class E> class [[nodiscard]] result {
 		static result ok(T value);
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -1899,7 +1955,7 @@ namespace api {
 		const E &error() const &;
 		E &&error() &&;
 	};
-	template <class E> class result<void, E> {
+	template <class E> class [[nodiscard]] result<void, E> {
 		static result ok();
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -1918,13 +1974,13 @@ namespace api {
 	};
 	template <class T> using poll_t = ::std::conditional_t<::std::is_void_v<T>, bool, ::std::optional<T>>;
 	class task;
-	class task {
+	class [[nodiscard]] task {
 		task() noexcept = default;
 		task(task &&other) noexcept : node_(::std::exchange(other.node_, nullptr));
 		task &operator=(task &&other) noexcept;
 		~task();
 	};
-	template <class Op> class future {
+	template <class Op> class [[nodiscard]] future {
 		using output = typename Op::output;
 		future(future &&other) noexcept : raw_(::std::exchange(other.raw_, nullptr)), last_(::std::exchange(other.last_, nullptr));
 		future &operator=(future &&other) noexcept;
@@ -2008,6 +2064,7 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Spot;
 	struct Deprecated;
 	struct Dial;
 	struct Knob;
@@ -2021,6 +2078,7 @@ namespace api {
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
+	class Tab;
 	class Receipt;
 	class Draft;
 	class Filed_Receipt;
@@ -2194,6 +2252,8 @@ namespace api {
 	using byte_len_future = ::api::future<detail::byte_len_future_op>;
 	using parse_later_future = ::api::future<detail::parse_later_future_op>;
 	using either_later_future = ::api::future<detail::either_later_future_op>;
+	using unescaped_later_future = ::api::future<detail::unescaped_later_future_op>;
+	using unescaped_maybe_future = ::api::future<detail::unescaped_maybe_future_op>;
 	using level_later_future = ::api::future<detail::level_later_future_op>;
 	using emit_later_future = ::api::future<detail::emit_later_future_op>;
 	using log_on_drop_future = ::api::future<detail::log_on_drop_future_op>;

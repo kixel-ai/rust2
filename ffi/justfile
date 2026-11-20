@@ -72,7 +72,7 @@ fix:
     cargo shear --fix
     cargo sort --workspace --no-format
 
-# Run the exporter: `just ffi run --config <ffi.toml> --out <dir>`.
+# Run the exporter: `just ffi run --manifest-path <Cargo.toml> --out <dir>`.
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
@@ -90,16 +90,16 @@ surface *flags: (moq-write "") (standin "" "web")
         exit 1
     fi
     # The api fixture as its tests export it, with wasm32 for the web binding.
-    cargo run --locked --quiet -- --config fixtures/api/ffi.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
-    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    cargo run --locked --quiet -- --manifest-path fixtures/api/Cargo.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
     python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
     python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
     # Its other bindings are moq's on wasm32, which no one ships.
     python3 -I surface/surface.py {{ flags }} target/surface/moq-web surface/moq-web web.d.ts
 
-# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
+# Census the stand-in facade into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
 census checkout="": (standin checkout)
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
@@ -215,7 +215,7 @@ bench-run rounds="3":
     }
     build() {
         rm -rf "$scratch"
-        measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
+        measure export env "$libpath=$sysroot/lib" target/release/rust2-ffi --manifest-path target/moq-ffi/Cargo.toml --out "$scratch/moq"
         measure check cargo check --quiet --lib --manifest-path target/moq-ffi/Cargo.toml
         measure generated cargo build --locked --quiet --release --manifest-path "$scratch/moq/Cargo.toml" --features kotlin,dart
         measure moq cargo build --quiet --release --lib --manifest-path target/moq-ffi/Cargo.toml
@@ -429,6 +429,12 @@ dart-program dir main:
     printf '{"configVersion": 2, "packages": [{"name": "moq", "rootUri": "file://%s/dart/", "packageUri": "./"}]}\n' "$out" > "$dir/.dart_tool/package_config.json"
     printf 'format-version: [1, 0, 0]\nnative-assets:\n  %s_%s:\n    "package:moq/moq.dart": [absolute, "%s"]\n' "{{ os() }}" "$arch" "$out/target/release/$lib" > "$dir/native_assets.yaml"
     dart analyze --fatal-infos "$dir"
+    # pub.dev scores the library with the lints in tests/dart_lints.yaml, which the analyzer reads from the directory it analyzes.
+    rm -rf "$dir-lint"
+    mkdir "$dir-lint"
+    cp "$out"/dart/*.dart "$dir-lint"
+    cp tests/dart_lints.yaml "$dir-lint/analysis_options.yaml"
+    dart analyze --fatal-infos "$dir-lint"
     sdk=$(dirname "$(dirname "$(realpath "$(command -v dart)")")")
     "$sdk/bin/dartaotruntime" "$sdk/bin/snapshots/gen_kernel_aot.dart.snapshot" --platform "$sdk/lib/_internal/vm_platform_strong.dill" \
         --packages "$dir/.dart_tool/package_config.json" --native-assets "$dir/native_assets.yaml" -o "$dir/main.dill" "$dir/main.dart"
@@ -476,7 +482,7 @@ moq-write checkout="": (standin checkout)
         with+=(--with "$api")
     done
     # macOS's bash 3.2 reads an empty array as unset.
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
     # Sources that changed while the export read them leave it matching neither version.
     if [ -f target/moq-ffi/source ]; then
         before=$(cat target/moq-ffi/source)
@@ -512,7 +518,7 @@ moq-api target checkout="": (standin checkout)
     mkdir -p target/moq-api
     rm -f "target/moq-api/$target.json" "target/moq-api/$target.source"
     before=$(cat target/moq-ffi/source)
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
     # Sources that changed while the check read them leave the API matching neither version.
     {{ quote(just_executable()) }} standin {{ quote(checkout) }}
     if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
@@ -525,7 +531,7 @@ moq-api target checkout="": (standin checkout)
 # Export the wasm32 stand-in, moq's crates but moq-tokio, into target/export/moq-web for wasm32-wasip1, and build its module for the web binding.
 [private]
 moq-web checkout="": (standin checkout "web")
-    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
+    cargo run --locked --quiet -- --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
     cargo build --locked --quiet --release --manifest-path target/export/moq-web/Cargo.toml --target wasm32-wasip1 --features web
 
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.

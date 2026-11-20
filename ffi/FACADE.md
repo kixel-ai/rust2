@@ -26,8 +26,7 @@ This guide goes from a crate you want in another language to a facade with no re
 2. Count it with a census, which exports nothing:
 
    ```bash
-   echo 'exclude = []' > ffi.toml
-   rust2-ffi --config ffi.toml --census census --manifest-path Cargo.toml
+   rust2-ffi --census census --manifest-path Cargo.toml
    ```
 
 3. Read `census/<package>.md`, as below, and fix the top construct.
@@ -135,8 +134,6 @@ and every other method is a call a language can make.
   refused for `[u8]` points at one signature shape.
 - **Refused items**: each item, its span, and every reason, which is what the compile error
   prints.
-- **The config that exports what maps**: the `exclude` that leaves the refused items out,
-  which the export accepts today.
 - **What exports another way, or is left out and listed**: a value exported as an object
   since a field does not map, a `#[doc(hidden)]` item, what C can never hold, such as an
   object no export returns, and a type alias. None of these is an error; they need no change

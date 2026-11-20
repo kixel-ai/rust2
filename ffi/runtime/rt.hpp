@@ -3,11 +3,14 @@
 // namespace, after `detail` names the export's C types. It throws nothing and reads no
 // type information, so it builds with exceptions and RTTI off.
 
-// Clang's checks of ownership, which a caller enables with `-Wconsumed -Wdangling`: an
-// object is used after a move, or a view outlives the bytes it reads. Other compilers see
-// nothing. A method callable "unknown" takes a reference parameter's object, whose state
-// Clang does not track.
+// Clang's checks of ownership, which a caller enables with `-Wconsumed -Wdangling`, and
+// from Clang 23 `-Wlifetime-safety`: an object is used after a move, or a view outlives
+// the bytes it reads, within a statement or across them. Other compilers see nothing. A
+// method callable "unknown" takes a reference parameter's object, whose state Clang does
+// not track. An owner holds what a pointer views.
 #if defined(__clang__)
+#define RUST2_FFI_OWNER(T) [[gsl::Owner(T)]]
+#define RUST2_FFI_POINTER(T) [[gsl::Pointer(T)]]
 #define RUST2_FFI_LIFETIMEBOUND [[clang::lifetimebound]]
 #define RUST2_FFI_CONSUMABLE [[clang::consumable(unconsumed)]]
 #define RUST2_FFI_CALLABLE [[clang::callable_when("unconsumed", "unknown")]]
@@ -15,6 +18,8 @@
 #define RUST2_FFI_UNCONSUMED [[clang::return_typestate(unconsumed)]]
 #define RUST2_FFI_MOVED_FROM [[clang::return_typestate(consumed)]]
 #else
+#define RUST2_FFI_OWNER(T)
+#define RUST2_FFI_POINTER(T)
 #define RUST2_FFI_LIFETIMEBOUND
 #define RUST2_FFI_CONSUMABLE
 #define RUST2_FFI_CALLABLE
@@ -282,7 +287,7 @@ public:
 
 // Bytes lent to a call: text or binary, read during the call and never kept. A contiguous
 // range, so from C++20 it converts to `std::span<const std::uint8_t>`, and back.
-class view {
+class RUST2_FFI_POINTER(::std::uint8_t) view {
 	const ::std::uint8_t *data_;
 	::std::size_t size_;
 
@@ -318,10 +323,55 @@ public:
 	friend struct detail::access;
 };
 
+// Numbers lent to a call in place: a pointer and a count, or any contiguous range of `T`,
+// such as a `std::vector<T>`, a `std::array<T, N>`, a C array, a braced list, or from
+// C++20 a `std::span<const T>`, which it converts back to.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winit-list-lifetime"
+#endif
+template <class T>
+class RUST2_FFI_POINTER(T) slice {
+	const T *data_;
+	::std::size_t size_;
+
+public:
+	slice() noexcept : data_(nullptr), size_(0) {}
+	slice(const T *data, ::std::size_t size) noexcept : data_(data), size_(size) {}
+	template <::std::size_t N>
+	slice(const T (&array RUST2_FFI_LIFETIMEBOUND)[N]) noexcept : data_(array), size_(N) {}
+	// A list's array lives until the call's full-expression ends, which GCC cannot see.
+	slice(::std::initializer_list<T> list RUST2_FFI_LIFETIMEBOUND) noexcept : data_(list.begin()), size_(list.size()) {}
+	template <class R,
+	          class = ::std::enable_if_t<::std::is_same_v<
+	              ::std::remove_cv_t<::std::remove_pointer_t<decltype(::std::declval<const R &>().data())>>, T>>,
+	          class = decltype(::std::declval<const R &>().size())>
+	slice(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept : data_(range.data()), size_(range.size()) {}
+
+	const T *data() const noexcept {
+		return data_;
+	}
+	::std::size_t size() const noexcept {
+		return size_;
+	}
+	bool empty() const noexcept {
+		return size_ == 0;
+	}
+	const T *begin() const noexcept {
+		return data_;
+	}
+	const T *end() const noexcept {
+		return data_ + size_;
+	}
+};
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 // Owned bytes: returned by Rust without a copy, or copied from C++. They outlive the object
 // they came from; a view or span of them lives only as long as they do. A copy of Rust's
 // shares its bytes, and one moved into a call's `input` goes back to Rust without a copy.
-class buf {
+class [[nodiscard]] RUST2_FFI_OWNER(::std::uint8_t) buf {
 	// Rust's when `owner` is set, else C++'s, allocated with `new[]` unless empty.
 	detail::c_buf raw_;
 
@@ -443,7 +493,7 @@ inline constexpr bool lasting = ::std::is_reference_v<Item> || ::std::is_same_v<
 // or any other range whose items convert to `T`, such as the `std::vector<buf>` a call
 // returned or a `std::vector<std::string>`, converted item by item.
 template <class T>
-class items {
+class RUST2_FFI_POINTER(T) items {
 	::std::vector<T> converted_;
 	const T *data_;
 	::std::size_t size_;
@@ -533,7 +583,7 @@ public:
 
 // What a fallible call returns: its value, or the error that stopped it.
 template <class T, class E>
-class result {
+class [[nodiscard]] result {
 	::std::variant<T, E> value_;
 
 	template <::std::size_t I, class A>
@@ -603,7 +653,7 @@ public:
 };
 
 template <class E>
-class result<void, E> {
+class [[nodiscard]] result<void, E> {
 	::std::optional<E> error_;
 
 public:
@@ -752,8 +802,10 @@ void spawn(task &slot, typename Op::raw *raw, Exec exec, F f);
 
 // A future running on an executor until it calls back with the output. Destroying it
 // cancels the future: once that returns, the callback has finished or never runs, and the
-// executor is never called again, so it may go too.
-class task {
+// executor is never called again, so it may go too. A task dropped before its executor
+// starts the job never runs; one dropped at once may still lose that race to an executor
+// on another thread.
+class [[nodiscard]] task {
 	detail::task_node *node_ = nullptr;
 
 	void reset() noexcept {
@@ -784,7 +836,7 @@ public:
 // it before it finishes cancels it, which loses nothing, since a value leaves Rust only in
 // the poll that finishes it.
 template <class Op>
-class future {
+class [[nodiscard]] future {
 	typename Op::raw *raw_;
 	// The waker Rust holds from the last poll, which it reuses when given it again.
 	detail::node *last_ = nullptr;
@@ -1000,11 +1052,11 @@ public:
 	}
 };
 
-// The numbers of `items` as the C array `C`, in place: never null, so an empty one is
-// told apart from a missing one.
-template <class C, class T>
-C block(const ::std::vector<T> &items) {
-	static const T empty{};
+// The numbers of `items`, a `slice` or a `std::vector`, as the C array `C`, in place: never
+// null, so an empty one is told apart from a missing one.
+template <class C, class R>
+C block(const R &items) {
+	static const ::std::remove_cv_t<::std::remove_pointer_t<decltype(items.data())>> empty{};
 	return C{items.empty() ? &empty : items.data(), items.size(), nullptr};
 }
 
