@@ -348,7 +348,8 @@ class Bytes private constructor(
 \t */
 \tconstructor(buffer: java.nio.ByteBuffer) : this(
 \t\tif (buffer.isDirect) null else _Native.__heap(buffer),
-\t\tif (buffer.isDirect) buffer else null,
+\t\t// A duplicate, whose position and limit the caller's changes leave alone.
+\t\tif (buffer.isDirect) buffer.duplicate() else null,
 \t\tnull,
 \t\tif (buffer.isDirect) buffer.position() else if (buffer.hasArray()) buffer.arrayOffset() + buffer.position() else 0,
 \t\tbuffer.remaining(),

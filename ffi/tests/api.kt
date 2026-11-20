@@ -1610,7 +1610,9 @@ fun buffers() {
 			val bytes = Bytes(direct)
 			window(direct, 0, n + 5)
 			direct.put(3, 42)
-			check(bytes[0] == 42.toByte() && bytes.size == n && prefixed(bytes, null)[0] == 42.toByte(), "a direct buffer is held without a copy, apart from its position")
+			window(direct, 0, 0)
+			check(bytes[0] == 42.toByte() && bytes[n - 1] == payload[n - 1] && bytes.size == n && prefixed(bytes, null)[0] == 42.toByte(), "a direct buffer is held without a copy, apart from its position and limit")
+			check(bytes.copyInto(ByteArray(n))[0] == 42.toByte() && bytes == Bytes(byteArrayOf(42) + payload.copyOfRange(1, n)), "a direct buffer reads apart from its limit")
 		}
 	}
 	// Rust's bytes, short ones copied and long ones lent, copy into a buffer once.
