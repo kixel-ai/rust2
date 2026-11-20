@@ -293,6 +293,9 @@ fn gate() -> Vec<Shape> {
 		]);
 	}
 	shapes.push(Shape::Map(Box::new(Shape::String), Box::new(Shape::Bytes)));
+	// An object record holding a record that is not Clone, a field the census refuses.
+	let object = || Shape::Object(Box::new(Shape::U128));
+	shapes.push(Shape::Record(vec![object(), Shape::Record(vec![Shape::Int("u8")])]));
 	shapes.push(Shape::Set(Box::new(Shape::Int("u64"))));
 	shapes
 }
@@ -998,22 +1001,18 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n\
 		# Marks each call of the native script that digests a NaN of its own bits.\n[features]\ntranscript = []\n\n[workspace]\n"
 	);
-	super::write_all(
-		&dir,
-		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")],
-	);
+	super::write_all(&dir, &[("Cargo.toml", &manifest), ("src/lib.rs", &lib)]);
 	// The api fixture's versions, resolved offline.
 	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 
+	// What the census refuses, the crate leaves out, as the export would fail on it.
 	let refused = refused(&dir);
 	let exported = |item: Item, n: usize| item.paths(n).iter().all(|path| !refused.absent.contains(path));
-	let mut excludes: Vec<&String> = refused.exclude.iter().collect();
-	excludes.sort();
-	let config = excludes
-		.iter()
-		.map(|path| format!("    \"{path}\",\n"))
-		.collect::<String>();
-	super::step::write(&dir.join("ffi.toml"), format!("exclude = [\n{config}]\n"));
+	let mut kept = lib;
+	for path in &refused.refused {
+		kept = cfg_out(&kept, path);
+	}
+	super::write_all(&dir, &[("src/lib.rs", &kept)]);
 
 	let mut calls = Vec::new();
 	for n in 0..shapes.len() {
@@ -1106,52 +1105,84 @@ fn later<T>(f: impl Future<Output = T>) -> T {
 fn main() {
 ";
 
-/// What the census of the crate in `dir` says does not export: the config that exports
-/// what maps, and what leaves itself out.
+/// What the census of the crate in `dir` says does not export: what it refuses, Swift's
+/// refusals included, and what leaves itself out.
 fn refused(dir: &Path) -> Refused {
 	let census = dir.join("census");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(dir.join("Cargo.toml"))
 		.arg("--census")
 		.arg(&census)
 		.env("CARGO_TARGET_DIR", dir.join("build")));
 	let name = dir.file_name().unwrap().to_string_lossy();
 	let report = std::fs::read_to_string(census.join(format!("{name}.md"))).unwrap();
-	let exclude = match report.split_once("## The config that exports what maps") {
-		Some((_, config)) => config
-			.lines()
-			.skip_while(|line| *line != "exclude = [")
-			.skip(1)
-			.take_while(|line| *line != "]")
-			.map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_string())
-			.collect(),
-		None => Vec::new(),
-	};
-	// The traits C cannot implement, and what C can never hold, leave themselves out.
-	let mut absent = exclude.clone();
-	for section in [
-		"## Traits left out, since C cannot implement them",
-		"## What C can never hold, left out",
-	] {
-		let Some((_, list)) = report.split_once(section) else {
-			continue;
+	let section = |heading: &str| -> Vec<String> {
+		let Some((_, list)) = report.split_once(heading) else {
+			return Vec::new();
 		};
-		absent.extend(
-			(list.lines().skip(1))
-				.take_while(|line| !line.starts_with("## "))
-				.filter_map(|line| Some(line.strip_prefix("- `")?.split_once('`')?.0.to_string())),
-		);
-	}
-	Refused { exclude, absent }
+		(list.lines().skip(1))
+			.take_while(|line| !line.starts_with("## "))
+			.filter_map(|line| Some(line.split_once('`')?.1.split_once('`')?.0.to_string()))
+			.collect()
+	};
+	let mut refused = section("## Refused items");
+	refused.sort();
+	refused.dedup();
+	// The traits C cannot implement, and what C can never hold, leave themselves out.
+	let mut absent = refused.clone();
+	absent.extend(section("## Traits left out, since C cannot implement them"));
+	absent.extend(section("## What C can never hold, left out"));
+	Refused { refused, absent }
 }
 
 /// What the census of the shapes' crate says does not export.
 struct Refused {
-	/// The paths its config leaves out.
-	exclude: Vec<String>,
+	/// The paths it refuses, which the crate leaves out, as the export would fail on them.
+	refused: Vec<String>,
 	/// Those, and what leaves itself out.
 	absent: Vec<String>,
+}
+
+/// `lib` with the item at `path` configured out: a function or type, or a method by its
+/// type's path. A record's field loses its `pub` instead, which leaves its accessors out
+/// while the crate's own literals still name it.
+fn cfg_out(lib: &str, path: &str) -> String {
+	if let Some((ty, field)) = path.split_once("::")
+		&& let Some(start) = lib.find(&format!("pub struct {ty} {{"))
+	{
+		let end = start + lib[start..].find("\n}").expect("a record's body ends");
+		let at = (lib[start..end].find(&format!("\tpub {field}: ")))
+			.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no field of the crate's"));
+		let at = start + at + 1;
+		return format!("{}{}", &lib[..at], &lib[at + "pub ".len()..]);
+	}
+	let (from, name) = match path.split_once("::") {
+		Some((ty, method)) => {
+			let from = lib
+				.find(&format!("impl {ty} "))
+				.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no item of the crate's"));
+			(from, method)
+		}
+		None => (0, path),
+	};
+	let at = ["pub fn ", "pub async fn ", "pub struct ", "pub enum "]
+		.iter()
+		.filter_map(|head| {
+			let rest = &lib[from..];
+			[
+				format!("{head}{name}("),
+				format!("{head}{name} "),
+				format!("{head}{name}<"),
+			]
+			.iter()
+			.filter_map(|item| rest.find(item.as_str()))
+			.min()
+		})
+		.min()
+		.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no item of the crate's"));
+	let at = from + at;
+	format!("{}#[cfg(any())]\n{}", &lib[..at], &lib[at..])
 }
 
 /// Each variant of the IR's `Type`, from its source.
@@ -1197,8 +1228,8 @@ fn build(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Built {
 	let krate = emit(name, shapes, drawn);
 	let out = krate.dir.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(krate.dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(krate.dir.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		// One binding for the host and the target the web binding serves, as the api

@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x3a7d442889ffa6f1ULL)
+#define API_CONTRACT ((uint64_t)0x90b55a88885e2638ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -100,6 +100,7 @@ typedef enum api_poll {
 	API_POLL_ERROR = 2,
 } api_poll;
 typedef struct api_Board api_Board;
+typedef struct api_Tab api_Tab;
 typedef struct api_Receipt api_Receipt;
 typedef struct api_Draft api_Draft;
 typedef struct api_Filed_Receipt api_Filed_Receipt;
@@ -824,6 +825,10 @@ typedef struct api_Qualifiers {
 	double api;
 	double kotlin;
 } api_Qualifiers;
+typedef struct api_Spot {
+	uint32_t x;
+	uint32_t y;
+} api_Spot;
 typedef struct api_Deprecated {
 	bool on;
 	uint32_t lower;
@@ -1256,6 +1261,7 @@ api_Pair_u8_Size api_Pair_u32_beside_Size(const api_Pair_u32 *self, api_Size rig
 void api_Pair_u8_Size_free(api_Pair_u8_Size *self);
 bool api_Pair_u8_Size_eq(const api_Pair_u8_Size *a, const api_Pair_u8_Size *b);
 API_MUST_USE api_buf api_Pair_u8_Size_debug(const api_Pair_u8_Size *self);
+api_Pair_Size_u8 api_Pair_u8_Size_swap(const api_Pair_u8_Size *self);
 void api_Left_Right_u8_free(api_Left_Right_u8 *self);
 bool api_Left_Right_u8_eq(const api_Left_Right_u8 *a, const api_Left_Right_u8 *b);
 API_MUST_USE api_buf api_Left_Right_u8_debug(const api_Left_Right_u8 *self);
@@ -1333,6 +1339,10 @@ bool api_a_eq(const api_a *a, const api_a *b);
 API_MUST_USE api_buf api_a_debug(const api_a *self);
 void api_Qualifiers_free(api_Qualifiers *self);
 bool api_Qualifiers_eq(const api_Qualifiers *a, const api_Qualifiers *b);
+void api_Spot_free(api_Spot *self);
+bool api_Spot_eq(const api_Spot *a, const api_Spot *b);
+API_MUST_USE api_buf api_Spot_debug(const api_Spot *self);
+API_MUST_USE bool api_Spot_deserialize(api_Json *deserializer, api_Spot *out, api_buf *err, api_status *status);
 void api_Deprecated_free(api_Deprecated *self);
 bool api_Deprecated_eq(const api_Deprecated *a, const api_Deprecated *b);
 API_MUST_USE api_buf api_Deprecated_debug(const api_Deprecated *self);
@@ -1447,6 +1457,10 @@ API_MUST_USE api_Board *api_Board_new(api_vec_tuple_string_Counter counters, api
 API_MUST_USE api_vec_tuple_string_Counter api_Board_into_counters(api_Board *self, api_status *status);
 API_MUST_USE api_vec_tuple_string_Counter api_Board_ranked(const api_Board *self, api_status *status);
 API_MUST_USE api_Counter *api_Board_best(const api_Board *self, api_status *status);
+void api_Tab_free(api_Tab *self);
+void api_Tab_drop(api_Tab *self, api_status *status);
+API_MUST_USE api_Ledger *api_Tab_ledger_get(const api_Tab *self, api_status *status);
+API_MUST_USE api_buf api_Tab_label_get(const api_Tab *self, api_status *status);
 void api_Receipt_free(api_Receipt *self);
 void api_Receipt_drop(api_Receipt *self, api_status *status);
 API_MUST_USE api_Receipt *api_Receipt_clone(const api_Receipt *self, api_status *status);
@@ -1468,6 +1482,8 @@ void api_Pad_u16_free(api_Pad_u16 *self);
 API_MUST_USE api_Pad_u16 *api_Pad_u16_wide(void);
 uint16_t api_Pad_u16_tag(const api_Pad_u16 *self);
 uint16_t api_Pad_u16_title(const api_Pad_u16 *self);
+API_MUST_USE api_buf api_Pad_u16_title_get(const api_Pad_u16 *self);
+uint32_t api_Pad_u16_lines(const api_Pad_u16 *self);
 API_MUST_USE api_buf api_Pad_u16_describe(const api_Pad_u16 *self);
 void api_Pad_u8_free(api_Pad_u8 *self);
 API_MUST_USE api_Pad_u8 *api_Pad_u8_small(void);
@@ -1482,6 +1498,8 @@ void api_Marker_free(api_Marker *self);
 void api_Marker_drop(api_Marker *self, api_status *status);
 API_MUST_USE api_Marker *api_Marker_new(api_buf label, int32_t x, int32_t y);
 API_MUST_USE api_buf api_Marker_label(const api_Marker *self, api_status *status);
+int32_t api_Marker_x(const api_Marker *self, api_status *status);
+int32_t api_Marker_y(void);
 int32_t api_Marker_x_get(const api_Marker *self, api_status *status);
 void api_Marker_x_set(api_Marker *self, int32_t value, api_status *status);
 int32_t api_Marker_y_get(const api_Marker *self, api_status *status);
@@ -1554,6 +1572,8 @@ void api_Retry_free(api_Retry *self);
 void api_Retry_drop(api_Retry *self, api_status *status);
 api_option_u32 api_Retry_limit_get(const api_Retry *self, api_status *status);
 void api_Retry_limit_set(api_Retry *self, api_option_u32 value, api_status *status);
+api_option_u32 api_Retry_delay_get(const api_Retry *self, api_status *status);
+void api_Retry_delay_set(api_Retry *self, api_option_u32 value, api_status *status);
 API_MUST_USE api_Retry *api_Retry_new(api_option_u32 limit);
 uint32_t api_Retry_limit(const api_Retry *self, api_status *status);
 uint32_t api_Retry_delay(const api_Retry *self, api_status *status);
@@ -1571,10 +1591,16 @@ void api_Outer_Inner_u8_free(api_Outer_Inner_u8 *self);
 API_MUST_USE api_Outer_Inner_u8 *api_Outer_Inner_u8_new(uint8_t value);
 uint8_t api_Outer_Inner_u8_get(const api_Outer_Inner_u8 *self);
 void api_Slot_u32_free(api_Slot_u32 *self);
+void api_Slot_u32_drop(api_Slot_u32 *self, api_status *status);
+uint32_t api_Slot_u32_value_get(const api_Slot_u32 *self, api_status *status);
+void api_Slot_u32_value_set(api_Slot_u32 *self, uint32_t value, api_status *status);
 API_MUST_USE api_Slot_u32 *api_Slot_u32_new(uint32_t value);
 void api_Slot_u8_free(api_Slot_u8 *self);
+void api_Slot_u8_drop(api_Slot_u8 *self, api_status *status);
+uint8_t api_Slot_u8_value_get(const api_Slot_u8 *self, api_status *status);
+void api_Slot_u8_value_set(api_Slot_u8 *self, uint8_t value, api_status *status);
 API_MUST_USE api_Slot_u8 *api_Slot_u8_new(uint8_t value);
-uint16_t api_Slot_u8_value(const api_Slot_u8 *self);
+uint16_t api_Slot_u8_value(const api_Slot_u8 *self, api_status *status);
 void api_Resolving_free(api_Resolving *self);
 void api_Resolving_drop(api_Resolving *self, api_status *status);
 API_MUST_USE api_tls_Resolver *api_Resolving_0_get(const api_Resolving *self, api_status *status);
@@ -1701,6 +1727,7 @@ void api_Ledger_seal(api_Ledger *self, api_status *status);
 API_MUST_USE api_Receipt *api_Ledger_receipt(api_Ledger *self, api_status *status);
 API_MUST_USE api_Receipt *api_Ledger_noted(api_Ledger *self, api_status *status);
 API_MUST_USE api_Filed_Receipt *api_Ledger_file_Receipt(api_Ledger *self, api_Receipt *item, api_status *status);
+API_MUST_USE api_Tab *api_Ledger_tab(api_Ledger *self, api_status *status);
 API_MUST_USE api_Slip *api_Ledger_slip(api_Ledger *self, api_status *status);
 API_MUST_USE api_Slip *api_Ledger_slip_homed(api_Ledger *self, api_status *status);
 void api_Slip_free(api_Slip *self);
@@ -1819,6 +1846,8 @@ void api_Node_drop(api_Node *self, api_status *status);
 API_MUST_USE api_buf api_Node_debug(const api_Node *self, api_status *status);
 uint64_t api_Node_value_get(const api_Node *self, api_status *status);
 void api_Node_value_set(api_Node *self, uint64_t value, api_status *status);
+API_MUST_USE api_Node *api_Node_next_get(const api_Node *self, api_status *status);
+void api_Node_next_set(api_Node *self, api_Node *value, api_status *status);
 API_MUST_USE api_Node *api_Node_new(uint64_t value, api_Node *next, api_status *status);
 void api_Node_push(api_Node *self, uint64_t value, api_status *status);
 uint64_t api_Node_sum(const api_Node *self, api_status *status);
@@ -1898,6 +1927,7 @@ uint64_t api_Stack_depth_past_Point(const api_Stack *self, api_Point from, api_s
 uint64_t api_Stack_depth_past_Counter(const api_Stack *self, const api_Counter *from, api_status *status);
 uint64_t api_Stack_depth_past_Size(const api_Stack *self, api_Size from, api_status *status);
 uint64_t api_Stack_depth_past_Wrap_u32(const api_Stack *self, api_Wrap_u32 from, api_status *status);
+uint64_t api_Stack_depth_past_polar_Point(const api_Stack *self, api_polar_Point from, api_status *status);
 void api_Refusal_free(api_Refusal *self);
 void api_Refusal_drop(api_Refusal *self, api_status *status);
 API_MUST_USE api_buf api_Refusal_to_string(const api_Refusal *self, api_status *status);
@@ -2164,7 +2194,6 @@ uint32_t api_peek(const api_Tally *tally, uint32_t (*peek)(void *data, const api
 size_t api_len(api_buf payload);
 API_MUST_USE api_buf api_hex(api_buf payload);
 API_MUST_USE api_buf api_timed_hex(api_buf payload);
-API_MUST_USE api_buf api_timed_text(const api_Json *value, api_status *status);
 API_MUST_USE api_buf api_sample_hex(api_buf sample);
 API_MUST_USE api_buf api_queued_hex(api_buf queued);
 API_MUST_USE api_buf api_tick_name(api_Label tick);
@@ -2334,6 +2363,18 @@ api_socket_addr api_same_socket_addr(api_socket_addr v);
 api_socket_addr_v4 api_same_socket_addr_v4(api_socket_addr_v4 v);
 api_socket_addr_v6 api_same_socket_addr_v6(api_socket_addr_v6 v);
 api_ip_addr api_same_ip_addr(api_ip_addr v);
+API_MUST_USE api_buf api_unescaped(api_buf text);
+typedef struct api_unescaped_later_future api_unescaped_later_future;
+API_MUST_USE api_unescaped_later_future *api_unescaped_later(api_buf text);
+API_MUST_USE api_poll api_unescaped_later_start(api_buf text, api_buf *out, api_unescaped_later_future **future);
+API_MUST_USE api_poll api_unescaped_later_poll(api_unescaped_later_future *future, api_waker waker, api_buf *out);
+void api_unescaped_later_future_free(api_unescaped_later_future *future);
+typedef struct api_unescaped_maybe_future api_unescaped_maybe_future;
+API_MUST_USE api_unescaped_maybe_future *api_unescaped_maybe(api_buf text);
+API_MUST_USE api_poll api_unescaped_maybe_start(api_buf text, api_buf *out, api_unescaped_maybe_future **future);
+API_MUST_USE api_poll api_unescaped_maybe_poll(api_unescaped_maybe_future *future, api_waker waker, api_buf *out);
+void api_unescaped_maybe_future_free(api_unescaped_maybe_future *future);
+API_MUST_USE api_buf api_unzeroed(api_buf bytes);
 uint8_t api_deprecated(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;

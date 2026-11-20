@@ -416,6 +416,7 @@ final class PairU8Size {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	PairSizeU8 swap();
 }
 final class LeftRightU8 {
 	final RightU8 value;
@@ -613,6 +614,15 @@ final class Qualifiers {
 	const Qualifiers({required this.api, required this.kotlin});
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+}
+final class Spot {
+	final int x;
+	final int y;
+	const Spot({required this.x, required this.y});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Spot.deserialize(Json deserializer);
 }
 final class Deprecated_ {
 	final bool on;
@@ -980,6 +990,10 @@ final class Board extends _Object {
 	List<(String, Counter)> ranked();
 	Counter best();
 }
+final class Tab extends _Object {
+	Ledger get ledgerGet;
+	String get labelGet;
+}
 final class Receipt extends _Object {
 	Receipt clone();
 	int count();
@@ -1001,6 +1015,8 @@ final class PadU16 extends _Object {
 	factory PadU16.wide();
 	int tag();
 	int title();
+	String get titleGet;
+	int lines();
 	String describe();
 }
 final class PadU8 extends _Object {
@@ -1017,6 +1033,8 @@ final class Layered extends _Object {
 final class Marker extends _Object {
 	factory Marker(String label, int x, int y);
 	String label();
+	int x();
+	static int y();
 	int get xGet;
 	void xSet(int value);
 	int get yGet;
@@ -1069,6 +1087,8 @@ final class LocalWaiter extends _Object {
 final class Retry extends _Object {
 	int? get limitGet;
 	void limitSet(int? value);
+	int? get delayGet;
+	void delaySet(int? value);
 	factory Retry(int? limit);
 	int limit();
 	int delay();
@@ -1088,9 +1108,13 @@ final class OuterInnerU8 extends _Object {
 	int get();
 }
 final class SlotU32 extends _Object {
+	int get valueGet;
+	void valueSet(int value);
 	factory SlotU32(int value);
 }
 final class SlotU8 extends _Object {
+	int get valueGet;
+	void valueSet(int value);
 	factory SlotU8(int value);
 	int value();
 }
@@ -1214,6 +1238,7 @@ final class Ledger extends _Object {
 	Receipt receipt();
 	Receipt noted();
 	FiledReceipt fileReceipt(Receipt item);
+	Tab tab();
 	Slip slip();
 }
 final class Slip extends _Object {
@@ -1302,6 +1327,8 @@ final class Node extends _Object {
 	String debug();
 	U64 get valueGet;
 	void valueSet(U64 value);
+	Node? get nextGet;
+	void nextSet(Node? value);
 	factory Node(U64 value, Node? next);
 	void push(U64 value);
 	U64 sum();
@@ -1369,6 +1396,7 @@ final class Stack extends _Object {
 	U64 depthPastCounter(Counter from);
 	U64 depthPastSize(Size from);
 	U64 depthPastWrapU32(WrapU32 from);
+	U64 depthPastPolarPoint(PolarPoint from);
 }
 final class Refusal extends _Object implements Exception {
 	@override String toString();
@@ -1612,7 +1640,6 @@ int peek(Tally tally, int Function(Tally) peek);
 U64 len(typed.Uint8List payload);
 String hex(typed.Uint8List payload);
 String timedHex(typed.Uint8List payload);
-String timedText(Json value);
 String sampleHex(typed.Uint8List sample);
 String queuedHex(typed.Uint8List queued);
 String tickName(Label tick);
@@ -1770,6 +1797,10 @@ SocketAddr sameSocketAddr(SocketAddr v);
 SocketAddrV4 sameSocketAddrV4(SocketAddrV4 v);
 SocketAddrV6 sameSocketAddrV6(SocketAddrV6 v);
 IpAddr sameIpAddr(IpAddr v);
+String unescaped(String text);
+Cancelable<String> unescapedLater(String text);
+Cancelable<String?> unescapedMaybe(String? text);
+typed.Uint8List unzeroed(typed.Uint8List bytes);
 int deprecated(int note);
 @Deprecated('') Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);

@@ -134,6 +134,7 @@ func Longest(words []string) (uint, error)
 func Louder(filter *p_tracingcore.Level) *p_tracingcore.Level
 func Made(n uint32, make_ func(uint32) string) string
 func Marked(apiMarked *Mark) (uint64, error)
+func MarkerY() int32
 func Named(name string) (*string, error)
 func NextChar(c rune) (*rune, error)
 func NextHop(hop *uint64) (*uint64, error)
@@ -231,13 +232,16 @@ func TickName(tick Label) (string, error)
 func TicketClones() uint32
 func Tickets(entries []p_rt.Tuple2[string, Ticket]) ([]p_rt.Tuple2[string, Ticket], error)
 func TimedHex(payload p_rt.Bytes) string
-func TimedText(value *p_serdejson.Json) (string, error)
 func Title(formal bool) *string
 func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
 func TurnerVtable_() unsafe.Pointer
+func Unescaped(text string) (string, error)
+func UnescapedLater(ctx context.Context, text string) (string, error)
+func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
 func Unhook() error
+func Unzeroed(bytes p_rt.Bytes) p_rt.Bytes
 func Verify(cert *p_tls.Cert) (uint32, error)
 func VisitChunks(payload p_rt.Bytes, size uint, visit func(*[]byte) uint64) []uint64
 func VisitStray(visit func(string))
@@ -1037,6 +1041,7 @@ func (self *Ledger) Published() (uint32, error)
 func (self *Ledger) Receipt() (*Receipt, error)
 func (self *Ledger) Seal() error
 func (self *Ledger) Slip() (*Slip, error)
+func (self *Ledger) Tab() (*Tab, error)
 func (self *Ledger) Title() (string, error)
 type LeftRightU8 struct {
 	Value RightU8
@@ -1130,6 +1135,7 @@ func NewMarker(label string, x int32, y int32) (*Marker, error)
 func (self *Marker) Close() error
 func (self *Marker) Label() (string, error)
 func (self *Marker) Offset(dx int32, dy int32) (Point, error)
+func (self *Marker) X() (int32, error)
 func (self *Marker) XGet() (int32, error)
 func (self *Marker) XSet(value int32) error
 func (self *Marker) YGet() (int32, error)
@@ -1205,6 +1211,8 @@ type Node struct {
 func NewNode(value uint64, next *Node) (*Node, error)
 func (self *Node) Close() error
 func (self *Node) GoString() string
+func (self *Node) NextGet() (*Node, error)
+func (self *Node) NextSet(value *Node) error
 func (self *Node) Push(value uint64) error
 func (self *Node) Sum() (uint64, error)
 func (self *Node) ValueGet() (uint64, error)
@@ -1275,8 +1283,10 @@ type PadU16 struct {
 func PadU16Wide() *PadU16
 func (self *PadU16) Close() error
 func (self *PadU16) Describe() (string, error)
+func (self *PadU16) Lines() (uint32, error)
 func (self *PadU16) Tag() (uint16, error)
 func (self *PadU16) Title() (uint16, error)
+func (self *PadU16) TitleGet() (string, error)
 type PadU8 struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1324,6 +1334,7 @@ type PairU8Size struct {
 }
 func (self PairU8Size) Equal(other PairU8Size) bool
 func (self PairU8Size) GoString() string
+func (self PairU8Size) Swap() PairSizeU8
 type Parcel struct {
 	Mark    *Mark
 	Payload p_rt.Bytes
@@ -1474,6 +1485,8 @@ type Retry struct {
 func NewRetry(limit *uint32) *Retry
 func (self *Retry) Close() error
 func (self *Retry) Delay() (uint32, error)
+func (self *Retry) DelayGet() (*uint32, error)
+func (self *Retry) DelaySet(value *uint32) error
 func (self *Retry) Limit() (uint32, error)
 func (self *Retry) LimitGet() (*uint32, error)
 func (self *Retry) LimitSet(value *uint32) error
@@ -1564,12 +1577,16 @@ type SlotU32 struct {
 func NewSlotU32(value uint32) *SlotU32
 func Wide_(value uint32) *SlotU32
 func (self *SlotU32) Close() error
+func (self *SlotU32) ValueGet() (uint32, error)
+func (self *SlotU32) ValueSet(value uint32) error
 type SlotU8 struct {
 	Handle_ *p_rt.Handle_
 }
 func NewSlotU8(value uint8) *SlotU8
 func (self *SlotU8) Close() error
 func (self *SlotU8) Value() (uint16, error)
+func (self *SlotU8) ValueGet() (uint8, error)
+func (self *SlotU8) ValueSet(value uint8) error
 type Span struct {
 	Bounds p_rt.Tuple2[uint32, uint32]
 	Named  *p_rt.Tuple2[string, Shape]
@@ -1582,6 +1599,13 @@ type Spawned struct {
 func NewSpawned(task func() uint32) (*Spawned, error)
 func (self *Spawned) Close() error
 func (self *Spawned) Join() (uint32, error)
+type Spot struct {
+	X uint32
+	Y uint32
+}
+func SpotDeserialize(deserializer *p_serdejson.Json) (Spot, error)
+func (self Spot) Equal(other Spot) bool
+func (self Spot) GoString() string
 type Stack struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1591,6 +1615,7 @@ func (self *Stack) Close() error
 func (self *Stack) Depth() (uint, error)
 func (self *Stack) DepthPastCounter(from *Counter) (uint64, error)
 func (self *Stack) DepthPastPoint(from Point) (uint64, error)
+func (self *Stack) DepthPastPolarPoint(from PolarPoint) (uint64, error)
 func (self *Stack) DepthPastSize(from p_dep.Size) (uint64, error)
 func (self *Stack) DepthPastWrapU32(from WrapU32) (uint64, error)
 func (self *Stack) GoString() string
@@ -1638,6 +1663,12 @@ const (
 )
 func (self Status) Equal(other Status) bool
 func (self Status) GoString() string
+type Tab struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Tab) Close() error
+func (self *Tab) LabelGet() (string, error)
+func (self *Tab) LedgerGet() (*Ledger, error)
 type Tallies struct {
 	Handle_ *p_rt.Handle_
 }

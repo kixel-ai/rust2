@@ -1,8 +1,9 @@
 //! A pinned corpus of popular crates.io crates, `corpus/crates.txt`, each exported through
 //! a facade of its own, `pub use <crate>::*;`, as a consumer would export it. Each is
-//! censused, then exported with the `exclude` its census writes, and its glue and every
-//! language's binding of it built. A panic, an error with or without a span, or a binding
-//! that does not build fails the run; a refusal does not, since the census lists it.
+//! censused, then, if the census refuses nothing, since a refusal fails the export, exported,
+//! and its glue and every language's binding of it built. A panic, an error with or without a
+//! span, or a binding that does not build fails the run; a refusal does not, since the census
+//! lists it.
 //!
 //! The facades are one workspace, resolved by `corpus/Cargo.lock`, so a run builds what the
 //! last update resolved. `just ffi corpus-update` takes the top crates by all-time
@@ -242,11 +243,9 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	let facade = workspace().join(name);
 	let dir = base().join("crates").join(name);
 	let build = base().join("build");
-	let exporter = |config: &Path, mode: &str, out: &Path| {
+	let exporter = |mode: &str, out: &Path| {
 		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
-		cmd.arg("--config")
-			.arg(config)
-			.arg("--manifest-path")
+		cmd.arg("--manifest-path")
 			.arg(facade.join("Cargo.toml"))
 			.arg(mode)
 			.arg(out)
@@ -254,20 +253,21 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 			.env("CARGO_TARGET_DIR", &build);
 		cmd
 	};
-	// The census ignores the config's `exclude`, so an empty one serves.
-	let empty = dir.join("census.toml");
-	step::write(&empty, "exclude = []\n");
 	let census = dir.join("census");
-	let output = super::output(&mut exporter(&empty, "--census", &census));
+	let output = super::output(&mut exporter("--census", &census));
 	if !output.status.success() {
 		return Err(fail(stage(&output, "census"), &output));
 	}
 	let text = std::fs::read_to_string(census.join(format!("corpus-{name}.md"))).unwrap();
-	let exclude = excluded(&text);
-	let config = dir.join("ffi.toml");
-	step::write(&config, &exclude);
+	let refused = refusals(&text);
+	if refused > 0 {
+		return Ok(Passed {
+			krate: name.clone(),
+			refused,
+		});
+	}
 	let out = dir.join("out");
-	let output = super::output(&mut exporter(&config, "--out", &out));
+	let output = super::output(&mut exporter("--out", &out));
 	if !output.status.success() {
 		return Err(fail(stage(&output, "export"), &output));
 	}
@@ -276,10 +276,7 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	languages(&lib, &out, &dir, &built).map_err(|(stage, output)| fail(stage.to_string(), &output))?;
 	Ok(Passed {
 		krate: name.clone(),
-		refused: exclude
-			.lines()
-			.filter(|line| line.trim_start().starts_with('"'))
-			.count(),
+		refused: 0,
 	})
 }
 
@@ -301,13 +298,12 @@ fn stage(output: &Output, stage: &str) -> String {
 	}
 }
 
-/// The `exclude` the census writes, which exports what maps: none where it refuses nothing.
-fn excluded(census: &str) -> String {
-	let Some(start) = census.find("```toml\nexclude = [") else {
-		return "exclude = []\n".to_string();
-	};
-	let toml = &census[start + "```toml\n".len()..];
-	toml[..toml.find("```").expect("the config's block ends")].to_string()
+/// How many items the census refuses: its table's refused column, Swift's included.
+fn refusals(census: &str) -> usize {
+	(census.lines())
+		.take_while(|line| !line.starts_with("Exported types:"))
+		.filter_map(|line| line.strip_prefix("| ")?.split(" | ").nth(2)?.parse::<usize>().ok())
+		.sum()
 }
 
 /// The first lines of what a command printed, where its first error is, enough to say why
