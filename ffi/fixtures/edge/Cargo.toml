@@ -1,0 +1,13 @@
+[package]
+name = "edge-fixture"
+description = "A small API, whose generated Dart has no use for most of its runtime"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "edge"
+
+[lints]
+workspace = true

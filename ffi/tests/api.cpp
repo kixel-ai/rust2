@@ -302,7 +302,7 @@ void channel() {
 	}
 
 	// The send happens at the call: the future is dropped unpolled.
-	channel.send_later("eager");
+	(void)channel.send_later("eager");
 	{
 		api::Channel_recv_future recv = channel.recv();
 		if (auto payload = recv.poll(waker)) {
@@ -454,6 +454,45 @@ void readers() {
 		std::printf("sought %llu\n", ull(*sought));
 	} else {
 		print("sought error ", sought.error(), "\n");
+	}
+}
+
+// Streams, each `next` awaited in turn, as C++ has no asynchronous iteration of its own.
+void streams() {
+	{
+		api::Countdown countdown = api::Countdown::new_(3);
+		std::printf("countdown");
+		const char *sep = " ";
+		while (auto count = countdown.next().get()) {
+			std::printf("%s%u", sep, unsigned(*count));
+		}
+		std::printf("\n");
+	}
+	api::Countdown countdown = api::Countdown::new_(5);
+	while (auto count = countdown.next().get()) {
+		if (*count == 4) {
+			break;
+		}
+	}
+	std::printf("countdown after break %u\n", unsigned(*countdown.next().get()));
+	api::Channel channel = api::Channel::new_();
+	api::Feed feed = channel.feed();
+	for (const char *first : {"a", "c"}) {
+		channel.send(first);
+		for (;;) {
+			auto next = feed.next().get();
+			if (!next) {
+				print("feed error ", api::Error_to_string(next.error()), "\n");
+				break;
+			}
+			if (!next.value()) {
+				std::printf("feed end\n");
+				break;
+			}
+			const api::buf &payload = *next.value();
+			print("feed ", payload, "\n");
+			channel.send(payload.str() == "a" ? "b" : payload.str() == "b" ? "!" : "");
+		}
 	}
 }
 
@@ -1075,6 +1114,28 @@ int lifetimes() {
 		check(api::dropped() == before + 1, "bytes free their owner");
 	}
 
+	// Numbers lent in place, from wherever the caller holds them, with no copy on C++'s side.
+	{
+		const std::uint32_t array[] = {1, 2, 3};
+		std::vector<std::uint32_t> vector(array, array + 3);
+		std::array<std::uint32_t, 3> std_array = {1, 2, 3};
+		const std::uint32_t *samples = vector.data();
+		check(api::sum_u32(array) == 6, "a C array is a slice");
+		check(api::sum_u32(vector) == 6 && api::sum_u32(std_array) == 6, "a contiguous range is a slice");
+		check(api::sum_u32({samples, 2}) == 3, "a pointer and a count are a slice");
+		check(api::sum_u32({}) == 0 && api::sum_u32({nullptr, 0}) == 0, "an empty slice is one");
+		const std::int32_t owned[] = {1, 2};
+		check(api::sum_lists(owned, std::nullopt, std::vector<std::int32_t>{4}) == 7 &&
+		          api::sum_lists({}, api::slice<std::int32_t>(owned), std::nullopt) == 3,
+		      "a slice stands in for an owned Vec and in an option");
+#ifdef __cpp_lib_span
+		std::span<const std::uint32_t> span = vector;
+		check(api::sum_u32(span) == 6, "a span is a slice");
+		std::span<const std::uint32_t> back = api::slice<std::uint32_t>(vector);
+		check(back.size() == 3 && back[2] == 3, "a slice converts to a span");
+#endif
+	}
+
 	forwarding();
 
 	std::printf("lifetimes ok\n");
@@ -1156,7 +1217,7 @@ int broken(const char *which) {
 				return api::result<std::uint64_t, std::string>::ok(0);
 			}
 		} file;
-		api::tail(file, 1);
+		(void)api::tail(file, 1);
 	} else if (std::strcmp(which, "lent kept") == 0) {
 		static std::optional<api::Counter> kept;
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));

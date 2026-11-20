@@ -429,6 +429,12 @@ dart-program dir main:
     printf '{"configVersion": 2, "packages": [{"name": "moq", "rootUri": "file://%s/dart/", "packageUri": "./"}]}\n' "$out" > "$dir/.dart_tool/package_config.json"
     printf 'format-version: [1, 0, 0]\nnative-assets:\n  %s_%s:\n    "package:moq/moq.dart": [absolute, "%s"]\n' "{{ os() }}" "$arch" "$out/target/release/$lib" > "$dir/native_assets.yaml"
     dart analyze --fatal-infos "$dir"
+    # pub.dev scores the library with the lints in tests/dart_lints.yaml, which the analyzer reads from the directory it analyzes.
+    rm -rf "$dir-lint"
+    mkdir "$dir-lint"
+    cp "$out"/dart/*.dart "$dir-lint"
+    cp tests/dart_lints.yaml "$dir-lint/analysis_options.yaml"
+    dart analyze --fatal-infos "$dir-lint"
     sdk=$(dirname "$(dirname "$(realpath "$(command -v dart)")")")
     "$sdk/bin/dartaotruntime" "$sdk/bin/snapshots/gen_kernel_aot.dart.snapshot" --platform "$sdk/lib/_internal/vm_platform_strong.dill" \
         --packages "$dir/.dart_tool/package_config.json" --native-assets "$dir/native_assets.yaml" -o "$dir/main.dill" "$dir/main.dart"

@@ -1321,25 +1321,9 @@ impl Gen<'_> {
 				"unsafe {{ rt::Object::<{}>::free({e}) }};",
 				self.object_path(*i)
 			)),
-			Type::Record(i) if self.owns(ty) => Some(format!("free_{}({e});", self.abi.record(*i))),
-			Type::Enum(i) if self.owns(ty) => Some(format!("free_{}({e});", self.abi.enumeration(*i))),
+			Type::Record(i) if self.abi.owns(ty) => Some(format!("free_{}({e});", self.abi.record(*i))),
+			Type::Enum(i) if self.abi.owns(ty) => Some(format!("free_{}({e});", self.abi.enumeration(*i))),
 			_ => None,
-		}
-	}
-
-	/// Whether a value of `ty` holds memory Rust allocated.
-	fn owns(&self, ty: &Type) -> bool {
-		match ty {
-			_ if Abi::is_buf(ty) => true,
-			Type::Object(_) | Type::List(..) => true,
-			Type::Option(inner) | Type::Box(inner) => self.owns(inner),
-			Type::Tuple(elements) => elements.iter().any(|ty| self.owns(ty)),
-			Type::Record(i) => self.abi.api.records[*i].fields.iter().any(|f| self.owns(&f.ty)),
-			Type::Enum(i) => self.abi.api.enums[*i]
-				.variants
-				.iter()
-				.any(|v| v.fields.iter().any(|f| self.owns(&f.ty))),
-			_ => false,
 		}
 	}
 
@@ -1773,7 +1757,7 @@ impl Gen<'_> {
 			"fn lower_{name}(v: {path}) -> {name} {{\n\tlet {pattern} = v;\n\t{name} {{ {} }}\n}}\n",
 			lowered.join(", ")
 		));
-		if self.owns(&ty) {
+		if self.abi.owns(&ty) {
 			let frees: Vec<String> = record
 				.fields
 				.iter()
@@ -2042,7 +2026,7 @@ impl Gen<'_> {
 			self.item(format!(
 				"fn lower_{name}(v: {path}) -> {name} {{\n\tmatch v {{{lower}{wildcard}\n\t}}\n}}\n"
 			));
-			if self.owns(&ty) {
+			if self.abi.owns(&ty) {
 				self.item(format!(
 					"fn free_{name}(c: {name}) {{\n\tmatch c.tag {{{free}\n\t\t_ => {{}}\n\t}}\n}}\n"
 				));

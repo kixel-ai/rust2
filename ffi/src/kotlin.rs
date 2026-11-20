@@ -329,6 +329,7 @@ const IMPORTS: &[&str] = &[
 	"kotlin.also as _also",
 	"kotlin.coroutines.resume",
 	"kotlin.time.toDuration",
+	"kotlinx.coroutines.ensureActive as _ensureActive",
 	"kotlinx.coroutines.launch",
 ];
 
@@ -2103,6 +2104,21 @@ impl<'a> Gen<'a> {
 					Place::Static => statics.push(indent(&code)),
 				}
 			}
+		}
+		// Each stream's flow, after every Rust method, so a Rust name keeps itself.
+		for method in &object.methods {
+			let key = crate::lock::function_key(method);
+			let (Some(item), Some(next)) = (method.stream(), self.locked.get(&key).cloned()) else {
+				continue;
+			};
+			let taken = kept_apart(names(&body), jvm_names(&body).chain(jvm_names(&statics)));
+			let item = self.kt(item);
+			body.push(flow(
+				(&item, &next, method.deprecated.as_deref()),
+				&key,
+				&taken,
+				&mut self.locked,
+			));
 		}
 		let mut members: Vec<String> = body.iter().filter_map(|b| member_name(b)).collect();
 		members.extend(statics.iter().filter_map(|s| member_name(s)));
@@ -4073,6 +4089,28 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 		true => format!("{name}_"),
 		false => kw(&name),
 	}
+}
+
+/// A stream's `asFlow()`, over its `next` member `next` yielding `item`s, apart from the
+/// members `taken` names, its name locked under `key`, the `next`'s own.
+fn flow(
+	(item, next, deprecated): (&str, &str, Option<&str>),
+	key: &str,
+	taken: &[String],
+	locked: &mut BTreeMap<String, String>,
+) -> String {
+	let mut name = "asFlow".to_string();
+	while taken.contains(&format!("fun {name}")) || taken.contains(&format!("jvm {name}")) {
+		name.push('_');
+	}
+	locked.insert(format!("{key} / stream"), name.clone());
+	let doc = format!(
+		"Each item [{next}] yields, as a cold flow calling it once per item until it returns null, ending with what it throws. It checks for cancellation before each call, since a call ready at once never suspends, and reads nothing ahead, so a collector leaving early leaves the next item to the next call, and cancelling the collection cancels the pending [{next}], which loses an item only where its Rust future does when dropped."
+	);
+	format!(
+		"{}\tfun {name}(): kotlinx.coroutines.flow.Flow<{item}> = kotlinx.coroutines.flow.flow {{\n\t\twhile (true) {{\n\t\t\tkotlinx.coroutines.currentCoroutineContext()._ensureActive()\n\t\t\temit({next}() ?: break)\n\t\t}}\n\t}}\n",
+		docs(&doc, deprecated, "\t")
+	)
 }
 
 /// A name Kotlin reads as a hard keyword, in backticks.

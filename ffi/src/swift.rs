@@ -175,11 +175,14 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 }
 
 /// The standard library's names the runtime and the generated code use unqualified, which
-/// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
+/// an exported type or function would shadow, and `Swift`, which qualifies the rest. A
+/// stream's class declares or infers `Element`, `Failure`, and `AsyncIterator`, which would
+/// shadow an export of that name inside it. The
 /// runtime's own are the C ABI's: `Native`, `Bytes`, and each address type are claimed as
 /// `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and so on.
 const TAKEN: &[&str] = &[
 	"Array",
+	"AsyncIterator",
 	"Bool",
 	"Bytes",
 	"CancellationError",
@@ -188,7 +191,9 @@ const TAKEN: &[&str] = &[
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
+	"Element",
 	"Equatable",
+	"Failure",
 	"Hashable",
 	"Int",
 	"Int64",
@@ -1389,7 +1394,19 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
+		let mut streams = Vec::new();
+		for method in &object.methods {
+			for (code, member) in self.function(method, Some(&owner), Some(&ty), &members) {
+				if method.stream().is_some() {
+					streams.push((method, member.clone()));
+				}
+				members.push(member);
+				body.push(indent(&code));
+			}
+		}
+		for (method, next) in streams {
+			self.stream(method, &name, &next, unique, &mut body, &mut members);
+		}
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
 		let docs = docs(text.trim(), object.deprecated.as_deref(), "");
@@ -1418,6 +1435,88 @@ impl<'a> Gen<'a> {
 				"#if compiler(>=6.4)\nextension {name}: {equal} {{}}\n#endif\n\n"
 			);
 		}
+	}
+
+	/// The `AsyncSequence` of the stream `method` of the object `name`, whose Swift member
+	/// is `next`: a method `stream()`, a member of the object's `body`, making a class that
+	/// owns the object, and each loop's iterator, written after it. `AsyncSequence` requires a copyable element, so a
+	/// stream of a noncopyable struct keeps `next` alone.
+	fn stream(
+		&mut self,
+		method: &Function,
+		name: &str,
+		next: &str,
+		unique: bool,
+		body: &mut Vec<String>,
+		members: &mut Vec<String>,
+	) {
+		let item = method.stream().expect("a stream yields its item");
+		if self.unique(item) {
+			return;
+		}
+		let element = self.sw(&strip_refs(item));
+		let rust = method.path.join("::");
+		let mut member = "stream".to_string();
+		while members.contains(&member) {
+			member.push('_');
+		}
+		let key = crate::lock::function_key(method);
+		self.locked.insert(format!("{key} / stream"), member.clone());
+		// A keyword's quoting would split the name it starts.
+		let class = self.claim(
+			&format!("{}Stream", name.trim_matches('`')),
+			&[],
+			format!("the stream of `{rust}`"),
+		);
+		self.locked.insert(format!("{key} / stream type"), class.clone());
+		let consuming = match unique {
+			true => "consuming ",
+			false => "",
+		};
+		// Deprecated as `next` is, so its own use of `next` warns of nothing.
+		let deprecated = method.deprecated.as_deref();
+		let doc = format!("This value as an `AsyncSequence` of what `{next}()` yields, which owns it.");
+		body.push(format!(
+			"{}\t@inlinable public {consuming}func {member}() -> {class} {{\n\t\t{class}(self)\n\t}}\n",
+			docs(&doc, deprecated, "\t")
+		));
+		members.push(member);
+		let text = format!(
+			"`{rust}` as an `AsyncSequence`, owning the value: each item is a call of `{next}()`,\n\
+			and none is read ahead, so a loop left early leaves the next item to the next loop or\n\
+			call of `next()`. Each loop's iterator ends for good once `{next}()` returns nil or throws,\n\
+			as `AsyncIteratorProtocol` requires, while the next loop, or `next()`, calls it again,\n\
+			as Rust may. Cancelling the task while `next()` waits drops its Rust future, which loses\n\
+			an item only where that future does when dropped."
+		);
+		let _ = write!(
+			self.types,
+			"{}public final class {class}: Swift.AsyncSequence {{\n\
+			\tpublic typealias Element = {element}\n\
+			\tpublic typealias Failure = any Swift.Error\n\n\
+			\t@usableFromInline var value: {name}\n\n\
+			\t@usableFromInline init(_ value: {consuming}{name}) {{\n\t\tself.value = value\n\t}}\n\n\
+			\tpublic func makeAsyncIterator() -> AsyncIterator {{\n\t\tAsyncIterator(self)\n\t}}\n\n\
+			\t/// The next item, as `{next}()` returns it, even past the end or an error.\n\
+			\t@inlinable nonisolated(nonsending) public func next() async throws -> {element}? {{\n\t\ttry await value.{next}()\n\t}}\n\n\
+			\t/// One loop over the stream, which ends for good at nil or an error.\n\
+			\tpublic struct AsyncIterator: Swift.AsyncIteratorProtocol {{\n\
+			\t\t@usableFromInline let stream: {class}\n\
+			\t\t@usableFromInline var done = false\n\n\
+			\t\t@usableFromInline init(_ stream: {class}) {{\n\t\t\tself.stream = stream\n\t\t}}\n\n\
+			\t\t/// The next item, or nil once the stream ended or threw.\n\
+			\t\t@inlinable nonisolated(nonsending) public mutating func next() async throws -> {element}? {{\n\
+			\t\t\tif done {{ return nil }}\n\
+			\t\t\tdo {{\n\t\t\t\tguard let item = try await stream.value.{next}() else {{\n\t\t\t\t\tdone = true\n\t\t\t\t\treturn nil\n\t\t\t\t}}\n\t\t\t\treturn item\n\
+			\t\t\t}} catch {{\n\t\t\t\tdone = true\n\t\t\t\tthrow error\n\t\t\t}}\n\
+			\t\t}}\n\n\
+			\t\t@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> {element}? {{\n\
+			\t\t\ttry await next()\n\
+			\t\t}}\n\
+			\t}}\n\
+			}}\n\n",
+			docs(&text, deprecated, "")
+		);
 	}
 
 	fn callback(&mut self, i: usize) {
