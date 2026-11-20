@@ -1519,7 +1519,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node and Deno
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node, Deno, and Bun
 just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
@@ -1531,10 +1531,10 @@ just ffi corpus   # census, export, and bind each crate of corpus/crates.txt thr
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
-nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
+nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
-nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, its Go under the race detector, and its C ABI under Miri
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -1553,7 +1553,7 @@ runs the script through the C++ header at C++17, 20, and 23, with exceptions and
 at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
 `tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
-runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
+runs the script through the Kotlin on the JVM under CheckJNI, where a warning fails it, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
 record they came from, until the GC frees it, that calls racing `close()` or the GC
 read live values, that the GC frees an object never closed left in an idle nursery or
@@ -1561,11 +1561,12 @@ pushed out of one, and that each object of many threads' returns, closes, and dr
 freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
-segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
-panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
-API 35 on an image whose kernel pages by 16 KB.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate, under ART's CheckJNI. It also
+reads the library's segment alignment with `readelf`, which must be 16 KB, and checks that a
+failed check and a panic reach logcat and bionic's abort message, which the tombstone shows.
+Nightly runs it on an x86_64 emulator at API 24, the oldest moq's Android library supports, at
+API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x86 one at API
+24, as moq's armv7 build is 32-bit.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
@@ -1578,7 +1579,8 @@ language mode and type-checked in Swift 5's, checks its futures the same way and
 releasing frees, and breaks each runtime check, which must trap or abort with its message,
 and each move or borrow the compiler checks, which must fail to compile.
 It runs with nixpkgs' Swift on Linux, and nightly with Apple's on macOS.
-`tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
+`tests/api.go` runs the script through the Go after `go vet`, failing any run that leaves a
+goroutine Go's `goroutineleak` profile finds, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
 or a reader reaches it and that the GC frees it once none does, that the GC frees an object
@@ -1649,10 +1651,15 @@ against that export's `api.json`: its `added` feature only adds and must pass, a
 feature breaks the API twice for each kind of break, once in an item only wasm32 has, each
 error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
-and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
-their output to the native transcript; it runs `tests/api.go` under Go's race detector;
-and it drives the C ABI from `tests/miri/api.rs` and the protocol scripts from
-`tests/miri/protocol.rs` under Miri with strict provenance.
+and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, the first time
+with UndefinedBehaviorSanitizer too, and `tests/api.swift` against the second, and matches
+their output to the native transcript; it runs `tests/api.c` and `tests/api.cpp` against the
+uninstrumented library under Valgrind's memcheck, `tests/api.go` under Go's race detector
+and cgocheck2, and `tests/api.py`'s checks on a debug build of the newest CPython, then its
+`leaks` case, which loops them and fails unless the interpreter's references and memory
+blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` and the
+protocol scripts from `tests/miri/protocol.rs` under Miri with strict provenance. The
+protocol scripts' C driver runs under each sanitizer too.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
