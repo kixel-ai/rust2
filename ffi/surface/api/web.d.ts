@@ -1339,6 +1339,7 @@ import * as rt from "./rt.ts";
 import type { Ledger } from "./Ledger.ts";
 export type Tab = rt.Handle<"Tab">;
 export declare function ledgerGet(self: Tab): Ledger;
+export declare function labelGet(self: Tab): string;
 
 // Tallies.ts
 import * as rt from "./rt.ts";

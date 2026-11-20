@@ -131,9 +131,10 @@ fn deref_shadowing() {
 	] {
 		assert!(header.contains(present), "{present} is not exported");
 	}
-	for absent in ["api_Layered_describe("] {
-		assert!(!header.contains(absent), "{absent} is exported");
-	}
+	assert!(
+		!header.contains("api_Layered_describe("),
+		"api_Layered_describe( is exported"
+	);
 }
 
 /// The api fixture, exported and built once for each language's test.
@@ -2724,9 +2725,7 @@ fn unreached_types() {
 	for dir in ["src", "kio", "net", "conv"] {
 		step::mirror(&package.join(dir), &moved.join(dir));
 	}
-	for file in ["Cargo.toml"] {
-		std::fs::copy(package.join(file), moved.join(file)).unwrap();
-	}
+	std::fs::copy(package.join("Cargo.toml"), moved.join("Cargo.toml")).unwrap();
 	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
 	let (head, rest) = lib.split_once("pub fn pending").unwrap();
 	let rest = &rest[rest.find("#[cfg(feature = \"refused\")] pub fn seal").unwrap()..];

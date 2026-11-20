@@ -933,6 +933,7 @@ func script() {
 			// The tab lends its field, so it outlives the read.
 			let tab = try! ledger.tab()
 			print("tab \(try! tab.ledgerGet().published())")
+			print("tab label \(try! tab.labelGet)")
 		}
 		var marker = Marker.new("m", 3, 5)
 		try! marker.ySet(7)

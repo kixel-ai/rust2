@@ -645,7 +645,10 @@ fun script() {
 		println("dropped ${ledger.published()}")
 		println("receipt ${ledger.receipt().use { it.count() }}")
 		// A field holding a borrow, read through.
-		println("tab ${ledger.tab().use { tab -> tab.ledgerGet.use { it.published() } }}")
+		ledger.tab().use { tab ->
+			println("tab ${tab.ledgerGet.use { it.published() }}")
+			println("tab label ${tab.labelGet}")
+		}
 		Marker.new("m", 3, 5).use { marker ->
 			marker.ySet(7)
 			val title = PadU16.wide().use { it.title() }

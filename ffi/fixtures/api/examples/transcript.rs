@@ -760,7 +760,9 @@ fn main() {
 	drop(draft);
 	println!("dropped {}", ledger.published());
 	println!("receipt {}", ledger.receipt().count());
-	println!("tab {}", ledger.tab().ledger.published());
+	let tab = ledger.tab();
+	println!("tab {}", tab.ledger.published());
+	println!("tab label {}", tab.label);
 	// Members a `Deref` reaches: past an unexported target, beside a method of the same
 	// name, and a field a method's path shares.
 	let mut marker = api::Marker::new("m", 3, 5);
@@ -872,7 +874,10 @@ fn main() {
 	);
 	let spot = api::Spot::deserialize(serde_json::json!([1, 2])).unwrap();
 	println!("spot {} {}", spot.x, spot.y);
-	println!("spot err {}", api::Spot::deserialize(serde_json::json!("x")).unwrap_err());
+	println!(
+		"spot err {}",
+		api::Spot::deserialize(serde_json::json!("x")).unwrap_err()
+	);
 	println!("tagged {}", api::tagged(doc, "t"));
 	let entries = api::entries(
 		[("b", "[1]"), ("a", "2")]

@@ -940,6 +940,7 @@ async function script(): Promise<void> {
 	const tab = Ledger.tab(ledger);
 	const tabbed = Tab.ledgerGet(tab);
 	print(`tab ${Ledger.published(tabbed)}`);
+	print(`tab label ${Tab.labelGet(tab)}`);
 	close(tabbed);
 	close(tab);
 	{

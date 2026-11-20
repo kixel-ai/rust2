@@ -2726,7 +2726,10 @@ impl<'tcx> Collector<'tcx> {
 						lends_mut: false,
 						derefs: 0,
 						ties,
-						access: Access::Field { set },
+						access: Access::Field {
+							set,
+							through: !assigned,
+						},
 						instance: None,
 						home: Home::default(),
 					};
@@ -5796,7 +5799,8 @@ impl<'tcx> Collector<'tcx> {
 							&& let object = match &**object {
 								Type::Box(boxed) => boxed,
 								_ => object,
-							} && matches!(**object, Type::Object(_))
+							}
+							&& matches!(**object, Type::Object(_))
 							&& let ty::Adt(_, args) = inner.kind()
 							&& self.opaque_value(unboxed(args.type_at(0))).is_none()
 							&& self.lending.take() =>

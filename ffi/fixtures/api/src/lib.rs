@@ -813,7 +813,10 @@ impl Ledger {
 	/// A tab on this ledger, holding its exclusive borrow in a field, as rustls's
 	/// `ClientConfig::dangerous` does.
 	pub fn tab(&mut self) -> Tab<'_> {
-		Tab { ledger: self }
+		Tab {
+			ledger: self,
+			label: "ledger",
+		}
 	}
 
 	pub fn slip(&mut self) -> Slip<'_> {
@@ -825,11 +828,12 @@ impl Ledger {
 	}
 }
 
-/// What [`Ledger::tab`] lends: a field holding a mutable borrow, which C reads through and
-/// never assigns.
+/// What [`Ledger::tab`] lends: fields holding borrows, which C reads through and never
+/// assigns, lent where what they borrow is not `Clone`, and copied where it is.
 #[non_exhaustive]
 pub struct Tab<'a> {
 	pub ledger: &'a mut Ledger,
+	pub label: &'a str,
 }
 
 mod noted {
@@ -2857,10 +2861,7 @@ pub struct Retry {
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self {
-			limit,
-			delay: None,
-		}
+		Self { limit, delay: None }
 	}
 
 	pub fn limit(&self) -> u32 {

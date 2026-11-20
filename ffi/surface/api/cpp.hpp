@@ -39,6 +39,7 @@ namespace api {
 		RUST2_FFI_UNCONSUMED Tab(Tab &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Tab &operator=(Tab &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::api::Ledger ledger_get() const;
+		RUST2_FFI_CALLABLE ::api::buf label_get() const;
 	};
 	class RUST2_FFI_CONSUMABLE Receipt {
 		RUST2_FFI_UNCONSUMED Receipt(Receipt &&other RUST2_FFI_MOVED_FROM) noexcept = default;

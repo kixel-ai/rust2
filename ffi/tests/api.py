@@ -715,6 +715,7 @@ def script():
 	# The tab lends its field, so it outlives the read.
 	tab = ledger.tab()
 	print(f"tab {tab.ledger_get.published()}")
+	print(f"tab label {tab.label_get}")
 	del tab
 	marker = api.Marker.new("m", 3, 5)
 	marker.y_set(7)

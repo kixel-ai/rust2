@@ -1753,6 +1753,7 @@ static int script(void) {
 		api_Tab *tab = api_Ledger_tab(ledger, NULL);
 		api_Ledger *tabbed = api_Tab_ledger_get(tab, NULL);
 		printf("tab %u\n", api_Ledger_published(tabbed, NULL));
+		print("tab label ", api_Tab_label_get(tab, NULL), "\n");
 		api_Ledger_free(tabbed);
 		api_Tab_free(tab);
 		{

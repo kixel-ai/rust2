@@ -740,6 +740,7 @@ Future<void> script() async {
   final tab = ledger.tab();
   final tabbed = tab.ledgerGet;
   print('tab ${tabbed.published()}');
+  print('tab label ${tab.labelGet}');
   tabbed.close();
   tab.close();
   final padSmall = api.PadU8.small(), padWide = api.PadU16.wide(), layered = api.Layered();

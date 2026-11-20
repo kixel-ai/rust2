@@ -632,10 +632,7 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 		"[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\n\n\
 		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n[workspace]\n"
 	);
-	super::write_all(
-		&dir,
-		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib)],
-	);
+	super::write_all(&dir, &[("Cargo.toml", &manifest), ("src/lib.rs", &lib)]);
 	// The api fixture's versions, resolved offline.
 	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 

@@ -2756,7 +2756,12 @@ impl Gen<'_> {
 				)
 			}
 			Access::Call => format!("{callee}({})", args.join(", ")),
-			Access::Field { set: false, .. } => format!("&({}).{}", args[0], ident(function.name())),
+			Access::Field { set: false, through } => format!(
+				"&{}({}).{}",
+				if through { "*" } else { "" },
+				args[0],
+				ident(function.name())
+			),
 			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], ident(function.name()), args[1]),
 			Access::Const => callee,
 			Access::Parse => format!(

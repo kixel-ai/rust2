@@ -775,6 +775,7 @@ public struct Board: ~Copyable, @unchecked Sendable {
 }
 public struct Tab: ~Copyable, @unchecked Sendable {
 	@inlinable public func ledgerGet() throws -> Ledger
+	@inlinable public var labelGet: Swift.String { get }
 }
 public struct Receipt: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Receipt

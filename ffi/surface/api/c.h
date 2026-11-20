@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x502d1ceb3c7c4082ULL)
+#define API_CONTRACT ((uint64_t)0x258a865fea197bc9ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1389,6 +1389,7 @@ api_Counter *api_Board_best(const api_Board *self, api_status *status);
 void api_Tab_free(api_Tab *self);
 void api_Tab_drop(api_Tab *self, api_status *status);
 api_Ledger *api_Tab_ledger_get(const api_Tab *self, api_status *status);
+api_buf api_Tab_label_get(const api_Tab *self, api_status *status);
 void api_Receipt_free(api_Receipt *self);
 void api_Receipt_drop(api_Receipt *self, api_status *status);
 api_Receipt *api_Receipt_clone(const api_Receipt *self, api_status *status);

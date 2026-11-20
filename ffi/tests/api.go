@@ -847,6 +847,7 @@ func script() {
 	tab := must(ledger.Tab())
 	tabbed := must(tab.LedgerGet())
 	fmt.Printf("tab %d\n", must(tabbed.Published()))
+	fmt.Printf("tab label %s\n", must(tab.LabelGet()))
 	tabbed.Close()
 	tab.Close()
 	padSmall, padWide, layered := api.PadU8Small(), api.PadU16Wide(), api.NewLayered()

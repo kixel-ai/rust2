@@ -1072,7 +1072,11 @@ int script() {
 		std::printf("dropped %u\n", ledger.published());
 		std::printf("receipt %u\n", ledger.receipt().count());
 		// A field holding a borrow, read through.
-		std::printf("tab %u\n", ledger.tab().ledger_get().published());
+		{
+			api::Tab tab = ledger.tab();
+			std::printf("tab %u\n", tab.ledger_get().published());
+			print("tab label ", tab.label_get(), "\n");
+		}
 		{
 			auto marker = api::Marker::new_(api::input("m"), 3, 5);
 			marker.y_set(7);

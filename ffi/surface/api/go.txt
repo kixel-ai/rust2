@@ -1603,6 +1603,7 @@ type Tab struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *Tab) Close() error
+func (self *Tab) LabelGet() (string, error)
 func (self *Tab) LedgerGet() (*Ledger, error)
 type Tallies struct {
 	Handle_ *p_rt.Handle_

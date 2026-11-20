@@ -547,6 +547,7 @@ class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 class Tab internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	val ledgerGet: api.Ledger
+	val labelGet: kotlin.String
 }
 class Receipt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()

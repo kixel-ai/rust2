@@ -953,6 +953,7 @@ final class Board extends _Object {
 }
 final class Tab extends _Object {
 	Ledger get ledgerGet;
+	String get labelGet;
 }
 final class Receipt extends _Object {
 	Receipt clone();
