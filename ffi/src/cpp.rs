@@ -1060,15 +1060,20 @@ impl<'a> Header<'a> {
 			let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
 				(
 					String::new(),
-					format!("::{c}_{suffix}({a}.raw_.get(), {b}.raw_.get(){status})"),
+					format!("::{c}_{suffix}({d}::access::raw({a}), {d}::access::raw({b}){status})"),
 				)
 			});
+			// Friends, as `==` is, but for C++20's `<=>`: a class that differs between
+			// standards breaks the one-definition rule, so it lives in the namespace.
 			for op in ops {
-				body.push(op.guarded(format!(
-					"\tfriend {} {{\n\t{}\n\t}}",
-					op.head,
-					op.body.trim_end().replace('\n', "\n\t")
-				)));
+				match op.cpp20 {
+					true => self.def(format!("{}\n", op.define("inline "))),
+					false => body.push(format!(
+						"\tfriend {} {{\n\t{}\n\t}}",
+						op.head,
+						op.body.trim_end().replace('\n', "\n\t")
+					)),
+				}
 			}
 		}
 		if t.hash {
@@ -1327,9 +1332,13 @@ impl<'a> Header<'a> {
 							format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
 						)
 					});
-					// Declared friends, as `==` is, and defined after the class.
+					// Declared friends, as `==` is, and defined after the class, but for C++20's
+					// `<=>`: a class that differs between standards breaks the one-definition
+					// rule, so it is the namespace's alone.
 					for op in ops {
-						body.push(op.guarded(format!("\tfriend {};", op.head)));
+						if !op.cpp20 {
+							body.push(format!("\tfriend {};", op.head));
+						}
 						self.def(format!("{}\n", op.define("inline ")));
 					}
 				}

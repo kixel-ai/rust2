@@ -589,9 +589,6 @@ namespace api {
 		friend bool operator<=(const Quantity &a__, const Quantity &b_);
 		friend bool operator>(const Quantity &a__, const Quantity &b_);
 		friend bool operator>=(const Quantity &a__, const Quantity &b_);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
-		#endif
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Quantity new_(::std::int64_t value, char32_t unit);
 	};
@@ -604,9 +601,6 @@ namespace api {
 		friend bool operator<=(const Pass &a__, const Pass &b_);
 		friend bool operator>(const Pass &a__, const Pass &b_);
 		friend bool operator>=(const Pass &a__, const Pass &b_);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::weak_ordering operator<=>(const Pass &a__, const Pass &b_);
-		#endif
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Pass new_(::std::uint32_t number);
 		RUST2_FFI_CONSUMES ::std::uint32_t redeem() &&;
@@ -1138,9 +1132,6 @@ namespace api {
 		friend bool operator<=(const Version &a__, const Version &b_);
 		friend bool operator>(const Version &a__, const Version &b_);
 		friend bool operator>=(const Version &a__, const Version &b_);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::weak_ordering operator<=>(const Version &a__, const Version &b_);
-		#endif
 		::api::buf debug() const;
 	};
 	struct Spot {
@@ -1349,6 +1340,12 @@ namespace api {
 	struct clash_Candidate_Match {
 		::std::uint8_t _0;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Pass &a__, const Pass &b_);
+	#endif
 	inline bool operator==(const Stamp &a__, const Stamp &b_);
 	inline bool operator==(const Point &a__, const Point &b_);
 	inline bool operator==(const Label &a__, const Label &b_);
@@ -2386,12 +2383,12 @@ namespace api {
 		friend bool operator<=(const Instant &a__, const Instant &b_);
 		friend bool operator>(const Instant &a__, const Instant &b_);
 		friend bool operator>=(const Instant &a__, const Instant &b_);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::weak_ordering operator<=>(const Instant &a__, const Instant &b_);
-		#endif
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Instant &a__, const Instant &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Instant> {
@@ -2518,14 +2515,14 @@ namespace api {
 		friend bool operator<=(const Url &a__, const Url &b_);
 		friend bool operator>(const Url &a__, const Url &b_);
 		friend bool operator>=(const Url &a__, const Url &b_);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::weak_ordering operator<=>(const Url &a__, const Url &b_);
-		#endif
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf to_string() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::result<::api::Url, ::api::buf> parse(::api::input input_);
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Url &a__, const Url &b_);
+	#endif
 }
 namespace std {
 	template <> struct hash<::api::Url> {
