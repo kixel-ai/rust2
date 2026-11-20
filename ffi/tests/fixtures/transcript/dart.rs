@@ -304,7 +304,17 @@ fn member(name: &str, taken: &[&str]) -> String {
 
 /// A record's field, as the exporter names it.
 fn field(name: &str) -> String {
-	member(name, &["hashCode", "noSuchMethod", "runtimeType", "toString"])
+	member(
+		name,
+		&[
+			"hashCode",
+			"noSuchMethod",
+			"runtimeType",
+			"toString",
+			"compareTo",
+			"partialCompareTo",
+		],
+	)
 }
 
 /// The Dart of an integer's name, as the runtime's classes end in it: `u64` is `U64`.

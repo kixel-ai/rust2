@@ -984,10 +984,11 @@ impl Emitter<'_> {
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return format!("{package}.{name}");
 				}
-				let named: Vec<(String, Type)> = variant
-					.fields
-					.iter()
-					.map(|f| (field_name(&f.name), f.ty.clone()))
+				let named: Vec<(String, Type)> = (variant.fields.iter())
+					.map(|f| {
+						let key = format!("type {rust} / variant {} / field {}", variant.name, f.name);
+						(self.t.named(LANGUAGE, &key).to_string(), f.ty.clone())
+					})
 					.collect();
 				let values: Vec<String> = (fields.iter().zip(&named))
 					.map(|(f, (name, ty))| {
@@ -1803,21 +1804,6 @@ fn pascal_int(int: Int) -> String {
 	let mut chars = rust.chars();
 	let first = chars.next().unwrap().to_ascii_uppercase();
 	format!("{first}{}", chars.as_str())
-}
-
-/// A field's Go name, as the export spells a variant's: `V0` for a positional one.
-fn field_name(name: &str) -> String {
-	match name.starts_with(|c: char| c.is_ascii_digit()) {
-		true => format!("V{name}"),
-		false => {
-			let camel = local(name);
-			let mut chars = camel.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		}
-	}
 }
 
 /// A Go string literal.

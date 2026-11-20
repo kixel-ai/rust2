@@ -1213,9 +1213,15 @@ impl Emitter<'_> {
 			}
 			Kind::IsSome(inner) => format!("{}.has_value()", self.value(inner, &inner.ty, Place::Read)),
 			Kind::Binary(op, a, b) => {
+				if *op == Op::Cmp {
+					// A data enum's variant is a type of its own, so `cmp` names the enum's.
+					let of = self.ctype(unref(&a.ty).base());
+					let (a, b) = (self.value(a, &a.ty, Place::Read), self.value(b, &b.ty, Place::Read));
+					return format!("rs::cmp<{of}>({a}, {b})");
+				}
 				let (a, b) = (self.value(a, &a.ty, Place::Read), self.value(b, &b.ty, Place::Read));
 				let (op, arithmetic) = match op {
-					Op::Cmp => return format!("rs::cmp({a}, {b})"),
+					Op::Cmp => unreachable!("`cmp` returned above"),
 					Op::Eq => ("==", false),
 					Op::Ne => ("!=", false),
 					Op::Lt => ("<", false),

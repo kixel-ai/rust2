@@ -2048,10 +2048,19 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
-	fn variant_fields(&self, i: usize, variant: &Variant) -> Vec<String> {
-		let mut taken = self.trait_methods(&Type::Enum(i), self.abi.api.enums[i].traits);
+	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
+		let e = &self.abi.api.enums[i];
+		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
+		let owner = crate::lock::type_key(&e.shown);
 		(variant.fields.iter())
-			.map(|f| unique(&mut taken, field_name(&f.name)))
+			.map(|f| {
+				let name = unique(&mut taken, field_name(&f.name));
+				self.locked.insert(
+					format!("{owner} / variant {} / field {}", variant.name, f.name),
+					name.clone(),
+				);
+				name
+			})
 			.collect()
 	}
 

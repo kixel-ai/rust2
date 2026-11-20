@@ -1042,6 +1042,25 @@ fn main() {
 		t2.cmp(&t1) as i8,
 		t1.cmp(&t1) as i8
 	);
+	// A rank's fields are named as the comparison methods, which each binding keeps apart.
+	let ranked = api::Rank::Ranked {
+		compare: 1,
+		partial_compare: 2,
+		compare_to: 3,
+		partial_compare_to: 4,
+	};
+	println!(
+		"rank {} {} {}",
+		api::Rank::Unranked < ranked,
+		ranked.cmp(&api::Rank::Unranked) as i8,
+		ranked
+			== api::Rank::Ranked {
+				compare: 1,
+				partial_compare: 2,
+				compare_to: 3,
+				partial_compare_to: 4
+			}
+	);
 	println!(
 		"lossless ip {} {}",
 		ip_hex(api::same_ip_addr("255.255.255.255".parse().unwrap())),
