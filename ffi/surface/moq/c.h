@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0xb815008f5b0d1a03ULL)
+#define MOQ_CONTRACT ((uint64_t)0x0ac854b23d858bf7ULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;

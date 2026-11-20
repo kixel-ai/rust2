@@ -3,6 +3,8 @@ package api // import "api/api"
 CONSTANTS
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
+const STEP uint64 = 1
+const URL uint64 = 1000
 
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
@@ -48,6 +50,7 @@ func Counted(ctx context.Context, n uint32, count func(uint32)) (uint32, error)
 func Crammed(a Moment, b Moment, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64, n119 uint64, n120 uint64, n121 uint64, n122 uint64, n123 uint64) uint64
 func Cross(left LeftRightU8, right RightLeftU8) uint8
 func Crowded(reading Reading, a Stamp, b Stamp, n0 uint64, n1 uint64, n2 uint64, n3 uint64, n4 uint64, n5 uint64, n6 uint64, n7 uint64, n8 uint64, n9 uint64, n10 uint64, n11 uint64, n12 uint64, n13 uint64, n14 uint64, n15 uint64, n16 uint64, n17 uint64, n18 uint64, n19 uint64, n20 uint64, n21 uint64, n22 uint64, n23 uint64, n24 uint64, n25 uint64, n26 uint64, n27 uint64, n28 uint64, n29 uint64, n30 uint64, n31 uint64, n32 uint64, n33 uint64, n34 uint64, n35 uint64, n36 uint64, n37 uint64, n38 uint64, n39 uint64, n40 uint64, n41 uint64, n42 uint64, n43 uint64, n44 uint64, n45 uint64, n46 uint64, n47 uint64, n48 uint64, n49 uint64, n50 uint64, n51 uint64, n52 uint64, n53 uint64, n54 uint64, n55 uint64, n56 uint64, n57 uint64, n58 uint64, n59 uint64, n60 uint64, n61 uint64, n62 uint64, n63 uint64, n64 uint64, n65 uint64, n66 uint64, n67 uint64, n68 uint64, n69 uint64, n70 uint64, n71 uint64, n72 uint64, n73 uint64, n74 uint64, n75 uint64, n76 uint64, n77 uint64, n78 uint64, n79 uint64, n80 uint64, n81 uint64, n82 uint64, n83 uint64, n84 uint64, n85 uint64, n86 uint64, n87 uint64, n88 uint64, n89 uint64, n90 uint64, n91 uint64, n92 uint64, n93 uint64, n94 uint64, n95 uint64, n96 uint64, n97 uint64, n98 uint64, n99 uint64, n100 uint64, n101 uint64, n102 uint64, n103 uint64, n104 uint64, n105 uint64, n106 uint64, n107 uint64, n108 uint64, n109 uint64, n110 uint64, n111 uint64, n112 uint64, n113 uint64, n114 uint64, n115 uint64, n116 uint64, n117 uint64, n118 uint64) (uint64, error)
+func Deprecated_(note uint8) uint8
 func Describe(event Event) (string, error)
 func DescribeNonZeros(nonZeros NonZeros) (string, error)
 func Digit(r *p_rt.Bytes) (uint8, error)
@@ -118,6 +121,7 @@ func Least(sets [][]uint32) [][]uint32
 func Len(payload p_rt.Bytes) uint
 func LentBack(value p_rt.Bytes) p_rt.Bytes
 func Less(value uint32, value2 uint32) uint32
+func LevelLater(ctx context.Context, dial Dial) (uint64, error)
 func LocalLater(ctx context.Context, n uint32) (uint32, error)
 func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
 func LocalsDropped() uint32
@@ -230,6 +234,7 @@ func Title(formal bool) *string
 func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
+func TurnerVtable_() unsafe.Pointer
 func Unescaped(text string) (string, error)
 func UnescapedLater(ctx context.Context, text string) (string, error)
 func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
@@ -753,12 +758,30 @@ type Cursor struct {
 }
 func (self *Cursor) At() (uint64, error)
 func (self *Cursor) Close() error
+type Deprecated struct {
+	On bool
+	Lower uint32
+	Deprecated bool
+}
+func DeprecatedDefault() Deprecated
+func (self Deprecated) Equal(other Deprecated) bool
+func (self Deprecated) GoString() string
 type Der struct {
 	Handle_ *p_rt.Handle_
 }
 func DerFromSlice(bytes p_rt.Bytes) *Der
 func (self *Der) Bytes() (p_rt.Bytes, error)
 func (self *Der) Close() error
+type Dial struct {
+	Level uint64
+	Before uint64
+}
+func DialDefault() Dial
+func Turned(dial Dial, turner Turner) (Dial, error)
+func (self Dial) Equal(other Dial) bool
+func (self Dial) GoString() string
+func (self Dial) Max() Dial
+func (self Dial) Turn(by uint64) (Dial, error)
 type Digest struct {
 	Handle_ *p_rt.Handle_
 }
@@ -904,6 +927,13 @@ func (self Hits) HitsGet() uint64
 func (self *Hits) HitsSet(value uint64)
 func (self Hits) MissesGet() uint64
 func (self *Hits) MissesSet(value uint64)
+type Holder struct {
+	Handle_ *p_rt.Handle_
+}
+func NewHolder(level uint64) *Holder
+func (self *Holder) Close() error
+func (self *Holder) Doubled() (uint64, error)
+func (self *Holder) LevelGet() (uint64, error)
 type Hooked struct {
 	Handle_ *p_rt.Handle_
 }
@@ -944,6 +974,14 @@ func (self *Key) Close() error
 func (self *Key) Equal(other *Key) (bool, error)
 func (self *Key) GoString() string
 func (self *Key) HashOf() (uint64, error)
+type Knob struct {
+	Level uint64
+}
+func KnobDefault() Knob
+func NewKnob(dial Dial) Knob
+func (self Knob) Doubled() uint64
+func (self Knob) Equal(other Knob) bool
+func (self Knob) GoString() string
 type Label struct {
 	Name string
 	At   *Point
@@ -1673,6 +1711,10 @@ func (self *Trail) Iter() ([]Point, error)
 func (self *Trail) Labels() ([]Label, error)
 func (self *Trail) Names() ([]string, error)
 func (self *Trail) Points() ([]Point, error)
+type Turner interface {
+	By() uint64
+	Once() uint64
+}
 type VecClashTone int32
 const (
 	VecClashToneError_ VecClashTone = 0
