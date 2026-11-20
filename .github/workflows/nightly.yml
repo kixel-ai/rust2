@@ -43,20 +43,26 @@ jobs:
         if: always()
         run: |
           nix develop .#sanitize --command bash -c '
+            export PATH=$RUST2_TS_TOOLCHAIN/bin:$PATH
+            rustc -vV
             cd ffi/target/tmp/api
-            ls address thread || true
             for d in address thread; do
               echo "== $d"
-              ASAN_OPTIONS=verbosity=2:abort_on_error=1 TSAN_OPTIONS=verbosity=2 $d/api-c 2>&1 | tail -30
-              echo "exit $?"
-              lldb -b -o "settings set target.process.stop-on-sharedlibrary-events false" -o run -o bt -o "register read" -o "image list" -- $d/api-c 2>&1 | tail -60
+              ASAN_OPTIONS=verbosity=1 TSAN_OPTIONS=verbosity=1 $d/api-c 2>&1 | head -40
+              echo "exit ${PIPESTATUS[0]}"
+              lldb -b -o run -o "thread backtrace" -- $d/api-c 2>&1 | grep -E "^ *frame" | head -20
             done
-            cat > /tmp/hello.c <<EOF2
-          #include <stdio.h>
-          int main(){puts("hi");return 0;}
-          EOF2
-            for s in address thread; do clang -fsanitize=$s /tmp/hello.c -o /tmp/hello-$s && /tmp/hello-$s; echo "hello $s exit $?"; done
-            clang --version
+            mkdir -p /tmp/h; cd /tmp/h
+            printf "fn main(){println!(\"hi\");}" > h.rs
+            printf "int main(){return 0;}" > h.c
+            clang -fsanitize=address -c h.c -o h.o
+            clang -fsanitize=address h.c -o hc && ASAN_OPTIONS=verbosity=1 ./hc 2>&1 | head -20
+            for s in address thread; do
+              rustc -Zsanitizer=$s h.rs -o hr-$s --target aarch64-unknown-linux-gnu && ./hr-$s; echo "rust hello $s exit $?"
+              rustc -Zsanitizer=$s h.rs --emit=llvm-ir -o hr-$s.ll --target aarch64-unknown-linux-gnu; grep -m5 -E "shadow|inttoptr|add i64" hr-$s.ll
+              clang -fsanitize=$s -### h.c 2>&1 | tr " " "\n" | grep -i -E "asan|tsan|rtlib|clang_rt|shared" | head
+            done
+            ls /nix/store | grep -E "compiler-rt|clang-" | head -20
           '
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
