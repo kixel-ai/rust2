@@ -1688,10 +1688,14 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let declared: Vec<String> = (members.iter().cloned())
-				.chain(body.iter().filter_map(|b| member_name(b)))
-				.collect();
-			let taken = kept_apart(place, &declared, &names(&statics));
+			let own = match place {
+				Place::Member => (members.iter().cloned()).chain(names(&body)).collect(),
+				Place::Static => names(&statics),
+			};
+			let jvm = (members.iter().map(|m| jvm_name(m)))
+				.chain(jvm_names(&body))
+				.chain(jvm_names(&statics));
+			let taken = kept_apart(own, jvm);
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -1854,7 +1858,11 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken = kept_apart(place, &names(&body), &names(&statics));
+			let own = match place {
+				Place::Member => names(&body),
+				Place::Static => names(&statics),
+			};
+			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -2046,7 +2054,11 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken = kept_apart(place, &names(&body), &names(&statics));
+			let own = match place {
+				Place::Member => names(&body),
+				Place::Static => names(&statics),
+			};
+			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -3173,9 +3185,9 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
-		// A JVM method the class's other place declares, which a companion's `@JvmStatic`
-		// member shares names with, as a field's getter `getX` does, leaves the Kotlin name
-		// alone and takes a trailing `_` on the JVM.
+		// A JVM method its class declares already, in either place, since a companion's
+		// `@JvmStatic` member shares the class's names, as a field's getter `getX` does,
+		// leaves the Kotlin name alone and takes a trailing `_` on the JVM.
 		let target = if getter { "get:" } else { "" };
 		let declared = jvm_name(&format!("{kind} {member}"));
 		let mut jvm = declared.clone();
@@ -4028,17 +4040,26 @@ fn jvm_name(declared: &str) -> String {
 	format!("get{first}{}", chars.as_str())
 }
 
-/// What a member in `place` keeps apart from: the Kotlin declarations of its own place by
-/// name, and as `jvm <name>` the JVM methods of the other, which a companion's
-/// `@JvmStatic` member shares the class's names with.
-fn kept_apart(place: Place, members: &[String], statics: &[String]) -> Vec<String> {
-	let (own, other) = match place {
-		Place::Member => (members, statics),
-		Place::Static => (statics, members),
-	};
-	(own.iter().cloned())
-		.chain(other.iter().map(|m| format!("jvm {}", jvm_name(m))))
-		.collect()
+/// What a member keeps apart from: the Kotlin declarations of its own place, as
+/// [`member_name`] gives them, and as `jvm <name>` each JVM method of its class, in either
+/// place, since a companion's `@JvmStatic` member shares the class's.
+fn kept_apart(own: Vec<String>, jvm: impl Iterator<Item = String>) -> Vec<String> {
+	own.into_iter().chain(jvm.map(|j| format!("jvm {j}"))).collect()
+}
+
+/// The JVM method each of `code`'s members compiles to: the one its `@JvmName` names, or
+/// else its declaration's, as [`jvm_name`] gives it.
+fn jvm_names(code: &[String]) -> impl Iterator<Item = String> + '_ {
+	code.iter().filter_map(|c| {
+		let renamed = c.lines().find_map(|l| {
+			let l = l.trim_start();
+			let l = l.strip_prefix("@get:").or_else(|| l.strip_prefix('@'))?;
+			l.strip_prefix("kotlin.jvm.JvmName(\"")?
+				.strip_suffix("\")")
+				.map(str::to_string)
+		});
+		renamed.or_else(|| member_name(c).map(|m| jvm_name(&m)))
+	})
 }
 
 /// The kind and name each of `code`'s members declares.
@@ -4118,6 +4139,21 @@ pub(crate) fn indent_by(code: &str, n: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+	/// A getter's JVM name, and the name an earlier `@JvmName` gave, both count as taken.
+	#[test]
+	fn jvm_names_read_getters_and_renames() {
+		assert_eq!(super::jvm_name("val x"), "getX");
+		assert_eq!(super::jvm_name("val isOpen"), "isOpen");
+		assert_eq!(super::jvm_name("val island"), "getIsland");
+		assert_eq!(super::jvm_name("fun foo"), "foo");
+		let code = [
+			"\tfun foo(n: Int) = 1\n".to_string(),
+			"\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"foo_\")\n\t\tfun foo_(): Int = 1\n".to_string(),
+			"\t\t/** Doc. */\n\t\t@get:kotlin.jvm.JvmName(\"getZ_\")\n\t\tval z: Int\n".to_string(),
+		];
+		assert_eq!(super::jvm_names(&code).collect::<Vec<_>>(), ["foo", "foo_", "getZ_"]);
+	}
+
 	/// The writeback array is a parameter of its own, which an out pointer's zero slots
 	/// leave out.
 	#[test]
