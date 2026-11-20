@@ -1692,7 +1692,10 @@ impl<'a> Gen<'a> {
 				Place::Member => (members.iter().cloned()).chain(names(&body)).collect(),
 				Place::Static => names(&statics),
 			};
+			// A data class's `componentN`, which Kotlin declares for each field.
+			let components = (1..=fields.len()).map(|n| format!("component{n}"));
 			let jvm = (members.iter().map(|m| jvm_name(m)))
+				.chain(components)
 				.chain(jvm_names(&body))
 				.chain(jvm_names(&statics));
 			let taken = kept_apart(own, jvm);
@@ -4032,11 +4035,9 @@ fn jvm_name(declared: &str) -> String {
 	if kind != "val" || name.starts_with("is") && name[2..].starts_with(|c: char| !c.is_ascii_lowercase()) {
 		return name.to_string();
 	}
+	// ASCII alone, as Kotlin's `capitalizeAsciiOnly` does.
 	let mut chars = name.chars();
-	let first = chars
-		.next()
-		.map(|c| c.to_uppercase().collect::<String>())
-		.unwrap_or_default();
+	let first: String = chars.next().map(|c| c.to_ascii_uppercase()).into_iter().collect();
 	format!("get{first}{}", chars.as_str())
 }
 
@@ -4146,6 +4147,7 @@ mod tests {
 		assert_eq!(super::jvm_name("val isOpen"), "isOpen");
 		assert_eq!(super::jvm_name("val island"), "getIsland");
 		assert_eq!(super::jvm_name("fun foo"), "foo");
+		assert_eq!(super::jvm_name("val éclair"), "getéclair");
 		let code = [
 			"\tfun foo(n: Int) = 1\n".to_string(),
 			"\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"foo_\")\n\t\tfun foo_(): Int = 1\n".to_string(),
