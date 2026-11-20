@@ -819,7 +819,8 @@ def hide(static, shared, lib, target, work):
         arch = ["-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}"]
         run("cc", "-r", "-nostdlib", *arch, *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
             define_commons(static, arch, work), static, "-o", hidden)
-        run("libtool", "-static", "-o", archive, hidden)
+        # Which stamps the member with the time unless told not to.
+        run("libtool", "-static", "-o", archive, hidden, env={**os.environ, "ZERO_AR_DATE": "1"})
         # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
         found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
     else:
@@ -1489,14 +1490,25 @@ def ar_diff(one, two):
 
 
 def tar_diff(one, two):
-    """The members two gzipped tarballs hold differently, each with its content hash and attributes."""
+    """The members two gzipped tarballs hold differently, each with its content hash and attributes, and where a static library's own members differ."""
     def members(path):
         with tarfile.open(path) as archive:
-            return {m.name: (hashlib.sha256(archive.extractfile(m).read()).hexdigest() if m.isfile() else m.linkname,
-                             m.mtime, m.mode, m.uid, m.gid, m.uname, m.gname) for m in archive.getmembers()}
+            return {m.name: (archive.extractfile(m).read() if m.isfile() else m.linkname, m.mtime, m.mode, m.uid, m.gid, m.uname, m.gname)
+                    for m in archive.getmembers()}
     left, right = members(one), members(two)
-    return [f"  {name}: {left.get(name)} against {right.get(name)}"
-            for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
+    lines = []
+    for name in sorted(left.keys() | right.keys()):
+        a, b = left.get(name), right.get(name)
+        if a == b:
+            continue
+        digest = lambda m: (hashlib.sha256(m[0]).hexdigest(), *m[1:]) if m and isinstance(m[0], bytes) else m  # noqa: E731
+        lines.append(f"  {name}: {digest(a)} against {digest(b)}")
+        if name.endswith(".a") and a and b:
+            with tempfile.TemporaryDirectory() as tmp:
+                for index, content in enumerate((a[0], b[0])):
+                    (Path(tmp) / f"{index}.a").write_bytes(content)
+                lines += ["  " + line for line in ar_diff(Path(tmp) / "0.a", Path(tmp) / "1.a")]
+    return lines
 
 
 def same(first, second):
