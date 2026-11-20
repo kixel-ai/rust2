@@ -206,6 +206,15 @@ class Wide internal constructor() {
 data class Clocked(val at: api.Moment, val count: kotlin.UInt) {
 	fun debug(): kotlin.String
 }
+class Rated internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun scale(): kotlin.ULong
+	companion object {
+		fun new(count: kotlin.ULong, scale: kotlin.ULong): api.Rated
+	}
+}
 @kotlin.jvm.JvmInline value class Score internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun count(): kotlin.ULong

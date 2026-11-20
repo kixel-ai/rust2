@@ -158,7 +158,7 @@ func script() {
 	expect(writer.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes([]byte("hello"))) == nil, "a frame writes")
 	hello := within(frame, "a frame's arrival wakes the read")
 	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
-	expect(must(must(hello.TimestampGet()).Scale()) == nil, "an untimed frame's timestamp has no scale")
+	expect(must(hello.TimestampGet()).Scale() == nil, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 

@@ -26,4 +26,3 @@ then see change. A sibling planned later adds itself to `Required` here.
 - [Python idioms](/quest/m1/ffi-export/python-idioms.md) - the exception hierarchy changes the Python API
 - [Dart analysis](/quest/m1/ffi-export/dart-analyze.md) - lint fixes may rename generated Dart
 - [Docs](/quest/m1/ffi-export/docs.md) - doc links and deprecations in every binding
-- [Niche values](/quest/m1/ffi-export/niche-values.md) - moq's `Timestamp` changes from a handle back to a value in every binding

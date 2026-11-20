@@ -1361,6 +1361,14 @@ type Qualifiers struct {
 	Kotlin float64
 }
 func (self Qualifiers) Equal(other Qualifiers) bool
+type Rated struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func NewRated(count uint64, scale uint64) Rated
+func (self Rated) Equal(other Rated) bool
+func (self Rated) GoString() string
+func (self Rated) Scale() uint64
 type Reading struct {
 	Ok     bool
 	Level  float32

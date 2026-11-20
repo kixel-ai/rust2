@@ -345,13 +345,15 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   included, as a `<T> *` Rust writes what the call left back through, so only that copy
   changes; it never makes or reads one itself, and frees none. Its fields fill it under
   any order a `rustc` may give them, with a byte for an enum's tag where no field has a
-  niche to hold it, so it has no padding whichever `rustc` builds the glue, which asserts
-  each target's size. They must also fill a model layout at both 4- and 8-byte pointers,
-  each primitive aligned to its size and a `repr`'s field order kept, so every target
-  decides alike. Any other `Copy` type, such as std's `Instant`, padded on a 64-bit
-  target, or an `Option<u32>`, whose bytes depend on its value, is an object instead, so
-  no byte Rust leaves uninitialized reaches a language, which may serialize what it
-  holds. Its size and alignment are the largest of the export's targets, so one
+  niche to hold it, and a variant without data in another's niche counted as that niche's
+  whole scalar, which it writes, so it has no padding whichever `rustc` builds the glue,
+  which asserts each target's size: `None` of an `Option<NonZero<u64>>` fills its 8 bytes.
+  They must also fill a model layout at both 4- and 8-byte pointers, each primitive
+  aligned to its size and a `repr`'s field order kept, so every target decides alike. Any
+  other `Copy` type, such as std's `Instant`, padded on a 64-bit target, or an
+  `Option<u32>` or `Option<&[u8]>`, whose `None` leaves bytes uninitialized, is an object
+  instead, so no byte Rust leaves uninitialized reaches a language, which may serialize
+  what it holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
