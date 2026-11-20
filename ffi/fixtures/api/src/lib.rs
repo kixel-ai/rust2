@@ -816,6 +816,15 @@ impl Ledger {
 		}
 	}
 
+	/// A tab on this ledger, holding its exclusive borrow in a field, as rustls's
+	/// `ClientConfig::dangerous` does.
+	pub fn tab(&mut self) -> Tab<'_> {
+		Tab {
+			ledger: self,
+			label: "ledger",
+		}
+	}
+
 	pub fn slip(&mut self) -> Slip<'_> {
 		Slip {
 			receipt: Receipt(&self.published),
@@ -823,6 +832,14 @@ impl Ledger {
 			here: std::marker::PhantomData,
 		}
 	}
+}
+
+/// What [`Ledger::tab`] lends: fields holding borrows, which C reads through and never
+/// assigns, lent where what they borrow is not `Clone`, and copied where it is.
+#[non_exhaustive]
+pub struct Tab<'a> {
+	pub ledger: &'a mut Ledger,
+	pub label: &'a str,
 }
 
 mod noted {
@@ -2869,22 +2886,11 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
-	/// Its field exports, but the method of its name is refused, so the config excludes
-	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
-	pub jitter: u32,
-	/// Its field exports, but Swift refuses the method of its name, so the config excludes
-	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
-	pub spread: u64,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self {
-			limit,
-			delay: None,
-			jitter: 0,
-			spread: 0,
-		}
+		Self { limit, delay: None }
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -2897,16 +2903,6 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
-	}
-
-	/// The spread plus three optional borrowed counters, past what Swift takes.
-	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-		self.spread + among(first, second, third)
-	}
-
-	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
-	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
-		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -3066,7 +3062,9 @@ pub fn hex(payload: impl Payload) -> String {
 	payload.into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into.
+/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into. Hidden,
+/// so a parameter that converts into one takes what converts instead.
+#[doc(hidden)]
 pub struct Timed<P> {
 	pub value: P,
 	pub at: Option<Stamp>,
@@ -3084,18 +3082,6 @@ impl<B: AsRef<[u8]>> From<B> for Timed<Bytes> {
 /// A timed payload's bytes in hex, which need not be UTF-8, owned as it is `'static`.
 pub fn timed_hex(payload: impl Into<Timed<Bytes>> + 'static) -> String {
 	hex(payload.into().value)
-}
-
-/// A reference stamped with no time, as moq's `Timed` converts one.
-impl<'a, V> From<&'a V> for Timed<&'a V> {
-	fn from(value: &'a V) -> Self {
-		Self { value, at: None }
-	}
-}
-
-/// A timed value's compact JSON text, taken as moq's JSON tracks take theirs.
-pub fn timed_text<'a, T: serde::Serialize + 'a>(value: impl Into<Timed<&'a T>>) -> String {
-	serde_json::to_string(value.into().value).expect("a JSON document serializes")
 }
 
 /// A timed payload on a track, which what converts into one converts into.
@@ -4974,11 +4960,6 @@ pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
 
-/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
-pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
-}
-
 /// A record named as C++'s `==` names its first argument, which must not hide it.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
@@ -5165,6 +5146,47 @@ impl Key {
 	}
 }
 
+/// `text` without its backslashes, borrowed where it has none, as moq-pattern's `unescape` is.
+pub fn unescaped(text: &str) -> Cow<'_, str> {
+	match text.contains('\\') {
+		true => Cow::Owned(text.replace('\\', "")),
+		false => Cow::Borrowed(text),
+	}
+}
+
+/// [`unescaped`], later: the future owns the text it borrows, so what it returns is
+/// owned before the future ends.
+pub async fn unescaped_later(text: &str) -> Cow<'_, str> {
+	unescaped(text)
+}
+
+/// [`unescaped`] of `text` if any, later.
+pub async fn unescaped_maybe(text: Option<&str>) -> Option<Cow<'_, str>> {
+	text.map(unescaped)
+}
+
+/// `bytes` without their zeros, borrowed where they have none.
+pub fn unzeroed(bytes: &[u8]) -> Cow<'_, [u8]> {
+	match bytes.contains(&0) {
+		true => Cow::Owned(bytes.iter().copied().filter(|b| *b != 0).collect()),
+		false => Cow::Borrowed(bytes),
+	}
+}
+
+/// A spot that reads itself from any serde deserializer, as `#[serde(remote = "Self")]`
+/// derives an inherent `deserialize`, which moq-mux's `Mpegts` has.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+	pub x: u32,
+	pub y: u32,
+}
+
+impl Spot {
+	pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let (x, y) = <(u32, u32) as serde::Deserialize>::deserialize(deserializer)?;
+		Ok(Self { x, y })
+	}
+}
 /// A type named as Kotlin's and Dart's deprecation annotation, which the bindings' own
 /// annotations must not resolve to.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

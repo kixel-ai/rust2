@@ -6975,6 +6975,7 @@ class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false
 	fun isEmpty(): kotlin.Boolean
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsMpegts
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun deserialize(deserializer: moq.Json): moq.MuxContainerTsMpegts
 	}
 }
 class MuxContainerTsPassthroughTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7882,6 +7883,7 @@ class MoqTokioListenForward internal constructor(raw: Long, lent: Boolean = fals
 class RustlsClientDangerDangerousClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
+	val cfgGet: moq.RustlsClientConfig
 }
 class RustlsClientResumption internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -8240,6 +8242,8 @@ const val TRANSPORT_SETUP_RECEIVE_WINDOW: ULong
 const val HANG_CATALOG_MAX_SAFE_INTEGER: ULong
 val IMPLEMENTATION: kotlin.String
 val ALPNS: kotlin.collections.List<kotlin.String>
+fun escape(content: kotlin.String): kotlin.String
+fun unescape(segment: kotlin.String): kotlin.String
 fun clockNow(): moq.ClockInstant
 fun clockWall(): moq.ClockWall
 fun clockOrigin(): kotlin.Pair<moq.ClockInstant, moq.ClockWall>

@@ -275,6 +275,7 @@ data class PairU32(val left: kotlin.UInt, val right: kotlin.UInt) {
 }
 data class PairU8Size(val left: kotlin.UByte, val right: api.Size) {
 	fun debug(): kotlin.String
+	fun swap(): api.PairSizeU8
 }
 data class LeftRightU8(val value: api.RightU8) {
 	fun debug(): kotlin.String
@@ -368,10 +369,11 @@ data class Qualifiers(val api: kotlin.Double, val kotlin: kotlin.Double) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 }
-data class Version(val major: kotlin.UShort, val minor: kotlin.UShort) : kotlin.Comparable<Version> {
+data class Spot(val x: kotlin.UInt, val y: kotlin.UInt) {
 	fun debug(): kotlin.String
-	fun partialCompareTo(other: api.Version): kotlin.Int?
-	override fun compareTo(other: api.Version): kotlin.Int
+	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun deserialize(deserializer: api.Json): api.Spot
+	}
 }
 data class Deprecated(val on: kotlin.Boolean, @kotlin.Deprecated("") val lower: kotlin.UInt, val deprecated: kotlin.Boolean) {
 	fun debug(): kotlin.String
@@ -553,13 +555,6 @@ sealed class Builtin {
 		override fun hashCode(): kotlin.Int
 	}
 }
-enum class Tier(internal val value: Int) {
-	LOW(0),
-	HIGH(1);
-	fun debug(): kotlin.String
-	fun partialCompareTo(other: api.Tier): kotlin.Int?
-	companion object {}
-}
 sealed class ClashCandidate {
 	data object None : ClashCandidate()
 	data class Match(val _0: kotlin.UByte) : ClashCandidate()
@@ -572,7 +567,6 @@ enum class Level(internal val value: Int) {
 	WARN(3),
 	ERROR(4);
 	final override fun toString(): kotlin.String
-	fun partialCompareTo(other: api.Level): kotlin.Int?
 	companion object {}
 }
 class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -583,6 +577,11 @@ class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(counters: kotlin.collections.List<kotlin.Pair<kotlin.String, api.Counter>>): api.Board
 	}
+}
+class Tab internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val ledgerGet: api.Ledger
+	val labelGet: kotlin.String
 }
 class Receipt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -608,6 +607,8 @@ class PadU16 internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	override fun close()
 	fun tag(): kotlin.UShort
 	fun title(): kotlin.UShort
+	val titleGet: kotlin.String
+	fun lines(): kotlin.UInt
 	fun describe(): kotlin.String
 	companion object {
 		@kotlin.jvm.JvmStatic fun wide(): api.PadU16
@@ -633,6 +634,7 @@ class Layered internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun label(): kotlin.String
+	fun x(): kotlin.Int
 	val xGet: kotlin.Int
 	fun xSet(value: kotlin.Int)
 	val yGet: kotlin.Int
@@ -640,6 +642,7 @@ class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun offset(dx: kotlin.Int, dy: kotlin.Int): api.Point
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(label: kotlin.String, x: kotlin.Int, y: kotlin.Int): api.Marker
+		@kotlin.jvm.JvmStatic fun y(): kotlin.Int
 	}
 }
 class Batch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -710,6 +713,8 @@ class Retry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	override fun close()
 	val limitGet: kotlin.UInt?
 	fun limitSet(value: kotlin.UInt?)
+	val delayGet: kotlin.UInt?
+	fun delaySet(value: kotlin.UInt?)
 	fun limit(): kotlin.UInt
 	fun delay(): kotlin.UInt
 	fun setLimit(limit: kotlin.UInt)
@@ -739,12 +744,16 @@ class OuterInnerU8 internal constructor(raw: Long, lent: Boolean = false) : Auto
 }
 class SlotU32 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	val valueGet: kotlin.UInt
+	fun valueSet(value: kotlin.UInt)
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UInt): api.SlotU32
 	}
 }
 class SlotU8 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	val valueGet: kotlin.UByte
+	fun valueSet(value: kotlin.UByte)
 	fun value(): kotlin.UShort
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.SlotU8
@@ -912,6 +921,7 @@ class Ledger internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun receipt(): api.Receipt
 	fun noted(): api.Receipt
 	fun fileReceipt(item: api.Receipt): api.FiledReceipt
+	fun tab(): api.Tab
 	fun slip(): api.Slip
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Ledger
@@ -1027,6 +1037,8 @@ class Node internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun debug(): kotlin.String
 	val valueGet: kotlin.ULong
 	fun valueSet(value: kotlin.ULong)
+	val nextGet: api.Node?
+	fun nextSet(value: api.Node?)
 	fun push(value: kotlin.ULong)
 	fun sum(): kotlin.ULong
 	companion object {
@@ -1116,6 +1128,7 @@ class Stack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun depthPastCounter(from: api.Counter): kotlin.ULong
 	fun depthPastSize(from: api.Size): kotlin.ULong
 	fun depthPastWrapU32(from: api.WrapU32): kotlin.ULong
+	fun depthPastPolarPoint(from: api.PolarPoint): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Stack
 		@kotlin.jvm.JvmStatic fun new(): api.Stack
@@ -1138,16 +1151,6 @@ class C internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun hashCode(): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.C
-	}
-}
-class Quantity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun partialCompareTo(other: api.Quantity): kotlin.Int?
-	companion object {
-		@kotlin.jvm.JvmStatic fun new(value: kotlin.Long, unit: kotlin.Int): api.Quantity
 	}
 }
 class Key internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1187,15 +1190,13 @@ class TlsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun alpn(): kotlin.String
 	fun lifetime(): api.TlsPolicyLifetime
 }
-class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Url> {
+class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): api.Url
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun partialCompareTo(other: api.Url): kotlin.Int?
-	override fun compareTo(other: api.Url): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Url
 	}
@@ -1207,14 +1208,12 @@ class Json internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Json
 	}
 }
-class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instant> {
+class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): api.Instant
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
-	fun partialCompareTo(other: api.Instant): kotlin.Int?
-	override fun compareTo(other: api.Instant): kotlin.Int
 }
 class StdIoError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -1435,7 +1434,6 @@ fun peek(tally: api.Tally, peek: (api.Tally) -> kotlin.UInt): kotlin.UInt
 fun len(payload: api.Bytes): kotlin.ULong
 fun hex(payload: api.Bytes): kotlin.String
 fun timedHex(payload: api.Bytes): kotlin.String
-fun timedText(value: api.Json): kotlin.String
 fun sampleHex(sample: api.Bytes): kotlin.String
 fun queuedHex(queued: api.Bytes): kotlin.String
 fun tickName(tick: api.Label): kotlin.String
@@ -1593,6 +1591,10 @@ fun sameSocketAddr(v: api.SocketAddr): api.SocketAddr
 fun sameSocketAddrV4(v: api.SocketAddrV4): api.SocketAddrV4
 fun sameSocketAddrV6(v: api.SocketAddrV6): api.SocketAddrV6
 fun sameIpAddr(v: api.IpAddr): api.IpAddr
+fun unescaped(text: kotlin.String): kotlin.String
+suspend fun unescapedLater(text: kotlin.String): kotlin.String
+suspend fun unescapedMaybe(text: kotlin.String?): kotlin.String?
+fun unzeroed(bytes: api.Bytes): api.Bytes
 fun deprecated(note: kotlin.UByte): kotlin.UByte
 @kotlin.Deprecated("") fun knob(dial: api.Dial): api.Knob
 @kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong

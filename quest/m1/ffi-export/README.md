@@ -77,7 +77,7 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
-  requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
+  required the refusals epic, since finished. Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
   epic's `Required` holds back every child, so none could start until moq's pin bump, which
   then waited on a rind release the maintainer held.
