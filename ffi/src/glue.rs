@@ -29,7 +29,8 @@ const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
 /// crate which it builds for, as the `cfg` [`CFG`]. On Android, it aligns the library to
-/// 16 KB pages. On macOS, a CPython extension leaves Python's symbols for the interpreter
+/// 16 KB pages. On Apple systems, it leaves room in the library's header for the longest
+/// install name a bundler may give it. On macOS, a CPython extension leaves Python's symbols for the interpreter
 /// that loads it to resolve.
 fn build(targets: &[String]) -> String {
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
@@ -51,6 +52,11 @@ fn build(targets: &[String]) -> String {
 		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
 		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
 		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
+		\t// Dart and Flutter rename an Apple library to the path they bundle it at, which\n\
+		\t// install_name_tool fits only in the room its load commands leave.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_VENDOR\").is_ok_and(|vendor| vendor == \"apple\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-headerpad_max_install_names\");\n\
 		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
