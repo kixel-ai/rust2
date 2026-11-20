@@ -1378,6 +1378,14 @@ func (self *Quantity) Close() error
 func (self *Quantity) Equal(other *Quantity) (bool, error)
 func (self *Quantity) GoString() string
 func (self *Quantity) PartialCompare(other *Quantity) (int, bool, error)
+type Rated struct {
+	Bytes_ [2]uint64
+	Made_ bool
+}
+func NewRated(count uint64, scale uint64) Rated
+func (self Rated) Equal(other Rated) bool
+func (self Rated) GoString() string
+func (self Rated) Scale() uint64
 type Reading struct {
 	Ok     bool
 	Level  float32

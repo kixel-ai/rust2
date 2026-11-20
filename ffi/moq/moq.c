@@ -191,7 +191,7 @@ int main(void) {
 	moq_group_Consumer *group = NULL;
 	CHECK(moq_track_Subscriber_recv_group_poll(receiving, waker, &group, &err) == MOQ_POLL_PENDING);
 	/* The track is untimed, so its group's start is a bare key, which frames reuse. */
-	moq_Timestamp *key = moq_Timestamp_unscaled(0);
+	moq_Timestamp key = moq_Timestamp_unscaled(0);
 	moq_group_Producer *writer = NULL;
 	CHECK(moq_track_Producer_append_group(track, key, &writer, &err, NULL));
 	CHECK(wakes == 1);
@@ -208,39 +208,35 @@ int main(void) {
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_READY);
 	moq_group_Consumer_read_frame_future_free(reading);
 	CHECK(frame != NULL && is(moq_frame_Frame_payload_get(frame, NULL), "hello"));
-	moq_Timestamp *stamp = moq_frame_Frame_timestamp_get(frame, NULL);
-	CHECK(stamp != NULL && !moq_Timestamp_scale(stamp, NULL).some);
-	moq_Timestamp_free(stamp);
+	moq_Timestamp stamp = moq_frame_Frame_timestamp_get(frame, NULL);
+	CHECK(!moq_Timestamp_scale(&stamp).some);
 	/* When it arrived: kio's clock's `Instant`, from kio's own export. */
 	moq_clock_Instant arrived = moq_frame_Frame_arrived(frame, NULL);
 	moq_clock_Instant now = moq_clock_now();
 	CHECK(moq_clock_Instant_checked_duration_since(&now, arrived).some);
 	moq_frame_Frame_free(frame);
 
-	/* A timestamp is lent to a call, which leaves it to C. The track is untimed, so a
-	 * timed frame is refused. */
-	moq_Timestamp *at = NULL;
+	/* A timestamp is copied into a call, which leaves C's as it was. The track is untimed,
+	 * so a timed frame is refused. */
+	moq_Timestamp at;
 	moq_TimeOverflow overflow;
 	uint64_t secs = 0;
 	CHECK(moq_Timestamp_from_millis(1500, &at, &overflow));
-	CHECK(moq_Timestamp_as_secs(at, &secs, &overflow, NULL) && secs == 1);
+	CHECK(moq_Timestamp_as_secs(&at, &secs, &overflow) && secs == 1);
 	/* Timestamps order in time across scales, and a scaled one and an unscaled key not at all. */
-	moq_Timestamp *second = NULL;
+	moq_Timestamp second;
 	CHECK(moq_Timestamp_from_secs(1, &second, &overflow));
-	CHECK(moq_Timestamp_partial_cmp(second, at, NULL) == -1);
-	CHECK(moq_Timestamp_partial_cmp(at, second, NULL) == 1);
-	CHECK(moq_Timestamp_partial_cmp(key, at, NULL) == 2);
-	moq_Timestamp_free(second);
+	CHECK(moq_Timestamp_partial_cmp(&second, &at) == -1);
+	CHECK(moq_Timestamp_partial_cmp(&at, &second) == 1);
+	CHECK(moq_Timestamp_partial_cmp(&key, &at) == 2);
 	CHECK(!moq_group_Producer_write_frame(writer, at, str("late"), &err, NULL));
 	CHECK(err != NULL && is(moq_Error_to_string(err, NULL), "frame timestamp doesn't fit its track"));
 	moq_Error_free(err);
 	secs = 0;
-	CHECK(moq_Timestamp_as_secs(at, &secs, &overflow, NULL) && secs == 1);
-	moq_Timestamp_free(at);
+	CHECK(moq_Timestamp_as_secs(&at, &secs, &overflow) && secs == 1);
 
 	/* The last frame, bytes that are not UTF-8, then the group's end, which reads as None. */
 	CHECK(moq_group_Producer_write_frame(writer, key, str("\xffworld"), &err, NULL));
-	moq_Timestamp_free(key);
 	moq_group_Finished *finished = NULL;
 	CHECK(moq_group_Producer_finish(writer, &finished, &err, NULL));
 	moq_group_Finished_free(finished);
@@ -477,10 +473,9 @@ int main(void) {
 	moq_Json *latest = NULL;
 	moq_buf json_err;
 	CHECK(moq_Json_parse(str("{\"on\": true}"), &latest, &json_err));
-	moq_Timestamp *updated = NULL;
+	moq_Timestamp updated;
 	CHECK(moq_Timestamp_from_millis(1, &updated, &overflow));
 	CHECK(moq_mux_json_Snapshot_Json_update(status_snapshot, latest, updated, &mux_err, NULL));
-	moq_Timestamp_free(updated);
 	moq_Json_free(latest);
 	moq_track_Subscriber *status_subscriber = moq_mux_json_Snapshot_Json_consume(status_snapshot, NULL);
 	moq_track_Subscriber_recv_group_future *status_receiving = moq_track_Subscriber_recv_group(status_subscriber, NULL);
@@ -624,11 +619,10 @@ int main(void) {
 	moq_broadcast_Producer *live_broadcast = moq_origin_Route_broadcast(live);
 	moq_track_Producer *live_track = NULL;
 	CHECK(moq_broadcast_Producer_create_track(live_broadcast, str("video"), NULL, &live_track, &err, NULL));
-	moq_Timestamp *live_key = moq_Timestamp_unscaled(0);
+	moq_Timestamp live_key = moq_Timestamp_unscaled(0);
 	moq_group_Producer *live_group = NULL;
 	CHECK(moq_track_Producer_append_group(live_track, live_key, &live_group, &err, NULL));
 	CHECK(moq_group_Producer_write_frame(live_group, live_key, str("hello"), &err, NULL));
-	moq_Timestamp_free(live_key);
 	moq_group_Finished *live_finished = NULL;
 	CHECK(moq_group_Producer_finish(live_group, &live_finished, &err, NULL));
 	moq_group_Finished_free(live_finished);

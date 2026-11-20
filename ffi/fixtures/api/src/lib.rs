@@ -1940,6 +1940,29 @@ impl Berth {
 	}
 }
 
+/// A count at a scale that may be absent: `Copy` with private fields, whose `None` writes
+/// its niche's whole `u64`, so a value whatever it holds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rated {
+	count: u64,
+	scale: Option<NonZero<u64>>,
+}
+
+impl Rated {
+	/// `count` at `scale` a second, or unscaled at a scale of zero.
+	pub fn new(count: u64, scale: u64) -> Self {
+		Self {
+			count,
+			scale: NonZero::new(scale),
+		}
+	}
+
+	/// Its scale, or zero when unscaled.
+	pub fn scale(&self) -> u64 {
+		self.scale.map_or(0, NonZero::get)
+	}
+}
+
 /// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
 /// through `&mut self`, so a value whose every copy changes alone.
 #[derive(Clone, Copy, Debug)]

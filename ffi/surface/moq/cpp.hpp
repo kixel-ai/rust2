@@ -306,18 +306,6 @@ namespace moq {
 		RUST2_FFI_CALLABLE void extra_set(::moq::taken<::std::tuple<::moq::view, ::moq::Json>> value);
 		static ::moq::hang_catalog_BinaryConfig new_(const ::moq::hang_catalog_Mode &mode);
 	};
-	class RUST2_FFI_CONSUMABLE hang_catalog_Clock {
-		RUST2_FFI_UNCONSUMED hang_catalog_Clock(hang_catalog_Clock &&other RUST2_FFI_MOVED_FROM) noexcept = default;
-		hang_catalog_Clock &operator=(hang_catalog_Clock &&other) noexcept = default;
-		RUST2_FFI_CALLABLE hang_catalog_Clock clone() const;
-		friend bool operator==(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
-		friend bool operator!=(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
-		RUST2_FFI_CALLABLE ::moq::buf debug() const;
-		RUST2_FFI_CALLABLE ::moq::Timestamp wall_get() const;
-		RUST2_FFI_CALLABLE void wall_set(const ::moq::Timestamp &value);
-		static ::moq::result<::moq::hang_catalog_Clock, ::moq::hang_Error> new_(const ::moq::Timestamp &wall);
-		RUST2_FFI_CALLABLE ::moq::result<::moq::clock_Wall, ::moq::hang_Error> wall_clock(const ::moq::Timestamp &pts) const;
-	};
 	class RUST2_FFI_CONSUMABLE hang_catalog_Container {
 		RUST2_FFI_UNCONSUMED hang_catalog_Container(hang_catalog_Container &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		hang_catalog_Container &operator=(hang_catalog_Container &&other) noexcept = default;
@@ -455,7 +443,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static hang_catalog_Timeline default_();
 		RUST2_FFI_CALLABLE ::std::optional<::moq::hang_catalog_Clock> clock_get() const;
-		RUST2_FFI_CALLABLE void clock_set(const ::moq::hang_catalog_Clock *value);
+		RUST2_FFI_CALLABLE void clock_set(const ::std::optional<::moq::hang_catalog_Clock> &value);
 		RUST2_FFI_CALLABLE ::std::optional<::moq::duration> interval_get() const;
 		RUST2_FFI_CALLABLE void interval_set(const ::std::optional<::moq::duration> &value);
 		RUST2_FFI_CALLABLE bool is_empty() const;
@@ -603,6 +591,15 @@ namespace moq {
 		friend bool operator!=(const hang_catalog_AAC &a, const hang_catalog_AAC &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
+	};
+	class hang_catalog_Clock {
+		friend bool operator==(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
+		friend bool operator!=(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
+		::moq::buf debug() const;
+		::moq::Timestamp wall_get() const;
+		void wall_set(const ::moq::Timestamp &value);
+		static ::moq::result<::moq::hang_catalog_Clock, ::moq::hang_Error> new_(const ::moq::Timestamp &wall);
+		::moq::result<::moq::clock_Wall, ::moq::hang_Error> wall_clock(const ::moq::Timestamp &pts) const;
 	};
 	class hang_catalog_Priorities {
 		friend bool operator==(const hang_catalog_Priorities &a, const hang_catalog_Priorities &b);
@@ -790,6 +787,7 @@ namespace moq {
 		::moq::buf _0;
 	};
 	inline bool operator==(const hang_catalog_AAC &a, const hang_catalog_AAC &b);
+	inline bool operator==(const hang_catalog_Clock &a, const hang_catalog_Clock &b);
 	inline bool operator==(const hang_catalog_Priorities &a, const hang_catalog_Priorities &b);
 	inline bool operator==(const hang_catalog_AV1 &a, const hang_catalog_AV1 &b);
 	inline bool operator==(const hang_catalog_Chromaticity &a, const hang_catalog_Chromaticity &b);
@@ -1491,7 +1489,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE mux_catalog_Producer clone() const;
 		static ::moq::result<::moq::mux_catalog_Producer, ::moq::mux_Error> new_(::moq::broadcast_Producer &broadcast, ::moq::mux_catalog_Config config);
 		RUST2_FFI_CALLABLE ::moq::track_Info track_info(::std::int8_t priority) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		template <class F0> RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> mutate(F0 &&f);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_catalog_Guard, ::moq::mux_Error> modify();
 		RUST2_FFI_CALLABLE ::moq::hang_Catalog snapshot() const;
@@ -1550,7 +1548,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE mux_catalog_Producer_Extra clone() const;
 		static ::moq::result<::moq::mux_catalog_Producer_Extra, ::moq::mux_Error> new_(::moq::broadcast_Producer &broadcast, ::moq::mux_catalog_Config_Extra config);
 		RUST2_FFI_CALLABLE ::moq::track_Info track_info(::std::int8_t priority) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		template <class F0> RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> mutate(F0 &&f);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_catalog_Guard_Extra, ::moq::mux_Error> modify();
 		RUST2_FFI_CALLABLE ::moq::hang_Catalog_Extra snapshot() const;
@@ -1609,7 +1607,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE mux_catalog_Producer_Ext clone() const;
 		static ::moq::result<::moq::mux_catalog_Producer_Ext, ::moq::mux_Error> new_(::moq::broadcast_Producer &broadcast, ::moq::mux_catalog_Config_Ext config);
 		RUST2_FFI_CALLABLE ::moq::track_Info track_info(::std::int8_t priority) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		template <class F0> RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> mutate(F0 &&f);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_catalog_Guard_Ext, ::moq::mux_Error> modify();
 		RUST2_FFI_CALLABLE ::moq::hang_Catalog_Ext snapshot() const;
@@ -1721,7 +1719,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_VideoConfig, ::moq::mux_Error> track_loc_Wire_VideoConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_VideoConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_AudioConfig, ::moq::mux_Error> track_loc_Wire_AudioConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_AudioConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_TextConfig, ::moq::mux_Error> track_loc_Wire_TextConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_TextConfig> config) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_catalog_Reserved_Extra {
 		RUST2_FFI_UNCONSUMED mux_catalog_Reserved_Extra(mux_catalog_Reserved_Extra &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -1761,7 +1759,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_VideoConfig, ::moq::mux_Error> track_loc_Wire_VideoConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_VideoConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_AudioConfig, ::moq::mux_Error> track_loc_Wire_AudioConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_AudioConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_TextConfig, ::moq::mux_Error> track_loc_Wire_TextConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_TextConfig> config) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_catalog_Reserved_Ext {
 		RUST2_FFI_UNCONSUMED mux_catalog_Reserved_Ext(mux_catalog_Reserved_Ext &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -1801,7 +1799,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_VideoConfig, ::moq::mux_Error> track_loc_Wire_VideoConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_VideoConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_AudioConfig, ::moq::mux_Error> track_loc_Wire_AudioConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_AudioConfig> config) const;
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Producer_loc_Wire_TextConfig, ::moq::mux_Error> track_loc_Wire_TextConfig(::moq::track_Producer track, const ::moq::mux_container_loc_Wire &container, ::std::optional<::moq::hang_catalog_TextConfig> config) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_catalog_VideoHint {
 		RUST2_FFI_UNCONSUMED mux_catalog_VideoHint(mux_catalog_VideoHint &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -2323,7 +2321,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_AudioConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_AudioConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2337,7 +2335,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_AudioConfig, ::moq::mux_Error> finish() &&;
@@ -2366,7 +2364,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_BinaryConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_BinaryConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2380,7 +2378,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_BinaryConfig, ::moq::mux_Error> finish() &&;
@@ -2409,7 +2407,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_JsonConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_JsonConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2423,7 +2421,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_JsonConfig, ::moq::mux_Error> finish() &&;
@@ -2452,7 +2450,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_TextConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_TextConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2466,7 +2464,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_TextConfig, ::moq::mux_Error> finish() &&;
@@ -2495,7 +2493,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_VideoConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_VideoConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2509,7 +2507,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
@@ -2539,7 +2537,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_unit, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2553,7 +2551,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container, ::moq::mux_Error> finish() &&;
@@ -2582,7 +2580,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_AudioConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_AudioConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2596,7 +2594,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire_AudioConfig, ::moq::mux_Error> finish() &&;
@@ -2625,7 +2623,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_BinaryConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_BinaryConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2639,7 +2637,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire_BinaryConfig, ::moq::mux_Error> finish() &&;
@@ -2668,7 +2666,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_JsonConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_JsonConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2682,7 +2680,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire_JsonConfig, ::moq::mux_Error> finish() &&;
@@ -2711,7 +2709,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_TextConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_TextConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2725,7 +2723,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire_TextConfig, ::moq::mux_Error> finish() &&;
@@ -2754,7 +2752,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_VideoConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_VideoConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2768,7 +2766,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire_VideoConfig, ::moq::mux_Error> finish() &&;
@@ -2798,7 +2796,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_unit, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2812,7 +2810,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_fmp4_Wire, ::moq::mux_Error> finish() &&;
@@ -2841,7 +2839,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_AudioConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_AudioConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2855,7 +2853,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire_AudioConfig, ::moq::mux_Error> finish() &&;
@@ -2884,7 +2882,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_BinaryConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_BinaryConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2898,7 +2896,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire_BinaryConfig, ::moq::mux_Error> finish() &&;
@@ -2927,7 +2925,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_JsonConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_JsonConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2941,7 +2939,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire_JsonConfig, ::moq::mux_Error> finish() &&;
@@ -2970,7 +2968,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_TextConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_TextConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -2984,7 +2982,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire_TextConfig, ::moq::mux_Error> finish() &&;
@@ -3013,7 +3011,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_VideoConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_VideoConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3027,7 +3025,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire_VideoConfig, ::moq::mux_Error> finish() &&;
@@ -3057,7 +3055,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_unit, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3071,7 +3069,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_legacy_Wire, ::moq::mux_Error> finish() &&;
@@ -3100,7 +3098,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_AudioConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_AudioConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3114,7 +3112,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire_AudioConfig, ::moq::mux_Error> finish() &&;
@@ -3143,7 +3141,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_BinaryConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_BinaryConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3157,7 +3155,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire_BinaryConfig, ::moq::mux_Error> finish() &&;
@@ -3186,7 +3184,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_JsonConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_JsonConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3200,7 +3198,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire_JsonConfig, ::moq::mux_Error> finish() &&;
@@ -3229,7 +3227,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_TextConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_TextConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3243,7 +3241,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire_TextConfig, ::moq::mux_Error> finish() &&;
@@ -3272,7 +3270,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set(::moq::hang_catalog_VideoConfig config);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_VideoConfig, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3286,7 +3284,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire_VideoConfig, ::moq::mux_Error> finish() &&;
@@ -3316,7 +3314,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_bitrate(::std::uint64_t bitrate);
 		RUST2_FFI_CALLABLE ::moq::result<::moq::mux_container_Guard_unit, ::moq::mux_Error> modify();
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::moq::Timestamp *hint) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::mux_Error> timestamp(const ::std::optional<::moq::Timestamp> &hint) const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::mux_catalog_Estimate estimate() const;
@@ -3330,7 +3328,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::track_Producer track() const;
 		RUST2_FFI_CALLABLE ::std::optional<::moq::Timestamp> live_edge() const;
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> write(const ::moq::mux_container_Frame &frame);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_loc_Wire, ::moq::mux_Error> finish() &&;
@@ -3448,11 +3446,11 @@ namespace moq {
 		static ::moq::result<::moq::mux_import_Track, ::moq::mux_Error> video_Extra(::moq::track_Request request, ::moq::mux_catalog_Reserved_Extra reserved, ::moq::mux_import_VideoInit init);
 		static ::moq::result<::moq::mux_import_Track, ::moq::mux_Error> video_Ext(::moq::track_Request request, ::moq::mux_catalog_Reserved_Ext reserved, ::moq::mux_import_VideoInit init);
 		static ::moq::result<::moq::mux_import_Track, ::moq::mux_Error> video_unit(::moq::track_Request request, ::moq::mux_catalog_Reserved reserved, ::moq::mux_import_VideoInit init);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_import_track_Finished, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_import_Track> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
@@ -3471,7 +3469,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_import_TrackStream> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CALLABLE ::moq::buf name() const;
@@ -3727,10 +3725,10 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_AudioConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_aac_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_annexb_Error {
 		RUST2_FFI_UNCONSUMED mux_codec_annexb_Error(mux_codec_annexb_Error &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -3751,7 +3749,7 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_av1_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
@@ -3762,8 +3760,8 @@ namespace moq {
 		mux_codec_av1_Split &operator=(mux_codec_av1_Split &&other) noexcept = default;
 		static mux_codec_av1_Split default_();
 		static ::moq::mux_codec_av1_Split new_();
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::moq::Timestamp *pts);
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::std::optional<::moq::Timestamp> &pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CALLABLE void reset();
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_flac_Import {
@@ -3776,10 +3774,10 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_AudioConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_flac_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_h264_Avc1 {
 		RUST2_FFI_UNCONSUMED mux_codec_h264_Avc1(mux_codec_h264_Avc1 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -3833,7 +3831,7 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_h264_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE void report_skipped(::std::uint64_t frames) const;
@@ -3847,8 +3845,8 @@ namespace moq {
 		mux_codec_h264_Split &operator=(mux_codec_h264_Split &&other) noexcept = default;
 		static mux_codec_h264_Split default_();
 		static ::moq::mux_codec_h264_Split new_();
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::moq::Timestamp *pts);
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::std::optional<::moq::Timestamp> &pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CALLABLE void reset();
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_h265_Hvc1 {
@@ -3905,7 +3903,7 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_h265_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE void report_skipped(::std::uint64_t frames) const;
@@ -3919,8 +3917,8 @@ namespace moq {
 		mux_codec_h265_Split &operator=(mux_codec_h265_Split &&other) noexcept = default;
 		static mux_codec_h265_Split default_();
 		static ::moq::mux_codec_h265_Split new_();
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::moq::Timestamp *pts);
-		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> decode(::moq::input data, const ::std::optional<::moq::Timestamp> &pts);
+		RUST2_FFI_CALLABLE ::moq::result<::std::vector<::moq::mux_container_Frame>, ::moq::mux_Error> flush(const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CALLABLE void reset();
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_mp3_Import {
@@ -3933,10 +3931,10 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_AudioConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_mp3_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_opus_Config {
 		RUST2_FFI_UNCONSUMED mux_codec_opus_Config(mux_codec_opus_Config &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -3971,10 +3969,10 @@ namespace moq {
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_AudioConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_opus_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 	};
 	class RUST2_FFI_CONSUMABLE mux_codec_vp8_Import {
 		RUST2_FFI_UNCONSUMED mux_codec_vp8_Import(mux_codec_vp8_Import &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -3983,12 +3981,12 @@ namespace moq {
 		static ::moq::result<::moq::mux_codec_vp8_Import, ::moq::mux_Error> new_Ext(::moq::track_Producer track, ::moq::mux_catalog_Reserved_Ext reserved, ::moq::mux_catalog_VideoHint hint);
 		static ::moq::result<::moq::mux_codec_vp8_Import, ::moq::mux_Error> new_unit(::moq::track_Producer track, ::moq::mux_catalog_Reserved reserved, ::moq::mux_catalog_VideoHint hint);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> initialize(::moq::input buf_);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_vp8_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
@@ -4000,12 +3998,12 @@ namespace moq {
 		static ::moq::result<::moq::mux_codec_vp9_Import, ::moq::mux_Error> new_Ext(::moq::track_Producer track, ::moq::mux_catalog_Reserved_Ext reserved, ::moq::mux_catalog_VideoHint hint);
 		static ::moq::result<::moq::mux_codec_vp9_Import, ::moq::mux_Error> new_unit(::moq::track_Producer track, ::moq::mux_catalog_Reserved reserved, ::moq::mux_catalog_VideoHint hint);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> initialize(::moq::input buf_);
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::moq::Timestamp *pts);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> decode(::moq::input frame, const ::std::optional<::moq::Timestamp> &pts);
 		RUST2_FFI_CALLABLE ::moq::track_Demand demand() const;
 		RUST2_FFI_CONSUMES ::moq::result<::moq::mux_container_Finished_Container_VideoConfig, ::moq::mux_Error> finish() &&;
 		RUST2_FFI_CONSUMES void abort(::moq::Error err) &&;
 		RUST2_FFI_CONSUMES ::moq::result<void, ::moq::mux_codec_vp9_Import> abort_unwanted(::moq::Error err) &&;
-		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::moq::Timestamp *end);
+		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> cut(const ::std::optional<::moq::Timestamp> &end);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> discontinuity();
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> set_enabled(bool enabled);
 		RUST2_FFI_CALLABLE ::moq::result<void, ::moq::mux_Error> seek(::std::uint64_t start);
@@ -4135,7 +4133,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::mux_container_fmp4_Muxer_read_future read(::moq::group_Consumer &group);
 		RUST2_FFI_CALLABLE ::moq::result<::std::optional<::std::tuple<::std::uint32_t, ::std::uint32_t>>, ::moq::mux_Error> picture_size(const ::moq::mux_container_Frame &keyframe);
 		RUST2_FFI_CALLABLE ::moq::result<::std::optional<::moq::buf>, ::moq::mux_Error> init() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::buf, ::moq::mux_Error> fragment(::std::uint32_t sequence, const ::std::vector<::moq::mux_container_Frame> &frames, const ::moq::Timestamp *end) const;
+		RUST2_FFI_CALLABLE ::moq::result<::moq::buf, ::moq::mux_Error> fragment(::std::uint32_t sequence, const ::std::vector<::moq::mux_container_Frame> &frames, const ::std::optional<::moq::Timestamp> &end) const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_container_legacy_Audio {
 		RUST2_FFI_UNCONSUMED mux_container_legacy_Audio(mux_container_legacy_Audio &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -5351,42 +5349,6 @@ namespace moq {
 		static ::moq::Error from_transport_memory_Error(const ::moq::transport_memory_Error &err);
 		RUST2_FFI_CALLABLE ::moq::Retry retry() const;
 	};
-	class RUST2_FFI_CONSUMABLE Timestamp {
-		RUST2_FFI_UNCONSUMED Timestamp(Timestamp &&other RUST2_FFI_MOVED_FROM) noexcept = default;
-		Timestamp &operator=(Timestamp &&other) noexcept = default;
-		RUST2_FFI_UNCONSUMED Timestamp(const Timestamp &other) = default;
-		Timestamp &operator=(const Timestamp &other) = default;
-		friend bool operator==(const Timestamp &a, const Timestamp &b);
-		friend bool operator!=(const Timestamp &a, const Timestamp &b);
-		friend bool operator<(const Timestamp &a, const Timestamp &b);
-		friend bool operator<=(const Timestamp &a, const Timestamp &b);
-		friend bool operator>(const Timestamp &a, const Timestamp &b);
-		friend bool operator>=(const Timestamp &a, const Timestamp &b);
-		#if defined(__cpp_lib_three_way_comparison)
-		friend ::std::partial_ordering operator<=>(const Timestamp &a, const Timestamp &b);
-		#endif
-		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
-		RUST2_FFI_CALLABLE ::moq::buf debug() const;
-		static ::moq::Timestamp ZERO();
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> new_(::std::uint64_t value, const ::moq::Timescale &scale);
-		static ::moq::Timestamp unscaled(::std::uint64_t key);
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_scale(::std::uint64_t value, ::std::uint64_t units_per_second);
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_secs(::std::uint64_t seconds);
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_millis(::std::uint64_t millis);
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_micros(::std::uint64_t micros);
-		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_nanos(::std::uint64_t nanos);
-		RUST2_FFI_CALLABLE ::std::uint64_t value() const;
-		RUST2_FFI_CALLABLE ::std::optional<::moq::Timescale> scale() const;
-		RUST2_FFI_CALLABLE bool is_zero() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> convert(const ::moq::Timescale &new_scale) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::u128, ::moq::TimeOverflow> as_scale(const ::moq::Timescale &target) const;
-		RUST2_FFI_CALLABLE ::moq::result<::std::uint64_t, ::moq::TimeOverflow> as_secs() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::u128, ::moq::TimeOverflow> as_millis() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::u128, ::moq::TimeOverflow> as_micros() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::u128, ::moq::TimeOverflow> as_nanos() const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> checked_add(const ::moq::Timestamp &rhs) const;
-		RUST2_FFI_CALLABLE ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> checked_sub(const ::moq::Timestamp &rhs) const;
-	};
 	class RUST2_FFI_CONSUMABLE Version {
 		RUST2_FFI_UNCONSUMED Version(Version &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Version &operator=(Version &&other) noexcept = default;
@@ -5828,30 +5790,6 @@ namespace moq {
 		static ::moq::transport_Probe new_();
 		RUST2_FFI_CALLABLE ::moq::bandwidth_Rate target() const;
 		RUST2_FFI_CALLABLE void set_target(const ::moq::bandwidth_Rate &rate) const;
-	};
-	class RUST2_FFI_CONSUMABLE transport_ReceiveWindow {
-		RUST2_FFI_UNCONSUMED transport_ReceiveWindow(transport_ReceiveWindow &&other RUST2_FFI_MOVED_FROM) noexcept = default;
-		transport_ReceiveWindow &operator=(transport_ReceiveWindow &&other) noexcept = default;
-		RUST2_FFI_CALLABLE transport_ReceiveWindow clone() const;
-		friend bool operator==(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
-		friend bool operator!=(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
-		RUST2_FFI_CALLABLE ::moq::buf debug() const;
-		RUST2_FFI_CALLABLE ::std::optional<::std::uint64_t> connection_get() const;
-		RUST2_FFI_CALLABLE void connection_set(const ::std::optional<::std::uint64_t> &value);
-		RUST2_FFI_CALLABLE ::std::uint64_t stream_get() const;
-		RUST2_FFI_CALLABLE void stream_set(::std::uint64_t value);
-		static ::moq::transport_ReceiveWindow new_(const ::std::optional<::std::uint64_t> &connection, ::std::uint64_t stream);
-	};
-	class RUST2_FFI_CONSUMABLE transport_Limits {
-		RUST2_FFI_UNCONSUMED transport_Limits(transport_Limits &&other RUST2_FFI_MOVED_FROM) noexcept = default;
-		transport_Limits &operator=(transport_Limits &&other) noexcept = default;
-		RUST2_FFI_CALLABLE transport_Limits clone() const;
-		friend bool operator==(const transport_Limits &a, const transport_Limits &b);
-		friend bool operator!=(const transport_Limits &a, const transport_Limits &b);
-		RUST2_FFI_CALLABLE ::moq::buf debug() const;
-		static transport_Limits default_();
-		RUST2_FFI_CALLABLE ::std::optional<::std::uint64_t> receive_window_get() const;
-		RUST2_FFI_CALLABLE void receive_window_set(const ::std::optional<::std::uint64_t> &value);
 	};
 	class RUST2_FFI_CONSUMABLE bandwidth_Limit {
 		RUST2_FFI_UNCONSUMED bandwidth_Limit(bandwidth_Limit &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -6666,6 +6604,37 @@ namespace moq {
 		static ::moq::result<::moq::Timescale, ::moq::TimeOverflow> new_(::std::uint64_t units_per_second);
 		::std::uint64_t as_u64() const;
 	};
+	class Timestamp {
+		friend bool operator==(const Timestamp &a, const Timestamp &b);
+		friend bool operator!=(const Timestamp &a, const Timestamp &b);
+		friend bool operator<(const Timestamp &a, const Timestamp &b);
+		friend bool operator<=(const Timestamp &a, const Timestamp &b);
+		friend bool operator>(const Timestamp &a, const Timestamp &b);
+		friend bool operator>=(const Timestamp &a, const Timestamp &b);
+		#if defined(__cpp_lib_three_way_comparison)
+		friend ::std::partial_ordering operator<=>(const Timestamp &a, const Timestamp &b);
+		#endif
+		::moq::buf debug() const;
+		static ::moq::Timestamp ZERO();
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> new_(::std::uint64_t value, const ::moq::Timescale &scale);
+		static ::moq::Timestamp unscaled(::std::uint64_t key);
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_scale(::std::uint64_t value, ::std::uint64_t units_per_second);
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_secs(::std::uint64_t seconds);
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_millis(::std::uint64_t millis);
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_micros(::std::uint64_t micros);
+		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> from_nanos(::std::uint64_t nanos);
+		::std::uint64_t value() const;
+		::std::optional<::moq::Timescale> scale() const;
+		bool is_zero() const;
+		::moq::result<::moq::Timestamp, ::moq::TimeOverflow> convert(const ::moq::Timescale &new_scale) const;
+		::moq::result<::moq::u128, ::moq::TimeOverflow> as_scale(const ::moq::Timescale &target) const;
+		::moq::result<::std::uint64_t, ::moq::TimeOverflow> as_secs() const;
+		::moq::result<::moq::u128, ::moq::TimeOverflow> as_millis() const;
+		::moq::result<::moq::u128, ::moq::TimeOverflow> as_micros() const;
+		::moq::result<::moq::u128, ::moq::TimeOverflow> as_nanos() const;
+		::moq::result<::moq::Timestamp, ::moq::TimeOverflow> checked_add(const ::moq::Timestamp &rhs) const;
+		::moq::result<::moq::Timestamp, ::moq::TimeOverflow> checked_sub(const ::moq::Timestamp &rhs) const;
+	};
 	struct setup_Token {
 		::std::uint64_t kind;
 		::moq::buf value;
@@ -6901,6 +6870,24 @@ namespace moq {
 		void add(const ::moq::stats_Withdrawals &other);
 		bool regressed(const ::moq::stats_Withdrawals &previous) const;
 	};
+	class transport_ReceiveWindow {
+		friend bool operator==(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
+		friend bool operator!=(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
+		::moq::buf debug() const;
+		::std::optional<::std::uint64_t> connection_get() const;
+		void connection_set(const ::std::optional<::std::uint64_t> &value);
+		::std::uint64_t stream_get() const;
+		void stream_set(::std::uint64_t value);
+		static ::moq::transport_ReceiveWindow new_(const ::std::optional<::std::uint64_t> &connection, ::std::uint64_t stream);
+	};
+	class transport_Limits {
+		friend bool operator==(const transport_Limits &a, const transport_Limits &b);
+		friend bool operator!=(const transport_Limits &a, const transport_Limits &b);
+		::moq::buf debug() const;
+		static transport_Limits default_();
+		::std::optional<::std::uint64_t> receive_window_get() const;
+		void receive_window_set(const ::std::optional<::std::uint64_t> &value);
+	};
 	class bandwidth_Rate {
 		friend bool operator==(const bandwidth_Rate &a, const bandwidth_Rate &b);
 		friend bool operator!=(const bandwidth_Rate &a, const bandwidth_Rate &b);
@@ -7125,6 +7112,14 @@ namespace moq {
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::weak_ordering operator<=>(const Timescale &a, const Timescale &b);
 	#endif
+	inline bool operator==(const Timestamp &a, const Timestamp &b);
+	inline bool operator<(const Timestamp &a, const Timestamp &b);
+	inline bool operator<=(const Timestamp &a, const Timestamp &b);
+	inline bool operator>(const Timestamp &a, const Timestamp &b);
+	inline bool operator>=(const Timestamp &a, const Timestamp &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::partial_ordering operator<=>(const Timestamp &a, const Timestamp &b);
+	#endif
 	inline bool operator==(const setup_Token &a, const setup_Token &b);
 	inline bool operator==(const session_Limits &a, const session_Limits &b);
 	inline bool operator==(const stats_Content &a, const stats_Content &b);
@@ -7138,6 +7133,8 @@ namespace moq {
 	inline bool operator==(const stats_RouteRefusals &a, const stats_RouteRefusals &b);
 	inline bool operator==(const stats_Routes &a, const stats_Routes &b);
 	inline bool operator==(const stats_Withdrawals &a, const stats_Withdrawals &b);
+	inline bool operator==(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
+	inline bool operator==(const transport_Limits &a, const transport_Limits &b);
 	inline bool operator==(const bandwidth_Rate &a, const bandwidth_Rate &b);
 	inline bool operator<(const bandwidth_Rate &a, const bandwidth_Rate &b);
 	inline bool operator<=(const bandwidth_Rate &a, const bandwidth_Rate &b);
@@ -7324,11 +7321,6 @@ namespace std {
 namespace std {
 	template <> struct hash<::moq::Path> {
 		size_t operator()(const ::moq::Path &value) const noexcept;
-	};
-}
-namespace std {
-	template <> struct hash<::moq::Timestamp> {
-		size_t operator()(const ::moq::Timestamp &value) const noexcept;
 	};
 }
 namespace std {
@@ -7794,6 +7786,7 @@ namespace moq {
 	enum class Level;
 	class TimeOverflow;
 	class Timescale;
+	class Timestamp;
 	class clock_Instant;
 	class clock_Elapsed;
 	class clock_Wall;
@@ -7810,6 +7803,8 @@ namespace moq {
 	class stats_RouteRefusals;
 	class stats_Routes;
 	class stats_Withdrawals;
+	class transport_ReceiveWindow;
+	class transport_Limits;
 	class bandwidth_Rate;
 	struct datagram_Datagram;
 	struct frame_Info;
@@ -7820,6 +7815,7 @@ namespace moq {
 	class origin_Cost;
 	class origin_Priority;
 	struct hang_catalog_AAC;
+	class hang_catalog_Clock;
 	class hang_catalog_Priorities;
 	struct hang_catalog_AV1;
 	struct hang_catalog_Mastering;
@@ -7857,7 +7853,6 @@ namespace moq {
 	class Session;
 	class Client;
 	class Error;
-	class Timestamp;
 	class Version;
 	class Versions;
 	class Specificity;
@@ -7922,8 +7917,6 @@ namespace moq {
 	class stats_Bill;
 	class transport_Wire;
 	class transport_Probe;
-	class transport_ReceiveWindow;
-	class transport_Limits;
 	class bandwidth_Limit;
 	class bandwidth_Demand;
 	class bandwidth_Reservation;
@@ -8000,7 +7993,6 @@ namespace moq {
 	class hang_catalog_AudioConfig;
 	class hang_catalog_Binary;
 	class hang_catalog_BinaryConfig;
-	class hang_catalog_Clock;
 	class hang_catalog_Container;
 	class hang_catalog_Echo;
 	class hang_catalog_Include;

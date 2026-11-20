@@ -161,8 +161,8 @@ int main() {
 		CHECK(moq::clock_now().checked_duration_since(hello.arrived()).has_value());
 	}
 
-	// A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
-	// so a timed frame is refused.
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
+	// untimed, so a timed frame is refused.
 	auto at = moq::Timestamp::from_millis(1500);
 	CHECK(at && at->as_secs() && *at->as_secs() == 1);
 	// Timestamps order in time across scales, and a scaled one and an unscaled key not at all.
