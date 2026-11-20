@@ -358,6 +358,38 @@ class Reproducible(unittest.TestCase):
             self.assertTrue(flags[0].startswith("--remap-path-prefix="), flags)
             self.assertNotIn("-C", flags)
 
+    def test_both_spellings_of_a_linked_directory_are_remapped(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            real = Path(tmp).resolve() / "real"
+            (real / "export").mkdir(parents=True)
+            (Path(tmp) / "link").symlink_to(real, target_is_directory=True)
+            link = Path(tmp) / "link"
+            flags = package.reproducible(info(link), link / "export", "x86_64-unknown-linux-gnu")["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            for spelled in (link, real):
+                self.assertIn(f"--remap-path-prefix={spelled}=/source", flags)
+                self.assertIn(f"--remap-path-prefix={spelled / 'export'}=/export", flags)
+
+    def test_a_build_reaches_its_packages_through_the_link(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            crate, export = root / "checkout/source/crate", root / "checkout/export"
+            crate.mkdir(parents=True)
+            export.mkdir()
+            link = root / "link"
+            graph = ([crate], [root / "checkout/source/Cargo.toml"])
+            with mock.patch.object(package, "LINK", link), mock.patch.object(package, "local_packages", return_value=graph):
+                with package.linked("Cargo.toml", export) as spell:
+                    # The deepest directory holding the export, the crate, and its workspace root.
+                    self.assertEqual(link.resolve(), root / "checkout")
+                    self.assertEqual(spell(export), link / "export")
+                    self.assertEqual(spell(crate), link / "source/crate")
+                    # A second build while one holds the link would build the other's sources.
+                    with self.assertRaises(SystemExit), package.linked("Cargo.toml", export):
+                        pass
+                self.assertFalse(os.path.lexists(link))
+                self.assertTrue(export.is_dir())
+
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)

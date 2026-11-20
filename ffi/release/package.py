@@ -7,6 +7,7 @@ names a crate: what Cargo cannot say, such as who may publish, stays in the call
 
 import argparse
 import base64
+import contextlib
 import csv
 import difflib
 import gzip
@@ -86,6 +87,10 @@ CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 COLLECTIONS = "https://github.com/apple/swift-collections"
 # The first date a ZIP entry can hold, and so the earliest SOURCE_DATE_EPOCH a build takes.
 ZIP_EPOCH = backend.ZIP_EPOCH
+# The fixed directory every build runs cargo through, linked to the checkout's (`linked`), so
+# cargo hashes a path package outside the generated crate's workspace, the facade, by one path,
+# and dlltool names a Windows GNU library's import symbols after one target directory, from any checkout.
+LINK = Path("C:/rust2-ffi") if sys.platform == "win32" else Path("/tmp/rust2-ffi")
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -386,16 +391,7 @@ def sdist(info, manifest, export, out):
     targets = json.loads((export / "api.json").read_text(encoding="utf-8"))["api"]["targets"]
     if missing := [t for t in SDIST_TARGETS if t not in targets]:
         raise SystemExit(f"the export lacks {missing}, on which the sdist must build: stage their APIs")
-    graph = json.loads(cargo(manifest, "metadata", "--format-version", "1", "--locked", "--features", "python",
-                             "--manifest-path", export / "Cargo.toml").stdout)
-    local = sorted({Path(p["manifest_path"]).parent for p in graph["packages"] if p["source"] is None} - {export})
-    manifests = {d / "Cargo.toml" for d in local}
-    roots = set()
-    for directory in local:
-        root = Path(output("cargo", "locate-project", "--workspace", "--message-format", "plain",
-                           "--manifest-path", directory / "Cargo.toml", cwd=directory).strip())
-        if not any(root.samefile(m) for m in manifests):
-            roots.add(root)
+    local, roots = local_packages(manifest, export, "--features", "python")
     base = Path(os.path.commonpath([*local, *(r.parent for r in roots)]))
     def place(directory):
         """Where a directory lies in the sdist."""
@@ -1422,14 +1418,15 @@ def reproducible(info, export_dir, target, install=None):
     """The environment that makes a build's bytes the same on any host, at any path.
 
     Release time is the commit's, and each directory the build reads from, which rustc and
-    C compilers write into panic messages and debug info, is spelled the same. A dylib is
-    named `install`, else by its library's own name.
+    C compilers write into panic messages and debug info, is spelled the same, through `LINK`
+    or not. A dylib is named `install`, else by its library's own name.
     """
-    pairs = {
+    named = {
         info["workspace"]: "/source",
         str(export_dir): "/export",
         os.environ.get("CARGO_HOME") or str(Path.home() / ".cargo"): "/cargo",
     }
+    pairs = {path: new for old, new in named.items() for path in (old, os.path.realpath(old))}
     # The deepest last, which rustc prefers where one directory holds another.
     pairs = sorted(pairs.items(), key=lambda pair: len(pair[0]))
     for found in rustflags_config(info["dir"], target):
@@ -1646,6 +1643,51 @@ def cargo(manifest, *args, env=None):
                capture_output=True, encoding="utf-8")
 
 
+def local_packages(manifest, export, *features):
+    """The local packages besides `export` that its crate builds with, and the workspace roots apart from them."""
+    graph = json.loads(cargo(manifest, "metadata", "--format-version", "1", "--locked", *features,
+                             "--manifest-path", export / "Cargo.toml").stdout)
+    local = sorted({Path(p["manifest_path"]).parent for p in graph["packages"] if p["source"] is None} - {export})
+    manifests = {d / "Cargo.toml" for d in local}
+    roots = set()
+    for directory in local:
+        root = Path(output("cargo", "locate-project", "--workspace", "--message-format", "plain",
+                           "--manifest-path", directory / "Cargo.toml", cwd=directory).strip())
+        if not any(root.samefile(m) for m in manifests):
+            roots.add(root)
+    return local, sorted(roots)
+
+
+@contextlib.contextmanager
+def linked(manifest, export, *features):
+    """`export` as cargo reaches it through `LINK`, which links to the deepest directory holding
+    it and every local package and workspace root it builds with, so their layout below that
+    directory alone names them. Cargo joins each relative path lexically from it, never
+    resolving the link. Yields the spelling through `LINK` of a directory below it."""
+    local, roots = local_packages(manifest, export, *features)
+    try:
+        base = Path(os.path.commonpath([p.resolve() for p in (export, *local, *(r.parent for r in roots))]))
+    except ValueError:
+        raise SystemExit(f"{export} and the packages it builds with lie on different drives, which no link spans") from None
+    try:
+        if sys.platform == "win32":
+            # A junction, which unlike a symlink needs no privilege.
+            import _winapi
+            _winapi.CreateJunction(str(base), str(LINK))
+        else:
+            os.symlink(base, LINK, target_is_directory=True)
+    except FileExistsError:
+        raise SystemExit(f"{LINK} exists: another build is using it, or a killed one left it, to remove") from None
+    try:
+        yield lambda path: LINK / Path(path).resolve().relative_to(base)
+    finally:
+        # rmdir removes a junction itself, unlink a symlink; neither touches what it links to.
+        if sys.platform == "win32":
+            os.rmdir(LINK)
+        else:
+            os.unlink(LINK)
+
+
 def staticlib(manifest, crate, lib, target, env=None):
     """The C library alone, apart from the Python extension, whose CPython symbols it would
     leave undefined, and the system libraries rustc says it needs beside it."""
@@ -1719,48 +1761,51 @@ def build(args):
     """This host's wheels, C archives, Apple and Go static libraries, the export's sources, and native output."""
     info = facts(args.manifest_path)
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
-    crate = export_dir / "Cargo.toml"
     out.mkdir(parents=True, exist_ok=True)
-    info["sbom"] = sbom(info, crate)
+    info["sbom"] = sbom(info, export_dir / "Cargo.toml")
     (out / "sbom.cdx.json").write_bytes(info["sbom"])
-    for target in args.targets:
-        if target not in WHEEL_TARGETS and target not in APPLE_TARGETS and target not in GO_TARGETS:
-            raise SystemExit(f"no package ships {target}")
-        run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
-        if target in WHEEL_TARGETS:
-            env = reproducible(info, export_dir, target)
-            if "apple" in target:
-                env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
-            linux = "linux" in target
-            # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
-            built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
-                          "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
-                          "--target-dir", export_dir / "target-python", "--features", "python", env=env)
-            sys.stderr.write(built.stderr)
-            library = export_dir / "target-python" / target / "release" / library_name(lib, target)
-            with tempfile.TemporaryDirectory() as raw:
-                repair(write_wheel(info, export_dir, library, target, raw), target, out / "wheels", info["epoch"])
-            c_archive(info, args.manifest_path, export_dir, target, out)
-        if target in APPLE_TARGETS:
-            apple = APPLE_TARGETS[target]
-            name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
-            library, native = staticlib(args.manifest_path, crate, lib, target,
-                                        env={**reproducible(info, export_dir, target), name: SWIFT_PLATFORMS[apple]})
-            static = out / "static" / target
-            static.mkdir(parents=True)
-            shutil.copy(library, static)
-            (static / "native.txt").write_text(native + "\n", encoding="utf-8")
-            # The Go module links the Swift package's macOS library, at its floor.
-            if target in GO_TARGETS:
-                go_library(args, export_dir, lib, target, library, native, out)
-        elif target in GO_TARGETS:
-            library, native = staticlib(args.manifest_path, crate, lib, target, env=reproducible(info, export_dir, target))
-            go_library(args, export_dir, lib, target, library, native, out)
+    with linked(args.manifest_path, export_dir, "--all-features") as spell:
+        # The facts with the workspace through the link, for `reproducible` to remap while it exists.
+        through, inside = spell(export_dir), {**info, "workspace": str(spell(info["workspace"]))}
+        crate = through / "Cargo.toml"
+        for target in args.targets:
+            if target not in WHEEL_TARGETS and target not in APPLE_TARGETS and target not in GO_TARGETS:
+                raise SystemExit(f"no package ships {target}")
+            run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
+            if target in WHEEL_TARGETS:
+                env = reproducible(inside, through, target)
+                if "apple" in target:
+                    env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
+                linux = "linux" in target
+                # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
+                built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
+                              "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
+                              "--target-dir", through / "target-python", "--features", "python", env=env)
+                sys.stderr.write(built.stderr)
+                library = through / "target-python" / target / "release" / library_name(lib, target)
+                with tempfile.TemporaryDirectory() as raw:
+                    repair(write_wheel(inside, through, library, target, raw), target, out / "wheels", inside["epoch"])
+                c_archive(inside, args.manifest_path, through, target, out)
+            if target in APPLE_TARGETS:
+                apple = APPLE_TARGETS[target]
+                name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
+                library, native = staticlib(args.manifest_path, crate, lib, target,
+                                            env={**reproducible(inside, through, target), name: SWIFT_PLATFORMS[apple]})
+                static = out / "static" / target
+                static.mkdir(parents=True)
+                shutil.copy(library, static)
+                (static / "native.txt").write_text(native + "\n", encoding="utf-8")
+                # The Go module links the Swift package's macOS library, at its floor.
+                if target in GO_TARGETS:
+                    go_library(args, through, lib, target, library, native, out)
+            elif target in GO_TARGETS:
+                library, native = staticlib(args.manifest_path, crate, lib, target, env=reproducible(inside, through, target))
+                go_library(args, through, lib, target, library, native, out)
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
     for part in ("include", "swift", "python", "go"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
-    shutil.copy(crate, out / "export")
+    shutil.copy(export_dir / "Cargo.toml", out / "export")
     shutil.copy(export_dir / "api.json", out / "export")
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
@@ -1992,9 +2037,11 @@ def web(args):
     exporter(args.manifest_path, args.features, "--target", WEB_TARGET, "--out", export_dir)
     manifest = Path(args.manifest_path).resolve()
     run("rustup", "target", "add", WEB_TARGET, cwd=manifest.parent)
-    built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                  "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web",
-                  env={**reproducible(info, export_dir, WEB_TARGET), **web_profile(export_dir / "Cargo.toml")})
+    with linked(args.manifest_path, export_dir, "--features", "web") as spell:
+        through, inside = spell(export_dir), {**info, "workspace": str(spell(info["workspace"]))}
+        built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", through / "Cargo.toml",
+                      "--target", WEB_TARGET, "--target-dir", through / "target", "--features", "web",
+                      env={**reproducible(inside, through, WEB_TARGET), **web_profile(export_dir / "Cargo.toml")})
     sys.stderr.write(built.stderr)
     wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
     npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)
