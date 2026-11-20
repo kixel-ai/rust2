@@ -522,12 +522,16 @@ packages place it in.
   `moq::track_Producer::append_group`. A keyword, or a macro of a short list that GNU dialects predefine or the
   C library's headers define (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`,
   and `errno`, `assert`, `offsetof`, `stdin`, `stdout`, and `stderr`, and each of them
-  followed by underscores, so `unix_` becomes `unix__`; any other macro, such as `EOF` or
+  followed by underscores, so `unix_` becomes `unix_2`; any other macro, such as `EOF` or
   `va_start`, is not escaped yet, see [ffi-apart](../quest/m1/ffi-apart.md)), takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
-  A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
-  until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
+  A name C++ reserves, one holding `__` or starting with `_` and a capital, first drops its
+  leading `_`s and keeps one `_` of each run: `__all__` is `all_`, and serde's parameter
+  `__deserializer` is `deserializer`.
+  A name the escape leaves alone keeps it, and one escaped onto another's takes `_`, or `2`
+  after a trailing `_`, until free, never making `__`: the values `Delete` and `Delete_`
+  are `delete_2` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which

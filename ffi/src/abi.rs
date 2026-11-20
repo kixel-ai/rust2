@@ -12,7 +12,7 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
 
@@ -453,6 +453,14 @@ impl<'a> Abi<'a> {
 		abi
 	}
 
+	/// Every name the C header declares for the API, the runtime's aside, each once.
+	pub(crate) fn declared(&self) -> BTreeSet<&str> {
+		(self.claims.iter())
+			.filter(|claim| claim.what != "the runtime")
+			.map(|claim| claim.name.as_str())
+			.collect()
+	}
+
 	/// This ABI over `api`, the API it was made of without its functions taking a JNI value,
 	/// as every language but Kotlin exports it: each name stays the one the whole API gives
 	/// it, so the C its glue calls keeps the names the crate defines.
@@ -494,7 +502,15 @@ impl<'a> Abi<'a> {
 			lists: self.lists.clone(),
 			tuples: self.tuples.clone(),
 			arrays: self.arrays.clone(),
-			claims: Vec::new(),
+			// Its names, for [`Self::declared`], but not their owners, which are `self.api`'s.
+			claims: (self.claims.iter())
+				.map(|claim| Claim {
+					name: claim.name.clone(),
+					what: claim.what.clone(),
+					span: claim.span,
+					owner: None,
+				})
+				.collect(),
 			renames,
 			clashes: self.clashes.clone(),
 			checked: self.checked.clone(),
