@@ -210,7 +210,7 @@ export declare function fromBps(bps: rt.u64): BandwidthRate;
 export declare function fromKbps(kbps: rt.u64): BandwidthRate;
 export declare function fromMbps(mbps: rt.u64): BandwidthRate;
 export declare function asBps(self: BandwidthRate): rt.u64;
-export declare function scaled(self: BandwidthRate, factor: number): BandwidthRate;
+export declare function scaled(self: BandwidthRate, factor: rt.f64): BandwidthRate;
 export declare function absDiff(self: BandwidthRate, other: BandwidthRate): BandwidthRate;
 export { default$ as default };
 
@@ -1148,9 +1148,10 @@ export declare function new$(mode: HangCatalogMode): HangCatalogBinaryConfig;
 export { new$ as new };
 
 // HangCatalogChromaticity.ts
+import * as rt from "./rt.ts";
 export type HangCatalogChromaticity = {
-    x: number;
-    y: number;
+    x: rt.f64;
+    y: rt.f64;
 };
 export declare function debug(self: HangCatalogChromaticity): string;
 export declare function eq(a: HangCatalogChromaticity, b: HangCatalogChromaticity): boolean;
@@ -1434,14 +1435,15 @@ export declare function new$(mode: HangCatalogMode): HangCatalogJsonConfig;
 export { new$ as new };
 
 // HangCatalogMastering.ts
+import * as rt from "./rt.ts";
 import type { HangCatalogChromaticity } from "./HangCatalogChromaticity.ts";
 export type HangCatalogMastering = {
     red: HangCatalogChromaticity;
     green: HangCatalogChromaticity;
     blue: HangCatalogChromaticity;
     white: HangCatalogChromaticity;
-    maxLuminance: number;
-    minLuminance: number;
+    maxLuminance: rt.f64;
+    minLuminance: rt.f64;
 };
 export declare function debug(self: HangCatalogMastering): string;
 export declare function eq(a: HangCatalogMastering, b: HangCatalogMastering): boolean;
@@ -1643,8 +1645,8 @@ export declare function renditionsGet(self: HangCatalogVideo): ([string, HangCat
 export declare function renditionsSet(self: HangCatalogVideo, value: ([string, HangCatalogVideoConfig])[]): void;
 export declare function displayGet(self: HangCatalogVideo): HangCatalogDisplay | undefined;
 export declare function displaySet(self: HangCatalogVideo, value: HangCatalogDisplay | undefined): void;
-export declare function rotationGet(self: HangCatalogVideo): number | undefined;
-export declare function rotationSet(self: HangCatalogVideo, value: number | undefined): void;
+export declare function rotationGet(self: HangCatalogVideo): rt.f64 | undefined;
+export declare function rotationSet(self: HangCatalogVideo, value: rt.f64 | undefined): void;
 export declare function flipGet(self: HangCatalogVideo): boolean | undefined;
 export declare function flipSet(self: HangCatalogVideo, value: boolean | undefined): void;
 export declare function insert(self: HangCatalogVideo, name: string, config: HangCatalogVideoConfig): rt.Result<undefined, HangError>;
@@ -1735,8 +1737,8 @@ export declare function enabledGet(self: HangCatalogVideoConfig): boolean;
 export declare function enabledSet(self: HangCatalogVideoConfig, value: boolean): void;
 export declare function preferenceGet(self: HangCatalogVideoConfig): number;
 export declare function preferenceSet(self: HangCatalogVideoConfig, value: number): void;
-export declare function framerateGet(self: HangCatalogVideoConfig): number | undefined;
-export declare function framerateSet(self: HangCatalogVideoConfig, value: number | undefined): void;
+export declare function framerateGet(self: HangCatalogVideoConfig): rt.f64 | undefined;
+export declare function framerateSet(self: HangCatalogVideoConfig, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: HangCatalogVideoConfig): number | undefined;
 export declare function reorderSet(self: HangCatalogVideoConfig, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: HangCatalogVideoConfig): boolean | undefined;
@@ -1761,8 +1763,8 @@ export declare function eq(a: HangCatalogVideoProperties, b: HangCatalogVideoPro
 export declare function default$(): HangCatalogVideoProperties;
 export declare function displayGet(self: HangCatalogVideoProperties): HangCatalogDisplay | undefined;
 export declare function displaySet(self: HangCatalogVideoProperties, value: HangCatalogDisplay | undefined): void;
-export declare function rotationGet(self: HangCatalogVideoProperties): number | undefined;
-export declare function rotationSet(self: HangCatalogVideoProperties, value: number | undefined): void;
+export declare function rotationGet(self: HangCatalogVideoProperties): rt.f64 | undefined;
+export declare function rotationSet(self: HangCatalogVideoProperties, value: rt.f64 | undefined): void;
 export declare function flipGet(self: HangCatalogVideoProperties): boolean | undefined;
 export declare function flipSet(self: HangCatalogVideoProperties, value: boolean | undefined): void;
 export { default$ as default };
@@ -2110,12 +2112,12 @@ export declare function bitrateGet(self: MuxCatalogEstimate): rt.u64 | undefined
 export declare function bitrateSet(self: MuxCatalogEstimate, value: rt.u64 | undefined): void;
 export declare function delayGet(self: MuxCatalogEstimate): rt.Duration | undefined;
 export declare function delaySet(self: MuxCatalogEstimate, value: rt.Duration | undefined): void;
-export declare function framerateGet(self: MuxCatalogEstimate): number | undefined;
-export declare function framerateSet(self: MuxCatalogEstimate, value: number | undefined): void;
+export declare function framerateGet(self: MuxCatalogEstimate): rt.f64 | undefined;
+export declare function framerateSet(self: MuxCatalogEstimate, value: rt.f64 | undefined): void;
 export declare function withJitter(self: MuxCatalogEstimate, jitter: rt.Duration | undefined): MuxCatalogEstimate;
 export declare function withBitrate(self: MuxCatalogEstimate, bitrate: rt.u64 | undefined): MuxCatalogEstimate;
 export declare function withDelay(self: MuxCatalogEstimate, delay: rt.Duration | undefined): MuxCatalogEstimate;
-export declare function withFramerate(self: MuxCatalogEstimate, framerate: number | undefined): MuxCatalogEstimate;
+export declare function withFramerate(self: MuxCatalogEstimate, framerate: rt.f64 | undefined): MuxCatalogEstimate;
 export { default$ as default };
 
 // MuxCatalogGuard.ts
@@ -3017,8 +3019,8 @@ export declare function colorGet(self: MuxCatalogVideoHint): HangCatalogColor | 
 export declare function colorSet(self: MuxCatalogVideoHint, value: HangCatalogColor | undefined): void;
 export declare function bitrateGet(self: MuxCatalogVideoHint): rt.u64 | undefined;
 export declare function bitrateSet(self: MuxCatalogVideoHint, value: rt.u64 | undefined): void;
-export declare function framerateGet(self: MuxCatalogVideoHint): number | undefined;
-export declare function framerateSet(self: MuxCatalogVideoHint, value: number | undefined): void;
+export declare function framerateGet(self: MuxCatalogVideoHint): rt.f64 | undefined;
+export declare function framerateSet(self: MuxCatalogVideoHint, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: MuxCatalogVideoHint): number | undefined;
 export declare function reorderSet(self: MuxCatalogVideoHint, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: MuxCatalogVideoHint): boolean | undefined;
@@ -4532,8 +4534,8 @@ export declare function enabledGet(self: MuxContainerGuardVideoConfig): boolean;
 export declare function enabledSet(self: MuxContainerGuardVideoConfig, value: boolean): void;
 export declare function preferenceGet(self: MuxContainerGuardVideoConfig): number;
 export declare function preferenceSet(self: MuxContainerGuardVideoConfig, value: number): void;
-export declare function framerateGet(self: MuxContainerGuardVideoConfig): number | undefined;
-export declare function framerateSet(self: MuxContainerGuardVideoConfig, value: number | undefined): void;
+export declare function framerateGet(self: MuxContainerGuardVideoConfig): rt.f64 | undefined;
+export declare function framerateSet(self: MuxContainerGuardVideoConfig, value: rt.f64 | undefined): void;
 export declare function reorderGet(self: MuxContainerGuardVideoConfig): number | undefined;
 export declare function reorderSet(self: MuxContainerGuardVideoConfig, value: number | undefined): void;
 export declare function optimizeForLatencyGet(self: MuxContainerGuardVideoConfig): boolean | undefined;
@@ -6734,7 +6736,7 @@ import type { MuxSource } from "./MuxSource.ts";
 export type MuxContainerTsRelease = rt.Handle<"MuxContainerTsRelease">;
 export declare function new$(source: MuxSource, catalogFormat: MuxCatalogCatalogFormat, delay: rt.Duration): rt.Call<rt.Result<MuxContainerTsRelease, MuxError>>;
 export declare function dropped(self: MuxContainerTsRelease): rt.u64;
-export declare function drift(self: MuxContainerTsRelease): number | undefined;
+export declare function drift(self: MuxContainerTsRelease): rt.f64 | undefined;
 export declare function outOfTolerance(self: MuxContainerTsRelease): rt.u64;
 export declare function stats(self: MuxContainerTsRelease): MuxContainerTsStatsRelease;
 export declare function next(self: MuxContainerTsRelease): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
@@ -6849,8 +6851,8 @@ export declare function marginGet(self: MuxContainerTsStatsRelease): rt.i64 | un
 export declare function marginSet(self: MuxContainerTsStatsRelease, value: rt.i64 | undefined): void;
 export declare function offsetGet(self: MuxContainerTsStatsRelease): rt.i64 | undefined;
 export declare function offsetSet(self: MuxContainerTsStatsRelease, value: rt.i64 | undefined): void;
-export declare function driftGet(self: MuxContainerTsStatsRelease): number | undefined;
-export declare function driftSet(self: MuxContainerTsStatsRelease, value: number | undefined): void;
+export declare function driftGet(self: MuxContainerTsStatsRelease): rt.f64 | undefined;
+export declare function driftSet(self: MuxContainerTsStatsRelease, value: rt.f64 | undefined): void;
 export declare function outOfToleranceGet(self: MuxContainerTsStatsRelease): rt.u64;
 export declare function outOfToleranceSet(self: MuxContainerTsStatsRelease, value: rt.u64): void;
 export { default$ as default };
@@ -10187,7 +10189,7 @@ export declare function r_option_clock_Instant(p: number, o: boolean): ClockInst
 export declare function r_option_clock_Wall(p: number, o: boolean): ClockWall | undefined;
 export declare function r_option_datagram_Datagram(p: number, o: boolean): DatagramDatagram | undefined;
 export declare function r_option_duration(p: number, o: boolean): rt.Duration | undefined;
-export declare function r_option_f64(p: number, o: boolean): number | undefined;
+export declare function r_option_f64(p: number, o: boolean): rt.f64 | undefined;
 export declare function r_option_hang_catalog_AudioLayout(p: number, o: boolean): HangCatalogAudioLayout | undefined;
 export declare function r_option_hang_catalog_Clock(p: number, o: boolean): HangCatalogClock | undefined;
 export declare function r_option_hang_catalog_ColorRange(p: number, o: boolean): HangCatalogColorRange | undefined;
@@ -10395,7 +10397,7 @@ export declare function w_option_bandwidth_Rate(p: number, v: BandwidthRate | un
 export declare function w_option_bool(p: number, v: boolean | undefined): void;
 export declare function w_option_clock_Instant(p: number, v: ClockInstant | undefined): void;
 export declare function w_option_duration(p: number, v: rt.Duration | undefined): void;
-export declare function w_option_f64(p: number, v: number | undefined): void;
+export declare function w_option_f64(p: number, v: rt.f64 | undefined): void;
 export declare function w_option_hang_catalog_AudioLayout(p: number, v: HangCatalogAudioLayout | undefined): void;
 export declare function w_option_hang_catalog_Clock(p: number, v: HangCatalogClock | undefined): void;
 export declare function w_option_hang_catalog_ColorRange(p: number, v: HangCatalogColorRange | undefined): void;
@@ -10594,6 +10596,17 @@ type Num<T extends string> = number & {
 export type u64 = Num<"u64"> | U64Limbs;
 export type i64 = Num<"i64"> | I64Limbs;
 export type u128 = Num<"u128"> | U128Limbs;
+export type F32Nan = {
+    readonly bits: number;
+    readonly [brand]: "f32";
+};
+export type F64Nan = {
+    readonly hi: number;
+    readonly lo: number;
+    readonly [brand]: "f64";
+};
+export type f32 = Num<"f32"> | F32Nan;
+export type f64 = Num<"f64"> | F64Nan;
 export type Result<T, E> = {
     readonly ok: true;
     readonly value: T;
@@ -10711,7 +10724,12 @@ export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
-export declare function f32(v: number): number;
+export declare function f32Get(p: number): f32;
+export declare function f32Put(p: number, v: f32): void;
+export declare function f64Get(p: number): f64;
+export declare function f64Put(p: number, v: f64): void;
+export declare function f32Number(v: f32): number;
+export declare function f64Number(v: f64): number;
 export declare function char(v: number): number;
 export declare function u64Of(hi: number, lo: number): u64;
 export declare function i64Of(hi: number, lo: number): i64;
