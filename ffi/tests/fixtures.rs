@@ -877,18 +877,24 @@ fn api_kotlin() {
 		reads: &[&classes, &manifest_dir().join("tests").join("Caller.java"), &stdlib],
 		writes: &[&callers],
 	}
-	.run(Command::new("javac")
-		.args(["-Werror", "-Xlint:all", "-cp"])
-		.arg(&classpath)
-		.arg("-d")
-		.arg(&callers)
-		.arg(manifest_dir().join("tests").join("Caller.java")));
+	.run(
+		Command::new("javac")
+			.args(["-Werror", "-Xlint:all", "-cp"])
+			.arg(&classpath)
+			.arg("-d")
+			.arg(&callers)
+			.arg(manifest_dir().join("tests").join("Caller.java")),
+	);
 	let caller = run(Command::new("java")
 		.arg(format!("-Djava.library.path={}", api.lib.display()))
 		.arg("-cp")
 		.arg(std::env::join_paths([callers.as_path(), classes.as_path(), stdlib.as_path()]).unwrap())
 		.arg("Caller"));
-	assert_eq!(String::from_utf8_lossy(&caller.stdout), "java\n", "plain Java calls the binding");
+	assert_eq!(
+		String::from_utf8_lossy(&caller.stdout),
+		"java\n",
+		"plain Java calls the binding"
+	);
 
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
@@ -1100,7 +1106,13 @@ fn kotlin_stdlib() -> PathBuf {
 		.find(|bin| bin.is_file())
 		.expect("kotlinc is on PATH: run this in the dev shell");
 	let home = kotlinc.canonicalize().unwrap();
-	let jar = home.parent().unwrap().parent().unwrap().join("lib").join("kotlin-stdlib.jar");
+	let jar = home
+		.parent()
+		.unwrap()
+		.parent()
+		.unwrap()
+		.join("lib")
+		.join("kotlin-stdlib.jar");
 	assert!(jar.is_file(), "{} is missing", jar.display());
 	jar
 }
