@@ -524,6 +524,12 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf to_string() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 	};
+	class RUST2_FFI_CONSUMABLE Fault {
+		RUST2_FFI_UNCONSUMED Fault(Fault &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Fault &operator=(Fault &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::buf to_string() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+	};
 	class RUST2_FFI_CONSUMABLE c {
 		RUST2_FFI_UNCONSUMED c(c &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		c &operator=(c &&other) noexcept = default;
@@ -673,6 +679,7 @@ namespace api {
 		::api::buf debug() const;
 		static Point default_();
 		::api::Point offset(::std::int32_t dx, ::std::int32_t dy) const;
+		static ::std::int32_t get_x();
 	};
 	struct Label {
 		::api::buf name;
@@ -1252,6 +1259,7 @@ namespace api {
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
+	inline ::std::optional<::api::Shape> Shape_value_of(::api::input name);
 	inline ::std::vector<::api::Shape> Shape_ALL();
 	inline ::std::vector<::api::Shape> Shape_BOTH();
 	inline bool operator==(const ::api::Event &a__, const ::api::Event &b_);
@@ -1523,6 +1531,7 @@ namespace api {
 	inline ::std::size_t excuse(::api::input note, ::std::tuple<::api::view, ::api::Refusal> entry);
 	inline ::std::uint32_t relay(::std::unique_ptr<::api::Log> log, ::std::vector<::api::Refusal> refusals);
 	inline ::api::result<::std::uint32_t, ::api::Refusal> refuse(::api::input reason);
+	inline ::api::result<::std::uint32_t, ::api::Fault> jam(::std::uint32_t n);
 	inline ::api::Platform platform();
 	inline ::std::uint32_t pointer_bits(const ::api::Platform &platform);
 	inline ::api::Labelled same_labelled(const ::api::Labelled &labelled);
@@ -1936,6 +1945,7 @@ namespace api {
 	class Token;
 	class Stack;
 	class Refusal;
+	class Fault;
 	class c;
 	class Key;
 	class clash_Seed;

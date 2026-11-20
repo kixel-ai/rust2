@@ -98,6 +98,7 @@ func Hook(f func()) error
 func Host(url *p_url.Url) (*string, error)
 func IsFamily(family Family) bool
 func IsKept(status Status) bool
+func Jam(n uint32) (uint32, error)
 func JniOne() uint32
 func JoinWords(words []string) (string, error)
 func Joined(parts []p_rt.Bytes) p_rt.Bytes
@@ -145,6 +146,7 @@ func Parents(paths []string) ([]*string, error)
 func ParseCert(text string) (uint32, error)
 func ParseLater(ctx context.Context, text string) (uint32, error)
 func Peek(tally *Tally, peek func(*Tally) uint32) (uint32, error)
+func PointGetX() int32
 func PointerBits(platform Platform) uint32
 func PollTripled(ctx context.Context, n uint32) (uint32, error)
 func Port(text string) (uint16, error)
@@ -832,6 +834,13 @@ const (
 )
 func (self Family) Equal(other Family) bool
 func (self Family) GoString() string
+type Fault struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Fault) Close() error
+func (self *Fault) Error() string
+func (self *Fault) GoString() string
+func (self *Fault) String() string
 type FiledReceipt struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1464,6 +1473,7 @@ const (
 )
 func ShapeALL() []Shape
 func ShapeBOTH() []Shape
+func ShapeValueOf(name string) (*Shape, error)
 func (self Shape) Equal(other Shape) bool
 func (self Shape) GoString() string
 type Sheet struct {

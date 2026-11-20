@@ -455,6 +455,12 @@ export { new$ as new };
 export type Family = "Native" | "Wasm";
 export declare function debug(self: Family): string;
 
+// Fault.ts
+import * as rt from "./rt.ts";
+export type Fault = rt.Handle<"Fault">;
+export declare function toString(self: Fault): string;
+export declare function debug(self: Fault): string;
+
 // FiledReceipt.ts
 import * as rt from "./rt.ts";
 export type FiledReceipt = rt.Handle<"FiledReceipt">;
@@ -1026,6 +1032,7 @@ export declare function debug(self: Point): string;
 export declare function eq(a: Point, b: Point): boolean;
 export declare function default$(): Point;
 export declare function offset(self: Point, dx: number, dy: number): Point;
+export declare function getX(): number;
 export { default$ as default };
 
 // PolarPoint.ts
@@ -1174,6 +1181,7 @@ export declare function eq(a: Shadowed, b: Shadowed): boolean;
 // Shape.ts
 export type Shape = "Circle" | "Square";
 export declare function debug(self: Shape): string;
+export declare function valueOf(name: string): Shape | undefined;
 export declare function ALL(): Shape[];
 export declare function BOTH(): Shape[];
 
@@ -1606,6 +1614,7 @@ export declare const k_Cursor: rt.Kind;
 export declare const k_Der: rt.Kind;
 export declare const k_Digest: rt.Kind;
 export declare const k_Draft: rt.Kind;
+export declare const k_Fault: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
@@ -1770,6 +1779,7 @@ export declare function r_option_Level(p: number, o: boolean): Level | undefined
 export declare function r_option_Moment(p: number, o: boolean): Moment | undefined;
 export declare function r_option_Point(p: number, o: boolean): Point | undefined;
 export declare function r_option_Reading(p: number, o: boolean): Reading | undefined;
+export declare function r_option_Shape(p: number, o: boolean): Shape | undefined;
 export declare function r_option_Stamp(p: number, o: boolean): Stamp | undefined;
 export declare function r_option_char(p: number, o: boolean): number | undefined;
 export declare function r_option_duration(p: number, o: boolean): rt.Duration | undefined;
@@ -2080,6 +2090,7 @@ import type { Draft } from "./Draft.ts";
 import type { Error_ } from "./Error_.ts";
 import type { Event } from "./Event.ts";
 import type { Family } from "./Family.ts";
+import type { Fault } from "./Fault.ts";
 import type { Gauge } from "./Gauge.ts";
 import type { Instant } from "./Instant.ts";
 import type { Json } from "./Json.ts";
@@ -2431,6 +2442,7 @@ export declare function reasons(pairs: ([Counter, Refusal])[], last: [Counter, R
 export declare function excuse(note: Uint8Array | rt.Bytes, entry: [Uint8Array, Refusal]): number;
 export declare function relay(log: Log, refusals: Refusal[]): number;
 export declare function refuse(reason: string): rt.Result<number, Refusal>;
+export declare function jam(n: number): rt.Result<number, Fault>;
 export declare function platform(): Platform;
 export declare function pointerBits(platform: Platform): number;
 export declare function sameLabelled(labelled: Labelled): Labelled;

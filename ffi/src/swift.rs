@@ -787,7 +787,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.types,
-				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
+				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\tSwift.String(describing: error)\n\t}}\n}}\n\n",
 				sw.trim_start_matches("Swift.")
 			);
 		}
@@ -2259,11 +2259,21 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
 
-/// Each function or method Swift cannot export, and why, which the driver
-/// refuses before any language is generated: one taking more optional borrowed structs
-/// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
-/// requires be copyable.
-pub(crate) fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
+/// A function or method Swift cannot export.
+pub(crate) struct Refusal<'a> {
+	pub(crate) function: &'a Function,
+	/// `fn` or `method`.
+	pub(crate) kind: &'static str,
+	/// What it uses that Swift cannot export, as the census ranks it.
+	pub(crate) construct: &'static str,
+	/// Why, in full.
+	pub(crate) why: String,
+}
+
+/// Each function or method Swift cannot export, which the driver refuses before any
+/// language is generated: one taking more optional borrowed structs than [`MAX_OPTIONAL`],
+/// or returning an error that holds one, which `Swift.Error` requires be copyable.
+pub(crate) fn refusals<'a>(abi: &Abi<'a>) -> Vec<Refusal<'a>> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))
@@ -2271,23 +2281,26 @@ pub(crate) fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
 	let mut refusals = Vec::new();
 	for (kind, function) in (api.functions.iter().map(|f| ("fn", f))).chain(methods.map(|f| ("method", f))) {
-		let what = format!("cannot export {kind} `{}`", function.shown[1..].join("::"));
 		let optional = (function.params.iter())
 			.filter(|p| lent_option(&structs, &p.ty))
 			.count();
 		if optional > MAX_OPTIONAL {
-			refusals.push((
+			refusals.push(Refusal {
 				function,
-				format!(
-					"{what}: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
+				kind,
+				construct: "optional borrowed objects past what Swift overloads",
+				why: format!(
+					"{optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
 				),
-			));
+			});
 		}
 		if function.err.as_ref().is_some_and(|err| unique(&structs, err)) {
-			refusals.push((
+			refusals.push(Refusal {
 				function,
-				format!("{what}: error holding an object Swift cannot copy, as `Swift.Error` requires"),
-			));
+				kind,
+				construct: "error holding an object Swift cannot copy",
+				why: "error holding an object Swift cannot copy, as `Swift.Error` requires".into(),
+			});
 		}
 	}
 	refusals

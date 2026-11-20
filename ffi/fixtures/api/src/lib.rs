@@ -34,6 +34,12 @@ impl Point {
 			y: self.y + dy,
 		}
 	}
+
+	/// The origin's `x`: a static whose Kotlin name, `getX`, is also the JVM name of `x`'s
+	/// getter, which a companion's `@JvmStatic` function would clash with.
+	pub fn get_x() -> i32 {
+		0
+	}
 }
 
 /// A record that owns memory: its `free` releases the name.
@@ -2843,6 +2849,9 @@ pub struct Retry {
 	/// Its field exports, but the method of its name is refused, so the config excludes
 	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
 	pub jitter: u32,
+	/// Its field exports, but Swift refuses the method of its name, so the config excludes
+	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
+	pub spread: u64,
 }
 
 impl Retry {
@@ -2851,6 +2860,7 @@ impl Retry {
 			limit,
 			delay: None,
 			jitter: 0,
+			spread: 0,
 		}
 	}
 
@@ -2864,6 +2874,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The spread plus three optional borrowed counters, past what Swift takes.
+	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+		self.spread + among(first, second, third)
 	}
 
 	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
@@ -4285,6 +4300,16 @@ impl Site {
 }
 
 impl Shape {
+	/// The shape `name` names, if any: a static whose Kotlin name, `valueOf`, a Kotlin enum
+	/// also declares on the JVM, which a companion's `@JvmStatic` function would clash with.
+	pub fn value_of(name: &str) -> Option<Shape> {
+		match name {
+			"circle" => Some(Shape::Circle),
+			"square" => Some(Shape::Square),
+			_ => None,
+		}
+	}
+
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
 
@@ -4436,6 +4461,42 @@ pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {
 		reason: reason.to_string(),
 	}))
+}
+
+/// Why [`jam`] failed: an enum whose own `Drop` makes it an object, whose variants a
+/// binding still tells apart, as Python raises each as its own subclass.
+#[derive(Debug)]
+pub enum Fault {
+	/// Nothing is free.
+	Busy,
+	/// What was sent is lost.
+	Lost(String),
+	/// Too late, by this many.
+	Late { by: u32 },
+}
+
+impl Drop for Fault {
+	fn drop(&mut self) {}
+}
+
+impl fmt::Display for Fault {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Fault::Busy => write!(f, "busy"),
+			Fault::Lost(what) => write!(f, "lost {what}"),
+			Fault::Late { by } => write!(f, "late by {by}"),
+		}
+	}
+}
+
+/// Fails with the fault `n` picks: busy, lost, or late, and for any other `n`, returns it.
+pub fn jam(n: u32) -> Result<u32, Fault> {
+	match n {
+		0 => Err(Fault::Busy),
+		1 => Err(Fault::Lost("frame".to_string())),
+		2 => Err(Fault::Late { by: 7 }),
+		n => Ok(n),
+	}
 }
 
 /// The kind of target the library was built for. One binding serves the host and wasm32,

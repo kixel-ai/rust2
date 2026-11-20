@@ -4,12 +4,14 @@
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
 # closed, the values only Python's types bound, how Python calls into the extension, or
-# under a debug CPython that all of those leak nothing, or breaks a contract, which must
-# fail.
+# what Python code expects of a package, under a debug CPython that all of those leak
+# nothing, or breaks a contract, which must fail.
 
 import array
 import asyncio
 import contextlib
+import copy
+import dataclasses
 import datetime
 import gc
 import io
@@ -1133,6 +1135,111 @@ def calls():
 	print("calls ok")
 
 
+def idioms():
+	"""What Python code expects of a package: an error's exception per variant, weak
+	references to objects and records, records `dataclasses` takes as its own, and an await
+	off asyncio's loop refused with a message naming asyncio."""
+
+	def raised(f):
+		try:
+			f()
+		except Exception as e:
+			return e
+		check(False, f"{f} raises")
+
+	# An enum's variants, each raised as its own subclass of the error's exception.
+	c = api.Counter.new("c", 5)
+	e = raised(lambda: c.add(2000))
+	check(type(e) is api.ErrorException.Overflow, repr(type(e)))
+	check(isinstance(e, api.ErrorException) and e.error == api.Error.Overflow(), "an overflow is the error's")
+	check(type(e).__qualname__ == "ErrorException.Overflow", type(e).__qualname__)
+	e = raised(lambda: c.sub(20))
+	check(type(e) is api.ErrorException.Underflow and e.error == api.Error.Underflow(by=15), repr(e))
+	check(not isinstance(e, api.ErrorException.Overflow), "an underflow is no overflow")
+	try:
+		api.divide(7, 0)
+		check(False, "a division by zero raises")
+	except api.ErrorException.Underflow:
+		check(False, "a division by zero is no underflow")
+	except api.ErrorException.Overflow:
+		pass
+	# Python makes the same subclass of a variant, as a closure raising it to Rust does.
+	check(type(api.ErrorException(api.Error.Overflow())) is api.ErrorException.Overflow, "made by its variant")
+	check(type(api.ErrorException.Underflow(api.Error.Underflow(by=1))) is api.ErrorException.Underflow, "made as itself")
+
+	# An object that is an enum, whose fields no binding reads, raises by its variant too.
+	for n, variant, text in [
+		(0, api.FaultException.Busy, "busy"),
+		(1, api.FaultException.Lost, "lost frame"),
+		(2, api.FaultException.Late, "late by 7"),
+	]:
+		e = raised(lambda: api.jam(n))
+		check(type(e) is variant and str(e) == text, f"{n}: {e!r} {e}")
+		check(type(api.FaultException(e.error)) is variant, f"{n}: made by its variant")
+	check(api.jam(3) == 3, "no fault")
+
+	# Weak references to an object, an opaque value, a record, a variant, and a range's bound.
+	for make in [
+		lambda: api.Counter.new("w", 1),
+		lambda: api.Stamp.from_millis(5),
+		lambda: api.Point(1, 2),
+		lambda: api.Error.Underflow(by=1),
+		lambda: api.BoundU64(api.Bound.INCLUDED, 3),
+	]:
+		value = make()
+		gone = []
+		ref = weakref.ref(value, gone.append)
+		check(ref() is value, f"{value!r} is weakly referenced")
+		del value
+		check(ref() is None and gone == [ref], "a weak reference dies with its referent")
+
+	# A record is a dataclass to `dataclasses`, `copy`, and `match`, as `@dataclass` made it.
+	# A subclass's fields are its record's, read first through either, and a dataclass may
+	# subclass a record.
+	class Hidden(api.Point):
+		__match_args__ = ()
+
+	check(dataclasses.asdict(Hidden(1, 2)) == {"x": 1, "y": 2}, "a subclass's own __match_args__")
+
+	class Sub(api.Point):
+		pass
+
+	check(dataclasses.asdict(Sub(1, 2)) == {"x": 1, "y": 2}, "a subclass's fields")
+
+	@dataclasses.dataclass
+	class Tagged(api.Weighted):
+		tag: str = ""
+
+	tagged = Tagged(api.Score.of(1), 2, "t")
+	check([f.name for f in dataclasses.fields(tagged)] == ["score", "weight", "tag"], "a dataclass subclass")
+	weighted = api.Weighted(tagged.score, 2)
+	check(weighted == api.Weighted(tagged.score, 2) and weighted != tagged and tagged != weighted, "== only its own class")
+	p = api.Point(1, 2)
+	check(dataclasses.is_dataclass(p) and [f.name for f in dataclasses.fields(api.Point)] == ["x", "y"], "fields")
+	check(dataclasses.replace(p, x=5) == api.Point(5, 2) and p == api.Point(1, 2), "replace")
+	check(dataclasses.asdict(api.Platform.Native(64)) == {"_0": 64}, "asdict")
+	if sys.version_info >= (3, 13):
+		check(copy.replace(p, y=7) == api.Point(1, 7), "copy.replace")
+	check(copy.copy(p) == p and copy.copy(p) is not p, "copy")
+	match api.Platform.Native(64):
+		case api.Platform.Native(bits):
+			check(bits == 64, "matched positionally")
+		case _:
+			check(False, "a variant matches its class")
+	check(repr(api.Platform.Native(64)) == "Platform.Native(_0=64)", repr(api.Platform.Native(64)))
+	check(p != api.Point(1, 3) and p != (1, 2) and api.Point.__eq__(p, (1, 2)) is NotImplemented, "eq")
+	check(api.Platform.Native(64) != api.Platform.Wasm(64), "variants differ")
+	check(api.Point.__hash__ is None, "a record is unhashable, as Rust's without Hash")
+
+	# An await or a waker off a running asyncio loop names asyncio.
+	coro = api.Local.default().later()
+	e = raised(lambda: coro.send(None))
+	check(type(e) is RuntimeError and "asyncio" in str(e) and "trio" in str(e), str(e))
+	e = raised(lambda: api.Waker(lambda: None))
+	check(type(e) is RuntimeError and "asyncio" in str(e), str(e))
+	print("idioms ok")
+
+
 def leaf():
 	"""Calls proven to reach no user code keep the GIL; one that only looks like them
 	releases it, which a hook Rust calls from another thread, which takes the GIL, proves:
@@ -1288,7 +1395,7 @@ def leaks():
 
 	def rounds(n):
 		for _ in range(n):
-			for run in (script, checks, futures, owned, values, calls):
+			for run in (script, checks, futures, owned, values, calls, idioms):
 				run()
 
 	with open(os.devnull, "w") as null, contextlib.redirect_stdout(null):
@@ -1320,5 +1427,7 @@ match sys.argv[1:]:
 		checks()
 	case ["leaf"]:
 		leaf()
+	case ["idioms"]:
+		idioms()
 	case [which]:
 		broken(which)
