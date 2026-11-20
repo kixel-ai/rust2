@@ -2102,8 +2102,8 @@ fn kept_apart(mut name: String, taken: &[String]) -> String {
 
 /// The C++ names of `rust`, the names of one scope, each kept apart from `taken` and the
 /// rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every other,
-/// escaped, takes `_` while a name before it holds it. So a field `type_` stays `type_`
-/// beside `type`, which becomes `type__`, whatever their order.
+/// escaped, takes `_` while a name before it holds it. So a field `new_` stays `new_`
+/// beside `new`, which becomes `new__`, whatever their order.
 fn named(rust: &[String], taken: &[String]) -> Vec<String> {
 	let escaped: Vec<String> = rust.iter().map(|name| escape(name)).collect();
 	let kept = |k: usize| escaped[k] == rust[k] && !taken.contains(&escaped[k]);
@@ -2465,7 +2465,7 @@ mod tests {
 		// A name escaping leaves as it is keeps it, in either order.
 		assert_eq!(names(&["delete", "delete_"], &[]), ["delete__", "delete_"]);
 		assert_eq!(names(&["delete_", "delete"], &[]), ["delete_", "delete__"]);
-		assert_eq!(names(&["type", "type_", "type__"], &[]), ["type___", "type_", "type__"]);
+		assert_eq!(names(&["class", "class_", "class__"], &[]), ["class___", "class_", "class__"]);
 		// Unless something else holds it, such as a trait's member.
 		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug__", "debug_"]);
 		assert_eq!(names(&["default", "seed"], &["default_"]), ["default__", "seed"]);
