@@ -206,7 +206,9 @@ let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
 
 /** A view of the module's memory, made again once memory grows, which detaches the last. */
 export function dv(): DataView {
-	if (view.buffer !== memory.buffer) {
+	// A detached view's length reads 0, a third the cost of reading `memory.buffer`, which
+	// every value a call reads or writes through memory pays.
+	if (bytes.byteLength === 0) {
 		// Never shared: the module is built without threads. Deno's types say it may be.
 		const buffer = memory.buffer as ArrayBuffer;
 		view = new DataView(buffer);
