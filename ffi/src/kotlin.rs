@@ -1579,7 +1579,8 @@ impl<'a> Gen<'a> {
 			}
 			let call = format!("crate::{c}_hash({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
-			match object && g.abi.leaf_trait(ty, true) {
+			// Bounded too, so the collector never waits on a walk the value's size sets.
+			match object && g.abi.leaf_trait(ty, true) && t.leaf_sized {
 				true => g.leaf_native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
 				false => g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body),
 			}
@@ -1655,7 +1656,7 @@ impl<'a> Gen<'a> {
 				"ret",
 			);
 			let params = [("jlong", "Long"), ("jlong", "Long")];
-			match self.abi.leaf_trait(ty, false) {
+			match self.abi.leaf_trait(ty, false) && t.leaf_sized {
 				true => self.leaf_native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
 				false => self.native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust),
 			}

@@ -318,12 +318,16 @@ before (main) and after (`@FastNative` on leaves, registered):
 
 Marking the handle call and the getter too, by hand, on API 35 (3 rounds), cost 36.6 against
 41.1 and 25.7 against 34.2: the same few ns, which a call the proof cannot bound may not
-take. moq's export has 214 leaves, the api fixture's 21. Registration covers only those:
+take. moq's export has 200 leaves, the api fixture's 17. Registration covers only those:
 registering all of moq's 6,455 native methods would scan the class's methods once each, and
 R8 strips the natives nothing calls, which `RegisterNatives` would then refuse, so the
 generated rules keep each `@FastNative` method instead. `kotlin/FastNative.kt` declares
 the annotation, which Android's SDK makes public only from API 34, for the JVM and older
-SDKs; R8 keeps it on the methods only by the rule naming it.
+SDKs. Compiled as a program class, R8 keeps it on the methods only by the rule naming it;
+against android.jar's own class, R8 keeps it with no rule, so a build against SDK 34 or
+later leaves the file out, as one of two exports in an app must, since D8 refuses a class
+defined twice. Only leaves whose `eq` and `hash` walk no value of a caller's size are
+marked, as Dart's leaf calls are.
 
 `just ffi android` passes, with these rules, on API 24 (Android 7, which ignores the
 annotation), 28, 30, and 35. On API 28, `export.kt` itself never finishes, with or without
