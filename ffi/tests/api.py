@@ -1681,17 +1681,25 @@ def calls():
 		knob = api.knob(api.Dial(level=3, before=0))
 		dial = api.Dial(level=3, before=0).max()
 		turned = api.Dial(level=3, before=0).turn(2)
+		# An `async def`'s warns at its await.
+
+		async def awaits():
+			return await api.level_later(api.Dial(level=4, before=0))
+
+		later = asyncio.run(awaits())
 	warned = [(w.category, str(w.message), w.filename == __file__) for w in caught]
 	check(
 		warned
 		== [
 			(DeprecationWarning, "knob() is deprecated", True),
 			(DeprecationWarning, "Dial.max() is deprecated: turn it by `LIMIT` with `Dial::turn`", True),
+			(DeprecationWarning, "level_later() is deprecated: read its `level`", True),
 		],
 		f"deprecated calls warn at the caller: {warned}",
 	)
 	check(knob.level == 3 and dial == api.Dial(level=api.LIMIT, before=3), "a deprecated call runs")
 	check(turned == api.Dial(level=5, before=3), "a turn")
+	check(later == 4, "a deprecated future runs")
 	print("calls ok")
 
 

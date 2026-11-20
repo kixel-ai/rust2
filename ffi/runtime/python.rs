@@ -101,11 +101,11 @@ pub fn raise<T>(exc: *mut PyObject, msg: &str) -> R<T> {
 	Err(Raised)
 }
 
-/// Warn of a call of a deprecated item, as `msg` says: a `DeprecationWarning`, which raises
-/// where warnings are errors.
-pub fn deprecated(msg: &CStr) -> R<()> {
+/// Warn of a call of a deprecated item, as `msg` says: a `DeprecationWarning` at the caller
+/// `level` frames up, which raises where warnings are errors.
+pub fn deprecated(msg: &CStr, level: isize) -> R<()> {
 	// SAFETY: the GIL is held, and the category is a static warning type.
-	match unsafe { PyErr_WarnEx(PyExc_DeprecationWarning, msg.as_ptr(), 1) } {
+	match unsafe { PyErr_WarnEx(PyExc_DeprecationWarning, msg.as_ptr(), level) } {
 		0 => Ok(()),
 		_ => Err(Raised),
 	}

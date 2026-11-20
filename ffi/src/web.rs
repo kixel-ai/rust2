@@ -283,9 +283,10 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 		files.push((format!("{name}.ts"), trim(out)));
 	}
 	// Each link once every name is final.
-	for (_, ts) in &mut files {
+	for (name, ts) in &mut files {
+		let module = name.strip_suffix(".ts").unwrap_or(name);
 		*ts = doc::links(ts, abi.api, |link| {
-			let (target, own) = g.link(link.target)?;
+			let (target, own) = g.link(link.target, module)?;
 			Some(match link.text.or(own.as_deref()) {
 				Some(text) => format!("{{@link {target} | {text}}}"),
 				None => format!("{{@link {target}}}"),
@@ -457,7 +458,9 @@ impl<'a> Gen<'a> {
 	/// What TSDoc links for `target`, if TypeScript has it, and the text it shows where the
 	/// target alone does not name it: a variant is a tag of its union, which no declaration
 	/// names.
-	fn link(&self, target: doc::Target<'_>) -> Option<(String, Option<String>)> {
+	/// A method is an export of its type's module, which a caller imports as the type's name:
+	/// its own module links it bare, and any other names it as a caller writes it.
+	fn link(&self, target: doc::Target<'_>, module: &str) -> Option<(String, Option<String>)> {
 		let abi = self.abi;
 		let owner = |owner: doc::Owner| match owner {
 			doc::Owner::Record(i) => self.class(&abi.record(i)),
@@ -484,9 +487,9 @@ impl<'a> Gen<'a> {
 				doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
 				doc::Target::Function(of, f) => {
 					let member = self.locked.get(&crate::lock::function_key(f))?;
-					match of {
-						Some(of) => format!("{}.{member}", owner(of)),
-						None => member.clone(),
+					match of.map(owner) {
+						Some(of) if of != module => format!("{of}.{member}"),
+						_ => member.clone(),
 					}
 				}
 			},
@@ -2274,7 +2277,7 @@ impl Gen<'_> {
 			members.push(format!(
 				"{}\t{member}({}): {ok};\n",
 				docs(
-					&self.function_docs(method, String::new()),
+					&self.function_docs(method, doc::sections(&method.docs).body),
 					method.deprecated.as_deref(),
 					"\t"
 				),

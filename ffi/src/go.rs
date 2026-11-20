@@ -2396,7 +2396,7 @@ impl<'a> Gen<'a> {
 			body.push(format!(
 				"{}\t{member}({}){ret}",
 				docs(
-					&self.function_docs(method, String::new()),
+					&self.function_docs(method, doc::sections(&method.docs).body),
 					method.deprecated.as_deref(),
 					"\t"
 				),

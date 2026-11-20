@@ -5081,7 +5081,7 @@ impl Dial {
 }
 
 /// A knob, deprecated as a whole: [`Dial`] replaces it.
-#[deprecated(note = "use [`Dial`]")]
+#[deprecated(note = "use [`Dial`], whose 'level' is \"the same\" at $0\nand past it")]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Knob {
 	pub level: u64,
@@ -5092,6 +5092,12 @@ pub struct Knob {
 #[allow(deprecated, reason = "it returns the type it deprecates")]
 pub fn knob(dial: Dial) -> Knob {
 	Knob { level: dial.level }
+}
+
+/// The level of `dial`, from a future.
+#[deprecated(note = "read its `level`")]
+pub async fn level_later(dial: Dial) -> u64 {
+	dial.level
 }
 
 /// The step a [`Dial`] turned by before [`Dial::turn`] took any.

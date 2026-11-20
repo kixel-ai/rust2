@@ -2044,7 +2044,7 @@ impl<'a> Gen<'a> {
 			body.push(format!(
 				"{}\tfun {member}({}){}",
 				docs(
-					&self.function_docs(method, method.docs.clone()),
+					&self.function_docs(method, doc::sections(&method.docs).body),
 					method.deprecated.as_deref(),
 					"\t"
 				),

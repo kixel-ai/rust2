@@ -1119,7 +1119,7 @@ impl<'a> Header<'a> {
 				.collect();
 			body.push(format!(
 				"{}\t{}virtual {} {member}({}){constant} = 0;",
-				docs(&self.function_docs(method, String::new()), "\t"),
+				docs(&self.function_docs(method, doc::sections(&method.docs).body), "\t"),
 				prefixed(method.deprecated.as_deref()),
 				self.owned(&method.ok),
 				params.join(", ")
@@ -2158,9 +2158,29 @@ fn quiet(header: &str) -> String {
 fn attribute(deprecated: Option<&str>) -> String {
 	match deprecated {
 		Some("") => "[[deprecated]]".to_string(),
-		Some(note) => format!("[[deprecated({note:?})]]"),
+		Some(note) => format!("[[deprecated({})]]", cpp_string(note)),
 		None => String::new(),
 	}
+}
+
+/// A C++ string literal of `text`, its control characters in octal, which ends after
+/// three digits where a hex escape would take the next character as its own.
+fn cpp_string(text: &str) -> String {
+	let mut out = String::from("\"");
+	for c in text.chars() {
+		match c {
+			'"' | '\\' => {
+				out.push('\\');
+				out.push(c);
+			}
+			'\n' => out.push_str("\\n"),
+			'\t' => out.push_str("\\t"),
+			c if c.is_ascii_control() => out.push_str(&format!("\\{:03o}", c as u32)),
+			c => out.push(c),
+		}
+	}
+	out.push('"');
+	out
 }
 
 /// [`attribute`] before a declaration, which a space then follows.

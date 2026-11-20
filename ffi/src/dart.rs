@@ -1961,7 +1961,7 @@ impl<'a> Gen<'a> {
 			body.push(format!(
 				"{}\t{} {member}({});",
 				docs(
-					&self.function_docs(method, String::new()),
+					&self.function_docs(method, doc::sections(&method.docs).body),
 					method.deprecated.as_deref(),
 					"\t"
 				),
@@ -2977,11 +2977,30 @@ fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
 			let _ = writeln!(out, "{indent}@deprecated");
 		}
 		Some(note) => {
-			let note = note.replace('\\', "\\\\").replace('\'', "\\'").replace('$', "\\$");
-			let _ = writeln!(out, "{indent}@Deprecated('{note}')");
+			let _ = writeln!(out, "{indent}@Deprecated({})", dart_string(note));
 		}
 		None => {}
 	}
+	out
+}
+
+/// A Dart string literal of `text`.
+fn dart_string(text: &str) -> String {
+	let mut out = String::from("'");
+	for c in text.chars() {
+		match c {
+			'\'' | '\\' | '$' => {
+				out.push('\\');
+				out.push(c);
+			}
+			'\n' => out.push_str("\\n"),
+			'\r' => out.push_str("\\r"),
+			'\t' => out.push_str("\\t"),
+			c if c.is_control() => out.push_str(&format!("\\u{{{:x}}}", c as u32)),
+			c => out.push(c),
+		}
+	}
+	out.push('\'');
 	out
 }
 

@@ -118,6 +118,7 @@ func Least(sets [][]uint32) [][]uint32
 func Len(payload p_rt.Bytes) uint
 func LentBack(value p_rt.Bytes) p_rt.Bytes
 func Less(value uint32, value2 uint32) uint32
+func LevelLater(ctx context.Context, dial Dial) (uint64, error)
 func LocalLater(ctx context.Context, n uint32) (uint32, error)
 func LocalWaiterPollReady(ctx context.Context, n uint32) (uint32, error)
 func LocalsDropped() uint32

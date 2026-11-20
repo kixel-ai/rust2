@@ -1447,7 +1447,10 @@ impl<'a> Gen<'a> {
 				params.join(", "),
 				self.py_param(&method.ok),
 				docstring(
-					&deprecation(&self.function_docs(method, String::new()), method.deprecated.as_deref()),
+					&deprecation(
+						&self.function_docs(method, doc::sections(&method.docs).body),
+						method.deprecated.as_deref(),
+					),
 					"\t\t"
 				)
 			));
@@ -2020,6 +2023,8 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let text = deprecation(&self.function_docs(function, text), function.deprecated.as_deref());
+		// An `async def` stays Python's, as callers may need a coroutine.
+		let direct = !constant && (export.future.is_none() || function.eager);
 		// A call of a deprecated function warns, as Python's own deprecations do.
 		if let Some(note) = &function.deprecated {
 			let what = match &owner_c {
@@ -2030,11 +2035,15 @@ impl<'a> Gen<'a> {
 				true => what,
 				false => format!("{what}: {note}"),
 			};
-			stmts.insert(0, format!("rt::deprecated({})?;", c_str(&warning)));
+			// The caller's frame is the first, or the second past the Python that calls the
+			// glue: an `async def`'s, or a constant's getter.
+			let level = match direct {
+				true => 1,
+				false => 2,
+			};
+			stmts.insert(0, format!("rt::deprecated({}, {level})?;", c_str(&warning)));
 		}
 		let body = stmts.join("\n\t\t");
-		// An `async def` stays Python's, as callers may need a coroutine.
-		let direct = !constant && (export.future.is_none() || function.eager);
 		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
 		match direct {
 			true => {
