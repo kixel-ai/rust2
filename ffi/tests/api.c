@@ -870,6 +870,11 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* A field named as errno.h's macro, escaped. */
+	api_clash_Errno none = api_clash_Errno_NULL();
+	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
+		tr_fail("names of system macros");
+	}
 	/* A field and a parameter named as `errno`, a macro of <errno.h>, which take a trailing `_`
 	 * rather than expand. */
 	api_macros_Streams streams = {1, 2, 3, 4};

@@ -1294,7 +1294,7 @@ impl<'a> Gen<'a> {
 		let mut lowers = Vec::new();
 		for variant in &e.variants {
 			let snake = abi::snake(&variant.name);
-			let case = member(&snake, &["init"]);
+			let case = case_of(e.traits, &variant.name);
 			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
 			if !variant.tuple {
 				for f in &variant.fields {
@@ -2515,7 +2515,7 @@ impl<'a> Gen<'a> {
 			doc::Target::Variant(i, v) => format!(
 				"{}/{}",
 				owner(doc::Owner::Enum(i)),
-				unquote(&member(&abi::snake(&abi.api.enums[i].variants[v].name), &["init"]))
+				unquote(&case_of(abi.api.enums[i].traits, &abi.api.enums[i].variants[v].name))
 			),
 			doc::Target::Field(i, n) => format!(
 				"{}/{}",
@@ -2741,6 +2741,15 @@ fn camel(name: &str) -> String {
 	match chars.next() {
 		Some(first) => first.to_lowercase().chain(chars).collect(),
 		None => name.to_string(),
+	}
+}
+
+/// A variant's case: `init` would name the initializer, and `default`, with its traits `t`,
+/// `Default`'s static `default()`.
+fn case_of(t: crate::ir::Traits, variant: &str) -> String {
+	match t.default {
+		true => member(&abi::snake(variant), &["init", "default"]),
+		false => member(&abi::snake(variant), &["init"]),
 	}
 }
 

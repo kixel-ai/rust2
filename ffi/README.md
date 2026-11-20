@@ -435,8 +435,8 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar. Each method is its table's member by
-  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where GNU
-  dialects predefine it as a macro (`i386`, `linux`, `unix`), where C and C++ reserve it
+  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
+  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
   (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
   `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
   `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
@@ -519,13 +519,13 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro of a short list that GNU dialects predefine or the
-  C library's headers define (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`,
-  and `errno`, `assert`, `offsetof`, `stdin`, `stdout`, and `stderr`, and each of them
-  followed by underscores, so `unix_` becomes `unix__`; any other macro, such as `EOF` or
-  `va_start`, is not escaped yet, see [ffi-apart](../quest/m1/ffi-apart.md)), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
+  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
+  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
+  A name already ending in `_` takes as many more as keep it apart and off every macro:
+  `unix_` becomes `unix__`.
   A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
   until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter

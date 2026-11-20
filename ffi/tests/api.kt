@@ -340,6 +340,22 @@ fun checks() {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
 	check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
+	// Methods named as `java.lang.Object`'s, apart from them on the JVM, or in Kotlin too where
+	// an interface's would override them.
+	ClashStore.new(1u).use { store ->
+		store.wait()
+		store.finalize()
+		check(store.free() == 1u, "methods named as java.lang.Object's")
+	}
+	var waits = 0
+	val source = object : ClashSource {
+		override fun wait_() {
+			waits++
+		}
+
+		override fun readByte(): UByte = 4u
+	}
+	check(clashWaited(source) == 4.toUByte() && waits == 1, "an interface's method named as java.lang.Object's")
 
 	// A record holding a value past a word crosses as its words, in and out, and a call
 	// with no slots left for one passes it encoded.

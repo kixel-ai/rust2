@@ -571,6 +571,9 @@ int checks() {
 		check(one == one && !(one == two) && unit != two_b && handle == api::c::new_(1) && !(handle == api::c::new_(2)),
 			"types named a, b, and c compare");
 	}
+	// Names a system header defines as macros, escaped.
+	check(api::EOF_ == -1 && api::WEXITSTATUS_(0x300) == 3, "names of system macros escape");
+	check(api::clash_Errno::NULL_().errno_ == 0 && api::clash_Errno{5}.errno_ == 5, "members named as system macros escape");
 	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
 	{
 		api::clash_Escaped escaped{3};

@@ -449,6 +449,13 @@ void checks() {
   }
   // A kept closure, called on another thread after the call that took it returned.
   check(api.Spawned(() => 7).join() == 7, 'a kept closure runs on another thread');
+  // Names apart from what Dart gives every enum and what a trait gives a type, each
+  // reaching its own Rust.
+  check(api.ClashLevel.default_() == api.ClashLevel.default__, 'a value named as Default\'s');
+  check(api.ClashLevel.debug_.debug() == 'Debug', 'a value named as Debug\'s');
+  check(api.ClashLevel.debug_.index_() == 2 && api.ClashLevel.debug_.index == 1, 'a method named as an enum\'s index');
+  final tag = api.ClashTagPrivate(number: 3);
+  check(tag.number == 3 && tag.number_() == 13, 'a method named as its variants\' field');
   print('checks ok');
 }
 

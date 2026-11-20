@@ -20,28 +20,10 @@ use super::{cargo, manifest_dir, run, scratch, step};
 /// The crates a census, an export, or a binding of fails today, each with the quest that
 /// fixes it, or else why none can. They are not run; the quest's PR deletes its entry.
 const KNOWN: &[(&str, &str)] = &[
-	("anyhow", "/quest/m1/ffi-apart.md"),
 	(
 		"core-foundation",
 		"macOS's CoreFoundation: calls a platform library this host lacks, so no binding loads",
 	),
-	("crossbeam-utils", "/quest/m1/ffi-apart.md"),
-	("darling", "/quest/m1/ffi-apart.md"),
-	("der", "/quest/m1/ffi-apart.md"),
-	("env_logger", "/quest/m1/ffi-apart.md"),
-	("hermit-abi", "/quest/m1/ffi-apart.md"),
-	("icu_locale_core", "/quest/m1/ffi-apart.md"),
-	("itertools", "/quest/m1/ffi-apart.md"),
-	("libc", "/quest/m1/ffi-apart.md"),
-	("log", "/quest/m1/ffi-apart.md"),
-	("nu-ansi-term", "/quest/m1/ffi-apart.md"),
-	("object", "/quest/m1/ffi-apart.md"),
-	("parking_lot", "/quest/m1/ffi-apart.md"),
-	("petgraph", "/quest/m1/ffi-apart.md"),
-	("prettyplease", "/quest/m1/ffi-apart.md"),
-	("redox_syscall", "/quest/m1/ffi-apart.md"),
-	("untrusted", "/quest/m1/ffi-apart.md"),
-	("wasm-bindgen", "/quest/m1/ffi-apart.md"),
 	(
 		"windows-core",
 		"Windows's API: calls a platform library this host lacks, so no binding loads",
