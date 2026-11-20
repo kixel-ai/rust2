@@ -525,38 +525,6 @@ fn ident(name: &str) -> String {
 	}
 }
 
-/// A method named after a trait's, `_` apart from its class of the same name.
-fn apart(bare: &str, class: &str) -> String {
-	match bare == class {
-		true => format!("{bare}_"),
-		false => bare.to_string(),
-	}
-}
-
-/// A Rust identifier in snake case, as the generated header names a variant.
-fn snake(name: &str) -> String {
-	let chars: Vec<char> = name.chars().collect();
-	let mut out = String::new();
-	for (i, &c) in chars.iter().enumerate() {
-		if c.is_uppercase() {
-			let prev = i.checked_sub(1).map(|j| chars[j]);
-			let next = chars.get(i + 1);
-			let boundary = match prev {
-				Some(p) if p.is_lowercase() || p.is_ascii_digit() => true,
-				Some(p) if p.is_uppercase() => next.is_some_and(|n| n.is_lowercase()),
-				_ => false,
-			};
-			if boundary && !out.ends_with('_') {
-				out.push('_');
-			}
-			out.extend(c.to_lowercase());
-		} else {
-			out.push(c);
-		}
-	}
-	out
-}
-
 fn cpp_int(int: Int) -> &'static str {
 	match int {
 		Int::U8 => "std::uint8_t",
@@ -779,15 +747,15 @@ impl Emitter<'_> {
 							}
 						)
 					),
-					None if o.traits.display => format!("rs::text({v}.{}())", apart("to_string", name)),
+					None if o.traits.display => format!("rs::text({v}.{}())", self.t.member(LANGUAGE, ty, "Display")),
 					None => panic!("Display of {name}, which has none"),
 				}
 			}
 			Type::Record(i) if self.t.api.records[*i].traits.display => {
-				format!("rs::text({v}.{}())", apart("to_string", self.t.type_name(LANGUAGE, ty)))
+				format!("rs::text({v}.{}())", self.t.member(LANGUAGE, ty, "Display"))
 			}
 			Type::Enum(i) if self.t.api.enums[*i].traits.display => {
-				format!("rs::text(api::{}_to_string({v}))", self.t.type_name(LANGUAGE, ty))
+				format!("rs::text(api::{}({v}))", self.t.member(LANGUAGE, ty, "Display"))
 			}
 			ty => panic!("Display of {ty:?}"),
 		}
@@ -823,9 +791,9 @@ impl Emitter<'_> {
 			}
 			Type::Bound(_) => format!("rs::bound({v})"),
 			ty @ (Type::Record(_) | Type::Object(_)) => {
-				format!("rs::text({v}.{}())", apart("debug", self.t.type_name(LANGUAGE, ty)))
+				format!("rs::text({v}.{}())", self.t.member(LANGUAGE, ty, "Debug"))
 			}
-			ty @ Type::Enum(_) => format!("rs::text(api::{}_debug({v}))", self.t.type_name(LANGUAGE, ty)),
+			ty @ Type::Enum(_) => format!("rs::text(api::{}({v}))", self.t.member(LANGUAGE, ty, "Debug")),
 			ty => panic!("Debug of {ty:?}"),
 		}
 	}
@@ -845,8 +813,7 @@ impl Emitter<'_> {
 			Type::Array(n) => format!("std::array<std::uint8_t, {n}>"),
 			Type::U128 => "api::u128".to_string(),
 			Type::Duration => "api::duration".to_string(),
-			Type::SocketAddr(family) => format!("api::{}", addr(true, *family)),
-			Type::IpAddr(family) => format!("api::{}", addr(false, *family)),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("api::{}", self.t.spelling(ty)),
 			Type::List(_, inner) => format!("std::vector<{}>", self.ctype(inner)),
 			Type::Option(inner) => format!("std::optional<{}>", self.ctype(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.ctype(inner),
@@ -1130,20 +1097,20 @@ impl Emitter<'_> {
 				format!("api::{name}{{{}}}", args.join(", "))
 			}
 			Kind::Variant(en, v, fields) => {
-				let name = self.t.type_name(LANGUAGE, &Type::Enum(*en)).to_string();
+				let ty = Type::Enum(*en);
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
+				let variant_name = self.t.variant(LANGUAGE, &ty, &variant.name).to_string();
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
-					return format!("api::{name}::{}", ident(&snake(&variant.name)));
+					return format!("api::{}::{variant_name}", self.t.type_name(LANGUAGE, &ty));
 				}
 				let field_types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
-				let variant_name = variant.name.clone();
 				let args: Vec<String> = fields
 					.iter()
 					.zip(&field_types)
 					.map(|(f, ty)| self.value(f, ty, Place::Element))
 					.collect();
-				format!("api::{name}_{variant_name}{{{}}}", args.join(", "))
+				format!("api::{variant_name}{{{}}}", args.join(", "))
 			}
 			Kind::Bound(kind, value) => {
 				let Type::Bound(int) = unref(&e.ty) else {
@@ -1159,10 +1126,10 @@ impl Emitter<'_> {
 			}
 			Kind::Default => {
 				let ty = unref(&e.ty).base();
-				let name = self.t.type_name(LANGUAGE, ty).to_string();
+				let default = self.t.member(LANGUAGE, ty, "Default");
 				match ty {
-					Type::Enum(_) => format!("api::{name}_default()"),
-					_ => format!("api::{name}::{}()", apart("default_", &name)),
+					Type::Enum(_) => format!("api::{default}()"),
+					_ => format!("api::{}::{default}()", self.t.type_name(LANGUAGE, ty)),
 				}
 			}
 			Kind::Var(name) => self.var(name, &e.ty, place, want),
@@ -1177,7 +1144,8 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				format!("{b}.{}", ident(&self.t.api.records[*r].fields[*i].name))
+				let field = &self.t.api.records[*r].fields[*i].name;
+				format!("{b}.{}", self.t.field(LANGUAGE, unref(&base.ty).base(), field))
 			}
 			Kind::Element(base, i) => {
 				let b = self.base(base, place);
@@ -1302,7 +1270,7 @@ impl Emitter<'_> {
 	fn cloned(&mut self, v: &str, ty: &Type) -> String {
 		match ty {
 			Type::Object(i) if !self.t.api.objects[*i].shared => {
-				format!("{v}.{}()", apart("clone", self.t.type_name(LANGUAGE, ty)))
+				format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Clone"))
 			}
 			ty if self.copyable(ty) => v.to_string(),
 			Type::Record(r) => {
@@ -1310,7 +1278,7 @@ impl Emitter<'_> {
 				let fields: Vec<(String, Type)> = self.t.api.records[*r]
 					.fields
 					.iter()
-					.map(|f| (ident(&f.name), f.ty.clone()))
+					.map(|f| (self.t.field(LANGUAGE, ty, &f.name).to_string(), f.ty.clone()))
 					.collect();
 				let fields: Vec<String> = fields
 					.iter()
@@ -1501,17 +1469,6 @@ fn option_of(want: &Type, own: &Type) -> Type {
 			ty @ Type::Option(_) => ty.clone(),
 			ty => panic!("an option as {ty:?}"),
 		},
-	}
-}
-
-fn addr(socket: bool, family: Family) -> &'static str {
-	match (socket, family) {
-		(true, Family::Any) => "socket_addr",
-		(true, Family::V4) => "socket_addr_v4",
-		(true, Family::V6) => "socket_addr_v6",
-		(false, Family::Any) => "ip_addr",
-		(false, Family::V4) => "ipv4_addr",
-		(false, Family::V6) => "ipv6_addr",
 	}
 }
 
