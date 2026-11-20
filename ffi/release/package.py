@@ -330,6 +330,13 @@ def workspace_manifest(path):
     return text
 
 
+def manifest_paths(value):
+    """Every `path` a parsed manifest names, in any table."""
+    if isinstance(value, dict):
+        return [p for k, v in value.items() for p in ([v] if k == "path" else manifest_paths(v))]
+    return [p for v in value for p in manifest_paths(v)] if isinstance(value, list) else []
+
+
 def relocate(manifest, moves, strict=False):
     """A manifest with each local package's absolute path moved, as `moves` maps them, checked
     by reading it back: nothing else changed, and when `strict`, every `path` is one moved."""
@@ -342,13 +349,8 @@ def relocate(manifest, moves, strict=False):
             return {k: moves.get(v, v) if k == "path" and isinstance(v, str) else moved(v) for k, v in value.items()}
         return [moved(v) for v in value] if isinstance(value, list) else value
 
-    def paths(value):
-        if isinstance(value, dict):
-            return [p for k, v in value.items() for p in ([v] if k == "path" else paths(v))]
-        return [p for v in value for p in paths(v)] if isinstance(value, list) else []
-
     want = moved(tomllib.loads(manifest))
-    if strict and (stray := [p for p in paths(want) if p not in moves.values()]):
+    if strict and (stray := [p for p in manifest_paths(want) if p not in moves.values()]):
         raise SystemExit(f"the generated manifest names {stray}, where no package it builds lies")
     if tomllib.loads(text) != want:
         raise SystemExit(f"a manifest's paths do not survive moving them to {sorted(moves.values())}")
@@ -1663,8 +1665,15 @@ def linked(manifest, export, *features):
     """`export` as cargo reaches it through `LINK`, which links to the deepest directory holding
     it and every local package and workspace root it builds with, so their layout below that
     directory alone names them. Cargo joins each relative path lexically from it, never
-    resolving the link. Yields the spelling through `LINK` of a directory below it."""
+    resolving the link. Yields the spelling through `LINK` of a directory below it, or the
+    directory itself where a manifest names a path absolutely: cargo reaches that package by
+    that path, which no build at another path shares, and through the link by another, which
+    it would read as two packages."""
     local, roots = local_packages(manifest, export, *features)
+    for path in [export / "Cargo.toml", *(d / "Cargo.toml" for d in local), *roots]:
+        if any(Path(p).is_absolute() for p in manifest_paths(tomllib.loads(path.read_text(encoding="utf-8")))):
+            yield Path
+            return
     try:
         base = Path(os.path.commonpath([p.resolve() for p in (export, *local, *(r.parent for r in roots))]))
     except ValueError:

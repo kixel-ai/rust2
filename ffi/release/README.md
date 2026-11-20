@@ -217,7 +217,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
   while it exists, and one a killed build left must be removed. An export at another depth
   from the crate writes another relative path, so other symbols; one whose own path holds a
   symlink, or on another drive from the crate, keeps the absolute path, so builds the same
-  only at the same path. The crate's workspace, the exported crate, and `CARGO_HOME`, by
+  only at the same path, as does a crate whose manifest names any path absolutely, which
+  cargo would read through the link as a second package, so builds without it. The crate's workspace, the exported crate, and `CARGO_HOME`, by
   each spelling, are remapped to fixed names for rustc and the C compilers, so panic
   messages and debug info name no checkout. This takes `RUSTFLAGS` over a
   `.cargo/config.toml`'s `rustflags`, so a config that sets any fails the build: export them

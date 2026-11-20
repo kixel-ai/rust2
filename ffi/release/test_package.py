@@ -376,6 +376,9 @@ class Reproducible(unittest.TestCase):
             crate, export = root / "checkout/source/crate", root / "checkout/export"
             crate.mkdir(parents=True)
             export.mkdir()
+            (export / "Cargo.toml").write_text('[dependencies]\ncrate = { path = "../source/crate" }\n')
+            (crate / "Cargo.toml").write_text('[package]\nname = "crate"\n')
+            (root / "checkout/source/Cargo.toml").write_text('[workspace]\nmembers = ["crate"]\n')
             link = root / "link"
             graph = ([crate], [root / "checkout/source/Cargo.toml"])
             with mock.patch.object(package, "LINK", link), mock.patch.object(package, "local_packages", return_value=graph):
@@ -389,6 +392,11 @@ class Reproducible(unittest.TestCase):
                         pass
                 self.assertFalse(os.path.lexists(link))
                 self.assertTrue(export.is_dir())
+                # A package named by its absolute path would be two packages, by it and through the link.
+                (crate / "Cargo.toml").write_text(f'[package]\nname = "crate"\n\n[dependencies]\nother = {{ path = {json.dumps(str(root))} }}\n')
+                with package.linked("Cargo.toml", export) as spell:
+                    self.assertFalse(os.path.lexists(link))
+                    self.assertEqual(spell(export), export)
 
     def test_a_path_cc_would_split_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
