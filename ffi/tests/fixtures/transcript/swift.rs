@@ -765,51 +765,7 @@ impl Emitter<'_> {
 	fn exception(&self, err: &Type) -> (String, bool) {
 		match unref(err).base() {
 			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => (self.type_name(ty), false),
-			_ => {
-				let key = format!("error {}", self.spell(&owned(err)));
-				(format!("Api.{}", self.t.named(LANGUAGE, &key)), true)
-			}
-		}
-	}
-
-	/// A type as the export keys it: its C name, past the prefix, which C++ names it by.
-	fn key(&self, ty: &Type) -> String {
-		match ty {
-			Type::Unit => "unit".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Str | Type::String => "string".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
-			Type::Path | Type::PathBuf => "path".to_string(),
-			Type::Int(int) => int.rust().to_string(),
-			Type::NonZero(int) => format!("non_zero_{}", int.rust()),
-			Type::F32 => "f32".to_string(),
-			Type::F64 => "f64".to_string(),
-			Type::Char => "char".to_string(),
-			Type::U128 => "u128".to_string(),
-			Type::Duration => "duration".to_string(),
-			Type::Array(n) => format!("array_u8_{n}"),
-			Type::Option(inner) => format!("option_{}", self.key(inner)),
-			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
-			Type::Record(_) | Type::Enum(_) | Type::Object(_) => self.t.type_name("C++", ty).to_string(),
-			Type::Range(int) => format!("range_{}", int.rust()),
-			Type::Bound(int) => format!("bound_{}", int.rust()),
-			Type::Bounds(int) => format!("bounds_{}", int.rust()),
-			Type::Ref(_, inner) | Type::Box(inner) => self.key(inner),
-			other => panic!("no key spells {other:?}"),
-		}
-	}
-
-	/// A type by its key, each tuple spelled as Rust spells it.
-	fn spell(&self, ty: &Type) -> String {
-		match ty {
-			Type::Tuple(elements) => {
-				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
-				match elements.len() {
-					1 => format!("({},)", elements[0]),
-					_ => format!("({})", elements.join(", ")),
-				}
-			}
-			ty => self.key(ty),
+			_ => (format!("Api.{}", self.t.error(LANGUAGE, err)), true),
 		}
 	}
 
@@ -863,8 +819,7 @@ impl Emitter<'_> {
 
 	/// The struct of a tuple holding a struct, which a Swift tuple cannot.
 	fn tuple_name(&self, elements: &[Type]) -> String {
-		let key = format!("tuple {}", self.spell(&owned(&Type::Tuple(elements.to_vec()))));
-		format!("Api.{}", self.t.named(LANGUAGE, &key))
+		format!("Api.{}", self.t.tuple(LANGUAGE, elements))
 	}
 
 	/// The Swift of a format's pieces: a string literal. A piece that needs statements first
@@ -928,7 +883,7 @@ impl Emitter<'_> {
 			}
 			Type::Object(_) | Type::Record(_) | Type::Enum(_) => {
 				self.threw |= self.model.traits_throw(&self.t.api, ty);
-				format!("{}.description", postfix(v))
+				format!("{}.{}", postfix(v), self.t.member(LANGUAGE, ty, "Display"))
 			}
 			ty => panic!("Display of {ty:?}"),
 		}
@@ -983,7 +938,7 @@ impl Emitter<'_> {
 			}
 			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
 				self.threw |= self.model.traits_throw(&self.t.api, ty);
-				format!("{}.debugDescription", postfix(v))
+				format!("{}.{}", postfix(v), self.t.member(LANGUAGE, ty, "Debug"))
 			}
 			ty => panic!("Debug of {ty:?}"),
 		}
@@ -1091,8 +1046,9 @@ impl Emitter<'_> {
 			Kind::Record(r, fields) => {
 				let record = &self.t.api.records[*r];
 				let name = self.type_name(&Type::Record(*r));
+				let ty = Type::Record(*r);
 				let labels: Vec<Option<String>> = (record.fields.iter())
-					.map(|f| (!record.tuple).then(|| field_name(&f.name)))
+					.map(|f| (!record.tuple).then(|| self.t.field(LANGUAGE, &ty, &f.name).to_string()))
 					.collect();
 				let types: Vec<Type> = record.fields.iter().map(|f| f.ty.clone()).collect();
 				let args = self.labelled(fields, &types, &labels, out);
@@ -1101,12 +1057,16 @@ impl Emitter<'_> {
 			Kind::Variant(en, v, fields) => {
 				let name = self.type_name(&Type::Enum(*en));
 				let variant = &self.t.api.enums[*en].variants[*v];
-				let case = member(&snake(&variant.name));
+				let ty = Type::Enum(*en);
+				let case = kw(self.t.variant(LANGUAGE, &ty, &variant.name));
 				if variant.fields.is_empty() {
 					return format!("{name}.{case}");
 				}
 				let labels: Vec<Option<String>> = (variant.fields.iter())
-					.map(|f| (!variant.tuple).then(|| field_name(&f.name)))
+					.map(|f| {
+						(!variant.tuple)
+							.then(|| self.t.variant_field(LANGUAGE, &ty, &variant.name, &f.name).to_string())
+					})
 					.collect();
 				let types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
 				let args = self.labelled(fields, &types, &labels, out);
@@ -1127,7 +1087,7 @@ impl Emitter<'_> {
 					ty => panic!("a default of {ty:?}"),
 				};
 				self.threw |= !self.t.api.everywhere(on);
-				format!("{}.default()", self.type_name(ty))
+				format!("{}.{}()", self.type_name(ty), self.t.member(LANGUAGE, ty, "Default"))
 			}
 			Kind::Var(name) => self.var(name),
 			Kind::Const(c) => format!(
@@ -1141,11 +1101,10 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				format!(
-					"{}.{}",
-					postfix(&b),
-					field_name(&self.t.api.records[*r].fields[*i].name)
-				)
+				let field = self
+					.t
+					.field(LANGUAGE, &Type::Record(*r), &self.t.api.records[*r].fields[*i].name);
+				format!("{}.{}", postfix(&b), kw(field))
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base, out);
@@ -1161,7 +1120,7 @@ impl Emitter<'_> {
 				match unref(&inner.ty).base() {
 					ty @ Type::Object(i) if self.t.api.objects[*i].traits.clone => {
 						self.threw |= self.model.traits_throw(&self.t.api, ty);
-						format!("{}.clone()", postfix(&v))
+						format!("{}.{}()", postfix(&v), self.t.member(LANGUAGE, ty, "Clone"))
 					}
 					// What a call returns is the caller's own already.
 					ty if self.model.unique(ty) && matches!(inner.kind, Kind::Call(..)) => v,
@@ -1313,7 +1272,7 @@ impl Emitter<'_> {
 			.map(|((v, ty), label)| {
 				let v = self.value(v, ty, out);
 				match label {
-					Some(label) => format!("{}: {v}", unquote(label)),
+					Some(label) => format!("{label}: {v}"),
 					None => v,
 				}
 			})
@@ -1453,7 +1412,6 @@ impl Emitter<'_> {
 				None => "Api".to_string(),
 			},
 		};
-		let labels: Vec<String> = f.params.iter().map(|p| camel(&p.name)).collect();
 		let params: Vec<_> = f.params.iter().map(|p| p.ty.clone()).collect();
 		let mut parts = Vec::new();
 		for (k, (arg, ty)) in args.iter().zip(&params).enumerate() {
@@ -1465,7 +1423,8 @@ impl Emitter<'_> {
 					panic!("an optional borrow passed for {key} other than Some or None")
 				};
 				let v = self.value(value, inner, out);
-				parts.push(format!("{}: {v}", labels[k]));
+				let label = self.t.named(LANGUAGE, &format!("{key} / label {}", f.params[k].name));
+				parts.push(format!("{label}: {v}"));
 			} else if self.model.inout(ty) {
 				parts.push(self.inout(arg, ty, out));
 			} else if let Some(elem) = self.spanned(ty) {
@@ -1583,18 +1542,6 @@ fn pat_type(pat: &Pat) -> Type {
 	}
 }
 
-/// `ty` without its references, as a key names it.
-fn owned(ty: &Type) -> Type {
-	match ty {
-		Type::Ref(_, inner) => owned(inner),
-		Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
-		Type::Option(inner) => Type::Option(Box::new(owned(inner))),
-		Type::Box(inner) => Type::Box(Box::new(owned(inner))),
-		Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
-		ty => ty.clone(),
-	}
-}
-
 /// `v` as the receiver of a member: parenthesized unless a postfix expression already.
 fn postfix(v: &str) -> String {
 	let mut depth = 0i32;
@@ -1698,37 +1645,11 @@ fn int_name(int: Int) -> String {
 	format!("{first}{}", chars.as_str())
 }
 
-/// A Rust name split at its case changes, in snake case: `NotFound` is `not_found`.
-fn snake(name: &str) -> String {
-	let chars: Vec<char> = name.chars().collect();
-	let mut out = String::new();
-	for (i, &c) in chars.iter().enumerate() {
-		if c.is_uppercase() {
-			let prev = i.checked_sub(1).map(|j| chars[j]);
-			let next = chars.get(i + 1);
-			let boundary = match prev {
-				Some(p) if p.is_lowercase() || p.is_ascii_digit() => true,
-				Some(p) if p.is_uppercase() => next.is_some_and(|n| n.is_lowercase()),
-				_ => false,
-			};
-			if boundary && !out.ends_with('_') {
-				out.push('_');
-			}
-			out.extend(c.to_lowercase());
-		} else {
-			out.push(c);
-		}
-	}
-	out
-}
-
-/// A snake-case name in camel case: `into_label` is `intoLabel`, and `0` is `_0`.
+/// A function of the script's own, in snake case, as its Swift helper names it, in camel
+/// case: `into_label` is `intoLabel`.
 fn camel(name: &str) -> String {
-	if name.starts_with(|c: char| c.is_ascii_digit()) {
-		return format!("_{name}");
-	}
 	let mut out = String::new();
-	for (i, word) in snake(name).split('_').filter(|s| !s.is_empty()).enumerate() {
+	for (i, word) in name.split('_').filter(|s| !s.is_empty()).enumerate() {
 		let mut chars = word.chars();
 		match (i, chars.next()) {
 			(0, Some(first)) => out.extend(first.to_lowercase().chain(chars)),
@@ -1737,25 +1658,6 @@ fn camel(name: &str) -> String {
 		}
 	}
 	out
-}
-
-/// A member's Swift name: in camel case, quoted if a keyword, and `init` taking `_`.
-fn member(snake: &str) -> String {
-	let name = camel(snake);
-	match name.as_str() {
-		"init" => "init_".to_string(),
-		name => kw(name),
-	}
-}
-
-/// A field's Swift name.
-fn field_name(name: &str) -> String {
-	member(name)
-}
-
-/// A name without the backticks quoting a keyword.
-fn unquote(name: &str) -> String {
-	name.trim_matches('`').to_string()
 }
 
 fn ipv4(ip: std::net::Ipv4Addr) -> String {
