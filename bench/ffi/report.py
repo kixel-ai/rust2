@@ -3,9 +3,9 @@ in CPU and wall time, each beside the median 1-minute load average over its roun
 from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
 crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
 native libraries, and of the wasm32 stand-in's TypeScript, module, and npm package, and of
-one caller's bundle.
+one caller's bundle. `just ffi bench-android`'s raw.tsv alone prints only the time tables.
 
-Usage: report.py <raw.tsv> <build.tsv> <export dir> <web export dir> <caller.ts>
+Usage: report.py <raw.tsv> [<build.tsv> <export dir> <web export dir> <caller.ts>]
 """
 
 import collections
@@ -23,6 +23,7 @@ LANGS = [
 	("cpp", "C++"),
 	("moq-c", "moq-c"),
 	("kotlin", "Kotlin"),
+	("kotlin-art", "Kotlin (ART)"),
 	("python", "Python"),
 	("swift", "Swift"),
 	("go", "Go"),
@@ -219,7 +220,7 @@ def builds(path):
 	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
 
 
-def main(raw_path, build_path, export, web, caller):
+def main(raw_path, build_path=None, export=None, web=None, caller=None):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -260,6 +261,9 @@ def main(raw_path, build_path, export, web, caller):
 			rows = [[LABELS[n]] + [cell(lang, f"payload:{n}", i) for lang, _ in sized] for n in payloads]
 			print(table(header, rows))
 			print()
+
+	if build_path is None:
+		return
 
 	print("### Build (median, from an emptied target)\n")
 	print(builds(build_path))
@@ -305,6 +309,6 @@ def main(raw_path, build_path, export, web, caller):
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 6:
+	if len(sys.argv) not in (2, 6):
 		sys.exit(__doc__)
 	main(*sys.argv[1:])
