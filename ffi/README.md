@@ -124,7 +124,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | a type implementing `PartialEq` and `Hash` | beside `<T>_eq`, `uint64_t <T>_hash`, its `Hash` through std's hasher with its fixed keys, so equal values hash alike in every binding |
 | a type implementing `PartialOrd` with itself | `int8_t <T>_partial_cmp(a, b)`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or 2 when the two are unordered; with `Ord`, `int8_t <T>_cmp(a, b)` too, -1, 0, or 1. Every binding's `<` and its kin call `_partial_cmp`, as Rust's do, and its total order, where it has one, `_cmp` |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq` and ordered by `_cmp`, with none of its methods |
-| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR`, ordered by tracing's `Ord`, the more verbose after the less |
+| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `ERROR` (0) to `TRACE` (4), numbered in tracing's `Ord`, the more verbose after the less, so every language's own order of it agrees with Rust's |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |

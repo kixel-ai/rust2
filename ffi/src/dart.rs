@@ -3014,7 +3014,10 @@ fn param_name(name: &str) -> String {
 
 /// A plain enum's value: its variant in camel case.
 fn enum_value(variant: &str) -> String {
-	member(&abi::snake(variant), &["values", "index", "name"])
+	member(
+		&abi::snake(variant),
+		&["values", "index", "name", "compareTo", "partialCompareTo"],
+	)
 }
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a

@@ -5153,6 +5153,9 @@ pub enum Rank {
 pub enum Tier {
 	Low,
 	High,
+	/// Named as Dart's comparison methods are, which its constants keep apart.
+	CompareTo,
+	PartialCompareTo,
 }
 
 /// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by

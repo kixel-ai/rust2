@@ -1026,8 +1026,9 @@ fn main() {
 		m1 >= g1
 	);
 	println!(
-		"tier {} {} {} {}",
+		"tier {} {} {} {} {}",
 		Tier::Low < Tier::High,
+		Tier::CompareTo < Tier::PartialCompareTo,
 		Tier::Low >= Tier::Low,
 		Tier::High.cmp(&Tier::Low) as i8,
 		Tier::Low.cmp(&Tier::High) as i8

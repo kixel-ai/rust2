@@ -819,7 +819,10 @@ impl Emitter<'_> {
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return format!(
 						"api.{name}.{}",
-						member(&snake(&variant.name), &["values", "index", "name"])
+						member(
+							&snake(&variant.name),
+							&["values", "index", "name", "compareTo", "partialCompareTo"]
+						)
 					);
 				}
 				let key = format!("type {} / variant {}", self.t.rust(&Type::Enum(*en)), variant.name);

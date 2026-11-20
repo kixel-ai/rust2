@@ -1858,7 +1858,9 @@ impl<'tcx> Collector<'tcx> {
 		if let Some(level) = &mut self.level {
 			level.index = self.api.enums.len();
 			let def_id = level.level;
-			let variants = ["Trace", "Debug", "Info", "Warn", "Error"];
+			// Numbered in its `Ord`, the less verbose first, so each language's own order of
+			// the enum, such as C's `<` or Kotlin's final `compareTo`, agrees with Rust's.
+			let variants = ["Error", "Warn", "Info", "Debug", "Trace"];
 			self.api.enums.push(Enum {
 				path: vec![tcx.crate_name(def_id.krate).to_string(), "Level".to_string()],
 				home: Home {
@@ -1869,7 +1871,7 @@ impl<'tcx> Collector<'tcx> {
 				args: Vec::new(),
 				span: tcx.def_span(def_id),
 				on: On::ALL,
-				docs: "`tracing::Level`: how verbose a span or event is, from the most to the least.".to_string(),
+				docs: "`tracing::Level`: how verbose a span or event is, from the least to the most.".to_string(),
 				deprecated: None,
 				variants: (variants.iter().zip(0..))
 					.map(|(name, discriminant)| Variant {
@@ -1885,7 +1887,6 @@ impl<'tcx> Collector<'tcx> {
 				methods: Vec::new(),
 				// Its `Debug` is left out: Dart would name it as it names the `Debug` level,
 				// and it prints only what `Display` and the variant's name already say.
-				// Its `Ord` puts the more verbose level after the less.
 				traits: Traits {
 					clone: true,
 					eq: true,
