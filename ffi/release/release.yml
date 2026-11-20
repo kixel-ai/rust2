@@ -1,12 +1,12 @@
 name: Release @NAME@ bindings
 
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
-# below, exports @NAME@'s pub API, builds its Python wheels, Swift package, C archives, and
-# web package, and checks them in clean consumers, all read-only. The jobs after it publish
-# only a tag's build:
+# below, exports @NAME@'s pub API, builds its Python wheels and sdist, Swift package, C
+# archives, and web package, and checks them in clean consumers, all read-only. The jobs
+# after it publish only a tag's build:
 #
-# - PyPI: the project @NAME@, through the trusted publisher this repository registers there
-#   for this workflow and the `pypi` environment.
+# - PyPI: the project @NAME@'s wheels and sdist, through the trusted publisher this
+#   repository registers there for this workflow and the `pypi` environment.
 # - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
 #   the Package.swift pushed to @MIRROR@ names by URL and checksum, tagged <version>.
 #   The mirror's token comes from a GitHub App installed on it, whose ID and key live in
@@ -97,8 +97,8 @@ jobs:
           pattern: @NAME@-build-*
           path: dist
           merge-multiple: true
-      # A rerun uploads only the wheels PyPI lacks, and fails on one it hosts with other bytes.
-      - name: Skip the wheels PyPI hosts
+      # A rerun uploads only the files PyPI lacks, and fails on one it hosts with other bytes.
+      - name: Skip the files PyPI hosts
         id: missing
         env:
           PROJECT: '@NAME@'
@@ -114,21 +114,21 @@ jobs:
               if error.code != 404:
                   raise
               hosted = {}
-          missing = 0
-          for wheel in sorted(pathlib.Path("dist/wheels").glob("*.whl")):
-              if wheel.name not in hosted:
-                  missing += 1
-              elif hosted[wheel.name] == hashlib.sha256(wheel.read_bytes()).hexdigest():
-                  print(f"PyPI already hosts {wheel.name}")
-                  wheel.unlink()
+          upload = pathlib.Path("dist/pypi")
+          upload.mkdir()
+          for path in sorted([*pathlib.Path("dist/wheels").glob("*.whl"), *pathlib.Path("dist/sdist").glob("*.tar.gz")]):
+              if path.name not in hosted:
+                  path.rename(upload / path.name)
+              elif hosted[path.name] == hashlib.sha256(path.read_bytes()).hexdigest():
+                  print(f"PyPI already hosts {path.name}")
               else:
-                  sys.exit(f"::error::PyPI hosts another {wheel.name}")
+                  sys.exit(f"::error::PyPI hosts another {path.name}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              print(f"upload={'true' if missing else 'false'}", file=output)
+              print(f"upload={'true' if any(upload.iterdir()) else 'false'}", file=output)
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         if: steps.missing.outputs.upload == 'true'
         with:
-          packages-dir: dist/wheels/
+          packages-dir: dist/pypi/
 
   # The XCFramework the mirror's Package.swift names and each target's C archive, uploaded
   # once: a consumer that resolved a checksum must never see other bytes at that URL. The

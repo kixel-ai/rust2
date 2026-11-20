@@ -2,16 +2,20 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tarfile
 import tempfile
+import tomllib
 import unittest
+from unittest import mock
 import zipfile
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("package", HERE / "package.py")
 package = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(package)
+backend = package.backend
 
 
 def info(root, **overrides):
@@ -180,6 +184,7 @@ class Wheel(unittest.TestCase):
                 names = set(archive.namelist())
                 meta = archive.read("moq_ffi-0.4.12.dist-info/METADATA").decode()
             self.assertIn("moq/__init__.py", names)
+            self.assertIn("moq/py.typed", names)
             self.assertIn("moq/libmoq.so", names)
             self.assertIn("moq_ffi-0.4.12.dist-info/licenses/LICENSE-MIT", names)
             self.assertIn("Requires-Python: >=3.11\n", meta)
@@ -289,7 +294,7 @@ class Go(unittest.TestCase):
             self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
             with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
                 self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
-                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
+                    "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_amd64.a", "rt/libmoq_darwin_arm64.a", "rt/libmoq_ios_arm64.a",
                     "rt/libmoq_linux_amd64.a", "rt/libmoq_linux_arm64.a", "rt/libmoq_windows_amd64.a", "rt/rt.go"]])
             # The module ships exactly the libraries the runtime links.
             (root / "libs/libmoq_linux_arm64.a").unlink()
@@ -433,6 +438,131 @@ libmoq.a(other.o):
             self.assertEqual(members["lib/libmoq.a"].mode, 0o644)
             self.assertEqual(members["lib/libmoq.so"].linkname, "libmoq.so.0.4.12")
             self.assertEqual({(m.uid, m.uname) for m in members.values()}, {(0, "")})
+
+
+class Sdist(unittest.TestCase):
+    def test_moves_each_local_path(self):
+        manifest = ('[dependencies]\napi_export = { package = "api", path = "/src/api", features = ["x"] }\n'
+                    'serde = "1"\n[target."cfg(unix)".dependencies]\ntls = { path = "/src/tls" }\n'
+                    '[patch.crates-io.url]\npath = "/vendor/url"\n')
+        moves = {"/src/api": "../sources/src/api", "/src/tls": "../sources/src/tls", "/vendor/url": "../sources/vendor/url"}
+        moved = tomllib.loads(package.relocate(manifest, moves, strict=True))
+        self.assertEqual(moved["dependencies"]["api_export"], {"package": "api", "path": "../sources/src/api", "features": ["x"]})
+        self.assertEqual(moved["target"]["cfg(unix)"]["dependencies"]["tls"]["path"], "../sources/src/tls")
+        self.assertEqual(moved["patch"]["crates-io"]["url"]["path"], "../sources/vendor/url")
+
+    def test_refuses_a_path_no_package_lies_at(self):
+        manifest = '[dependencies]\na = { path = "/src/a" }\nb = { path = "/elsewhere/b" }\n'
+        with self.assertRaises(SystemExit):
+            package.relocate(manifest, {"/src/a": "../sources/a"}, strict=True)
+        # A package's own manifest may name what its build never loads, such as a dev-dependency.
+        moved = tomllib.loads(package.relocate(manifest, {"/src/a": "../a"}))
+        self.assertEqual(moved["dependencies"], {"a": {"path": "../a"}, "b": {"path": "/elsewhere/b"}})
+
+    def test_refuses_a_path_spelled_otherwise(self):
+        with self.assertRaises(SystemExit):
+            package.relocate("[dependencies]\na = { path = '/src/a' }\n", {"/src/a": "../a"})
+
+    def test_a_root_package_keeps_its_workspace_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cargo.toml"
+            root.write_text('cargo-features = ["edition2027"]\n[package]\nname = "root"\n[dependencies]\nx = "1"\n'
+                            '[workspace]\nmembers = ["fixtures/*"]\n[workspace.package]\nversion = "0.4.12"\n'
+                            '[workspace.dependencies]\nkio = { path = "rs/kio", features = ["runtime"] }\n'
+                            '[workspace.lints.clippy]\nall = { level = "warn", priority = -1 }\n'
+                            'quoted = "a \\"b\\" \\u00e9"\n[profile.release]\nlto = true\n')
+            reduced = tomllib.loads(package.workspace_manifest(root))
+        self.assertEqual(set(reduced), {"cargo-features", "workspace"})
+        self.assertEqual(reduced["workspace"]["dependencies"]["kio"], {"path": "rs/kio", "features": ["runtime"]})
+        self.assertEqual(reduced["workspace"]["lints"]["clippy"]["all"], {"level": "warn", "priority": -1})
+        self.assertEqual(reduced["workspace"]["lints"]["clippy"]["quoted"], 'a "b" \u00e9')
+
+    def test_pins_the_channel_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            crate = root / "rs" / "moq-ffi"
+            crate.mkdir(parents=True)
+            self.assertIsNone(package.toolchain(crate))
+            (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.98.1"\ncomponents = ["clippy"]\n')
+            self.assertEqual(tomllib.loads(package.toolchain(crate)),
+                             {"toolchain": {"channel": "1.98.1", "profile": "minimal"}})
+            # The legacy file, nearer, wins, as rustup reads it.
+            (crate / "rust-toolchain").write_text("nightly-2026-11-12\n")
+            self.assertEqual(tomllib.loads(package.toolchain(crate))["toolchain"]["channel"], "nightly-2026-11-12")
+            (crate / "rust-toolchain").write_text('[toolchain]\npath = "/opt/rust"\n')
+            with self.assertRaises(SystemExit):
+                package.toolchain(crate)
+
+    def test_builds_on_every_target_it_stages(self):
+        targets = tomllib.loads(package.pyproject(["x86_64-unknown-linux-musl"]))
+        self.assertEqual(targets["build-system"], {"requires": [], "build-backend": "backend", "backend-path": ["rust2"]})
+        self.assertEqual(targets["tool"]["rust2-ffi"]["targets"], ["x86_64-unknown-linux-musl"])
+        # The builder stages each sdist target's API on some host.
+        workflow = (package.ROOT / ".github" / "workflows" / "bindings.yml").read_text(encoding="utf-8")
+        for target in package.SDIST_TARGETS:
+            self.assertRegex(workflow, rf"\n            targets: .*\b{target}\b")
+
+    def test_archive_and_its_rebuild(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {"PKG-INFO": (b"Metadata-Version: 2.4\nName: moq-ffi\nVersion: 0.4.12rc1\n\n", False),
+                     "sources/kio/configure": (b"#!/bin/sh\n", True), "binding/Cargo.toml": (b"[package]\n", False)}
+            with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "1700000000"}):
+                path = backend.write_sdist(root, "moq-ffi", "0.4.12rc1", files)
+            self.assertEqual(path.name, "moq_ffi-0.4.12rc1.tar.gz")
+            with tarfile.open(path) as tar:
+                members = tar.getmembers()
+                self.assertEqual([m.name for m in members], [f"moq_ffi-0.4.12rc1/{n}" for n in sorted(files)])
+                self.assertEqual({m.name.split("/", 1)[1]: (m.mode, m.mtime) for m in members},
+                                 {"PKG-INFO": (0o644, 1700000000), "binding/Cargo.toml": (0o644, 1700000000),
+                                  "sources/kio/configure": (0o755, 1700000000)})
+                tar.extractall(root / "tree", filter="data")
+            tree = root / "tree" / "moq_ffi-0.4.12rc1"
+            # What a build wrote is no source.
+            (tree / "binding" / "target" / "release").mkdir(parents=True)
+            (tree / "binding" / "target" / "release" / "libmoq.so").write_bytes(b"\x7fELF")
+            (tree / "rust2" / "__pycache__").mkdir(parents=True)
+            (tree / "rust2" / "__pycache__" / "backend.pyc").write_bytes(b"")
+            out = root / "again"
+            out.mkdir()
+            with mock.patch.object(Path, "cwd", return_value=tree):
+                name = backend.build_sdist(out)
+            with tarfile.open(out / name) as tar:
+                self.assertEqual(sorted(m.name.split("/", 1)[1] for m in tar.getmembers()), sorted(files))
+
+
+class Backend(unittest.TestCase):
+    def test_macos_tags_as_pip_reads_them(self):
+        with mock.patch.object(backend.sys, "platform", "darwin"):
+            for target, deployment, tag in [("aarch64-apple-darwin", None, "macosx_11_0_arm64"),
+                                            ("x86_64-apple-darwin", None, "macosx_10_12_x86_64"),
+                                            ("x86_64-apple-darwin", "10.15", "macosx_10_15_x86_64"),
+                                            ("aarch64-apple-darwin", "14.2", "macosx_14_0_arm64")]:
+                env = {} if deployment is None else {"MACOSX_DEPLOYMENT_TARGET": deployment}
+                self.assertEqual(backend.platform_tag(target, env), tag)
+                # cargo builds for the floor the tag claims.
+                self.assertIn("MACOSX_DEPLOYMENT_TARGET", env)
+
+    def test_musl_links_its_c_runtime_dynamically(self):
+        flag = "-Ctarget-feature=-crt-static"
+        self.assertEqual(backend.dynamic_crt("x86_64-unknown-linux-gnu", {}), [])
+        self.assertEqual(backend.dynamic_crt("x86_64-unknown-linux-musl", {}),
+                         ["--config", f'target.x86_64-unknown-linux-musl.rustflags = ["{flag}"]'])
+        # Either variable, even empty, is all cargo reads, so the flag joins it.
+        for name, value, want in [("RUSTFLAGS", "", flag), ("RUSTFLAGS", "-Copt-level=2", f"-Copt-level=2 {flag}"),
+                                  ("CARGO_ENCODED_RUSTFLAGS", "-Copt-level=2", f"-Copt-level=2\x1f{flag}")]:
+            env = {name: value}
+            self.assertEqual(backend.dynamic_crt("aarch64-unknown-linux-musl", env), [])
+            self.assertEqual(env[name], want)
+
+    def test_refuses_an_emulated_python(self):
+        with mock.patch.object(backend.platform, "machine", return_value="x86_64"), \
+                mock.patch.object(backend.os, "name", "posix"):
+            backend.check_arch("x86_64-apple-darwin")
+            with self.assertRaises(SystemExit):
+                backend.check_arch("aarch64-apple-darwin")
+            # An architecture apart from these two is no emulation to catch.
+            backend.check_arch("riscv64gc-unknown-linux-gnu")
 
 
 class Template(unittest.TestCase):

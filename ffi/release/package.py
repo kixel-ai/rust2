@@ -14,6 +14,7 @@ import io
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import shlex
 import shutil
@@ -26,6 +27,9 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+# The sdist's PEP 517 backend, which writes both distributions' wheels.
+sys.path.insert(0, str(HERE))
+import backend  # noqa: E402
 # The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), crabx's, and moq's manylinux_2_28.
 GLIBC = "2.28"
 # The macOS a wheel loads on: the oldest Rust's aarch64-apple-darwin target supports.
@@ -45,11 +49,20 @@ WHEEL_TARGETS = [
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 ]
+# The targets no prebuilt wheel covers on which the sdist must build one. The generated crate
+# builds for no target it was not exported for, so the export merges their APIs too.
+SDIST_TARGETS = [
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+]
 # Every target the Go module links a static library of, by its GOOS_GOARCH. Go links
 # Windows through MinGW, so a -gnu library.
 GO_TARGETS = {
     "x86_64-unknown-linux-gnu": "linux_amd64",
     "aarch64-unknown-linux-gnu": "linux_arm64",
+    "x86_64-apple-darwin": "darwin_amd64",
     "aarch64-apple-darwin": "darwin_arm64",
     "aarch64-apple-ios": "ios_arm64",
     "x86_64-pc-windows-gnu": "windows_amd64",
@@ -150,10 +163,7 @@ def pascal(name):
 
 def python_floor(export):
     """The oldest CPython the export's stable-ABI extension loads in, from its glue's pyo3 feature."""
-    found = set(re.findall(r'"abi3-py3([0-9]+)"', (Path(export) / "Cargo.toml").read_text(encoding="utf-8")))
-    if len(found) != 1:
-        raise SystemExit(f"{export}/Cargo.toml names no single abi3 floor: {sorted(found)}")
-    return int(found.pop())
+    return backend.python_floor((Path(export) / "Cargo.toml").read_text(encoding="utf-8"))
 
 
 def licenses(info):
@@ -185,16 +195,6 @@ def metadata(info, floor):
     return "\n".join(lines) + "\n\n"
 
 
-def record(files):
-    """RECORD: every file's hash and size, and RECORD's own row unhashed."""
-    out = io.StringIO(newline="")
-    writer = csv.writer(out, lineterminator="\n")
-    for name, data in files.items():
-        digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
-        writer.writerow([name, f"sha256={digest}", len(data)])
-    return out
-
-
 def wheel_platform(target):
     """The tag a wheel for `target` starts with, before repair narrows it."""
     tags = {
@@ -208,40 +208,15 @@ def wheel_platform(target):
     return tags[target]
 
 
-def library_name(lib, target):
-    """The file the generated module loads from beside itself."""
-    if "windows" in target:
-        return f"{lib}.dll"
-    return f"lib{lib}.dylib" if "apple" in target else f"lib{lib}.so"
+library_name = backend.library_name
 
 
 def write_wheel(info, export, library, target, out):
-    """An unrepaired wheel holding the generated module as a package beside its library."""
-    lib = info["lib"]
-    floor = python_floor(export)
-    # The binary distribution format's escaped name.
-    dist = re.sub(r"[-_.]+", "_", info["name"]).lower()
-    version = pep440(info["version"])
-    tag = f"cp3{floor}-abi3-{wheel_platform(target)}"
-    meta = f"{dist}-{version}.dist-info"
-    files = {
-        f"{lib}/__init__.py": (Path(export) / "python" / f"{lib}.py").read_bytes(),
-        f"{lib}/{library_name(lib, target)}": Path(library).read_bytes(),
-    }
-    for path in licenses(info):
-        files[f"{meta}/licenses/{path.name}"] = path.read_bytes()
-    files[f"{meta}/METADATA"] = metadata(info, floor).encode()
-    files[f"{meta}/WHEEL"] = (
-        f"Wheel-Version: 1.0\nGenerator: rust2-ffi\nRoot-Is-Purelib: false\nTag: {tag}\n"
-    ).encode()
-    rows = record(files)
-    csv.writer(rows, lineterminator="\n").writerow([f"{meta}/RECORD", "", ""])
-    files[f"{meta}/RECORD"] = rows.getvalue().encode()
-    path = Path(out) / f"{dist}-{version}-{tag}.whl"
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name, data in files.items():
-            archive.writestr(name, data)
-    return path
+    """An unrepaired wheel holding the generated module as a typed package beside its library."""
+    lib, floor = info["lib"], python_floor(export)
+    return backend.write_wheel(out, metadata(info, floor), f"cp3{floor}-abi3-{wheel_platform(target)}", lib,
+                               (Path(export) / "python" / f"{lib}.py").read_bytes(), Path(library).read_bytes(),
+                               target, {path.name: path.read_bytes() for path in licenses(info)})
 
 
 def repair(wheel, target, out):
@@ -282,6 +257,146 @@ def check_wheel(path):
             want = "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
             if digest != want or int(size) != len(data):
                 raise SystemExit(f"{path.name}: RECORD's row for {name} is wrong")
+
+
+def toml_value(value):
+    """A TOML value as one line, which `workspace_manifest` reads back to check."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(map(toml_value, value)) + "]"
+    if isinstance(value, dict):
+        return "{ " + ", ".join(f"{json.dumps(k, ensure_ascii=False)} = {toml_value(v)}" for k, v in value.items()) + " }"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    return value.isoformat()
+
+
+def workspace_manifest(path):
+    """The workspace root at `path` as its members read it: its `[workspace]` table alone,
+    since a root that is a package fails to load without that package's sources."""
+    root = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    kept = {key: root[key] for key in ("cargo-features", "workspace") if key in root}
+    lines = [f"cargo-features = {toml_value(kept['cargo-features'])}"] if "cargo-features" in kept else []
+    lines.append("[workspace]")
+    lines += [f"{json.dumps(k, ensure_ascii=False)} = {toml_value(v)}" for k, v in kept["workspace"].items()]
+    text = "# The workspace root's [workspace] table, which its members inherit from.\n" + "\n".join(lines) + "\n"
+    if tomllib.loads(text) != kept:
+        raise SystemExit(f"{path}'s [workspace] table does not survive rewriting")
+    return text
+
+
+def relocate(manifest, moves, strict=False):
+    """A manifest with each local package's absolute path moved, as `moves` maps them, checked
+    by reading it back: nothing else changed, and when `strict`, every `path` is one moved."""
+    text = manifest
+    for old, new in moves.items():
+        text = text.replace(f"path = {json.dumps(old, ensure_ascii=False)}", f"path = {json.dumps(new)}")
+
+    def moved(value):
+        if isinstance(value, dict):
+            return {k: moves.get(v, v) if k == "path" and isinstance(v, str) else moved(v) for k, v in value.items()}
+        return [moved(v) for v in value] if isinstance(value, list) else value
+
+    def paths(value):
+        if isinstance(value, dict):
+            return [p for k, v in value.items() for p in ([v] if k == "path" else paths(v))]
+        return [p for v in value for p in paths(v)] if isinstance(value, list) else []
+
+    want = moved(tomllib.loads(manifest))
+    if strict and (stray := [p for p in paths(want) if p not in moves.values()]):
+        raise SystemExit(f"the generated manifest names {stray}, where no package it builds lies")
+    if tomllib.loads(text) != want:
+        raise SystemExit(f"a manifest's paths do not survive moving them to {sorted(moves.values())}")
+    return text
+
+
+def toolchain(start):
+    """The sdist's rust-toolchain.toml: the channel rustup resolves from the crate's directory,
+    without the components and targets its developers add, or None for no file."""
+    for directory in [Path(start), *Path(start).parents]:
+        for name in ("rust-toolchain", "rust-toolchain.toml"):
+            path = directory / name
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            try:
+                channel = tomllib.loads(text).get("toolchain", {}).get("channel")
+            except tomllib.TOMLDecodeError:
+                # The legacy file's one line.
+                channel = text.strip()
+            if not channel:
+                raise SystemExit(f"{path} names no channel, which the sdist could pin")
+            return f'[toolchain]\nchannel = {json.dumps(channel)}\nprofile = "minimal"\n'
+    return None
+
+
+def pyproject(targets):
+    """The sdist's pyproject.toml: the backend beside it, and the targets its crate builds for."""
+    listed = "".join(f"    {json.dumps(t)},\n" for t in targets)
+    return ("# A rust2-ffi binding's sources, which the backend in rust2/ builds into a wheel with cargo.\n"
+            "[build-system]\nrequires = []\nbuild-backend = \"backend\"\nbackend-path = [\"rust2\"]\n\n"
+            "[tool.rust2-ffi]\n# The targets the binding was exported for, the only ones its crate builds for.\n"
+            f"targets = [\n{listed}]\n")
+
+
+def sdist(info, manifest, export, out):
+    """The sdist: the export's crate in binding/, every local package it builds with in sources/,
+    laid out as they lie relative to each other, with their workspace roots, and the backend."""
+    export = Path(export).resolve()
+    targets = json.loads((export / "api.json").read_text(encoding="utf-8"))["api"]["targets"]
+    if missing := [t for t in SDIST_TARGETS if t not in targets]:
+        raise SystemExit(f"the export lacks {missing}, on which the sdist must build: stage their APIs")
+    graph = json.loads(cargo(manifest, "metadata", "--format-version", "1", "--locked", "--features", "python",
+                             "--manifest-path", export / "Cargo.toml").stdout)
+    local = sorted({Path(p["manifest_path"]).parent for p in graph["packages"] if p["source"] is None} - {export})
+    manifests = {d / "Cargo.toml" for d in local}
+    roots = set()
+    for directory in local:
+        root = Path(output("cargo", "locate-project", "--workspace", "--message-format", "plain",
+                           "--manifest-path", directory / "Cargo.toml", cwd=directory).strip())
+        if not any(root.samefile(m) for m in manifests):
+            roots.add(root)
+    base = Path(os.path.commonpath([*local, *(r.parent for r in roots)]))
+    placed = {d: posixpath.join("sources", d.relative_to(base).as_posix()) for d in local}
+
+    def moves(at):
+        """Each local package's path from the sdist's directory `at`, by its absolute one."""
+        return {str(d): posixpath.relpath(place, at) for d, place in placed.items()}
+
+    files = {}
+    for directory, place in placed.items():
+        # What cargo would publish of it, with the original manifest; what cargo generates in
+        # a package, such as Cargo.toml.orig, is on no disk.
+        listed = output("cargo", "package", "--list", "--allow-dirty", "--manifest-path", directory / "Cargo.toml",
+                        cwd=directory)
+        for name in listed.splitlines():
+            path = directory / name
+            if path.is_file():
+                files[f"{place}/{name}"] = (path.read_bytes(), os.access(path, os.X_OK))
+        # Relative paths hold, as the packages keep their places; absolute ones move with them.
+        manifest = relocate((directory / "Cargo.toml").read_text(encoding="utf-8"), moves(place))
+        files[f"{place}/Cargo.toml"] = (manifest.encode(), False)
+    for root in roots:
+        place = posixpath.join("sources", root.parent.relative_to(base).as_posix())
+        files[f"{place}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(place)).encode(), False)
+    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
+    files["binding/Cargo.toml"] = (generated.encode(), False)
+    for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
+                 *sorted(p for p in (export / "src").rglob("*") if p.is_file())]:
+        files[f"binding/{path.relative_to(export).as_posix()}"] = (path.read_bytes(), False)
+    floor = python_floor(export)
+    files["PKG-INFO"] = (metadata(info, floor).encode(), False)
+    files["pyproject.toml"] = (pyproject(targets).encode(), False)
+    files["rust2/backend.py"] = ((HERE / "backend.py").read_bytes(), False)
+    for path in licenses(info):
+        files[path.name] = (path.read_bytes(), False)
+    if pin := toolchain(info["dir"]):
+        files["rust-toolchain.toml"] = (pin.encode(), False)
+    (Path(out) / "sdist").mkdir(parents=True, exist_ok=True)
+    return backend.write_sdist(Path(out) / "sdist", info["name"], pep440(info["version"]), files)
 
 
 def digest(export, lib):
@@ -1310,7 +1425,8 @@ def build(args):
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
     # Native output for a host whose wheel or Go module a consumer runs; an iOS slice runs nowhere here.
-    if args.example and any(target in WHEEL_TARGETS for target in args.targets):
+    runs = [t for t in args.targets if t in WHEEL_TARGETS or t in GO_TARGETS and t not in APPLE_TARGETS]
+    if args.example and runs:
         if args.example not in info["examples"]:
             raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
         features = ["--features", args.features] if args.features.strip() else []
@@ -1712,6 +1828,10 @@ def main():
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
+    p = sub.add_parser("sdist", help="write the sdist of the export's crate and the local packages it builds with")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--export", required=True)
+    p.add_argument("--out", required=True)
     p = sub.add_parser("previous", help="fetch the API of the release this version follows")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--repo", required=True, metavar="OWNER/REPO", help="the repository whose releases to read")
@@ -1792,6 +1912,8 @@ def main():
         export(args)
     elif args.command == "build":
         build(args)
+    elif args.command == "sdist":
+        print(sdist(facts(args.manifest_path), args.manifest_path, args.export, args.out))
     elif args.command == "previous":
         previous(args)
     elif args.command == "changes":
