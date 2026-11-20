@@ -773,7 +773,11 @@ impl<'a> Header<'a> {
 			let variants: Vec<String> = e
 				.variants
 				.iter()
-				.map(|v| format!("\t{} = {},", escape(&abi::snake(&v.name)), v.discriminant))
+				.map(|v| {
+					let variant = escape(&abi::snake(&v.name));
+					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &variant);
+					format!("\t{variant} = {},", v.discriminant)
+				})
 				.collect();
 			self.line(format!(
 				"{}enum class{} {name} {{\n{}\n}};\n",
@@ -1041,6 +1045,7 @@ impl<'a> Header<'a> {
 		let mut members = Vec::new();
 		if t.clone && !object.shared {
 			let clone = apart("clone", &name);
+			crate::lock::trait_member(&mut self.locked, &object.shown, "Clone", &clone);
 			body.push(format!(
 				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\tRUST2_FFI_CALLABLE {name} {clone}() const;"
 			));
@@ -1078,6 +1083,7 @@ impl<'a> Header<'a> {
 		}
 		if t.hash {
 			let hash = apart("hash", &name);
+			crate::lock::trait_member(&mut self.locked, &object.shown, "Hash", &hash);
 			body.push(format!(
 				"\t/// Rust's `Hash`, agreeing with `==`, as `std::hash` hashes it.\n\tRUST2_FFI_CALLABLE ::std::uint64_t {hash}() const;"
 			));
@@ -1090,7 +1096,7 @@ impl<'a> Header<'a> {
 				"namespace std {{\ntemplate <>\nstruct hash<{q}> {{\n\tsize_t operator()(const {q} &value) const noexcept {{\n\t\treturn static_cast<size_t>(value.{hash}());\n\t}}\n}};\n}} // namespace std\n\n"
 			));
 		}
-		self.traits(&name, &c, t, Ok(status), &mut body, &mut members);
+		self.traits(&object.shown, &c, t, Ok(status), &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
@@ -1113,16 +1119,17 @@ impl<'a> Header<'a> {
 
 	/// The members a type's std traits export beyond its operators: an object's, which
 	/// holds a handle and passes each call `Ok` of its status argument, or a record's, of
-	/// type `Err`, which is lowered.
+	/// type `Err`, which is lowered. Each is recorded as a member of the type at `shown`.
 	fn traits(
 		&mut self,
-		name: &str,
+		shown: &[String],
 		c: &str,
 		t: Traits,
 		of: Result<&str, &Type>,
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
+		let name = &self.name(c);
 		let ns = self.ns.clone();
 		let d = self.d();
 		let (value, status) = match of {
@@ -1143,6 +1150,7 @@ impl<'a> Header<'a> {
 		};
 		if t.display {
 			let member = apart("to_string", name);
+			crate::lock::trait_member(&mut self.locked, shown, "Display", &member);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}{status}));\n}}\n"
@@ -1151,6 +1159,7 @@ impl<'a> Header<'a> {
 		}
 		if t.debug {
 			let member = apart("debug", name);
+			crate::lock::trait_member(&mut self.locked, shown, "Debug", &member);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}{status}));\n}}\n"
@@ -1159,6 +1168,7 @@ impl<'a> Header<'a> {
 		}
 		if t.default {
 			let member = apart("default_", name);
+			crate::lock::trait_member(&mut self.locked, shown, "Default", &member);
 			body.push(format!("\tstatic {name} {member}();"));
 			members.push(member.clone());
 			let make = match object {
@@ -1291,6 +1301,9 @@ impl<'a> Header<'a> {
 				}
 				let name = self.name(&c);
 				let fields: Vec<String> = record.fields.iter().map(|f| escape(&f.name)).collect();
+				for (f, field) in record.fields.iter().zip(&fields) {
+					crate::lock::field(&mut self.locked, &record.shown, &f.name, field);
+				}
 				let mut body: Vec<String> = record
 					.fields
 					.iter()
@@ -1342,7 +1355,7 @@ impl<'a> Header<'a> {
 						self.def(format!("{}\n", op.define("inline ")));
 					}
 				}
-				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
+				self.traits(&record.shown, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.extend(Self::made(t, &name));
@@ -1394,10 +1407,15 @@ impl<'a> Header<'a> {
 				}
 				for variant in &e.variants {
 					let payload = self.name(&abi::payload(&c, &variant.name));
+					crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &payload);
 					let fields: Vec<String> = variant
 						.fields
 						.iter()
-						.map(|f| format!("\t{} {}{};", self.owned(&f.ty), escape(&f.name), init(&f.ty)))
+						.map(|f| {
+							let field = escape(&f.name);
+							crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &field);
+							format!("\t{} {field}{};", self.owned(&f.ty), init(&f.ty))
+						})
 						.collect();
 					self.line(format!("struct {payload} {{\n{}\n}};\n", fields.join("\n")).replace("{\n\n}", "{}"));
 				}
@@ -1442,8 +1460,9 @@ impl<'a> Header<'a> {
 				self.def(format!("{}\n", op.define("inline ")));
 			}
 		}
-		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {
+		for (on, key, trait_name) in [(t.display, "Display", "to_string"), (t.debug, "Debug", "debug")] {
 			if on {
+				crate::lock::trait_member(&mut self.locked, &e.shown, key, &format!("{name}_{trait_name}"));
 				self.def(format!(
 					"inline ::{ns}::buf {name}_{trait_name}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_{status}));\n}}\n",
 					declare(&param, "self"),
@@ -1452,6 +1471,7 @@ impl<'a> Header<'a> {
 			}
 		}
 		if t.default {
+			crate::lock::trait_member(&mut self.locked, &e.shown, "Default", &format!("{name}_default"));
 			self.def(format!(
 				"inline {name} {name}_default() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {lifted};\n}}\n"
 			));
