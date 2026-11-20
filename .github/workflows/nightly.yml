@@ -245,7 +245,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: cat ffi/target/tmp/corpus-${{ matrix.shard }}-of-4/report.md >> "$GITHUB_STEP_SUMMARY"
 
-  # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
+  # The api fixture's web test in headless Chromium, Firefox, and WebKit, which only the bench shell
   # carries: a job of its own, so a browser's failure hides no other result.
   ffi-web:
     name: Web binding in browsers
