@@ -434,10 +434,10 @@ let package = Package(
     dependencies: [.package(url: "{COLLECTIONS}", exact: "{version}")],
     targets: [
         {binary},
+        .target(name: "{module}Privacy", resources: [.copy("PrivacyInfo.xcprivacy")]),
         .target(
             name: "{module}",
-            dependencies: ["{module}FFI", .product(name: "BasicContainers", package: "swift-collections")],
-            resources: [.copy("PrivacyInfo.xcprivacy")],
+            dependencies: ["{module}FFI", "{module}Privacy", .product(name: "BasicContainers", package: "swift-collections")],
             linkerSettings: [{links}
             ]
         ),
@@ -564,7 +564,9 @@ def swift(info, export, libs, natives, out):
             slice_dir = Path(work) / target
             slice_dir.mkdir()
             probe = probe_link(lib, path, target, Path(natives[target]).read_text(encoding="utf-8").strip(), slice_dir)
-            for category, apis in required_apis(probe).items():
+            imports = required_apis(probe)
+            print(f"{target} imports required-reason APIs: {({c: sorted(a) for c, a in imports.items()})}", file=sys.stderr)
+            for category, apis in imports.items():
                 found.setdefault(category, set()).update(apis)
             check_symbolicated(lib, probe)
     privacy = privacy_manifest(lib, found)
@@ -602,12 +604,17 @@ def swift(info, export, libs, natives, out):
     if swift_sum != checksum:
         raise SystemExit(f"swift computes {swift_sum}, not {checksum}")
     (out / "checksum.txt").write_text(checksum + "\n", encoding="utf-8")
+    print(f"{archive.name}: {archive.stat().st_size} bytes", file=sys.stderr)
     package = out / "package"
     sources = package / "Sources" / module
     sources.mkdir(parents=True)
     shutil.copy(export / "swift" / f"{lib}.swift", sources)
-    # A static library holds no resources: SwiftPM bundles the manifest into the app beside it.
-    (sources / "PrivacyInfo.xcprivacy").write_bytes(privacy)
+    # A static library holds no resources, so SwiftPM bundles the manifest into the app from a
+    # target of its own, whose generated `Bundle.module` accessor no exported name can shadow.
+    privacy_target = package / "Sources" / f"{module}Privacy"
+    privacy_target.mkdir()
+    (privacy_target / "PrivacyInfo.xcprivacy").write_bytes(privacy)
+    (privacy_target / "Privacy.swift").write_text(f"// Bundles {module}'s privacy manifest into the app.\n", encoding="utf-8")
     for path in licenses(info):
         shutil.copy(path, package)
     by_platform = {}

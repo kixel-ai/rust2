@@ -101,8 +101,9 @@ crate apart from it takes `web-features` and `web-example` instead.
    Each slice is linked as an app links it, keeping only what the C ABI reaches, and
    `nm` lists the [required-reason APIs](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)
    that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
-   The package's `PrivacyInfo.xcprivacy`, a resource SwiftPM bundles into the app, since a
-   static library holds none, declares them: file metadata (`stat` and its kin) for the
+   The package's `PrivacyInfo.xcprivacy` declares them, a resource of its own
+   `<Module>Privacy` target, which SwiftPM bundles into the app, since a static library holds
+   none: file metadata (`stat` and its kin) for the
    app's container, `C617.1`, and the boot clock (`mach_absolute_time`) for elapsed time,
    `35F9.1`. Disk space, `getattrlist`, user defaults, and active keyboards have no reason
    that fits every library, so a library reaching them fails the build. An Objective-C call

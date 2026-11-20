@@ -655,9 +655,9 @@ class Swift(unittest.TestCase):
         text = package.package_swift("Moq", "1.7.5", ['.linkedLibrary("iconv")'],
                                      '.binaryTarget(name: "MoqFFI", url: "https://x/MoqFFI.xcframework.zip", checksum: "00")')
         self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0"), .macCatalyst("16.0")]', text)
-        self.assertIn('resources: [.copy("PrivacyInfo.xcprivacy")]', text)
+        self.assertIn('.target(name: "MoqPrivacy", resources: [.copy("PrivacyInfo.xcprivacy")])', text)
         self.assertIn('exact: "1.7.5"', text)
-        self.assertIn('dependencies: ["MoqFFI", .product(name: "BasicContainers", package: "swift-collections")]', text)
+        self.assertIn('dependencies: ["MoqFFI", "MoqPrivacy", .product(name: "BasicContainers", package: "swift-collections")]', text)
 
 
 class CArchive(unittest.TestCase):
