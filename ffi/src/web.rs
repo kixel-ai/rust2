@@ -2560,7 +2560,7 @@ impl Gen<'_> {
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `partialCmp`, undefined when
 		// unordered, and with `Ord` its `cmp`, the shape `Array.prototype.sort` takes. A plain
 		// enum's too: its numbers order as its discriminants, which only a derived order follows.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
 			let args = vec!["a$".to_string(), "b$".to_string()];
 			let i8 = Ty::Int(Int::I8);

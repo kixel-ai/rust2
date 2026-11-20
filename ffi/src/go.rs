@@ -1928,7 +1928,7 @@ impl<'a> Gen<'a> {
 		}
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `PartialCompare`, and with
 		// `Ord` its `cmp` as `Compare`, the shape `slices.SortFunc` takes.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let (member, docs, zero, results, done) = match suffix {
 				"cmp" => (
 					"Compare",
@@ -2102,10 +2102,7 @@ impl<'a> Gen<'a> {
 		(record.fields.iter())
 			.map(|f| {
 				let name = unique(&mut taken, field_name(&f.name));
-				self.locked.insert(
-					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
-					name.clone(),
-				);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 				name
 			})
 			.collect()
@@ -2115,14 +2112,10 @@ impl<'a> Gen<'a> {
 	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
 		let e = &self.abi.api.enums[i];
 		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
-		let owner = crate::lock::type_key(&e.shown);
 		(variant.fields.iter())
 			.map(|f| {
 				let name = unique(&mut taken, field_name(&f.name));
-				self.locked.insert(
-					format!("{owner} / variant {} / field {}", variant.name, f.name),
-					name.clone(),
-				);
+				crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
 				name
 			})
 			.collect()
@@ -2254,17 +2247,7 @@ impl<'a> Gen<'a> {
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
-			let api = self.abi.api;
-			let shown = match ty {
-				Type::Record(i) => &api.records[*i].shown,
-				Type::Enum(i) => &api.enums[*i].shown,
-				Type::Object(i) => &api.objects[*i].shown,
-				_ => unreachable!("only an exported type has members"),
-			};
-			self.locked.insert(
-				format!("{} / Default", crate::lock::type_key(shown)),
-				default.name.clone(),
-			);
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), "Default", &default.name);
 			statics.push(default);
 		}
 		let pkg = self.pkg;

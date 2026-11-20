@@ -1800,7 +1800,7 @@ impl<'a> Gen<'a> {
 		}
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, behind `partialCompareTo` and
 		// `<` and its kin, as Rust's are; with `Ord`, its `cmp` as `Comparable`'s `compareTo`.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let what = format!("{c}_{suffix}");
 			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Int(Int::I8));
 			let (pa, a) = this(self, "this");

@@ -1652,7 +1652,7 @@ impl<'a> Gen<'a> {
 		// `cmp` as `Comparable`'s `compareTo`, except an enum class's, which Kotlin makes
 		// final by ordinal: of both handles, or of both values encoded.
 		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let member = suffix == "cmp";
 			if member && plain {
 				continue;

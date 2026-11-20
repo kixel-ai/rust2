@@ -83,24 +83,23 @@ impl Header<'_> {
 		self.names.insert("prefix".to_string(), abi.prefix.clone());
 		for record in &api.records {
 			for field in &record.fields {
-				let key = format!("{} / field {}", crate::lock::type_key(&record.shown), field.name);
-				self.names.insert(key, abi::escape(&field.name));
+				crate::lock::field(&mut self.names, &record.shown, &field.name, &abi::escape(&field.name));
 			}
 		}
 		for (i, e) in api.enums.iter().enumerate() {
 			let upper = abi.enumeration(i).to_uppercase();
 			for v in &e.variants {
-				let owner = crate::lock::type_key(&e.shown);
 				let snake = abi::snake(&v.name);
 				let constant = format!("{upper}_{}", snake.to_uppercase());
-				self.names.insert(format!("{owner} / variant {}", v.name), constant);
+				crate::lock::variant(&mut self.names, &e.shown, &v.name, &constant);
 				if !v.fields.is_empty() {
+					let owner = crate::lock::type_key(&e.shown);
 					self.names
 						.insert(format!("{owner} / member {}", v.name), abi::escape(&snake));
 				}
 				for field in &v.fields {
-					let key = format!("{owner} / variant {} / field {}", v.name, field.name);
-					self.names.insert(key, abi::escape(&field.name));
+					let name = abi::escape(&field.name);
+					crate::lock::variant_field(&mut self.names, &e.shown, &v.name, &field.name, &name);
 				}
 			}
 		}
@@ -109,8 +108,7 @@ impl Header<'_> {
 			self.names.insert(key, abi.constant(&constant.path));
 		}
 		for (name, elements) in &abi.tuples {
-			let key = format!("tuple {}", abi.spell(&Type::Tuple(elements.clone())));
-			self.names.insert(key, name.clone());
+			crate::lock::tuple(&mut self.names, abi, elements, name);
 		}
 	}
 
@@ -323,7 +321,9 @@ impl Header<'_> {
 				deprecation(&object.docs, object.deprecated.as_deref())
 			);
 			self.line(comment(docs.trim(), "").trim_end());
-			self.line(format!("void {name}_free({name} *self);"));
+			let ty = Type::Object(i);
+			let free = self.member(&ty, "Drop", &name, "free");
+			self.line(format!("void {free}({name} *self);"));
 			if abi.checked[i] {
 				self.line(
 					comment(
@@ -343,33 +343,32 @@ impl Header<'_> {
 				false => String::new(),
 			};
 			if t.clone {
-				self.line(format!(
-					"{upper}_MUST_USE {name} *{name}_clone(const {name} *self{status});"
-				));
+				let clone = self.member(&ty, "Clone", &name, "clone");
+				self.line(format!("{upper}_MUST_USE {name} *{clone}(const {name} *self{status});"));
 			}
 			if t.eq {
-				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
+				let eq = self.member(&ty, "PartialEq", &name, "eq");
+				self.line(format!("bool {eq}(const {name} *a, const {name} *b{status});"));
 			}
 			if t.hash {
-				self.line(format!("uint64_t {name}_hash(const {name} *self{status});"));
+				let hash = self.member(&ty, "Hash", &name, "hash");
+				self.line(format!("uint64_t {hash}(const {name} *self{status});"));
 			}
-			for suffix in comparisons(t.ord) {
-				self.line(format!(
-					"int8_t {name}_{suffix}(const {name} *a, const {name} *b{status});"
-				));
+			for (t, suffix) in comparisons(t.ord) {
+				let cmp = self.member(&ty, t, &name, suffix);
+				self.line(format!("int8_t {cmp}(const {name} *a, const {name} *b{status});"));
 			}
 			if t.display {
-				self.line(format!(
-					"{upper}_MUST_USE {p}_buf {name}_to_string(const {name} *self{status});"
-				));
+				let display = self.member(&ty, "Display", &name, "to_string");
+				self.line(format!("{upper}_MUST_USE {p}_buf {display}(const {name} *self{status});"));
 			}
 			if t.debug {
-				self.line(format!(
-					"{upper}_MUST_USE {p}_buf {name}_debug(const {name} *self{status});"
-				));
+				let debug = self.member(&ty, "Debug", &name, "debug");
+				self.line(format!("{upper}_MUST_USE {p}_buf {debug}(const {name} *self{status});"));
 			}
 			if t.default {
-				self.line(format!("{upper}_MUST_USE {name} *{name}_default(void);"));
+				let default = self.member(&ty, "Default", &name, "default");
+				self.line(format!("{upper}_MUST_USE {name} *{default}(void);"));
 				if !object.send {
 					self.line(format!("{upper}_MUST_USE {name} *{name}_default_homed(void);"));
 				}
@@ -533,30 +532,45 @@ impl Header<'_> {
 		let a = self.decl(&Ty::In(Box::new(ty.clone())), "a");
 		let b = self.decl(&Ty::In(Box::new(ty.clone())), "b");
 		if free {
-			self.line(format!("void {name}_free({name} *self);"));
+			let free = self.member(value, "Drop", name, "free");
+			self.line(format!("void {free}({name} *self);"));
 		}
 		if traits.eq {
-			self.line(format!("bool {name}_eq({a}, {b}{status});"));
+			let eq = self.member(value, "PartialEq", name, "eq");
+			self.line(format!("bool {eq}({a}, {b}{status});"));
 		}
 		if traits.hash {
-			self.line(format!("uint64_t {name}_hash({this}{status});"));
+			let hash = self.member(value, "Hash", name, "hash");
+			self.line(format!("uint64_t {hash}({this}{status});"));
 		}
-		for suffix in comparisons(traits.ord) {
-			self.line(format!("int8_t {name}_{suffix}({a}, {b}{status});"));
+		for (t, suffix) in comparisons(traits.ord) {
+			let cmp = self.member(value, t, name, suffix);
+			self.line(format!("int8_t {cmp}({a}, {b}{status});"));
 		}
 		if traits.display {
-			self.line(format!("{upper}_MUST_USE {p}_buf {name}_to_string({this}{status});"));
+			let display = self.member(value, "Display", name, "to_string");
+			self.line(format!("{upper}_MUST_USE {p}_buf {display}({this}{status});"));
 		}
 		if traits.debug {
-			self.line(format!("{upper}_MUST_USE {p}_buf {name}_debug({this}{status});"));
+			let debug = self.member(value, "Debug", name, "debug");
+			self.line(format!("{upper}_MUST_USE {p}_buf {debug}({this}{status});"));
 		}
 		if traits.default {
+			let default = self.member(value, "Default", name, "default");
 			let must_use = match self.abi.returns_owned(value) {
 				true => format!("{upper}_MUST_USE "),
 				false => String::new(),
 			};
-			self.line(format!("{must_use}{} {name}_default(void);", self.decl(&ty, "")));
+			self.line(format!("{must_use}{} {default}(void);", self.decl(&ty, "")));
 		}
+	}
+
+	/// The C name of the function `name`'s type `ty` exports for the std trait `t`, by its
+	/// suffix, which [`crate::abi::Abi`] claimed, recorded as its member.
+	fn member(&mut self, ty: &Type, t: &str, name: &str, suffix: &str) -> String {
+		let member = format!("{name}_{suffix}");
+		crate::lock::trait_member(&mut self.names, self.abi.api.shown(ty), t, &member);
+		member
 	}
 
 	fn function(&mut self, function: &Function, owner: Option<&Ty>) {
@@ -784,13 +798,13 @@ fn comment(docs: &str, indent: &str) -> String {
 	out
 }
 
-/// The C suffixes of the comparisons a type ordered by `ord` exports: `partial_cmp` for any
-/// `PartialOrd`, and `cmp` too for `Ord`.
-pub(crate) fn comparisons(ord: Order) -> &'static [&'static str] {
+/// The comparisons a type ordered by `ord` exports, each by its trait and C suffix:
+/// `partial_cmp` for any `PartialOrd`, and `cmp` too for `Ord`.
+pub(crate) fn comparisons(ord: Order) -> &'static [(&'static str, &'static str)] {
 	match ord {
 		Order::None => &[],
-		Order::Partial => &["partial_cmp"],
-		Order::Total => &["partial_cmp", "cmp"],
+		Order::Partial => &[("PartialOrd", "partial_cmp")],
+		Order::Total => &[("PartialOrd", "partial_cmp"), ("Ord", "cmp")],
 	}
 }
 

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use super::ir::{Access, Closure, Family, Int, Mutability, Receiver, Type};
-use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Pat, Piece, Spec, Step, Transcript, each_expr, unref, walk};
+use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Pat, Piece, Spec, Step, Transcript, each_expr, owned, unref, walk};
 
 const LANGUAGE: &str = "C";
 
@@ -567,59 +567,13 @@ impl Emitter<'_> {
 
 	/// A type's name after the prefix, as the structs built from it are named.
 	fn key(&self, ty: &Type) -> String {
-		let strip = |name: String| name[self.p.len() + 1..].to_string();
-		match ty {
-			Type::Unit => "unit".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Str | Type::String => "string".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
-			Type::Path | Type::PathBuf => "path".to_string(),
-			Type::Int(int) => int.rust().to_string(),
-			Type::NonZero(int) => format!("non_zero_{}", int.rust()),
-			Type::F32 => "f32".to_string(),
-			Type::F64 => "f64".to_string(),
-			Type::Char => "char".to_string(),
-			Type::U128 => "u128".to_string(),
-			Type::Duration => "duration".to_string(),
-			Type::Array(n) => format!("array_u8_{n}"),
-			Type::SocketAddr(family) => addr(true, *family).to_string(),
-			Type::IpAddr(family) => addr(false, *family).to_string(),
-			Type::Option(inner) => format!("option_{}", self.key(inner)),
-			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
-			Type::Tuple(_) => strip(
-				self.tuple_struct(ty)
-					.unwrap_or_else(|| panic!("C has no struct of {ty:?}")),
-			),
-			Type::Record(_) | Type::Enum(_) | Type::Object(_) => strip(self.type_name(ty)),
-			Type::Range(int) => format!("range_{}", int.rust()),
-			Type::Bound(int) => format!("bound_{}", int.rust()),
-			Type::Bounds(int) => format!("bounds_{}", int.rust()),
-			Type::Ref(_, inner) | Type::Box(inner) => self.key(inner),
-			other => panic!("no C struct holds {other:?}"),
-		}
-	}
-
-	/// A tuple type as its struct's name is keyed: its elements' keys, a tuple's spelled.
-	fn spell(&self, ty: &Type) -> String {
-		match ty {
-			Type::Tuple(elements) => {
-				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
-				match elements.len() {
-					1 => format!("({},)", elements[0]),
-					_ => format!("({})", elements.join(", ")),
-				}
-			}
-			ty => self.key(ty),
-		}
+		self.t.spelling(ty)
 	}
 
 	/// The C struct of tuple type `ty`, if the header has one.
 	fn tuple_struct(&self, ty: &Type) -> Option<String> {
-		let ty = owned(unref(ty));
-		let Type::Tuple(_) = ty.base() else { return None };
-		self.t
-			.find(LANGUAGE, &format!("tuple {}", self.spell(ty.base())))
-			.map(str::to_string)
+		let Type::Tuple(elements) = unref(ty).base() else { return None };
+		self.t.find_tuple(LANGUAGE, elements).map(str::to_string)
 	}
 
 	/// The C type of a value of `ty`.
@@ -638,8 +592,7 @@ impl Emitter<'_> {
 			Type::U128 => format!("{p}_u128"),
 			Type::Duration => format!("{p}_duration"),
 			Type::Array(n) => format!("{p}_array_u8_{n}"),
-			Type::SocketAddr(family) => format!("{p}_{}", addr(true, *family)),
-			Type::IpAddr(family) => format!("{p}_{}", addr(false, *family)),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("{p}_{}", self.key(ty)),
 			Type::List(_, inner) => format!("{p}_vec_{}", self.key(inner)),
 			Type::Option(inner) if nullable(inner) => self.cty(inner),
 			Type::Option(inner) => format!("{p}_option_{}", self.key(inner)),
@@ -682,14 +635,14 @@ impl Emitter<'_> {
 				vec![format!("{p}_buf_free({c});")]
 			}
 			Type::List(_, inner) => vec![format!("{p}_vec_{}_free({c});", self.key(inner))],
-			Type::Object(_) => vec![format!("{}_free({c});", self.type_name(ty))],
+			Type::Object(_) => vec![format!("{}({c});", self.t.member(LANGUAGE, ty, "Drop"))],
 			Type::Ref(_, inner) | Type::Box(inner) => self.free(c, inner),
 			Type::Option(inner) if nullable(inner) => self.free(c, inner),
 			Type::Option(inner) if self.owns(inner) => {
 				let inner = self.free(&format!("{c}.value"), inner).join(" ");
 				vec![format!("if ({c}.some) {{ {inner} }}")]
 			}
-			Type::Record(_) | Type::Enum(_) if self.owns(ty) => vec![format!("{}_free(&{c});", self.type_name(ty))],
+			Type::Record(_) | Type::Enum(_) if self.owns(ty) => vec![format!("{}(&{c});", self.t.member(LANGUAGE, ty, "Drop"))],
 			Type::Tuple(elements) => (elements.iter().enumerate())
 				.flat_map(|(i, e)| self.free(&format!("{c}._{i}"), e))
 				.collect(),
@@ -715,10 +668,9 @@ impl Emitter<'_> {
 				self.view(&format!("{c}.value"), inner)
 			),
 			Type::Record(i) => {
-				let key = format!("type {}", self.t.rust(ty));
 				let fields: Vec<String> = (api.records[*i].fields.iter())
 					.map(|f| {
-						let name = self.t.named(LANGUAGE, &format!("{key} / field {}", f.name));
+						let name = self.t.field(LANGUAGE, ty, &f.name);
 						format!(".{name} = {}", self.view(&format!("{c}.{name}"), &f.ty))
 					})
 					.collect();
@@ -978,10 +930,9 @@ impl Emitter<'_> {
 					t.rust(&Type::Record(*r))
 				);
 				let ty = Type::Record(*r);
-				let key = format!("type {}", t.rust(&ty));
 				let values: Vec<String> = (fields.iter().zip(&record.fields))
 					.map(|(v, f)| {
-						let name = t.named(LANGUAGE, &format!("{key} / field {}", f.name)).to_string();
+						let name = t.field(LANGUAGE, &ty, &f.name).to_string();
 						format!(".{name} = {}", self.arg(v, &f.ty))
 					})
 					.collect();
@@ -996,9 +947,7 @@ impl Emitter<'_> {
 				let enumeration = &t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
 				let key = format!("type {}", t.rust(&ty));
-				let constant = t
-					.named(LANGUAGE, &format!("{key} / variant {}", variant.name))
-					.to_string();
+				let constant = t.variant(LANGUAGE, &ty, &variant.name).to_string();
 				let cty = self.cty(&ty);
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return Val::new(constant, ty, cty);
@@ -1014,11 +963,7 @@ impl Emitter<'_> {
 					.to_string();
 				let values: Vec<String> = (fields.iter().zip(&variant.fields))
 					.map(|(v, f)| {
-						let name = t.named(
-							LANGUAGE,
-							&format!("{key} / variant {} / field {}", variant.name, f.name),
-						);
-						let name = name.to_string();
+						let name = t.variant_field(LANGUAGE, &ty, &variant.name, &f.name).to_string();
 						format!(".{name} = {}", self.arg(v, &f.ty))
 					})
 					.collect();
@@ -1051,7 +996,7 @@ impl Emitter<'_> {
 			}
 			Kind::Default => {
 				let ty = base.clone();
-				let name = format!("{}_default", self.type_name(&ty));
+				let name = self.t.member(LANGUAGE, &ty, "Default").to_string();
 				let call = self.invoke(&name, Vec::new());
 				self.bound(call, &ty)
 			}
@@ -1077,8 +1022,7 @@ impl Emitter<'_> {
 					panic!("a field of {:?}", b.ty)
 				};
 				let field = &t.api.records[*r].fields[*i];
-				let key = format!("type {} / field {}", t.rust(&Type::Record(*r)), field.name);
-				let name = t.named(LANGUAGE, &key);
+				let name = t.field(LANGUAGE, &Type::Record(*r), &field.name);
 				Val::place(format!("{}.{name}", b.c), field.ty.clone(), self.cty(&field.ty))
 			}
 			Kind::Element(tuple, i) => {
@@ -1102,7 +1046,7 @@ impl Emitter<'_> {
 				match unref(&v.ty).base() {
 					Type::Object(_) => {
 						let ty = owned(unref(&v.ty));
-						let name = format!("{}_clone", self.type_name(&ty));
+						let name = self.t.member(LANGUAGE, &ty, "Clone").to_string();
 						let call = self.invoke(&name, vec![v.c.clone()]);
 						self.bound(call, &ty)
 					}
@@ -1375,9 +1319,9 @@ impl Emitter<'_> {
 			Type::Object(_) => Some(false),
 			_ => None,
 		};
-		let compare = |s: &mut Self, suffix: &str, ty: &Type| {
+		let compare = |s: &mut Self, t: &str, ty: &Type| {
 			let by_address = by_address.expect("a value of the API");
-			let name = format!("{}_{suffix}", s.type_name(&operand));
+			let name = s.t.member(LANGUAGE, &operand, t).to_string();
 			let (a, b) = match by_address {
 				true => (s.place(a.clone()), s.place(b.clone())),
 				false => (a.clone(), b.clone()),
@@ -1389,7 +1333,7 @@ impl Emitter<'_> {
 		let c = match op {
 			Op::Eq | Op::Ne => {
 				let eq = match by_address {
-					Some(_) => compare(self, "eq", &Type::Bool),
+					Some(_) => compare(self, "PartialEq", &Type::Bool),
 					None => format!("({} == {})", a.c, b.c),
 				};
 				match op {
@@ -1399,7 +1343,7 @@ impl Emitter<'_> {
 			}
 			// `partial_cmp` is -1, 0, 1, or 2 when unordered.
 			Op::Lt | Op::Le | Op::Gt | Op::Ge if by_address.is_some() => {
-				let r = compare(self, "partial_cmp", &Type::Int(Int::I8));
+				let r = compare(self, "PartialOrd", &Type::Int(Int::I8));
 				match op {
 					Op::Lt => format!("({r} == -1)"),
 					Op::Le => format!("({r} == -1 || {r} == 0)"),
@@ -1407,7 +1351,7 @@ impl Emitter<'_> {
 					_ => format!("({r} == 0 || {r} == 1)"),
 				}
 			}
-			Op::Cmp => compare(self, "cmp", &Type::Int(Int::I8)),
+			Op::Cmp => compare(self, "Ord", &Type::Int(Int::I8)),
 			Op::Lt => format!("({} < {})", a.c, b.c),
 			Op::Le => format!("({} <= {})", a.c, b.c),
 			Op::Gt => format!("({} > {})", a.c, b.c),
@@ -1755,7 +1699,7 @@ impl Emitter<'_> {
 						let (ok, err) = (f.ok.clone(), f.err.clone());
 						self.returned(&name, ok, err, vec![v.c.clone()])
 					}
-					None => self.traited(&v, "to_string", &Type::String),
+					None => self.traited(&v, "Display", &Type::String),
 				};
 				self.line(&format!("tr_buf(&{text}, {});", s.c))
 			}
@@ -1776,10 +1720,10 @@ impl Emitter<'_> {
 		})
 	}
 
-	/// The call of a std trait's function the header declares for `v`'s type, by `suffix`.
-	fn traited(&mut self, v: &Val, suffix: &str, ret: &Type) -> Val {
+	/// The call of the function the header declares for `v`'s type's std trait `t`.
+	fn traited(&mut self, v: &Val, t: &str, ret: &Type) -> Val {
 		let ty = unref(&v.ty).base().clone();
-		let name = format!("{}_{suffix}", self.type_name(&ty));
+		let name = self.t.member(LANGUAGE, &ty, t).to_string();
 		let arg = match ty {
 			Type::Object(_) => v.c.clone(),
 			_ => {
@@ -1863,7 +1807,7 @@ impl Emitter<'_> {
 				));
 			}
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => {
-				let s = self.traited(&v, "debug", &Type::String);
+				let s = self.traited(&v, "Debug", &Type::String);
 				self.line(&format!("tr_buf(&{text}, {});", s.c));
 			}
 			ty => panic!("Debug of {ty:?}"),
@@ -2139,18 +2083,6 @@ fn vars(e: &Expr, out: &mut Vec<String>) {
 	}
 }
 
-/// `ty` as Rust returns it to C: each borrow a clone, as the C ABI returns one.
-fn owned(ty: &Type) -> Type {
-	match ty {
-		Type::Ref(_, inner) => owned(inner),
-		Type::Option(inner) => Type::Option(Box::new(owned(inner))),
-		Type::Box(inner) => Type::Box(Box::new(owned(inner))),
-		Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
-		Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
-		ty => ty.clone(),
-	}
-}
-
 /// Whether `ty` crosses as a buffer.
 fn is_buf(ty: &Type) -> bool {
 	matches!(
@@ -2167,17 +2099,6 @@ fn nullable(ty: &Type) -> bool {
 /// Whether Rust writes a parameter of `ty` back through an out, as a `&mut` of a value.
 fn written_back(ty: &Type) -> bool {
 	matches!(ty, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader))
-}
-
-fn addr(socket: bool, family: Family) -> &'static str {
-	match (socket, family) {
-		(true, Family::Any) => "socket_addr",
-		(true, Family::V4) => "socket_addr_v4",
-		(true, Family::V6) => "socket_addr_v6",
-		(false, Family::Any) => "ip_addr",
-		(false, Family::V4) => "ipv4_addr",
-		(false, Family::V6) => "ipv6_addr",
-	}
 }
 
 fn c_int(int: Int) -> &'static str {
