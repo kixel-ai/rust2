@@ -1696,7 +1696,7 @@ impl<'a> Gen<'a> {
 				Some(&key),
 				None,
 			);
-			table.push(format!("{}: Some({trampoline})", method.name()));
+			table.push(format!("{}: Some({trampoline})", abi::member(method)));
 		}
 		self.distinct(&rust, &[], body.iter());
 		let text = format!(

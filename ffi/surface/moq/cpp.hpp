@@ -4223,7 +4223,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE void mux_rate_set(const ::std::optional<::std::uint64_t> &value);
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mux_container_ts_PassthroughTrack> passthrough_get() const;
 		RUST2_FFI_CALLABLE void passthrough_set(::std::optional<::moq::mux_container_ts_PassthroughTrack> value);
-		static ::moq::result<::moq::mux_container_ts_Mpegts, ::moq::buf> deserialize(::moq::Json __deserializer);
+		static ::moq::result<::moq::mux_container_ts_Mpegts, ::moq::buf> deserialize(::moq::Json __deserializer_);
 		RUST2_FFI_CALLABLE bool is_empty() const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_container_ts_PassthroughTrack {
