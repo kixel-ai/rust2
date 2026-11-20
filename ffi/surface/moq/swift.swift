@@ -6542,6 +6542,16 @@ public final class MuxContainerTsError: @unchecked Sendable, CustomStringConvert
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> MuxContainerTsError
 }
+public final class MuxContainerTsExportConsumerExtraStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
+}
 public struct MuxContainerTsExportConsumerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumerExtra, _ delay: RustDuration) throws -> MuxContainerTsExportConsumerExtra
 	@inlinable public consuming func withMuxRate(_ muxRate: Swift.UInt64) throws -> MuxContainerTsExportConsumerExtra
@@ -6549,6 +6559,17 @@ public struct MuxContainerTsExportConsumerExtra: ~Copyable, @unchecked Sendable 
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumerExtra) throws -> MuxContainerTsExportConsumerExtra
+	@inlinable public consuming func stream() -> MuxContainerTsExportConsumerExtraStream
+}
+public final class MuxContainerTsExportConsumerExtStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
 }
 public struct MuxContainerTsExportConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumerExt, _ delay: RustDuration) throws -> MuxContainerTsExportConsumerExt
@@ -6557,6 +6578,17 @@ public struct MuxContainerTsExportConsumerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumerExt) throws -> MuxContainerTsExportConsumerExt
+	@inlinable public consuming func stream() -> MuxContainerTsExportConsumerExtStream
+}
+public final class MuxContainerTsExportConsumerStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
 }
 public struct MuxContainerTsExportConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ source: consuming MuxSource, _ catalog: consuming MuxCatalogConsumer, _ delay: RustDuration) throws -> MuxContainerTsExportConsumer
@@ -6565,6 +6597,17 @@ public struct MuxContainerTsExportConsumer: ~Copyable, @unchecked Sendable {
 	@inlinable public func stats() throws -> MuxContainerTsStatsExport
 	@inlinable public func discontinuity() throws -> Swift.UInt64
 	@inlinable public consuming func follow(_ broadcast: consuming BroadcastConsumer, _ catalog: consuming MuxCatalogConsumer) throws -> MuxContainerTsExportConsumer
+	@inlinable public consuming func stream() -> MuxContainerTsExportConsumerStream
+}
+public final class MuxContainerTsFollowerStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
 }
 public struct MuxContainerTsFollower: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ export: consuming MuxContainerTsExportConsumer) throws -> MuxContainerTsFollower
@@ -6572,6 +6615,17 @@ public struct MuxContainerTsFollower: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollower
 	@inlinable public func export() throws -> MuxContainerTsExportConsumer
 	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+	@inlinable public consuming func stream() -> MuxContainerTsFollowerStream
+}
+public final class MuxContainerTsFollowerExtraStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
 }
 public struct MuxContainerTsFollowerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ export: consuming MuxContainerTsExportConsumerExtra) throws -> MuxContainerTsFollowerExtra
@@ -6579,6 +6633,17 @@ public struct MuxContainerTsFollowerExtra: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollowerExtra
 	@inlinable public func export() throws -> MuxContainerTsExportConsumerExtra
 	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+	@inlinable public consuming func stream() -> MuxContainerTsFollowerExtraStream
+}
+public final class MuxContainerTsFollowerExtStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
 }
 public struct MuxContainerTsFollowerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ export: consuming MuxContainerTsExportConsumerExt) throws -> MuxContainerTsFollowerExt
@@ -6586,6 +6651,7 @@ public struct MuxContainerTsFollowerExt: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func withStitch(_ stitch: Swift.Bool) throws -> MuxContainerTsFollowerExt
 	@inlinable public func export() throws -> MuxContainerTsExportConsumerExt
 	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+	@inlinable public consuming func stream() -> MuxContainerTsFollowerExtStream
 }
 public struct MuxContainerTsPassthrough: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ broadcast: consuming BroadcastProducer, _ reserved: consuming MuxCatalogReservedExt) throws -> MuxContainerTsPassthrough
@@ -6618,6 +6684,16 @@ public struct MuxContainerTsPrograms: ~Copyable, @unchecked Sendable {
 	@inlinable public consuming func finish() throws -> MuxContainerTsProgramsFinished
 	@inlinable public consuming func abort(_ err: Error) throws
 }
+public final class MuxContainerTsReleaseStream: Swift.AsyncSequence {
+	public typealias Element = MuxContainerFrame
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> MuxContainerFrame?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> MuxContainerFrame?
+	}
+}
 public struct MuxContainerTsRelease: ~Copyable, @unchecked Sendable {
 	@inlinable nonisolated(nonsending) public static func new(_ source: consuming MuxSource, _ catalogFormat: MuxCatalogCatalogFormat, _ delay: RustDuration) async throws -> MuxContainerTsRelease
 	@inlinable public func dropped() throws -> Swift.UInt64
@@ -6625,6 +6701,7 @@ public struct MuxContainerTsRelease: ~Copyable, @unchecked Sendable {
 	@inlinable public func outOfTolerance() throws -> Swift.UInt64
 	@inlinable public func stats() throws -> MuxContainerTsStatsRelease
 	@inlinable nonisolated(nonsending) public mutating func next() async throws -> MuxContainerFrame?
+	@inlinable public consuming func stream() -> MuxContainerTsReleaseStream
 }
 public struct MuxContainerTsRepublish: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ origin: consuming OriginProducer, _ name: consuming Path, _ instance: consuming Instance, _ config: consuming MuxCatalogConfig) throws -> MuxContainerTsRepublish

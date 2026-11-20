@@ -1323,18 +1323,21 @@ type CatalogHangConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumer(track *p_net.TrackConsumer) (*CatalogHangConsumer, error)
+func (self *CatalogHangConsumer) All(ctx context.Context) iter.Seq2[*p_hang.Catalog, error]
 func (self *CatalogHangConsumer) Close() error
 func (self *CatalogHangConsumer) Next(ctx context.Context) (*p_hang.Catalog, error)
 type CatalogHangConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumerExt(track *p_net.TrackConsumer) (*CatalogHangConsumerExt, error)
+func (self *CatalogHangConsumerExt) All(ctx context.Context) iter.Seq2[*HangCatalogExt, error]
 func (self *CatalogHangConsumerExt) Close() error
 func (self *CatalogHangConsumerExt) Next(ctx context.Context) (*HangCatalogExt, error)
 type CatalogHangConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumerExtra(track *p_net.TrackConsumer) (*CatalogHangConsumerExtra, error)
+func (self *CatalogHangConsumerExtra) All(ctx context.Context) iter.Seq2[*HangCatalogExtra, error]
 func (self *CatalogHangConsumerExtra) Close() error
 func (self *CatalogHangConsumerExtra) Next(ctx context.Context) (*HangCatalogExtra, error)
 type CatalogHangContainer struct {
@@ -1360,18 +1363,21 @@ type CatalogMsfConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumer(track *p_net.TrackSubscriber) (*CatalogMsfConsumer, error)
+func (self *CatalogMsfConsumer) All(ctx context.Context) iter.Seq2[*p_hang.Catalog, error]
 func (self *CatalogMsfConsumer) Close() error
 func (self *CatalogMsfConsumer) Next(ctx context.Context) (*p_hang.Catalog, error)
 type CatalogMsfConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumerExt(track *p_net.TrackSubscriber) (*CatalogMsfConsumerExt, error)
+func (self *CatalogMsfConsumerExt) All(ctx context.Context) iter.Seq2[*HangCatalogExt, error]
 func (self *CatalogMsfConsumerExt) Close() error
 func (self *CatalogMsfConsumerExt) Next(ctx context.Context) (*HangCatalogExt, error)
 type CatalogMsfConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumerExtra(track *p_net.TrackSubscriber) (*CatalogMsfConsumerExtra, error)
+func (self *CatalogMsfConsumerExtra) All(ctx context.Context) iter.Seq2[*HangCatalogExtra, error]
 func (self *CatalogMsfConsumerExtra) Close() error
 func (self *CatalogMsfConsumerExtra) Next(ctx context.Context) (*HangCatalogExtra, error)
 type CatalogMsfError interface {
@@ -4259,6 +4265,7 @@ type ContainerTsExportConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumer(source *Source, catalog *CatalogConsumer, delay p_rt.Duration) (*ContainerTsExportConsumer, error)
+func (self *ContainerTsExportConsumer) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumer) Close() error
 func (self *ContainerTsExportConsumer) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumer) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumer) (*ContainerTsExportConsumer, error)
@@ -4269,6 +4276,7 @@ type ContainerTsExportConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumerExt(source *Source, catalog *CatalogConsumerExt, delay p_rt.Duration) (*ContainerTsExportConsumerExt, error)
+func (self *ContainerTsExportConsumerExt) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumerExt) Close() error
 func (self *ContainerTsExportConsumerExt) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumerExt) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumerExt) (*ContainerTsExportConsumerExt, error)
@@ -4279,6 +4287,7 @@ type ContainerTsExportConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumerExtra(source *Source, catalog *CatalogConsumerExtra, delay p_rt.Duration) (*ContainerTsExportConsumerExtra, error)
+func (self *ContainerTsExportConsumerExtra) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumerExtra) Close() error
 func (self *ContainerTsExportConsumerExtra) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumerExtra) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumerExtra) (*ContainerTsExportConsumerExtra, error)
@@ -4317,6 +4326,7 @@ type ContainerTsFollower struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollower(export *ContainerTsExportConsumer) (*ContainerTsFollower, error)
+func (self *ContainerTsFollower) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollower) Close() error
 func (self *ContainerTsFollower) Export() (*ContainerTsExportConsumer, error)
 func (self *ContainerTsFollower) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4326,6 +4336,7 @@ type ContainerTsFollowerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollowerExt(export *ContainerTsExportConsumerExt) (*ContainerTsFollowerExt, error)
+func (self *ContainerTsFollowerExt) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollowerExt) Close() error
 func (self *ContainerTsFollowerExt) Export() (*ContainerTsExportConsumerExt, error)
 func (self *ContainerTsFollowerExt) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4335,6 +4346,7 @@ type ContainerTsFollowerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollowerExtra(export *ContainerTsExportConsumerExtra) (*ContainerTsFollowerExtra, error)
+func (self *ContainerTsFollowerExtra) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollowerExtra) Close() error
 func (self *ContainerTsFollowerExtra) Export() (*ContainerTsExportConsumerExtra, error)
 func (self *ContainerTsFollowerExtra) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4510,6 +4522,7 @@ type ContainerTsRelease struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsRelease(ctx context.Context, source *Source, catalogFormat CatalogCatalogFormat, delay p_rt.Duration) (*ContainerTsRelease, error)
+func (self *ContainerTsRelease) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsRelease) Close() error
 func (self *ContainerTsRelease) Drift() (*float64, error)
 func (self *ContainerTsRelease) Dropped() (uint64, error)
@@ -4751,6 +4764,7 @@ func (self *Error) String() string
 type FollowInstances struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *FollowInstances) All(ctx context.Context) iter.Seq2[*p_net.BroadcastConsumer, error]
 func (self *FollowInstances) Close() error
 func (self *FollowInstances) Next(ctx context.Context) (*p_net.BroadcastConsumer, error)
 type HangCatalogExt struct {
@@ -5064,6 +5078,7 @@ type JsonConsumerJson struct {
 	Handle_ *p_rt.Handle_
 }
 func JsonConsumerJsonFromTrack(ctx context.Context, track *p_net.TrackConsumer, config *p_hang.CatalogJsonConfig) (*JsonConsumerJson, error)
+func (self *JsonConsumerJson) All(ctx context.Context) iter.Seq2[*p_json.TimedJson, error]
 func (self *JsonConsumerJson) Close() error
 func (self *JsonConsumerJson) Latest(ctx context.Context) (*p_json.TimedJson, error)
 func (self *JsonConsumerJson) Mode() (p_hang.CatalogMode, error)
@@ -5292,6 +5307,7 @@ type AnnounceConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *AnnounceConsumer) Absolute(prefix string) (*Path, error)
+func (self *AnnounceConsumer) All(ctx context.Context) iter.Seq2[*AnnounceEvent, error]
 func (self *AnnounceConsumer) Close() error
 func (self *AnnounceConsumer) IsClosed() (bool, error)
 func (self *AnnounceConsumer) Next(ctx context.Context) (*AnnounceEvent, error)
@@ -5358,6 +5374,7 @@ func (self *AuthRequest) Token() (p_rt.Bytes, error)
 type AuthRequests struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *AuthRequests) All(ctx context.Context) iter.Seq2[*AuthRequest, error]
 func (self *AuthRequests) Close() error
 func (self *AuthRequests) Next(ctx context.Context) (*AuthRequest, error)
 type AuthToken struct {
@@ -5586,6 +5603,7 @@ func (self *BroadcastRequests) RequestedTrack(ctx context.Context) (*TrackReques
 type BroadcastTracks struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *BroadcastTracks) All(ctx context.Context) iter.Seq2[*BroadcastTracksEvent, error]
 func (self *BroadcastTracks) Broadcast() (*BroadcastConsumer, error)
 func (self *BroadcastTracks) Close() error
 func (self *BroadcastTracks) Next(ctx context.Context) (*BroadcastTracksEvent, error)
@@ -6059,6 +6077,7 @@ type OriginRoutes struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *OriginRoutes) Absolute(prefix string) (*Path, error)
+func (self *OriginRoutes) All(ctx context.Context) iter.Seq2[*OriginRouteEvent, error]
 func (self *OriginRoutes) Close() error
 func (self *OriginRoutes) IsClosed() (bool, error)
 func (self *OriginRoutes) Next(ctx context.Context) (*OriginRouteEvent, error)

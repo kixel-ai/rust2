@@ -147,6 +147,7 @@ export declare function eq(a: Cancelled, b: Cancelled): boolean;
 // Channel.ts
 import * as rt from "./rt.ts";
 import type { Error_ } from "./Error_.ts";
+import type { Feed } from "./Feed.ts";
 export type Channel = rt.Handle<"Channel">;
 export declare function clone(self: Channel): Channel;
 export declare function default$(): Channel;
@@ -163,6 +164,7 @@ export declare function pollMeasure(self: Channel, extra: number): rt.Call<rt.Re
 export declare function listen(self: Channel, cx: () => void): void;
 export declare function recvSized(self: Channel): rt.Call<[Uint8Array, number]>;
 export declare function recvNonempty(self: Channel): rt.Call<rt.Result<rt.Bytes, Error_>>;
+export declare function feed(self: Channel): Feed;
 export { default$ as default, new$ as new };
 
 // Choice.ts
@@ -340,6 +342,16 @@ export declare function new$(): Codecs;
 export declare function ids(self: Codecs): number;
 export { default$ as default, new$ as new };
 
+// Countdown.ts
+import * as rt from "./rt.ts";
+import type { Log } from "./Log.ts";
+export type Countdown = rt.Handle<"Countdown">;
+export declare function new$(from: number): Countdown;
+export declare function told(from: number, log: Log): Countdown;
+export declare function next(self: Countdown): rt.Call<number | undefined>;
+export declare function values(self: Countdown): rt.Stream<number>;
+export { new$ as new };
+
 // Counter.ts
 import * as rt from "./rt.ts";
 import type { Error_ } from "./Error_.ts";
@@ -485,6 +497,13 @@ import * as rt from "./rt.ts";
 export type Fault = rt.Handle<"Fault">;
 export declare function toString(self: Fault): string;
 export declare function debug(self: Fault): string;
+
+// Feed.ts
+import * as rt from "./rt.ts";
+import type { Error_ } from "./Error_.ts";
+export type Feed = rt.Handle<"Feed">;
+export declare function next(self: Feed): rt.Call<rt.Result<rt.Bytes | undefined, Error_>>;
+export declare function values(self: Feed): rt.Stream<rt.Result<rt.Bytes, Error_>>;
 
 // FiledReceipt.ts
 import * as rt from "./rt.ts";
@@ -1221,6 +1240,14 @@ export declare function _0_set(self: Resolving, value: TlsResolver): void;
 export declare function new$(name: string): Resolving;
 export { new$ as new };
 
+// Retired.ts
+import * as rt from "./rt.ts";
+export type Retired = rt.Handle<"Retired">;
+export declare function new$(from: number): Retired;
+export declare function next(self: Retired): rt.Call<number | undefined>;
+export declare function values(self: Retired): rt.Stream<number>;
+export { new$ as new };
+
 // Retry.ts
 import * as rt from "./rt.ts";
 export type Retry = rt.Handle<"Retry">;
@@ -1780,12 +1807,14 @@ export declare const k_Berth: rt.Kind;
 export declare const k_Board: rt.Kind;
 export declare const k_Channel: rt.Kind;
 export declare const k_Codecs: rt.Kind;
+export declare const k_Countdown: rt.Kind;
 export declare const k_Counter: rt.Kind;
 export declare const k_Cursor: rt.Kind;
 export declare const k_Der: rt.Kind;
 export declare const k_Digest: rt.Kind;
 export declare const k_Draft: rt.Kind;
 export declare const k_Fault: rt.Kind;
+export declare const k_Feed: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
@@ -1819,6 +1848,7 @@ export declare const k_Receipt: rt.Kind;
 export declare const k_Refusal: rt.Kind;
 export declare const k_Registry: rt.Kind;
 export declare const k_Resolving: rt.Kind;
+export declare const k_Retired: rt.Kind;
 export declare const k_Retry: rt.Kind;
 export declare const k_Sheet: rt.Kind;
 export declare const k_Site: rt.Kind;
@@ -1855,13 +1885,16 @@ export declare function p_Channel_send_later(f: number, w$: number): [boolean, v
 export declare function p_Channel_tagged(f: number, w$: number): [boolean, string];
 export declare function p_Clash_after(f: number, w$: number): [boolean, Clash];
 export declare function p_Clash_tagged(f: number, w$: number): [boolean, string];
+export declare function p_Countdown_next(f: number, w$: number): [boolean, number | undefined];
 export declare function p_Counter_plus_later(f: number, w$: number): [boolean, rt.u64];
+export declare function p_Feed_next(f: number, w$: number): [boolean, rt.Result<rt.Bytes | undefined, Error_>];
 export declare function p_Gauge_later(f: number, w$: number): [boolean, rt.u64];
 export declare function p_Gauge_reaches(f: number, w$: number): [boolean, boolean];
 export declare function p_Handle_later(f: number, w$: number): [boolean, Handle];
 export declare function p_LocalWaiter_poll_ready(f: number, w$: number): [boolean, number];
 export declare function p_Local_later(f: number, w$: number): [boolean, number];
 export declare function p_Local_poll_count(f: number, w$: number): [boolean, number];
+export declare function p_Retired_next(f: number, w$: number): [boolean, number | undefined];
 export declare function p_Tally_bump_later(f: number, w$: number): [boolean, number];
 export declare function p_Waiter_poll_future(f: number, w$: number): [boolean, void];
 export declare function p_after(f: number, w$: number): [boolean, number];
@@ -2920,6 +2953,8 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
+export type Stream<T> = AsyncIterableIterator<T>;
+export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;

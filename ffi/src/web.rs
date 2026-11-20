@@ -2298,6 +2298,64 @@ impl Gen<'_> {
 		let mut taken = BTreeSet::new();
 		self.traits(&ty, &c, object.traits, &mut taken);
 		self.methods(&object.methods, &owner, &ty, &mut taken);
+		// After the methods, so a Rust method keeps its name before an adapter.
+		for method in &object.methods {
+			self.stream(method, &ty, &mut taken);
+		}
+	}
+
+	/// The adapter of a stream's `next`, if `method` is one, beside it: `values`, an async
+	/// iterator, as a `ReadableStream`'s.
+	fn stream(&mut self, method: &Function, ty: &Type, taken: &mut BTreeSet<String>) {
+		let Some(item) = method.stream() else { return };
+		// The `next` this calls, as `function` named it; none where it is not on this target.
+		let Some(next) = self.locked.get(&crate::lock::function_key(method)).cloned() else {
+			return;
+		};
+		let next = match RESERVED.contains(&next.as_str()) {
+			true => format!("{next}$"),
+			false => next,
+		};
+		let mut member = "values".to_string();
+		while taken.contains(&member) {
+			member.push('_');
+		}
+		taken.insert(member.clone());
+		self.locked.insert(
+			format!("{} / stream", crate::lock::function_key(method)),
+			member.clone(),
+		);
+		let self_t = self.tt(ty);
+		let item = strip_refs(item);
+		// Typed as inside `next`'s return, which lends only bytes it returns directly.
+		let item_t = match lends(&item) {
+			true => "rt.Bytes".to_string(),
+			false => self.tt(&item),
+		};
+		let none = match undefinable(&item) {
+			true => "rt.None",
+			false => "undefined",
+		};
+		let (item_t, end) = match &method.err {
+			Some(err) => {
+				let err_t = self.tt(&strip_refs(err));
+				let item_t = format!("rt.Result<{}, {err_t}>", self.value(&item, &item_t));
+				(item_t, "then its `Err` last, if it fails")
+			}
+			None => (item_t, "until it gives `None`"),
+		};
+		let text = format!(
+			"The items of `{next}`, each by a call of it once asked for, {end}: nothing is read \
+			ahead, so a loop left early leaves the next item to the next call. `return`, while a \
+			`{next}` pends, cancels it in Rust, which loses an item only where `{next}` dropped \
+			does."
+		);
+		let code = format!(
+			"{}export function {member}(self: {self_t}): rt.Stream<{item_t}> {{\n\treturn rt.values(() => {next}(self), {none}, {});\n}}\n\n",
+			docs(&text, method.deprecated.as_deref(), ""),
+			method.err.is_some()
+		);
+		self.out().body.push_str(&code);
 	}
 
 	/// The TypeScript type of what a function returns: a waker Rust returns is one

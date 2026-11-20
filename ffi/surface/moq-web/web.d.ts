@@ -25,6 +25,7 @@ export declare function isClosed(self: AnnounceConsumer): boolean;
 export declare function pollSynced(self: AnnounceConsumer): rt.Call<void>;
 export declare function root(self: AnnounceConsumer): Path;
 export declare function absolute(self: AnnounceConsumer, prefix: string): rt.Result<Path, Error_>;
+export declare function values(self: AnnounceConsumer): rt.Stream<AnnounceEvent>;
 
 // AnnounceEvent.ts
 import * as rt from "./rt.ts";
@@ -105,6 +106,7 @@ import * as rt from "./rt.ts";
 import type { AuthRequest } from "./AuthRequest.ts";
 export type AuthRequests = rt.Handle<"AuthRequests">;
 export declare function next(self: AuthRequests): rt.Call<AuthRequest | undefined>;
+export declare function values(self: AuthRequests): rt.Stream<AuthRequest>;
 
 // AuthWatch.ts
 import * as rt from "./rt.ts";
@@ -384,6 +386,7 @@ import type { Error_ } from "./Error_.ts";
 export type BroadcastTracks = rt.Handle<"BroadcastTracks">;
 export declare function next(self: BroadcastTracks): rt.Call<rt.Result<BroadcastTracksEvent | undefined, Error_>>;
 export declare function broadcast(self: BroadcastTracks): BroadcastConsumer;
+export declare function values(self: BroadcastTracks): rt.Stream<rt.Result<BroadcastTracksEvent, Error_>>;
 
 // BroadcastTracksEvent.ts
 import * as rt from "./rt.ts";
@@ -2261,6 +2264,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumer = rt.Handle<"MuxCatalogHangConsumer">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumer;
 export declare function next(self: MuxCatalogHangConsumer): rt.Call<rt.Result<HangCatalog | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumer): rt.Stream<rt.Result<HangCatalog, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangConsumerExt.ts
@@ -2271,6 +2275,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumerExt = rt.Handle<"MuxCatalogHangConsumerExt">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumerExt;
 export declare function next(self: MuxCatalogHangConsumerExt): rt.Call<rt.Result<HangCatalogExt | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumerExt): rt.Stream<rt.Result<HangCatalogExt, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangConsumerExtra.ts
@@ -2281,6 +2286,7 @@ import type { TrackConsumer } from "./TrackConsumer.ts";
 export type MuxCatalogHangConsumerExtra = rt.Handle<"MuxCatalogHangConsumerExtra">;
 export declare function new$(track: TrackConsumer): MuxCatalogHangConsumerExtra;
 export declare function next(self: MuxCatalogHangConsumerExtra): rt.Call<rt.Result<HangCatalogExtra | undefined, MuxError>>;
+export declare function values(self: MuxCatalogHangConsumerExtra): rt.Stream<rt.Result<HangCatalogExtra, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogHangContainer.ts
@@ -2317,6 +2323,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumer = rt.Handle<"MuxCatalogMsfConsumer">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumer;
 export declare function next(self: MuxCatalogMsfConsumer): rt.Call<rt.Result<HangCatalog | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumer): rt.Stream<rt.Result<HangCatalog, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfConsumerExt.ts
@@ -2327,6 +2334,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumerExt = rt.Handle<"MuxCatalogMsfConsumerExt">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumerExt;
 export declare function next(self: MuxCatalogMsfConsumerExt): rt.Call<rt.Result<HangCatalogExt | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumerExt): rt.Stream<rt.Result<HangCatalogExt, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfConsumerExtra.ts
@@ -2337,6 +2345,7 @@ import type { TrackSubscriber } from "./TrackSubscriber.ts";
 export type MuxCatalogMsfConsumerExtra = rt.Handle<"MuxCatalogMsfConsumerExtra">;
 export declare function new$(track: TrackSubscriber): MuxCatalogMsfConsumerExtra;
 export declare function next(self: MuxCatalogMsfConsumerExtra): rt.Call<rt.Result<HangCatalogExtra | undefined, MuxError>>;
+export declare function values(self: MuxCatalogMsfConsumerExtra): rt.Stream<rt.Result<HangCatalogExtra, MuxError>>;
 export { new$ as new };
 
 // MuxCatalogMsfError.ts
@@ -6367,6 +6376,7 @@ export declare function next(self: MuxContainerTsExportConsumer): rt.Call<rt.Res
 export declare function stats(self: MuxContainerTsExportConsumer): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumer): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumer, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumer): rt.Result<MuxContainerTsExportConsumer, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumer): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExportConsumerExt.ts
@@ -6384,6 +6394,7 @@ export declare function next(self: MuxContainerTsExportConsumerExt): rt.Call<rt.
 export declare function stats(self: MuxContainerTsExportConsumerExt): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumerExt): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumerExt, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumerExt): rt.Result<MuxContainerTsExportConsumerExt, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumerExt): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExportConsumerExtra.ts
@@ -6401,6 +6412,7 @@ export declare function next(self: MuxContainerTsExportConsumerExtra): rt.Call<r
 export declare function stats(self: MuxContainerTsExportConsumerExtra): MuxContainerTsStatsExport;
 export declare function discontinuity(self: MuxContainerTsExportConsumerExtra): rt.u64;
 export declare function follow(self: MuxContainerTsExportConsumerExtra, broadcast: BroadcastConsumer, catalog: MuxCatalogConsumerExtra): rt.Result<MuxContainerTsExportConsumerExtra, MuxError>;
+export declare function values(self: MuxContainerTsExportConsumerExtra): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsExt.ts
@@ -6450,6 +6462,7 @@ export declare function withFollow(self: MuxContainerTsFollower, follow: rt.Dura
 export declare function withStitch(self: MuxContainerTsFollower, stitch: boolean): MuxContainerTsFollower;
 export declare function export$(self: MuxContainerTsFollower): MuxContainerTsExportConsumer;
 export declare function next(self: MuxContainerTsFollower): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollower): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFollowerExt.ts
@@ -6463,6 +6476,7 @@ export declare function withFollow(self: MuxContainerTsFollowerExt, follow: rt.D
 export declare function withStitch(self: MuxContainerTsFollowerExt, stitch: boolean): MuxContainerTsFollowerExt;
 export declare function export$(self: MuxContainerTsFollowerExt): MuxContainerTsExportConsumerExt;
 export declare function next(self: MuxContainerTsFollowerExt): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollowerExt): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFollowerExtra.ts
@@ -6476,6 +6490,7 @@ export declare function withFollow(self: MuxContainerTsFollowerExtra, follow: rt
 export declare function withStitch(self: MuxContainerTsFollowerExtra, stitch: boolean): MuxContainerTsFollowerExtra;
 export declare function export$(self: MuxContainerTsFollowerExtra): MuxContainerTsExportConsumerExtra;
 export declare function next(self: MuxContainerTsFollowerExtra): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsFollowerExtra): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { export$ as export, new$ as new };
 
 // MuxContainerTsFraming.ts
@@ -6723,6 +6738,7 @@ export declare function drift(self: MuxContainerTsRelease): number | undefined;
 export declare function outOfTolerance(self: MuxContainerTsRelease): rt.u64;
 export declare function stats(self: MuxContainerTsRelease): MuxContainerTsStatsRelease;
 export declare function next(self: MuxContainerTsRelease): rt.Call<rt.Result<MuxContainerFrame | undefined, MuxError>>;
+export declare function values(self: MuxContainerTsRelease): rt.Stream<rt.Result<MuxContainerFrame, MuxError>>;
 export { new$ as new };
 
 // MuxContainerTsRepublish.ts
@@ -6990,6 +7006,7 @@ import type { BroadcastConsumer } from "./BroadcastConsumer.ts";
 import type { MuxError } from "./MuxError.ts";
 export type MuxFollowInstances = rt.Handle<"MuxFollowInstances">;
 export declare function next(self: MuxFollowInstances): rt.Call<rt.Result<BroadcastConsumer | undefined, MuxError>>;
+export declare function values(self: MuxFollowInstances): rt.Stream<rt.Result<BroadcastConsumer, MuxError>>;
 
 // MuxImportAudioFormat.ts
 export type MuxImportAudioFormat = "Aac" | "Opus" | "Flac" | "Mp3";
@@ -7266,6 +7283,7 @@ export declare function fromTrack(track: TrackConsumer, config: HangCatalogJsonC
 export declare function mode(self: MuxJsonConsumerJson): HangCatalogMode;
 export declare function next(self: MuxJsonConsumerJson): rt.Call<rt.Result<MoqJsonTimedJson | undefined, MuxError>>;
 export declare function latest(self: MuxJsonConsumerJson): rt.Call<rt.Result<MoqJsonTimedJson | undefined, MuxError>>;
+export declare function values(self: MuxJsonConsumerJson): rt.Stream<rt.Result<MoqJsonTimedJson, MuxError>>;
 
 // MuxJsonOptions.ts
 import * as rt from "./rt.ts";
@@ -7748,6 +7766,7 @@ export declare function isClosed(self: OriginRoutes): boolean;
 export declare function pollSynced(self: OriginRoutes): rt.Call<void>;
 export declare function root(self: OriginRoutes): Path;
 export declare function absolute(self: OriginRoutes, prefix: string): rt.Result<Path, Error_>;
+export declare function values(self: OriginRoutes): rt.Stream<OriginRouteEvent>;
 
 // Park.ts
 import * as rt from "./rt.ts";
@@ -10771,6 +10790,8 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
+export type Stream<T> = AsyncIterableIterator<T>;
+export declare function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): Stream<T>;
 export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;

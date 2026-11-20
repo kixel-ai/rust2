@@ -587,6 +587,15 @@ impl Function {
 	pub(crate) fn jni(&self) -> bool {
 		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
 	}
+
+	/// What it yields as a stream, if it is one: a method `next` of `&self` or `&mut self`,
+	/// taking nothing else, whose future outputs `Option<T>` or `Result<Option<T>, E>`. Each
+	/// binding adds an adapter iterating it in its language's own protocol, beside it.
+	pub(crate) fn stream(&self) -> Option<&Type> {
+		let Type::Option(item) = &self.ok else { return None };
+		let receiver = matches!(self.receiver, Some(Receiver::Ref | Receiver::Mut));
+		(self.future && receiver && self.params.is_empty() && self.name() == "next").then_some(item)
+	}
 }
 
 /// A parameter a function polls its task through.

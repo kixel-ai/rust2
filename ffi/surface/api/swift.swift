@@ -913,6 +913,51 @@ public struct Waiter: ~Copyable, @unchecked Sendable {
 	@inlinable public func context() throws -> @Sendable () -> Void
 	@inlinable nonisolated(nonsending) public static func pollFuture(_ future: @escaping @Sendable () async -> Void) async throws
 }
+public final class FeedStream: Swift.AsyncSequence {
+	public typealias Element = Bytes
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Bytes?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Bytes?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Bytes?
+	}
+}
+public struct Feed: ~Copyable, @unchecked Sendable {
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Bytes?
+	@inlinable public consuming func stream() -> FeedStream
+}
+public final class CountdownStream: Swift.AsyncSequence {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Swift.UInt32?
+	}
+}
+public struct Countdown: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Countdown
+	@inlinable public static func told(_ from: Swift.UInt32, _ log: any Log) -> Countdown
+	@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@inlinable public consuming func stream() -> CountdownStream
+}
+@available(*, deprecated, message: "count with `Countdown`") public final class RetiredStream: Swift.AsyncSequence {
+	public typealias Element = Swift.UInt32
+	public typealias Failure = any Swift.Error
+	@inlinable public func makeAsyncIterator() -> AsyncIterator
+	@inlinable nonisolated(nonsending) public func next() async throws -> Swift.UInt32?
+	public struct AsyncIterator: Swift.AsyncIteratorProtocol {
+		@inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+		@inlinable public mutating func next(isolation actor: isolated (any Swift.Actor)?) async throws -> Swift.UInt32?
+	}
+}
+public struct Retired: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ from: Swift.UInt32) -> Retired
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable nonisolated(nonsending) public mutating func next() async throws -> Swift.UInt32?
+	@available(*, deprecated, message: "count with `Countdown`") @inlinable public consuming func stream() -> RetiredStream
+}
 public struct Logger: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ sink: any Log) -> Logger
 	@inlinable public func write(_ line: Swift.String) -> Swift.Bool
@@ -1148,6 +1193,7 @@ public struct Channel: ~Copyable, @unchecked Sendable {
 	@inlinable public func listen(_ cx: @escaping @Sendable () -> Void) throws
 	@inlinable nonisolated(nonsending) public func recvSized() async throws -> (Bytes, Swift.UInt)
 	@inlinable nonisolated(nonsending) public func recvNonempty() async throws -> Bytes
+	@inlinable public func feed() throws -> Feed
 	@inlinable public func sendFromThread(_ payload: Bytes) throws
 }
 public final class Gap: @unchecked Sendable, CustomDebugStringConvertible, Equatable {

@@ -196,6 +196,19 @@ instantiates, a type parameter bounded by another crate's trait no type C holds 
 and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
 
+An object's method `next` of `&self` or `&mut self`, taking nothing else, whose future
+outputs `Option<T>` or `Result<Option<T>, E>`, such as moq's `announce::Consumer::next`, is
+a stream: beside the method, each binding but C and C++ iterates it in its language's own
+protocol, calling `next` once per item until it yields `None` or an error, which ends the
+iteration with that error, thrown or, in Go and on the web, its last item. Swift's
+`AsyncSequence` takes only a copyable element, so there a stream of a noncopyable object keeps
+`next` alone. The adapter reads no item ahead, so a loop left early leaves the
+next item to the next call, and cancelling the iteration drops the pending `next`'s
+future, as dropping it in Rust would: it loses an item only where that future does when
+dropped, as one that is not cancel-safe does. C++ keeps the method alone, since it has no
+asynchronous iteration of its own: `std::generator` is synchronous, so a loop
+`co_await`s each `next`.
+
 ## Targets
 
 One binding serves every target its package ships to, such as one Kotlin file for each
@@ -758,6 +771,9 @@ the rest cross encoded.
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
+- A **stream**'s `asFlow()` is a cold `Flow` of what its `next` yields, ending at null or
+  with what `next` throws: each collection calls `next` once per item, and cancelling it
+  cancels the pending `next`.
 - A **future Kotlin implements** is a `suspend () -> Unit`, which Rust's first poll
   launches in the calling coroutine's context, on its dispatcher, or on `Default` for one
   that does not dispatch. It runs on a job of its own, so the caller never waits on it,
@@ -904,6 +920,9 @@ caller imports it with no ignores.
   anything but Rust cancels, prints its traceback and aborts. A value that is not
   awaitable, or a future of another loop, raises at the call. A poll lent one pinned,
   as `Waiter.poll_future`, is an `async def` taking it, whose future owns it.
+- A **stream** is its own async iterator: `async for item in feed` awaits `next()` once
+  per item through `__anext__`, which raises `StopAsyncIteration` at `None` and the
+  error of a `Result`'s `Err`.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.
@@ -1037,6 +1056,13 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `CancellationError`. Each call is its own future, so it has one poller. The call makes
   and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
   on only if that poll pends; the signal latches a wake that lands before it parks.
+- A **stream** is `stream()`, which consumes the object into a generated `<T>Stream`
+  owning it, a final class that is an `AsyncSequence`: `for try await x in feed.stream()`.
+  Each loop's `AsyncIterator` ends for good at nil or an error, as the protocol requires,
+  and the next loop, or `next()` on the class, calls Rust's `next` again, which may go on
+  as Rust's does, as after a loop left early. Its `next` runs on the caller's isolation,
+  through `next(isolation:)` and `nonisolated(nonsending)`. `AsyncSequence` takes only a copyable element, so a stream of
+  a noncopyable object keeps `next` alone.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
@@ -1232,6 +1258,10 @@ other than one in its own form, `module <path>` and `go 1.24`.
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
+- A **stream** has `All(ctx)`, an `iter.Seq2[T, error]` that a `for item, err := range`
+  ranges over, calling `Next(ctx)` once for each item: an error, ctx's included, is its
+  last, and leaves the stream usable. Of a method another package keeps, it is that
+  package's `<Type>All`, as `Next` is `<Type>Next`.
 - A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
   a goroutine of its own. Its context derives from the call's, `context.Background()` for
   a call without one, so it carries the caller's values and deadline, and the caller's
@@ -1365,6 +1395,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future unless it finished, which cancels it in Rust and loses nothing: the next call
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
+- A **stream** is `asStream()`, a single-subscription `Stream<T>` that calls `next` only
+  while its listener listens and is not paused, one call at a time, and adds each item
+  synchronously from the event loop, so a pause or cancel in the listener's handler lands
+  before the next call. A pause or cancel cancels the pending call, which loses nothing
+  where `next` is cancel-safe, so `await for`, which pauses while its body runs, reads
+  nothing ahead. An error is its last event.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
   are, which Rust polls until it completes, or which a poll owns, as
   `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
@@ -1547,6 +1583,12 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   made, and each wake polls again on a microtask, never inside the wake. Cancelling frees
   the future in Rust, losing nothing, and rejects with `rt.Cancelled`. A future JavaScript
   implements is any promise, a waker a function, and a reader an `rt.Reader`.
+- **Streams** are an `AsyncIterableIterator` from the type's `values(self)`, as a
+  `ReadableStream`'s `values()` is, which `for await` takes: of `T` for `Option<T>`, and for
+  `Result<Option<T>, E>` of `rt.Result<T, E>`, whose `Err` comes last, since an error is a
+  value, never thrown. Calls of `next` never overlap, and `return`, as a loop's `break`
+  calls, cancels a pending one in Rust and resolves it as done; one that finished first
+  still gives its item.
 - **Failure**: a run-time check that fails throws an `Error` naming the C function and the
   check, as each binding raises. Rust's panic aborts the module, as do a throw out of a
   closure, trait, or reader, since Rust has nowhere to unwind to: the message goes to
