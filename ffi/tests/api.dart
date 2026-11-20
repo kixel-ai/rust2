@@ -277,6 +277,117 @@ Future<void> readers() async {
   }
 }
 
+/// Streams, each iterated as a Dart stream: to its end, left early, and to an error, past
+/// which the stream goes on.
+Future<void> streams() async {
+  final counts = <int>[];
+  final countdown = api.Countdown(3);
+  await for (final count in countdown.asStream()) {
+    counts.add(count);
+  }
+  print('countdown ${counts.join(' ')}');
+  countdown.close();
+  // A loop left early takes nothing past the item it stopped at.
+  final rest = api.Countdown(5);
+  await for (final count in rest.asStream()) {
+    if (count == 4) break;
+  }
+  print('countdown after break ${await rest.next()}');
+  rest.close();
+  // Each payload sends the next, which `!` fails and an empty one ends.
+  final channel = api.Channel();
+  final feed = channel.feed();
+  for (final first in ['a', 'c']) {
+    channel.send(utf8.encode(first));
+    try {
+      await for (final payload in feed.asStream()) {
+        print('feed ${text(payload)}');
+        channel.send(utf8.encode(switch (text(payload)) {
+          'a' => 'b',
+          'b' => '!',
+          _ => '',
+        }));
+      }
+      print('feed end');
+    } on api.Error catch (e) {
+      print('feed error $e');
+    }
+  }
+  feed.close();
+  channel.close();
+}
+
+/// A stream's semantics beyond the transcript: what a cancel or pause leaves of its pending
+/// `next`, which the stream holds exclusively, so a direct `next` throws while one pends.
+Future<void> streamChecks() async {
+  final channel = api.Channel();
+  final feed = channel.feed();
+  final got = <String>[];
+
+  // Cancelled while its `next` waits, it drops that call: the payload sent after is the
+  // next call's.
+  final cancelled = feed.asStream().listen((payload) => got.add(text(payload)));
+  await step();
+  borrowed(() => feed.next(), 'api_Feed_next: a handle is already borrowed', 'a stream pends one next');
+  await cancelled.cancel();
+  channel.send(utf8.encode('after cancel'));
+  await step();
+  check(got.isEmpty, 'a cancelled stream adds nothing');
+  check(text((await within(feed.next(), 'a next after a cancel'))!) == 'after cancel', 'a cancelled stream loses nothing');
+
+  // Paused, it drops its pending call and pulls nothing until it resumes.
+  final paused = feed.asStream().listen((payload) => got.add(text(payload)));
+  await step();
+  paused.pause();
+  channel.send(utf8.encode('while paused'));
+  await step();
+  check(got.isEmpty, 'a paused stream adds nothing');
+  check(text((await within(feed.next(), 'a next while paused'))!) == 'while paused', 'a paused stream pulls nothing');
+  channel.send(utf8.encode('resumed'));
+  paused.resume();
+  await until(() => got.length == 1, 'a resumed stream pulls again');
+  check(got.single == 'resumed', 'a resumed stream adds what it pulls');
+  await paused.cancel();
+  got.clear();
+
+  // A cancel or pause in the listener's handler, of an item ready at once, lands before
+  // the next call: nothing pends after it.
+  for (final stop in ['cancel', 'pause']) {
+    channel.send(utf8.encode(stop));
+    late final StreamSubscription<Uint8List> sub;
+    sub = feed.asStream().listen((payload) {
+      got.add(text(payload));
+      stop == 'cancel' ? sub.cancel().ignore() : sub.pause();
+    });
+    await until(() => got.length == 1, 'a stream adds an item ready at once');
+    channel.send(utf8.encode('after $stop'));
+    await step();
+    check(text((await within(feed.next(), 'a next after a $stop'))!) == 'after $stop', 'a $stop in the handler pulls nothing');
+    await sub.cancel();
+    got.clear();
+  }
+
+  // An error is the last event; a check refusing the call is one too.
+  channel.send(utf8.encode('!'));
+  final events = <Object>[];
+  final done = Completer<void>();
+  feed.asStream().listen(
+    (payload) => events.add(text(payload)),
+    onError: (Object e) => events.add(e),
+    onDone: done.complete,
+  );
+  await within(done.future, 'a stream that fails ends');
+  check(events.length == 1 && events.single is api.ErrorOverflow, 'an error ends a stream: $events');
+  feed.close();
+  try {
+    await feed.asStream().first;
+    check(false, 'a closed stream fails');
+  } on StateError catch (e) {
+    check(e.message == 'Feed is closed' || e.message.endsWith(": a handle's value was moved out"), 'a closed stream fails with its check: $e');
+  }
+  channel.close();
+}
+
 /// Futures of a value that is not `Send`, awaited on the isolate's thread.
 Future<void> localLater(api.Local local) async {
   print('local later ${(await api.localOrNewLater(local)).bump()}');
@@ -618,6 +729,7 @@ Future<void> futures() async {
   outer.cancel();
   await cancelled(outer, 'a poll of a Dart future cancels');
   await cancelled(inner, 'a cancelled poll drops the future it owns');
+  await streamChecks();
   print('futures ok');
 }
 

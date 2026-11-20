@@ -1344,6 +1344,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future unless it finished, which cancels it in Rust and loses nothing: the next call
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
+- A **stream** is `asStream()`, a single-subscription `Stream<T>` that calls `next` only
+  while its listener listens and is not paused, one call at a time, and adds each item
+  synchronously from the event loop, so a pause or cancel in the listener's handler lands
+  before the next call. A pause or cancel cancels the pending call, which loses nothing
+  where `next` is cancel-safe, so `await for`, which pauses while its body runs, reads
+  nothing ahead. An error is its last event.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
   are, which Rust polls until it completes, or which a poll owns, as
   `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
