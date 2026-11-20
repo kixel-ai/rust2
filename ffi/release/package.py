@@ -392,14 +392,18 @@ def sdist(info, manifest, export, out):
         if not any(root.samefile(m) for m in manifests):
             roots.add(root)
     base = Path(os.path.commonpath([*local, *(r.parent for r in roots)]))
-    placed = {d: posixpath.join("sources", d.relative_to(base).as_posix()) for d in local}
+    def place(directory):
+        """Where a directory lies in the sdist."""
+        return posixpath.normpath(posixpath.join("sources", Path(directory).relative_to(base).as_posix()))
+
+    placed = {d: place(d) for d in local}
 
     def moves(at):
         """Each local package's path from the sdist's directory `at`, by its absolute one."""
-        return {str(d): posixpath.relpath(place, at) for d, place in placed.items()}
+        return {str(d): posixpath.relpath(there, at) for d, there in placed.items()}
 
     files = {}
-    for directory, place in placed.items():
+    for directory, at in placed.items():
         # What cargo would publish of it, with the original manifest; what cargo generates in
         # a package, such as Cargo.toml.orig, is on no disk.
         listed = output("cargo", "package", "--list", "--allow-dirty", "--manifest-path", directory / "Cargo.toml",
@@ -407,13 +411,13 @@ def sdist(info, manifest, export, out):
         for name in listed.splitlines():
             path = directory / name
             if path.is_file():
-                files[f"{place}/{name}"] = (path.read_bytes(), os.access(path, os.X_OK))
+                files[f"{at}/{name}"] = (path.read_bytes(), os.access(path, os.X_OK))
         # Relative paths hold, as the packages keep their places; absolute ones move with them.
-        manifest = relocate((directory / "Cargo.toml").read_text(encoding="utf-8"), moves(place))
-        files[f"{place}/Cargo.toml"] = (manifest.encode(), False)
+        manifest = relocate((directory / "Cargo.toml").read_text(encoding="utf-8"), moves(at))
+        files[f"{at}/Cargo.toml"] = (manifest.encode(), False)
     for root in roots:
-        place = posixpath.join("sources", root.parent.relative_to(base).as_posix())
-        files[f"{place}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(place)).encode(), False)
+        at = place(root.parent)
+        files[f"{at}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(at)).encode(), False)
     generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
