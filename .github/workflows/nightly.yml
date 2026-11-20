@@ -33,7 +33,7 @@ jobs:
       - name: Host
         run: |
           uname -a; cat /proc/sys/vm/mmap_rnd_bits /proc/sys/vm/mmap_rnd_compat_bits || true
-          getconf PAGESIZE; cat /proc/cpuinfo | grep -m1 -i 'model name\|cpu part'
+          sudo sysctl vm.mmap_rnd_bits vm.mmap_rnd_compat_bits; sudo sysctl -w vm.mmap_rnd_bits=28; getconf PAGESIZE; getconf VA_BITS; cat /proc/cpuinfo | grep -m1 -i 'model name\|cpu part'
 
       - name: Sanitize
         run: nix develop .#sanitize --command bash -c 'cd ffi && export PATH=$RUST2_TS_TOOLCHAIN/bin:$PATH && for t in api_asan api_tsan api_swift_tsan; do cargo test --locked --test fixtures -- --ignored --exact $t 2>&1 | tail -40 || true; done'
