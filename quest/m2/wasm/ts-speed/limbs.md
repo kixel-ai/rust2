@@ -8,6 +8,8 @@ it tried and the cost it measured.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#901](https://github.com/kixel-ai/rust2/pull/901): ✅ kept as planned (rejected: dropping it).
+
 Left by the [Firefox profile](https://github.com/kixel-ai/rust2/pull/901), which found
 one SpiderMonkey cause, calls the engine kept in large functions, and fixed it for
 `u64` sums and differences. What remains of `time/*` is 1.5 to 2 times V8's on the same
