@@ -43,26 +43,14 @@ jobs:
         if: always()
         run: |
           nix develop .#sanitize --command bash -c '
-            export PATH=$RUST2_TS_TOOLCHAIN/bin:$PATH
-            rustc -vV
-            cd ffi/target/tmp/api
-            for d in address thread; do
-              echo "== $d"
-              ASAN_OPTIONS=verbosity=1 TSAN_OPTIONS=verbosity=1 $d/api-c 2>&1 | head -40
-              echo "exit ${PIPESTATUS[0]}"
-              lldb -b -o run -o "thread backtrace" -- $d/api-c 2>&1 | grep -E "^ *frame" | head -20
-            done
-            mkdir -p /tmp/h; cd /tmp/h
-            printf "fn main(){println!(\"hi\");}" > h.rs
-            printf "int main(){return 0;}" > h.c
-            clang -fsanitize=address -c h.c -o h.o
-            clang -fsanitize=address h.c -o hc && ASAN_OPTIONS=verbosity=1 ./hc 2>&1 | head -20
-            for s in address thread; do
-              rustc -Zsanitizer=$s h.rs -o hr-$s --target aarch64-unknown-linux-gnu && ./hr-$s; echo "rust hello $s exit $?"
-              rustc -Zsanitizer=$s h.rs --emit=llvm-ir -o hr-$s.ll --target aarch64-unknown-linux-gnu; grep -m5 -E "shadow|inttoptr|add i64" hr-$s.ll
-              clang -fsanitize=$s -### h.c 2>&1 | tr " " "\n" | grep -i -E "asan|tsan|rtlib|clang_rt|shared" | head
-            done
-            ls /nix/store | grep -E "compiler-rt|clang-" | head -20
+            cd ffi/target/tmp/api/address
+            readelf -SW api-c | grep -E "init_array|preinit|fini_array|\.tdata|\.tbss|\.got"
+            readelf -rW api-c | grep -c .
+            readelf -x .init_array api-c; readelf -x .preinit_array api-c
+            nm -n api-c | grep -E " (asan.module_ctor|__asan_init|_GLOBAL__sub_I|__asan_version)|module_ctor" | head -20
+            lldb -b -o "b __asan_init" -o "b __asan_version_mismatch_check_v8" -o run -o "bt" -o "register read lr pc sp" -o c -o bt -- api-c 2>&1 | grep -v "^ *$" | head -60
+            echo ==== lldb2
+            lldb -b -o run -o "register read" -o "x/6i \$pc-8" -o "image lookup -a \$lr" -o "memory read --size 8 --count 12 \$sp" -- api-c 2>&1 | tail -50
           '
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
