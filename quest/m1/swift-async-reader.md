@@ -9,6 +9,8 @@ instead of keeping `next` alone: 10 of moq's 17 streams, among them
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#904](https://github.com/kixel-ai/rust2/pull/904): ✅ kept, waiting on a Swift release whose async iteration accepts noncopyable elements (rejected: boxing items as a workaround; dropping it).
+
 Found by the stream adapters' quest: Swift's `AsyncSequence` requires a copyable
 `Element` ([SE-0298](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0298-asyncsequence.md)),
 and swiftc 6.4 refuses a noncopyable one, so those streams keep `next` alone, as
