@@ -965,7 +965,9 @@ impl<'a> Gen<'a> {
 			"rt::Member::Static({t}, rt::function(c\"_variant\", {doc}, variant_{c}))"
 		));
 		self.on = on;
-		format!("\t\t@_staticmethod\n\t\tdef _variant(error: {py}, /) -> _int:\n\t\t\t\"\"\"{docs}\"\"\"\n\t\t\t...\n\n")
+		format!(
+			"\t\t@_staticmethod\n\t\tdef _variant(error: {py}, /) -> _int:\n\t\t\t\"\"\"{docs}\"\"\"\n\t\t\t...\n\n"
+		)
 	}
 
 	/// A range's bound or pair of bounds as a record, and its glue; a `Range` is
@@ -2331,7 +2333,10 @@ fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &
 		let sets: Vec<String> = (fields.iter())
 			.map(|f| match f.name.chars().any(char::is_lowercase) {
 				true => format!("\t\tself.{0} = {0}\n", f.name),
-				false => format!("\t\tself.{0} = {0}  # pyright: ignore[reportConstantRedefinition]\n", f.name),
+				false => format!(
+					"\t\tself.{0} = {0}  # pyright: ignore[reportConstantRedefinition]\n",
+					f.name
+				),
 			})
 			.collect();
 		let _ = write!(
