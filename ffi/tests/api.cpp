@@ -8,9 +8,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -530,6 +533,14 @@ int check(bool ok, const char *what) {
 // What the transcript's script says only in Rust: C++'s own copies, hashes, ranges, and
 // operators, each checked by an assertion.
 int checks() {
+	// Names of the macros `<cassert>`, `<cerrno>`, and `<cstddef>` define, and a field and a
+	// parameter of `errno`'s name, which each take a trailing `_` rather than expand.
+	{
+		api::macros_Streams streams{1, 2, 3, 4};
+		check(api::errno_() == 7 && api::assert_(true) && api::offsetof_(3) == 3 && streams.errno_ == 4 &&
+				  api::macros_streamed(streams, 5) == 15,
+			"names of C library macros");
+	}
 	// Fields named as an `operator==`'s argument might be.
 	{
 		api::Shadowed one{{1}, 2, 3};
