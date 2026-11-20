@@ -1481,6 +1481,10 @@ abstract class Log {
 	bool log(int level, String line);
 	void close();
 }
+abstract class Scan {
+	U64 scan(typed.Uint8List payload, typed.Uint8List? rest);
+	void close();
+}
 abstract class Beat {
 	int beat();
 	void close();
@@ -1705,6 +1709,8 @@ List<List<int>> least(List<List<int>> sets);
 (typed.Int32List, int) splitLast(typed.Int32List items);
 U64 sumU32(typed.Uint32List items);
 typed.Int64List doubledI64(typed.Int64List items);
+List<U64> visitChunks(typed.Uint8List payload, U64 size, U64 Function(typed.Uint8List?) visit);
+U64 scanned(Scan scan, typed.Uint8List payload);
 typed.Float64List boxedFloats(typed.Float64List items);
 Point summed(List<Point> points);
 RustDuration breadth(LimitsDuration limits);
