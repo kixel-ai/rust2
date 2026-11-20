@@ -2651,7 +2651,7 @@ impl<'a> Gen<'a> {
 					let error = thrown_value(thrown, &lifted);
 					cases.push(format!("case 2:\n\tp_._error({error});\n\treturn null;"));
 				}
-				cases.push("default:\n\tf_ = o_f_.value;".to_string());
+				cases.push("default:\n\tf_ = o$f_.value;".to_string());
 				let mut twin = inner.clone();
 				twin.push(format!("switch (started_) {{\n{}\n}}", indent(&cases.join("\n"))));
 				let item = ok_dt.strip_suffix('?').expect("a stream's `next` returns an `Option`");

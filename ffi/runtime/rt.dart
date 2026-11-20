@@ -506,6 +506,7 @@ Cancelable<T> _call<T>(_Call<T> call) {
 /// pause or cancel drops the pending call's future in Rust, as dropping it there would, so
 /// it loses an item only where `next` does when dropped. `None` ends it, and an error is
 /// its last event before it ends.
+// ignore: unused_element
 dasync.Stream<T> _stream<T extends Object>(_Call<T?>? Function(_Pull<T>) start) {
   final pull = _Pull<T>._(start);
   // Synchronous, so a pause or cancel in the listener's handler lands before the next
@@ -546,12 +547,14 @@ final class _Pull<T extends Object> implements _Sink<T?> {
   _Pull._(this._start);
 
   /// A finished start's value, kept until the start returns.
+  // ignore: unused_element
   void _ready(T? value) {
     _state = 1;
     _value = value;
   }
 
   /// A finished start's error, kept until the start returns.
+  // ignore: unused_element
   void _error(Object error) {
     _state = 2;
     _value = error;
