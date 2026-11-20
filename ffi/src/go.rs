@@ -42,6 +42,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
+use crate::doc;
 use crate::ir::{Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
@@ -176,6 +177,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &st
 	let mut files = Vec::new();
 	let mut errors = Vec::new();
 	let mut tuples = BTreeSet::new();
+	let mut api_files = Vec::new();
 	let mut rt = Gen::new(abi, &set, Packages::RT, &shared);
 	rt.write_rt();
 	for krate in &abi.api.crates {
@@ -191,6 +193,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &st
 			// through cgo, whose runtime links the static library rt/lib{p}_<goos>_<goarch>.a.\n",
 			p = abi.prefix
 		);
+		api_files.push((files.len(), krate));
 		files.push((format!("{name}/{name}.go"), g.file(&doc)));
 		// No package name holds a `_` but at its end, so the helpers never take the API's file.
 		files.push((format!("{name}/ffi_cgo.go"), g.conversions()));
@@ -198,6 +201,13 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &st
 	errors.append(&mut rt.errors);
 	if !errors.is_empty() {
 		return Err(errors.join("\n"));
+	}
+	// Each link once every name is final; Go's show only the item's own name.
+	for (at, krate) in api_files {
+		files[at].1 = doc::links(&files[at].1, api, |link| match link.text {
+			Some(_) => None,
+			None => doc_link(abi, &set, &shared, &locked, krate, link.target),
+		});
 	}
 	for n in tuples {
 		let params: Vec<String> = (0..n).map(|k| format!("T{k}")).collect();
@@ -497,7 +507,7 @@ impl Method {
 		};
 		format!(
 			"{}func {receiver}{} {{\n{}\n}}\n\n",
-			docs(self.docs.trim(), ""),
+			docs(self.docs.trim(), None, ""),
 			self.signature(),
 			indent(&self.body)
 		)
@@ -1428,7 +1438,11 @@ impl<'a> Gen<'a> {
 				Literal::Bool(b) => ("bool", b.to_string()),
 				Literal::Int(int, v) => (go_int(int), v.to_string()),
 			};
-			let _ = write!(self.top, "{}const {name} {ty} = {value}\n\n", docs(&constant.docs, ""));
+			let _ = write!(
+				self.top,
+				"{}const {name} {ty} = {value}\n\n",
+				docs(&constant.docs, constant.deprecated.as_deref(), "")
+			);
 		}
 		for i in (0..api.records.len()).filter(|&i| mine(&api.records[i].home)) {
 			self.record(i);
@@ -1969,7 +1983,7 @@ impl<'a> Gen<'a> {
 			let _ = write!(
 				self.types,
 				"{}type {name} struct {{\n\t_ [0]func()\n\t// Bytes_ is its bytes, for the generated packages: use none of it.\n\tBytes_ [{}]uint{}\n\t// Made_ is whether Rust made it, rather than it being Go's zero value.\n\tMade_ bool\n}}\n\n",
-				docs(text.trim(), ""),
+				docs(text.trim(), record.deprecated.as_deref(), ""),
 				opaque.units(),
 				opaque.unit() * 8
 			);
@@ -1992,13 +2006,13 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let body: String = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, go))| format!("{}\t{name} {go}\n", docs(&f.docs, "\t")))
+			.map(|(f, (name, go))| format!("{}\t{name} {go}\n", docs(&f.docs, f.deprecated.as_deref(), "\t")))
 			.collect();
 		let text = format!("{name} is `{rust}`.\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
 			"{}type {name} struct {{\n{body}}}\n\n",
-			docs(text.trim(), "")
+			docs(text.trim(), record.deprecated.as_deref(), "")
 		);
 		let fields: Vec<String> = members.clone();
 		members.extend(self.methods_of(
@@ -2207,7 +2221,7 @@ impl<'a> Gen<'a> {
 			let _ = write!(
 				self.types,
 				"{}type {name} int32\n\nconst (\n{consts})\n\n",
-				docs(text.trim(), "")
+				docs(text.trim(), e.deprecated.as_deref(), "")
 			);
 			let members = self.methods_of(&ty, &c, &rust, e.traits, &e.methods, &Ty::Enum(c.clone()), &[]);
 			self.distinct(&rust, &members);
@@ -2220,7 +2234,12 @@ impl<'a> Gen<'a> {
 		let mut interface = format!("\t{seal}()\n");
 		let mut shared = String::new();
 		for method in &methods {
-			let _ = writeln!(interface, "{}\t{}", docs(method.docs.trim(), "\t"), method.signature());
+			let _ = writeln!(
+				interface,
+				"{}\t{}",
+				docs(method.docs.trim(), None, "\t"),
+				method.signature()
+			);
 			let mut function = Method {
 				key: None,
 				docs: String::new(),
@@ -2236,7 +2255,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}type {name} interface {{\n{interface}}}\n\n{shared}",
-			docs(text.trim(), "")
+			docs(text.trim(), e.deprecated.as_deref(), "")
 		);
 		for variant in &e.variants {
 			let vname = self.variants[&(c.clone(), variant.name.clone())].clone();
@@ -2368,7 +2387,7 @@ impl<'a> Gen<'a> {
 			self.types,
 			"{}type {name} struct {{\n\t// Handle_ is the handle it owns, for the generated packages: use none of it.\n\tHandle_ *{handle}\n}}\n\n\
 			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
-			docs(text.trim(), "")
+			docs(text.trim(), object.deprecated.as_deref(), "")
 		);
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
@@ -2439,7 +2458,11 @@ impl<'a> Gen<'a> {
 			};
 			body.push(format!(
 				"{}\t{member}({}){ret}",
-				docs(&method.docs, "\t"),
+				docs(
+					&self.function_docs(method, doc::sections(&method.docs).body),
+					method.deprecated.as_deref(),
+					"\t"
+				),
 				params.join(", ")
 			));
 			let export = format!("{p}Go_{}_{}", self.bare(&c), method.name());
@@ -2470,7 +2493,7 @@ impl<'a> Gen<'a> {
 			var vtable_{c} = func() *C.{c}_vtable {{\n\tv := (*C.{c}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
 			// {vtable} is the table of {name}'s methods Rust calls, for the generated packages.\n\
 			func {vtable}() unsafe.Pointer {{\n\treturn unsafe.Pointer(vtable_{c})\n}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), callback.deprecated.as_deref(), ""),
 			body.join("\n"),
 			table.join("")
 		);
@@ -3212,7 +3235,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(closure) = &param.ty {
 				text.push_str(&match closure.kept {
@@ -3248,15 +3271,52 @@ impl<'a> Gen<'a> {
 			let error = format!("{supported}({}, \"{c_name}\")", function.on.0 & abi.api.all().0);
 			body.insert(0, format!("if err_ := {error}; err_ != nil {{\n\t{}\n}}", fail("err_")));
 		}
+		let text = self.function_docs(function, text);
 		Method {
 			key: Some(crate::lock::function_key(function)),
-			docs: text,
+			docs: deprecation(&text, function.deprecated.as_deref()),
 			receiver: go_receiver,
 			name: member,
 			params,
 			results,
 			body: body.join("\n"),
 		}
+	}
+
+	/// `text`, a function's docs without its sections, then its `# Errors`, naming its
+	/// error's type, and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(errors) = &sections.errors {
+			let what = match &function.err {
+				Some(err) => format!("Its error type is {}.\n\n", self.error_link(err)),
+				None => String::new(),
+			};
+			let _ = write!(text, "\n\n# Errors\n\n{what}{errors}");
+		}
+		if let Some(panics) = &sections.panics {
+			let _ = write!(text, "\n\n# Aborts\n\n{panics}");
+		}
+		text.trim().to_string()
+	}
+
+	/// A doc link to the Go type of an error of type `err`.
+	fn error_link(&self, err: &Type) -> String {
+		let api = self.abi.api;
+		let (krate, name) = match err.base() {
+			Type::Record(i) => (&api.records[*i].home.krate, &self.type_names[&self.abi.record(*i)]),
+			Type::Enum(i) => (&api.enums[*i].home.krate, &self.type_names[&self.abi.enumeration(*i)]),
+			Type::Object(i) => (&api.objects[*i].home.krate, &self.type_names[&self.abi.object(*i)]),
+			_ => {
+				let key = self.abi.key(err);
+				let (name, (home, _)) = (self.thrown.iter())
+					.find(|(_, (_, thrown))| self.abi.key(thrown) == key)
+					.expect("each error is thrown");
+				(home, name)
+			}
+		};
+		format!("[{}]", in_package(self.set, self.pkg, krate, name))
 	}
 
 	/// The Go error of the C error `e` of type `err`: itself if an exported type, which then
@@ -3275,6 +3335,68 @@ impl<'a> Gen<'a> {
 			}
 		}
 	}
+}
+
+/// `name`, of `krate`'s package, as a doc link names it from `here`'s: by its import path
+/// from another package's.
+fn in_package(set: &Packages, here: &str, krate: &str, name: &str) -> String {
+	match krate == here {
+		true => name.to_string(),
+		false => format!("{}.{name}", set.by_crate[krate].1),
+	}
+}
+
+/// The Go doc link for `target`, from `here`'s package, if Go has it.
+fn doc_link(
+	abi: &Abi<'_>,
+	set: &Packages,
+	shared: &Shared,
+	locked: &BTreeMap<String, String>,
+	here: &str,
+	target: doc::Target<'_>,
+) -> Option<String> {
+	let api = abi.api;
+	let owner = |owner: doc::Owner| match owner {
+		doc::Owner::Record(i) => (&api.records[i].home.krate, &shared.type_names[&abi.record(i)]),
+		doc::Owner::Enum(i) => (&api.enums[i].home.krate, &shared.type_names[&abi.enumeration(i)]),
+		doc::Owner::Object(i) => (&api.objects[i].home.krate, &shared.type_names[&abi.object(i)]),
+		doc::Owner::Callback(i) => (&api.callbacks[i].home.krate, &shared.type_names[&abi.callback(i)]),
+	};
+	let (krate, name) = match target {
+		doc::Target::Record(i) => owner(doc::Owner::Record(i)),
+		doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
+		doc::Target::Object(i) => owner(doc::Owner::Object(i)),
+		doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
+		doc::Target::Variant(i, v) => (
+			&api.enums[i].home.krate,
+			&shared.variants[&(abi.enumeration(i), api.enums[i].variants[v].name.clone())],
+		),
+		doc::Target::Field(i, n) => {
+			let (krate, name) = owner(doc::Owner::Record(i));
+			let record = &api.records[i];
+			let key = format!(
+				"{} / field {}",
+				crate::lock::type_key(&record.shown),
+				record.fields[n].name
+			);
+			let field = locked.get(&key)?;
+			return Some(format!("[{}.{field}]", in_package(set, here, krate, name)));
+		}
+		doc::Target::Constant(c) => (&c.home.krate, locked.get(&format!("const {}", c.path.join("::")))?),
+		doc::Target::Function(of, f) => {
+			let member = locked.get(&crate::lock::function_key(f))?;
+			// A method with a receiver in its type's package is the type's; any other is a
+			// function of its own package, named for the type already.
+			let (krate, name) = match of.map(owner) {
+				Some((krate, name)) if f.receiver.is_some() && *krate == f.home.krate => {
+					(krate, format!("{name}.{member}"))
+				}
+				_ => (&f.home.krate, member.clone()),
+			};
+			return Some(format!("[{}]", in_package(set, here, krate, &name)));
+		}
+	};
+	Some(format!("[{}]", in_package(set, here, krate, name)))
 }
 
 /// The Go statements `first`, if any, then `rest`.
@@ -3506,14 +3628,34 @@ fn cgo_field(name: &str) -> String {
 	}
 }
 
-/// Go doc comments holding `docs`, each line indented by `indent`, or nothing for none.
-fn docs(docs: &str, indent: &str) -> String {
-	docs.lines()
-		.map(|line| match line.is_empty() {
-			true => format!("{indent}//\n"),
-			false => format!("{indent}// {line}\n"),
-		})
-		.collect()
+/// `docs`, then a `Deprecated:` paragraph of `deprecated`'s note where it has one.
+fn deprecation(docs: &str, deprecated: Option<&str>) -> String {
+	match deprecated {
+		Some("") => format!("{docs}\n\nDeprecated: Rust deprecates it."),
+		Some(note) => format!("{docs}\n\nDeprecated: {note}"),
+		None => docs.to_string(),
+	}
+}
+
+/// Go doc comments holding `docs`, then a `Deprecated:` paragraph of `deprecated`'s note
+/// where it has one, as Go's tools read it, each line indented by `indent`, or nothing for
+/// none. A fenced block is indented instead, as Go's doc comments set code.
+fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
+	let docs = deprecation(docs, deprecated);
+	let mut fenced = false;
+	let mut out = String::new();
+	for line in docs.trim().lines() {
+		if line.trim_start().starts_with("```") {
+			fenced = !fenced;
+			continue;
+		}
+		let _ = match (line.is_empty(), fenced) {
+			(true, _) => writeln!(out, "{indent}//"),
+			(false, true) => writeln!(out, "{indent}//\t{line}"),
+			(false, false) => writeln!(out, "{indent}// {line}"),
+		};
+	}
+	out
 }
 
 /// Code indented by one tab more, but for blank lines.
