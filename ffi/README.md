@@ -863,7 +863,9 @@ caller imports it with no ignores.
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
-  `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `bytes`. Strings are `str`, `u128` an `int`, a float a `float`, whose 64 bits hold an
+  `f32`'s NaN as `struct` widens one, its payload shifted up and its quiet bit kept, so a
+  signaling one returns exactly where the hardware's conversion would quiet it, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   the runtime's `Duration`, a `NamedTuple` of `secs` and `nanos` as Rust holds them, which
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
@@ -1338,6 +1340,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `isize` past 32 bits on a 32-bit target, and a zero passed for a `NonZero` throws an
   `ArgumentError`. A `char` is a `String` of one Unicode scalar, and any other throws an
   `ArgumentError`.
+- **Floats** are `double`. An `f32` crosses `dart:ffi` as its bits, a NaN widened into the
+  `double`'s by them, its payload shifted up and its quiet bit kept, since the hardware's
+  conversion `dart:ffi` makes of a `Float` would quiet a signaling one: the glue converts
+  its bits at each call, and a struct holding one crosses as the glue's twin of it, whose
+  `f32`s are integers as Dart's class declares them. Any other `double` passed for one
+  rounds to the nearest `f32`.
 - **Bytes** a call takes are a `Uint8List`, and text a `String`, which throws an
   `ArgumentError` passed in holding a lone surrogate, since UTF-8 has no form of one and
   Dart's encoder would replace it. Rust keeps Dart's own
@@ -1524,7 +1532,14 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   by `tag`. A tuple is an array, `Option<T>` is `T | undefined`, or `T | rt.None` where `T`
   can already be `undefined`, `Result<T, E>` an `rt.Result`, `{ ok: true, value }` or `{ ok:
   false, error }`, and an error is that value, never thrown. `u8` through `u32`, `usize`,
-  `isize`, `f32`, `f64`, and `char` are numbers, each checked as it crosses in; `u64`, `i64`,
+  `isize`, and `char` are numbers, each checked as it crosses in. `f32` and `f64` are
+  `rt.f32` and `rt.f64`, a number but for a NaN other than Rust's `NAN`, which `NaN`
+  stands for: that one is its bits, `{ bits }` or `{ hi, lo }`, since an engine quiets or,
+  once it optimizes, canonicalizes a NaN in any number it converts. A NaN's form follows
+  its bits, which wasm leaves arithmetic to choose by host: Rust's `0.0 / 0.0` is `NaN` on
+  ARM, but on x86 it has its sign set, so it is `{ bits: 0xffc00000 }`. A number passed for an
+  `f32` must be one exactly, and `rt.f32Number` or `rt.f64Number` give a plain number,
+  dropping a NaN's bits. `u64`, `i64`,
   and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit
   limbs past it, converted from the `bigint` a wasm `i64` is at the boundary, which costs a
   getter 9% over returning that `bigint` as it is. `String` and `&str` are strings, bytes a
@@ -1536,6 +1551,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   memory, which it gives back once the call returns, and reads what Rust returns at the
   layouts C's wasm32 ABI gives the header's structs, passing a struct of one scalar as it,
   any other through a pointer to a copy, and one returned through a pointer passed first.
+  A float, alone or a struct's one scalar, crosses as a struct does, read and written as
+  its bits: the glue wraps each function passing one by value, and shims each JavaScript
+  implements, to take it through memory.
   Text Rust returns is copied out, and its buffer freed at once, so no view outlives a
   growth of memory, which detaches it; what Rust lends a closure or trait is copied before
   any call it makes can grow memory.
@@ -1608,7 +1626,7 @@ just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
@@ -1685,10 +1703,8 @@ language's driver, the web's on Node included, is a generated list of these call
 printed digests must match the crate's own, run natively, or as wasm under Node's WASI
 for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
 every sampled shape and, as the nightly does, more drawn from the day's seed, which it
-prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
-each with the quest that fixes it; the driver skips those calls, so the fix deletes its
-entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
-`Type` variant fails `ir_covered` until the sampler covers it.
+prints and `RUST2_SHAPES_SEED` replays. A new IR `Type` variant fails `ir_covered` until
+the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use

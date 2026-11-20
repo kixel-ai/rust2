@@ -109,18 +109,19 @@ export declare function debug(self: BoxedU8): string;
 export declare function eq(a: BoxedU8, b: BoxedU8): boolean;
 
 // Builtin.ts
+import * as rt from "./rt.ts";
 export type Builtin = {
     tag: "Any";
     _0: Int32Array;
 } | {
     tag: "Boolean";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Int";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Native";
-    _0: number;
+    _0: rt.f64;
 };
 export declare function eq(a: Builtin, b: Builtin): boolean;
 
@@ -195,10 +196,10 @@ export type Clash = {
     _0: Event;
 } | {
     tag: "Double";
-    _0: number;
+    _0: rt.f64;
 } | {
     tag: "Float";
-    _0: number;
+    _0: rt.f32;
 } | {
     tag: "String";
     _0: string;
@@ -236,11 +237,11 @@ export type Clash = {
 export declare function debug(self: Clash): string;
 export declare function eq(a: Clash, b: Clash): boolean;
 export declare function point(self: Clash): Point | undefined;
-export declare function of(value: number): Clash;
+export declare function of(value: rt.f64): Clash;
 export declare function bytes(self: Clash): rt.Bytes;
 export declare function reading(self: Clash, kotlin: number): Reading;
 export declare function listed(java: Uint32Array, kotlin: rt.Place<number>): Uint32Array[];
-export declare function after(first: Promise<unknown>, kotlin: number): rt.Call<Clash>;
+export declare function after(first: Promise<unknown>, kotlin: rt.f64): rt.Call<Clash>;
 export declare function joined(self: Clash, lent: Uint8Array | rt.Bytes, owned: Uint8Array | rt.Bytes, maybe: Uint8Array | rt.Bytes | undefined): rt.Bytes;
 export declare function tagged(self: Clash, tag: string): rt.Call<string>;
 export declare function stamp(self: Clash, kotlin: rt.u64): Stamp;
@@ -834,14 +835,15 @@ export declare function offset(self: Marker, dx: number, dy: number): Point;
 export { new$ as new };
 
 // Measure.ts
+import * as rt from "./rt.ts";
 import type { Numbers } from "./Numbers.ts";
 export type Measure = {
-    value: number;
+    value: rt.f64;
     numbers: Numbers;
 };
 export declare function debug(self: Measure): string;
 export declare function eq(a: Measure, b: Measure): boolean;
-export declare function new$(value: number, negative: boolean): Measure;
+export declare function new$(value: rt.f64, negative: boolean): Measure;
 export { new$ as new };
 
 // Message.ts
@@ -1156,9 +1158,10 @@ export declare function debug(self: Polar_Turn): string;
 export declare function eq(a: Polar_Turn, b: Polar_Turn): boolean;
 
 // Qualifiers.ts
+import * as rt from "./rt.ts";
 export type Qualifiers = {
-    api: number;
-    kotlin: number;
+    api: rt.f64;
+    kotlin: rt.f64;
 };
 export declare function eq(a: Qualifiers, b: Qualifiers): boolean;
 
@@ -1201,8 +1204,8 @@ import type { Point } from "./Point.ts";
 import type { Shape } from "./Shape.ts";
 export type Reading = {
     ok: boolean;
-    level: number;
-    ratio: number;
+    level: rt.f32;
+    ratio: rt.f64;
     mark: number;
     shape: Shape;
     at: Point;
@@ -2703,7 +2706,7 @@ export declare function wasmLog(log: Log): void;
 export declare function boothCount(booth: Booth): rt.u64;
 export declare function page(): Page;
 export declare function beats(beat: Beat): number;
-export declare function same(a: number, b: number): number;
+export declare function same(a: rt.f64, b: rt.f64): number;
 export declare function returnValues(point: rt.Place<Point>, fail: boolean): rt.Result<[string, [number, number, number, rt.u64] | undefined, Uint8Array[]], Error_>;
 export declare function returnMoved(counter: Counter, fail: boolean): rt.Result<Counter, Error_>;
 export declare function nonZeros(): NonZeros;
@@ -2769,6 +2772,17 @@ type Num<T extends string> = number & {
 export type u64 = Num<"u64"> | U64Limbs;
 export type i64 = Num<"i64"> | I64Limbs;
 export type u128 = Num<"u128"> | U128Limbs;
+export type F32Nan = {
+    readonly bits: number;
+    readonly [brand]: "f32";
+};
+export type F64Nan = {
+    readonly hi: number;
+    readonly lo: number;
+    readonly [brand]: "f64";
+};
+export type f32 = Num<"f32"> | F32Nan;
+export type f64 = Num<"f64"> | F64Nan;
 export type Result<T, E> = {
     readonly ok: true;
     readonly value: T;
@@ -2886,7 +2900,12 @@ export declare function holdOr(handle: Handle | undefined): number;
 export declare function lentHandle<T extends string>(p: number, k: Kind): Handle<T>;
 export declare function int(v: number, min: number, max: number, what: string): number;
 export declare function nonZero<T extends number | u64 | i64>(v: T): T;
-export declare function f32(v: number): number;
+export declare function f32Get(p: number): f32;
+export declare function f32Put(p: number, v: f32): void;
+export declare function f64Get(p: number): f64;
+export declare function f64Put(p: number, v: f64): void;
+export declare function f32Number(v: f32): number;
+export declare function f64Number(v: f64): number;
 export declare function char(v: number): number;
 export declare function u64Of(hi: number, lo: number): u64;
 export declare function i64Of(hi: number, lo: number): i64;
