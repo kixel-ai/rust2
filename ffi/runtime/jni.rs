@@ -187,11 +187,18 @@ pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
 			fail(env, what, "a call into Kotlin is out of memory");
 		}
 		let result = f(env);
-		if ((**env).v1_2.ExceptionCheck)(env) {
-			fail(env, what, "a call into Kotlin threw");
-		}
+		threw(env, what);
 		((**env).v1_2.PopLocalFrame)(env, std::ptr::null_mut());
 		result
+	}
+}
+
+/// Abort if the call into Kotlin `f` just made threw: JNI allows no other call while an
+/// exception is pending, so a call whose result is read checks this first.
+pub fn threw(env: *mut JNIEnv, what: &str) {
+	// SAFETY: `env` is this thread's.
+	if unsafe { ((**env).v1_2.ExceptionCheck)(env) } {
+		fail(env, what, "a call into Kotlin threw");
 	}
 }
 

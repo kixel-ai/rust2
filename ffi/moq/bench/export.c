@@ -98,9 +98,9 @@ static moq_frame_Frame *read_frame(moq_group_Consumer *reader) {
 	return read;
 }
 
-/* A new timestamp `micros` microseconds in, to free. */
-static moq_Timestamp *stamp(uint64_t micros) {
-	moq_Timestamp *at = NULL;
+/* A timestamp `micros` microseconds in. */
+static moq_Timestamp stamp(uint64_t micros) {
+	moq_Timestamp at;
 	moq_TimeOverflow overflow;
 	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
 		fail("from_micros");
@@ -109,7 +109,7 @@ static moq_Timestamp *stamp(uint64_t micros) {
 }
 
 /* A group keyed by its start, which must exceed every earlier group's on the track. */
-static moq_group_Producer *append_group(moq_track_Producer *track, const moq_Timestamp *start) {
+static moq_group_Producer *append_group(moq_track_Producer *track, moq_Timestamp start) {
 	moq_group_Producer *group = NULL;
 	moq_Error *err = NULL;
 	if (!moq_track_Producer_append_group(track, start, &group, &err, NULL)) {
@@ -118,7 +118,7 @@ static moq_group_Producer *append_group(moq_track_Producer *track, const moq_Tim
 	return group;
 }
 
-static void write_frame(moq_group_Producer *group, const moq_Timestamp *at, moq_buf frame) {
+static void write_frame(moq_group_Producer *group, moq_Timestamp at, moq_buf frame) {
 	moq_Error *err = NULL;
 	if (!moq_group_Producer_write_frame(group, at, frame, &err, NULL)) {
 		fail("write_frame");
@@ -147,7 +147,7 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 	snprintf(name, sizeof name, "throughput[%zu]", size);
 	span start = begin();
 	for (size_t g = 0; g < groups; g++) {
-		moq_Timestamp *at = stamp((*micros)++);
+		moq_Timestamp at = stamp((*micros)++);
 		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
@@ -159,7 +159,6 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 			moq_frame_Frame_free(read);
 		}
 		finish(group);
-		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span ns = end(start, (double)(groups * FRAMES * size), name);
@@ -254,9 +253,7 @@ static void round_(int print) {
 
 	/* Groups start where the frames before them left off, as moq's own bench keys them. */
 	uint64_t micros = 0;
-	moq_Timestamp *demanded_at = stamp(micros++);
-	moq_group_Producer *demanded = append_group(track, demanded_at);
-	moq_Timestamp_free(demanded_at);
+	moq_group_Producer *demanded = append_group(track, stamp(micros++));
 	moq_group_Demand *demand = moq_group_Producer_demand(demanded, NULL);
 	start = begin();
 	for (int i = 0; i < N; i++) {
@@ -313,13 +310,9 @@ static void round_(int print) {
 	 * group started at its first frame's. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_Timestamp *first = stamp(micros);
-		moq_group_Producer *group = append_group(track, first);
-		moq_Timestamp_free(first);
+		moq_group_Producer *group = append_group(track, stamp(micros));
 		for (int f = 0; f < FRAMES; f++) {
-			moq_Timestamp *at = stamp(micros++);
-			write_frame(group, at, frame);
-			moq_Timestamp_free(at);
+			write_frame(group, stamp(micros++), frame);
 		}
 		finish(group);
 	}
@@ -328,13 +321,12 @@ static void round_(int print) {
 	/* Every frame at its group's start, converted once per group. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_Timestamp *at = stamp(micros++);
+		moq_Timestamp at = stamp(micros++);
 		moq_group_Producer *group = append_group(track, at);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
 		}
 		finish(group);
-		moq_Timestamp_free(at);
 	}
 	span write = end(start, N, "write");
 
@@ -351,7 +343,7 @@ static void round_(int print) {
 	moq_frame_Frame *last = NULL;
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_Timestamp *at = stamp(micros++);
+		moq_Timestamp at = stamp(micros++);
 		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
@@ -362,7 +354,6 @@ static void round_(int print) {
 			last = read_frame(reader);
 		}
 		finish(group);
-		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span ready = end(start, N, "ready");
@@ -370,7 +361,7 @@ static void round_(int print) {
 	/* Each read polled before its frame is written, so it pends, then polled again. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_Timestamp *at = stamp(micros++);
+		moq_Timestamp at = stamp(micros++);
 		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
@@ -387,7 +378,6 @@ static void round_(int print) {
 			moq_frame_Frame_free(read);
 		}
 		finish(group);
-		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span woken = end(start, N, "woken");

@@ -52,8 +52,9 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 			const _44: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-			const t2: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t2: rs.u8 | undefined = rs.onceGetOrInit(_41, (): rs.u8 | undefined => {
 				seen = _44.v !== rs.None ? 1 : 0;
 				return make(v2);
 			}, undefined, rs.None);
@@ -69,16 +70,18 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 			const _60: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-			const _57: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const _57: rs.u8 | undefined = rs.onceGetOrInit(_58, (): rs.u8 | undefined => {
 				rs.onceSet(_60, make(v2 ^ 1), rs.None);
 				return make(v2);
 			}, undefined, rs.None);
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 			const _69: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-			const t4: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t4: rs.u8 | undefined = rs.onceGetOrInit(_65, (): rs.u8 | undefined => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u8 | undefined => {
 					return make(v2 ^ 1);
 				}, undefined, rs.None));
@@ -101,8 +104,9 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			const alias: rs.OnceCell<rs.u8 | undefined, rs.None> = twin$ref_cell_OnceCell_Option_u8(cell);
 			const copy: rs.OnceCell<rs.u8 | undefined, rs.None> = rs.onceClone(cell, undefined, rs.None);
 			let inner2 = undefined as rs.OnceCell<rs.u8 | undefined, rs.None> | undefined;
+			const _92: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 			const _95: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-			const t5: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t5: rs.u8 | undefined = rs.onceGetOrInit(_92, (): rs.u8 | undefined => {
 				inner2 = rs.onceClone(_95, undefined, rs.None);
 				return make(v2);
 			}, undefined, rs.None);
@@ -123,8 +127,9 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 			const _125: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-			const t7: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t7: rs.u8 | undefined = rs.onceGetOrInit(_122, (): rs.u8 | undefined => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)]);
 				return make(v2);
 			}, undefined, rs.None);
@@ -155,15 +160,17 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 					return err4 !== undefined ? rs.Err(err4 as rs.u8) : rs.Ok(out$Option_u8.p);
 				}, undefined, rs.None);
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 				const _174: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1), rs.None);
 					const err3 = made$Option_u8(make, v2);
 					return err3 !== undefined ? rs.Err(err3 as rs.u8) : rs.Ok(out$Option_u8.p);
 				}, undefined, rs.None);
 			} else {
+				const _177: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 				const _179: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 					const err2 = made$Option_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vjzmou(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 						const err = made$Option_u8(make, v2 ^ 1);
 						return err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(out$Option_u8.p);
@@ -244,8 +251,9 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<rs.String> = cell;
 			const _44: rs.OnceCell<rs.String> = cell;
-			const t2: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t2: rs.String = rs.onceGetOrInit(_41, (): rs.String => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -261,16 +269,18 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<rs.String> = cell;
 			const _60: rs.OnceCell<rs.String> = cell;
-			const _57: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const _57: rs.String = rs.onceGetOrInit(_58, (): rs.String => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<rs.String> = cell;
 			const _69: rs.OnceCell<rs.String> = cell;
-			const t4: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t4: rs.String = rs.onceGetOrInit(_65, (): rs.String => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.String => {
 					return make(v2 ^ 1);
 				}));
@@ -295,8 +305,9 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 				return rs.stringClone(a0);
 			});
 			let inner2 = undefined as rs.OnceCell<rs.String> | undefined;
+			const _92: rs.OnceCell<rs.String> = cell;
 			const _95: rs.OnceCell<rs.String> = cell;
-			const t5: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t5: rs.String = rs.onceGetOrInit(_92, (): rs.String => {
 				inner2 = rs.onceClone(_95, (a02: rs.String): rs.String => {
 					return rs.stringClone(a02);
 				});
@@ -319,8 +330,9 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<rs.String> = cell;
 			const _125: rs.OnceCell<rs.String> = cell;
-			const t7: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t7: rs.String = rs.onceGetOrInit(_122, (): rs.String => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))]);
 				return make(v2);
 			});
@@ -350,14 +362,16 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 					return made$String(make, v2);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<rs.String> = cell;
 				const _174: rs.OnceCell<rs.String> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.String, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.String, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					return made$String(make, v2);
 				});
 			} else {
+				const _177: rs.OnceCell<rs.String> = cell;
 				const _179: rs.OnceCell<rs.String> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.String, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.String, rs.u8> => {
 					return made$String(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1kzzqt5(rs.onceGetOrTryInit(_179, (): rs.Result<rs.String, rs.u8> => {
 						return made$String(make, v2 ^ 1);
 					}), (_22: rs.String): undefined => {})), v2));
@@ -448,8 +462,9 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<rs.u64> = cell;
 			const _44: rs.OnceCell<rs.u64> = cell;
-			const t2: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t2: rs.u64 = rs.onceGetOrInit(_41, (): rs.u64 => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -465,16 +480,18 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<rs.u64> = cell;
 			const _60: rs.OnceCell<rs.u64> = cell;
-			const _57: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const _57: rs.u64 = rs.onceGetOrInit(_58, (): rs.u64 => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<rs.u64> = cell;
 			const _69: rs.OnceCell<rs.u64> = cell;
-			const t4: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t4: rs.u64 = rs.onceGetOrInit(_65, (): rs.u64 => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u64 => {
 					return make(v2 ^ 1);
 				}));
@@ -497,8 +514,9 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			const alias: rs.OnceCell<rs.u64> = twin$ref_cell_OnceCell_u64(cell);
 			const copy: rs.OnceCell<rs.u64> = rs.onceClone(cell, undefined);
 			let inner2 = undefined as rs.OnceCell<rs.u64> | undefined;
+			const _92: rs.OnceCell<rs.u64> = cell;
 			const _95: rs.OnceCell<rs.u64> = cell;
-			const t5: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t5: rs.u64 = rs.onceGetOrInit(_92, (): rs.u64 => {
 				inner2 = rs.onceClone(_95, undefined);
 				return make(v2);
 			});
@@ -519,8 +537,9 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<rs.u64> = cell;
 			const _125: rs.OnceCell<rs.u64> = cell;
-			const t7: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t7: rs.u64 = rs.onceGetOrInit(_122, (): rs.u64 => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", rs.u64Debug)]);
 				return make(v2);
 			});
@@ -551,15 +570,17 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 					return part4 === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part4);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<rs.u64> = cell;
 				const _174: rs.OnceCell<rs.u64> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u64, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					const part3 = made$u64(make, v2);
 					return part3 === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part3);
 				});
 			} else {
+				const _177: rs.OnceCell<rs.u64> = cell;
 				const _179: rs.OnceCell<rs.u64> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u64, rs.u8> => {
 					const part2 = made$u64(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0w147c6(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
 						const part = made$u64(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part);
@@ -640,8 +661,9 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<rs.u8> = cell;
 			const _44: rs.OnceCell<rs.u8> = cell;
-			const t2: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t2: rs.u8 = rs.onceGetOrInit(_41, (): rs.u8 => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -657,16 +679,18 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<rs.u8> = cell;
 			const _60: rs.OnceCell<rs.u8> = cell;
-			const _57: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const _57: rs.u8 = rs.onceGetOrInit(_58, (): rs.u8 => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<rs.u8> = cell;
 			const _69: rs.OnceCell<rs.u8> = cell;
-			const t4: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t4: rs.u8 = rs.onceGetOrInit(_65, (): rs.u8 => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u8 => {
 					return make(v2 ^ 1);
 				}));
@@ -689,8 +713,9 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const alias: rs.OnceCell<rs.u8> = twin$ref_cell_OnceCell_u8(cell);
 			const copy: rs.OnceCell<rs.u8> = rs.onceClone(cell, undefined);
 			let inner2 = undefined as rs.OnceCell<rs.u8> | undefined;
+			const _92: rs.OnceCell<rs.u8> = cell;
 			const _95: rs.OnceCell<rs.u8> = cell;
-			const t5: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t5: rs.u8 = rs.onceGetOrInit(_92, (): rs.u8 => {
 				inner2 = rs.onceClone(_95, undefined);
 				return make(v2);
 			});
@@ -711,8 +736,9 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<rs.u8> = cell;
 			const _125: rs.OnceCell<rs.u8> = cell;
-			const t7: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t7: rs.u8 = rs.onceGetOrInit(_122, (): rs.u8 => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", rs.u8Debug)]);
 				return make(v2);
 			});
@@ -743,15 +769,17 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 					return part4 === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part4);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<rs.u8> = cell;
 				const _174: rs.OnceCell<rs.u8> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u8, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					const part3 = made$u8(make, v2);
 					return part3 === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part3);
 				});
 			} else {
+				const _177: rs.OnceCell<rs.u8> = cell;
 				const _179: rs.OnceCell<rs.u8> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u8, rs.u8> => {
 					const part2 = made$u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1gelxzx(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
 						const part = made$u8(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part);
@@ -830,8 +858,9 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<undefined, rs.None> = cell;
 			const _44: rs.OnceCell<undefined, rs.None> = cell;
-			const t: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t: undefined = rs.onceGetOrInit(_41, (): undefined => {
 				seen = _44.v !== rs.None ? 1 : 0;
 				make(v2);
 			}, undefined, rs.None);
@@ -845,8 +874,9 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				put(out, undefined);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<undefined, rs.None> = cell;
 			const _60: rs.OnceCell<undefined, rs.None> = cell;
-			const _57: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const _57: undefined = rs.onceGetOrInit(_58, (): undefined => {
 				make(v2 ^ 1);
 				rs.onceSet(_60, undefined, rs.None);
 				make(v2);
@@ -854,8 +884,9 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<undefined, rs.None> = cell;
 			const _69: rs.OnceCell<undefined, rs.None> = cell;
-			const t2: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t2: undefined = rs.onceGetOrInit(_65, (): undefined => {
 				put(inner, rs.onceGetOrInit(_69, (): undefined => {
 					make(v2 ^ 1);
 				}, undefined, rs.None));
@@ -879,8 +910,9 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const alias: rs.OnceCell<undefined, rs.None> = twin$ref_cell_OnceCell_unit(cell);
 			const copy: rs.OnceCell<undefined, rs.None> = rs.onceClone(cell, undefined, rs.None);
 			let inner2 = undefined as rs.OnceCell<undefined, rs.None> | undefined;
+			const _92: rs.OnceCell<undefined, rs.None> = cell;
 			const _95: rs.OnceCell<undefined, rs.None> = cell;
-			const t3: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t3: undefined = rs.onceGetOrInit(_92, (): undefined => {
 				inner2 = rs.onceClone(_95, undefined, rs.None);
 				make(v2);
 			}, undefined, rs.None);
@@ -900,8 +932,9 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<undefined, rs.None> = cell;
 			const _125: rs.OnceCell<undefined, rs.None> = cell;
-			const t4: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t4: undefined = rs.onceGetOrInit(_122, (): undefined => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", rs.fmtUnit, rs.None)]);
 				make(v2);
 			}, undefined, rs.None);
@@ -930,15 +963,17 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 					return made$unit(make, v2);
 				}, undefined, rs.None);
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<undefined, rs.None> = cell;
 				const _174: rs.OnceCell<undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<undefined, rs.u8> => {
 					make(v2 ^ 1);
 					rs.onceSet(_174, undefined, rs.None);
 					return made$unit(make, v2);
 				}, undefined, rs.None);
 			} else {
+				const _177: rs.OnceCell<undefined, rs.None> = cell;
 				const _179: rs.OnceCell<undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<undefined, rs.u8> => {
 					return made$unit(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vfooax(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
 						return made$unit(make, v2 ^ 1);
 					}, undefined, rs.None), (_23: undefined): undefined => {})), v2));
@@ -1016,8 +1051,9 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceCell<rs.ByteVec> = cell;
 			const _44: rs.OnceCell<rs.ByteVec> = cell;
-			const t2: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t2: rs.ByteVec = rs.onceGetOrInit(_41, (): rs.ByteVec => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -1033,16 +1069,18 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceCell<rs.ByteVec> = cell;
 			const _60: rs.OnceCell<rs.ByteVec> = cell;
-			const _57: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const _57: rs.ByteVec = rs.onceGetOrInit(_58, (): rs.ByteVec => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceCell<rs.ByteVec> = cell;
 			const _69: rs.OnceCell<rs.ByteVec> = cell;
-			const t4: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t4: rs.ByteVec = rs.onceGetOrInit(_65, (): rs.ByteVec => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.ByteVec => {
 					return make(v2 ^ 1);
 				}));
@@ -1067,8 +1105,9 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				return rs.byteVecFrom(rs.byteVecView(a0));
 			});
 			let inner2 = undefined as rs.OnceCell<rs.ByteVec> | undefined;
+			const _92: rs.OnceCell<rs.ByteVec> = cell;
 			const _95: rs.OnceCell<rs.ByteVec> = cell;
-			const t5: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t5: rs.ByteVec = rs.onceGetOrInit(_92, (): rs.ByteVec => {
 				inner2 = rs.onceClone(_95, (a02: rs.ByteVec): rs.ByteVec => {
 					return rs.byteVecFrom(rs.byteVecView(a02));
 				});
@@ -1091,8 +1130,9 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceCell<rs.ByteVec> = cell;
 			const _125: rs.OnceCell<rs.ByteVec> = cell;
-			const t7: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t7: rs.ByteVec = rs.onceGetOrInit(_122, (): rs.ByteVec => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceCell", (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
 				return make(v2);
 			});
@@ -1122,14 +1162,16 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 					return made$Vec_u8(make, v2);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceCell<rs.ByteVec> = cell;
 				const _174: rs.OnceCell<rs.ByteVec> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.ByteVec, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					return made$Vec_u8(make, v2);
 				});
 			} else {
+				const _177: rs.OnceCell<rs.ByteVec> = cell;
 				const _179: rs.OnceCell<rs.ByteVec> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.ByteVec, rs.u8> => {
 					return made$Vec_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0zkrphe(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
 						return made$Vec_u8(make, v2 ^ 1);
 					}), (_22: rs.ByteVec): undefined => {})), v2));
@@ -1234,8 +1276,9 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 			const _44: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-			const t2: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t2: rs.u8 | undefined = rs.onceGetOrInit(_41, (): rs.u8 | undefined => {
 				seen = _44.v !== rs.None ? 1 : 0;
 				return make(v2);
 			}, undefined, rs.None);
@@ -1251,16 +1294,18 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 			const _60: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-			const _57: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const _57: rs.u8 | undefined = rs.onceGetOrInit(_58, (): rs.u8 | undefined => {
 				rs.onceSet(_60, make(v2 ^ 1), rs.None);
 				return make(v2);
 			}, undefined, rs.None);
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 			const _69: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-			const t4: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t4: rs.u8 | undefined = rs.onceGetOrInit(_65, (): rs.u8 | undefined => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u8 | undefined => {
 					return make(v2 ^ 1);
 				}, undefined, rs.None));
@@ -1283,8 +1328,9 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			const alias: rs.OnceLock<rs.u8 | undefined, rs.None> = twin$ref_sync_OnceLock_Option_u8(cell);
 			const copy: rs.OnceLock<rs.u8 | undefined, rs.None> = rs.onceClone(cell, undefined, rs.None);
 			let inner2 = undefined as rs.OnceLock<rs.u8 | undefined, rs.None> | undefined;
+			const _92: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 			const _95: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-			const t5: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t5: rs.u8 | undefined = rs.onceGetOrInit(_92, (): rs.u8 | undefined => {
 				inner2 = rs.onceClone(_95, undefined, rs.None);
 				return make(v2);
 			}, undefined, rs.None);
@@ -1305,8 +1351,9 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 			const _125: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-			const t7: rs.u8 | undefined = rs.onceGetOrInit(cell, (): rs.u8 | undefined => {
+			const t7: rs.u8 | undefined = rs.onceGetOrInit(_122, (): rs.u8 | undefined => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)]);
 				return make(v2);
 			}, undefined, rs.None);
@@ -1337,15 +1384,17 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 					return err4 !== undefined ? rs.Err(err4 as rs.u8) : rs.Ok(out$Option_u8.p);
 				}, undefined, rs.None);
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 				const _174: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1), rs.None);
 					const err3 = made$Option_u8(make, v2);
 					return err3 !== undefined ? rs.Err(err3 as rs.u8) : rs.Ok(out$Option_u8.p);
 				}, undefined, rs.None);
 			} else {
+				const _177: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 				const _179: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 					const err2 = made$Option_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vjzmou(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 						const err = made$Option_u8(make, v2 ^ 1);
 						return err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(out$Option_u8.p);
@@ -1426,8 +1475,9 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<rs.String> = cell;
 			const _44: rs.OnceLock<rs.String> = cell;
-			const t2: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t2: rs.String = rs.onceGetOrInit(_41, (): rs.String => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -1443,16 +1493,18 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<rs.String> = cell;
 			const _60: rs.OnceLock<rs.String> = cell;
-			const _57: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const _57: rs.String = rs.onceGetOrInit(_58, (): rs.String => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<rs.String> = cell;
 			const _69: rs.OnceLock<rs.String> = cell;
-			const t4: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t4: rs.String = rs.onceGetOrInit(_65, (): rs.String => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.String => {
 					return make(v2 ^ 1);
 				}));
@@ -1477,8 +1529,9 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 				return rs.stringClone(a0);
 			});
 			let inner2 = undefined as rs.OnceLock<rs.String> | undefined;
+			const _92: rs.OnceLock<rs.String> = cell;
 			const _95: rs.OnceLock<rs.String> = cell;
-			const t5: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t5: rs.String = rs.onceGetOrInit(_92, (): rs.String => {
 				inner2 = rs.onceClone(_95, (a02: rs.String): rs.String => {
 					return rs.stringClone(a02);
 				});
@@ -1501,8 +1554,9 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<rs.String> = cell;
 			const _125: rs.OnceLock<rs.String> = cell;
-			const t7: rs.String = rs.onceGetOrInit(cell, (): rs.String => {
+			const t7: rs.String = rs.onceGetOrInit(_122, (): rs.String => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))]);
 				return make(v2);
 			});
@@ -1532,14 +1586,16 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 					return made$String(make, v2);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<rs.String> = cell;
 				const _174: rs.OnceLock<rs.String> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.String, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.String, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					return made$String(make, v2);
 				});
 			} else {
+				const _177: rs.OnceLock<rs.String> = cell;
 				const _179: rs.OnceLock<rs.String> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.String, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.String, rs.u8> => {
 					return made$String(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1kzzqt5(rs.onceGetOrTryInit(_179, (): rs.Result<rs.String, rs.u8> => {
 						return made$String(make, v2 ^ 1);
 					}), (_22: rs.String): undefined => {})), v2));
@@ -1630,8 +1686,9 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<rs.u64> = cell;
 			const _44: rs.OnceLock<rs.u64> = cell;
-			const t2: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t2: rs.u64 = rs.onceGetOrInit(_41, (): rs.u64 => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -1647,16 +1704,18 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<rs.u64> = cell;
 			const _60: rs.OnceLock<rs.u64> = cell;
-			const _57: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const _57: rs.u64 = rs.onceGetOrInit(_58, (): rs.u64 => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<rs.u64> = cell;
 			const _69: rs.OnceLock<rs.u64> = cell;
-			const t4: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t4: rs.u64 = rs.onceGetOrInit(_65, (): rs.u64 => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u64 => {
 					return make(v2 ^ 1);
 				}));
@@ -1679,8 +1738,9 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			const alias: rs.OnceLock<rs.u64> = twin$ref_sync_OnceLock_u64(cell);
 			const copy: rs.OnceLock<rs.u64> = rs.onceClone(cell, undefined);
 			let inner2 = undefined as rs.OnceLock<rs.u64> | undefined;
+			const _92: rs.OnceLock<rs.u64> = cell;
 			const _95: rs.OnceLock<rs.u64> = cell;
-			const t5: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t5: rs.u64 = rs.onceGetOrInit(_92, (): rs.u64 => {
 				inner2 = rs.onceClone(_95, undefined);
 				return make(v2);
 			});
@@ -1701,8 +1761,9 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<rs.u64> = cell;
 			const _125: rs.OnceLock<rs.u64> = cell;
-			const t7: rs.u64 = rs.onceGetOrInit(cell, (): rs.u64 => {
+			const t7: rs.u64 = rs.onceGetOrInit(_122, (): rs.u64 => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", rs.u64Debug)]);
 				return make(v2);
 			});
@@ -1733,15 +1794,17 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 					return part4 === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part4);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<rs.u64> = cell;
 				const _174: rs.OnceLock<rs.u64> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u64, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					const part3 = made$u64(make, v2);
 					return part3 === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part3);
 				});
 			} else {
+				const _177: rs.OnceLock<rs.u64> = cell;
 				const _179: rs.OnceLock<rs.u64> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u64, rs.u8> => {
 					const part2 = made$u64(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0w147c6(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
 						const part = made$u64(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part);
@@ -1822,8 +1885,9 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<rs.u8> = cell;
 			const _44: rs.OnceLock<rs.u8> = cell;
-			const t2: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t2: rs.u8 = rs.onceGetOrInit(_41, (): rs.u8 => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -1839,16 +1903,18 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<rs.u8> = cell;
 			const _60: rs.OnceLock<rs.u8> = cell;
-			const _57: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const _57: rs.u8 = rs.onceGetOrInit(_58, (): rs.u8 => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<rs.u8> = cell;
 			const _69: rs.OnceLock<rs.u8> = cell;
-			const t4: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t4: rs.u8 = rs.onceGetOrInit(_65, (): rs.u8 => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.u8 => {
 					return make(v2 ^ 1);
 				}));
@@ -1871,8 +1937,9 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const alias: rs.OnceLock<rs.u8> = twin$ref_sync_OnceLock_u8(cell);
 			const copy: rs.OnceLock<rs.u8> = rs.onceClone(cell, undefined);
 			let inner2 = undefined as rs.OnceLock<rs.u8> | undefined;
+			const _92: rs.OnceLock<rs.u8> = cell;
 			const _95: rs.OnceLock<rs.u8> = cell;
-			const t5: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t5: rs.u8 = rs.onceGetOrInit(_92, (): rs.u8 => {
 				inner2 = rs.onceClone(_95, undefined);
 				return make(v2);
 			});
@@ -1893,8 +1960,9 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<rs.u8> = cell;
 			const _125: rs.OnceLock<rs.u8> = cell;
-			const t7: rs.u8 = rs.onceGetOrInit(cell, (): rs.u8 => {
+			const t7: rs.u8 = rs.onceGetOrInit(_122, (): rs.u8 => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", rs.u8Debug)]);
 				return make(v2);
 			});
@@ -1925,15 +1993,17 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 					return part4 === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part4);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<rs.u8> = cell;
 				const _174: rs.OnceLock<rs.u8> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.u8, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					const part3 = made$u8(make, v2);
 					return part3 === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part3);
 				});
 			} else {
+				const _177: rs.OnceLock<rs.u8> = cell;
 				const _179: rs.OnceLock<rs.u8> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.u8, rs.u8> => {
 					const part2 = made$u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1gelxzx(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
 						const part = made$u8(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part);
@@ -2012,8 +2082,9 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<undefined, rs.None> = cell;
 			const _44: rs.OnceLock<undefined, rs.None> = cell;
-			const t: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t: undefined = rs.onceGetOrInit(_41, (): undefined => {
 				seen = _44.v !== rs.None ? 1 : 0;
 				make(v2);
 			}, undefined, rs.None);
@@ -2027,8 +2098,9 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				put(out, undefined);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<undefined, rs.None> = cell;
 			const _60: rs.OnceLock<undefined, rs.None> = cell;
-			const _57: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const _57: undefined = rs.onceGetOrInit(_58, (): undefined => {
 				make(v2 ^ 1);
 				rs.onceSet(_60, undefined, rs.None);
 				make(v2);
@@ -2036,8 +2108,9 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<undefined, rs.None> = cell;
 			const _69: rs.OnceLock<undefined, rs.None> = cell;
-			const t2: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t2: undefined = rs.onceGetOrInit(_65, (): undefined => {
 				put(inner, rs.onceGetOrInit(_69, (): undefined => {
 					make(v2 ^ 1);
 				}, undefined, rs.None));
@@ -2061,8 +2134,9 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const alias: rs.OnceLock<undefined, rs.None> = twin$ref_sync_OnceLock_unit(cell);
 			const copy: rs.OnceLock<undefined, rs.None> = rs.onceClone(cell, undefined, rs.None);
 			let inner2 = undefined as rs.OnceLock<undefined, rs.None> | undefined;
+			const _92: rs.OnceLock<undefined, rs.None> = cell;
 			const _95: rs.OnceLock<undefined, rs.None> = cell;
-			const t3: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t3: undefined = rs.onceGetOrInit(_92, (): undefined => {
 				inner2 = rs.onceClone(_95, undefined, rs.None);
 				make(v2);
 			}, undefined, rs.None);
@@ -2082,8 +2156,9 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<undefined, rs.None> = cell;
 			const _125: rs.OnceLock<undefined, rs.None> = cell;
-			const t4: undefined = rs.onceGetOrInit(cell, (): undefined => {
+			const t4: undefined = rs.onceGetOrInit(_122, (): undefined => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", rs.fmtUnit, rs.None)]);
 				make(v2);
 			}, undefined, rs.None);
@@ -2112,15 +2187,17 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 					return made$unit(make, v2);
 				}, undefined, rs.None);
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<undefined, rs.None> = cell;
 				const _174: rs.OnceLock<undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<undefined, rs.u8> => {
 					make(v2 ^ 1);
 					rs.onceSet(_174, undefined, rs.None);
 					return made$unit(make, v2);
 				}, undefined, rs.None);
 			} else {
+				const _177: rs.OnceLock<undefined, rs.None> = cell;
 				const _179: rs.OnceLock<undefined, rs.None> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<undefined, rs.u8> => {
 					return made$unit(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vfooax(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
 						return made$unit(make, v2 ^ 1);
 					}, undefined, rs.None), (_23: undefined): undefined => {})), v2));
@@ -2198,8 +2275,9 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			put(out, _34);
 		} else if (_18 === 3) {
 			let seen: rs.u8 = 2;
+			const _41: rs.OnceLock<rs.ByteVec> = cell;
 			const _44: rs.OnceLock<rs.ByteVec> = cell;
-			const t2: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t2: rs.ByteVec = rs.onceGetOrInit(_41, (): rs.ByteVec => {
 				seen = _44.v !== undefined ? 1 : 0;
 				return make(v2);
 			});
@@ -2215,16 +2293,18 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t3);
 			}
 		} else if (_18 === 5) {
+			const _58: rs.OnceLock<rs.ByteVec> = cell;
 			const _60: rs.OnceLock<rs.ByteVec> = cell;
-			const _57: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const _57: rs.ByteVec = rs.onceGetOrInit(_58, (): rs.ByteVec => {
 				rs.onceSet(_60, make(v2 ^ 1));
 				return make(v2);
 			});
 			put(out, _57);
 		} else if (_18 === 6) {
 			const inner: rs.ByteVec = new rs.ByteVec();
+			const _65: rs.OnceLock<rs.ByteVec> = cell;
 			const _69: rs.OnceLock<rs.ByteVec> = cell;
-			const t4: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t4: rs.ByteVec = rs.onceGetOrInit(_65, (): rs.ByteVec => {
 				put(inner, rs.onceGetOrInit(_69, (): rs.ByteVec => {
 					return make(v2 ^ 1);
 				}));
@@ -2249,8 +2329,9 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				return rs.byteVecFrom(rs.byteVecView(a0));
 			});
 			let inner2 = undefined as rs.OnceLock<rs.ByteVec> | undefined;
+			const _92: rs.OnceLock<rs.ByteVec> = cell;
 			const _95: rs.OnceLock<rs.ByteVec> = cell;
-			const t5: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t5: rs.ByteVec = rs.onceGetOrInit(_92, (): rs.ByteVec => {
 				inner2 = rs.onceClone(_95, (a02: rs.ByteVec): rs.ByteVec => {
 					return rs.byteVecFrom(rs.byteVecView(a02));
 				});
@@ -2273,8 +2354,9 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			}
 		} else if (_18 === 10) {
 			let inner3: rs.String = rs.stringNew();
+			const _122: rs.OnceLock<rs.ByteVec> = cell;
 			const _125: rs.OnceLock<rs.ByteVec> = cell;
-			const t7: rs.ByteVec = rs.onceGetOrInit(cell, (): rs.ByteVec => {
+			const t7: rs.ByteVec = rs.onceGetOrInit(_122, (): rs.ByteVec => {
 				inner3 = rs.fmtFormat([(f: rs.Formatter) => rs.onceDebug(_125, f, "OnceLock", (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
 				return make(v2);
 			});
@@ -2304,14 +2386,16 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 					return made$Vec_u8(make, v2);
 				});
 			} else if (_166 === 2) {
+				const _172: rs.OnceLock<rs.ByteVec> = cell;
 				const _174: rs.OnceLock<rs.ByteVec> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
+				result = rs.onceGetOrTryInit(_172, (): rs.Result<rs.ByteVec, rs.u8> => {
 					rs.onceSet(_174, make(v2 ^ 1));
 					return made$Vec_u8(make, v2);
 				});
 			} else {
+				const _177: rs.OnceLock<rs.ByteVec> = cell;
 				const _179: rs.OnceLock<rs.ByteVec> = cell;
-				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
+				result = rs.onceGetOrTryInit(_177, (): rs.Result<rs.ByteVec, rs.u8> => {
 					return made$Vec_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0zkrphe(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
 						return made$Vec_u8(make, v2 ^ 1);
 					}), (_22: rs.ByteVec): undefined => {})), v2));

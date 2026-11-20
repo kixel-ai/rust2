@@ -2092,7 +2092,8 @@ def held(holder: typing.Any, make: typing.Any, digest: typing.Any, seed: int, ot
 
 /// The Swift driver, in the generated module's `main.swift`: each shape's calls in a
 /// function of its own, since type-checking them as one body of top-level code takes
-/// tens of gigabytes.
+/// tens of gigabytes, and `lend`, which lends bytes or an array to a `digest_N` borrowing
+/// a slice as the span it takes.
 fn swift(calls: &[Call], source: &str) -> String {
 	// Whether the generated `func` throws, as one taking a checked handle does.
 	let throws = |function: &str| {
@@ -2118,7 +2119,18 @@ fn swift(calls: &[Call], source: &str) -> String {
 		let other = call.other();
 		let label = call.label();
 		let make = |seed: u64| format!("{}make{n}({seed})", tr(&[format!("make{n}")]));
-		let digest = |v: &str| format!("{}digest{n}({v})", tr(&[format!("digest{n}")]));
+		// Whether `function` borrows its last argument, a slice, as a span.
+		let spans = |function: &str| {
+			let at = source.find(&format!("public func {function}(")).unwrap();
+			source[at..].lines().next().unwrap().contains("borrowing Swift.Span<")
+		};
+		let lent = spans(&format!("digest{n}"));
+		// `digest_N` of `v`, lent as a span where it borrows a slice.
+		let digested = |v: &str| match lent {
+			true => format!("lend({v}) {{ {}digest{n}($0) }}", tr(&[format!("digest{n}")])),
+			false => format!("digest{n}({v})"),
+		};
+		let digest = |v: &str| format!("{}{}", tr(&[format!("digest{n}")]), digested(v));
 		let value = match call.kind {
 			Kind::Try => {
 				// What it throws: an error holding the value, or the value, which is one.
@@ -2153,6 +2165,13 @@ fn swift(calls: &[Call], source: &str) -> String {
 					digest("v")
 				);
 			}
+			Kind::Pair if spans(&format!("pair{n}")) => format!(
+				"{}lend({}) {{ {}pair{n}({}, {seed}, $0) }}",
+				tr(&[format!("pair{n}"), format!("make{n}")]),
+				make(other),
+				tr(&[format!("pair{n}")]),
+				make(seed)
+			),
 			Kind::Pair => format!(
 				"{}pair{n}({}, {seed}, {})",
 				tr(&[format!("pair{n}")]),
@@ -2161,6 +2180,12 @@ fn swift(calls: &[Call], source: &str) -> String {
 			),
 			Kind::Maybe => match seed % 2 {
 				0 => format!("{}maybe{n}(nil)", tr(&[format!("maybe{n}")])),
+				_ if spans(&format!("maybe{n}")) => format!(
+					"{}lend({}) {{ {}maybe{n}($0) }}",
+					tr(&[format!("maybe{n}"), format!("make{n}")]),
+					make(seed),
+					tr(&[format!("maybe{n}")])
+				),
 				_ => format!("{}maybe{n}({})", tr(&[format!("maybe{n}")]), make(seed)),
 			},
 			Kind::Held => {
@@ -2204,14 +2229,16 @@ fn swift(calls: &[Call], source: &str) -> String {
 				format!("{}sink{n}({seed}, Echo{n}())", tr(&[format!("sink{n}")]))
 			}
 			Kind::Echo => format!(
-				"{}digest{n}(echo{n}(make{n}({seed})))",
-				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")])
+				"{}{}",
+				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")]),
+				digested(&format!("echo{n}(make{n}({seed}))"))
 			),
 			Kind::Lent => {
 				format!(
-					"{}lent{n}({seed}) {{ {}digest{n}($0) }}",
+					"{}lent{n}({seed}) {{ {}{} }}",
 					tr(&[format!("lent{n}")]),
-					closed(format!("digest{n}"))
+					closed(format!("digest{n}")),
+					digested("$0")
 				)
 			}
 			Kind::Peek => {
@@ -2229,11 +2256,15 @@ fn swift(calls: &[Call], source: &str) -> String {
 				)
 			}
 			// The future throws, so `try` always marks the call.
-			Kind::Later => format!("try await digest{n}(later{n}(make{n}({seed})))"),
+			Kind::Later => format!("try await {}", digested(&format!("later{n}(make{n}({seed}))"))),
 		};
 		format!("\tprint(\"{} \\({value})\")", call.label())
 	});
-	let mut out = sinks;
+	let mut out = String::from(
+		"func lend<R>(_ bytes: Bytes, _ body: (Swift.Span<UInt8>) throws -> R) rethrows -> R {\n\ttry bytes.withSpan(body)\n}\n\n\
+		func lend<T, R>(_ items: [T], _ body: (Swift.Span<T>) throws -> R) rethrows -> R {\n\tlet slice = items[...]\n\treturn try body(slice.span)\n}\n\n",
+	);
+	out.push_str(&sinks);
 	for (n, lines) in &shapes {
 		let _ = writeln!(out, "func shape{n}() async throws {{\n{lines}}}\n");
 	}

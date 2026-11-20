@@ -14,7 +14,9 @@ export interface Timestamp {
  * `Timestamp::checked_add` returns `TimeOverflow`.
  */
 export function checkedAdd(self: Timestamp, rhs: Timestamp): Timestamp | undefined {
-	if (!rs.u64Ne(self.scale, rhs.scale)) {
+	const _4: rs.u64 = self.scale;
+	const _5: rs.u64 = rhs.scale;
+	if (!(typeof _4 === "number" && typeof _5 === "number" ? _4 !== _5 : rs.u64Ne(_4, _5))) {
 		const _6: rs.u64 | undefined = rs.u64CheckedAdd(self.value, rhs.value);
 		if (_6 === undefined) {
 			return undefined;
@@ -37,7 +39,9 @@ export function partialCmp$cmp_PartialOrd(self: Timestamp, other: Timestamp): rs
  * broken by `(scale, value)`.
  */
 export function cmp$cmp_Ord(self: Timestamp, other: Timestamp): rs.Ordering {
-	if (!rs.u64Eq(self.scale, other.scale)) {
+	const _4: rs.u64 = self.scale;
+	const _5: rs.u64 = other.scale;
+	if (!(typeof _4 === "number" && typeof _5 === "number" ? _4 === _5 : rs.u64Eq(_4, _5))) {
 		return rs.orderingThen(rs.orderingThen(rs.cmp(rs.u128Mul(rs.u128Cast(self.value), rs.u128Cast(other.scale)), rs.u128Mul(rs.u128Cast(other.value), rs.u128Cast(self.scale))), (): rs.Ordering => {
 			return rs.cmp(self.scale, other.scale);
 		}, true), (): rs.Ordering => {

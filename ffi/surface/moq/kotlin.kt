@@ -143,6 +143,32 @@ class ArrayU8x6(bytes: ByteArray) {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
+class Timestamp internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun value(): kotlin.ULong
+	fun scale(): moq.Timescale?
+	fun isZero(): kotlin.Boolean
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asSecs(): kotlin.ULong
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMillis(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMicros(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asNanos(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
+	companion object {
+		@kotlin.jvm.JvmStatic val ZERO: moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		@kotlin.jvm.JvmStatic fun unscaled(key: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMillis(millis: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMicros(micros: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
+	}
+}
 @kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun elapsed(): moq.Duration
@@ -430,6 +456,28 @@ class StatsWithdrawals internal constructor() {
 		@kotlin.jvm.JvmStatic fun default(): moq.StatsWithdrawals
 	}
 }
+class TransportReceiveWindow internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val connectionGet: kotlin.ULong?
+	fun connectionSet(value: kotlin.ULong?): moq.TransportReceiveWindow
+	val streamGet: kotlin.ULong
+	fun streamSet(value: kotlin.ULong): moq.TransportReceiveWindow
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
+	}
+}
+class TransportLimits internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val receiveWindowGet: kotlin.ULong?
+	fun receiveWindowSet(value: kotlin.ULong?): moq.TransportLimits
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportLimits
+	}
+}
 @kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun asBps(): kotlin.ULong
@@ -500,6 +548,17 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
 data class HangCatalogAac(val profile: kotlin.UByte) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+}
+class HangCatalogClock internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val wallGet: moq.Timestamp
+	fun wallSet(value: moq.Timestamp): moq.HangCatalogClock
+	@kotlin.jvm.Throws(HangErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun new(wall: moq.Timestamp): moq.HangCatalogClock
+	}
 }
 @kotlin.jvm.JvmInline value class HangCatalogPriorities internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
@@ -1580,34 +1639,6 @@ class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 		@kotlin.jvm.JvmStatic fun fromTransportMemoryError(err: moq.TransportMemoryError): moq.Error
 	}
 }
-class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Timestamp
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun value(): kotlin.ULong
-	fun scale(): moq.Timescale?
-	fun isZero(): kotlin.Boolean
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun asSecs(): kotlin.ULong
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMillis(): java.math.BigInteger
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMicros(): java.math.BigInteger
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun asNanos(): java.math.BigInteger
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
-	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
-	companion object {
-		@kotlin.jvm.JvmStatic val ZERO: moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
-		@kotlin.jvm.JvmStatic fun unscaled(key: kotlin.ULong): moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMillis(millis: kotlin.ULong): moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMicros(micros: kotlin.ULong): moq.Timestamp
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
-	}
-}
 class Version internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	final override fun toString(): kotlin.String
@@ -2452,32 +2483,6 @@ class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : Au
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): moq.TransportProbe
 		@kotlin.jvm.JvmStatic fun new(): moq.TransportProbe
-	}
-}
-class TransportReceiveWindow internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TransportReceiveWindow
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val connectionGet: kotlin.ULong?
-	fun connectionSet(value: kotlin.ULong?)
-	val streamGet: kotlin.ULong
-	fun streamSet(value: kotlin.ULong)
-	companion object {
-		@kotlin.jvm.JvmStatic fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
-	}
-}
-class TransportLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TransportLimits
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val receiveWindowGet: kotlin.ULong?
-	fun receiveWindowSet(value: kotlin.ULong?)
-	companion object {
-		@kotlin.jvm.JvmStatic fun default(): moq.TransportLimits
 	}
 }
 class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3436,19 +3441,6 @@ class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = fa
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
-	}
-}
-class HangCatalogClock internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogClock
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val wallGet: moq.Timestamp
-	fun wallSet(value: moq.Timestamp)
-	@kotlin.jvm.Throws(HangErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
-	companion object {
-		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun new(wall: moq.Timestamp): moq.HangCatalogClock
 	}
 }
 class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {

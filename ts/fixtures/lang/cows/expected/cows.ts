@@ -570,8 +570,12 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _244: boolean = rs.cowBy(rs.cmpSlice(rs.cmp))(a, b) === -1;
 		const order = rs.cowBy(rs.cmpSlice(rs.cmp))(a, b);
 		const _247: boolean = order !== undefined && order >= 0;
-		const _250: boolean = rs.u64Eq(hashed$borrow_Cow_slice_u16(a), hashed$slice_u16(rs.sliceFrom(v.items)));
-		const _256: boolean = rs.u64Eq(hashed$borrow_Cow_slice_u16(b), hashed$slice_u16(half));
+		const _251: rs.u64 = hashed$borrow_Cow_slice_u16(a);
+		const _253: rs.u64 = hashed$slice_u16(rs.sliceFrom(v.items));
+		const _250: boolean = typeof _251 === "number" && typeof _253 === "number" ? _251 === _253 : rs.u64Eq(_251, _253);
+		const _257: rs.u64 = hashed$borrow_Cow_slice_u16(b);
+		const _259: rs.u64 = hashed$slice_u16(half);
+		const _256: boolean = typeof _257 === "number" && typeof _259 === "number" ? _257 === _259 : rs.u64Eq(_257, _259);
 		const _262: rs.Cow<rs.u16> = rs.ordMax(rs.cowClone(a), rs.cowClone(b), rs.cmpLt(rs.cowBy(rs.cmpSlice(rs.cmp))));
 		const iter3: rs.Iter<boolean> = rs.iterSlice([_188, _191, _194, _197, _203, _206, _210, _213, _216, _222, _226, _234, _238, _244, _247, _250, _256, rs.eqSlice(rs.same)(rs.cowSlice(_262), rs.cowSlice(b))]);
 		while (true) {
@@ -880,8 +884,12 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _66: boolean = !rs.eqBytes(rs.byteSliceToByteVec(data), c);
 	const _74: rs.ByteCow = made(half, owned);
 	const _70: boolean = rs.cmpBytes(c, _74) > 0;
-	const _75: boolean = rs.u64Eq(hashed$borrow_Cow_slice_u8(c), hashed$slice_u8(data));
-	const _79: boolean = rs.u64Eq(hashed$borrow_Cow_slice_u8(c), hashed$Vec_u8(rs.byteSliceToByteVec(data)));
+	const _76: rs.u64 = hashed$borrow_Cow_slice_u8(c);
+	const _78: rs.u64 = hashed$slice_u8(data);
+	const _75: boolean = typeof _76 === "number" && typeof _78 === "number" ? _76 === _78 : rs.u64Eq(_76, _78);
+	const _80: rs.u64 = hashed$borrow_Cow_slice_u8(c);
+	const _82: rs.u64 = hashed$Vec_u8(rs.byteSliceToByteVec(data));
+	const _79: boolean = typeof _80 === "number" && typeof _82 === "number" ? _80 === _82 : rs.u64Eq(_80, _82);
 	if (c instanceof rs.ByteSlice) {
 		_85 = true;
 	} else {

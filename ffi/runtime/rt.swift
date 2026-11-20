@@ -259,6 +259,11 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 		self.init(Data(bytes))
 	}
 
+	/// `span`'s bytes, copied, as a closure keeps bytes Rust lent it.
+	public init(_ span: borrowing Swift.Span<Swift.UInt8>) {
+		self.init(span.withUnsafeBufferPointer { Data(buffer: $0) })
+	}
+
 	/// The bytes as a `Data`: Swift's as they are, and Rust's copied.
 	public var data: Data {
 		owner == nil ? storage : Data(storage)
@@ -279,9 +284,13 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 		return Bytes(storage: slice, owner: owner.flatMap { $0.holds(slice) ? $0 : nil })
 	}
 
-	/// Run `body` with the bytes in place, which it must not keep.
-	public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
-		try storage.withUnsafeBytes(body)
+	/// Run `body` with the bytes in place, as a span the compiler keeps it from keeping.
+	public func withSpan<R: ~Copyable>(_ body: (Swift.Span<Swift.UInt8>) throws -> R) rethrows -> R {
+		var result: R? = nil
+		try storage.withUnsafeBytes { raw in
+			result = try body(Swift.Span(_unsafeBytes: raw))
+		}
+		return result.take()!
 	}
 
 	/// Whether `a` and `b` hold the same bytes, wherever each keeps them.
@@ -503,6 +512,44 @@ extension Native {
 	static func view<R: ~Copyable>(_ bytes: Bytes?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let bytes else { return try body(none) }
 		return try view(bytes, body)
+	}
+
+	/// `span` as a view C reads during `body`, without a copy.
+	@inline(__always)
+	static func view<R: ~Copyable>(_ span: borrowing Swift.Span<Swift.UInt8>, _ body: (Buf) throws -> R) rethrows -> R {
+		try span.withUnsafeBytes { raw in try body(view(raw)) }
+	}
+
+	@inline(__always)
+	static func view<R: ~Copyable>(_ span: borrowing Swift.Span<Swift.UInt8>?, _ body: (Buf) throws -> R) rethrows -> R {
+		switch span {
+		case .some(let span): return try view(span, body)
+		case .none: return try body(none)
+		}
+	}
+
+	/// `span` as the array `make` makes of its items, which C reads during `body` without a
+	/// copy: never null, so no items read as present.
+	@inline(__always)
+	static func view<T, L, R: ~Copyable>(
+		_ span: borrowing Swift.Span<T>, _ make: (UnsafePointer<T>?, Int, UnsafeMutableRawPointer?) -> L,
+		_ body: (L) throws -> R
+	) rethrows -> R {
+		try span.withUnsafeBufferPointer { items in
+			let ptr = items.baseAddress ?? UnsafePointer(bitPattern: Swift.MemoryLayout<T>.alignment)!
+			return try body(make(ptr, items.count, nil))
+		}
+	}
+
+	@inline(__always)
+	static func view<T, L, R: ~Copyable>(
+		_ span: borrowing Swift.Span<T>?, _ make: (UnsafePointer<T>?, Int, UnsafeMutableRawPointer?) -> L,
+		_ body: (L) throws -> R
+	) rethrows -> R {
+		switch span {
+		case .some(let span): return try view(span, make, body)
+		case .none: return try body(make(nil, 0, nil))
+		}
 	}
 
 	/// `text`'s UTF-8 as a view C reads during `body`, without a copy for a native string.

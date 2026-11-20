@@ -88,7 +88,7 @@ export class sumFuture {
 								const args5 = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.u64Display(value, f)];
 								const _32: rs.String = rs.fmtFormat(["g", args5[0], " got ", args5[1]]);
 								Log.note(this.#inner.log, _32);
-								this.#total = rs.u64Add(this.#total, value);
+								this.#total = (typeof this.#total === "number" && typeof value === "number" && this.#total + value <= 9007199254740991 ? this.#total + value : rs.u64Add(this.#total, value)) as rs.u64;
 								bb0 = 4;
 								continue;
 							}
@@ -246,7 +246,7 @@ export class watchFuture {
 							value = result2;
 							const _50: string = rs.fmtFormat(["watched ", (f: rs.Formatter) => rs.u64Display(value, f)]).v;
 							Guard.note(this.#guard, _50);
-							this.#total = rs.u64Add(this.#total, value);
+							this.#total = (typeof this.#total === "number" && typeof value === "number" && this.#total + value <= 9007199254740991 ? this.#total + value : rs.u64Add(this.#total, value)) as rs.u64;
 							const _62: Watch.Watch = Pending.derefMut$ops_DerefMut_model_Watch(this.#pending);
 							_62.index = rs.usizeAdd(_62.index, 1);
 							bb0 = 23;
@@ -1081,7 +1081,9 @@ export class blocksFuture$closure6 {
 
 /** `v`, or 0, plus the id of `guard`, which it drops. */
 export function consume(guard: Guard.Guard, v: rs.u64 | undefined): rs.u64 {
-	return rs.u64Add(Guard.finish(guard, "consumed") as rs.u64, option_unwrapOr$15hbiwd(v, 0));
+	const _3: rs.u64 = Guard.finish(guard, "consumed") as rs.u64;
+	const _6: rs.u64 = option_unwrapOr$15hbiwd(v, 0);
+	return (typeof _3 === "number" && typeof _6 === "number" && _3 + _6 <= 9007199254740991 ? _3 + _6 : rs.u64Add(_3, _6)) as rs.u64;
 }
 
 export class slotFuture {
@@ -1420,7 +1422,8 @@ export class drainFuture {
 						this.#state = 1;
 						return _40;
 					}
-					this.#total = rs.u64Add(this.#total, next);
+					const value: rs.u64 = next;
+					this.#total = (typeof this.#total === "number" && typeof value === "number" && this.#total + value <= 9007199254740991 ? this.#total + value : rs.u64Add(this.#total, value)) as rs.u64;
 					bb0 = 1;
 					continue;
 			}

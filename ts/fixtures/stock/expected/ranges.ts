@@ -356,7 +356,7 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const a: rs.u64 = _20[0];
 		const b: rs.u64 = _20[1];
 		const range: rs.Range<rs.u64> = new rs.Range(a, b, rs.u64Step);
-		const valid: boolean = rs.u64Lt(a, b);
+		const valid: boolean = typeof a === "number" && typeof b === "number" ? a < b : rs.u64Lt(a, b);
 		b2: {
 			const _32: rs.u8 = rs.u8Rem(op, 8);
 			if (_32 === 0) {
@@ -364,9 +364,9 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const _36: rs.Range<rs.u64> = range.clone();
 					RangeSet.insert$u64(set, _36);
 					RangeMap.insert$u64_u64(map, range, op as rs.u64);
-					const _43: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, rs.u64Sub(b, 1), rs.u64Step);
+					const _43: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, (typeof b === "number" && b - 1 >= 0 ? b - 1 : rs.u64Sub(b, 1)) as rs.u64, rs.u64Step);
 					RangeInclusiveSet.insert$u64_u64(inclusive, _43);
-					const _48: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, rs.u64Sub(b, 1), rs.u64Step);
+					const _48: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, (typeof b === "number" && b - 1 >= 0 ? b - 1 : rs.u64Sub(b, 1)) as rs.u64, rs.u64Step);
 					RangeInclusiveMap.insert$u64_u32_u64(values, _48, op as rs.u32);
 					break b2;
 				}
@@ -375,9 +375,9 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const _54: rs.Range<rs.u64> = range.clone();
 					RangeSet.remove$u64(set, _54);
 					RangeMap.remove$u64_u64(map, range);
-					const _60: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, rs.u64Sub(b, 1), rs.u64Step);
+					const _60: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, (typeof b === "number" && b - 1 >= 0 ? b - 1 : rs.u64Sub(b, 1)) as rs.u64, rs.u64Step);
 					RangeInclusiveSet.remove$u64_u64(inclusive, _60);
-					const _65: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, rs.u64Sub(b, 1), rs.u64Step);
+					const _65: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, (typeof b === "number" && b - 1 >= 0 ? b - 1 : rs.u64Sub(b, 1)) as rs.u64, rs.u64Step);
 					RangeInclusiveMap.remove$u64_u32_u64(values, _65);
 					break b2;
 				}
@@ -466,7 +466,7 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				if (_32 === 7) {
 					if (valid) {
-						const more: RangeSet.RangeSet<rs.u64> = RangeSet.fromIter$iter_FromIterator_ops_Range_u64_u64_array2_ops_Range_u64([range.clone(), new rs.Range(b, rs.u64Add(b, 3), rs.u64Step)]);
+						const more: RangeSet.RangeSet<rs.u64> = RangeSet.fromIter$iter_FromIterator_ops_Range_u64_u64_array2_ops_Range_u64([range.clone(), new rs.Range(b, (typeof b === "number" && b + 3 <= 9007199254740991 ? b + 3 : rs.u64Add(b, 3)) as rs.u64, rs.u64Step)]);
 						const _211: rs.Iter<rs.Range<rs.u64>> = rs.iterFilter(rs.iterMap(rs.iterFrom(RangeSet.iter$u64(set), set_Iter.next$iter_Iterator_u64, undefined, { hint: set_Iter.sizeHint$iter_Iterator_u64, back: (it: set_Iter.Iter<rs.u64>) => rs.iterFromOption(set_Iter.nextBack$iter_DoubleEndedIterator_u64(it)) }), (a0: rs.Range<rs.u64>): rs.Range<rs.u64> => {
 							return a0.clone();
 						}), (r2: rs.Range<rs.u64>): boolean => {

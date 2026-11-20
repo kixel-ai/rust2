@@ -56,14 +56,14 @@ const FOREIGN: [(&str, &str, &str); 3] = [
 
 /// The construct of another crate's type named both by value and in an `Arc`, whose handle
 /// holds the `Arc`.
-const BOTH: &str = "another crate's type both by value and in an Arc";
+pub(crate) const BOTH: &str = "another crate's type both by value and in an Arc";
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub(crate) const NOT_INFERRED: &str = "instance not inferred";
 
 /// What C can never hold: left out and listed in the census rather than refused, since
 /// exporting it would need constructors or returns the crate has no use for.
-const UNHELD: [&str; 5] = [
+pub(crate) const UNHELD: [&str; 5] = [
 	"object no export returns",
 	"value no export returns",
 	"generic type no export instantiates",
@@ -1598,6 +1598,119 @@ impl<'tcx> Collector<'tcx> {
 		None
 	}
 
+	/// `def_id`'s doc comment, in [`crate::doc`]'s canonical form.
+	fn docs(&self, def_id: DefId) -> String {
+		let tcx = self.tcx;
+		let module = doc_module(tcx, def_id);
+		// Looked up only once a link is found: rustc keeps a module's resolutions only where
+		// one of its items' docs links.
+		let mut resolutions = None;
+		crate::doc::canonical(&raw_docs(tcx, def_id), |path, ns| {
+			let map = *resolutions.get_or_insert_with(|| match module.as_local() {
+				Some(local) => tcx
+					.resolutions(())
+					.doc_link_resolutions
+					.get(&rustc_hir::def_id::LocalModId::new_unchecked(local)),
+				None => Some(tcx.doc_link_resolutions(rustc_hir::def_id::ModId::new_unchecked(module))),
+			});
+			self.link(def_id, map?, path, ns)
+		})
+	}
+
+	/// The path in the IR of what a link of `def_id`'s doc comment names, by its path as
+	/// rustc's resolver caches it, in `map`, the resolutions of its module: an item, or a
+	/// member of a type, as `Self::abort` or `Error::Timeout` names one.
+	fn link(
+		&self,
+		def_id: DefId,
+		map: &rustc_middle::middle::resolve::DocLinkResMap,
+		path: &str,
+		ns: Option<crate::doc::Ns>,
+	) -> Option<String> {
+		use rustc_hir::def::Namespace;
+		let tcx = self.tcx;
+		let namespaces: Vec<Namespace> = match ns {
+			Some(crate::doc::Ns::Type) => vec![Namespace::TypeNS],
+			Some(crate::doc::Ns::Value | crate::doc::Ns::Field) => vec![Namespace::ValueNS, Namespace::TypeNS],
+			Some(crate::doc::Ns::Macro) => return None,
+			None => vec![Namespace::TypeNS, Namespace::ValueNS],
+		};
+		let resolved = |path: &str, ns: Namespace| match map.get(&(rustc_span::Symbol::intern(path), ns)) {
+			Some(Some(Res::Def(_, did))) => Some(*did),
+			_ => None,
+		};
+		let (base, rest) = match path.split_once("::") {
+			_ if path == "Self" => (doc_self(tcx, def_id)?, ""),
+			Some(("Self", rest)) => (doc_self(tcx, def_id)?, rest),
+			_ => match namespaces.iter().find_map(|&ns| resolved(path, ns)) {
+				Some(did) => (did, ""),
+				// A member of a type, which rustc resolves the type of alone.
+				None => {
+					let (ty, member) = path.rsplit_once("::")?;
+					(resolved(ty, Namespace::TypeNS)?, member)
+				}
+			},
+		};
+		let mut out = self.item_path(base)?;
+		// A member is a field where `field@` says so, or where the type has no associated
+		// item of its name, which rustdoc looks for first.
+		let field = |member: &str| {
+			let adt = matches!(tcx.def_kind(base), DefKind::Struct | DefKind::Union);
+			let has = |name: &str| adt && tcx.adt_def(base).all_fields().any(|f| f.name.as_str() == name);
+			let associated = (tcx.inherent_impls(base).iter()).any(|&i| {
+				tcx.associated_item_def_ids(i)
+					.iter()
+					.any(|&a| tcx.item_name(a).as_str() == member)
+			});
+			has(member) && (ns == Some(crate::doc::Ns::Field) || !associated)
+		};
+		match rest {
+			"" => {}
+			member if !member.contains("::") && field(member) => out.push(format!("field@{member}")),
+			rest => out.extend(rest.split("::").map(String::from)),
+		}
+		Some(out.join("::"))
+	}
+
+	/// The path in the IR of `def_id`, an item the walk met or a member of one.
+	fn item_path(&self, def_id: DefId) -> Option<Vec<String>> {
+		let tcx = self.tcx;
+		if let Some((_, path)) = self.items.iter().find(|(item, _)| *item == def_id) {
+			return Some(path.clone());
+		}
+		let owner = match tcx.def_kind(def_id) {
+			DefKind::Ctor(..) => return self.item_path(tcx.parent(def_id)),
+			DefKind::Variant | DefKind::Field | DefKind::AssocFn | DefKind::AssocConst => doc_self(tcx, def_id)?,
+			_ => return None,
+		};
+		let mut path = self.item_path(owner)?;
+		let name = tcx.item_name(def_id);
+		// A field apart from a method of its name, as `doc::field` keys it.
+		path.push(match tcx.def_kind(def_id) {
+			DefKind::Field => format!("field@{name}"),
+			_ => name.to_string(),
+		});
+		Some(path)
+	}
+
+	/// `def_id`'s `#[deprecated]` note, if it is deprecated: its own, or an enclosing
+	/// module's, but not its type's, whose own deprecation covers its members.
+	fn deprecated(&self, def_id: DefId) -> Option<String> {
+		let tcx = self.tcx;
+		let deprecation = tcx.lookup_deprecation(def_id).filter(|d| d.is_in_effect())?;
+		let owner = doc_self(tcx, def_id).filter(|&owner| owner != def_id);
+		if owner.and_then(|owner| tcx.lookup_deprecation(owner)).is_some_and(|of| {
+			format!("{:?}", (of.since, of.note)) == format!("{:?}", (deprecation.since, deprecation.note))
+		}) {
+			return None;
+		}
+		Some(
+			deprecation
+				.note
+				.map_or_else(String::new, |note| crate::doc::plain(note.as_str())),
+		)
+	}
+
 	/// Decide how each type and trait is exported, before any signature names one.
 	fn declare(&mut self) {
 		let tcx = self.tcx;
@@ -1644,7 +1757,8 @@ impl<'tcx> Collector<'tcx> {
 		// Number each kind in item order, with placeholders filled in by `define`.
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
-			let docs = docs(tcx, def_id);
+			let docs = self.docs(def_id);
+			let deprecated = self.deprecated(def_id);
 			let home = self.home(def_id);
 			for site in self.sites(def_id, &path) {
 				let Some(decl) = self.decls.get_mut(&site.key) else {
@@ -1663,6 +1777,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							fields: Vec::new(),
 							tuple: false,
 							methods: Vec::new(),
@@ -1681,6 +1796,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							variants: Vec::new(),
 							exhaustive: true,
 							methods: Vec::new(),
@@ -1701,6 +1817,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							fields: Vec::new(),
 							tuple: false,
 							methods: Vec::new(),
@@ -1725,6 +1842,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							sync,
 							send,
 							copy,
@@ -1745,6 +1863,7 @@ impl<'tcx> Collector<'tcx> {
 							span,
 							on: On::ALL,
 							docs,
+							deprecated: deprecated.clone(),
 							methods: Vec::new(),
 						});
 					}
@@ -1771,6 +1890,7 @@ impl<'tcx> Collector<'tcx> {
 						span: object.span,
 						on: object.on,
 						docs: object.docs,
+						deprecated: object.deprecated,
 						fields: Vec::new(),
 						tuple: false,
 						methods: object.methods,
@@ -1801,6 +1921,7 @@ impl<'tcx> Collector<'tcx> {
 				span: tcx.def_span(def_id),
 				on: On::ALL,
 				docs: "`tracing::Level`: how verbose a span or event is, from the most to the least.".to_string(),
+				deprecated: None,
 				variants: (variants.iter().zip(0..))
 					.map(|(name, discriminant)| Variant {
 						name: name.to_string(),
@@ -1870,6 +1991,7 @@ impl<'tcx> Collector<'tcx> {
 				span,
 				on: On::ALL,
 				docs,
+				deprecated: self.deprecated(def_id),
 				sync: true,
 				send: true,
 				copy: false,
@@ -1911,6 +2033,7 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			on: On::ALL,
 			docs: docs.to_string(),
+			deprecated: None,
 			receiver: None,
 			params: vec![Param {
 				name: "input".to_string(),
@@ -1971,6 +2094,7 @@ impl<'tcx> Collector<'tcx> {
 						span,
 						on: On::ALL,
 						docs: "The document as JSON text.".to_string(),
+						deprecated: None,
 						receiver: Some(Receiver::Ref),
 						params: Vec::new(),
 						units: Vec::new(),
@@ -2011,6 +2135,7 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			on: On::ALL,
 			docs: docs.to_string(),
+			deprecated: None,
 			sync: true,
 			send: true,
 			copy: implements(tcx, self_ty, def_id, sym::Copy),
@@ -2297,7 +2422,8 @@ impl<'tcx> Collector<'tcx> {
 				match self.ty(ty, Pos::Field) {
 					Ok(ty) => fields.push(Field {
 						name: field.name.to_string(),
-						docs: docs(tcx, field.did),
+						docs: self.docs(field.did),
+						deprecated: self.deprecated(field.did),
 						ty,
 					}),
 					Err(why) => errs.push(why),
@@ -2568,7 +2694,16 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let mut all = Vec::new();
 		for (key, ty, derefs, mutable) in chain {
-			let members = match key.and_then(|key| self.decls.get(&key).cloned()) {
+			let decl = key.and_then(|key| self.decls.get(&key).cloned());
+			// A member of a deprecated type leaves its type's deprecation to the type, which
+			// the object reaching it does not carry: the member takes it on.
+			let inherited = match decl {
+				Some(Decl::Object(u)) => self.api.objects[u].deprecated.clone(),
+				Some(Decl::Value(u) | Decl::Record(u)) => self.api.records[u].deprecated.clone(),
+				Some(Decl::Enum(u)) => self.api.enums[u].deprecated.clone(),
+				_ => None,
+			};
+			let members = match decl {
 				Some(Decl::Object(u)) => self.api.objects[u].methods.clone(),
 				Some(Decl::Value(u)) => self.api.records[u].methods.clone(),
 				// A record's fields cross with it, so reaching them through the object takes
@@ -2602,6 +2737,7 @@ impl<'tcx> Collector<'tcx> {
 					m.path = [&path[..], &[name(&m.path)]].concat();
 					m.shown = [&shown[..], &[name(&m.shown)]].concat();
 					m.derefs = derefs;
+					m.deprecated = m.deprecated.or_else(|| inherited.clone());
 					m
 				})
 				.collect();
@@ -2843,7 +2979,8 @@ impl<'tcx> Collector<'tcx> {
 						shown: shown.clone(),
 						span,
 						on: On::ALL,
-						docs: docs(tcx, field.did),
+						docs: self.docs(field.did),
+						deprecated: self.deprecated(field.did),
 						receiver: Some(receiver),
 						params,
 						units: Vec::new(),
@@ -3859,15 +3996,15 @@ impl<'tcx> Collector<'tcx> {
 			None => None,
 		};
 		// What interning costs, which the caller cannot see from the parameter's type.
-		let mut docs = docs(tcx, def_id);
+		let mut docs = self.docs(def_id);
 		for param in params.iter().filter(|p| p.interned) {
-			if !docs.is_empty() {
-				docs.push_str("\n\n");
-			}
-			docs.push_str(&format!(
-				"`{}` must live as long as the program, so each distinct value passed is copied once and never freed: memory grows with each distinct value.",
-				param.name
-			));
+			docs = crate::doc::note(
+				&docs,
+				&format!(
+					"`{}` must live as long as the program, so each distinct value passed is copied once and never freed: memory grows with each distinct value.",
+					param.name
+				),
+			);
 		}
 		match (errs.is_empty(), ok) {
 			(true, Some(ok)) => Ok(Function {
@@ -3876,6 +4013,7 @@ impl<'tcx> Collector<'tcx> {
 				span: tcx.def_span(def_id),
 				on: On::ALL,
 				docs,
+				deprecated: self.deprecated(def_id),
 				receiver,
 				params,
 				units,
@@ -5729,7 +5867,8 @@ impl<'tcx> Collector<'tcx> {
 							home,
 							span,
 							on: On::ALL,
-							docs: docs(tcx, def_id),
+							docs: self.docs(def_id),
+							deprecated: self.deprecated(def_id),
 							value,
 						});
 						return None;
@@ -5749,7 +5888,8 @@ impl<'tcx> Collector<'tcx> {
 				shown: path,
 				span,
 				on: On::ALL,
-				docs: docs(tcx, def_id),
+				docs: self.docs(def_id),
+				deprecated: self.deprecated(def_id),
 				receiver: None,
 				params: Vec::new(),
 				units: Vec::new(),
@@ -6571,7 +6711,7 @@ fn signed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, bits: u128) -> i128 {
 }
 
 /// An item's doc comment, each line as written after `///`.
-fn docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+fn raw_docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	#[expect(deprecated, reason = "doc comments are no parsed attribute to find")]
 	let attrs = tcx.get_all_attrs(def_id);
 	let lines: Vec<String> = attrs
@@ -6585,6 +6725,32 @@ fn docs(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 		})
 		.collect();
 	lines.join("\n").trim().to_string()
+}
+
+/// The module whose scope an item's doc comment resolves its links in.
+fn doc_module(tcx: TyCtxt<'_>, mut def_id: DefId) -> DefId {
+	while tcx.def_kind(def_id) != DefKind::Mod {
+		def_id = tcx.parent(def_id);
+	}
+	def_id
+}
+
+/// What `Self` names in an item's doc comment: the type it is or belongs to.
+fn doc_self(tcx: TyCtxt<'_>, def_id: DefId) -> Option<DefId> {
+	match tcx.def_kind(def_id) {
+		DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait | DefKind::TyAlias => Some(def_id),
+		DefKind::Field | DefKind::Variant | DefKind::AssocFn | DefKind::AssocConst | DefKind::AssocTy => {
+			let parent = tcx.parent(def_id);
+			match tcx.def_kind(parent) {
+				DefKind::Impl { .. } => match tcx.type_of(parent).instantiate_identity().skip_norm_wip().kind() {
+					ty::Adt(adt, _) => Some(adt.did()),
+					_ => None,
+				},
+				_ => doc_self(tcx, parent),
+			}
+		}
+		_ => None,
+	}
 }
 
 /// Whether `tr` is `Send`, `Sync`, or `Sized`, which a foreign implementation or a lent
@@ -6754,7 +6920,10 @@ fn links(tcx: TyCtxt<'_>) -> Vec<String> {
 /// `rustc` picks at its size on this target: the bytes its fields always initialize fill
 /// it, so no field order leaves padding. The glue asserts the size, which is what lets
 /// another `rustc` build it; a type with padding, or bytes that depend on its value, such
-/// as a union's or `Option<u32>`'s, is a handle instead.
+/// as a union's or `Option<u32>`'s, is a handle instead. A variant without data that an
+/// enum encodes in another's niche writes the niche's whole scalar, so `None` of
+/// `Option<NonZero<u64>>` initializes its 8 bytes, but `None` of `Option<&[u8]>` only the
+/// pointer's word.
 ///
 /// The fields must also fill a model layout at each pointer width, 4 and 8 bytes, with each
 /// primitive aligned to its size. So every target decides alike, and adding one never
@@ -6775,9 +6944,40 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		/// The fewest it initializes in the model at each of `WIDTHS`, and its alignment there.
 		model: [u64; 2],
 		align: [u64; 2],
-		/// Whether it may have a niche: invalid values an enum around it could encode
-		/// another variant in.
-		niche: bool,
+		/// Whether it may have a niche, invalid values an enum around it could encode
+		/// another variant in, and the fewest bytes the scalar holding one spans.
+		niche: Option<Niche>,
+	}
+	/// The bytes of a niche's scalar, which a variant encoded in it writes whole: on this
+	/// target, and in the model at each of `WIDTHS`.
+	#[derive(Clone, Copy)]
+	struct Niche {
+		bytes: u64,
+		model: [u64; 2],
+	}
+	impl Niche {
+		/// The smaller of two niches, at each width alike.
+		fn min(self, other: Self) -> Self {
+			Self {
+				bytes: self.bytes.min(other.bytes),
+				model: [self.model[0].min(other.model[0]), self.model[1].min(other.model[1])],
+			}
+		}
+		/// A niche of `bytes` in a scalar of `least`, as rustc's layout gives it: a thin
+		/// pointer's whole word, or a wide one's first.
+		fn of(least: Least, bytes: u64) -> Option<Self> {
+			(least.bytes > 0).then(|| Self {
+				bytes,
+				model: least.model.map(|model| model * bytes / least.bytes),
+			})
+		}
+	}
+	/// The smallest of two niches, either of which may be absent.
+	fn smaller(a: Option<Niche>, b: Option<Niche>) -> Option<Niche> {
+		match (a, b) {
+			(Some(a), Some(b)) => Some(a.min(b)),
+			(a, b) => a.or(b),
+		}
 	}
 	// The fields of an aggregate, which never overlap: none when they leave the model a
 	// gap, after them, as `(u64, u32)` does on a 64-bit target, or between them where its
@@ -6800,12 +7000,12 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			bytes: 0,
 			model: [0; 2],
 			align: [repr.and_then(|r| r.align).map_or(1, |a| a.bytes()); 2],
-			niche: false,
+			niche: None,
 		};
 		for &ty in tys {
 			let field = least(tcx, env, ty)?;
 			sum.bytes = sum.bytes.checked_add(field.bytes)?;
-			sum.niche |= field.niche;
+			sum.niche = smaller(sum.niche, field.niche);
 			for w in 0..WIDTHS.len() {
 				let align = pack.map_or(field.align[w], |pack| field.align[w].min(pack));
 				if ordered && !sum.model[w].is_multiple_of(align) {
@@ -6826,24 +7026,34 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<Least> {
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
 		let size = layout.size.bytes();
-		let primitive = |niche| {
+		let primitive = |niche: bool| {
 			Some(Least {
 				bytes: size,
 				model: [size; 2],
 				align: [size.max(1); 2],
-				niche,
+				niche: niche.then_some(Niche {
+					bytes: size,
+					model: [size; 2],
+				}),
 			})
 		};
-		// A pointer is a width's bytes in the model, and a wide one two of them.
-		let pointer = |niche| {
-			let words = size / tcx.data_layout.pointer_size().bytes();
+		// A pointer is a width's bytes in the model, and a wide one two of them, whose
+		// niche is its first.
+		let pointer = |niche: bool| {
+			let word = tcx.data_layout.pointer_size().bytes();
 			Some(Least {
 				bytes: size,
-				model: WIDTHS.map(|width| width * words),
+				model: WIDTHS.map(|width| width * (size / word)),
 				align: WIDTHS,
-				niche,
+				niche: niche.then_some(Niche {
+					bytes: word,
+					model: WIDTHS,
+				}),
 			})
 		};
+		// The niche rustc's layout gives a type whose own valid range makes one, as a
+		// pattern type's or `NonNull`'s does, within the scalar or pair `least` counts.
+		let ranged = |least: Least| Niche::of(least, layout.largest_niche?.value.size(&tcx).bytes());
 		let normalized = |fields: &mut dyn Iterator<Item = &ty::FieldDef>, args| {
 			(fields.map(|field| {
 				let field = field.ty(tcx, args).skip_norm_wip();
@@ -6857,17 +7067,20 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			ty::Ref(..) | ty::FnPtr(..) => pointer(true),
 			ty::Int(_) | ty::Uint(_) | ty::Float(_) => primitive(false),
 			ty::Bool | ty::Char => primitive(true),
-			ty::Pat(base, _) => Some(Least {
-				niche: true,
-				..least(tcx, env, *base)?
-			}),
+			ty::Pat(base, _) => {
+				let base = least(tcx, env, *base)?;
+				Some(Least {
+					niche: smaller(base.niche, ranged(base)),
+					..base
+				})
+			}
 			ty::Array(element, len) => {
 				let n = len.try_to_target_usize(tcx)?;
 				let each = least(tcx, env, *element)?;
 				Some(Least {
 					bytes: each.bytes.checked_mul(n)?,
 					model: [each.model[0].checked_mul(n)?, each.model[1].checked_mul(n)?],
-					niche: each.niche && n > 0,
+					niche: each.niche.filter(|_| n > 0),
 					..each
 				})
 			}
@@ -6876,7 +7089,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let sum = fields(tcx, env, &normalized(&mut adt.all_fields(), *args)?, Some(&adt.repr()))?;
 				// A field's own valid range, as `NonNull`'s, is a niche no field shows.
 				Some(Least {
-					niche: sum.niche || layout.largest_niche.is_some(),
+					niche: sum.niche.or_else(|| ranged(sum)),
 					..sum
 				})
 			}
@@ -6895,7 +7108,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 						bytes: size,
 						model,
 						align: model,
-						niche: true,
+						niche: Some(Niche { bytes: size, model }),
 					});
 				}
 				let mut each = Vec::new();
@@ -6904,9 +7117,19 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				}
 				// With no niche to encode the others in, two or more variants take a tag
 				// of at least a byte beside each one's fields; with one, a variant's own
-				// fields may hold the tag, so they count alone.
-				let niche = each.iter().any(|v| v.niche);
-				let tag = u64::from(each.len() > 1 && !niche);
+				// fields may hold the tag, so they count alone, and a variant without data
+				// counts the smallest niche's scalar, which an encoding in it writes whole.
+				// Should a `rustc` give the enum a tag instead, it is a byte past a variant
+				// whose fields fill it, so neither it nor what holds it is ever full, and
+				// the count never reaches a value.
+				let niche = each.iter().filter_map(|v| v.niche).reduce(Niche::min);
+				let tag = u64::from(each.len() > 1 && niche.is_none());
+				if let Some(niche) = niche.filter(|_| each.len() > 1) {
+					for v in each.iter_mut().filter(|v| v.bytes == 0 && v.model == [0; 2]) {
+						v.bytes = niche.bytes;
+						v.model = niche.model;
+					}
+				}
 				let mut model = [0; 2];
 				let mut align = [1; 2];
 				for w in 0..WIDTHS.len() {
@@ -6914,11 +7137,17 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 					align[w] = each.iter().map(|v| v.align[w]).max().unwrap_or(1);
 				}
 				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
+				// A full enum is encoded in a variant's niche, whose scalar holds what values
+				// remain; any other's niche, a tag's or one only partly written, may be a byte.
+				let least = Niche {
+					bytes: 1,
+					model: [1; 2],
+				};
 				filled(Least {
 					bytes,
 					model,
 					align,
-					niche: true,
+					niche: Some(niche.filter(|_| bytes == size).unwrap_or(least)),
 				})
 			}
 			_ => None,

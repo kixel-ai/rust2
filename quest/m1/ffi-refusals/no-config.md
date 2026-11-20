@@ -8,8 +8,8 @@ no config: an item it cannot export fails the export with a span.
 Deleted: `ffi/moq/ffi.toml`, the `--config` flag, `RUST2_FFI_CONFIG`, and `config.rs`'s
 `Config` and `exclude`, with the fixtures' `ffi/fixtures/api/ffi.toml` and
 `ffi/fixtures/reject/ffi.toml` and the exclude tests in `ffi/tests/fixtures.rs`;
-`ffi/README.md` and the recipes stop naming them. `config.rs`'s `Package` and environment
-constants stay. Also deleted: the `--config` parsing rust2-ffi takes from
+`ffi/README.md`, [`ffi/FACADE.md`](/ffi/FACADE.md) (its loop and census steps), and the
+recipes stop naming them. `config.rs`'s `Package` and environment constants stay. Also deleted: the `--config` parsing rust2-ffi takes from
 `driver/src/cargo.rs`, which already has `parse_configless`; `go/bench/ffi.toml` and the
 `--config` in `go/justfile`'s bench recipe, whose `package` and `prefix` keys `config.rs`
 already rejects; and "exclude it in the config" in `ffi/src/driver.rs`'s refusal notes and

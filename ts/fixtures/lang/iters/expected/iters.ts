@@ -1450,8 +1450,10 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst.data[pos + 6] = (word2 >>> 8) & 255;
 	dst.data[pos + 7] = word2 & 255;
 	dst.length = dst.length + 8;
-	const edge: rs.u64 = rs.u64Add(rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2), rs.u64Rem(a as rs.u64, 4));
-	const past: rs.Range<rs.u64> = new rs.Range(edge, rs.u64Add(edge, 4), rs.u64Step);
+	const _204: rs.u64 = rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2) as rs.u64;
+	const _209: rs.u64 = rs.u64Rem(a as rs.u64, 4);
+	const edge: rs.u64 = (typeof _204 === "number" && typeof _209 === "number" && _204 + _209 <= 9007199254740991 ? _204 + _209 : rs.u64Add(_204, _209)) as rs.u64;
+	const past: rs.Range<rs.u64> = new rs.Range(edge, (typeof edge === "number" && edge + 4 <= 9007199254740991 ? edge + 4 : rs.u64Add(edge, 4)) as rs.u64, rs.u64Step);
 	const dst2 = out;
 	const word4 = option_unwrapOr$15hbiwd(rs.iterNth(past, rs.usizeRem(b as rs.usize, 3)), 0);
 	const word5 = rs.intWord(word4, 0);
@@ -1483,7 +1485,7 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.data[pos3 + 7] = word8 & 255;
 	dst3.length = dst3.length + 8;
 	const dst4 = out;
-	const word10 = option_unwrapOr$15hbiwd(rs.iterNth(new rs.RangeInclusive(edge, rs.u64Add(edge, 3), rs.u64Step), rs.usizeRem(b as rs.usize, 5)), 0);
+	const word10 = option_unwrapOr$15hbiwd(rs.iterNth(new rs.RangeInclusive(edge, (typeof edge === "number" && edge + 3 <= 9007199254740991 ? edge + 3 : rs.u64Add(edge, 3)) as rs.u64, rs.u64Step), rs.usizeRem(b as rs.usize, 5)), 0);
 	const word11 = rs.intWord(word10, 0);
 	const word12 = rs.intWord(word10, 32);
 	rs.byteVecReserve(dst4, 8 as rs.usize);
@@ -1515,7 +1517,7 @@ export function ranges(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst5.data[pos5 + 7] = word14 & 255;
 	dst5.length = dst5.length + 8;
 	const dst6 = out;
-	const word16 = option_unwrapOr$15hbiwd(rs.iterMaxByKey(rs.iterRev(new rs.RangeInclusive(edge, rs.u64Add(edge, 2), rs.u64Step)), (_24: rs.u64): rs.u64 => {
+	const word16 = option_unwrapOr$15hbiwd(rs.iterMaxByKey(rs.iterRev(new rs.RangeInclusive(edge, (typeof edge === "number" && edge + 2 <= 9007199254740991 ? edge + 2 : rs.u64Add(edge, 2)) as rs.u64, rs.u64Step)), (_24: rs.u64): rs.u64 => {
 		return _24;
 	}, rs.lt), 0);
 	const word17 = rs.intWord(word16, 0);
@@ -6395,7 +6397,9 @@ export function rangeFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			rs.iterExtendBytes(out4, rs.iterSlice(rs.isizeToBeBytes(x3).reverse()), undefined, true);
 		});
 	} else if (_12 === 12) {
-		fromTop$u64_iters_range_froms_closure12(rs.u64Add(rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2), near as rs.u64), data, how, out, (x: rs.u64, out2: rs.ByteVec): undefined => {
+		const _50: rs.u64 = rs.u64Sub({ hi: 0x200000, lo: 0 } as rs.u64, 2) as rs.u64;
+		const _55: rs.u64 = near as rs.u64;
+		fromTop$u64_iters_range_froms_closure12((typeof _50 === "number" && typeof _55 === "number" && _50 + _55 <= 9007199254740991 ? _50 + _55 : rs.u64Add(_50, _55)) as rs.u64, data, how, out, (x: rs.u64, out2: rs.ByteVec): undefined => {
 			rs.iterExtendBytes(out2, rs.iterSlice(rs.u64ToBeBytes(x).reverse()), undefined, true);
 		});
 		fromTop$u128_iters_range_froms_closure13(rs.u128Add(rs.u128Sub(rs.u128Shl(1, 64), 2), near as rs.u128), data, how ^ 2, out, (x2: rs.u128, out3: rs.ByteVec): undefined => {
@@ -7309,7 +7313,7 @@ export function rangeMethods(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 	const at: rs.usize[] = rs.arrayMap([0, 1], (i: rs.usize): rs.usize => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0) as rs.usize;
 	});
-	const past53: rs.u64 = rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, 1);
+	const past53: rs.u64 = rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, 1) as rs.u64;
 	const past64: rs.u128 = rs.u128Add(rs.u128Shl(1, 64), 1);
 	const _17: rs.u8 = rs.u8Rem(kind, 19);
 	if (_17 === 0) {
@@ -7321,7 +7325,7 @@ export function rangeMethods(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		4294967295 - 1;
 		stepped$u32(rs.sliceFrom([0, 1, 2147483648, 4294967294, 4294967295]), at, out);
 	} else if (_17 === 3) {
-		stepped$u64(rs.sliceFrom([0, 1, rs.u64Sub(past53, 2), rs.u64Sub(past53, 1), past53, { hi: 0xffffffff, lo: 0xfffffffe } as rs.u64, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64]), at, out);
+		stepped$u64(rs.sliceFrom([0, 1, (typeof past53 === "number" && past53 - 2 >= 0 ? past53 - 2 : rs.u64Sub(past53, 2)) as rs.u64, (typeof past53 === "number" && past53 - 1 >= 0 ? past53 - 1 : rs.u64Sub(past53, 1)) as rs.u64, past53, { hi: 0xffffffff, lo: 0xfffffffe } as rs.u64, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64]), at, out);
 	} else if (_17 === 4) {
 		stepped$u128(rs.sliceFrom([0, 1, rs.u128Sub(past64, 2), rs.u128Sub(past64, 1), past64, rs.u128Sub({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 1), { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128]), at, out);
 	} else if (_17 === 5) {

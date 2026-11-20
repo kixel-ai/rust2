@@ -367,7 +367,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u8(a), hashed$u8(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_u8(a);
+		const _263: rs.u64 = hashed$u8(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.u8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _266, true, undefined, undefined, 1, true));
 		while (true) {
@@ -447,7 +449,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u8(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u8(x7), hashed$num_Saturating_u8(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_u8(x7);
+		const _404: rs.u64 = hashed$num_Saturating_u8(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.u8> = copy$saturates_Gauge_u8(x7);
 		z._0 = rs.u8SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -629,7 +633,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u16(a), hashed$u16(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_u16(a);
+		const _263: rs.u64 = hashed$u16(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.u16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, _266, true, undefined, undefined, 2, true));
 		while (true) {
@@ -709,7 +715,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u16(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u16(x7), hashed$num_Saturating_u16(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_u16(x7);
+		const _404: rs.u64 = hashed$num_Saturating_u16(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.u16> = copy$saturates_Gauge_u16(x7);
 		z._0 = rs.u16SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -897,7 +905,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u32(a), hashed$u32(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_u32(a);
+		const _263: rs.u64 = hashed$u32(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.u32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _266, true, undefined, undefined, 4, true));
 		while (true) {
@@ -977,7 +987,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u32(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u32(x7), hashed$num_Saturating_u32(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_u32(x7);
+		const _404: rs.u64 = hashed$num_Saturating_u32(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.u32> = copy$saturates_Gauge_u32(x7);
 		z._0 = rs.u32SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -1175,7 +1187,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u64(a), hashed$u64(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_u64(a);
+		const _263: rs.u64 = hashed$u64(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.u64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u64>, _266, true, undefined, undefined, 8, true));
 		while (true) {
@@ -1255,7 +1269,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u64(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u64(x7), hashed$num_Saturating_u64(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_u64(x7);
+		const _404: rs.u64 = hashed$num_Saturating_u64(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.u64> = copy$saturates_Gauge_u64(x7);
 		z._0 = rs.u64SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -1475,7 +1491,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u128(a), hashed$u128(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_u128(a);
+		const _263: rs.u64 = hashed$u128(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.u128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u128>, _266, true, undefined, undefined, 16, true));
 		while (true) {
@@ -1555,7 +1573,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u128(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u128(x7), hashed$num_Saturating_u128(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_u128(x7);
+		const _404: rs.u64 = hashed$num_Saturating_u128(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.u128> = copy$saturates_Gauge_u128(x7);
 		z._0 = rs.u128SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -1779,7 +1799,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_usize(a), hashed$usize(a)) ? 1 : 0);
+		const _261: rs.u64 = hashed$num_Saturating_usize(a);
+		const _263: rs.u64 = hashed$usize(a);
+		rs.byteVecPush(out, (typeof _261 === "number" && typeof _263 === "number" ? _261 === _263 : rs.u64Eq(_261, _263)) ? 1 : 0);
 		const _266: rs.Iter<rs.usize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.usize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.usize>, _266, true, undefined, undefined, 4, true));
 		while (true) {
@@ -1859,7 +1881,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_usize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_usize(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_usize(x7), hashed$num_Saturating_usize(a)) ? 1 : 0);
+		const _402: rs.u64 = hashed$saturates_Gauge_usize(x7);
+		const _404: rs.u64 = hashed$num_Saturating_usize(a);
+		rs.byteVecPush(out, (typeof _402 === "number" && typeof _404 === "number" ? _402 === _404 : rs.u64Eq(_402, _404)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.usize> = copy$saturates_Gauge_usize(x7);
 		z._0 = rs.usizeSaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -2054,7 +2078,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i8(a), hashed$i8(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_i8(a);
+		const _278: rs.u64 = hashed$i8(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.i8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i8>, _281, true, undefined, undefined, 1, true));
 		while (true) {
@@ -2086,7 +2112,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i8(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i8(x7), hashed$num_Saturating_i8(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_i8(x7);
+		const _378: rs.u64 = hashed$num_Saturating_i8(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.i8> = copy$saturates_Gauge_i8(x7);
 		z._0 = rs.i8SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -2276,7 +2304,9 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i16(a), hashed$i16(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_i16(a);
+		const _278: rs.u64 = hashed$i16(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.i16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i16>, _281, true, undefined, undefined, 2, true));
 		while (true) {
@@ -2308,7 +2338,9 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i16(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i16(x7), hashed$num_Saturating_i16(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_i16(x7);
+		const _378: rs.u64 = hashed$num_Saturating_i16(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.i16> = copy$saturates_Gauge_i16(x7);
 		z._0 = rs.i16SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -2504,7 +2536,9 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i32(a), hashed$i32(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_i32(a);
+		const _278: rs.u64 = hashed$i32(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.i32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i32>, _281, true, undefined, undefined, 4, true));
 		while (true) {
@@ -2536,7 +2570,9 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i32(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i32(x7), hashed$num_Saturating_i32(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_i32(x7);
+		const _378: rs.u64 = hashed$num_Saturating_i32(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.i32> = copy$saturates_Gauge_i32(x7);
 		z._0 = rs.i32SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -2742,7 +2778,9 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i64(a), hashed$i64(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_i64(a);
+		const _278: rs.u64 = hashed$i64(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.i64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i64>, _281, true, undefined, undefined, 8, true));
 		while (true) {
@@ -2774,7 +2812,9 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i64(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i64(x7), hashed$num_Saturating_i64(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_i64(x7);
+		const _378: rs.u64 = hashed$num_Saturating_i64(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.i64> = copy$saturates_Gauge_i64(x7);
 		z._0 = rs.i64SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -3002,7 +3042,9 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i128(a), hashed$i128(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_i128(a);
+		const _278: rs.u64 = hashed$i128(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.i128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i128>, _281, true, undefined, undefined, 16, true));
 		while (true) {
@@ -3034,7 +3076,9 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i128(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i128(x7), hashed$num_Saturating_i128(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_i128(x7);
+		const _378: rs.u64 = hashed$num_Saturating_i128(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.i128> = copy$saturates_Gauge_i128(x7);
 		z._0 = rs.i128SaturatingSub(z._0, y._0);
 		_20(out, z._0);
@@ -3266,7 +3310,9 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
 		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
-		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_isize(a), hashed$isize(a)) ? 1 : 0);
+		const _276: rs.u64 = hashed$num_Saturating_isize(a);
+		const _278: rs.u64 = hashed$isize(a);
+		rs.byteVecPush(out, (typeof _276 === "number" && typeof _278 === "number" ? _276 === _278 : rs.u64Eq(_276, _278)) ? 1 : 0);
 		const _281: rs.Iter<rs.isize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.isize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.isize>, _281, true, undefined, undefined, 4, true));
 		while (true) {
@@ -3298,7 +3344,9 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_isize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_isize(x7, y) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_isize(x7), hashed$num_Saturating_isize(a)) ? 1 : 0);
+		const _376: rs.u64 = hashed$saturates_Gauge_isize(x7);
+		const _378: rs.u64 = hashed$num_Saturating_isize(a);
+		rs.byteVecPush(out, (typeof _376 === "number" && typeof _378 === "number" ? _376 === _378 : rs.u64Eq(_376, _378)) ? 1 : 0);
 		const z: Gauge.Gauge<rs.isize> = copy$saturates_Gauge_isize(x7);
 		z._0 = rs.isizeSaturatingSub(z._0, y._0);
 		_20(out, z._0);
