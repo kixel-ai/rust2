@@ -3404,10 +3404,11 @@ impl<'a> Gen<'a> {
 		}
 		if jvm != declared {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
-			// Java calls it by this name, which the lock keeps beside the Kotlin one.
-			let key = format!("{} / jvm", crate::lock::function_key(function));
-			self.locked.insert(key, jvm.clone());
 		}
+		// Java calls it by its JVM name, which the lock keeps beside the Kotlin one, so a
+		// member added beside it that moves it is a break even where it had none.
+		let key = format!("{} / jvm", crate::lock::function_key(function));
+		self.locked.insert(key, jvm.clone());
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
 		}
