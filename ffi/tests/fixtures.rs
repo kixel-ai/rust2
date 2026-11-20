@@ -4296,6 +4296,28 @@ fn census_counts_traits() {
 	assert!(report.contains("| Traits | 0 | 1 | 0% |"), "{report}");
 }
 
+/// The depth an instance may nest to counts what inference names, not only what the
+/// signatures spell: an async function's output, and a parameter's implementor.
+#[test]
+fn census_depth() {
+	let lib = "pub struct Wrap<T>(pub T);\n\n\
+		pub async fn make() -> Wrap<u8> {\n\tWrap(0)\n}\n\n\
+		pub trait Seed: Copy {\n\tfn seed(&self) -> u8;\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Held<T>(pub T);\n\n\
+		impl Seed for Held<u16> {\n\tfn seed(&self) -> u8 {\n\t\t1\n\t}\n}\n\n\
+		pub fn plant(seed: impl Seed) -> u8 {\n\tseed.seed()\n}\n";
+	let package = package("census_depth", &[("src/lib.rs", lib)]);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_depth.md")).unwrap();
+	assert!(!report.contains("instance deeper"), "{report}");
+	assert!(report.contains("| Functions | 2 | 0 |"), "{report}");
+}
+
 /// A method Swift refuses leaves out only itself, not the accessors of a field of its name.
 #[test]
 fn census_swift_field() {

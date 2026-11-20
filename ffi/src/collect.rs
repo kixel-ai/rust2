@@ -903,6 +903,7 @@ impl<'tcx> Collector<'tcx> {
 		self.deepest = spelled.max;
 		let mut seen = rustc_data_structures::fx::FxHashSet::default();
 		let mut held = rustc_data_structures::fx::FxHashSet::default();
+		let mut first = true;
 		loop {
 			let inferred = self.instances.len();
 			let named = self.named();
@@ -911,15 +912,24 @@ impl<'tcx> Collector<'tcx> {
 					self.held_forms(ty);
 				}
 			}
-			// Each with the instances inside it, which its export needs, normalized, as a
-			// field or a bound may name its instance's argument by an associated type.
-			let types: Vec<Ty<'tcx>> = (candidates.iter().chain(&named))
+			// Normalized, as a field or a bound may name its instance's argument by an
+			// associated type.
+			let named: Vec<Ty<'tcx>> = (candidates.iter().chain(&named))
 				.map(|&ty| match ty.has_aliases() {
 					true => tcx
 						.try_normalize_erasing_regions(TypingEnv::fully_monomorphized(), ty::Unnormalized::new_wip(ty))
 						.unwrap_or(ty),
 					false => ty,
 				})
+				.collect();
+			// What the first round names, before any instance does, is the API's too: each
+			// function at its implementors, and each future at what it resolves to.
+			if std::mem::take(&mut first) {
+				let deepest = named.iter().map(|&ty| self.depth(ty)).max();
+				self.deepest = self.deepest.max(deepest.unwrap_or(0));
+			}
+			// Each with the instances inside it, which its export needs.
+			let types: Vec<Ty<'tcx>> = (named.iter())
 				.flat_map(|ty| ty.walk())
 				.filter_map(|arg| arg.as_type())
 				.filter(|&ty| seen.insert(ty))
@@ -1312,7 +1322,7 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Visit every type the API spells at its own parameters: each function's, constant's,
-	/// and trait method's signature with its bounds, and each type's defaults, `pub` fields,
+	/// and trait method's signature as inference names it, with its bounds, and each type's defaults, `pub` fields,
 	/// and inherent impls with their `pub` methods and constants.
 	fn spells(&self, visitor: &mut Depth<'_>) {
 		let tcx = self.tcx;
@@ -1359,9 +1369,8 @@ impl<'tcx> Collector<'tcx> {
 		}
 		types.visit_with(visitor);
 		for def_id in functions {
-			tcx.fn_sig(def_id)
-				.instantiate_identity()
-				.skip_norm_wip()
+			// As inference names it: normalized, and a future as what it resolves to.
+			self.spelled(def_id, ty::GenericArgs::identity_for_item(tcx, def_id))
 				.visit_with(visitor);
 			for clause in tcx.clauses_of(def_id).instantiate_identity(tcx).clauses {
 				clause.skip_norm_wip().visit_with(visitor);
