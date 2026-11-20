@@ -42,6 +42,19 @@ class Print(api.Log):
 		print("freed")
 
 
+class Edits(api.Undo):
+	"""The Undo callback: each method returns its own digit."""
+
+	def delete(self, n):
+		return n - 1
+
+	def free(self):
+		return 2
+
+	def type(self):
+		return 3
+
+
 def bound(b):
 	match b.kind:
 		case api.Bound.INCLUDED:

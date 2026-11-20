@@ -2164,6 +2164,24 @@ pub(crate) fn escape(name: &str) -> String {
 	}
 }
 
+/// The keywords a Rust name takes raw, `r#type`.
+pub(crate) const RUST_KEYWORDS: &[&str] = &[
+	"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+	"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move",
+	"mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type", "typeof",
+	"unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+];
+
+/// A callback method's member of its `<callback>_vtable`, which C and each binding's Rust
+/// glue name alike: its [`escape`]d name, with `_` appended to a Rust keyword too and to
+/// `free`, the table's own. Escaping stays injective, so no two members share a name.
+pub(crate) fn member(method: &Function) -> String {
+	match method.name() {
+		name if name == "free" || RUST_KEYWORDS.contains(&name) => format!("{name}_"),
+		name => escape(name),
+	}
+}
+
 /// What a callback parameter needs, by the form it takes.
 pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 	match form {

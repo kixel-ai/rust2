@@ -81,6 +81,20 @@ public:
 	}
 };
 
+// The Undo callback: each method returns its own digit.
+class Edits final : public api::Undo {
+public:
+	std::uint32_t delete_(std::uint32_t n) const override {
+		return n - 1;
+	}
+	std::uint32_t free() const override {
+		return 2;
+	}
+	std::uint8_t type() const override {
+		return 3;
+	}
+};
+
 // Lowercase hex of `bytes`, two digits each.
 std::string hex(api::view bytes) {
 	std::string out;

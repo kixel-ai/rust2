@@ -42,6 +42,7 @@ import * as Score from "./web/Score.ts";
 import * as Shape from "./web/Shape.ts";
 import * as Tally from "./web/Tally.ts";
 import * as Token from "./web/Token.ts";
+import type { Undo } from "./web/Undo.ts";
 import * as Url from "./web/Url.ts";
 import * as Waiter from "./web/Waiter.ts";
 
@@ -100,6 +101,21 @@ export class Print implements Log {
 	// Rust closes it once it drops the implementation.
 	close(): void {
 		print("freed");
+	}
+}
+
+/** The Undo callback: each method returns its own digit, as transcript.rs's does. */
+export class Edits implements Undo {
+	delete(n: number): number {
+		return n - 1;
+	}
+
+	free(): number {
+		return 2;
+	}
+
+	type(): number {
+		return 3;
 	}
 }
 

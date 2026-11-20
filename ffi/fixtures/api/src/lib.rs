@@ -5459,6 +5459,24 @@ pub fn turned(dial: Dial, turner: impl Turner) -> Result<Dial, Error> {
 	dial.turn(turner.by())?.turn(turner.once())
 }
 
+/// An edit history, implemented in each binding, whose methods are named as a C++
+/// keyword, a C table's own `free`, and a Rust keyword.
+pub trait Undo {
+	/// What deleting `n` edits leaves.
+	fn delete(&self, n: u32) -> u32;
+
+	/// How many edits it frees.
+	fn free(&self) -> u32;
+
+	/// Its kind of edit.
+	fn r#type(&self) -> u8;
+}
+
+/// `undo`'s methods' results as decimal digits: `delete(n)`, `free()`, then `type()`.
+pub fn undone(undo: impl Undo, n: u32) -> u32 {
+	undo.delete(n) * 100 + undo.free() * 10 + u32::from(undo.r#type())
+}
+
 /// The most a [`Dial`] turns, a name the web's globals take too: [`URL`] links its own.
 pub const URL: u64 = LIMIT;
 

@@ -237,6 +237,8 @@ func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
 func TurnerVtable_() unsafe.Pointer
+func UndoVtable_() unsafe.Pointer
+func Undone(undo Undo, n uint32) uint32
 func Unescaped(text string) (string, error)
 func UnescapedLater(ctx context.Context, text string) (string, error)
 func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
@@ -1800,6 +1802,11 @@ func (self *Trail) Points() ([]Point, error)
 type Turner interface {
 	By() uint64
 	Once() uint64
+}
+type Undo interface {
+	Delete(n uint32) uint32
+	Free() uint32
+	Type() uint8
 }
 type VecClashTone int32
 const (
