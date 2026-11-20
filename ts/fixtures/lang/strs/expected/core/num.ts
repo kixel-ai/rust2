@@ -1418,7 +1418,7 @@ export function fromAsciiBytesRadixImpl$15o252c(src: rs.ByteSlice, radix: rs.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0zwqu7x(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u64, rs.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1qq4qjp(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.u64, rs.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -1537,7 +1537,9 @@ export function fromAsciiBytesRadixImpl$0zwqu7x(src: rs.ByteSlice, radix: rs.u32
 							if (_49 === undefined) {
 								return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 							}
-							result = rs.u64WrappingSub(result, _49 as rs.u64);
+							const _57: rs.u64 = result;
+							const _58: rs.u64 = _49 as rs.u64;
+							result = (typeof _57 === "number" && typeof _58 === "number" && _57 - _58 >= 0 ? _57 - _58 : rs.u64WrappingSub(_57, _58)) as rs.u64;
 							digitsData = restData3;
 							digitsStart = restStart3;
 							digitsLen = restLen3;
@@ -1556,7 +1558,9 @@ export function fromAsciiBytesRadixImpl$0zwqu7x(src: rs.ByteSlice, radix: rs.u32
 						if (_32 === undefined) {
 							return rs.Err({ kind: "InvalidDigit" as rs.IntErrorKind });
 						}
-						result = rs.u64WrappingAdd(result, _32 as rs.u64);
+						const _40: rs.u64 = result;
+						const _41: rs.u64 = _32 as rs.u64;
+						result = (typeof _40 === "number" && typeof _41 === "number" && _40 + _41 <= 9007199254740991 ? _40 + _41 : rs.u64WrappingAdd(_40, _41)) as rs.u64;
 						digitsData = restData2;
 						digitsStart = restStart2;
 						digitsLen = restLen2;

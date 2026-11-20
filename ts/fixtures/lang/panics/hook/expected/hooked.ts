@@ -365,7 +365,8 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (k === 25) {
 			rs.byteVecPush(out, rs.durationSubsecNanos(rs.durationFromHours(rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, n as rs.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 261, col: 45 }))) & 0xff);
 		} else if (k === 26) {
-			rs.byteVecPush(out, rs.durationSubsecNanos(rs.durationSub({ secs: 0, nanos: 0 }, rs.durationFromSecs(rs.u64Add(n as rs.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 262, col: 62 })))) & 0xff);
+			const _221: rs.u64 = n as rs.u64;
+			rs.byteVecPush(out, rs.durationSubsecNanos(rs.durationSub({ secs: 0, nanos: 0 }, rs.durationFromSecs((typeof _221 === "number" && _221 + 1 <= 9007199254740991 ? _221 + 1 : rs.u64Add(_221, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 262, col: 62 })) as rs.u64))) & 0xff);
 		} else if (k === 27) {
 			rs.byteVecPush(out, rs.durationSubsecNanos(rs.durationMul({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.u32Add(n as rs.u32, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 263, col: 41 }))) & 0xff);
 		} else if (k === 28) {
@@ -458,7 +459,8 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (k === 45) {
 			rs.byteVecPush(out, rs.u64Low(rs.durationAsSecs(rs.durationSum(rs.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationFromSecs(rs.max(n, 1) as rs.u64)]), undefined, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/time.rs", line: 1513, col: 9 }))) & 0xff);
 		} else if (k === 46) {
-			rs.byteVecPush(out, rs.u64Low(rs.durationAsSecs(rs.durationSum(rs.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationNew(rs.u64Add(n as rs.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 302, col: 43 }), 0)]), undefined, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/time.rs", line: 1520, col: 9 }))) & 0xff);
+			const _361: rs.u64 = n as rs.u64;
+			rs.byteVecPush(out, rs.u64Low(rs.durationAsSecs(rs.durationSum(rs.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationNew((typeof _361 === "number" && _361 + 1 <= 9007199254740991 ? _361 + 1 : rs.u64Add(_361, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 302, col: 43 })) as rs.u64, 0)]), undefined, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/time.rs", line: 1520, col: 9 }))) & 0xff);
 		} else if (k === 47) {
 			const _365: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(v));
 			const _367: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 307, col: 47 }), rs.usizeStep);
@@ -540,7 +542,9 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _554: rs.Range<rs.usize> = new rs.Range(rs.usizeAdd(at, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 351, col: 37 }), rs.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 351, col: 45 }));
 			rs.byteSliceCopyWithin(_550, _554.start, _554.end, 0, { file: "fixtures/lang/panics/src/hooked.rs", line: 351, col: 25 });
 		} else if (k === 81) {
-			rs.byteVecPush(out, rs.u64Low(rs.u64Clamp(n as rs.u64, rs.u64Add(n as rs.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 352, col: 43 }), n as rs.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 352, col: 37 })) & 0xff);
+			const _561: rs.u64 = n as rs.u64;
+			const _563: rs.u64 = n as rs.u64;
+			rs.byteVecPush(out, rs.u64Low(rs.u64Clamp(_561, (typeof _563 === "number" && _563 + 1 <= 9007199254740991 ? _563 + 1 : rs.u64Add(_563, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 352, col: 43 })) as rs.u64, n as rs.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 352, col: 37 })) & 0xff);
 		} else if (k === 82) {
 			rs.byteVecPush(out, rs.clamp(rs.i32Neg(n as rs.i32, { file: "fixtures/lang/panics/src/hooked.rs", line: 353, col: 24 }), 0, -1, { file: "fixtures/lang/panics/src/hooked.rs", line: 353, col: 40 }) & 0xff);
 		} else if (k === 83) {

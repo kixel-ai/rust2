@@ -18,6 +18,8 @@ jobs:
       features: doubled
       example: transcript
       python-check: ffi/tests/api.py
+      # The small crate, so the second build costs little: moq's stand-in leaves it to its release.
+      reproduce: true
       # api.cpp rather than api.c, whose broken cases name items only wasm32 has.
       c-check: ffi/tests/api.cpp
       web-manifest-path: ffi/fixtures/api/Cargo.toml

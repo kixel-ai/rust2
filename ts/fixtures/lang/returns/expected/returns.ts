@@ -96,7 +96,8 @@ export function count(dataData: Uint8Array, dataStart: number, dataLen: number):
 	const part3: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 	const part4: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 	if (err === undefined) {
-		const _14_0: rs.u64 = rs.u64Add(part as rs.u64, 1);
+		const n: rs.u64 = part as rs.u64;
+		const _14_0: rs.u64 = (typeof n === "number" && n + 1 <= 9007199254740991 ? n + 1 : rs.u64Add(n, 1)) as rs.u64;
 		out$tuple2_u64_ref_slice_u8.p_1Data = part2;
 		out$tuple2_u64_ref_slice_u8.p_1Start = part3;
 		out$tuple2_u64_ref_slice_u8.p_1Len = part4;
@@ -686,7 +687,9 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const part17: rs.u32 | undefined = depth(_112.data, _112.start, _112.length);
 		if ((part17 === undefined ? out$u32.err as returns_Error.Error : undefined) === undefined) {
 			const n: rs.u32 = part17 as rs.u32;
-			sum = rs.u64WrappingAdd(rs.u64WrappingMul(sum, 31), n as rs.u64);
+			const _116: rs.u64 = rs.u64WrappingMul(sum, 31);
+			const _118: rs.u64 = n as rs.u64;
+			sum = (typeof _116 === "number" && typeof _118 === "number" && _116 + _118 <= 9007199254740991 ? _116 + _118 : rs.u64WrappingAdd(_116, _118)) as rs.u64;
 			rest = rs.byteSliceRange(rest, rs.usizeAdd(n as rs.usize, 1));
 		} else {
 			break;
@@ -1003,7 +1006,9 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					const part15: number = out$tuple2_u64_ref_slice_u8.p_1Start;
 					const part16: number = out$tuple2_u64_ref_slice_u8.p_1Len;
 					if (err4 === undefined) {
-						sum = rs.u64WrappingAdd(rs.u64WrappingMul(sum, 31), part13 as rs.u64);
+						const n2: rs.u64 = part13 as rs.u64;
+						const _230: rs.u64 = rs.u64WrappingMul(sum, 31);
+						sum = (typeof _230 === "number" && typeof n2 === "number" && _230 + n2 <= 9007199254740991 ? _230 + n2 : rs.u64WrappingAdd(_230, n2)) as rs.u64;
 						restData4 = part14;
 						restStart4 = part15;
 						restLen4 = part16;

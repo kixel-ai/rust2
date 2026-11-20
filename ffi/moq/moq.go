@@ -158,18 +158,17 @@ func script() {
 	expect(writer.WriteFrame(net.TimestampUnscaled(0), rt.NewBytes([]byte("hello"))) == nil, "a frame writes")
 	hello := within(frame, "a frame's arrival wakes the read")
 	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
-	expect(must(must(hello.TimestampGet()).Scale()) == nil, "an untimed frame's timestamp has no scale")
+	expect(must(hello.TimestampGet()).Scale() == nil, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 
-	// A timestamp is a handle a call borrows, so Go keeps it. The track is
+	// A timestamp is a `Copy` value Go copies, which allocates nothing. The track is
 	// untimed, so a timed frame is refused.
 	at := must(net.TimestampFromMillis(1500))
 	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
 	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(must(at.AsSecs()) == 1, "a lent timestamp stays usable")
-	at.Close()
+	expect(must(at.AsSecs()) == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	world := append([]byte{0xff}, "world"...)
