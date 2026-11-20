@@ -106,7 +106,7 @@ export class Print implements Log {
 
 /** The Undo callback: each method returns its own digit, as transcript.rs's does. */
 export class Edits implements Undo {
-	delete(n: number): number {
+	delete$(n: number): number {
 		return n - 1;
 	}
 
