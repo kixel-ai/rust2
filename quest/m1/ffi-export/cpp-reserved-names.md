@@ -9,6 +9,8 @@ builds with clang's `-Wreserved-identifier` on.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#925](https://github.com/kixel-ai/rust2/pull/925): ✅ kept, escaping reserved names in C++ and turning on clang's `-Wreserved-identifier` in the strict build (rejected: dropping it).
+
 Found on [kixel-ai/rust2#925](https://github.com/kixel-ai/rust2/pull/925), whose fixture's
 `pub fn __all__` renders in `ffi/surface/api/cpp.hpp` as `api::__all__`: it compiles, but
 a name the implementation reserves may break on any standard library. Rust's own
