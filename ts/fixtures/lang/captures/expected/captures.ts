@@ -325,7 +325,9 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 export function through$u64s(n: rs.Place<rs.u64>, b: rs.u64): rs.u64 {
 	return ((): rs.u64 => {
-		n.v = rs.u64WrappingAdd(n.v, b);
+		const _3: rs.u64 = n.v;
+		const _4: rs.u64 = b;
+		n.v = (typeof _3 === "number" && typeof _4 === "number" && _3 + _4 <= 9007199254740991 ? _3 + _4 : rs.u64WrappingAdd(_3, _4)) as rs.u64;
 		return n.v;
 	})();
 }
@@ -361,7 +363,9 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	let n3: rs.u64 = a;
 	const part = ((): rs.u64 => {
-		n3 = rs.u64WrappingAdd(n3, b);
+		const _310: rs.u64 = n3;
+		const _42: rs.u64 = b;
+		n3 = (typeof _310 === "number" && typeof _42 === "number" && _310 + _42 <= 9007199254740991 ? _310 + _42 : rs.u64WrappingAdd(_310, _42)) as rs.u64;
 		return n3;
 	})();
 	put(part);
@@ -379,26 +383,34 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (!(rs.u64And(b, 1) === 1)) {
 			return n3;
 		}
-		n3 = rs.u64WrappingSub(n3, a);
+		const _6: rs.u64 = n3;
+		const _7: rs.u64 = a;
+		n3 = (typeof _6 === "number" && typeof _7 === "number" && _6 - _7 >= 0 ? _6 - _7 : rs.u64WrappingSub(_6, _7)) as rs.u64;
 		return n3;
 	})();
 	put(part6);
 	put(n3);
 	const captured = rs.byteSliceToByteVec(_20);
 	const part8 = ((): rs.u64 => {
-		n3 = rs.u64WrappingAdd(n3, captured.length as rs.u64);
+		const _313: rs.u64 = n3;
+		const _45: rs.u64 = captured.length as rs.u64;
+		n3 = (typeof _313 === "number" && typeof _45 === "number" && _313 + _45 <= 9007199254740991 ? _313 + _45 : rs.u64WrappingAdd(_313, _45)) as rs.u64;
 		return n3;
 	})();
 	put(part8);
 	put(n3);
 	const part10 = once$u64_captures_u64s_closure5((): rs.u64 => {
-		n3 = rs.u64WrappingAdd(n3, b);
+		const _314: rs.u64 = n3;
+		const _46: rs.u64 = b;
+		n3 = (typeof _314 === "number" && typeof _46 === "number" && _314 + _46 <= 9007199254740991 ? _314 + _46 : rs.u64WrappingAdd(_314, _46)) as rs.u64;
 		return n3;
 	});
 	put(part10);
 	put(n3);
 	const _108: [rs.u64, rs.u64] = twice$u64_captures_u64s_closure6((): rs.u64 => {
-		n3 = rs.u64WrappingAdd(n3, a);
+		const _315: rs.u64 = n3;
+		const _49: rs.u64 = a;
+		n3 = (typeof _315 === "number" && typeof _49 === "number" && _315 + _49 <= 9007199254740991 ? _315 + _49 : rs.u64WrappingAdd(_315, _49)) as rs.u64;
 		return n3;
 	});
 	const x: rs.u64 = _108[0];
@@ -410,7 +422,9 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let captured2 = m;
 	const captured3 = b;
 	const own: () => rs.u64 = (): rs.u64 => {
-		captured2 = rs.u64WrappingAdd(captured2, captured3);
+		const _316: rs.u64 = captured2;
+		const _410: rs.u64 = captured3;
+		captured2 = (typeof _316 === "number" && typeof _410 === "number" && _316 + _410 <= 9007199254740991 ? _316 + _410 : rs.u64WrappingAdd(_316, _410)) as rs.u64;
 		return captured2;
 	};
 	const part13 = own();
@@ -420,7 +434,9 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(m);
 	const pair: [rs.u64, rs.u64] = [a, b];
 	const part16 = ((): rs.u64 => {
-		pair[0] = rs.u64WrappingAdd(pair[0], pair[1]);
+		const _317: rs.u64 = pair[0];
+		const _411: rs.u64 = pair[1];
+		pair[0] = (typeof _317 === "number" && typeof _411 === "number" && _317 + _411 <= 9007199254740991 ? _317 + _411 : rs.u64WrappingAdd(_317, _411)) as rs.u64;
 		return pair[0];
 	})();
 	put(part16);
@@ -430,7 +446,9 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(m);
 	const part20 = ((): rs.u64 => {
 		return ((): rs.u64 => {
-			n3 = rs.u64WrappingSub(n3, b);
+			const _318: rs.u64 = n3;
+			const _412: rs.u64 = b;
+			n3 = (typeof _318 === "number" && typeof _412 === "number" && _318 - _412 >= 0 ? _318 - _412 : rs.u64WrappingSub(_318, _412)) as rs.u64;
 			return n3;
 		})();
 	})();

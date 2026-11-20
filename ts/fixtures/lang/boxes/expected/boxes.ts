@@ -210,7 +210,9 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return o & 0xff;
 		}));
 		rs.byteVecPush(out, rs.byteSliceEq(a, data2) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_slice_u8(a), hash$slice_u8(data2)) ? 1 : 0);
+		const _223: rs.u64 = hash$boxed_Box_slice_u8(a);
+		const _225: rs.u64 = hash$slice_u8(data2);
+		rs.byteVecPush(out, (typeof _223 === "number" && typeof _225 === "number" ? _223 === _225 : rs.u64Eq(_223, _225)) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(hash$boxed_Box_slice_u8(b)).reverse()), undefined, true);
 		rs.byteVecPush(out, a.length & 0xff);
 		rs.byteVecPush(out, a.length === 0 ? 1 : 0);
@@ -270,7 +272,9 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		wides(rs.sliceFrom([]), out);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(collected2, cloned2) ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(collected2, cloned2) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_slice_u16(collected2), hash$slice_u16(collected2)) ? 1 : 0);
+		const _346: rs.u64 = hash$boxed_Box_slice_u16(collected2);
+		const _348: rs.u64 = hash$slice_u16(collected2);
+		rs.byteVecPush(out, (typeof _346 === "number" && typeof _348 === "number" ? _346 === _348 : rs.u64Eq(_346, _348)) ? 1 : 0);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)]).v);
 		const v3: rs.Vec<rs.u16> = rs.vecFrom(rs.sliceItems(fromVec2));
 		v3.items.push(5);
@@ -443,7 +447,9 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, empty4);
 		rs.byteVecPush(out, fromRef4 === into2 ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpStr(collected4, fromRef4) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_str(fromRef4), hash$str(s.v)) ? 1 : 0);
+		const _691: rs.u64 = hash$boxed_Box_str(fromRef4);
+		const _693: rs.u64 = hash$str(s.v);
+		rs.byteVecPush(out, (typeof _691 === "number" && typeof _693 === "number" ? _691 === _693 : rs.u64Eq(_691, _693)) ? 1 : 0);
 		const args7 = [(f: rs.Formatter) => rs.fmtPad(f, fromRef4), (f: rs.Formatter) => rs.fmtStr(collected4, f)];
 		put(out, rs.fmtFormat([args7[0], "|", args7[1]]).v);
 		const back2: rs.String = rs.stringFrom(into2);

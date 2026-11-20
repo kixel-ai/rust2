@@ -1074,6 +1074,15 @@ export type Qualifiers = {
 };
 export declare function eq(a: Qualifiers, b: Qualifiers): boolean;
 
+// Rated.ts
+import * as rt from "./rt.ts";
+export type Rated = rt.Opaque<"Rated">;
+export declare function debug(self: Rated): string;
+export declare function eq(a: Rated, b: Rated): boolean;
+export declare function new$(count: rt.u64, scale: rt.u64): Rated;
+export declare function scale(self: Rated): rt.u64;
+export { new$ as new };
+
 // Reading.ts
 import * as rt from "./rt.ts";
 import type { Point } from "./Point.ts";
@@ -1588,6 +1597,7 @@ import type { PolarPoint } from "./PolarPoint.ts";
 import type { PolarTurn } from "./PolarTurn.ts";
 import type { Polar_Turn } from "./Polar_Turn.ts";
 import type { Qualifiers } from "./Qualifiers.ts";
+import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
 import type { RightLeftU8 } from "./RightLeftU8.ts";
@@ -1774,6 +1784,7 @@ export declare function r_Peer(p: number, o: boolean): Peer;
 export declare function r_Placement(p: number, o: boolean): Placement;
 export declare function r_Platform(p: number, o: boolean): Platform;
 export declare function r_Point(p: number, o: boolean): Point;
+export declare function r_Rated(p: number, o: boolean): Rated;
 export declare function r_Reading(p: number, o: boolean): Reading;
 export declare function r_Score(p: number, o: boolean): Score;
 export declare function r_Seat(p: number, o: boolean): Seat;
@@ -1958,6 +1969,7 @@ export declare function w_Platform(p: number, v: Platform): void;
 export declare function w_Point(p: number, v: Point): void;
 export declare function w_PolarTurn(p: number, v: PolarTurn): void;
 export declare function w_Qualifiers(p: number, v: Qualifiers): void;
+export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;
 export declare function w_Right_u8(p: number, v: RightU8): void;

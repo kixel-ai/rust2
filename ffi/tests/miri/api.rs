@@ -116,6 +116,20 @@ fn handles() {
 	}
 }
 
+/// A value whose `None` its niche encodes crosses with every byte initialized, as C reads
+/// each of its words: Miri fails on one Rust left uninitialized.
+#[test]
+fn niche_value() {
+	for scale in [0, 1000] {
+		unsafe {
+			let rated = api_Rated_new(7, scale);
+			let words = rated.opaque.map(|word| word.assume_init());
+			assert_eq!(words.iter().filter(|&&word| word == 7).count(), 1);
+			assert_eq!(api_Rated_scale(&rated), scale);
+		}
+	}
+}
+
 /// A close while a call reserved the value to move out fails as borrowed, so the call's
 /// rollback, once a later check of it fails, revives no value the close reported dropped.
 #[test]
