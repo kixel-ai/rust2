@@ -894,6 +894,9 @@ caller imports it with no ignores.
   anything but Rust cancels, prints its traceback and aborts. A value that is not
   awaitable, or a future of another loop, raises at the call. A poll lent one pinned,
   as `Waiter.poll_future`, is an `async def` taking it, whose future owns it.
+- A **stream** is its own async iterator: `async for item in feed` awaits `next()` once
+  per item through `__anext__`, which raises `StopAsyncIteration` at `None` and the
+  error of a `Result`'s `Err`.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.

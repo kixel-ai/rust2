@@ -67,6 +67,7 @@ const TAKEN: &[&str] = &[
 	"_Dataclass",
 	"_NotImplemented",
 	"_RuntimeError",
+	"_StopAsyncIteration",
 	"_getattr",
 	"_same",
 	"_all",
@@ -215,6 +216,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import NotImplemented as _NotImplemented\n\
 		from builtins import NotImplementedError as _NotImplementedError\n\
 		from builtins import RuntimeError as _RuntimeError\n\
+		from builtins import StopAsyncIteration as _StopAsyncIteration\n\
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
@@ -1246,16 +1248,39 @@ impl<'a> Gen<'a> {
 				.chain(data.iter().map(String::as_str))
 				.chain(earlier.iter().map(String::as_str))
 				.collect();
-			match self.function(method, Some(owner), Some((ty, &reserved)), place) {
+			let code = match self.function(method, Some(owner), Some((ty, &reserved)), place) {
 				Some(Form::Native(code, binding)) => {
 					body.native.push(indent_by(&code, 1));
 					body.runtime.extend(binding.map(|b| indent_by(&b, 1)));
+					code
 				}
-				Some(Form::Python(code)) => body.python.push(indent_by(&code, 1)),
-				None => {}
+				Some(Form::Python(code)) => {
+					body.python.push(indent_by(&code, 1));
+					code
+				}
+				None => continue,
+			};
+			if let (Type::Object(_), Some(item)) = (ty, method.stream()) {
+				let next = member_name(&code).expect("a method has a name");
+				body.python
+					.extend(self.stream(&next, item).iter().map(|code| indent_by(code, 1)));
 			}
 		}
 		self.distinct(rust, data, body.codes());
+	}
+
+	/// An object's async iteration over its stream's method `next`, yielding `item`s.
+	fn stream(&self, next: &str, item: &Type) -> [String; 2] {
+		let item = self.py_ty(item);
+		let aiter = "def __aiter__(self) -> _typing.Self:\n\t\"\"\"This stream, which `async for` iterates through `__anext__`.\"\"\"\n\treturn self";
+		let anext = format!(
+			"async def __anext__(self) -> {item}:\n\t\"\"\"The next item, awaiting `{next}` once: `StopAsyncIteration` at `None`, and its error raised.\n\n\t\
+			It reads nothing ahead, so a loop left early leaves the next item to the next call, and\n\t\
+			cancelling the awaiting task drops `{next}`'s future, as dropping it in Rust would: it loses\n\t\
+			an item only where that future does when dropped, as one that is not cancel-safe does.\"\"\"\n\t\
+			item = await self.{next}()\n\tif item is None:\n\t\traise _StopAsyncIteration\n\treturn item"
+		);
+		[aiter.to_string(), anext]
 	}
 
 	/// Check that the members `codes` of the type `rust` and its data's names `data` differ.
