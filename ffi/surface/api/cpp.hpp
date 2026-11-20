@@ -133,6 +133,24 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::waker context() const;
 		template <class F0> static ::api::Waiter_poll_future_future poll_future(F0 future_);
 	};
+	class RUST2_FFI_CONSUMABLE Feed {
+		RUST2_FFI_UNCONSUMED Feed(Feed &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Feed &operator=(Feed &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Feed_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Countdown {
+		RUST2_FFI_UNCONSUMED Countdown(Countdown &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Countdown &operator=(Countdown &&other) noexcept = default;
+		static ::api::Countdown new_(::std::uint32_t from);
+		static ::api::Countdown told(::std::uint32_t from, ::std::unique_ptr<::api::Log> log);
+		RUST2_FFI_CALLABLE ::api::Countdown_next_future next();
+	};
+	class RUST2_FFI_CONSUMABLE Retired {
+		RUST2_FFI_UNCONSUMED Retired(Retired &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Retired &operator=(Retired &&other) noexcept = default;
+		static ::api::Retired new_(::std::uint32_t from);
+		[[deprecated("count with `Countdown`")]] RUST2_FFI_CALLABLE ::api::Retired_next_future next();
+	};
 	class RUST2_FFI_CONSUMABLE Logger {
 		RUST2_FFI_UNCONSUMED Logger(Logger &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Logger &operator=(Logger &&other) noexcept = default;
@@ -413,6 +431,7 @@ namespace api {
 		RUST2_FFI_CALLABLE void listen(const ::api::waker &cx) const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_sized_future recv_sized() const;
 		RUST2_FFI_CALLABLE ::api::Channel_recv_nonempty_future recv_nonempty() const;
+		RUST2_FFI_CALLABLE ::api::Feed feed() const;
 		RUST2_FFI_CALLABLE void send_from_thread(::api::input payload) const;
 	};
 	class RUST2_FFI_CONSUMABLE Gap {
@@ -2070,6 +2089,9 @@ namespace api {
 	class Batch;
 	class Batch_2;
 	class Waiter;
+	class Feed;
+	class Countdown;
+	class Retired;
 	class Logger;
 	class Journal;
 	class Local;
@@ -2194,6 +2216,9 @@ namespace api {
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;
+	using Feed_next_future = ::api::future<detail::Feed_next_future_op>;
+	using Countdown_next_future = ::api::future<detail::Countdown_next_future_op>;
+	using Retired_next_future = ::api::future<detail::Retired_next_future_op>;
 	using Local_later_future = ::api::future<detail::Local_later_future_op>;
 	using Local_poll_count_future = ::api::future<detail::Local_poll_count_future_op>;
 	using LocalWaiter_poll_ready_future = ::api::future<detail::LocalWaiter_poll_ready_future_op>;

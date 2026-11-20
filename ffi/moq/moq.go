@@ -205,6 +205,21 @@ func script() {
 	// A broadcast the origin routes is stamped with its path, which its info lends. Each
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
 	publication := must(origin.Route("room/alice", net.OriginRouteOptionsDefault()))
+	// An origin's announcements, a stream Go ranges over: the route is the first, and
+	// leaving the loop takes nothing past it.
+	listing := must(origin.Consume())
+	announced := must(listing.Announced())
+	waitAnnounce, stop := context.WithTimeout(ctx, 10*time.Second)
+	for event, err := range announced.All(waitAnnounce) {
+		check(err)
+		expect(strings.Contains(event.GoString(), "room/alice"), "a route is announced present")
+		check(event.Close())
+		break
+	}
+	stop()
+	expect(must(announced.TryNext()) == nil, "a loop left early reads nothing ahead")
+	check(announced.Close())
+	check(listing.Close())
 	created := must(publication.Broadcast())
 	path := must(must(created.Info()).PathGet())
 	created.Close()

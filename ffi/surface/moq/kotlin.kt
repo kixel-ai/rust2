@@ -2080,6 +2080,7 @@ class AuthWatch internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 class AuthRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun next(): moq.AuthRequest?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.AuthRequest>
 }
 class AuthRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2661,6 +2662,7 @@ class BroadcastTracks internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun close()
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun next(): moq.BroadcastTracksEvent?
 	fun broadcast(): moq.BroadcastConsumer
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.BroadcastTracksEvent>
 }
 class BroadcastTracksEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3171,6 +3173,7 @@ class OriginRoutes internal constructor(raw: Long, lent: Boolean = false) : Auto
 	suspend fun pollSynced()
 	fun root(): moq.Path
 	@kotlin.jvm.Throws(ErrorException::class) fun absolute(prefix: kotlin.String): moq.Path
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.OriginRouteEvent>
 }
 class AnnounceConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3180,6 +3183,7 @@ class AnnounceConsumer internal constructor(raw: Long, lent: Boolean = false) : 
 	suspend fun pollSynced()
 	fun root(): moq.Path
 	@kotlin.jvm.Throws(ErrorException::class) fun absolute(prefix: kotlin.String): moq.Path
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.AnnounceEvent>
 }
 class AnnounceEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -5716,6 +5720,7 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 class MuxFollowInstances internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.BroadcastConsumer?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.BroadcastConsumer>
 }
 class MuxImportContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -5869,6 +5874,7 @@ class MuxJsonConsumerJson internal constructor(raw: Long, lent: Boolean = false)
 	fun mode(): moq.HangCatalogMode
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MoqJsonTimedJson?
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun latest(): moq.MoqJsonTimedJson?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MoqJsonTimedJson>
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun fromTrack(track: moq.TrackConsumer, config: moq.HangCatalogJsonConfig): moq.MuxJsonConsumerJson
 	}
@@ -6336,6 +6342,7 @@ class TransportMemoryCloser internal constructor(raw: Long, lent: Boolean = fals
 class MuxCatalogHangConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalog>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
 	}
@@ -6343,6 +6350,7 @@ class MuxCatalogHangConsumer internal constructor(raw: Long, lent: Boolean = fal
 class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExtra>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
 	}
@@ -6350,6 +6358,7 @@ class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean 
 class MuxCatalogHangConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExt>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
 	}
@@ -6379,6 +6388,7 @@ class MuxCatalogHangExtra internal constructor(raw: Long, lent: Boolean = false)
 class MuxCatalogMsfConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalog>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumer
 	}
@@ -6386,6 +6396,7 @@ class MuxCatalogMsfConsumer internal constructor(raw: Long, lent: Boolean = fals
 class MuxCatalogMsfConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExtra>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExtra
 	}
@@ -6393,6 +6404,7 @@ class MuxCatalogMsfConsumerExtra internal constructor(raw: Long, lent: Boolean =
 class MuxCatalogMsfConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.HangCatalogExt>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
 	}
@@ -7050,6 +7062,7 @@ class MuxContainerTsExportConsumerExtra internal constructor(raw: Long, lent: Bo
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
 	}
@@ -7061,6 +7074,7 @@ class MuxContainerTsExportConsumerExt internal constructor(raw: Long, lent: Bool
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
 	}
@@ -7072,6 +7086,7 @@ class MuxContainerTsExportConsumer internal constructor(raw: Long, lent: Boolean
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
 	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
 	}
@@ -7082,6 +7097,7 @@ class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = fal
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollower
 	fun export(): moq.MuxContainerTsExportConsumer
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumer): moq.MuxContainerTsFollower
 	}
@@ -7092,6 +7108,7 @@ class MuxContainerTsFollowerExtra internal constructor(raw: Long, lent: Boolean 
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollowerExtra
 	fun export(): moq.MuxContainerTsExportConsumerExtra
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExtra): moq.MuxContainerTsFollowerExtra
 	}
@@ -7102,6 +7119,7 @@ class MuxContainerTsFollowerExt internal constructor(raw: Long, lent: Boolean = 
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollowerExt
 	fun export(): moq.MuxContainerTsExportConsumerExt
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExt): moq.MuxContainerTsFollowerExt
 	}
@@ -7156,6 +7174,7 @@ class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = fals
 	fun outOfTolerance(): kotlin.ULong
 	fun stats(): moq.MuxContainerTsStatsRelease
 	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<moq.MuxContainerFrame>
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
 	}

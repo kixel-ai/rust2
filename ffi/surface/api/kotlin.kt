@@ -670,6 +670,28 @@ class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 		@kotlin.jvm.JvmStatic suspend fun pollFuture(future: suspend () -> kotlin.Unit)
 	}
 }
+class Feed internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun next(): api.Bytes?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<api.Bytes>
+}
+class Countdown internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	suspend fun next(): kotlin.UInt?
+	fun asFlow(): kotlinx.coroutines.flow.Flow<kotlin.UInt>
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Countdown
+		@kotlin.jvm.JvmStatic fun told(from: kotlin.UInt, log: api.Log): api.Countdown
+	}
+}
+class Retired internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	@kotlin.Deprecated("count with `Countdown`") suspend fun next(): kotlin.UInt?
+	@kotlin.Deprecated("count with `Countdown`") fun asFlow(): kotlinx.coroutines.flow.Flow<kotlin.UInt>
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Retired
+	}
+}
 class Logger internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun write(line: kotlin.String): kotlin.Boolean
@@ -981,6 +1003,7 @@ class Channel internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun listen(cx: api.Waker)
 	suspend fun recvSized(): kotlin.Pair<api.Bytes, kotlin.ULong>
 	@kotlin.jvm.Throws(ErrorException::class) suspend fun recvNonempty(): api.Bytes
+	fun feed(): api.Feed
 	fun sendFromThread(payload: api.Bytes)
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Channel

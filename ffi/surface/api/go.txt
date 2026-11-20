@@ -385,6 +385,7 @@ func NewChannel() *Channel
 func (self *Channel) Clear() error
 func (self *Channel) Clone() (*Channel, error)
 func (self *Channel) Close() error
+func (self *Channel) Feed() (*Feed, error)
 func (self *Channel) Itemized(ctx context.Context, items *[]uint32) (uint, error)
 func (self *Channel) Listen(cx func()) error
 func (self *Channel) Notify(waker func()) error
@@ -723,6 +724,14 @@ func (self *Codecs) ListSet(value []*p_tls.Codec) error
 type Core struct {
 	Id uint32
 }
+type Countdown struct {
+	Handle_ *p_rt.Handle_
+}
+func CountdownTold(from uint32, log Log) *Countdown
+func NewCountdown(from uint32) *Countdown
+func (self *Countdown) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Countdown) Close() error
+func (self *Countdown) Next(ctx context.Context) (*uint32, error)
 type Counter struct {
 	Handle_ *p_rt.Handle_
 }
@@ -871,6 +880,12 @@ func (self *Fault) Close() error
 func (self *Fault) Error() string
 func (self *Fault) GoString() string
 func (self *Fault) String() string
+type Feed struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Feed) All(ctx context.Context) iter.Seq2[p_rt.Bytes, error]
+func (self *Feed) Close() error
+func (self *Feed) Next(ctx context.Context) (*p_rt.Bytes, error)
 type FiledReceipt struct {
 	Handle_ *p_rt.Handle_
 }
@@ -1479,6 +1494,13 @@ func NewResolving(name string) (*Resolving, error)
 func (self *Resolving) Close() error
 func (self *Resolving) V0Get() (*p_tls.Resolver, error)
 func (self *Resolving) V0Set(value *p_tls.Resolver) error
+type Retired struct {
+	Handle_ *p_rt.Handle_
+}
+func NewRetired(from uint32) *Retired
+func (self *Retired) All(ctx context.Context) iter.Seq2[uint32, error]
+func (self *Retired) Close() error
+func (self *Retired) Next(ctx context.Context) (*uint32, error)
 type Retry struct {
 	Handle_ *p_rt.Handle_
 }

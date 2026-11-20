@@ -104,7 +104,7 @@ Decided with the maintainer on 2026-11-18, in the per-language audit:
   decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),
   [speed](/quest/m1/ffi-speed/README.md), [rule cost](/quest/m1/ffi-rules/README.md),
   [packaging](/quest/m1/ffi-packaging/README.md), [ordering](/quest/m1/ffi-ord.md), and
-  [stream adapters](/quest/m1/ffi-streams.md).
+  stream adapters (landed), with [Swift streams of noncopyable objects](/quest/m1/swift-async-reader.md).
 - Dropped: a per-function contract in place of the whole-header hash, since moq links
   statically and the strict check is what fails loud; C layout `_Static_assert`s, since
   mainstream ABIs agree and the API lock catches layout changes; and Kotlin Multiplatform,

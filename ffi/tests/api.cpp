@@ -457,6 +457,45 @@ void readers() {
 	}
 }
 
+// Streams, each `next` awaited in turn, as C++ has no asynchronous iteration of its own.
+void streams() {
+	{
+		api::Countdown countdown = api::Countdown::new_(3);
+		std::printf("countdown");
+		const char *sep = " ";
+		while (auto count = countdown.next().get()) {
+			std::printf("%s%u", sep, unsigned(*count));
+		}
+		std::printf("\n");
+	}
+	api::Countdown countdown = api::Countdown::new_(5);
+	while (auto count = countdown.next().get()) {
+		if (*count == 4) {
+			break;
+		}
+	}
+	std::printf("countdown after break %u\n", unsigned(*countdown.next().get()));
+	api::Channel channel = api::Channel::new_();
+	api::Feed feed = channel.feed();
+	for (const char *first : {"a", "c"}) {
+		channel.send(first);
+		for (;;) {
+			auto next = feed.next().get();
+			if (!next) {
+				print("feed error ", api::Error_to_string(next.error()), "\n");
+				break;
+			}
+			if (!next.value()) {
+				std::printf("feed end\n");
+				break;
+			}
+			const api::buf &payload = *next.value();
+			print("feed ", payload, "\n");
+			channel.send(payload.str() == "a" ? "b" : payload.str() == "b" ? "!" : "");
+		}
+	}
+}
+
 // Futures of a value that is not `Send`, polled on this thread until each is ready.
 void local_later(const api::Local &local) {
 	api::waker waker([]() {});
