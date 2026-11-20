@@ -36,6 +36,9 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"instance holding an instance of a type inside it" => {
 			"do not nest the generic type in itself at a deeper instance, as `Cell<Cell<u8>>` does"
 		}
+		crate::collect::DEEPER => {
+			"spell the instance in a signature of its own, such as a function returning it, or stop nesting generic types in a method's signature"
+		}
 		"unmet bound of the instance" | "unmet bound" => {
 			"implement the bound for the type, or loosen it; an instance exports only where every bound holds"
 		}

@@ -2649,6 +2649,9 @@ mod tests {
 		assert_eq!(escape("unix_"), "unix__");
 		assert_eq!(escape("linux__"), "linux___");
 		assert_eq!(escape("unixes"), "unixes");
+		// And the C library's, which `<cerrno>` and `<cstddef>` define.
+		assert_eq!(escape("errno"), "errno_");
+		assert_eq!(escape("offsetof_"), "offsetof__");
 		// A keyword keeps its single escape, so a field `type_` stays `type_`.
 		assert_eq!(escape("type_"), "type_");
 	}

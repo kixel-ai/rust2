@@ -4377,6 +4377,37 @@ fn census_counts_traits() {
 	assert!(report.contains("| Traits | 0 | 1 | 0% |"), "{report}");
 }
 
+/// The depth an instance may nest to counts what inference names, not only what the
+/// signatures spell: an async function's output, and a parameter's implementor, a
+/// method's too, which only an instance of its type names.
+#[test]
+fn census_depth() {
+	let lib = "pub struct Wrap<T>(pub T);\n\n\
+		pub async fn make() -> Wrap<u8> {\n\tWrap(0)\n}\n\n\
+		pub trait Seed: Copy {\n\tfn seed(&self) -> u8;\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Held<T>(pub T);\n\n\
+		impl Seed for Held<u16> {\n\tfn seed(&self) -> u8 {\n\t\t1\n\t}\n}\n\n\
+		pub fn plant(seed: impl Seed) -> u8 {\n\tseed.seed()\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Host<T = u8>(pub T);\n\n\
+		pub trait Grow: Copy {\n\tfn grow(&self) -> u8;\n}\n\n\
+		impl Grow for Held<Host<u16>> {\n\tfn grow(&self) -> u8 {\n\t\t2\n\t}\n}\n\n\
+		impl<T> Host<T> {\n\tpub fn plant(&self, seed: impl Grow) -> u8 {\n\t\tseed.grow()\n\t}\n}\n";
+	let package = package("census_depth", &[("src/lib.rs", lib)]);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_depth.md")).unwrap();
+	assert!(!report.contains("instance deeper"), "{report}");
+	assert!(report.contains("| Functions | 2 | 0 |"), "{report}");
+	assert!(
+		report.contains("| Methods and fields of exported types | 2 | 0 |"),
+		"{report}"
+	);
+}
+
 /// A method Swift refuses leaves out only itself, not the accessors of a field of its name.
 #[test]
 fn census_swift_field() {
@@ -5001,6 +5032,92 @@ fn plain() {
 		.arg("--target-dir")
 		.arg(package.join("glue"))
 		.env("RUSTFLAGS", "-D warnings"));
+}
+
+/// A facade that reaches `bytes`, whose `Take` its signature names though it re-exports
+/// nothing of the crate, builds with the one dependency on it the glue's own `Bytes` shares:
+/// cargo refuses two under different names.
+#[test]
+fn reaches_bytes() {
+	let package = package(
+		"reaches_bytes",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"reaches_bytes\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\nbytes = \"1\"\n\n[workspace]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub fn limited(bytes: bytes::Bytes) -> bytes::buf::Take<bytes::Bytes> {\n\tbytes::Buf::take(bytes, 2)\n}\n",
+			),
+		],
+	);
+	export_and_build(&package, &["--offline"]);
+}
+
+/// A facade whose `bytes` is a `path` dependency that only the host's API reaches: the glue
+/// declares `bytes` once, from the facade's source, for every target, never also as the
+/// registry's, which cargo refuses as one name from two sources.
+#[test]
+fn reaches_bytes_on_the_host() {
+	// The registry's `bytes`, copied beside the facade to be its `path` dependency.
+	let source = package("reaches_bytes_source", &[]);
+	write_all(
+		&source,
+		&[(
+			"Cargo.toml",
+			"[package]\nname = \"reaches_bytes_source\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+			[dependencies]\nbytes = \"1\"\n\n[workspace]\n",
+		)],
+	);
+	run(cargo()
+		.args(["fetch", "--quiet", "--manifest-path"])
+		.arg(source.join("Cargo.toml")));
+	let metadata = run(cargo()
+		.args(["metadata", "--format-version", "1", "--offline", "--manifest-path"])
+		.arg(source.join("Cargo.toml")));
+	let metadata: serde_json::Value = serde_json::from_slice(&metadata.stdout).unwrap();
+	let registry = (metadata["packages"].as_array().unwrap().iter())
+		.find(|p| p["name"] == "bytes")
+		.map(|p| {
+			Path::new(p["manifest_path"].as_str().unwrap())
+				.parent()
+				.unwrap()
+				.to_path_buf()
+		})
+		.unwrap();
+	let package = package(
+		"reaches_bytes_host",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"reaches_bytes_host\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\nbytes = { path = \"bytes\" }\n\n[workspace]\nexclude = [\"bytes\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"#[cfg(not(target_arch = \"wasm32\"))]\npub fn limited(bytes: bytes::Bytes) -> bytes::buf::Take<bytes::Bytes> {\n\tbytes::Buf::take(bytes, 2)\n}\n\n\
+				pub fn both() -> u32 {\n\t1\n}\n",
+			),
+		],
+	);
+	step::mirror(&registry, &package.join("bytes"));
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
+		.arg("--out")
+		.arg(&out)
+		.args(["--target", WASM, "--target", host(), "--", "--offline"])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let manifest = std::fs::read_to_string(out.join("Cargo.toml")).unwrap();
+	let declared: Vec<&str> = manifest.lines().filter(|l| l.starts_with("bytes = ")).collect();
+	assert!(
+		declared.len() == 1 && declared[0].contains("path"),
+		"bytes is declared once, from the facade's source:\n{manifest}"
+	);
+	build_offline(&out, &package.join("glue"));
 }
 
 /// A dependency the facade re-exports from, patched in for a registry dependency, is

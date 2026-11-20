@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x6bd76ed1b4546d55ULL)
+#define API_CONTRACT ((uint64_t)0xccbe331a59c1b3a7ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -864,6 +864,12 @@ typedef struct api_Knob {
 typedef struct api_polar_Turn {
 	uint8_t part;
 } api_polar_Turn;
+typedef struct api_macros_Streams {
+	uint8_t stdin_;
+	uint8_t stdout_;
+	uint8_t stderr_;
+	uint8_t errno_;
+} api_macros_Streams;
 typedef struct api_clash_TONE {
 	uint8_t db;
 } api_clash_TONE;
@@ -1441,6 +1447,9 @@ API_MUST_USE api_buf api_polar_Point_debug(const api_polar_Point *self);
 void api_polar_Turn_free(api_polar_Turn *self);
 bool api_polar_Turn_eq(const api_polar_Turn *a, const api_polar_Turn *b);
 API_MUST_USE api_buf api_polar_Turn_debug(const api_polar_Turn *self);
+void api_macros_Streams_free(api_macros_Streams *self);
+bool api_macros_Streams_eq(const api_macros_Streams *a, const api_macros_Streams *b);
+API_MUST_USE api_buf api_macros_Streams_debug(const api_macros_Streams *self);
 void api_clash_Tone_free(api_clash_Tone *self);
 bool api_clash_Tone_eq(const api_clash_Tone *a, const api_clash_Tone *b);
 API_MUST_USE api_buf api_clash_Tone_debug(const api_clash_Tone *self);
@@ -2504,6 +2513,9 @@ uint64_t api_booth_count(api_Booth booth, api_status *status);
 api_Page api_page(void);
 uint32_t api_beats(api_Beat beat);
 int32_t api_same(double a, double b);
+int32_t api_errno(void);
+bool api_assert(bool holds);
+uint8_t api_offsetof(uint8_t field);
 API_MUST_USE bool api_return_values(api_Point point, bool fail, api_Point *point_out, api_buf *out0, api_option_tuple_u8_i16_u32_u64 *out1, api_vec_bytes *out2, api_Error *err);
 API_MUST_USE bool api_return_moved(api_Counter *counter, bool fail, api_Counter **out, api_Error *err, api_status *status);
 api_NonZeros api_non_zeros(void);
@@ -2547,6 +2559,7 @@ uint64_t api_crowded(api_Reading reading, api_Stamp a, api_Stamp b, uint64_t n0,
 uint64_t api_crammed(api_Moment a, api_Moment b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118, uint64_t n119, uint64_t n120, uint64_t n121, uint64_t n122, uint64_t n123);
 uint32_t api_jni_one(void);
 api_option_polar_Point api_polar_point(uint32_t distance);
+uint32_t api_macros_streamed(api_macros_Streams streams, uint8_t errno_);
 API_MUST_USE api_clash_Any api_clash_any(api_buf type_url);
 api_clash_Candidate api_clash_candidate(uint8_t at);
 uint8_t api_clash_ignore(uint8_t arg0, uint8_t arg1, uint8_t arg2);

@@ -7,10 +7,12 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <assert.h>
 #include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -849,6 +851,12 @@ static void checks(void) {
 	api_clash_Errno none = api_clash_Errno_NULL();
 	if (none.errno_ != 0 || API_EOF != -1 || api_WEXITSTATUS(0x300) != 3) {
 		tr_fail("names of system macros");
+	}
+	/* A field and a parameter named as `errno`, a macro of <errno.h>, which take a trailing `_`
+	 * rather than expand. */
+	api_macros_Streams streams = {1, 2, 3, 4};
+	if (streams.errno_ != 4 || api_macros_streamed(streams, 5) != 15 || api_errno() != 7) {
+		tr_fail("names of C library macros");
 	}
 
 	/* A name takes a copy: the caller's buffer is its own again. */
