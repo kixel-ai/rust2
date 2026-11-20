@@ -437,6 +437,10 @@ pub(crate) struct Traits {
 	/// A baseline written before it has none.
 	#[serde(default)]
 	pub(crate) hash: bool,
+	/// `PartialOrd` with itself, and whether it is a total order too, `Ord`. A baseline
+	/// written before it has none.
+	#[serde(default)]
+	pub(crate) ord: Order,
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
 	pub(crate) default: bool,
@@ -451,6 +455,19 @@ pub(crate) struct Traits {
 	/// or type holding itself, whose length the caller picks.
 	#[serde(default)]
 	pub(crate) leaf_sized: bool,
+}
+
+/// How a type orders its values.
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) enum Order {
+	/// No `PartialOrd`.
+	#[default]
+	None,
+	/// `PartialOrd` alone: two values may be unordered, so a binding exports only the
+	/// partial comparison, never its language's total one.
+	Partial,
+	/// `Ord` as well, a total order agreeing with `PartialOrd`.
+	Total,
 }
 
 /// A function or method.

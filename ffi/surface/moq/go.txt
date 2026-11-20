@@ -1001,11 +1001,13 @@ func ClockNow() ClockInstant
 func (self ClockInstant) CheckedAdd(duration p_rt.Duration) *ClockInstant
 func (self ClockInstant) CheckedDurationSince(earlier ClockInstant) *p_rt.Duration
 func (self ClockInstant) CheckedSub(duration p_rt.Duration) *ClockInstant
+func (self ClockInstant) Compare(other ClockInstant) int
 func (self ClockInstant) DurationSince(earlier ClockInstant) p_rt.Duration
 func (self ClockInstant) Elapsed() p_rt.Duration
 func (self ClockInstant) Equal(other ClockInstant) bool
 func (self ClockInstant) GoString() string
 func (self ClockInstant) IntoStd() *p_std.Instant
+func (self ClockInstant) PartialCompare(other ClockInstant) (int, bool)
 func (self ClockInstant) SaturatingAdd(duration p_rt.Duration) ClockInstant
 func (self ClockInstant) SaturatingDurationSince(earlier ClockInstant) p_rt.Duration
 func (self ClockInstant) SaturatingSub(duration p_rt.Duration) ClockInstant
@@ -1056,8 +1058,10 @@ func NewClockWall() ClockWall
 func (self ClockWall) CheckedAdd(duration p_rt.Duration) *ClockWall
 func (self ClockWall) CheckedDurationSince(earlier ClockWall) *p_rt.Duration
 func (self ClockWall) CheckedSub(duration p_rt.Duration) *ClockWall
+func (self ClockWall) Compare(other ClockWall) int
 func (self ClockWall) Equal(other ClockWall) bool
 func (self ClockWall) GoString() string
+func (self ClockWall) PartialCompare(other ClockWall) (int, bool)
 func (self ClockWall) SaturatingAdd(duration p_rt.Duration) ClockWall
 func (self ClockWall) SaturatingDurationSince(earlier ClockWall) p_rt.Duration
 type ClockWallMap struct {
@@ -5469,8 +5473,10 @@ func BandwidthRateZERO() BandwidthRate
 func BandwidthViewersMAX_TARGET() BandwidthRate
 func (self BandwidthRate) AbsDiff(other_ BandwidthRate) BandwidthRate
 func (self BandwidthRate) AsBps() uint64
+func (self BandwidthRate) Compare(other BandwidthRate) int
 func (self BandwidthRate) Equal(other BandwidthRate) bool
 func (self BandwidthRate) GoString() string
+func (self BandwidthRate) PartialCompare(other BandwidthRate) (int, bool)
 func (self BandwidthRate) Scaled(factor float64) BandwidthRate
 type BandwidthReservation struct {
 	Handle_ *p_rt.Handle_
@@ -5862,8 +5868,10 @@ func (self *GroupFinished) StartGet() (uint64, error)
 type GroupInfo struct {
 	Start uint64
 }
+func (self GroupInfo) Compare(other GroupInfo) int
 func (self GroupInfo) Equal(other GroupInfo) bool
 func (self GroupInfo) GoString() string
+func (self GroupInfo) PartialCompare(other GroupInfo) (int, bool)
 type GroupProducer struct {
 	Handle_ *p_rt.Handle_
 }
@@ -5888,9 +5896,11 @@ func InstanceRandom() *Instance
 func (self *Instance) AsStr() (string, error)
 func (self *Instance) Clone() (*Instance, error)
 func (self *Instance) Close() error
+func (self *Instance) Compare(other *Instance) (int, error)
 func (self *Instance) Equal(other *Instance) (bool, error)
 func (self *Instance) GoString() string
 func (self *Instance) IsMinted() (bool, error)
+func (self *Instance) PartialCompare(other *Instance) (int, bool, error)
 func (self *Instance) String() string
 type OriginClaim struct {
 	Handle_ *p_rt.Handle_
@@ -5945,8 +5955,10 @@ type OriginCost struct {
 }
 func NewOriginCost(cost uint64) OriginCost
 func OriginCostDefault() OriginCost
+func (self OriginCost) Compare(other OriginCost) int
 func (self OriginCost) Equal(other OriginCost) bool
 func (self OriginCost) GoString() string
+func (self OriginCost) PartialCompare(other OriginCost) (int, bool)
 func (self OriginCost) Value() uint64
 type OriginDriver struct {
 	Handle_ *p_rt.Handle_
@@ -5973,8 +5985,10 @@ type OriginPriority struct {
 }
 func NewOriginPriority(priority int8) OriginPriority
 func OriginPriorityDefault() OriginPriority
+func (self OriginPriority) Compare(other OriginPriority) int
 func (self OriginPriority) Equal(other OriginPriority) bool
 func (self OriginPriority) GoString() string
+func (self OriginPriority) PartialCompare(other OriginPriority) (int, bool)
 func (self OriginPriority) Value() int8
 type OriginProducer struct {
 	Handle_ *p_rt.Handle_
@@ -6080,6 +6094,7 @@ func PathFromStatic(s string) (*Path, error)
 func (self *Path) AsStr() (string, error)
 func (self *Path) Clone() (*Path, error)
 func (self *Path) Close() error
+func (self *Path) Compare(other *Path) (int, error)
 func (self *Path) Equal(other *Path) (bool, error)
 func (self *Path) GoString() string
 func (self *Path) HasPrefix(prefix *Path) (bool, error)
@@ -6087,6 +6102,7 @@ func (self *Path) Head(n uint) (*Path, error)
 func (self *Path) IsEmpty() (bool, error)
 func (self *Path) Join(other_ *Path) (*Path, error)
 func (self *Path) Len() (uint, error)
+func (self *Path) PartialCompare(other *Path) (int, bool, error)
 func (self *Path) Relative(base *Path) (*PathRelative, error)
 func (self *Path) Resolve(rel *PathRelative) (*Path, error)
 func (self *Path) String() string
@@ -7013,8 +7029,10 @@ func TimescaleMILLI() Timescale
 func TimescaleNANO() Timescale
 func TimescaleSECOND() Timescale
 func (self Timescale) AsU64() uint64
+func (self Timescale) Compare(other Timescale) int
 func (self Timescale) Equal(other Timescale) bool
 func (self Timescale) GoString() string
+func (self Timescale) PartialCompare(other Timescale) (int, bool)
 func (self Timescale) String() string
 type Timestamp struct {
 	Bytes_ [2]uint64
@@ -7039,6 +7057,7 @@ func (self Timestamp) Convert(newScale Timescale) (Timestamp, error)
 func (self Timestamp) Equal(other Timestamp) bool
 func (self Timestamp) GoString() string
 func (self Timestamp) IsZero() bool
+func (self Timestamp) PartialCompare(other Timestamp) (int, bool)
 func (self Timestamp) Scale() *Timescale
 func (self Timestamp) Value() uint64
 type TrackAbortHandle struct {
@@ -7051,21 +7070,29 @@ func (self *TrackAbortHandle) IsClosed() (bool, error)
 type TrackAnchor interface {
 	GoString() string
 	Equal(other TrackAnchor) bool
+	PartialCompare(other TrackAnchor) (int, bool)
+	Compare(other TrackAnchor) int
 }
 type TrackAnchorOldest struct {
 }
+func (self TrackAnchorOldest) Compare(other TrackAnchor) int
 func (self TrackAnchorOldest) Equal(other TrackAnchor) bool
 func (self TrackAnchorOldest) GoString() string
+func (self TrackAnchorOldest) PartialCompare(other TrackAnchor) (int, bool)
 type TrackAnchorRelative struct {
 	V0 uint64
 }
+func (self TrackAnchorRelative) Compare(other TrackAnchor) int
 func (self TrackAnchorRelative) Equal(other TrackAnchor) bool
 func (self TrackAnchorRelative) GoString() string
+func (self TrackAnchorRelative) PartialCompare(other TrackAnchor) (int, bool)
 type TrackAnchorTime struct {
 	V0 uint64
 }
+func (self TrackAnchorTime) Compare(other TrackAnchor) int
 func (self TrackAnchorTime) Equal(other TrackAnchor) bool
 func (self TrackAnchorTime) GoString() string
+func (self TrackAnchorTime) PartialCompare(other TrackAnchor) (int, bool)
 type TrackCompression int32
 const (
 	TrackCompressionNone    TrackCompression = 0
@@ -7191,12 +7218,14 @@ type TrackPosition struct {
 func NewTrackPosition(group uint64, frame uint64) TrackPosition
 func TrackPositionDefault() TrackPosition
 func TrackPositionGroup(group uint64) TrackPosition
+func (self TrackPosition) Compare(other TrackPosition) int
 func (self TrackPosition) Equal(other TrackPosition) bool
 func (self TrackPosition) FrameGet() uint64
 func (self *TrackPosition) FrameSet(value uint64)
 func (self TrackPosition) GoString() string
 func (self TrackPosition) GroupGet() uint64
 func (self *TrackPosition) GroupSet(value uint64)
+func (self TrackPosition) PartialCompare(other TrackPosition) (int, bool)
 type TrackProducer struct {
 	Handle_ *p_rt.Handle_
 }
@@ -7234,8 +7263,10 @@ type TrackRange struct {
 }
 func TrackRangeLive() TrackRange
 func TrackRangeOldest() TrackRange
+func (self TrackRange) Compare(other TrackRange) int
 func (self TrackRange) Equal(other TrackRange) bool
 func (self TrackRange) GoString() string
+func (self TrackRange) PartialCompare(other TrackRange) (int, bool)
 type TrackRefresh struct {
 	Handle_ *p_rt.Handle_
 }
@@ -7541,6 +7572,7 @@ func (self *Pattern) AsStr() (string, error)
 func (self *Pattern) Captures(matched *Pattern) (*[]*Pattern, error)
 func (self *Pattern) Clone() (*Pattern, error)
 func (self *Pattern) Close() error
+func (self *Pattern) Compare(other *Pattern) (int, error)
 func (self *Pattern) Contains(other_ *Pattern) (bool, error)
 func (self *Pattern) Equal(other *Pattern) (bool, error)
 func (self *Pattern) GoString() string
@@ -7550,6 +7582,7 @@ func (self *Pattern) Intersect(other_ *Pattern) (*Patterns, error)
 func (self *Pattern) IsLiteral() (bool, error)
 func (self *Pattern) Matches(path string) (bool, error)
 func (self *Pattern) Overlaps(other_ *Pattern) (bool, error)
+func (self *Pattern) PartialCompare(other *Pattern) (int, bool, error)
 func (self *Pattern) Rebase(root string) (*Patterns, error)
 func (self *Pattern) Rooted(root string) (*Pattern, error)
 func (self *Pattern) Segments() ([]Segment, error)
@@ -7608,8 +7641,10 @@ type Specificity struct {
 }
 func (self *Specificity) Clone() (*Specificity, error)
 func (self *Specificity) Close() error
+func (self *Specificity) Compare(other *Specificity) (int, error)
 func (self *Specificity) Equal(other *Specificity) (bool, error)
 func (self *Specificity) GoString() string
+func (self *Specificity) PartialCompare(other *Specificity) (int, bool, error)
 
 package qmux // import "moq/qmux"
 
@@ -8111,8 +8146,10 @@ type Instant struct {
 }
 func (self *Instant) Clone() (*Instant, error)
 func (self *Instant) Close() error
+func (self *Instant) Compare(other *Instant) (int, error)
 func (self *Instant) Equal(other *Instant) (bool, error)
 func (self *Instant) GoString() string
+func (self *Instant) PartialCompare(other *Instant) (int, bool, error)
 
 package tokio // import "moq/tokio"
 
@@ -8411,8 +8448,10 @@ type Duration struct {
 func DurationDefault() *Duration
 func (self *Duration) Clone() (*Duration, error)
 func (self *Duration) Close() error
+func (self *Duration) Compare(other *Duration) (int, error)
 func (self *Duration) Equal(other *Duration) (bool, error)
 func (self *Duration) GoString() string
+func (self *Duration) PartialCompare(other *Duration) (int, bool, error)
 func (self *Duration) String() string
 type Error struct {
 	Handle_ *p_rt.Handle_
@@ -8963,13 +9002,15 @@ package tracingcore // import "moq/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
+func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
+func (self Level) PartialCompare(other Level) (int, bool)
 func (self Level) String() string
 
 package url // import "moq/url"
@@ -8981,7 +9022,9 @@ type Url struct {
 func UrlParse(input string) (*Url, error)
 func (self *Url) Clone() (*Url, error)
 func (self *Url) Close() error
+func (self *Url) Compare(other *Url) (int, error)
 func (self *Url) Equal(other *Url) (bool, error)
 func (self *Url) GoString() string
+func (self *Url) PartialCompare(other *Url) (int, bool, error)
 func (self *Url) String() string
 

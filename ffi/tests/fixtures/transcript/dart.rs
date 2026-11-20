@@ -304,7 +304,17 @@ fn member(name: &str, taken: &[&str]) -> String {
 
 /// A record's field, as the exporter names it.
 fn field(name: &str) -> String {
-	member(name, &["hashCode", "noSuchMethod", "runtimeType", "toString"])
+	member(
+		name,
+		&[
+			"hashCode",
+			"noSuchMethod",
+			"runtimeType",
+			"toString",
+			"compareTo",
+			"partialCompareTo",
+		],
+	)
 }
 
 /// The Dart of an integer's name, as the runtime's classes end in it: `u64` is `U64`.
@@ -809,7 +819,10 @@ impl Emitter<'_> {
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
 					return format!(
 						"api.{name}.{}",
-						member(&snake(&variant.name), &["values", "index", "name"])
+						member(
+							&snake(&variant.name),
+							&["values", "index", "name", "compareTo", "partialCompareTo"]
+						)
 					);
 				}
 				let key = format!("type {} / variant {}", self.t.rust(&Type::Enum(*en)), variant.name);
@@ -993,7 +1006,10 @@ impl Emitter<'_> {
 			Op::Eq => compare("=="),
 			Op::Ne => compare("!="),
 			Op::Lt => compare("<"),
+			Op::Le => compare("<="),
 			Op::Gt => compare(">"),
+			Op::Ge => compare(">="),
+			Op::Cmp => format!("{a}.compareTo({b})"),
 			Op::And => compare("&&"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let Type::Int(int) = unref(ty).base() else {

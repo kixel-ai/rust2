@@ -369,6 +369,11 @@ data class Qualifiers(val api: kotlin.Double, val kotlin: kotlin.Double) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 }
+data class Version(val major: kotlin.UShort, val minor: kotlin.UShort) : kotlin.Comparable<Version> {
+	fun debug(): kotlin.String
+	fun partialCompareTo(other: api.Version): kotlin.Int?
+	override fun compareTo(other: api.Version): kotlin.Int
+}
 data class Spot(val x: kotlin.UInt, val y: kotlin.UInt) {
 	fun debug(): kotlin.String
 	companion object {
@@ -560,18 +565,35 @@ sealed class Builtin {
 		override fun hashCode(): kotlin.Int
 	}
 }
+sealed class Rank : kotlin.Comparable<Rank> {
+	data object Unranked : Rank()
+	data class Ranked(val compare: kotlin.UByte, val partialCompare: kotlin.UByte, val compareTo: kotlin.UByte, val partialCompareTo: kotlin.UByte) : Rank()
+	fun debug(): kotlin.String
+	fun partialCompareTo(other: api.Rank): kotlin.Int?
+	override fun compareTo(other: api.Rank): kotlin.Int
+}
+enum class Tier(internal val value: Int) {
+	LOW(0),
+	HIGH(1),
+	COMPARE_TO(2),
+	PARTIAL_COMPARE_TO(3);
+	fun debug(): kotlin.String
+	fun partialCompareTo(other: api.Tier): kotlin.Int?
+	companion object {}
+}
 sealed class ClashCandidate {
 	data object None : ClashCandidate()
 	data class Match(val _0: kotlin.UByte) : ClashCandidate()
 	fun debug(): kotlin.String
 }
 enum class Level(internal val value: Int) {
-	TRACE(0),
-	DEBUG(1),
+	ERROR(0),
+	WARN(1),
 	INFO(2),
-	WARN(3),
-	ERROR(4);
+	DEBUG(3),
+	TRACE(4);
 	final override fun toString(): kotlin.String
+	fun partialCompareTo(other: api.Level): kotlin.Int?
 	companion object {}
 }
 class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1181,6 +1203,28 @@ class C internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.C
 	}
 }
+class Quantity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: api.Quantity): kotlin.Int?
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(value: kotlin.Long, unit: kotlin.Int): api.Quantity
+	}
+}
+class Pass internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Pass> {
+	override fun close()
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: api.Pass): kotlin.Int?
+	override fun compareTo(other: api.Pass): kotlin.Int
+	fun redeem(): kotlin.UInt
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(number: kotlin.UInt): api.Pass
+	}
+}
 class Key internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
@@ -1218,13 +1262,15 @@ class TlsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun alpn(): kotlin.String
 	fun lifetime(): api.TlsPolicyLifetime
 }
-class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Url> {
 	override fun close()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	fun clone(): api.Url
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: api.Url): kotlin.Int?
+	override fun compareTo(other: api.Url): kotlin.Int
 	companion object {
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Url
 	}
@@ -1236,12 +1282,14 @@ class Json internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): api.Json
 	}
 }
-class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable, kotlin.Comparable<Instant> {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): api.Instant
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun partialCompareTo(other: api.Instant): kotlin.Int?
+	override fun compareTo(other: api.Instant): kotlin.Int
 }
 class StdIoError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()

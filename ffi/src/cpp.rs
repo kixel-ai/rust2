@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
 use crate::doc;
-use crate::ir::{Closure, Family, Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Closure, Family, Function, Int, Literal, Order, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
@@ -36,6 +36,28 @@ pub(crate) struct Output {
 	/// Each header by its path under `include/`.
 	pub(crate) files: Vec<(String, String)>,
 	pub(crate) names: BTreeMap<String, String>,
+}
+
+/// A comparison operator: its signature, its body, and whether it is C++20's alone.
+struct Operator {
+	head: String,
+	body: String,
+	cpp20: bool,
+}
+
+impl Operator {
+	/// `text` inside the guard of a C++20 operator.
+	fn guarded(&self, text: String) -> String {
+		match self.cpp20 {
+			true => format!("#if defined(__cpp_lib_three_way_comparison)\n{text}\n#endif"),
+			false => text,
+		}
+	}
+
+	/// Its definition, inline as a friend defined in its class is.
+	fn define(&self, prefix: &str) -> String {
+		self.guarded(format!("{prefix}{} {{\n{}}}", self.head, self.body))
+	}
 }
 
 /// The headers for `abi`: the umbrella `<prefix>.hpp`, the shared `<prefix>/rt.hpp`, and a
@@ -189,6 +211,39 @@ impl<'a> Header<'a> {
 		let a = parameter("a", |n| self.globals.contains(n));
 		let b = parameter("b", |n| self.globals.contains(n) || n == a);
 		(a, b)
+	}
+
+	/// The comparison operators of a type ordered by `ord`, each taking `params`, whose
+	/// body runs the first of what `call` gives of a C suffix and returns through the
+	/// second, the C call: `<` and its kin from `partial_cmp`, as Rust's are, and from
+	/// C++20 `<=>`, from `cmp` with `Ord` and else from `partial_cmp`.
+	fn orders(&self, ord: Order, params: &str, call: &dyn Fn(&str) -> (String, String)) -> Vec<Operator> {
+		let d = self.d();
+		let (pre, partial) = call("partial_cmp");
+		let mut ops: Vec<Operator> = [
+			("<", "less"),
+			("<=", "less_equal"),
+			(">", "greater"),
+			(">=", "greater_equal"),
+		]
+		.into_iter()
+		.map(|(op, test)| Operator {
+			head: format!("bool operator{op}({params})"),
+			body: format!("{pre}\treturn {d}::{test}({partial});\n"),
+			cpp20: false,
+		})
+		.collect();
+		let (ordering, suffix) = match ord {
+			Order::Total => ("weak_ordering", "cmp"),
+			_ => ("partial_ordering", "partial_cmp"),
+		};
+		let (pre, compare) = call(suffix);
+		ops.push(Operator {
+			head: format!("::std::{ordering} operator<=>({params})"),
+			body: format!("{pre}\treturn {d}::{ordering}({compare});\n"),
+			cpp20: true,
+		});
+		ops
 	}
 
 	/// `name`, declared in the namespace.
@@ -606,7 +661,7 @@ impl<'a> Header<'a> {
 			self.line(format!("#include <{include}>"));
 		}
 		self.line(
-			"#if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)\n#include <coroutine>\n#endif\n",
+			"#if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)\n#include <coroutine>\n#endif\n#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && __has_include(<compare>)\n#include <compare>\n#endif\n",
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		// Whether a call makes a value that is not `Send`, whose thread an executor drains.
@@ -940,7 +995,7 @@ impl<'a> Header<'a> {
 				}
 			})
 			.collect();
-		named(&bare, taken)
+		named(&bare, |n| taken.iter().any(|t| t == n))
 	}
 
 	/// The record `i`'s field names, kept apart from the members its traits export; and every
@@ -949,7 +1004,7 @@ impl<'a> Header<'a> {
 	fn fields(&self, i: usize) -> (Vec<String>, Vec<String>) {
 		let record = &self.abi.api.records[i];
 		let name = self.name(&self.abi.record(i));
-		let made = Self::made(record.traits, &name);
+		let _made = Self::made(record.traits, &name);
 		// A record's traits give it no `clone` or `hash`, which only an object's give.
 		let emitted = Traits {
 			clone: false,
@@ -957,7 +1012,8 @@ impl<'a> Header<'a> {
 			..record.traits
 		};
 		let rust: Vec<String> = record.fields.iter().map(|f| f.name.clone()).collect();
-		let fields = named(&rust, &Self::made(emitted, &name));
+		let made = Self::made(emitted, &name);
+		let fields = named(&rust, |n| made.iter().any(|t| t == n));
 		let mut taken = fields.clone();
 		taken.extend(made);
 		taken.push(name);
@@ -982,7 +1038,7 @@ impl<'a> Header<'a> {
 		let rust: Vec<String> = (self.abi.api.enums[i].variants.iter())
 			.map(|v| abi::snake(&v.name))
 			.collect();
-		named(&rust, &[])
+		named(&rust, |_| false)
 	}
 
 	/// The members `traits` exports on the class `class`, which a method's name keeps apart
@@ -1069,6 +1125,27 @@ impl<'a> Header<'a> {
 			body.push(format!(
 				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 			));
+		}
+		if t.ord != Order::None {
+			let (a, b) = self.operands();
+			let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
+				(
+					String::new(),
+					format!("::{c}_{suffix}({d}::access::raw({a}), {d}::access::raw({b}){status})"),
+				)
+			});
+			// Friends, as `==` is, but for C++20's `<=>`: a class that differs between
+			// standards breaks the one-definition rule, so it lives in the namespace.
+			for op in ops {
+				match op.cpp20 {
+					true => self.def(format!("{}\n", op.define("inline "))),
+					false => body.push(format!(
+						"\tfriend {} {{\n\t{}\n\t}}",
+						op.head,
+						op.body.trim_end().replace('\n', "\n\t")
+					)),
+				}
+			}
 		}
 		if t.hash {
 			let hash = apart("hash", &name);
@@ -1189,7 +1266,7 @@ impl<'a> Header<'a> {
 		)];
 		let mut table = vec!["&t::free".to_string()];
 		let rust: Vec<String> = callback.methods.iter().map(|m| m.name().to_string()).collect();
-		let names = named(&rust, std::slice::from_ref(&name));
+		let names = named(&rust, |n| n == name);
 		for (n, (method, member)) in callback.methods.iter().zip(names).enumerate() {
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
@@ -1199,7 +1276,7 @@ impl<'a> Header<'a> {
 			};
 			let rust: Vec<String> = method.params.iter().map(|p| p.name.clone()).collect();
 			let params: Vec<String> = (method.params.iter())
-				.zip(named(&rust, &[]))
+				.zip(named(&rust, |_| false))
 				.map(|(p, param)| declare(&self.lent(&p.ty), &param))
 				.collect();
 			body.push(format!(
@@ -1320,6 +1397,26 @@ impl<'a> Header<'a> {
 						self.value_status(ty),
 					));
 				}
+				if t.ord != Order::None {
+					let (a, b) = self.operands();
+					let (scope, status) = (self.scope([ty]), self.value_status(ty));
+					let (lower_a, lower_b) = (self.lower(ty, &a), self.lower(ty, &b));
+					let ops = self.orders(t.ord, &format!("const {name} &{a}, const {name} &{b}"), &|suffix| {
+						(
+							format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
+							format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+						)
+					});
+					// Declared friends, as `==` is, and defined after the class, but for C++20's
+					// `<=>`: a class that differs between standards breaks the one-definition
+					// rule, so it is the namespace's alone.
+					for op in ops {
+						if !op.cpp20 {
+							body.push(format!("\tfriend {};", op.head));
+						}
+						self.def(format!("{}\n", op.define("inline ")));
+					}
+				}
 				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				// An opaque value's bytes are its private member `c_`.
@@ -1406,6 +1503,18 @@ impl<'a> Header<'a> {
 			self.def(format!(
 				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c}_eq(&c_a_, &c_b_{status});\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
 			));
+		}
+		if t.ord != Order::None {
+			let (a_, b_) = (declare(&param, &a), declare(&param, &b));
+			let ops = self.orders(t.ord, &format!("{a_}, {b_}"), &|suffix| {
+				(
+					format!("{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n"),
+					format!("::{c}_{suffix}(&c_a_, &c_b_{status})"),
+				)
+			});
+			for op in ops {
+				self.def(format!("{}\n", op.define("inline ")));
+			}
 		}
 		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {
 			if on {
@@ -1702,7 +1811,6 @@ impl<'a> Header<'a> {
 			prelude.insert(0, format!("{d}::arena a_;"));
 		}
 		let mut templates = Vec::new();
-		let mut names: Vec<String> = Vec::new();
 		// Whether an argument takes Rust's bytes from its parameter, and the arguments that
 		// may throw, by allocating.
 		let mut taken = false;
@@ -1711,12 +1819,12 @@ impl<'a> Header<'a> {
 		// argument, its type, its `new`, and what passes the pointer, which a hoisted one holds
 		// in a `unique_ptr` until the call, so a later throw frees it.
 		let mut owned: Vec<(usize, String, String, Option<String>)> = Vec::new();
-		for param in &function.params {
+		let rust: Vec<String> = function.params.iter().map(|p| p.name.clone()).collect();
+		let names = named(&rust, |name| {
+			self.globals.contains(name) || members.iter().any(|n| n == name) || generated(name)
+		});
+		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
-			let name = parameter(&param.name, |name| {
-				self.globals.contains(name) || members.iter().chain(&names).any(|n| n == name)
-			});
-			names.push(name.clone());
 			// Any future of nothing, such as a binding's `future` of `void`, moved in.
 			if let Type::Future = param.ty {
 				let f = format!("F{}", templates.len());
@@ -1767,13 +1875,13 @@ impl<'a> Header<'a> {
 				templates.push(format!("class {f}"));
 				continue;
 			}
-			params.push(declare(&self.param(&param.ty), &name));
+			params.push(declare(&self.param(&param.ty), name));
 			if Self::takes(&param.ty) {
 				taken = true;
 			} else if self.arena(&param.ty) {
 				throwing.push(args.len());
 			}
-			args.push(self.arg(&param.ty, &name));
+			args.push(self.arg(&param.ty, name));
 		}
 		// Arguments evaluate in no set order, so those that may throw run first, and the call
 		// itself throws nothing: Rust's bytes are taken, and an allocation released to Rust,
@@ -2115,21 +2223,20 @@ fn kept_apart(mut name: String, taken: &[String]) -> String {
 	name
 }
 
-/// The C++ names of `rust`, the names of one scope, each kept apart from `taken` and the
-/// rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every other,
-/// escaped, takes `_` while a name before it in Rust's order holds it. So a field `new_`
-/// stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
-fn named(rust: &[String], taken: &[String]) -> Vec<String> {
+/// The C++ names of `rust`, the names of one scope, each kept apart from those `taken` holds
+/// and the rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every
+/// other, escaped, takes `_` while a name before it in Rust's order holds it. So a field
+/// `new_` stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
+fn named(rust: &[String], taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
-	let kept: Vec<bool> = (0..rust.len())
-		.map(|k| names[k] == rust[k] && !taken.contains(&names[k]))
-		.collect();
-	let mut held: Vec<String> = taken.to_vec();
-	held.extend((0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()));
+	let kept: Vec<bool> = (0..rust.len()).map(|k| names[k] == rust[k] && !taken(&names[k])).collect();
+	let mut held: Vec<String> = (0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()).collect();
 	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
 	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
 	for k in moved {
-		names[k] = kept_apart(std::mem::take(&mut names[k]), &held);
+		while taken(&names[k]) || held.contains(&names[k]) {
+			names[k].push('_');
+		}
 		held.push(names[k].clone());
 	}
 	names
@@ -2138,7 +2245,7 @@ fn named(rust: &[String], taken: &[String]) -> Vec<String> {
 /// The C++ names of `fields`, a struct's with no other members: a data enum's payload's.
 fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
 	let rust: Vec<String> = fields.iter().map(|f| f.name.clone()).collect();
-	named(&rust, &[])
+	named(&rust, |_| false)
 }
 
 /// The C++ name of the parameter `rust`, with `_` appended while `taken` holds it or it is
@@ -2474,7 +2581,7 @@ mod tests {
 		let names = |rust: &[&str], taken: &[&str]| {
 			let rust: Vec<String> = rust.iter().map(|n| n.to_string()).collect();
 			let taken: Vec<String> = taken.iter().map(|n| n.to_string()).collect();
-			named(&rust, &taken)
+			named(&rust, |n| taken.iter().any(|t| t == n))
 		};
 		// A name escaping leaves as it is keeps it, in either order.
 		assert_eq!(names(&["delete", "delete_"], &[]), ["delete__", "delete_"]);
@@ -2497,6 +2604,9 @@ mod tests {
 		);
 		// The macros' family escapes apart already.
 		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix__"]);
+		// A function's parameters also stay clear of the header's own locals, such as `a_`.
+		let rust = ["a_".to_string(), "a".to_string(), "new_".to_string(), "new".to_string()];
+		assert_eq!(named(&rust, super::generated), ["a__", "a", "new_", "new__"]);
 	}
 
 	#[test]
