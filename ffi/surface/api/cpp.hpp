@@ -1236,6 +1236,14 @@ namespace api {
 		static ::api::clash_Break Sp();
 		static ::api::clash_Break SP();
 	};
+	struct clash_Escaped {
+		::std::uint8_t new_;
+		friend bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
+		friend bool operator!=(const clash_Escaped &a__, const clash_Escaped &b_);
+		::api::buf debug() const;
+		::std::uint8_t delete__() const;
+		::std::uint8_t delete_(::std::uint8_t new__, ::std::uint8_t new___) const;
+	};
 	struct Core {
 		::std::uint32_t id;
 	};
@@ -1432,6 +1440,7 @@ namespace api {
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
+	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
@@ -2164,6 +2173,7 @@ namespace api {
 	struct clash_Span;
 	struct clash_Any;
 	struct clash_Break;
+	struct clash_Escaped;
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;

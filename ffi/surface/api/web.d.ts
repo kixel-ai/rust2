@@ -281,6 +281,16 @@ import * as rt from "./rt.ts";
 export type ClashEmptyString = rt.Handle<"ClashEmptyString">;
 export declare function isEmpty(self: ClashEmptyString): boolean;
 
+// ClashEscaped.ts
+export type ClashEscaped = {
+    new: number;
+};
+export declare function debug(self: ClashEscaped): string;
+export declare function eq(a: ClashEscaped, b: ClashEscaped): boolean;
+export declare function delete$(self: ClashEscaped): number;
+export declare function delete_(self: ClashEscaped, new_: number, new_2: number): number;
+export { delete$ as delete };
+
 // ClashSeed.ts
 import * as rt from "./rt.ts";
 export type ClashSeed = rt.Handle<"ClashSeed">;
@@ -1689,6 +1699,7 @@ import type { Clash } from "./Clash.ts";
 import type { ClashAny } from "./ClashAny.ts";
 import type { ClashBreak } from "./ClashBreak.ts";
 import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashEscaped } from "./ClashEscaped.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashTone_ } from "./ClashTone_.ts";
@@ -2194,6 +2205,7 @@ export declare function w_bounds_u64(p: number, v: {
 export declare function w_clash_Any(p: number, v: ClashAny): void;
 export declare function w_clash_Break(p: number, v: ClashBreak): void;
 export declare function w_clash_Candidate(p: number, v: ClashCandidate): void;
+export declare function w_clash_Escaped(p: number, v: ClashEscaped): void;
 export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
 export declare function w_clash_Tone(p: number, v: ClashTone): void;
