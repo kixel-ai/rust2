@@ -294,7 +294,9 @@ impl Header<'_> {
 				false => String::new(),
 			};
 			if t.clone {
-				self.line(format!("{upper}_MUST_USE {name} *{name}_clone(const {name} *self{status});"));
+				self.line(format!(
+					"{upper}_MUST_USE {name} *{name}_clone(const {name} *self{status});"
+				));
 			}
 			if t.eq {
 				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
@@ -303,10 +305,14 @@ impl Header<'_> {
 				self.line(format!("uint64_t {name}_hash(const {name} *self{status});"));
 			}
 			if t.display {
-				self.line(format!("{upper}_MUST_USE {p}_buf {name}_to_string(const {name} *self{status});"));
+				self.line(format!(
+					"{upper}_MUST_USE {p}_buf {name}_to_string(const {name} *self{status});"
+				));
 			}
 			if t.debug {
-				self.line(format!("{upper}_MUST_USE {p}_buf {name}_debug(const {name} *self{status});"));
+				self.line(format!(
+					"{upper}_MUST_USE {p}_buf {name}_debug(const {name} *self{status});"
+				));
 			}
 			if t.default {
 				self.line(format!("{name} *{name}_default(void);"));
