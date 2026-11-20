@@ -30,7 +30,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Ty, pascal};
+use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::config::Package;
 use crate::doc;
 use crate::glue::rs;
@@ -214,6 +214,7 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 		names: BTreeMap::new(),
 		locked: BTreeMap::new(),
 		errors: Vec::new(),
+		wrapped: BTreeSet::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.items();
@@ -472,6 +473,8 @@ struct Gen<'a> {
 	names: BTreeMap<String, String>,
 	locked: BTreeMap<String, String>,
 	errors: Vec<String>,
+	/// Each wrapper the glue defines, which passes a C function's floats through memory.
+	wrapped: BTreeSet<String>,
 }
 
 impl<'a> Gen<'a> {
@@ -604,7 +607,9 @@ impl<'a> Gen<'a> {
 			Type::Bool => "boolean".to_string(),
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => "rt.u64".to_string(),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => "rt.i64".to_string(),
-			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => "number".to_string(),
+			Type::F32 => "rt.f32".to_string(),
+			Type::F64 => "rt.f64".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::Char => "number".to_string(),
 			Type::U128 => "rt.u128".to_string(),
 			Type::Str | Type::String => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes | Type::Array(_) => "Uint8Array".to_string(),
@@ -819,8 +824,21 @@ impl<'a> Gen<'a> {
 		(l, round(4, align))
 	}
 
-	/// The scalar a C type crosses a wasm call as, if it is one, or a struct of exactly one.
+	/// The scalar a C type crosses a wasm call as, if it is one, or a struct of exactly one,
+	/// to the binding: a float crosses through memory instead, as [`Self::floats`] says.
 	fn scalar(&self, ty: &Ty) -> Option<Wasm> {
+		self.wasm(ty).filter(|w| !matches!(w, Wasm::F32 | Wasm::F64))
+	}
+
+	/// Whether C's wasm32 ABI passes `ty` as a float, which the binding passes through memory
+	/// instead, by a wrapper in the glue: a NaN's bits are lost in any float an engine
+	/// converts to a number or back, as V8 quiets and, once it optimizes, canonicalizes one.
+	fn floats(&self, ty: &Ty) -> bool {
+		matches!(self.wasm(ty), Some(Wasm::F32 | Wasm::F64))
+	}
+
+	/// The scalar C's wasm32 ABI passes a C type as, if it is one, or a struct of exactly one.
+	fn wasm(&self, ty: &Ty) -> Option<Wasm> {
 		match ty {
 			Ty::Void => None,
 			Ty::Int(Int::U64 | Int::I64) => Some(Wasm::I64),
@@ -845,7 +863,7 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => match self.shape(name) {
 				Shape::Bytes(1) => Some(Wasm::I32),
 				Shape::Units(unit, 1) => Some(if unit == 8 { Wasm::I64 } else { Wasm::I32 }),
-				Shape::Fields(fields) if fields.len() == 1 => self.scalar(&fields[0]),
+				Shape::Fields(fields) if fields.len() == 1 => self.wasm(&fields[0]),
 				_ => None,
 			},
 		}
@@ -855,7 +873,9 @@ impl<'a> Gen<'a> {
 	fn plain(ty: &Ty) -> bool {
 		!matches!(
 			ty,
-			Ty::Buf
+			Ty::F32
+				| Ty::F64
+				| Ty::Buf
 				| Ty::U128
 				| Ty::Duration
 				| Ty::SocketAddr(_)
@@ -872,8 +892,7 @@ impl<'a> Gen<'a> {
 		match w {
 			Wasm::I32 => ("Int32", ""),
 			Wasm::I64 => ("BigInt64", ""),
-			Wasm::F32 => ("Float32", ""),
-			Wasm::F64 => ("Float64", ""),
+			Wasm::F32 | Wasm::F64 => unreachable!("a float crosses through memory"),
 		}
 	}
 
@@ -897,8 +916,8 @@ impl<'a> Gen<'a> {
 				Int::U64 => format!("rt.u64Get({p})"),
 				Int::I64 => format!("rt.i64Get({p})"),
 			},
-			Type::F32 => format!("rt.dv().getFloat32({p}, true)"),
-			Type::F64 => format!("rt.dv().getFloat64({p}, true)"),
+			Type::F32 => format!("rt.f32Get({p})"),
+			Type::F64 => format!("rt.f64Get({p})"),
 			Type::Char => format!("rt.dv().getUint32({p}, true)"),
 			Type::U128 => format!("rt.u128Get({p})"),
 			Type::Str | Type::String => match own {
@@ -957,7 +976,9 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => String::new(),
 			Type::Bool => format!("rt.dv().setUint8({p}, {e} ? 1 : 0);"),
-			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => {
+			Type::F32 => format!("rt.f32Put({p}, {e});"),
+			Type::F64 => format!("rt.f64Put({p}, {e});"),
+			Type::Int(_) | Type::NonZero(_) | Type::Char => {
 				let (set, lowered) = match ty {
 					Type::Int(Int::U64) | Type::NonZero(Int::U64) => {
 						return format!("rt.u64Put({p}, {});", self.checked(ty, e));
@@ -966,8 +987,6 @@ impl<'a> Gen<'a> {
 						return format!("rt.i64Put({p}, {});", self.checked(ty, e));
 					}
 					Type::Int(int) | Type::NonZero(int) => (int_view(*int), self.checked(ty, e)),
-					Type::F32 => ("Float32", self.checked(ty, e)),
-					Type::F64 => ("Float64", e.to_string()),
 					_ => ("Uint32", self.checked(ty, e)),
 				};
 				match set {
@@ -1052,7 +1071,6 @@ impl<'a> Gen<'a> {
 				};
 				format!("rt.int({e}, {min}, {max}, \"{}\")", int.rust())
 			}
-			Type::F32 => format!("rt.f32({e})"),
 			Type::Char => format!("rt.char({e})"),
 			_ => e.to_string(),
 		}
@@ -1064,8 +1082,7 @@ impl<'a> Gen<'a> {
 			Type::Bool => format!("({e} ? 1 : 0)"),
 			Type::Int(Int::U64) | Type::NonZero(Int::U64) => format!("rt.u64Big({})", self.checked(ty, e)),
 			Type::Int(Int::I64) | Type::NonZero(Int::I64) => format!("rt.i64Big({})", self.checked(ty, e)),
-			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::Char => self.checked(ty, e),
-			Type::F64 => e.to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::Char => self.checked(ty, e),
 			Type::Enum(i) => {
 				let lower = self.enum_lower(*i);
 				format!("{lower}({e})")
@@ -1093,7 +1110,6 @@ impl<'a> Gen<'a> {
 				Int::U64 => format!("rt.u64OfBig({e})"),
 				Int::I64 => format!("rt.i64OfBig({e})"),
 			},
-			Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("{e} >>> 0"),
 			Type::Enum(i) => {
 				let lift = self.enum_lift(*i);
@@ -1675,21 +1691,24 @@ impl Gen<'_> {
 		}
 	}
 
-	/// Statements calling the C function `name` with `args`, returning `ret`, into `lines`: a
-	/// struct it returns is written through a pointer passed first, and with `status`, a check
-	/// it fails throws once it returns.
-	fn invoke(&mut self, name: &str, mut args: Vec<String>, ret: &Ty, status: bool, lines: &mut Vec<String>) -> Ret {
+	/// Statements calling `sig`'s C function with `args`, into `lines`: a struct it returns is
+	/// written through a pointer passed first, and with a status, a check it fails throws once
+	/// it returns.
+	fn invoke(&mut self, sig: &Sig, mut args: Vec<String>, lines: &mut Vec<String>) -> Ret {
+		let (name, ret, status) = (&sig.name, &sig.ret, sig.status().is_some());
 		if status {
 			lines.push("const s$ = rt.alloc(4, 4);\nrt.dv().setInt32(s$, 0, true);".to_string());
 			args.push("s$".to_string());
 		}
+		let params: Vec<Ty> = sig.params.iter().map(|(_, ty)| ty.clone()).collect();
+		let callee = self.callee(name, &params, ret);
 		let sret = !Self::plain(ret) && self.scalar(ret).is_none();
 		if sret {
 			let l = self.layout(ret);
 			lines.push(format!("const rp$ = rt.alloc({}, {});", l.size, l.align));
 			args.insert(0, "rp$".to_string());
 		}
-		let call = format!("rt.w.{name}({})", args.join(", "));
+		let call = format!("rt.w.{callee}({})", args.join(", "));
 		let ret = match ret {
 			Ty::Void => {
 				lines.push(format!("rt.s.d++;\n{call};\nrt.s.d--;"));
@@ -1832,16 +1851,105 @@ impl Gen<'_> {
 	}
 
 	/// The Rust glue's declaration of `name`, a C function the module imports from `rust2`
-	/// taking `params` after its data and returning `ret`.
-	fn import_decl(&mut self, name: &str, params: &[Ty], ret: &Ty) {
-		let decls: String = (params.iter().enumerate())
-			.map(|(n, ty)| format!(", p{n}: {}", rs(ty)))
-			.collect();
+	/// taking `params` after its data and returning `ret`, and the function Rust calls it by:
+	/// the import, or for a signature with a float, a shim passing each through memory, as
+	/// the import takes it.
+	fn import_decl(&mut self, name: &str, params: &[Ty], ret: &Ty) -> String {
+		let floats = self.floats(ret);
+		let mut decls = Vec::new();
+		let mut args = Vec::new();
+		if floats {
+			decls.push(format!("r: *mut {}", rs(ret)));
+			args.push("r.as_mut_ptr()".to_string());
+		}
+		decls.push("data: *mut c_void".to_string());
+		args.push("data".to_string());
+		for (n, ty) in params.iter().enumerate() {
+			match self.floats(ty) {
+				true => {
+					decls.push(format!("p{n}: *const {}", rs(ty)));
+					args.push(format!("&raw const p{n}"));
+				}
+				false => {
+					decls.push(format!("p{n}: {}", rs(ty)));
+					args.push(format!("p{n}"));
+				}
+			}
+		}
+		let shimmed = floats || params.iter().any(|ty| self.floats(ty));
+		let returns = match floats {
+			true => "()".to_string(),
+			false => rs(ret),
+		};
 		let _ = write!(
 			self.rust,
-			"#[link(wasm_import_module = \"rust2\")]\nunsafe extern \"C\" {{\n\tfn {name}(data: *mut c_void{decls}) -> {};\n}}\n\n",
+			"#[link(wasm_import_module = \"rust2\")]\nunsafe extern \"C\" {{\n\tfn {name}({}) -> {returns};\n}}\n\n",
+			decls.join(", ")
+		);
+		if !shimmed {
+			return name.to_string();
+		}
+		// In a prefix of its own, which no import's name takes.
+		let shim = format!("{}_shim_{}", self.space, &name[self.space.len() + 1..]);
+		let params: String = (params.iter().enumerate())
+			.map(|(n, ty)| format!(", p{n}: {}", rs(ty)))
+			.collect();
+		let call = format!("unsafe {{ {name}({}) }}", args.join(", "));
+		let body = match floats {
+			true => format!(
+				"let mut r = std::mem::MaybeUninit::<{}>::uninit();\n\t{call};\n\tunsafe {{ r.assume_init() }}",
+				rs(ret)
+			),
+			false => call,
+		};
+		let _ = write!(
+			self.rust,
+			"unsafe extern \"C\" fn {shim}(data: *mut c_void{params}) -> {} {{\n\t{body}\n}}\n\n",
 			rs(ret)
 		);
+		shim
+	}
+
+	/// The C function JavaScript calls for `name`, which takes `params` and returns `ret`:
+	/// itself, or for a signature with a float, a wrapper in the glue taking each through
+	/// memory, as an out pointer passed first for its return.
+	fn callee(&mut self, name: &str, params: &[Ty], ret: &Ty) -> String {
+		let floats = self.floats(ret);
+		if !floats && !params.iter().any(|ty| self.floats(ty)) {
+			return name.to_string();
+		}
+		let wrapper = format!("{}_x_{}", self.space, self.bare(name));
+		if !self.wrapped.insert(wrapper.clone()) {
+			return wrapper;
+		}
+		let mut decls = Vec::new();
+		if floats {
+			decls.push(format!("r: *mut {}", rs(ret)));
+		}
+		let mut args = Vec::new();
+		for (n, ty) in params.iter().enumerate() {
+			match self.floats(ty) {
+				true => {
+					decls.push(format!("p{n}: *const {}", rs(ty)));
+					args.push(format!("p{n}.read()"));
+				}
+				false => {
+					decls.push(format!("p{n}: {}", rs(ty)));
+					args.push(format!("p{n}"));
+				}
+			}
+		}
+		let call = format!("{name}({})", args.join(", "));
+		let (body, returns) = match floats {
+			true => (format!("r.write({call})"), "()".to_string()),
+			false => (call, rs(ret)),
+		};
+		let _ = write!(
+			self.rust,
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {wrapper}({}) -> {returns} {{\n\tunsafe {{ {body} }}\n}}\n\n",
+			decls.join(", ")
+		);
+		wrapper
 	}
 
 	/// The glue's function giving the table index of the C function the Rust glue's `export`
@@ -1878,8 +1986,8 @@ impl Gen<'_> {
 			let name = format!("{space}_cb_{bare}_{m}");
 			let params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
 			let ret = abi.ty(&method.ok);
-			self.import_decl(&name, &params, &ret);
-			fields.push(format!("{m}: Some({name})"));
+			let called = self.import_decl(&name, &params, &ret);
+			fields.push(format!("{m}: Some({called})"));
 			// The import, which calls the implementation the token names.
 			let module = std::mem::replace(&mut self.module, "glue".to_string());
 			let t = self.named(class.clone());
@@ -1956,7 +2064,7 @@ impl Gen<'_> {
 				self.relays.push(sig.clone());
 				let k = self.relays.len() - 1;
 				let name = format!("{space}_i_fn_{k}");
-				self.import_decl(&name, &c_params, &c_ret);
+				let called = self.import_decl(&name, &c_params, &c_ret);
 				let fn_ty = format!(
 					"unsafe extern \"C\" fn(*mut c_void{}) -> {}",
 					c_params.iter().map(|ty| format!(", {}", rs(ty))).collect::<String>(),
@@ -1964,7 +2072,7 @@ impl Gen<'_> {
 				);
 				let _ = write!(
 					self.rust,
-					"#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_fn_{k}() -> usize {{\n\t{name} as {fn_ty} as usize\n}}\n\n"
+					"#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_fn_{k}() -> usize {{\n\t{called} as {fn_ty} as usize\n}}\n\n"
 				);
 				// The import, which calls the trampoline the token names with the closure.
 				let typed: Vec<String> = (wasm.iter())
@@ -2202,6 +2310,7 @@ impl Gen<'_> {
 			None => {
 				let fields: Vec<String> = (record.fields.iter().zip(field_names(&record.fields)))
 					.map(|(f, name)| {
+						crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 						format!(
 							"{}\t{name}: {};\n",
 							docs(&f.docs, f.deprecated.as_deref(), "\t"),
@@ -2234,17 +2343,19 @@ impl Gen<'_> {
 		let rust = abi.api.rust(&e.path, &e.args);
 		let ty = Type::Enum(i);
 		self.module = name.clone();
+		let here: Vec<_> = e.variants.iter().filter(|v| self.here(v.on)).collect();
+		// Each variant is its tag, the string of its Rust name.
+		for variant in &here {
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &variant.name);
+		}
 		let variants: Vec<String> = match e.plain() {
-			true => (e.variants.iter())
-				.filter(|v| self.here(v.on))
-				.map(|v| format!("\"{}\"", v.name))
-				.collect(),
+			true => here.iter().map(|v| format!("\"{}\"", v.name)).collect(),
 			false => {
 				let mut cases = Vec::new();
-				let here: Vec<_> = e.variants.iter().filter(|v| self.here(v.on)).collect();
 				for variant in here {
 					let mut fields = vec![format!("tag: \"{}\"", variant.name)];
 					for (field, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
+						crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &field.name, &name);
 						fields.push(format!("{name}: {}", self.tt(&field.ty)));
 					}
 					cases.push(format!("{{ {} }}", fields.join("; ")));
@@ -2450,6 +2561,15 @@ impl Gen<'_> {
 			false => Ty::In(Box::new(c_ty.clone())),
 		};
 		let status = abi.traits_status_of(ty);
+		// The signature of the trait's C function `what`, taking `params`, then a status if
+		// its receiver's handles are checked.
+		let sig = |what: &str, params: &[&Ty], ret: Ty, status: bool| Sig {
+			name: format!("{c}_{what}"),
+			params: (params.iter().map(|ty| (String::new(), (*ty).clone())))
+				.chain(status.then(|| ("status".to_string(), Ty::Out(Box::new(Ty::Status)))))
+				.collect(),
+			ret,
+		};
 		// The statements passing `e` as the receiver, making `local`.
 		let this = |g: &mut Self, e: &str, local: &str| -> String {
 			match object {
@@ -2461,29 +2581,30 @@ impl Gen<'_> {
 				}
 			}
 		};
-		let mut emit = |g: &mut Self, member: &str, doc: &str, params: &str, ret_t: &str, body: Vec<String>| {
-			taken.insert(member.to_string());
-			let (local, rename) = match RESERVED.contains(&member) {
-				true => (format!("{member}$"), true),
-				false => (member.to_string(), false),
+		// Each function emitted for the trait `t` as `member`, recorded as the trait's.
+		let mut emit =
+			|g: &mut Self, t: &str, member: &str, doc: &str, params: &str, ret_t: &str, body: Vec<String>| {
+				crate::lock::trait_member(&mut g.locked, abi.api.shown(ty), t, member);
+				taken.insert(member.to_string());
+				let (local, rename) = match RESERVED.contains(&member) {
+					true => (format!("{member}$"), true),
+					false => (member.to_string(), false),
+				};
+				let code = format!(
+					"/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{}\n}}\n\n",
+					indent(&wrap(&body))
+				);
+				let module = g.out();
+				module.body.push_str(&code);
+				if rename {
+					module.renames.insert(local, member.to_string());
+				}
 			};
-			let code = format!(
-				"/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{}\n}}\n\n",
-				indent(&wrap(&body))
-			);
-			let module = g.out();
-			module.body.push_str(&code);
-			if rename {
-				module.renames.insert(local, member.to_string());
-			}
-		};
 		let text = |g: &mut Self, what: &str| -> Vec<String> {
 			let mut lines = vec![this(g, "self", "a$")];
 			let ret = g.invoke(
-				&format!("{c}_{what}"),
+				&sig(what, &[&recv], Ty::Buf, status),
 				vec!["a$".to_string()],
-				&Ty::Buf,
-				status,
 				&mut lines,
 			);
 			let value = g.result(&Type::String, &ret);
@@ -2494,6 +2615,7 @@ impl Gen<'_> {
 			let body = text(self, "to_string");
 			emit(
 				self,
+				"Display",
 				"toString",
 				"Rust's `Display` form.",
 				&format!("self: {name}"),
@@ -2505,6 +2627,7 @@ impl Gen<'_> {
 			let body = text(self, "debug");
 			emit(
 				self,
+				"Debug",
 				"debug",
 				"Rust's `Debug` form.",
 				&format!("self: {name}"),
@@ -2514,11 +2637,16 @@ impl Gen<'_> {
 		}
 		if object && t.clone {
 			let mut lines = vec![this(self, "self", "a$")];
-			let ret = self.invoke(&format!("{c}_clone"), vec!["a$".to_string()], &recv, status, &mut lines);
+			let ret = self.invoke(
+				&sig("clone", &[&recv], recv.clone(), status),
+				vec!["a$".to_string()],
+				&mut lines,
+			);
 			let value = self.result(ty, &ret);
 			lines.push(format!("return {value};"));
 			emit(
 				self,
+				"Clone",
 				"clone",
 				"A new handle to a clone.",
 				&format!("self: {name}"),
@@ -2530,11 +2658,12 @@ impl Gen<'_> {
 		if t.eq && !plain {
 			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
 			let args = vec!["a$".to_string(), "b$".to_string()];
-			let ret = self.invoke(&format!("{c}_eq"), args, &Ty::Bool, status, &mut lines);
+			let ret = self.invoke(&sig("eq", &[&recv, &recv], Ty::Bool, status), args, &mut lines);
 			let value = self.result(&Type::Bool, &ret);
 			lines.push(format!("return {value};"));
 			emit(
 				self,
+				"PartialEq",
 				"eq",
 				"Rust's `PartialEq`.",
 				&format!("a: {name}, b: {name}"),
@@ -2544,11 +2673,12 @@ impl Gen<'_> {
 			if t.hash {
 				let mut lines = vec![this(self, "self", "a$")];
 				let u64 = Ty::Int(Int::U64);
-				let ret = self.invoke(&format!("{c}_hash"), vec!["a$".to_string()], &u64, status, &mut lines);
+				let ret = self.invoke(&sig("hash", &[&recv], u64, status), vec!["a$".to_string()], &mut lines);
 				let value = self.result(&Type::Int(Int::U64), &ret);
 				lines.push(format!("return {value};"));
 				emit(
 					self,
+					"Hash",
 					"hash",
 					"Rust's `Hash`, which values Rust calls equal share.",
 					&format!("self: {name}"),
@@ -2560,16 +2690,17 @@ impl Gen<'_> {
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `partialCmp`, undefined when
 		// unordered, and with `Ord` its `cmp`, the shape `Array.prototype.sort` takes. A plain
 		// enum's too: its numbers order as its discriminants, which only a derived order follows.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
 			let args = vec!["a$".to_string(), "b$".to_string()];
 			let i8 = Ty::Int(Int::I8);
-			let ret = self.invoke(&format!("{c}_{suffix}"), args, &i8, status, &mut lines);
+			let ret = self.invoke(&sig(suffix, &[&recv, &recv], i8, status), args, &mut lines);
 			let value = self.result(&Type::Int(Int::I8), &ret);
-			let (member, doc, ret_t) = match suffix {
+			let (t, member, doc, ret_t) = match suffix {
 				"cmp" => {
 					lines.push(format!("return {value};"));
 					(
+						"Ord",
 						"cmp",
 						"Rust's `Ord`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`.",
 						"number",
@@ -2579,13 +2710,14 @@ impl Gen<'_> {
 					lines.push(format!("const c$ = {value};"));
 					lines.push("return c$ === 2 ? undefined : c$;".to_string());
 					(
+						"PartialOrd",
 						"partialCmp",
 						"Rust's `PartialOrd`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or undefined when the two are unordered.",
 						"number | undefined",
 					)
 				}
 			};
-			emit(self, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines);
+			emit(self, t, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines);
 		}
 		if t.default {
 			let ret_c = match object {
@@ -2596,10 +2728,10 @@ impl Gen<'_> {
 				false => c_ty.clone(),
 			};
 			let mut lines = Vec::new();
-			let ret = self.invoke(&format!("{c}_default"), Vec::new(), &ret_c, false, &mut lines);
+			let ret = self.invoke(&sig("default", &[], ret_c, false), Vec::new(), &mut lines);
 			let value = self.result(ty, &ret);
 			lines.push(format!("return {value};"));
-			emit(self, "default", "Rust's `Default`.", "", &name, lines);
+			emit(self, "Default", "default", "Rust's `Default`.", "", &name, lines);
 		}
 	}
 }
@@ -2789,7 +2921,6 @@ impl Gen<'_> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
-		let status = export.call.status().is_some();
 		lines.extend(gives);
 
 		let ok = strip_refs(&function.ok);
@@ -2830,13 +2961,7 @@ impl Gen<'_> {
 			let failed = err
 				.as_ref()
 				.map(|err| format!("rt.Err({})", self.get(err, "o_err", true)));
-			let ret = self.invoke(
-				&poll.name,
-				poll_args,
-				&poll.ret,
-				poll.status().is_some(),
-				&mut poll_lines,
-			);
+			let ret = self.invoke(poll, poll_args, &mut poll_lines);
 			let Ret::Value(r) = ret else {
 				unreachable!("a poll returns its state")
 			};
@@ -2871,7 +2996,7 @@ impl Gen<'_> {
 			}
 			lines.push("const of$ = rt.alloc(4, 4);".to_string());
 			args.push("of$".to_string());
-			let started = self.invoke(&start.name, args, &start.ret, status, &mut lines);
+			let started = self.invoke(start, args, &mut lines);
 			let Ret::Value(r) = started else {
 				unreachable!("a start returns its state")
 			};
@@ -2890,7 +3015,11 @@ impl Gen<'_> {
 				lines.push(out_decl(self, n, ty));
 				args.push(format!("o_{n}"));
 			}
-			let ret = self.invoke(&call_name, args, &export.call.ret, status, &mut lines);
+			let call = Sig {
+				name: call_name.clone(),
+				..export.call.clone()
+			};
+			let ret = self.invoke(&call, args, &mut lines);
 			lines.extend(writes.iter().cloned());
 			match &err {
 				Some(err) => {

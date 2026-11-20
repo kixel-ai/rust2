@@ -39,6 +39,21 @@ export type i64 = Num<"i64"> | I64Limbs;
 /** Rust's `u128`: a number while it is a safe integer, and its limbs past that. */
 export type u128 = Num<"u128"> | U128Limbs;
 
+/** An `f32` NaN other than `NaN`, which stands for Rust's `f32::NAN`: its bits, a uint32. */
+export type F32Nan = { readonly bits: number; readonly [brand]: "f32" };
+/** An `f64` NaN other than `NaN`, which stands for Rust's `f64::NAN`: its high and low 32
+ * bits, each a uint32. */
+export type F64Nan = { readonly hi: number; readonly lo: number; readonly [brand]: "f64" };
+
+/**
+ * Rust's `f32`: a number, `NaN` among them as Rust's `f32::NAN`, and the bits of any other
+ * NaN, which no number keeps: an engine may quiet or canonicalize a NaN it converts. Each
+ * value has one form.
+ */
+export type f32 = Num<"f32"> | F32Nan;
+/** Rust's `f64`: a number, `NaN` as `f64::NAN`, and the bits of any other NaN. */
+export type f64 = Num<"f64"> | F64Nan;
+
 /** Rust's `Result`: `{ ok: true, value }` or `{ ok: false, error }`. */
 export type Result<T, E> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };
 
@@ -191,7 +206,9 @@ let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
 
 /** A view of the module's memory, made again once memory grows, which detaches the last. */
 export function dv(): DataView {
-	if (view.buffer !== memory.buffer) {
+	// A detached view's length reads 0, a third the cost of reading `memory.buffer`, which
+	// every value a call reads or writes through memory pays.
+	if (bytes.byteLength === 0) {
 		// Never shared: the module is built without threads. Deno's types say it may be.
 		const buffer = memory.buffer as ArrayBuffer;
 		view = new DataView(buffer);
@@ -511,6 +528,9 @@ export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {
 // Integers.
 
 const TWO32 = 4294967296;
+/** The bits of Rust's `f32::NAN`, and the high bits of its `f64::NAN`, whose low are 0. */
+const F32_NAN = 0x7fc00000;
+const F64_NAN_HI = 0x7ff80000;
 
 /** `v`, unless it is no integer from `min` through `max`, which throws naming `what`. */
 export function int(v: number, min: number, max: number, what: string): number {
@@ -524,10 +544,72 @@ export function nonZero<T extends number | u64 | i64>(v: T): T {
 	return v;
 }
 
-/** An `f32`: a number a single holds exactly, or NaN. */
-export function f32(v: number): number {
-	if (Math.fround(v) === v || v !== v) return v;
-	throw new RangeError(`${v} is no f32`);
+/** The `f32` at `p`: a NaN by its bits, which no number read through a float keeps. */
+export function f32Get(p: number): f32 {
+	const d = dv();
+	const bits = d.getUint32(p, true);
+	if ((bits & 0x7fffffff) <= 0x7f800000) return d.getFloat32(p, true);
+	return bits === F32_NAN ? NaN : ({ bits } as F32Nan);
+}
+
+/** Write the `f32` `v` at `p`: a number a single holds exactly, `NaN` as `f32::NAN`, or a
+ * NaN's bits. Any other throws. */
+export function f32Put(p: number, v: f32): void {
+	if (typeof v === "number") {
+		const d = dv();
+		if (v !== v) d.setUint32(p, F32_NAN, true);
+		else if (Math.fround(v) === v) d.setFloat32(p, v, true);
+		else throw new RangeError(`${v} is no f32`);
+		return;
+	}
+	const bits = v.bits;
+	if (bits >>> 0 !== bits || (bits & 0x7fffffff) <= 0x7f800000 || bits === F32_NAN) {
+		throw new RangeError(`${JSON.stringify(v)} is no f32 NaN in its one form`);
+	}
+	// Taken after the payload's getters, which may run code that grows memory.
+	dv().setUint32(p, bits, true);
+}
+
+/** The `f64` at `p`: a NaN by its bits. */
+export function f64Get(p: number): f64 {
+	const d = dv();
+	const hi = d.getUint32(p + 4, true);
+	const lo = d.getUint32(p, true);
+	const high = hi & 0x7fffffff;
+	if (high < 0x7ff00000 || (high === 0x7ff00000 && lo === 0)) return d.getFloat64(p, true);
+	return hi === F64_NAN_HI && lo === 0 ? NaN : ({ hi, lo } as F64Nan);
+}
+
+/** Write the `f64` `v` at `p`: a number, `NaN` as `f64::NAN`, or a NaN's bits. */
+export function f64Put(p: number, v: f64): void {
+	if (typeof v === "number") {
+		const d = dv();
+		if (v === v) d.setFloat64(p, v, true);
+		else {
+			d.setUint32(p, 0, true);
+			d.setUint32(p + 4, F64_NAN_HI, true);
+		}
+		return;
+	}
+	const { hi, lo } = v;
+	const high = hi & 0x7fffffff;
+	const nan = high > 0x7ff00000 || (high === 0x7ff00000 && lo !== 0);
+	if (hi >>> 0 !== hi || lo >>> 0 !== lo || !nan || (hi === F64_NAN_HI && lo === 0)) {
+		throw new RangeError(`${JSON.stringify(v)} is no f64 NaN in its one form`);
+	}
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setUint32(p + 4, hi, true);
+}
+
+/** An `f32` as a number: a NaN of its own bits as `NaN`, which loses them. */
+export function f32Number(v: f32): number {
+	return typeof v === "number" ? v : NaN;
+}
+
+/** An `f64` as a number: a NaN of its own bits as `NaN`, which loses them. */
+export function f64Number(v: f64): number {
+	return typeof v === "number" ? v : NaN;
 }
 
 /** A `char`: a Unicode scalar value. */
@@ -1696,6 +1778,9 @@ async function instantiate(source: Source, glue: Glue): Promise<void> {
 	});
 	const exports = instance.exports as Exports;
 	memory = exports.memory as WebAssembly.Memory;
+	// A refused load's views are of its own memory, which this one never detaches.
+	view = new DataView(new ArrayBuffer(0));
+	bytes = new Uint8Array(0);
 	prefix = glue.prefix;
 	space = glue.space;
 	exports._initialize?.();

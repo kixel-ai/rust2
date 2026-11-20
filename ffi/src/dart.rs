@@ -73,6 +73,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		classes: classes(abi, &taken),
 		variants: HashMap::new(),
 		structs: BTreeMap::new(),
+		layouts: HashMap::new(),
+		twins: BTreeSet::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
 		writers: HashMap::new(),
@@ -100,18 +102,9 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
 	let mut locked = std::mem::take(&mut g.locked);
-	crate::lock::variants(abi, &mut locked, |i, v| {
-		g.variants.get(&(g.class(&abi.enumeration(i)), v.to_string())).cloned()
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		g.variants.get(&(g.class(c), v.to_string())).cloned()
 	});
-	// A plain enum's values, which its traits may rename: apart from a data enum's variant
-	// classes, a name of another kind, as the enum's structural break reports.
-	for (i, e) in abi.api.enums.iter().enumerate().filter(|(_, e)| e.plain()) {
-		let class = g.class(&abi.enumeration(i));
-		for v in &e.variants {
-			let key = format!("{} / value {}", crate::lock::type_key(&e.shown), v.name);
-			locked.insert(key, format!("{class}.{}", enum_value(e.traits, &v.name)));
-		}
-	}
 	g.locked = locked;
 	let types: Vec<String> = (g.classes.keys())
 		.map(|c| g.class(c))
@@ -477,6 +470,11 @@ struct Gen<'a> {
 	variants: HashMap<(String, String), String>,
 	/// Each C struct's `dart:ffi` class, by C name.
 	structs: BTreeMap<String, String>,
+	/// What each C struct holds by value, by C name: what decides whether it holds an `f32`,
+	/// and its twin's fields if so.
+	layouts: HashMap<String, Layout>,
+	/// Each C struct holding an `f32` whose twin the glue defines.
+	twins: BTreeSet<String>,
 	/// Each C function's `@Native` declaration, by C name.
 	natives: BTreeMap<String, String>,
 	/// The conversions, polls, and trampolines, by name.
@@ -698,9 +696,9 @@ impl<'a> Gen<'a> {
 			Ty::Void => "ffi.Void".to_string(),
 			Ty::Bool => "ffi.Bool".to_string(),
 			Ty::Int(int) => native_int(*int).to_string(),
-			Ty::F32 => "ffi.Float".to_string(),
+			// Its bits, which no float `dart:ffi` converts keeps for a signaling NaN.
+			Ty::F32 | Ty::Char => "ffi.Uint32".to_string(),
 			Ty::F64 => "ffi.Double".to_string(),
-			Ty::Char => "ffi.Uint32".to_string(),
 			Ty::Enum(_) | Ty::Poll => "ffi.Int".to_string(),
 			Ty::Status => "ffi.Int32".to_string(),
 			Ty::Handle { .. } | Ty::Future(_) | Ty::Data => "ffi.Pointer<ffi.Void>".to_string(),
@@ -724,8 +722,8 @@ impl<'a> Gen<'a> {
 		match ty {
 			Ty::Void => "void".to_string(),
 			Ty::Bool => "bool".to_string(),
-			Ty::Int(_) | Ty::Char | Ty::Enum(_) | Ty::Poll | Ty::Status => "int".to_string(),
-			Ty::F32 | Ty::F64 => "double".to_string(),
+			Ty::Int(_) | Ty::F32 | Ty::Char | Ty::Enum(_) | Ty::Poll | Ty::Status => "int".to_string(),
+			Ty::F64 => "double".to_string(),
 			ty => self.nt(ty),
 		}
 	}
@@ -769,6 +767,7 @@ impl<'a> Gen<'a> {
 			return class;
 		}
 		self.structs.insert(name.clone(), String::new());
+		self.layouts.insert(name.clone(), Layout::Opaque);
 		if let Some(n) = abi.arrays.get(&name) {
 			let code = format!(
 				"final class {class} extends ffi.Struct {{\n\t@ffi.Array({n})\n\texternal ffi.Array<ffi.Uint8> items;\n}}\n\n"
@@ -824,13 +823,19 @@ impl<'a> Gen<'a> {
 			let mut extra = String::new();
 			let union = private_type(&format!("{name}_u"));
 			let mut members = Vec::new();
+			let mut payloads = Vec::new();
 			for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
-				let payload_class = private_type(&abi::payload(&name, &variant.name));
+				let payload = abi::payload(&name, &variant.name);
+				let payload_class = private_type(&payload);
 				let mut decls = Vec::new();
+				let mut tys = Vec::new();
 				for field in &variant.fields {
 					let ty = abi.ty(&field.ty);
 					decls.push(self.field(&ty, &abi::escape(&field.name)));
+					tys.push(ty);
 				}
+				self.layouts.insert(payload.clone(), Layout::Fields(tys));
+				payloads.push(payload.clone());
 				let _ = write!(
 					extra,
 					"final class {payload_class} extends ffi.Struct {{\n{}}}\n\n",
@@ -850,6 +855,7 @@ impl<'a> Gen<'a> {
 				"{}\texternal {union} $u;\n",
 				self.field(&Ty::Enum(format!("{name}_tag")), "tag")
 			);
+			self.layouts.insert(name.clone(), Layout::Enum(payloads));
 			self.structs.insert(
 				name,
 				format!("final class {class} extends ffi.Struct {{\n{decls}}}\n\n{extra}"),
@@ -859,6 +865,10 @@ impl<'a> Gen<'a> {
 			unreachable!("`{name}` is no struct of the API");
 		}
 		let decls: String = fields.iter().map(|(n, ty)| self.field(ty, n)).collect();
+		self.layouts.insert(
+			name.clone(),
+			Layout::Fields(fields.into_iter().map(|(_, ty)| ty).collect()),
+		);
 		self.structs.insert(
 			name,
 			format!("final class {class} extends ffi.Struct {{\n{decls}}}\n\n"),
@@ -866,14 +876,112 @@ impl<'a> Gen<'a> {
 		class
 	}
 
+	/// Whether `ty` holds an `f32` by value, which Dart passes as its bits: in a struct, which
+	/// `dart:ffi` then passes by an ABI of its own, as one of integers where C's has a float.
+	fn holds_f32(&mut self, ty: &Ty) -> bool {
+		match ty {
+			Ty::F32 => true,
+			Ty::Struct(name) => {
+				// A data enum's payload is laid out with its enum, which has no class of its own.
+				if !self.layouts.contains_key(name) {
+					self.struct_class(ty);
+				}
+				match self.layouts.get(name).cloned() {
+					Some(Layout::Fields(tys)) => tys.iter().any(|ty| self.holds_f32(ty)),
+					Some(Layout::Enum(payloads)) => payloads.iter().any(|p| self.holds_f32(&Ty::Struct(p.clone()))),
+					Some(Layout::Opaque) | None => false,
+				}
+			}
+			_ => false,
+		}
+	}
+
+	/// The Rust type a C type crosses between Dart and the glue as: an `f32` as its bits, and
+	/// a struct holding one as its twin, which Dart's class mirrors.
+	fn crossing(&mut self, ty: &Ty) -> String {
+		match ty {
+			Ty::F32 => "u32".to_string(),
+			Ty::Struct(name) if self.holds_f32(ty) => self.twin(name),
+			ty => rs(ty),
+		}
+	}
+
+	/// The twin of the C struct `name`, which holds an `f32`: of its layout, each `f32` in it
+	/// as its bits, so it crosses by the ABI `dart:ffi` gives its class. Named in the glue's
+	/// namespace, which no C name takes.
+	fn twin(&mut self, name: &str) -> String {
+		let twin = format!("{}_twin_{}", self.space, self.bare(name));
+		let union = format!("{}_union_{}", self.space, self.bare(name));
+		if !self.twins.insert(name.to_string()) {
+			return twin;
+		}
+		let code = match self.layouts.get(name).cloned() {
+			Some(Layout::Fields(tys)) => {
+				let fields: Vec<String> = tys.iter().map(|ty| format!("pub {}", self.crossing(ty))).collect();
+				format!(
+					"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {twin}({});\n\n",
+					fields.join(", ")
+				)
+			}
+			Some(Layout::Enum(payloads)) => {
+				let members: Vec<String> = (payloads.iter().enumerate())
+					.map(|(n, p)| format!("\tpub v{n}: {},\n", self.crossing(&Ty::Struct(p.clone()))))
+					.collect();
+				format!(
+					"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {twin}(pub i32, pub {union});\n\n#[repr(C)]\n#[derive(Clone, Copy)]\npub union {union} {{\n{}}}\n\n",
+					members.concat()
+				)
+			}
+			Some(Layout::Opaque) | None => unreachable!("`{name}` holds no f32"),
+		};
+		self.glue.push_str(&code);
+		twin
+	}
+
+	/// The C value of `e`, which crossed from Dart as [`Self::crossing`] gives `ty`.
+	fn dart_in(&mut self, ty: &Ty, e: &str) -> String {
+		match ty {
+			Ty::F32 => format!("f32::from_bits({e})"),
+			Ty::Struct(_) if self.holds_f32(ty) => {
+				let twin = self.crossing(ty);
+				format!("unsafe {{ std::mem::transmute::<{twin}, {}>({e}) }}", rs(ty))
+			}
+			_ => e.to_string(),
+		}
+	}
+
+	/// The C value `e` of type `ty` as it crosses to Dart, as [`Self::crossing`] gives it.
+	fn dart_out(&mut self, ty: &Ty, e: &str) -> String {
+		match ty {
+			Ty::F32 => format!("{e}.to_bits()"),
+			Ty::Struct(_) if self.holds_f32(ty) => {
+				let twin = self.crossing(ty);
+				format!("unsafe {{ std::mem::transmute::<{}, {twin}>({e}) }}", rs(ty))
+			}
+			_ => e.to_string(),
+		}
+	}
+
+	/// The Rust type of a Dart trampoline taking its data, then `params`, and returning `ret`,
+	/// each as it crosses.
+	fn crossing_fn(&mut self, params: &[Ty], ret: &Ty) -> String {
+		let params: String = params.iter().map(|ty| format!(", {}", self.crossing(ty))).collect();
+		format!("unsafe extern \"C\" fn(*mut c_void{params}) -> {}", self.crossing(ret))
+	}
+
+	/// Whether a C function of `params` and `ret` passes an `f32` by value, as its bits to
+	/// Dart, so Dart calls it, or it calls Dart, through the glue.
+	fn passes_f32(&mut self, params: &[Ty], ret: &Ty) -> bool {
+		self.holds_f32(ret) || params.iter().any(|ty| self.holds_f32(ty))
+	}
+
 	/// A struct's field of C type `ty`, named `$name`.
 	fn field(&mut self, ty: &Ty, name: &str) -> String {
 		let annotation = match ty {
 			Ty::Bool => Some("ffi.Bool"),
 			Ty::Int(int) => Some(native_int(*int)),
-			Ty::F32 => Some("ffi.Float"),
+			Ty::F32 | Ty::Char => Some("ffi.Uint32"),
 			Ty::F64 => Some("ffi.Double"),
-			Ty::Char => Some("ffi.Uint32"),
 			Ty::Enum(_) | Ty::Poll => Some("ffi.Int"),
 			_ => None,
 		};
@@ -922,9 +1030,11 @@ impl<'a> Gen<'a> {
 		let mut params = vec![Ty::Data];
 		params.extend(call.params.iter().map(|(_, ty)| ty.clone()));
 		let decls: Vec<String> = (call.params.iter().enumerate())
-			.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
+			.map(|(n, (_, ty))| format!(", p{n}: {}", self.crossing(ty)))
 			.collect();
-		let mut args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
+		let mut args: Vec<String> = (call.params.iter().enumerate())
+			.map(|(n, (_, ty))| self.dart_in(ty, &format!("p{n}")))
+			.collect();
 		// A status the call writes reaches the isolate's one cell only once `serve` stopped
 		// serving: a call it served meanwhile, on the isolate's thread, read its own first. A
 		// null one, which aborts on a failed check, passes through.
@@ -943,15 +1053,16 @@ impl<'a> Gen<'a> {
 		};
 		let body = match cell {
 			Some(cell) => format!(
-				"let mut status = 0;\n\tlet s_ = match {cell}.is_null() {{\n\t\ttrue => {cell},\n\t\tfalse => &raw mut status,\n\t}};\n\tlet r = unsafe {{ home.serve(move || {call_}) }};\n\tif !{cell}.is_null() {{\n\t\tunsafe {{ *{cell} = status }};\n\t}}\n\tr"
+				"let mut status = 0;\n\tlet s_ = match {cell}.is_null() {{\n\t\ttrue => {cell},\n\t\tfalse => &raw mut status,\n\t}};\n\tlet r = unsafe {{ home.serve(move || {call_}) }};\n\tif !{cell}.is_null() {{\n\t\tunsafe {{ *{cell} = status }};\n\t}}\n\t{}",
+				self.dart_out(&call.ret, "r")
 			),
-			None => format!("unsafe {{ home.serve(move || {call_}) }}"),
+			None => self.dart_out(&call.ret, &format!("unsafe {{ home.serve(move || {call_}) }}")),
 		};
+		let ret = self.crossing(&call.ret);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\t{body}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {ret} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\t{body}\n}}\n\n",
 			decls.concat(),
-			rs(&call.ret),
 		);
 		let native = self.native_fn(&name, params, call.ret.clone());
 		self.checked_on(&name, native, call.params.len() + 1, &call.name)
@@ -961,7 +1072,34 @@ impl<'a> Gen<'a> {
 	/// the C function itself, on the isolate's thread, which no call it makes back waits on.
 	fn leaf(&mut self, call: &Sig) -> String {
 		let name = format!("{}_leaf_{}", self.space, self.bare(&call.name));
-		let native = self.declare(&name, call, true);
+		let params: Vec<Ty> = call.params.iter().map(|(_, ty)| ty.clone()).collect();
+		// One passing an `f32` calls the glue's twin of it, which converts its bits.
+		let native = match self.passes_f32(&params, &call.ret) {
+			true => {
+				let decls: Vec<String> = (params.iter().enumerate())
+					.map(|(n, ty)| format!("p{n}: {}", self.crossing(ty)))
+					.collect();
+				let args: Vec<String> = (params.iter().enumerate())
+					.map(|(n, ty)| self.dart_in(ty, &format!("p{n}")))
+					.collect();
+				let body = self.dart_out(
+					&call.ret,
+					&format!("unsafe {{ crate::{}({}) }}", call.name, args.join(", ")),
+				);
+				let ret = self.crossing(&call.ret);
+				let _ = write!(
+					self.glue,
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\t{body}\n}}\n\n",
+					decls.join(", "),
+				);
+				let twin = Sig {
+					name: name.clone(),
+					..call.clone()
+				};
+				self.declare(&name, &twin, true)
+			}
+			false => self.declare(&name, call, true),
+		};
 		self.checked_on(&name, native, call.params.len(), &call.name)
 	}
 
@@ -1083,7 +1221,8 @@ impl<'a> Gen<'a> {
 	/// a call's arguments: an object held by the arena `a_`.
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
+			Type::Bool | Type::F64 => e.to_string(),
+			Type::F32 => format!("_n.f32Bits({e})"),
 			Type::NonZero(int) => format!("_n.nonZero({})", self.lower(&Type::Int(*int), e)),
 			Type::Int(int) => match int {
 				Int::U8 => format!("_n.u8({e})"),
@@ -1229,11 +1368,13 @@ impl<'a> Gen<'a> {
 				let some = self.write(inner, "v", "c.$value", "t");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
 			}
-			// A block is copied whole into the arena: `U64`s as the `int`s they are.
+			// A block is copied whole into the arena: `U64`s as the `int`s they are, and `f32`s
+			// as their bits, which the C pointer holds.
 			Type::List(_, elem) if ty.block().is_some() => {
 				let nt = self.nt(&abi.ty(elem));
 				let v = match **elem {
 					Type::Int(Int::U64) => "v as List<int>",
+					Type::F32 => "v.buffer.asUint32List(v.offsetInBytes, v.length)",
 					_ => "v",
 				};
 				format!(
@@ -1385,10 +1526,15 @@ impl<'a> Gen<'a> {
 					Type::Int(Int::U64) => " as List<U64>",
 					_ => "",
 				};
+				// A copy of typed data, which keeps each float's bits.
+				let ptr = match block {
+					Type::F32 => "c.$ptr.cast<ffi.Float>()",
+					_ => "c.$ptr",
+				};
 				return self.finish_reader(
 					name,
 					format!(
-						"{dt} {{NAME}}({class} c) {{\n\tfinal out = typed.{list}.fromList(c.$ptr.asTypedList(c.$len));\n\t{free}(c);\n\treturn out{cast};\n}}\n\n"
+						"{dt} {{NAME}}({class} c) {{\n\tfinal out = typed.{list}.fromList({ptr}.asTypedList(c.$len));\n\t{free}(c);\n\treturn out{cast};\n}}\n\n"
 					),
 				);
 			}
@@ -1457,7 +1603,8 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("PathBuf._(_n.bytes({e}))"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytes({e})"),
 			Type::Int(Int::U64 | Int::Usize) | Type::NonZero(Int::U64 | Int::Usize) => format!("U64.fromBits({e})"),
-			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) | Type::NonZero(_) => e.to_string(),
+			Type::F32 => format!("_n.f32Of({e})"),
+			Type::Bool | Type::F64 | Type::Int(_) | Type::NonZero(_) => e.to_string(),
 			Type::Char => format!("_n.scalar({e})"),
 			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("RustDuration._of({e})"),
@@ -1694,7 +1841,10 @@ impl<'a> Gen<'a> {
 				format!("final a_ = _Arena();\n\t\ttry {{\n\t\t\t{code}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}")
 			}
 		};
+		let shown = self.abi.api.shown(ty);
+		let member = |g: &mut Self, t: &str, name: &str| crate::lock::trait_member(&mut g.locked, shown, t, name);
 		if t.display {
+			member(self, "Display", "toString");
 			members.push("toString".to_string());
 			let what = format!("{c}_to_string");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
@@ -1709,6 +1859,7 @@ impl<'a> Gen<'a> {
 			body.push(format!("\t@override\n\tString toString() {{\n\t\t{call}\n\t}}\n"));
 		}
 		if t.debug {
+			member(self, "Debug", "debug");
 			members.push("debug".to_string());
 			let what = format!("{c}_debug");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
@@ -1725,6 +1876,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.clone {
+			member(self, "Clone", "clone");
 			members.push("clone".to_string());
 			let what = format!("{c}_clone");
 			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
@@ -1778,6 +1930,7 @@ impl<'a> Gen<'a> {
 			));
 			// Equal values hash alike only by Rust's own `Hash`, which a type without one lacks.
 			if t.hash {
+				member(self, "Hash", "hashCode");
 				let what = format!("{c}_hash");
 				let sig = Sig {
 					name: what.clone(),
@@ -1809,7 +1962,7 @@ impl<'a> Gen<'a> {
 		}
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, behind `partialCompareTo` and
 		// `<` and its kin, as Rust's are; with `Ord`, its `cmp` as `Comparable`'s `compareTo`.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let what = format!("{c}_{suffix}");
 			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Int(Int::I8));
 			let (pa, a) = this(self, "this");
@@ -1823,6 +1976,7 @@ impl<'a> Gen<'a> {
 			);
 			match suffix {
 				"cmp" => {
+					member(self, "Ord", "compareTo");
 					members.push("compareTo".to_string());
 					self.comparables.insert(name.clone());
 					body.push(format!(
@@ -1830,6 +1984,7 @@ impl<'a> Gen<'a> {
 					));
 				}
 				_ => {
+					member(self, "PartialOrd", "partialCompareTo");
 					members.push("partialCompareTo".to_string());
 					members.push("_partialCmp".to_string());
 					body.push(format!(
@@ -1839,6 +1994,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		if t.default {
+			member(self, "Default", "default_");
 			members.push("new default_".to_string());
 			let ret = match object {
 				true => Ty::Handle {
@@ -1941,7 +2097,11 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.dt(&f.ty)))
+			.map(|f| {
+				let name = field_name(&f.name);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
+				(name, self.dt(&f.ty))
+			})
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let mut body: Vec<String> = (record.fields.iter().zip(&fields))
@@ -1993,6 +2153,7 @@ impl<'a> Gen<'a> {
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let value = enum_value(e.traits, &v.name);
+					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &value);
 					members.push(format!("static {value}"));
 					match limited {
 						true => format!(
@@ -2049,7 +2210,11 @@ impl<'a> Gen<'a> {
 		for (k, variant) in e.variants.iter().enumerate() {
 			let case = self.variant_class(&name, &variant.name);
 			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| (field_name(&f.name), self.dt(&f.ty)))
+				.map(|f| {
+					let name = field_name(&f.name);
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
+					(name, self.dt(&f.ty))
+				})
 				.collect();
 			let decls: String = fields.iter().map(|(f, dt)| format!("\tfinal {dt} {f};\n")).collect();
 			let params: Vec<String> = match variant.tuple {
@@ -2091,6 +2256,7 @@ impl<'a> Gen<'a> {
 			constant: false,
 		};
 		let mut members = vec!["close".to_string()];
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "close");
 		let checked = abi.checked[i];
 		let Owned {
 			own,
@@ -2213,18 +2379,34 @@ impl<'a> Gen<'a> {
 			let nt = self.nt(&Ty::Fn(c_params.clone(), Box::new(ret.clone())));
 			let inner = nt["ffi.Pointer<".len()..nt.len() - 1].to_string();
 			relays.push(format!("ffi.Native.addressOf<{inner}>({native}).cast<ffi.Void>()"));
-			let args: Vec<String> = (0..c_params.len()).map(|k| format!("p{k}")).collect();
+			let args: Vec<String> = (c_params.iter().enumerate())
+				.map(|(k, ty)| self.dart_out(ty, &format!("p{k}")))
+				.collect();
 			let decls: Vec<String> = (c_params.iter().enumerate())
 				.map(|(k, ty)| format!(", p{k}: {}", rs(ty)))
 				.collect();
 			let mut call_args = vec!["relay.token".to_string()];
 			call_args.extend(args);
+			// The trampoline takes and returns an `f32` as its bits, whatever C's table says.
+			let cast = match self.passes_f32(&c_params, &ret) {
+				true => format!(
+					"\n\tlet f = unsafe {{ std::mem::transmute::<_, {}>(f) }};",
+					self.crossing_fn(&c_params, &ret)
+				),
+				false => String::new(),
+			};
+			let called = self.dart_in(
+				&ret,
+				&format!(
+					"unsafe {{ relay.home.call(\"{what}\", move || f({})) }}",
+					call_args.join(", ")
+				),
+			);
 			let _ = write!(
 				self.glue,
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c}_vtable.{m}\", \"the function is null\"));\n\tunsafe {{ relay.home.call(\"{what}\", move || f({})) }}\n}}\n\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {relay}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet table = unsafe {{ &*relay.f.cast::<crate::{c}_vtable>() }};\n\tlet f = table.{m}.unwrap_or_else(|| rt::fail(\"{c}_vtable.{m}\", \"the function is null\"));{cast}\n\t{called}\n}}\n\n",
 				decls.concat(),
 				rs(&ret),
-				call_args.join(", "),
 				m = method.name(),
 			);
 		}
@@ -2275,8 +2457,8 @@ impl<'a> Gen<'a> {
 		// takes none.
 		let exceptional = match ret {
 			Ty::Bool => ", false".to_string(),
-			Ty::F32 | Ty::F64 => ", 0.0".to_string(),
-			Ty::Int(_) | Ty::Char | Ty::Enum(_) => ", 0".to_string(),
+			Ty::F64 => ", 0.0".to_string(),
+			Ty::Int(_) | Ty::F32 | Ty::Char | Ty::Enum(_) => ", 0".to_string(),
 			_ => String::new(),
 		};
 		let mut native_params = vec!["ffi.Pointer<ffi.Void>".to_string()];
@@ -2310,15 +2492,18 @@ impl<'a> Gen<'a> {
 				let decls: Vec<String> = (c_params.iter().enumerate())
 					.map(|(n, ty)| format!(", p{n}: {}", rs(ty)))
 					.collect();
-				let args: String = (0..c_params.len()).map(|n| format!(", p{n}")).collect();
-				let fn_ty = format!(
-					"unsafe extern \"C\" fn(*mut c_void{}) -> {}",
-					c_params.iter().map(|ty| format!(", {}", rs(ty))).collect::<String>(),
-					rs(&c_ret)
+				let args: String = (c_params.iter().enumerate())
+					.map(|(n, ty)| format!(", {}", self.dart_out(ty, &format!("p{n}"))))
+					.collect();
+				// The trampoline takes and returns an `f32` as its bits.
+				let fn_ty = self.crossing_fn(&c_params, &c_ret);
+				let called = self.dart_in(
+					&c_ret,
+					&format!("unsafe {{ relay.home.call(\"a closure\", move || f(relay.token{args})) }}"),
 				);
 				let _ = write!(
 					self.glue,
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_fn_{k}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet f = unsafe {{ std::mem::transmute::<*const c_void, {fn_ty}>(relay.f) }};\n\tunsafe {{ relay.home.call(\"a closure\", move || f(relay.token{args})) }}\n}}\n\n",
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_fn_{k}(data: *mut c_void{}) -> {} {{\n\tlet relay = unsafe {{ &*data.cast::<runtime::Relay>() }};\n\tlet f = unsafe {{ std::mem::transmute::<*const c_void, {fn_ty}>(relay.f) }};\n\t{called}\n}}\n\n",
 					decls.concat(),
 					rs(&c_ret),
 				);
@@ -3083,6 +3268,17 @@ struct Owned {
 	free: String,
 	/// Of a checked value, drops it, then frees it if asked.
 	close: Option<String>,
+}
+
+/// What a C struct holds by value, as Dart declares it.
+#[derive(Clone)]
+enum Layout {
+	/// Fields of these types.
+	Fields(Vec<Ty>),
+	/// A data enum's tag, then a union of these payload structs.
+	Enum(Vec<String>),
+	/// Only bytes or integers: an array, or an opaque record.
+	Opaque,
 }
 
 /// How a function throws its error.

@@ -293,30 +293,6 @@ fn camel(name: &str) -> String {
 	out
 }
 
-/// A member's name: camel case, with `_` past a reserved word or one of `taken`.
-fn member(name: &str, taken: &[&str]) -> String {
-	let name = camel(name);
-	match RESERVED.contains(&name.as_str()) || taken.contains(&name.as_str()) {
-		true => format!("{name}_"),
-		false => name,
-	}
-}
-
-/// A record's field, as the exporter names it.
-fn field(name: &str) -> String {
-	member(
-		name,
-		&[
-			"hashCode",
-			"noSuchMethod",
-			"runtimeType",
-			"toString",
-			"compareTo",
-			"partialCompareTo",
-		],
-	)
-}
-
 /// The Dart of an integer's name, as the runtime's classes end in it: `u64` is `U64`.
 fn int_name(int: Int) -> String {
 	let rust = int.rust();
@@ -487,7 +463,10 @@ impl Emitter<'_> {
 			Step::Drop(name) => {
 				let ty = self.local(name).clone();
 				match unref(&ty).base() {
-					Type::Object(_) => self.line(out, &format!("{}.close();", self.place(name))),
+					ty @ Type::Object(_) => {
+						let close = self.t.member(LANGUAGE, ty, "Drop");
+						self.line(out, &format!("{}.{close}();", self.place(name)))
+					}
 					ty => panic!("Dart drops no {ty:?} but by the garbage collector"),
 				}
 			}
@@ -612,10 +591,7 @@ impl Emitter<'_> {
 			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
 				format!("api.{}", self.t.type_name(LANGUAGE, ty))
 			}
-			ty => format!(
-				"api.{}",
-				self.t.named(LANGUAGE, &format!("error {}", self.error_key(ty)))
-			),
+			ty => format!("api.{}", self.t.error(LANGUAGE, ty)),
 		}
 	}
 
@@ -624,20 +600,6 @@ impl Emitter<'_> {
 		match unref(err).base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => v.to_string(),
 			_ => format!("{v}.error"),
-		}
-	}
-
-	/// The key `api.json` names an error type's exception by.
-	fn error_key(&self, ty: &Type) -> String {
-		match unref(ty).base() {
-			Type::String | Type::Str => "string".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Int(int) => int.rust().to_string(),
-			Type::Bounds(int) => format!("bounds_{}", int.rust()),
-			Type::Range(int) => format!("range_{}", int.rust()),
-			Type::List(_, item) => format!("vec_{}", self.error_key(item)),
-			Type::Option(inner) => format!("option_{}", self.error_key(inner)),
-			ty => panic!("Dart's exception of an error of {ty:?}"),
 		}
 	}
 
@@ -673,7 +635,7 @@ impl Emitter<'_> {
 			Type::Int(_) | Type::U128 | Type::NonZero(_) => self.decimal(v, ty),
 			Type::Object(_) | Type::Record(_) | Type::Enum(_) => match self.text_of(ty) {
 				Some(text) => format!("{v}.{text}()"),
-				None => format!("{v}.toString()"),
+				None => format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Display")),
 			},
 			ty => panic!("Display of {ty:?}"),
 		}
@@ -735,7 +697,9 @@ impl Emitter<'_> {
 				)
 			}
 			Type::Range(_) => format!("{v}.toString()"),
-			Type::Record(_) | Type::Enum(_) | Type::Object(_) => format!("{v}.debug()"),
+			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
+				format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Debug"))
+			}
 			ty => panic!("Debug of {ty:?}"),
 		}
 	}
@@ -807,29 +771,33 @@ impl Emitter<'_> {
 				);
 				let name = self.t.type_name(LANGUAGE, &Type::Record(*r)).to_string();
 				let tuple = record.tuple;
-				let fields_of: Vec<(String, Type)> =
-					record.fields.iter().map(|f| (field(&f.name), f.ty.clone())).collect();
+				let fields_of: Vec<(String, Type)> = (record.fields.iter())
+					.map(|f| {
+						(
+							self.t.field(LANGUAGE, &Type::Record(*r), &f.name).to_string(),
+							f.ty.clone(),
+						)
+					})
+					.collect();
 				let args = self.fields(fields, &fields_of, tuple);
 				format!("api.{name}({args})")
 			}
 			Kind::Variant(en, v, fields) => {
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
-				let name = self.t.type_name(LANGUAGE, &Type::Enum(*en)).to_string();
+				let ty = Type::Enum(*en);
+				let name = self.t.type_name(LANGUAGE, &ty).to_string();
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
-					return format!(
-						"api.{name}.{}",
-						member(
-							&snake(&variant.name),
-							&["values", "index", "name", "compareTo", "partialCompareTo"]
-						)
-					);
+					return format!("api.{name}.{}", self.t.variant(LANGUAGE, &ty, &variant.name));
 				}
-				let key = format!("type {} / variant {}", self.t.rust(&Type::Enum(*en)), variant.name);
-				let class = self.t.named(LANGUAGE, &key).to_string();
+				let class = self.t.variant(LANGUAGE, &ty, &variant.name).to_string();
 				let tuple = variant.tuple;
-				let fields_of: Vec<(String, Type)> =
-					variant.fields.iter().map(|f| (field(&f.name), f.ty.clone())).collect();
+				let fields_of: Vec<(String, Type)> = (variant.fields.iter())
+					.map(|f| {
+						let name = self.t.variant_field(LANGUAGE, &ty, &variant.name, &f.name);
+						(name.to_string(), f.ty.clone())
+					})
+					.collect();
 				let args = self.fields(fields, &fields_of, tuple);
 				format!("api.{class}({args})")
 			}
@@ -846,8 +814,9 @@ impl Emitter<'_> {
 				}
 			}
 			Kind::Default => {
-				let name = self.t.type_name(LANGUAGE, unref(&e.ty).base()).to_string();
-				format!("api.{name}.default_()")
+				let ty = unref(&e.ty).base();
+				let name = self.t.type_name(LANGUAGE, ty);
+				format!("api.{name}.{}()", self.t.member(LANGUAGE, ty, "Default"))
 			}
 			Kind::Var(name) => match self.mutated.contains(name) {
 				// Passed `&mut`, the wrapper itself; read, its value.
@@ -865,7 +834,8 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				format!("{b}.{}", field(&self.t.api.records[*r].fields[*i].name))
+				let field = &self.t.api.records[*r].fields[*i].name;
+				format!("{b}.{}", self.t.field(LANGUAGE, &Type::Record(*r), field))
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base);
@@ -877,7 +847,7 @@ impl Emitter<'_> {
 			Kind::Clone(inner) => {
 				let v = self.lent(inner);
 				match unref(&inner.ty).base() {
-					Type::Object(_) => format!("{v}.clone()"),
+					ty @ Type::Object(_) => format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Clone")),
 					ty @ Type::List(..) => match block(ty) {
 						Some("<api.U64>") | None => format!("List.of({v})"),
 						Some(list) => format!("{list}.fromList({v})"),
@@ -1009,7 +979,7 @@ impl Emitter<'_> {
 			Op::Le => compare("<="),
 			Op::Gt => compare(">"),
 			Op::Ge => compare(">="),
-			Op::Cmp => format!("{a}.compareTo({b})"),
+			Op::Cmp => format!("{a}.{}({b})", self.t.member(LANGUAGE, &operand, "Ord")),
 			Op::And => compare("&&"),
 			Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let Type::Int(int) = unref(ty).base() else {

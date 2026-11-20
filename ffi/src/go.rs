@@ -141,8 +141,8 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &st
 		}
 	}
 	let variants = variants(abi, &types, &classes, &thrown);
-	crate::lock::variants(abi, &mut locked, |i, v| {
-		variants.get(&(abi.enumeration(i), v.to_string())).cloned()
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		variants.get(&(c.to_string(), v.to_string())).cloned()
 	});
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
@@ -1935,7 +1935,7 @@ impl<'a> Gen<'a> {
 		}
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `PartialCompare`, and with
 		// `Ord` its `cmp` as `Compare`, the shape `slices.SortFunc` takes.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let (member, docs, zero, results, done) = match suffix {
 				"cmp" => (
 					"Compare",
@@ -2109,10 +2109,7 @@ impl<'a> Gen<'a> {
 		(record.fields.iter())
 			.map(|f| {
 				let name = unique(&mut taken, field_name(&f.name));
-				self.locked.insert(
-					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
-					name.clone(),
-				);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 				name
 			})
 			.collect()
@@ -2122,14 +2119,10 @@ impl<'a> Gen<'a> {
 	fn variant_fields(&mut self, i: usize, variant: &Variant) -> Vec<String> {
 		let e = &self.abi.api.enums[i];
 		let mut taken = self.trait_methods(&Type::Enum(i), e.traits);
-		let owner = crate::lock::type_key(&e.shown);
 		(variant.fields.iter())
 			.map(|f| {
 				let name = unique(&mut taken, field_name(&f.name));
-				self.locked.insert(
-					format!("{owner} / variant {} / field {}", variant.name, f.name),
-					name.clone(),
-				);
+				crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
 				name
 			})
 			.collect()
@@ -2259,20 +2252,22 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 	) -> (Vec<Method>, Vec<Method>) {
 		let (mut methods, default) = self.traits(ty, c, traits);
+		for method in &methods {
+			let t = match method.name.as_str() {
+				"String" => "Display",
+				"GoString" => "Debug",
+				"Clone" => "Clone",
+				"Equal" => "PartialEq",
+				"PartialCompare" => "PartialOrd",
+				"Compare" => "Ord",
+				name => unreachable!("no trait exports {name}"),
+			};
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, &method.name);
+		}
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
-			let api = self.abi.api;
-			let shown = match ty {
-				Type::Record(i) => &api.records[*i].shown,
-				Type::Enum(i) => &api.enums[*i].shown,
-				Type::Object(i) => &api.objects[*i].shown,
-				_ => unreachable!("only an exported type has members"),
-			};
-			self.locked.insert(
-				format!("{} / Default", crate::lock::type_key(shown)),
-				default.name.clone(),
-			);
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), "Default", &default.name);
 			statics.push(default);
 		}
 		let pkg = self.pkg;
@@ -2518,6 +2513,7 @@ impl<'a> Gen<'a> {
 			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
 			docs(text.trim(), object.deprecated.as_deref(), "")
 		);
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Close");
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
 			name: c.clone(),

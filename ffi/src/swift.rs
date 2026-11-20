@@ -74,13 +74,6 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		g.names.insert(name.clone(), "a type".to_string());
 	}
 	g.locked = crate::lock::types(abi, &g.classes);
-	// Each case, which the enum's traits may rename.
-	let mut locked = std::mem::take(&mut g.locked);
-	crate::lock::variants(abi, &mut locked, |i, v| {
-		let class = g.class(&abi.enumeration(i));
-		Some(format!("{class}.{}", unquote(&case_of(abi.api.enums[i].traits, v))))
-	});
-	g.locked = locked;
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -1028,7 +1021,10 @@ impl<'a> Gen<'a> {
 			false => body,
 		};
 		let text = |r: &str| format!("Native.string({r})");
+		// The members named here, by trait, which the lock records.
+		let mut named = Vec::new();
 		if t.display {
+			named.push(("Display", "description"));
 			if !status {
 				protocols.push("CustomStringConvertible");
 			}
@@ -1039,6 +1035,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.debug {
+			named.push(("Debug", "debugDescription"));
 			if !status {
 				protocols.push("CustomDebugStringConvertible");
 			}
@@ -1049,6 +1046,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.clone {
+			named.push(("Clone", "clone"));
 			members.push("clone".to_string());
 			let lift = |r: &str| format!("{name}(raw: {r})");
 			body.push(format!(
@@ -1098,6 +1096,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		if t.hash {
+			named.push(("Hash", "hash(into:)"));
 			members.push("hash(into:)".to_string());
 			let combine = |r: &str| format!("hasher.combine({r})");
 			body.push(format!(
@@ -1106,6 +1105,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.default {
+			named.push(("Default", "default"));
 			members.push("static default".to_string());
 			let lift = match ty {
 				Type::Object(_) => format!("{name}(raw: {c}_default())"),
@@ -1121,6 +1121,9 @@ impl<'a> Gen<'a> {
 				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
 				self.on(self.on, &format!("{c}_default"), "\n\t\t", limited)
 			));
+		}
+		for (t, member) in named {
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, member);
 		}
 	}
 
@@ -1155,6 +1158,9 @@ impl<'a> Gen<'a> {
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			crate::lock::field(&mut self.locked, &record.shown, &f.name, &unquote(name));
+		}
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| unquote(f)).collect();
 		// A deprecated field is stored apart, under `_` and its name, so its own code's uses
 		// do not warn as a caller's do: Swift has no way to silence one.
@@ -1289,6 +1295,13 @@ impl<'a> Gen<'a> {
 		for variant in &e.variants {
 			let snake = abi::snake(&variant.name);
 			let case = case_of(e.traits, &variant.name);
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &unquote(&case));
+			if !variant.tuple {
+				for f in &variant.fields {
+					let label = unquote(&field_name(&f.name));
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &label);
+				}
+			}
 			let labels = variant.fields.iter().map(|f| match variant.tuple {
 				true => "_".to_string(),
 				false => unquote(&field_name(&f.name)),
@@ -2018,6 +2031,8 @@ impl<'a> Gen<'a> {
 			{
 				// Labelled, as a defaulted argument is, so that overloads leaving out
 				// different ones differ in name.
+				let key = format!("{} / label {}", crate::lock::function_key(function), param.name);
+				self.locked.insert(key, unquote(name));
 				params.push(format!("{name}: borrowing {}", self.sw(lent)));
 				args.push(Arg {
 					exprs: vec![format!("{name}.handle")],

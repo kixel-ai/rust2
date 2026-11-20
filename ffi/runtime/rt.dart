@@ -1623,6 +1623,39 @@ final class _Native {
   int i32(int v) =>
       v >= -0x80000000 && v <= 0x7fffffff ? v : throw RangeError.range(v, -0x80000000, 0x7fffffff);
 
+  /// Where [f32Bits] and [f32Of] convert, by bits for a NaN.
+  final _float = typed.ByteData(8);
+
+  /// The bits of the `f32` nearest `v`, as a cast rounds: a NaN narrowed by its bits, as
+  /// [f32Of] widened it, keeping its sign, its quiet bit, and its payload's top 23 bits,
+  /// where the hardware's narrowing would set the quiet bit.
+  int f32Bits(double v) {
+    final b = _float;
+    if (!v.isNaN) {
+      b.setFloat32(0, v, typed.Endian.host);
+      return b.getUint32(0, typed.Endian.host);
+    }
+    b.setFloat64(0, v, typed.Endian.host);
+    final bits = b.getUint64(0, typed.Endian.host);
+    var payload = (bits >> 29) & 0x7fffff;
+    // A payload only in the low bits would narrow to infinity: quieted instead, as the
+    // hardware does.
+    if (payload == 0) payload = 1 << 22;
+    return ((bits >> 32) & 0x80000000) | 0x7f800000 | payload;
+  }
+
+  /// The `double` of an `f32`'s bits: a NaN widened by its bits, its payload shifted up and
+  /// its quiet bit kept, so [f32Bits] narrows it back exactly.
+  double f32Of(int bits) {
+    final b = _float;
+    if ((bits & 0x7fffffff) <= 0x7f800000) {
+      b.setUint32(0, bits, typed.Endian.host);
+      return b.getFloat32(0, typed.Endian.host);
+    }
+    b.setUint64(0, ((bits & 0x80000000) << 32) | 0x7ff0000000000000 | ((bits & 0x7fffff) << 29), typed.Endian.host);
+    return b.getFloat64(0, typed.Endian.host);
+  }
+
   /// A `NonZero`'s integer, which Rust's type holds only if it is not zero.
   int nonZero(int v) => v != 0 ? v : throw ArgumentError.value(v, 'NonZero', 'a NonZero is zero');
 
