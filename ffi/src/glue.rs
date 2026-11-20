@@ -66,9 +66,13 @@ fn dependency(krate: &str) -> String {
 }
 
 /// The name the crate depends on a crate the facade does not re-export by, apart from the
-/// facade's even when they share a name.
+/// facade's even when they share a name. `bytes` is the crate's own too, which cargo refuses
+/// to depend on twice under two names, so it keeps its own.
 fn reached(krate: &str) -> String {
-	format!("{krate}_reached")
+	match krate {
+		"bytes" => krate.to_string(),
+		_ => format!("{krate}_reached"),
+	}
 }
 
 /// The name the crate depends on a foreign type's crate by, apart from the facade's even
@@ -318,7 +322,12 @@ impl Crate<'_> {
 					r.krate
 				));
 			};
-			let line = format!("{} = {{ {keys}, default-features = false }}\n", reached(&r.krate));
+			// The crate's own `bytes` keeps the default features the glue builds it with.
+			let features = match r.krate.as_str() {
+				"bytes" => "",
+				_ => ", default-features = false",
+			};
+			let line = format!("{} = {{ {keys}{features} }}\n", reached(&r.krate));
 			match r.targets == api.targets {
 				true => every.push_str(&line),
 				false => (r.targets.iter()).for_each(|t| targeted.entry(t).or_default().push_str(&line)),
@@ -327,7 +336,16 @@ impl Crate<'_> {
 		let targeted: String = (targeted.into_iter())
 			.map(|(target, lines)| format!("[target.{target:?}.dependencies]\n{lines}\n"))
 			.collect();
-		let dependencies = format!("{dependencies}{foreign}{every}");
+		// The crate's own `bytes`, unless the facade's, which every target reaches, stands for it.
+		let own = match api
+			.reached
+			.iter()
+			.any(|r| r.krate == "bytes" && r.targets == api.targets)
+		{
+			true => "",
+			false => "bytes = \"1\"\n",
+		};
+		let dependencies = format!("{dependencies}{foreign}{every}{own}");
 		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
 		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
@@ -354,7 +372,6 @@ impl Crate<'_> {
 			\n\
 			[dependencies]\n\
 			{dependencies}\
-			bytes = \"1\"\n\
 			jni-sys = {{ version = \"0.4\", optional = true }}\n\
 			pyo3-ffi = {{ version = \"0.30\", optional = true, features = [\"abi3-py311\", \"extension-module\"] }}\n\
 			smallvec = {{ version = \"1.16\", optional = true }}\n\

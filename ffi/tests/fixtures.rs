@@ -4922,6 +4922,28 @@ fn plain() {
 		.env("RUSTFLAGS", "-D warnings"));
 }
 
+/// A facade that reaches `bytes`, whose `Take` its signature names though it re-exports
+/// nothing of the crate, builds with the one dependency on it the glue's own `Bytes` shares:
+/// cargo refuses two under different names.
+#[test]
+fn reaches_bytes() {
+	let package = package(
+		"reaches_bytes",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"reaches_bytes\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\nbytes = \"1\"\n\n[workspace]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub fn limited(bytes: bytes::Bytes) -> bytes::buf::Take<bytes::Bytes> {\n\tbytes::Buf::take(bytes, 2)\n}\n",
+			),
+		],
+	);
+	export_and_build(&package, &["--offline"]);
+}
+
 /// A dependency the facade re-exports from, patched in for a registry dependency, is
 /// patched into the glue's build too, though the dependency goes by its library's crate
 /// name. So is a dependency of no platform's, which cargo resolves all the same.
