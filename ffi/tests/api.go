@@ -297,6 +297,47 @@ func channel() {
 	fmt.Printf("woken %d\n", wakes)
 }
 
+// streams is the transcript's: streams ranged over by All, to their end, left early, and
+// to an error, which ends the range but not the stream.
+func streams() {
+	ctx := context.Background()
+	var counts []string
+	for count, err := range api.NewCountdown(3).All(ctx) {
+		ok(err)
+		counts = append(counts, fmt.Sprint(count))
+	}
+	fmt.Printf("countdown %s\n", strings.Join(counts, " "))
+	// A range left early takes nothing past the item it stopped at.
+	countdown := api.NewCountdown(5)
+	for count := range countdown.All(ctx) {
+		if count == 4 {
+			break
+		}
+	}
+	fmt.Printf("countdown after break %d\n", *must(countdown.Next(ctx)))
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	c := api.NewChannel()
+	feed := must(c.Feed())
+	replies := map[string]string{"a": "b", "b": "!"}
+	for _, first := range []string{"a", "c"} {
+		c.Send(rt.NewBytes([]byte(first)))
+		failed := false
+		for payload, err := range feed.All(ctx) {
+			check(!failed, "a stream yields nothing past its error")
+			if err != nil {
+				fmt.Printf("feed error %s\n", err)
+				failed = true
+				continue
+			}
+			fmt.Printf("feed %s\n", payload.Copy())
+			c.Send(rt.NewBytes([]byte(replies[string(payload.Copy())])))
+		}
+		if !failed {
+			fmt.Println("feed end")
+		}
+	}
+}
+
 // must2 is a call's two values, or a panic on its error.
 func must2[A, B any](a A, b B, err error) (A, B) {
 	if err != nil {
@@ -621,6 +662,37 @@ func futures() {
 	// The send lands from another goroutine's thread while the receive waits.
 	go channel.Send(rt.NewBytes([]byte("blocked")))
 	check(string(must(channel.Recv(ctx)).Copy()) == "blocked", "recv returns the payload another goroutine sent")
+
+	// A stream's range ends with ctx's error once ctx is done while its Next pends, which
+	// drops Rust's future and loses nothing: the stream stays usable, and the payload sent
+	// afterwards is the next call's.
+	{
+		feed := must(channel.Feed())
+		cancelled, cancel := context.WithCancel(ctx)
+		watching := watch(cancelled)
+		ended := make(chan error)
+		go func() {
+			for _, err := range feed.All(watching) {
+				ended <- err
+				return
+			}
+			ended <- nil
+		}()
+		<-watching.waiting
+		cancel()
+		check(errors.Is(<-ended, context.Canceled), "a range whose context ends yields its error")
+		channel.Send(rt.NewBytes([]byte("kept")))
+		check(string(must(feed.Next(ctx)).Copy()) == "kept", "a cancelled range loses nothing")
+		// A break takes nothing past its item: the payload sent after it is the next call's.
+		channel.Send(rt.NewBytes([]byte("first")))
+		for payload, err := range feed.All(ctx) {
+			ok(err)
+			check(string(payload.Copy()) == "first", "a range yields the payload sent")
+			channel.Send(rt.NewBytes([]byte("second")))
+			break
+		}
+		check(string(must(feed.Next(ctx)).Copy()) == "second", "a range reads nothing ahead")
+	}
 
 	// A wake that lands while the future polls, before it returns pending, is kept: the
 	// call polls again rather than waiting for a wake that already happened.

@@ -1207,6 +1207,10 @@ other than one in its own form, `module <path>` and `go 1.24`.
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
+- A **stream** has `All(ctx)`, an `iter.Seq2[T, error]` that a `for item, err := range`
+  ranges over, calling `Next(ctx)` once for each item: an error, ctx's included, is its
+  last, and leaves the stream usable. Of a method another package keeps, it is that
+  package's `<Type>All`, as `Next` is `<Type>Next`.
 - A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
   a goroutine of its own. Its context derives from the call's, `context.Background()` for
   a call without one, so it carries the caller's values and deadline, and the caller's
