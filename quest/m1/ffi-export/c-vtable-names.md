@@ -9,6 +9,8 @@ binding that names the member (the Rust glue, Go, Swift, Dart) follows.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#914](https://github.com/kixel-ai/rust2/pull/914): ✅ kept, with each binding reading a callback's entry names from one place rather than respelling them (rejected: dropping it).
+
 Found by [cpp-name-collisions](https://github.com/kixel-ai/rust2/pull/914)' validation: a
 trait `Undo { fn delete(&self, ..) }` writes `uint8_t (*delete)(void *data, ...)`, which
 g++ refuses in `api.h` before the C++ header is read. `c.rs` names the member

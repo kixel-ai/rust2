@@ -9,6 +9,8 @@ whole export.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#914](https://github.com/kixel-ai/rust2/pull/914): ✅ kept, giving every language C++'s order-independent rule (rejected: dropping it).
+
 Found by [cpp-name-collisions](https://github.com/kixel-ai/rust2/pull/914), whose fixture
 could not carry its pairs: each of these refused the api fixture's export with "two
 members of ... are both ... which rust2-ffi should keep apart", with no span.
