@@ -971,6 +971,11 @@ fn int(n: Num, ty: &Type) -> String {
 		Int::U8 => format!("{n}.toUByte()"),
 		Int::U16 => format!("{n}.toUShort()"),
 		Int::U32 => format!("{n}u"),
+		// One Kotlin binding serves every target, so a pointer-sized bound, which a 64-bit
+		// host folds to its own, is the library's, which api.kt reads from its pointer width.
+		Int::Usize if n == Num::new(u64::MAX.into()) => "usizeMax()".to_string(),
+		Int::Isize if n == Num::new(i64::MAX.into()) => "isizeRange().last".to_string(),
+		Int::Isize if n == Num::new(i64::MIN.into()) => "isizeRange().first".to_string(),
 		Int::U64 | Int::Usize => format!("{n}uL"),
 		Int::I8 => format!("({n}).toByte()"),
 		Int::I16 => format!("({n}).toShort()"),

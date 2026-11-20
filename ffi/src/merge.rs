@@ -182,7 +182,21 @@ impl Maps {
 	}
 }
 
-/// `item` with what may differ between targets alike cleared: its span, docs, targets,
+/// `ours` with each link `theirs` resolves too: a link to an item one target lacks resolves
+/// only where it has it, and each binding drops the links it cannot follow. Docs that
+/// differ in more than links, as `cfg_attr` can make them, keep the side that resolves more.
+fn linked(ours: &mut String, theirs: String) {
+	if let Some(merged) = crate::doc::merge(ours, &theirs) {
+		*ours = merged;
+		return;
+	}
+	let links = |docs: &str| docs.matches(crate::doc::LINK).count();
+	if links(&theirs) > links(ours) {
+		*ours = theirs;
+	}
+}
+
+/// `item` with what may differ between targets alike cleared: its span, docs, deprecation, targets,
 /// and `clear`'s, which clears its members, compared on their own.
 fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	let mut item = item.clone();
@@ -194,6 +208,7 @@ pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
+		f.deprecated = None;
 		f.on = On::ALL;
 	})
 }
@@ -202,9 +217,13 @@ pub(crate) fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
+		r.deprecated = None;
 		r.on = On::ALL;
 		r.methods.clear();
-		r.fields.iter_mut().for_each(|f| f.docs.clear());
+		r.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
 		// Merged apart: one binding holds the largest, and each target asserts its own size.
 		if let Some(opaque) = &mut r.opaque {
 			opaque.size = 0;
@@ -220,6 +239,7 @@ pub(crate) fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
+		e.deprecated = None;
 		e.on = On::ALL;
 		e.methods.clear();
 		e.variants.clear();
@@ -232,7 +252,10 @@ pub(crate) fn bare_variant(v: &Variant) -> Variant {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
 		v.discriminant = 0;
-		v.fields.iter_mut().for_each(|f| f.docs.clear());
+		v.fields.iter_mut().for_each(|f| {
+			f.docs.clear();
+			f.deprecated = None;
+		});
 	})
 }
 
@@ -240,6 +263,7 @@ pub(crate) fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
+		o.deprecated = None;
 		o.on = On::ALL;
 		o.methods.clear();
 		o.variants.clear();
@@ -266,6 +290,7 @@ pub(crate) fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 		c.methods = c.methods.iter().map(bare_function).collect();
 	})
@@ -275,6 +300,7 @@ pub(crate) fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
+		c.deprecated = None;
 		c.on = On::ALL;
 	})
 }
@@ -445,6 +471,11 @@ impl Merged {
 				let what = format!("struct `{}`", record.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
+			let ours = &mut self.api.records[at];
+			linked(&mut ours.docs, record.docs);
+			for (field, theirs) in ours.fields.iter_mut().zip(record.fields) {
+				linked(&mut field.docs, theirs.docs);
+			}
 			self.api.records[at].on.0 |= record.on.0;
 			leaves(&mut self.api.records[at].traits, record.traits);
 			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
@@ -466,6 +497,7 @@ impl Merged {
 				self.differ(what.clone(), (ours.on, ours.span), (e.on, e.span));
 			}
 			self.variants(at, &e, what);
+			linked(&mut self.api.enums[at].docs, e.docs);
 			self.api.enums[at].on.0 |= e.on.0;
 			leaves(&mut self.api.enums[at].traits, e.traits);
 			let methods = std::mem::take(&mut self.api.enums[at].methods);
@@ -480,6 +512,7 @@ impl Merged {
 				let what = format!("type `{}`", object.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (object.on, object.span));
 			}
+			linked(&mut self.api.objects[at].docs, object.docs);
 			self.api.objects[at].on.0 |= object.on.0;
 			// Each variant is on the targets it is, after the one it follows in theirs.
 			let mut after = 0;
@@ -510,6 +543,10 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (callback.on, callback.span));
 			}
 			let ours = &mut self.api.callbacks[at];
+			linked(&mut ours.docs, callback.docs);
+			for (method, theirs) in ours.methods.iter_mut().zip(callback.methods) {
+				linked(&mut method.docs, theirs.docs);
+			}
 			ours.on.0 |= callback.on.0;
 			ours.methods.iter_mut().for_each(|m| m.on.0 |= callback.on.0);
 		}
@@ -525,6 +562,7 @@ impl Merged {
 				let what = format!("const `{}`", constant.path.join("::"));
 				self.differ(what, (ours.on, ours.span), (constant.on, constant.span));
 			}
+			linked(&mut self.api.constants[at].docs, constant.docs);
 			self.api.constants[at].on.0 |= constant.on.0;
 		}
 	}
@@ -546,6 +584,7 @@ impl Merged {
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
 			ours[at].on.0 |= function.on.0;
+			linked(&mut ours[at].docs, function.docs);
 		}
 		ours
 	}
@@ -803,8 +842,18 @@ mod tests {
 
 	use rustc_span::DUMMY_SP;
 
-	use super::{On, cycle, order_crates};
+	use super::{On, cycle, linked, order_crates};
 	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
+
+	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
+	#[test]
+	fn docs_keep_the_most_links() {
+		let mut docs = "Joins a `Spawned`.".to_string();
+		linked(&mut docs, "Joins a [`Spawned`](rust2:api::Spawned).".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+		linked(&mut docs, "Joins a `Spawned`.".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+	}
 
 	#[test]
 	fn names_a_cycle_across_targets() {
@@ -836,12 +885,14 @@ mod tests {
 			span: DUMMY_SP,
 			on: On(on),
 			docs: String::new(),
+			deprecated: None,
 			variants: vec![Variant {
 				name: "V".into(),
 				discriminant: 0,
 				fields: vec![Field {
 					name: "0".into(),
 					docs: String::new(),
+					deprecated: None,
 					ty: Type::Enum(ty),
 				}],
 				tuple: true,
@@ -885,6 +936,7 @@ mod tests {
 				span: DUMMY_SP,
 				on: On::ALL,
 				docs: String::new(),
+				deprecated: None,
 				value: crate::ir::Literal::Bool(true),
 			}],
 			crates: vec!["f".into()],

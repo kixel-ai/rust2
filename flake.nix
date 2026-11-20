@@ -338,10 +338,15 @@
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.clang ];
           });
-          # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang, and
-          # runs it under the nightly's Miri. llvm-symbolizer names the frames of a report.
+          # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang,
+          # runs it under the nightly's Miri and Valgrind, and runs the Python on a debug build of
+          # the newest CPython, which nothing caches. llvm-symbolizer names a report's frames.
           devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
-            nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.llvm ];
+            nativeBuildInputs = old.nativeBuildInputs ++ [
+              pkgs.llvm
+              pkgs.valgrind
+            ];
+            RUST2_PYTHON_DEBUG = "${pkgs.python315.override { enableDebug = true; }}/bin/python3";
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               extensions =
                 (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components
@@ -352,14 +357,15 @@
           });
           # `just ffi android` builds the Kotlin's library for an Android device, with the NDK
           # cargo-ndk finds through ANDROID_NDK_HOME, and `just ffi moq-api` stages moq's API on
-          # each Android ABI moq ships: the SDK and NDK are the caller's, as moq's Android build
-          # takes the GitHub runner image's.
+          # each Android ABI moq ships, and the x86 emulator runs the 32-bit test: the SDK and
+          # NDK are the caller's, as moq's Android build takes the GitHub runner image's.
           devShells.android = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.cargo-ndk ];
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               targets = (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.targets ++ [
                 "aarch64-linux-android"
                 "armv7-linux-androideabi"
+                "i686-linux-android"
                 "x86_64-linux-android"
               ];
             };
