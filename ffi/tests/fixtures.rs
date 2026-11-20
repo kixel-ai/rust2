@@ -1115,6 +1115,20 @@ fn api_android() {
 		usage.lines().any(|line| line.starts_with("api.")),
 		"R8 stripped none of the generated Kotlin:\n{usage}"
 	);
+	// And keeps every leaf's `@FastNative`, which ART reads off the dex, and the method
+	// itself, which `__contract` registers.
+	let marked = std::fs::read_to_string(out.join("kotlin").join("api.kt"))
+		.unwrap()
+		.matches("@dalvik.annotation.optimization.FastNative\n")
+		.count();
+	assert!(marked > 0, "the api fixture has no leaf to mark");
+	let dump = run(Command::new(newest(&sdk.join("build-tools")).join("dexdump"))
+		.arg("-a")
+		.arg(dex.join("classes.dex")));
+	let kept = String::from_utf8_lossy(&dump.stdout)
+		.matches("VISIBILITY_BUILD Ldalvik/annotation/optimization/FastNative;")
+		.count();
+	assert_eq!(kept, marked, "R8 kept {kept} of the {marked} @FastNative methods");
 
 	run(Command::new(&adb)
 		.args(["shell", "rm", "-rf", DEVICE, "&&", "mkdir", "-p"])
