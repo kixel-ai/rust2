@@ -21,7 +21,6 @@ then see change. A sibling planned later adds itself to `Required` here.
 
 - [Refusals](/quest/m1/ffi-refusals/README.md) - the census lists no refusals at the moq pin, and `ffi.toml` is gone
 - [Swift spans](/quest/m1/ffi-export/swift-span.md) - lent bytes and slices change the Swift API
-- [Kotlin idioms](/quest/m1/ffi-export/kotlin-idioms.md) - direct buffers and Java annotations change the Kotlin API
 - [Python idioms](/quest/m1/ffi-export/python-idioms.md) - the exception hierarchy changes the Python API
 - [Dart analysis](/quest/m1/ffi-export/dart-analyze.md) - lint fixes may rename generated Dart
 - [Docs](/quest/m1/ffi-export/docs.md) - doc links and deprecations in every binding

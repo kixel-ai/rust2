@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0xaa8cb579f7b9666cULL)
+#define MOQ_CONTRACT ((uint64_t)0x48430f46e4467acfULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -2855,12 +2855,12 @@ void moq_hang_catalog_TextFormat_free(moq_hang_catalog_TextFormat *self);
 bool moq_hang_catalog_TextFormat_eq(const moq_hang_catalog_TextFormat *a, const moq_hang_catalog_TextFormat *b);
 MOQ_MUST_USE moq_buf moq_hang_catalog_TextFormat_to_string(const moq_hang_catalog_TextFormat *self);
 MOQ_MUST_USE moq_buf moq_hang_catalog_TextFormat_debug(const moq_hang_catalog_TextFormat *self);
-moq_hang_catalog_TextFormat moq_hang_catalog_TextFormat_default(void);
+MOQ_MUST_USE moq_hang_catalog_TextFormat moq_hang_catalog_TextFormat_default(void);
 void moq_hang_catalog_TextRole_free(moq_hang_catalog_TextRole *self);
 bool moq_hang_catalog_TextRole_eq(const moq_hang_catalog_TextRole *a, const moq_hang_catalog_TextRole *b);
 MOQ_MUST_USE moq_buf moq_hang_catalog_TextRole_to_string(const moq_hang_catalog_TextRole *self);
 MOQ_MUST_USE moq_buf moq_hang_catalog_TextRole_debug(const moq_hang_catalog_TextRole *self);
-moq_hang_catalog_TextRole moq_hang_catalog_TextRole_default(void);
+MOQ_MUST_USE moq_hang_catalog_TextRole moq_hang_catalog_TextRole_default(void);
 void moq_hang_catalog_VideoCodec_free(moq_hang_catalog_VideoCodec *self);
 bool moq_hang_catalog_VideoCodec_eq(const moq_hang_catalog_VideoCodec *a, const moq_hang_catalog_VideoCodec *b);
 MOQ_MUST_USE moq_buf moq_hang_catalog_VideoCodec_to_string(const moq_hang_catalog_VideoCodec *self);
@@ -2945,7 +2945,7 @@ MOQ_MUST_USE moq_buf moq_mux_container_fmp4_Chunk_debug(const moq_mux_container_
 MOQ_MUST_USE moq_buf moq_mux_container_fmp4_Chunk_data(const moq_mux_container_fmp4_Chunk *self);
 MOQ_MUST_USE moq_buf moq_mux_container_fmp4_Chunk_into_data(const moq_mux_container_fmp4_Chunk *self);
 MOQ_MUST_USE moq_buf moq_mux_container_fmp4_Chunk_init(const moq_mux_container_fmp4_Chunk *self);
-moq_option_mux_container_fmp4_Fragment moq_mux_container_fmp4_Chunk_fragment(const moq_mux_container_fmp4_Chunk *self);
+MOQ_MUST_USE moq_option_mux_container_fmp4_Fragment moq_mux_container_fmp4_Chunk_fragment(const moq_mux_container_fmp4_Chunk *self);
 bool moq_mux_container_ts_Framing_eq(const moq_mux_container_ts_Framing *a, const moq_mux_container_ts_Framing *b);
 MOQ_MUST_USE moq_buf moq_mux_container_ts_Framing_debug(const moq_mux_container_ts_Framing *self);
 moq_mux_container_ts_Framing moq_mux_container_ts_Framing_default(void);
@@ -3017,8 +3017,8 @@ MOQ_MUST_USE moq_Waiter *moq_Waiter_clone(const moq_Waiter *self, moq_status *st
 MOQ_MUST_USE moq_Waiter *moq_Waiter_new(moq_waker waker_);
 MOQ_MUST_USE moq_Waiter *moq_Waiter_noop(void);
 void moq_Waiter_register(const moq_Waiter *self, moq_WaiterList *list, moq_status *status);
-moq_waker moq_Waiter_waker(const moq_Waiter *self, moq_status *status);
-moq_waker moq_Waiter_context(const moq_Waiter *self, moq_status *status);
+MOQ_MUST_USE moq_waker moq_Waiter_waker(const moq_Waiter *self, moq_status *status);
+MOQ_MUST_USE moq_waker moq_Waiter_context(const moq_Waiter *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Waiter_batch(const moq_Waiter *self, moq_buf (*poll)(void *data), void *poll_data, moq_status *status);
 typedef struct moq_Waiter_poll_future_future moq_Waiter_poll_future_future;
 MOQ_MUST_USE moq_Waiter_poll_future_future *moq_Waiter_poll_future(moq_foreign_future future_);
@@ -5027,13 +5027,13 @@ MOQ_MUST_USE moq_Instance *moq_hang_catalog_AudioConfig_instance_get(const moq_h
 void moq_hang_catalog_AudioConfig_instance_set(moq_hang_catalog_AudioConfig *self, moq_Instance *value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_AudioConfig_label_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_label_set(moq_hang_catalog_AudioConfig *self, moq_buf value, moq_status *status);
-moq_hang_catalog_AudioCodec moq_hang_catalog_AudioConfig_codec_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_AudioCodec moq_hang_catalog_AudioConfig_codec_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_codec_set(moq_hang_catalog_AudioConfig *self, moq_hang_catalog_AudioCodec value, moq_status *status);
 uint32_t moq_hang_catalog_AudioConfig_sample_rate_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_sample_rate_set(moq_hang_catalog_AudioConfig *self, uint32_t value, moq_status *status);
 uint32_t moq_hang_catalog_AudioConfig_channel_count_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_channel_count_set(moq_hang_catalog_AudioConfig *self, uint32_t value, moq_status *status);
-moq_option_hang_catalog_AudioLayout moq_hang_catalog_AudioConfig_layout_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
+MOQ_MUST_USE moq_option_hang_catalog_AudioLayout moq_hang_catalog_AudioConfig_layout_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_layout_set(moq_hang_catalog_AudioConfig *self, moq_option_hang_catalog_AudioLayout value, moq_status *status);
 moq_option_u64 moq_hang_catalog_AudioConfig_bitrate_get(const moq_hang_catalog_AudioConfig *self, moq_status *status);
 void moq_hang_catalog_AudioConfig_bitrate_set(moq_hang_catalog_AudioConfig *self, moq_option_u64 value, moq_status *status);
@@ -5073,7 +5073,7 @@ MOQ_MUST_USE moq_buf moq_hang_catalog_BinaryConfig_track_get(const moq_hang_cata
 void moq_hang_catalog_BinaryConfig_track_set(moq_hang_catalog_BinaryConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_hang_catalog_BinaryConfig_instance_get(const moq_hang_catalog_BinaryConfig *self, moq_status *status);
 void moq_hang_catalog_BinaryConfig_instance_set(moq_hang_catalog_BinaryConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_Mode moq_hang_catalog_BinaryConfig_mode_get(const moq_hang_catalog_BinaryConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_Mode moq_hang_catalog_BinaryConfig_mode_get(const moq_hang_catalog_BinaryConfig *self, moq_status *status);
 void moq_hang_catalog_BinaryConfig_mode_set(moq_hang_catalog_BinaryConfig *self, moq_hang_catalog_Mode value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_BinaryConfig_mime_get(const moq_hang_catalog_BinaryConfig *self, moq_status *status);
 void moq_hang_catalog_BinaryConfig_mime_set(moq_hang_catalog_BinaryConfig *self, moq_buf value, moq_status *status);
@@ -5141,7 +5141,7 @@ MOQ_MUST_USE moq_buf moq_hang_catalog_JsonConfig_track_get(const moq_hang_catalo
 void moq_hang_catalog_JsonConfig_track_set(moq_hang_catalog_JsonConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_hang_catalog_JsonConfig_instance_get(const moq_hang_catalog_JsonConfig *self, moq_status *status);
 void moq_hang_catalog_JsonConfig_instance_set(moq_hang_catalog_JsonConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_Mode moq_hang_catalog_JsonConfig_mode_get(const moq_hang_catalog_JsonConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_Mode moq_hang_catalog_JsonConfig_mode_get(const moq_hang_catalog_JsonConfig *self, moq_status *status);
 void moq_hang_catalog_JsonConfig_mode_set(moq_hang_catalog_JsonConfig *self, moq_hang_catalog_Mode value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_JsonConfig_schema_get(const moq_hang_catalog_JsonConfig *self, moq_status *status);
 void moq_hang_catalog_JsonConfig_schema_set(moq_hang_catalog_JsonConfig *self, moq_buf value, moq_status *status);
@@ -5184,9 +5184,9 @@ MOQ_MUST_USE moq_buf moq_hang_catalog_TextConfig_track_get(const moq_hang_catalo
 void moq_hang_catalog_TextConfig_track_set(moq_hang_catalog_TextConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_hang_catalog_TextConfig_instance_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
 void moq_hang_catalog_TextConfig_instance_set(moq_hang_catalog_TextConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_TextFormat moq_hang_catalog_TextConfig_format_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_TextFormat moq_hang_catalog_TextConfig_format_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
 void moq_hang_catalog_TextConfig_format_set(moq_hang_catalog_TextConfig *self, moq_hang_catalog_TextFormat value, moq_status *status);
-moq_hang_catalog_TextRole moq_hang_catalog_TextConfig_role_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_TextRole moq_hang_catalog_TextConfig_role_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
 void moq_hang_catalog_TextConfig_role_set(moq_hang_catalog_TextConfig *self, moq_hang_catalog_TextRole value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_TextConfig_lang_get(const moq_hang_catalog_TextConfig *self, moq_status *status);
 void moq_hang_catalog_TextConfig_lang_set(moq_hang_catalog_TextConfig *self, moq_buf value, moq_status *status);
@@ -5279,7 +5279,7 @@ MOQ_MUST_USE moq_Instance *moq_hang_catalog_VideoConfig_instance_get(const moq_h
 void moq_hang_catalog_VideoConfig_instance_set(moq_hang_catalog_VideoConfig *self, moq_Instance *value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_VideoConfig_label_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_label_set(moq_hang_catalog_VideoConfig *self, moq_buf value, moq_status *status);
-moq_hang_catalog_VideoCodec moq_hang_catalog_VideoConfig_codec_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_VideoCodec moq_hang_catalog_VideoConfig_codec_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_codec_set(moq_hang_catalog_VideoConfig *self, moq_hang_catalog_VideoCodec value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_hang_catalog_VideoConfig_description_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_description_set(moq_hang_catalog_VideoConfig *self, moq_buf value, moq_status *status);
@@ -5295,7 +5295,7 @@ MOQ_MUST_USE moq_hang_catalog_Color *moq_hang_catalog_VideoConfig_color_get(cons
 void moq_hang_catalog_VideoConfig_color_set(moq_hang_catalog_VideoConfig *self, moq_hang_catalog_Color *value, moq_status *status);
 MOQ_MUST_USE moq_hang_catalog_Projection *moq_hang_catalog_VideoConfig_projection_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_projection_set(moq_hang_catalog_VideoConfig *self, moq_hang_catalog_Projection *value, moq_status *status);
-moq_option_hang_catalog_Stereo moq_hang_catalog_VideoConfig_stereo_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
+MOQ_MUST_USE moq_option_hang_catalog_Stereo moq_hang_catalog_VideoConfig_stereo_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_stereo_set(moq_hang_catalog_VideoConfig *self, moq_option_hang_catalog_Stereo value, moq_status *status);
 bool moq_hang_catalog_VideoConfig_interlaced_get(const moq_hang_catalog_VideoConfig *self, moq_status *status);
 void moq_hang_catalog_VideoConfig_interlaced_set(moq_hang_catalog_VideoConfig *self, bool value, moq_status *status);
@@ -5782,7 +5782,7 @@ MOQ_MUST_USE moq_mux_catalog_VideoHint *moq_mux_catalog_VideoHint_clone(const mo
 bool moq_mux_catalog_VideoHint_eq(const moq_mux_catalog_VideoHint *a, const moq_mux_catalog_VideoHint *b, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_catalog_VideoHint_debug(const moq_mux_catalog_VideoHint *self, moq_status *status);
 MOQ_MUST_USE moq_mux_catalog_VideoHint *moq_mux_catalog_VideoHint_default(void);
-moq_option_hang_catalog_VideoCodec moq_mux_catalog_VideoHint_codec_get(const moq_mux_catalog_VideoHint *self, moq_status *status);
+MOQ_MUST_USE moq_option_hang_catalog_VideoCodec moq_mux_catalog_VideoHint_codec_get(const moq_mux_catalog_VideoHint *self, moq_status *status);
 void moq_mux_catalog_VideoHint_codec_set(moq_mux_catalog_VideoHint *self, moq_option_hang_catalog_VideoCodec value, moq_status *status);
 moq_option_u32 moq_mux_catalog_VideoHint_coded_width_get(const moq_mux_catalog_VideoHint *self, moq_status *status);
 void moq_mux_catalog_VideoHint_coded_width_set(moq_mux_catalog_VideoHint *self, moq_option_u32 value, moq_status *status);
@@ -6105,13 +6105,13 @@ MOQ_MUST_USE moq_Instance *moq_mux_container_Guard_AudioConfig_instance_get(cons
 void moq_mux_container_Guard_AudioConfig_instance_set(moq_mux_container_Guard_AudioConfig *self, moq_Instance *value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_AudioConfig_label_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_label_set(moq_mux_container_Guard_AudioConfig *self, moq_buf value, moq_status *status);
-moq_hang_catalog_AudioCodec moq_mux_container_Guard_AudioConfig_codec_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_AudioCodec moq_mux_container_Guard_AudioConfig_codec_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_codec_set(moq_mux_container_Guard_AudioConfig *self, moq_hang_catalog_AudioCodec value, moq_status *status);
 uint32_t moq_mux_container_Guard_AudioConfig_sample_rate_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_sample_rate_set(moq_mux_container_Guard_AudioConfig *self, uint32_t value, moq_status *status);
 uint32_t moq_mux_container_Guard_AudioConfig_channel_count_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_channel_count_set(moq_mux_container_Guard_AudioConfig *self, uint32_t value, moq_status *status);
-moq_option_hang_catalog_AudioLayout moq_mux_container_Guard_AudioConfig_layout_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
+MOQ_MUST_USE moq_option_hang_catalog_AudioLayout moq_mux_container_Guard_AudioConfig_layout_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_layout_set(moq_mux_container_Guard_AudioConfig *self, moq_option_hang_catalog_AudioLayout value, moq_status *status);
 moq_option_u64 moq_mux_container_Guard_AudioConfig_bitrate_get(const moq_mux_container_Guard_AudioConfig *self, moq_status *status);
 void moq_mux_container_Guard_AudioConfig_bitrate_set(moq_mux_container_Guard_AudioConfig *self, moq_option_u64 value, moq_status *status);
@@ -6137,7 +6137,7 @@ MOQ_MUST_USE moq_buf moq_mux_container_Guard_BinaryConfig_track_get(const moq_mu
 void moq_mux_container_Guard_BinaryConfig_track_set(moq_mux_container_Guard_BinaryConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_mux_container_Guard_BinaryConfig_instance_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
 void moq_mux_container_Guard_BinaryConfig_instance_set(moq_mux_container_Guard_BinaryConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_Mode moq_mux_container_Guard_BinaryConfig_mode_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_Mode moq_mux_container_Guard_BinaryConfig_mode_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
 void moq_mux_container_Guard_BinaryConfig_mode_set(moq_mux_container_Guard_BinaryConfig *self, moq_hang_catalog_Mode value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_BinaryConfig_mime_get(const moq_mux_container_Guard_BinaryConfig *self, moq_status *status);
 void moq_mux_container_Guard_BinaryConfig_mime_set(moq_mux_container_Guard_BinaryConfig *self, moq_buf value, moq_status *status);
@@ -6158,7 +6158,7 @@ MOQ_MUST_USE moq_buf moq_mux_container_Guard_JsonConfig_track_get(const moq_mux_
 void moq_mux_container_Guard_JsonConfig_track_set(moq_mux_container_Guard_JsonConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_mux_container_Guard_JsonConfig_instance_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
 void moq_mux_container_Guard_JsonConfig_instance_set(moq_mux_container_Guard_JsonConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_Mode moq_mux_container_Guard_JsonConfig_mode_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_Mode moq_mux_container_Guard_JsonConfig_mode_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
 void moq_mux_container_Guard_JsonConfig_mode_set(moq_mux_container_Guard_JsonConfig *self, moq_hang_catalog_Mode value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_JsonConfig_schema_get(const moq_mux_container_Guard_JsonConfig *self, moq_status *status);
 void moq_mux_container_Guard_JsonConfig_schema_set(moq_mux_container_Guard_JsonConfig *self, moq_buf value, moq_status *status);
@@ -6179,9 +6179,9 @@ MOQ_MUST_USE moq_buf moq_mux_container_Guard_TextConfig_track_get(const moq_mux_
 void moq_mux_container_Guard_TextConfig_track_set(moq_mux_container_Guard_TextConfig *self, moq_buf value, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_mux_container_Guard_TextConfig_instance_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
 void moq_mux_container_Guard_TextConfig_instance_set(moq_mux_container_Guard_TextConfig *self, moq_Instance *value, moq_status *status);
-moq_hang_catalog_TextFormat moq_mux_container_Guard_TextConfig_format_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_TextFormat moq_mux_container_Guard_TextConfig_format_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
 void moq_mux_container_Guard_TextConfig_format_set(moq_mux_container_Guard_TextConfig *self, moq_hang_catalog_TextFormat value, moq_status *status);
-moq_hang_catalog_TextRole moq_mux_container_Guard_TextConfig_role_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_TextRole moq_mux_container_Guard_TextConfig_role_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
 void moq_mux_container_Guard_TextConfig_role_set(moq_mux_container_Guard_TextConfig *self, moq_hang_catalog_TextRole value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_TextConfig_lang_get(const moq_mux_container_Guard_TextConfig *self, moq_status *status);
 void moq_mux_container_Guard_TextConfig_lang_set(moq_mux_container_Guard_TextConfig *self, moq_buf value, moq_status *status);
@@ -6204,7 +6204,7 @@ MOQ_MUST_USE moq_Instance *moq_mux_container_Guard_VideoConfig_instance_get(cons
 void moq_mux_container_Guard_VideoConfig_instance_set(moq_mux_container_Guard_VideoConfig *self, moq_Instance *value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_VideoConfig_label_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_label_set(moq_mux_container_Guard_VideoConfig *self, moq_buf value, moq_status *status);
-moq_hang_catalog_VideoCodec moq_mux_container_Guard_VideoConfig_codec_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_VideoCodec moq_mux_container_Guard_VideoConfig_codec_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_codec_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_VideoCodec value, moq_status *status);
 MOQ_MUST_USE moq_buf moq_mux_container_Guard_VideoConfig_description_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_description_set(moq_mux_container_Guard_VideoConfig *self, moq_buf value, moq_status *status);
@@ -6220,7 +6220,7 @@ MOQ_MUST_USE moq_hang_catalog_Color *moq_mux_container_Guard_VideoConfig_color_g
 void moq_mux_container_Guard_VideoConfig_color_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_Color *value, moq_status *status);
 MOQ_MUST_USE moq_hang_catalog_Projection *moq_mux_container_Guard_VideoConfig_projection_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_projection_set(moq_mux_container_Guard_VideoConfig *self, moq_hang_catalog_Projection *value, moq_status *status);
-moq_option_hang_catalog_Stereo moq_mux_container_Guard_VideoConfig_stereo_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
+MOQ_MUST_USE moq_option_hang_catalog_Stereo moq_mux_container_Guard_VideoConfig_stereo_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_stereo_set(moq_mux_container_Guard_VideoConfig *self, moq_option_hang_catalog_Stereo value, moq_status *status);
 bool moq_mux_container_Guard_VideoConfig_interlaced_get(const moq_mux_container_Guard_VideoConfig *self, moq_status *status);
 void moq_mux_container_Guard_VideoConfig_interlaced_set(moq_mux_container_Guard_VideoConfig *self, bool value, moq_status *status);
@@ -7463,7 +7463,7 @@ MOQ_MUST_USE moq_mux_json_Consumer_Json_from_track_future *moq_mux_json_Consumer
 MOQ_MUST_USE moq_poll moq_mux_json_Consumer_Json_from_track_start(moq_track_Consumer *track, const moq_hang_catalog_JsonConfig *config, moq_mux_json_Consumer_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_from_track_future **future, moq_status *status);
 MOQ_MUST_USE moq_poll moq_mux_json_Consumer_Json_from_track_poll(moq_mux_json_Consumer_Json_from_track_future *future, moq_waker waker, moq_mux_json_Consumer_Json **out, moq_mux_Error **err);
 void moq_mux_json_Consumer_Json_from_track_future_free(moq_mux_json_Consumer_Json_from_track_future *future);
-moq_hang_catalog_Mode moq_mux_json_Consumer_Json_mode(const moq_mux_json_Consumer_Json *self, moq_status *status);
+MOQ_MUST_USE moq_hang_catalog_Mode moq_mux_json_Consumer_Json_mode(const moq_mux_json_Consumer_Json *self, moq_status *status);
 typedef struct moq_mux_json_Consumer_Json_next_future moq_mux_json_Consumer_Json_next_future;
 MOQ_MUST_USE moq_mux_json_Consumer_Json_next_future *moq_mux_json_Consumer_Json_next(moq_mux_json_Consumer_Json *self, moq_status *status);
 MOQ_MUST_USE moq_poll moq_mux_json_Consumer_Json_next_start(moq_mux_json_Consumer_Json *self, moq_moq_json_Timed_Json **out, moq_mux_Error **err, moq_mux_json_Consumer_Json_next_future **future, moq_status *status);
@@ -7740,7 +7740,7 @@ void moq_tokio_listen_Config_drop(moq_tokio_listen_Config *self, moq_status *sta
 MOQ_MUST_USE moq_tokio_listen_Config *moq_tokio_listen_Config_clone(const moq_tokio_listen_Config *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_tokio_listen_Config_debug(const moq_tokio_listen_Config *self, moq_status *status);
 MOQ_MUST_USE moq_tokio_listen_Config *moq_tokio_listen_Config_default(void);
-moq_option_tokio_listen_Bind moq_tokio_listen_Config_bind_get(const moq_tokio_listen_Config *self, moq_status *status);
+MOQ_MUST_USE moq_option_tokio_listen_Bind moq_tokio_listen_Config_bind_get(const moq_tokio_listen_Config *self, moq_status *status);
 void moq_tokio_listen_Config_bind_set(moq_tokio_listen_Config *self, moq_option_tokio_listen_Bind value, moq_status *status);
 MOQ_MUST_USE moq_moq_tokio_tcp_Config *moq_tokio_listen_Config_tcp_get(const moq_tokio_listen_Config *self, moq_status *status);
 void moq_tokio_listen_Config_tcp_set(moq_tokio_listen_Config *self, moq_moq_tokio_tcp_Config *value, moq_status *status);
@@ -8990,7 +8990,7 @@ void moq_moq_tokio_listen_Resolved_free(moq_moq_tokio_listen_Resolved *self);
 void moq_moq_tokio_listen_Resolved_drop(moq_moq_tokio_listen_Resolved *self, moq_status *status);
 MOQ_MUST_USE moq_moq_tokio_listen_Resolved *moq_moq_tokio_listen_Resolved_clone(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_moq_tokio_listen_Resolved_debug(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
-moq_option_tokio_listen_Bind moq_moq_tokio_listen_Resolved_bind_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
+MOQ_MUST_USE moq_option_tokio_listen_Bind moq_moq_tokio_listen_Resolved_bind_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
 void moq_moq_tokio_listen_Resolved_bind_set(moq_moq_tokio_listen_Resolved *self, moq_option_tokio_listen_Bind value, moq_status *status);
 MOQ_MUST_USE moq_Versions *moq_moq_tokio_listen_Resolved_versions_get(const moq_moq_tokio_listen_Resolved *self, moq_status *status);
 void moq_moq_tokio_listen_Resolved_versions_set(moq_moq_tokio_listen_Resolved *self, moq_Versions *value, moq_status *status);
@@ -9132,7 +9132,7 @@ MOQ_MUST_USE moq_buf moq_moq_tokio_connect_Addr_debug(const moq_moq_tokio_connec
 MOQ_MUST_USE moq_moq_tokio_connect_Addr *moq_moq_tokio_connect_Addr_new(moq_Url *url, moq_status *status);
 MOQ_MUST_USE bool moq_moq_tokio_connect_Addr_pinned(moq_Url *url, moq_vec_socket_addr addrs, moq_moq_tokio_connect_Addr **out, moq_moq_tokio_connect_Error *err, moq_status *status);
 MOQ_MUST_USE moq_Url *moq_moq_tokio_connect_Addr_url(const moq_moq_tokio_connect_Addr *self, moq_status *status);
-MOQ_MUST_USE moq_vec_socket_addr moq_moq_tokio_connect_Addr_addresses(const moq_moq_tokio_connect_Addr *self, moq_status *status);
+moq_vec_socket_addr moq_moq_tokio_connect_Addr_addresses(const moq_moq_tokio_connect_Addr *self, moq_status *status);
 void moq_rustls_pki_types_TrustAnchor_free(moq_rustls_pki_types_TrustAnchor *self);
 void moq_rustls_pki_types_TrustAnchor_drop(moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
 MOQ_MUST_USE moq_rustls_pki_types_TrustAnchor *moq_rustls_pki_types_TrustAnchor_clone(const moq_rustls_pki_types_TrustAnchor *self, moq_status *status);
@@ -9216,7 +9216,7 @@ MOQ_MUST_USE moq_buf moq_qmux_Session_debug(const moq_qmux_Session *self, moq_st
 MOQ_MUST_USE moq_buf moq_qmux_Session_protocol(const moq_qmux_Session *self, moq_status *status);
 moq_moq_quic_connection_mux_Version moq_qmux_Session_version(const moq_qmux_Session *self, moq_status *status);
 MOQ_MUST_USE bool moq_qmux_Session_set_limits(const moq_qmux_Session *self, const moq_moq_quic_Limits *limits, moq_buf *err, moq_status *status);
-MOQ_MUST_USE moq_vec_rustls_pki_types_CertificateDer moq_qmux_Session_peer_certificates(const moq_qmux_Session *self, moq_status *status);
+moq_vec_rustls_pki_types_CertificateDer moq_qmux_Session_peer_certificates(const moq_qmux_Session *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_qmux_Session_server_name(const moq_qmux_Session *self, moq_status *status);
 void moq_moq_sock_demux_Counters_free(moq_moq_sock_demux_Counters *self);
 bool moq_moq_sock_demux_Counters_borrowed(const moq_moq_sock_demux_Counters *self);
