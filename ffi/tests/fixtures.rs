@@ -3761,7 +3761,9 @@ fn opaque_values() {
 	// two `usize`s after a `u64`, which fill it at either pointer width; a `None` that writes
 	// its niche's whole scalar, a `u64`'s, a pointer's at either width, a `bool`'s an outer
 	// `None` shares with an inner one, or a `char`'s.
-	for value in ["Flag", "Tagged", "Ordered", "Words", "Scaled", "Lent", "Nested", "Chars"] {
+	for value in [
+		"Flag", "Tagged", "Ordered", "Words", "Scaled", "Lent", "Nested", "Chars",
+	] {
 		assert!(
 			header.contains(&format!("}} opaque_values_{value};")),
 			"{value} is no opaque value:\n{header}"
@@ -3773,7 +3775,17 @@ fn opaque_values() {
 	// or after a `usize`, which is a gap on wasm32 alone; a `None` with no niche, writing
 	// only its tag, or with a niche narrower than its payload, a `NonZero<u32>`'s beside a
 	// `u32`, or a slice's pointer beside its length.
-	for handle in ["Pairs", "Wide", "Niched", "Word", "Mixed", "MixedWord", "Unset", "Narrow", "Sliced"] {
+	for handle in [
+		"Pairs",
+		"Wide",
+		"Niched",
+		"Word",
+		"Mixed",
+		"MixedWord",
+		"Unset",
+		"Narrow",
+		"Sliced",
+	] {
 		assert!(
 			header.contains(&format!("void opaque_values_{handle}_free(")),
 			"{handle} is no handle:\n{header}"

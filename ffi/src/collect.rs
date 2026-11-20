@@ -6959,7 +6959,10 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
 				// A full enum is encoded in a variant's niche, whose scalar holds what values
 				// remain; any other's niche, a tag's or one only partly written, may be a byte.
-				let least = Niche { bytes: 1, model: [1; 2] };
+				let least = Niche {
+					bytes: 1,
+					model: [1; 2],
+				};
 				filled(Least {
 					bytes,
 					model,
