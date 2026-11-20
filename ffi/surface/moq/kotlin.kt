@@ -2,11 +2,13 @@
 fun interface Waker {
 	fun wake()
 }
-class Bytes private constructor(private val array: ByteArray?, private val lent: _Native.__Lent?, private val offset: Int, val size: Int) {
+class Bytes private constructor(private val array: ByteArray?, private val direct: java.nio.ByteBuffer?, private val lent: _Native.__Lent?, private val offset: Int, val size: Int) {
 	constructor(bytes: ByteArray)
+	constructor(buffer: java.nio.ByteBuffer)
 	operator fun get(index: Int): Byte
 	fun slice(startIndex: Int, endIndex: Int = size): Bytes
 	fun copyInto(destination: ByteArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): ByteArray
+	fun copyInto(destination: java.nio.ByteBuffer, startIndex: Int = 0, endIndex: Int = size): java.nio.ByteBuffer
 	fun toByteArray(): ByteArray
 	override fun equals(other: Any?): Boolean
 	override fun hashCode(): Int
@@ -26,7 +28,7 @@ class Duration(val secs: ULong, val nanos: UInt = 0u) : kotlin.Comparable<Durati
 sealed interface IpAddr {
 	fun toInetAddress(): java.net.InetAddress
 	companion object {
-		fun of(address: java.net.InetAddress): IpAddr
+		@kotlin.jvm.JvmStatic fun of(address: java.net.InetAddress): IpAddr
 	}
 }
 @kotlin.jvm.JvmInline value class Ipv4Addr(val bits: UInt) : IpAddr {
@@ -49,7 +51,7 @@ sealed interface SocketAddr {
 	val port: UShort
 	fun toInetSocketAddress(): java.net.InetSocketAddress
 	companion object {
-		fun of(address: java.net.InetSocketAddress): SocketAddr
+		@kotlin.jvm.JvmStatic fun of(address: java.net.InetSocketAddress): SocketAddr
 	}
 }
 @kotlin.jvm.JvmInline value class SocketAddrV4 private constructor(private val bits: Long) : SocketAddr {
@@ -130,11 +132,11 @@ class ArrayU8x6(bytes: ByteArray) {
 	fun debug(): kotlin.String
 	fun asU64(): kotlin.ULong
 	companion object {
-		val SECOND: moq.Timescale
-		val MILLI: moq.Timescale
-		val MICRO: moq.Timescale
-		val NANO: moq.Timescale
-		fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
+		@kotlin.jvm.JvmStatic val SECOND: moq.Timescale
+		@kotlin.jvm.JvmStatic val MILLI: moq.Timescale
+		@kotlin.jvm.JvmStatic val MICRO: moq.Timescale
+		@kotlin.jvm.JvmStatic val NANO: moq.Timescale
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
 @kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) {
@@ -149,9 +151,9 @@ class ArrayU8x6(bytes: ByteArray) {
 	fun saturatingSub(duration: moq.Duration): moq.ClockInstant
 	fun intoStd(): moq.Instant
 	companion object {
-		val ZERO: moq.ClockInstant
-		fun now(): moq.ClockInstant
-		fun fromStd(at: moq.Instant): moq.ClockInstant
+		@kotlin.jvm.JvmStatic val ZERO: moq.ClockInstant
+		@kotlin.jvm.JvmStatic fun now(): moq.ClockInstant
+		@kotlin.jvm.JvmStatic fun fromStd(at: moq.Instant): moq.ClockInstant
 	}
 }
 @kotlin.jvm.JvmInline value class ClockElapsed internal constructor(internal val bits: Long) {
@@ -166,9 +168,9 @@ class ArrayU8x6(bytes: ByteArray) {
 	fun saturatingAdd(duration: moq.Duration): moq.ClockWall
 	fun checkedSub(duration: moq.Duration): moq.ClockWall?
 	companion object {
-		val UNIXEPOCH: moq.ClockWall
-		val MOQEPOCH: moq.ClockWall
-		fun now(): moq.ClockWall
+		@kotlin.jvm.JvmStatic val UNIXEPOCH: moq.ClockWall
+		@kotlin.jvm.JvmStatic val MOQEPOCH: moq.ClockWall
+		@kotlin.jvm.JvmStatic fun now(): moq.ClockWall
 	}
 }
 data class SetupToken(val kind: kotlin.ULong, val value: moq.Bytes) {
@@ -179,7 +181,7 @@ data class SetupToken(val kind: kotlin.ULong, val value: moq.Bytes) {
 	val announcesGet: kotlin.ULong
 	fun announcesSet(value: kotlin.ULong): moq.SessionLimits
 	companion object {
-		fun default(): moq.SessionLimits
+		@kotlin.jvm.JvmStatic fun default(): moq.SessionLimits
 	}
 }
 class StatsContent internal constructor() {
@@ -193,7 +195,7 @@ class StatsContent internal constructor() {
 	val groupsGet: kotlin.ULong
 	fun groupsSet(value: kotlin.ULong): moq.StatsContent
 	companion object {
-		fun default(): moq.StatsContent
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsContent
 	}
 }
 class StatsTraffic internal constructor() {
@@ -233,7 +235,7 @@ class StatsTraffic internal constructor() {
 	fun activeSubscriptions(): kotlin.ULong
 	fun isIdle(): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsTraffic
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsTraffic
 	}
 }
 class StatsPresence internal constructor() {
@@ -269,7 +271,7 @@ class StatsPresence internal constructor() {
 	fun add(other: moq.StatsPresence): moq.StatsPresence
 	fun active(): kotlin.ULong
 	companion object {
-		fun default(): moq.StatsPresence
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsPresence
 	}
 }
 class StatsActivity internal constructor() {
@@ -281,7 +283,7 @@ class StatsActivity internal constructor() {
 	val activeGet: kotlin.ULong
 	fun activeSet(value: kotlin.ULong): moq.StatsActivity
 	companion object {
-		fun default(): moq.StatsActivity
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsActivity
 	}
 }
 class StatsTotals internal constructor() {
@@ -297,7 +299,7 @@ class StatsTotals internal constructor() {
 	val rxMessagesGet: kotlin.ULong
 	fun rxMessagesSet(value: kotlin.ULong): moq.StatsTotals
 	companion object {
-		fun default(): moq.StatsTotals
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsTotals
 	}
 }
 class StatsFailures internal constructor() {
@@ -316,7 +318,7 @@ class StatsFailures internal constructor() {
 	fun add(other: moq.StatsFailures): moq.StatsFailures
 	fun regressed(previous: moq.StatsFailures): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsFailures
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsFailures
 	}
 }
 class StatsRefusals internal constructor() {
@@ -339,7 +341,7 @@ class StatsRefusals internal constructor() {
 	fun add(other: moq.StatsRefusals): moq.StatsRefusals
 	fun regressed(previous: moq.StatsRefusals): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsRefusals
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsRefusals
 	}
 }
 class StatsRouteCloses internal constructor() {
@@ -365,7 +367,7 @@ class StatsRouteCloses internal constructor() {
 	fun add(other: moq.StatsRouteCloses): moq.StatsRouteCloses
 	fun regressed(previous: moq.StatsRouteCloses): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsRouteCloses
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsRouteCloses
 	}
 }
 class StatsRouteRefusals internal constructor() {
@@ -383,7 +385,7 @@ class StatsRouteRefusals internal constructor() {
 	fun add(other: moq.StatsRouteRefusals): moq.StatsRouteRefusals
 	fun regressed(previous: moq.StatsRouteRefusals): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsRouteRefusals
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsRouteRefusals
 	}
 }
 class StatsRoutes internal constructor() {
@@ -405,7 +407,7 @@ class StatsRoutes internal constructor() {
 	fun add(other: moq.StatsRoutes): moq.StatsRoutes
 	fun regressed(previous: moq.StatsRoutes): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsRoutes
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsRoutes
 	}
 }
 class StatsWithdrawals internal constructor() {
@@ -421,7 +423,7 @@ class StatsWithdrawals internal constructor() {
 	fun add(other: moq.StatsWithdrawals): moq.StatsWithdrawals
 	fun regressed(previous: moq.StatsWithdrawals): kotlin.Boolean
 	companion object {
-		fun default(): moq.StatsWithdrawals
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsWithdrawals
 	}
 }
 @kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) {
@@ -430,11 +432,11 @@ class StatsWithdrawals internal constructor() {
 	fun scaled(factor: kotlin.Double): moq.BandwidthRate
 	fun absDiff(other: moq.BandwidthRate): moq.BandwidthRate
 	companion object {
-		fun default(): moq.BandwidthRate
-		val ZERO: moq.BandwidthRate
-		fun fromBps(bps: kotlin.ULong): moq.BandwidthRate
-		fun fromKbps(kbps: kotlin.ULong): moq.BandwidthRate
-		fun fromMbps(mbps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic val ZERO: moq.BandwidthRate
+		@kotlin.jvm.JvmStatic fun fromBps(bps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic fun fromKbps(kbps: kotlin.ULong): moq.BandwidthRate
+		@kotlin.jvm.JvmStatic fun fromMbps(mbps: kotlin.ULong): moq.BandwidthRate
 	}
 }
 data class DatagramDatagram(val sequence: kotlin.ULong, val timestamp: moq.Timestamp, val payload: moq.Bytes) {
@@ -451,7 +453,7 @@ data class TrackDelay(val min: moq.Duration?, val max: moq.Duration?) {
 	fun withMin(min: moq.Duration?): moq.TrackDelay
 	fun withMax(max: moq.Duration?): moq.TrackDelay
 	companion object {
-		fun default(): moq.TrackDelay
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackDelay
 	}
 }
 class TrackPosition internal constructor() {
@@ -463,32 +465,32 @@ class TrackPosition internal constructor() {
 	val frameGet: kotlin.ULong
 	fun frameSet(value: kotlin.ULong): moq.TrackPosition
 	companion object {
-		fun default(): moq.TrackPosition
-		fun new(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition
-		fun group(group: kotlin.ULong): moq.TrackPosition
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackPosition
+		@kotlin.jvm.JvmStatic fun new(group: kotlin.ULong, frame: kotlin.ULong): moq.TrackPosition
+		@kotlin.jvm.JvmStatic fun group(group: kotlin.ULong): moq.TrackPosition
 	}
 }
 data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
 	fun debug(): kotlin.String
 	companion object {
-		fun live(): moq.TrackRange
-		fun oldest(): moq.TrackRange
+		@kotlin.jvm.JvmStatic fun live(): moq.TrackRange
+		@kotlin.jvm.JvmStatic fun oldest(): moq.TrackRange
 	}
 }
 @kotlin.jvm.JvmInline value class OriginCost internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun value(): kotlin.ULong
 	companion object {
-		fun default(): moq.OriginCost
-		fun new(cost: kotlin.ULong): moq.OriginCost
+		@kotlin.jvm.JvmStatic fun default(): moq.OriginCost
+		@kotlin.jvm.JvmStatic fun new(cost: kotlin.ULong): moq.OriginCost
 	}
 }
 @kotlin.jvm.JvmInline value class OriginPriority internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun value(): kotlin.Byte
 	companion object {
-		fun default(): moq.OriginPriority
-		fun new(priority: kotlin.Byte): moq.OriginPriority
+		@kotlin.jvm.JvmStatic fun default(): moq.OriginPriority
+		@kotlin.jvm.JvmStatic fun new(priority: kotlin.Byte): moq.OriginPriority
 	}
 }
 data class HangCatalogAac(val profile: kotlin.UByte) {
@@ -510,8 +512,8 @@ data class HangCatalogAv1(val profile: kotlin.UByte, val level: kotlin.UByte, va
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.HangCatalogAv1
-		val PREFIX: kotlin.String
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogAv1
+		@kotlin.jvm.JvmStatic val PREFIX: kotlin.String
 	}
 }
 data class HangCatalogMastering(val red: moq.HangCatalogChromaticity, val green: moq.HangCatalogChromaticity, val blue: moq.HangCatalogChromaticity, val white: moq.HangCatalogChromaticity, val maxLuminance: kotlin.Double, val minLuminance: kotlin.Double) {
@@ -539,7 +541,7 @@ data class HangCatalogVp9(val profile: kotlin.UByte, val level: kotlin.UByte, va
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.HangCatalogVp9
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVp9
 	}
 }
 data class HangCatalogDisplay(val width: kotlin.UInt, val height: kotlin.UInt) {
@@ -547,10 +549,10 @@ data class HangCatalogDisplay(val width: kotlin.UInt, val height: kotlin.UInt) {
 }
 data class HangContainerFrame(val timestamp: moq.Timestamp, val payload: moq.Bytes) {
 	fun debug(): kotlin.String
-	fun encode(buf: moq.Mut<moq.Bytes>)
-	fun writeTo(group: moq.GroupProducer)
+	@kotlin.jvm.Throws(HangErrorException::class) fun encode(buf: moq.Mut<moq.Bytes>)
+	@kotlin.jvm.Throws(HangErrorException::class) fun writeTo(group: moq.GroupProducer)
 	companion object {
-		fun decode(buf: moq.Bytes): moq.HangContainerFrame
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun decode(buf: moq.Bytes): moq.HangContainerFrame
 	}
 }
 data class MuxContainerFrame(val timestamp: moq.Timestamp, val duration: moq.Timestamp?, val payload: moq.Bytes, val keyframe: kotlin.Boolean) {
@@ -568,8 +570,8 @@ data class MuxContainerPlayout(val delay: moq.TrackDelay, val warmup: moq.Durati
 	fun consumerLegacyWire(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
 	fun consumerLocWire(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	companion object {
-		fun default(): moq.MuxContainerPlayout
-		fun new(delay: moq.TrackDelay, warmup: moq.Duration): moq.MuxContainerPlayout
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerPlayout
+		@kotlin.jvm.JvmStatic fun new(delay: moq.TrackDelay, warmup: moq.Duration): moq.MuxContainerPlayout
 	}
 }
 data class MuxCodecFlacConfig(val minBlockSize: kotlin.UShort, val maxBlockSize: kotlin.UShort, val minFrameSize: kotlin.UInt, val maxFrameSize: kotlin.UInt, val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt, val bitsPerSample: kotlin.UInt, val totalSamples: kotlin.ULong, val md5: ArrayU8x16) {
@@ -577,14 +579,14 @@ data class MuxCodecFlacConfig(val minBlockSize: kotlin.UShort, val maxBlockSize:
 	fun encodeStreamInfo(): moq.Bytes
 	fun description(): moq.Bytes
 	companion object {
-		fun parseStreamInfo(buf: moq.Mut<moq.Bytes>): moq.MuxCodecFlacConfig
-		fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecFlacConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecFlacErrorException::class) fun parseStreamInfo(buf: moq.Mut<moq.Bytes>): moq.MuxCodecFlacConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecFlacErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecFlacConfig
 	}
 }
 data class MuxCodecH264Sps(val profile: kotlin.UByte, val constraints: kotlin.UByte, val level: kotlin.UByte, val codedWidth: kotlin.UInt, val codedHeight: kotlin.UInt) {
 	fun debug(): kotlin.String
 	companion object {
-		fun parse(nal: moq.Bytes): moq.MuxCodecH264Sps
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecH264ErrorException::class) fun parse(nal: moq.Bytes): moq.MuxCodecH264Sps
 	}
 }
 data class MuxCodecH265VideoSignal(val primaries: kotlin.UByte, val transfer: kotlin.UByte, val matrix: kotlin.UByte, val fullRange: kotlin.Boolean) {
@@ -592,7 +594,7 @@ data class MuxCodecH265VideoSignal(val primaries: kotlin.UByte, val transfer: ko
 }
 data class MuxCodecMp3Config(val sampleRate: kotlin.UInt, val channelCount: kotlin.UInt) {
 	companion object {
-		fun parse(data: moq.Bytes): moq.MuxCodecMp3Config
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecMp3ErrorException::class) fun parse(data: moq.Bytes): moq.MuxCodecMp3Config
 	}
 }
 class MuxCodecOpusMapping internal constructor() {
@@ -656,7 +658,7 @@ sealed class SessionError {
 	fun debug(): kotlin.String
 	fun toCode(): kotlin.UInt
 	companion object {
-		fun fromCode(code: kotlin.UInt): moq.SessionError
+		@kotlin.jvm.JvmStatic fun fromCode(code: kotlin.UInt): moq.SessionError
 	}
 }
 sealed class StreamError {
@@ -683,7 +685,7 @@ sealed class StreamError {
 	fun debug(): kotlin.String
 	fun toCode(): kotlin.UInt
 	companion object {
-		fun fromCode(code: kotlin.UInt): moq.StreamError
+		@kotlin.jvm.JvmStatic fun fromCode(code: kotlin.UInt): moq.StreamError
 	}
 }
 enum class Retry(internal val value: Int) {
@@ -713,7 +715,7 @@ enum class ClockMissedTickBehavior(internal val value: Int) {
 	SKIP(2);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.ClockMissedTickBehavior
+		@kotlin.jvm.JvmStatic fun default(): moq.ClockMissedTickBehavior
 	}
 }
 enum class TokioConnectError(internal val value: Int) {
@@ -729,7 +731,7 @@ enum class TokioRestart(internal val value: Int) {
 	HANDOFF(1);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.TokioRestart
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioRestart
 	}
 }
 enum class TokioStatus(internal val value: Int) {
@@ -787,7 +789,7 @@ enum class ReconnectRedirect(internal val value: Int) {
 	IGNORE(2);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.ReconnectRedirect
+		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectRedirect
 	}
 }
 enum class StatsRole(internal val value: Int) {
@@ -819,7 +821,7 @@ enum class StatsFailure(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.StatsFailure>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.StatsFailure>
 	}
 }
 enum class StatsRefusalKind(internal val value: Int) {
@@ -832,7 +834,7 @@ enum class StatsRefusalKind(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.StatsRefusalKind>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.StatsRefusalKind>
 	}
 }
 enum class StatsRouteClose(internal val value: Int) {
@@ -846,7 +848,7 @@ enum class StatsRouteClose(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.StatsRouteClose>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.StatsRouteClose>
 	}
 }
 enum class StatsRouteRefusal(internal val value: Int) {
@@ -856,7 +858,7 @@ enum class StatsRouteRefusal(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.StatsRouteRefusal>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.StatsRouteRefusal>
 	}
 }
 enum class StatsWithdrawal(internal val value: Int) {
@@ -865,7 +867,7 @@ enum class StatsWithdrawal(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.StatsWithdrawal>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.StatsWithdrawal>
 	}
 }
 enum class TransportAddress(internal val value: Int) {
@@ -887,7 +889,7 @@ enum class TransportCloseKind(internal val value: Int) {
 	EVICTED(3);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.TransportCloseKind
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportCloseKind
 	}
 }
 enum class BroadcastKind(internal val value: Int) {
@@ -901,7 +903,7 @@ enum class TrackCompression(internal val value: Int) {
 	DEFLATE(1);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.TrackCompression
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackCompression
 	}
 }
 sealed class TrackAnchor {
@@ -915,7 +917,7 @@ enum class TrackOrder(internal val value: Int) {
 	DESCENDING(1);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.TrackOrder
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackOrder
 	}
 }
 enum class OriginLink(internal val value: Int) {
@@ -924,7 +926,7 @@ enum class OriginLink(internal val value: Int) {
 	UPSTREAM(2);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.OriginLink
+		@kotlin.jvm.JvmStatic fun default(): moq.OriginLink
 	}
 }
 enum class OriginRouteKind(internal val value: Int) {
@@ -983,7 +985,7 @@ sealed class HangCatalogTextFormat {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.HangCatalogTextFormat
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTextFormat
 	}
 }
 sealed class HangCatalogTextRole {
@@ -993,7 +995,7 @@ sealed class HangCatalogTextRole {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.HangCatalogTextRole
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTextRole
 	}
 }
 sealed class HangCatalogVideoCodec {
@@ -1037,9 +1039,9 @@ enum class MuxCatalogCatalogFormat(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun extension(): kotlin.String
 	companion object {
-		fun default(): moq.MuxCatalogCatalogFormat
-		val DEFAULT: moq.MuxCatalogCatalogFormat
-		fun detect(name: kotlin.String): moq.MuxCatalogCatalogFormat?
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogCatalogFormat
+		@kotlin.jvm.JvmStatic val DEFAULT: moq.MuxCatalogCatalogFormat
+		@kotlin.jvm.JvmStatic fun detect(name: kotlin.String): moq.MuxCatalogCatalogFormat?
 	}
 }
 enum class MuxContainerKind(internal val value: Int) {
@@ -1121,7 +1123,7 @@ sealed class TokioListenBind {
 	data class Host(val _0: kotlin.String, val _1: kotlin.UShort) : TokioListenBind()
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
-	fun resolve(): moq.SocketAddr
+	@kotlin.jvm.Throws(StringException::class) fun resolve(): moq.SocketAddr
 }
 sealed class TransportMemoryError {
 	data class Session(val code: kotlin.UInt, val reason: kotlin.String) : TransportMemoryError()
@@ -1223,7 +1225,7 @@ enum class MuxContainerTsFraming(internal val value: Int) {
 	SECTION(0);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.MuxContainerTsFraming
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsFraming
 	}
 }
 sealed class MuxContainerTsStep {
@@ -1252,7 +1254,7 @@ enum class MuxContainerTsStatsClass(internal val value: Int) {
 	DATA(0);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.MuxContainerTsStatsClass
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsClass
 	}
 }
 enum class MoqTokioQuicCongestionControl(internal val value: Int) {
@@ -1261,7 +1263,7 @@ enum class MoqTokioQuicCongestionControl(internal val value: Int) {
 	UNLIMITED(2);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.MoqTokioQuicCongestionControl
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicCongestionControl
 	}
 }
 enum class MoqTokioAcceptFailure(internal val value: Int) {
@@ -1272,7 +1274,7 @@ enum class MoqTokioAcceptFailure(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.MoqTokioAcceptFailure>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.MoqTokioAcceptFailure>
 	}
 }
 enum class MoqTokioRedirect(internal val value: Int) {
@@ -1281,7 +1283,7 @@ enum class MoqTokioRedirect(internal val value: Int) {
 	IGNORE(2);
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.MoqTokioRedirect
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioRedirect
 	}
 }
 sealed class MoqQuicRate {
@@ -1327,7 +1329,7 @@ enum class MoqQuicConnectionMuxVersion(internal val value: Int) {
 	fun alpn(): kotlin.String
 	fun prefix(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.MoqQuicConnectionMuxVersion>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.MoqQuicConnectionMuxVersion>
 	}
 }
 enum class MoqSockDemuxDiscard(internal val value: Int) {
@@ -1338,7 +1340,7 @@ enum class MoqSockDemuxDiscard(internal val value: Int) {
 	fun debug(): kotlin.String
 	fun asStr(): kotlin.String
 	companion object {
-		val ALL: kotlin.collections.List<moq.MoqSockDemuxDiscard>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.MoqSockDemuxDiscard>
 	}
 }
 enum class MoqSockUdpEcnCodepoint(internal val value: Int) {
@@ -1347,7 +1349,7 @@ enum class MoqSockUdpEcnCodepoint(internal val value: Int) {
 	CE(3);
 	fun debug(): kotlin.String
 	companion object {
-		fun fromBits(x: kotlin.UByte): moq.MoqSockUdpEcnCodepoint?
+		@kotlin.jvm.JvmStatic fun fromBits(x: kotlin.UByte): moq.MoqSockUdpEcnCodepoint?
 	}
 }
 enum class Level(internal val value: Int) {
@@ -1365,8 +1367,8 @@ class Park internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun clone(): moq.Park
 	fun hold(cx: moq.Waker): moq.Waiter
 	companion object {
-		fun default(): moq.Park
-		fun new(waiter: moq.Waiter): moq.Park
+		@kotlin.jvm.JvmStatic fun default(): moq.Park
+		@kotlin.jvm.JvmStatic fun new(waiter: moq.Waiter): moq.Park
 	}
 }
 class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1377,9 +1379,9 @@ class Waiter internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun context(): moq.Waker
 	fun batch(poll: () -> kotlin.String): kotlin.String
 	companion object {
-		fun new(waker: moq.Waker): moq.Waiter
-		fun noop(): moq.Waiter
-		suspend fun pollFuture(future: suspend () -> kotlin.Unit)
+		@kotlin.jvm.JvmStatic fun new(waker: moq.Waker): moq.Waiter
+		@kotlin.jvm.JvmStatic fun noop(): moq.Waiter
+		@kotlin.jvm.JvmStatic suspend fun pollFuture(future: suspend () -> kotlin.Unit)
 	}
 }
 class WaiterList internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1390,8 +1392,8 @@ class WaiterList internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun isEmpty(): kotlin.Boolean
 	fun wake()
 	companion object {
-		fun default(): moq.WaiterList
-		fun new(): moq.WaiterList
+		@kotlin.jvm.JvmStatic fun default(): moq.WaiterList
+		@kotlin.jvm.JvmStatic fun new(): moq.WaiterList
 	}
 }
 class DecodeError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1403,7 +1405,7 @@ class DecodeError internal constructor(raw: Long, lent: Boolean = false) : AutoC
 class Driver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
-	fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -1415,7 +1417,7 @@ class Instance internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun asStr(): kotlin.String
 	fun isMinted(): kotlin.Boolean
 	companion object {
-		fun random(): moq.Instance
+		@kotlin.jvm.JvmStatic fun random(): moq.Instance
 	}
 }
 class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1431,15 +1433,15 @@ class Path internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun asStr(): kotlin.String
 	fun isEmpty(): kotlin.Boolean
 	fun len(): kotlin.ULong
-	fun join(other: moq.Path): moq.Path
-	fun resolve(rel: moq.PathRelative): moq.Path
+	@kotlin.jvm.Throws(PathErrorException::class) fun join(other: moq.Path): moq.Path
+	@kotlin.jvm.Throws(PathErrorException::class) fun resolve(rel: moq.PathRelative): moq.Path
 	fun tryResolve(rel: moq.PathRelative): moq.Path?
 	fun relative(base: moq.Path): moq.PathRelative?
 	companion object {
-		fun default(): moq.Path
-		fun new(s: kotlin.String): moq.Path
-		fun fromStatic(s: kotlin.String): moq.Path
-		fun empty(): moq.Path
+		@kotlin.jvm.JvmStatic fun default(): moq.Path
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.Path
+		@kotlin.jvm.JvmStatic fun fromStatic(s: kotlin.String): moq.Path
+		@kotlin.jvm.JvmStatic fun empty(): moq.Path
 	}
 }
 class Pattern internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1460,15 +1462,15 @@ class Pattern internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun overlaps(other: moq.Pattern): kotlin.Boolean
 	fun specificity(): moq.Specificity
 	fun rebase(root: kotlin.String): moq.Patterns
-	fun intersect(other: moq.Pattern): moq.Patterns
+	@kotlin.jvm.Throws(IntersectionErrorException::class) fun intersect(other: moq.Pattern): moq.Patterns
 	fun captures(matched: moq.Pattern): kotlin.collections.List<moq.Pattern>?
-	fun rooted(root: kotlin.String): moq.Pattern
+	@kotlin.jvm.Throws(InvalidPatternException::class) fun rooted(root: kotlin.String): moq.Pattern
 	companion object {
-		fun default(): moq.Pattern
-		fun new(segments: kotlin.collections.List<moq.Segment>): moq.Pattern
-		fun all(): moq.Pattern
-		fun literal(path: kotlin.String): moq.Pattern
-		fun subtree(path: kotlin.String): moq.Pattern
+		@kotlin.jvm.JvmStatic fun default(): moq.Pattern
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun new(segments: kotlin.collections.List<moq.Segment>): moq.Pattern
+		@kotlin.jvm.JvmStatic fun all(): moq.Pattern
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun literal(path: kotlin.String): moq.Pattern
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(InvalidPatternException::class) fun subtree(path: kotlin.String): moq.Pattern
 	}
 }
 class Patterns internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1482,15 +1484,15 @@ class Patterns internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun contains(pattern: moq.Pattern): kotlin.Boolean
 	fun covers(other: moq.Patterns): kotlin.Boolean
 	fun overlaps(pattern: moq.Pattern): kotlin.Boolean
-	fun intersect(other: moq.Patterns): moq.Patterns
+	@kotlin.jvm.Throws(IntersectionErrorException::class) fun intersect(other: moq.Patterns): moq.Patterns
 	fun rebase(root: kotlin.String): moq.Patterns
-	fun rooted(root: kotlin.String): moq.Patterns
+	@kotlin.jvm.Throws(InvalidPatternException::class) fun rooted(root: kotlin.String): moq.Patterns
 	fun iter(): kotlin.collections.List<moq.Pattern>
 	fun len(): kotlin.ULong
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.Patterns
-		fun new(): moq.Patterns
+		@kotlin.jvm.JvmStatic fun default(): moq.Patterns
+		@kotlin.jvm.JvmStatic fun new(): moq.Patterns
 	}
 }
 class Server internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1507,13 +1509,13 @@ class Server internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withTimeout(timeout: moq.Duration?): moq.Server
 	fun deadline(arrived: moq.ClockInstant): moq.ClockInstant?
 	fun withReceiveWindow(window: kotlin.ULong): moq.Server
-	suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
-	suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
-	suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun acceptMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun acceptQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): moq.ServerHandshake
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun handshakeQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): moq.ServerHandshake
 	companion object {
-		fun default(): moq.Server
-		fun new(): moq.Server
+		@kotlin.jvm.JvmStatic fun default(): moq.Server
+		@kotlin.jvm.JvmStatic fun new(): moq.Server
 	}
 }
 class Session internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1530,9 +1532,9 @@ class Session internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun viewers(): moq.BandwidthViewers
 	fun stats(): moq.SessionStats
 	fun abort(err: moq.Error)
-	suspend fun close_()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun close_()
 	suspend fun closed(): moq.Error
-	fun goaway(goaway: moq.GoawayGoaway)
+	@kotlin.jvm.Throws(ErrorException::class) fun goaway(goaway: moq.GoawayGoaway)
 	fun draining(): moq.GoawayConsumer
 	fun auth(): moq.AuthHandle
 }
@@ -1554,11 +1556,11 @@ class Client internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun withImplementation(implementation: kotlin.String): moq.Client
 	fun withCost(cost: moq.OriginCost): moq.Client
 	fun withPeerNode(node: kotlin.ULong): moq.Client
-	suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
-	suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun connectMemorySession(now: moq.ClockInstant, session: moq.TransportMemorySession): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun connectQmuxSession(now: moq.ClockInstant, session: moq.QmuxSession): kotlin.Pair<moq.Session, moq.Driver>
 	companion object {
-		fun default(): moq.Client
-		fun new(): moq.Client
+		@kotlin.jvm.JvmStatic fun default(): moq.Client
+		@kotlin.jvm.JvmStatic fun new(): moq.Client
 	}
 }
 class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1570,8 +1572,8 @@ class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun stream(): moq.StreamError?
 	fun retry(): moq.Retry
 	companion object {
-		fun fromTransportError(err: moq.Error): moq.Error
-		fun fromTransportMemoryError(err: moq.TransportMemoryError): moq.Error
+		@kotlin.jvm.JvmStatic fun fromTransportError(err: moq.Error): moq.Error
+		@kotlin.jvm.JvmStatic fun fromTransportMemoryError(err: moq.TransportMemoryError): moq.Error
 	}
 }
 class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1583,23 +1585,23 @@ class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun value(): kotlin.ULong
 	fun scale(): moq.Timescale?
 	fun isZero(): kotlin.Boolean
-	fun convert(newScale: moq.Timescale): moq.Timestamp
-	fun asScale(target: moq.Timescale): java.math.BigInteger
-	fun asSecs(): kotlin.ULong
-	fun asMillis(): java.math.BigInteger
-	fun asMicros(): java.math.BigInteger
-	fun asNanos(): java.math.BigInteger
-	fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
-	fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun convert(newScale: moq.Timescale): moq.Timestamp
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asScale(target: moq.Timescale): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asSecs(): kotlin.ULong
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMillis(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asMicros(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun asNanos(): java.math.BigInteger
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
+	@kotlin.jvm.Throws(TimeOverflowException::class) fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
 	companion object {
-		val ZERO: moq.Timestamp
-		fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
-		fun unscaled(key: kotlin.ULong): moq.Timestamp
-		fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
-		fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
-		fun fromMillis(millis: kotlin.ULong): moq.Timestamp
-		fun fromMicros(micros: kotlin.ULong): moq.Timestamp
-		fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic val ZERO: moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		@kotlin.jvm.JvmStatic fun unscaled(key: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMillis(millis: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromMicros(micros: kotlin.ULong): moq.Timestamp
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TimeOverflowException::class) fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
 	}
 }
 class Version internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1614,7 +1616,7 @@ class Version internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun alpn(): kotlin.String
 	fun isLite(): kotlin.Boolean
 	companion object {
-		val ALL: kotlin.collections.List<moq.Version>
+		@kotlin.jvm.JvmStatic val ALL: kotlin.collections.List<moq.Version>
 	}
 }
 class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1627,8 +1629,8 @@ class Versions internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun contains(version: moq.Version): kotlin.Boolean
 	fun iter(): kotlin.collections.List<moq.Version>
 	companion object {
-		fun default(): moq.Versions
-		fun all(): moq.Versions
+		@kotlin.jvm.JvmStatic fun default(): moq.Versions
+		@kotlin.jvm.JvmStatic fun all(): moq.Versions
 	}
 }
 class Specificity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1647,7 +1649,7 @@ class ClockClock internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun now(): moq.ClockInstant
 	fun wall(): moq.ClockWall
 	companion object {
-		fun current(): moq.ClockClock
+		@kotlin.jvm.JvmStatic fun current(): moq.ClockClock
 	}
 }
 class ClockDeadline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1657,8 +1659,8 @@ class ClockDeadline internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun deadline(): moq.ClockInstant?
 	suspend fun poll()
 	companion object {
-		fun new(deadlines: moq.ClockDeadlines): moq.ClockDeadline
-		fun after(deadlines: moq.ClockDeadlines, duration: moq.Duration): moq.ClockDeadline
+		@kotlin.jvm.JvmStatic fun new(deadlines: moq.ClockDeadlines): moq.ClockDeadline
+		@kotlin.jvm.JvmStatic fun after(deadlines: moq.ClockDeadlines, duration: moq.Duration): moq.ClockDeadline
 	}
 }
 class ClockDeadlines internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1670,7 +1672,7 @@ class ClockDeadlines internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun now(): moq.ClockInstant
 	fun enter(): moq.ClockEntered
 	companion object {
-		fun new(now: moq.ClockInstant): moq.ClockDeadlines
+		@kotlin.jvm.JvmStatic fun new(now: moq.ClockInstant): moq.ClockDeadlines
 	}
 }
 class ClockEntered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1686,9 +1688,9 @@ class ClockManual internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun advance(duration: moq.Duration)
 	fun stepWall(wall: moq.ClockWall)
 	companion object {
-		fun default(): moq.ClockManual
-		val WALLSTART: moq.ClockWall
-		fun new(): moq.ClockManual
+		@kotlin.jvm.JvmStatic fun default(): moq.ClockManual
+		@kotlin.jvm.JvmStatic val WALLSTART: moq.ClockWall
+		@kotlin.jvm.JvmStatic fun new(): moq.ClockManual
 	}
 }
 class ClockRng internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1707,8 +1709,8 @@ class ClockWallMap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun sample(now: moq.ClockInstant, wall: moq.ClockWall)
 	fun map(at: moq.ClockWall): moq.ClockInstant?
 	companion object {
-		fun default(): moq.ClockWallMap
-		val TOLERANCE: moq.Duration
+		@kotlin.jvm.JvmStatic fun default(): moq.ClockWallMap
+		@kotlin.jvm.JvmStatic val TOLERANCE: moq.Duration
 	}
 }
 class CoopBudget internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1717,7 +1719,7 @@ class CoopBudget internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun clone(): moq.CoopBudget
 	suspend fun pollYield()
 	companion object {
-		fun new(passes: kotlin.UInt): moq.CoopBudget
+		@kotlin.jvm.JvmStatic fun new(passes: kotlin.UInt): moq.CoopBudget
 	}
 }
 class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1746,18 +1748,18 @@ class HangCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		fun default(): moq.HangCatalog
-		val DEFAULTNAME: kotlin.String
-		fun defaultTrackInfo(): moq.TrackInfo
-		fun defaultSubscription(): moq.TrackSubscription
-		fun fromSlice(v: moq.Bytes): moq.HangCatalog
-		fun fromReader(reader: moq.Bytes): moq.HangCatalog
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalog
+		@kotlin.jvm.JvmStatic val DEFAULTNAME: kotlin.String
+		@kotlin.jvm.JvmStatic fun defaultTrackInfo(): moq.TrackInfo
+		@kotlin.jvm.JvmStatic fun defaultSubscription(): moq.TrackSubscription
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromSlice(v: moq.Bytes): moq.HangCatalog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromReader(reader: moq.Bytes): moq.HangCatalog
 	}
 }
 class HangCatalogExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1788,15 +1790,15 @@ class HangCatalogExtra internal constructor(raw: Long, lent: Boolean = false) : 
 	fun extSet(value: moq.MuxCatalogHangExtra)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		fun default(): moq.HangCatalogExtra
-		fun fromSlice(v: moq.Bytes): moq.HangCatalogExtra
-		fun fromReader(reader: moq.Bytes): moq.HangCatalogExtra
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromSlice(v: moq.Bytes): moq.HangCatalogExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromReader(reader: moq.Bytes): moq.HangCatalogExtra
 	}
 }
 class HangCatalogExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1827,15 +1829,15 @@ class HangCatalogExt internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun extSet(value: moq.MuxContainerTsExt)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 	companion object {
-		fun default(): moq.HangCatalogExt
-		fun fromSlice(v: moq.Bytes): moq.HangCatalogExt
-		fun fromReader(reader: moq.Bytes): moq.HangCatalogExt
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromSlice(v: moq.Bytes): moq.HangCatalogExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun fromReader(reader: moq.Bytes): moq.HangCatalogExt
 	}
 }
 class HangError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1851,15 +1853,15 @@ class MuxClock internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	fun now(): moq.Timestamp
-	fun capture(at: moq.ClockInstant): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun capture(at: moq.ClockInstant): moq.Timestamp
 	fun timescale(): moq.Timescale
 	fun wall(): moq.HangCatalogClock?
-	fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	@kotlin.jvm.Throws(MuxErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
 	companion object {
-		fun default(): moq.MuxClock
-		val TIMESCALE: moq.Timescale
-		fun new(): moq.MuxClock
-		fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxClock
+		@kotlin.jvm.JvmStatic val TIMESCALE: moq.Timescale
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun at(epoch: moq.ClockInstant, wall: moq.ClockWall): moq.MuxClock
 	}
 }
 class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1876,15 +1878,15 @@ class MuxIngest internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun rateSet(value: moq.BandwidthLimit?)
 	fun catalog(): moq.MuxCatalogConfig
 	companion object {
-		fun default(): moq.MuxIngest
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxIngest
 	}
 }
 class MuxLingerUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	suspend fun wait()
 	companion object {
-		val DEFAULT: moq.Duration
-		fun new(broadcasts: kotlin.collections.List<moq.BroadcastProducer>, duration: moq.Duration): moq.MuxLingerUnit
+		@kotlin.jvm.JvmStatic val DEFAULT: moq.Duration
+		@kotlin.jvm.JvmStatic fun new(broadcasts: kotlin.collections.List<moq.BroadcastProducer>, duration: moq.Duration): moq.MuxLingerUnit
 	}
 }
 class MuxPacer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1896,14 +1898,14 @@ class MuxPacer internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	fun slack(): moq.Duration
 	fun hurry(ts: moq.Timestamp, now: moq.ClockInstant): moq.ClockInstant
 	companion object {
-		fun default(): moq.MuxPacer
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxPacer
 	}
 }
 class MuxBinding internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun broadcast(): moq.BroadcastConsumer
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun broadcast(): moq.BroadcastConsumer
 	companion object {
-		fun new(broadcast: moq.BroadcastConsumer): moq.MuxBinding
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastConsumer): moq.MuxBinding
 	}
 }
 class MuxSource internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1911,16 +1913,16 @@ class MuxSource internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun clone(): moq.MuxSource
 	fun stats(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>
 	fun broadcast(): moq.BroadcastConsumer
-	suspend fun catalogExtra(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
-	suspend fun catalogExt(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
-	suspend fun catalogUnit(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun catalogExtra(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun catalogExt(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun catalogUnit(format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
 	fun resolveReference(rel: moq.PathRelative?): moq.Path?
-	suspend fun resolve(rel: moq.PathRelative?, instance: moq.Instance?): moq.BroadcastConsumer
-	fun bind(rel: moq.PathRelative?, instance: moq.Instance?): moq.MuxBinding
-	suspend fun subscribeTrack(rel: moq.PathRelative?, instance: moq.Instance?, name: kotlin.String): moq.TrackSubscriber
-	fun follow(rel: moq.PathRelative?, instance: moq.Instance?): moq.MuxFollowInstances
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun resolve(rel: moq.PathRelative?, instance: moq.Instance?): moq.BroadcastConsumer
+	@kotlin.jvm.Throws(MuxErrorException::class) fun bind(rel: moq.PathRelative?, instance: moq.Instance?): moq.MuxBinding
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun subscribeTrack(rel: moq.PathRelative?, instance: moq.Instance?, name: kotlin.String): moq.TrackSubscriber
+	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(rel: moq.PathRelative?, instance: moq.Instance?): moq.MuxFollowInstances
 	companion object {
-		fun new(origin: moq.OriginConsumer, broadcast: moq.BroadcastConsumer): moq.MuxSource
+		@kotlin.jvm.JvmStatic fun new(origin: moq.OriginConsumer, broadcast: moq.BroadcastConsumer): moq.MuxSource
 	}
 }
 class MuxError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1937,7 +1939,7 @@ class TokioDuration internal constructor(raw: Long, lent: Boolean = false) : Aut
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun default(): moq.TokioDuration
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioDuration
 	}
 }
 class TokioBackoff internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1958,7 +1960,7 @@ class TokioBackoff internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun max(): moq.Duration?
 	fun timeout(): moq.Duration?
 	companion object {
-		fun default(): moq.TokioBackoff
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioBackoff
 	}
 }
 class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1979,16 +1981,16 @@ class TokioClient internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun publish(origin: moq.OriginConsumer): moq.TokioConnection?
 	fun consume(origin: moq.OriginProducer): moq.TokioConnection?
 	companion object {
-		fun new(config: moq.TokioClientConfig): moq.TokioClient
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioClientConfig): moq.TokioClient
 	}
 }
 class TokioConnection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TokioConnection
 	fun abort(err: moq.Error)
-	suspend fun close_()
-	suspend fun established(): moq.TokioConnection
-	suspend fun status(): moq.TokioStatus
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun close_()
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun established(): moq.TokioConnection
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun status(): moq.TokioStatus
 	fun connected(): kotlin.Boolean
 	fun connects(): kotlin.ULong
 	fun version(): moq.Version?
@@ -1998,7 +2000,7 @@ class TokioConnection internal constructor(raw: Long, lent: Boolean = false) : A
 	fun allocator(): moq.BandwidthAllocator
 	fun recvBandwidth(): moq.BandwidthConsumer
 	fun viewers(): moq.BandwidthViewers
-	suspend fun closed()
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun closed()
 	fun auth(): moq.AuthHandle
 	fun tokens(): moq.AuthTokens
 	fun monitor(): moq.TokioConnectionMonitor
@@ -2019,30 +2021,30 @@ class TokioLog internal constructor(raw: Long, lent: Boolean = false) : AutoClos
 	val levelGet: moq.Level
 	fun levelSet(value: moq.Level)
 	fun level(): moq.Level?
-	fun init()
+	@kotlin.jvm.Throws(TokioErrorException::class) fun init()
 	companion object {
-		fun default(): moq.TokioLog
-		fun new(level: moq.Level): moq.TokioLog
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioLog
+		@kotlin.jvm.JvmStatic fun new(level: moq.Level): moq.TokioLog
 	}
 }
 class TokioServer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun servePublish(origin: moq.OriginConsumer)
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun servePublish(origin: moq.OriginConsumer)
 	fun tlsAcceptor(): moq.MoqTokioTcpTlsAcceptor?
 	fun certificates(): moq.TokioTlsCertificates
 	fun acceptHealth(): kotlin.collections.List<moq.MoqTokioAcceptHealth>
-	suspend fun bind(): moq.TokioServerListener
-	suspend fun listen(): moq.TokioServerListener
-	fun localAddr(): moq.SocketAddr
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun bind(): moq.TokioServerListener
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun listen(): moq.TokioServerListener
+	@kotlin.jvm.Throws(TokioErrorException::class) fun localAddr(): moq.SocketAddr
 	fun websocketLocalAddr(): moq.SocketAddr?
 	companion object {
-		fun new(config: moq.TokioServerConfig): moq.TokioServer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioErrorException::class) fun new(config: moq.TokioServerConfig): moq.TokioServer
 	}
 }
 class AuthWatch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun peek(): moq.AuthGrant?
-	suspend fun changed(): moq.AuthGrant?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun changed(): moq.AuthGrant?
 }
 class AuthRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2074,20 +2076,20 @@ class AuthGrant internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	val expiresGet: moq.ClockInstant?
 	fun expiresSet(value: moq.ClockInstant?)
 	companion object {
-		fun default(): moq.AuthGrant
-		fun all(): moq.AuthGrant
+		@kotlin.jvm.JvmStatic fun default(): moq.AuthGrant
+		@kotlin.jvm.JvmStatic fun all(): moq.AuthGrant
 	}
 }
 class AuthHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.AuthHandle
 	fun grant(): moq.AuthWatch
-	fun add(token: moq.Bytes): moq.AuthCredential
+	@kotlin.jvm.Throws(ErrorException::class) fun add(token: moq.Bytes): moq.AuthCredential
 	fun authorize(grant: moq.AuthGrant)
 	fun abort(err: moq.Error)
 	companion object {
-		fun default(): moq.AuthHandle
-		fun new(): moq.AuthHandle
+		@kotlin.jvm.JvmStatic fun default(): moq.AuthHandle
+		@kotlin.jvm.JvmStatic fun new(): moq.AuthHandle
 	}
 }
 class AuthCredential internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2098,7 +2100,7 @@ class AuthCredential internal constructor(raw: Long, lent: Boolean = false) : Au
 	override fun hashCode(): kotlin.Int
 	fun grant(): moq.AuthWatch
 	suspend fun closed(): moq.Error
-	suspend fun answered()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun answered()
 }
 class AuthToken internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2113,9 +2115,9 @@ class AuthTokens internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun clone(): moq.AuthTokens
 	fun handle_(): moq.AuthHandle
 	fun set(tokens: kotlin.collections.List<moq.AuthToken>)
-	suspend fun answered()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun answered()
 	companion object {
-		fun new(tokens: kotlin.collections.List<moq.AuthToken>): moq.AuthTokens
+		@kotlin.jvm.JvmStatic fun new(tokens: kotlin.collections.List<moq.AuthToken>): moq.AuthTokens
 	}
 }
 class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2128,15 +2130,15 @@ class GoawayGoaway internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun uri(): kotlin.String
 	fun timeout(): moq.Duration?
 	companion object {
-		fun default(): moq.GoawayGoaway
-		fun new(): moq.GoawayGoaway
-		fun redirect(uri: kotlin.String): moq.GoawayGoaway
+		@kotlin.jvm.JvmStatic fun default(): moq.GoawayGoaway
+		@kotlin.jvm.JvmStatic fun new(): moq.GoawayGoaway
+		@kotlin.jvm.JvmStatic fun redirect(uri: kotlin.String): moq.GoawayGoaway
 	}
 }
 class GoawayConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.GoawayConsumer
-	suspend fun poll(): moq.GoawayGoaway
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun poll(): moq.GoawayGoaway
 }
 class PathRelative internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2149,9 +2151,9 @@ class PathRelative internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun isEmpty(): kotlin.Boolean
 	fun len(): kotlin.ULong
 	companion object {
-		fun default(): moq.PathRelative
-		fun new(s: kotlin.String): moq.PathRelative
-		fun empty(): moq.PathRelative
+		@kotlin.jvm.JvmStatic fun default(): moq.PathRelative
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(PathErrorException::class) fun new(s: kotlin.String): moq.PathRelative
+		@kotlin.jvm.JvmStatic fun empty(): moq.PathRelative
 	}
 }
 class ReconnectBackoff internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2171,7 +2173,7 @@ class ReconnectBackoff internal constructor(raw: Long, lent: Boolean = false) : 
 	val timeoutGet: moq.Duration?
 	fun timeoutSet(value: moq.Duration?)
 	companion object {
-		fun default(): moq.ReconnectBackoff
+		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectBackoff
 	}
 }
 class ReconnectHandover internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2185,7 +2187,7 @@ class ReconnectHandover internal constructor(raw: Long, lent: Boolean = false) :
 	val handoverGet: moq.Duration
 	fun handoverSet(value: moq.Duration)
 	companion object {
-		fun default(): moq.ReconnectHandover
+		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectHandover
 	}
 }
 class ReconnectConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2207,7 +2209,7 @@ class ReconnectConfig internal constructor(raw: Long, lent: Boolean = false) : A
 	val pinnedGet: kotlin.Boolean
 	fun pinnedSet(value: kotlin.Boolean)
 	companion object {
-		fun default(): moq.ReconnectConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.ReconnectConfig
 	}
 }
 class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2227,7 +2229,7 @@ class ServerHandshake internal constructor(raw: Long, lent: Boolean = false) : A
 	fun withLimits(limits: moq.SessionLimits): moq.ServerHandshake
 	fun withReceiveWindow(window: kotlin.ULong): moq.ServerHandshake
 	suspend fun expired()
-	suspend fun ok(): kotlin.Pair<moq.Session, moq.Driver>
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun ok(): kotlin.Pair<moq.Session, moq.Driver>
 	fun close_(err: moq.Error)
 }
 class ServerAdmission internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2238,7 +2240,7 @@ class ServerAdmission internal constructor(raw: Long, lent: Boolean = false) : A
 	fun drain()
 	suspend fun close_(): moq.ClockInstant
 	companion object {
-		fun default(): moq.ServerAdmission
+		@kotlin.jvm.JvmStatic fun default(): moq.ServerAdmission
 	}
 }
 class ServerAdmitted internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2272,7 +2274,7 @@ class SessionStats internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val datagramsUnroutedGet: kotlin.ULong?
 	fun datagramsUnroutedSet(value: kotlin.ULong?)
 	companion object {
-		fun default(): moq.SessionStats
+		@kotlin.jvm.JvmStatic fun default(): moq.SessionStats
 	}
 }
 class StatsTier internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2285,8 +2287,8 @@ class StatsTier internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun label(): moq.Path
 	fun asStr(): kotlin.String
 	companion object {
-		fun default(): moq.StatsTier
-		fun new(label: moq.Path): moq.StatsTier
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsTier
+		@kotlin.jvm.JvmStatic fun new(label: moq.Path): moq.StatsTier
 	}
 }
 class StatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2300,7 +2302,7 @@ class StatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun sessions(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsPresence>>
 	fun activity(): kotlin.collections.List<kotlin.Pair<moq.StatsTier, moq.StatsActivity>>
 	companion object {
-		fun default(): moq.StatsSnapshot
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsSnapshot
 	}
 }
 class StatsReport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2312,7 +2314,7 @@ class StatsReport internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	val sessionsGet: kotlin.collections.List<moq.StatsSessionEntry>
 	fun sessionsSet(value: kotlin.collections.List<moq.StatsSessionEntry>)
 	companion object {
-		fun default(): moq.StatsReport
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsReport
 	}
 }
 class StatsTrafficEntry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2351,8 +2353,8 @@ class StatsConfig internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun excludeSet(value: moq.Patterns)
 	fun withExclude(pattern: moq.Pattern): moq.StatsConfig
 	companion object {
-		fun default(): moq.StatsConfig
-		fun new(): moq.StatsConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsConfig
+		@kotlin.jvm.JvmStatic fun new(): moq.StatsConfig
 	}
 }
 class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2363,9 +2365,9 @@ class StatsRegistry internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun snapshot(): moq.StatsSnapshot
 	fun report(report: moq.StatsReport, now: moq.ClockInstant)
 	companion object {
-		fun default(): moq.StatsRegistry
-		fun new(config: moq.StatsConfig): moq.StatsRegistry
-		fun disabled(): moq.StatsRegistry
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsRegistry
+		@kotlin.jvm.JvmStatic fun new(config: moq.StatsConfig): moq.StatsRegistry
+		@kotlin.jvm.JvmStatic fun disabled(): moq.StatsRegistry
 	}
 }
 class StatsHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2375,7 +2377,7 @@ class StatsHandle internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun session(session: moq.StatsSessionInfo): moq.StatsSession
 	fun request(label: moq.Path): moq.StatsSession
 	companion object {
-		fun default(): moq.StatsHandle
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsHandle
 	}
 }
 class StatsRefusal internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2387,7 +2389,7 @@ class StatsRefusal internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val reasonGet: moq.StatsRefusalKind
 	fun reasonSet(value: moq.StatsRefusalKind)
 	companion object {
-		fun new(label: moq.Path, reason: moq.StatsRefusalKind): moq.StatsRefusal
+		@kotlin.jvm.JvmStatic fun new(label: moq.Path, reason: moq.StatsRefusalKind): moq.StatsRefusal
 	}
 }
 class StatsSessionInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2397,13 +2399,13 @@ class StatsSessionInfo internal constructor(raw: Long, lent: Boolean = false) : 
 	val labelGet: moq.Path
 	fun labelSet(value: moq.Path)
 	companion object {
-		fun new(label: moq.Path): moq.StatsSessionInfo
+		@kotlin.jvm.JvmStatic fun new(label: moq.Path): moq.StatsSessionInfo
 	}
 }
 class StatsWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		fun default(): moq.StatsWire
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsWire
 	}
 }
 class StatsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2412,7 +2414,7 @@ class StatsSession internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun wire(counters: moq.TransportWire): moq.StatsWire
 	fun retag(tier: moq.StatsTier, label: moq.Path)
 	companion object {
-		fun default(): moq.StatsSession
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsSession
 	}
 }
 class StatsBill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2421,7 +2423,7 @@ class StatsBill internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun clone(): moq.StatsBill
 	fun deliver(bytes: kotlin.ULong)
 	companion object {
-		fun default(): moq.StatsBill
+		@kotlin.jvm.JvmStatic fun default(): moq.StatsBill
 	}
 }
 class TransportWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2433,8 +2435,8 @@ class TransportWire internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun setSentBytes(total: kotlin.ULong)
 	fun setReceivedBytes(total: kotlin.ULong)
 	companion object {
-		fun default(): moq.TransportWire
-		fun new(): moq.TransportWire
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportWire
+		@kotlin.jvm.JvmStatic fun new(): moq.TransportWire
 	}
 }
 class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2444,8 +2446,8 @@ class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun target(): moq.BandwidthRate
 	fun setTarget(rate: moq.BandwidthRate)
 	companion object {
-		fun default(): moq.TransportProbe
-		fun new(): moq.TransportProbe
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportProbe
+		@kotlin.jvm.JvmStatic fun new(): moq.TransportProbe
 	}
 }
 class TransportReceiveWindow internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2459,7 +2461,7 @@ class TransportReceiveWindow internal constructor(raw: Long, lent: Boolean = fal
 	val streamGet: kotlin.ULong
 	fun streamSet(value: kotlin.ULong)
 	companion object {
-		fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
+		@kotlin.jvm.JvmStatic fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
 	}
 }
 class TransportLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2471,7 +2473,7 @@ class TransportLimits internal constructor(raw: Long, lent: Boolean = false) : A
 	val receiveWindowGet: kotlin.ULong?
 	fun receiveWindowSet(value: kotlin.ULong?)
 	companion object {
-		fun default(): moq.TransportLimits
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportLimits
 	}
 }
 class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2482,15 +2484,15 @@ class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun get(): moq.BandwidthCap?
 	suspend fun changed(): moq.BandwidthCap?
 	companion object {
-		fun default(): moq.BandwidthLimit
-		fun new(cap: moq.BandwidthCap?): moq.BandwidthLimit
+		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthLimit
+		@kotlin.jvm.JvmStatic fun new(cap: moq.BandwidthCap?): moq.BandwidthLimit
 	}
 }
 class BandwidthDemand internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BandwidthDemand
 	fun wanted(): kotlin.Boolean
-	suspend fun wantedChanged(): kotlin.Boolean
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun wantedChanged(): kotlin.Boolean
 }
 class BandwidthReservation internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2502,7 +2504,7 @@ class BandwidthViewer internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun close()
 	fun rate(): moq.BandwidthRate?
 	fun consume(): moq.BandwidthConsumer
-	fun update(max: moq.BandwidthRate)
+	@kotlin.jvm.Throws(ErrorException::class) fun update(max: moq.BandwidthRate)
 }
 class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2516,20 +2518,20 @@ class BandwidthCap internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun burstSet(value: moq.Duration)
 	fun withBurst(burst: moq.Duration): moq.BandwidthCap
 	companion object {
-		val DEFAULTBURST: moq.Duration
-		fun new(rate: moq.BandwidthRate): moq.BandwidthCap
+		@kotlin.jvm.JvmStatic val DEFAULTBURST: moq.Duration
+		@kotlin.jvm.JvmStatic fun new(rate: moq.BandwidthRate): moq.BandwidthCap
 	}
 }
 class BandwidthProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BandwidthProducer
-	fun set(bitrate: moq.BandwidthRate?)
+	@kotlin.jvm.Throws(ErrorException::class) fun set(bitrate: moq.BandwidthRate?)
 	fun consume(): moq.BandwidthConsumer
 	fun weak(): moq.BandwidthWeak
 	fun demand(): moq.BandwidthDemand
 	companion object {
-		fun default(): moq.BandwidthProducer
-		fun new(): moq.BandwidthProducer
+		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthProducer
+		@kotlin.jvm.JvmStatic fun new(): moq.BandwidthProducer
 	}
 }
 class BandwidthWeak internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2544,21 +2546,21 @@ class BandwidthAllocator internal constructor(raw: Long, lent: Boolean = false) 
 	fun setTarget(target: moq.BandwidthRate?)
 	fun reserve(track: moq.TrackDemand, max: moq.BandwidthRate): moq.BandwidthReservation
 	companion object {
-		fun default(): moq.BandwidthAllocator
-		fun new(estimate: moq.BandwidthConsumer): moq.BandwidthAllocator
-		fun unlimited(): moq.BandwidthAllocator
+		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthAllocator
+		@kotlin.jvm.JvmStatic fun new(estimate: moq.BandwidthConsumer): moq.BandwidthAllocator
+		@kotlin.jvm.JvmStatic fun unlimited(): moq.BandwidthAllocator
 	}
 }
 class BandwidthViewers internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.BandwidthViewers
-	fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
-	fun setTarget(target: moq.BandwidthRate?)
+	@kotlin.jvm.Throws(ErrorException::class) fun watch(max: moq.BandwidthRate): moq.BandwidthViewer
+	@kotlin.jvm.Throws(ErrorException::class) fun setTarget(target: moq.BandwidthRate?)
 	companion object {
-		fun default(): moq.BandwidthViewers
-		val MAXTARGET: moq.BandwidthRate
-		fun new(estimate: moq.BandwidthWeak): moq.BandwidthViewers
+		@kotlin.jvm.JvmStatic fun default(): moq.BandwidthViewers
+		@kotlin.jvm.JvmStatic val MAXTARGET: moq.BandwidthRate
+		@kotlin.jvm.JvmStatic fun new(estimate: moq.BandwidthWeak): moq.BandwidthViewers
 	}
 }
 class BandwidthConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2566,20 +2568,20 @@ class BandwidthConsumer internal constructor(raw: Long, lent: Boolean = false) :
 	fun clone(): moq.BandwidthConsumer
 	fun peek(): moq.BandwidthRate?
 	fun probed(): kotlin.Boolean
-	suspend fun changed(): moq.BandwidthRate?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun changed(): moq.BandwidthRate?
 }
 class BroadcastDatagramRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BroadcastDatagramRequests
-	suspend fun requested(): moq.DatagramRequest
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun requested(): moq.DatagramRequest
 }
 class BroadcastConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BroadcastConsumer
-	fun tracks(): moq.BroadcastTracks
+	@kotlin.jvm.Throws(ErrorException::class) fun tracks(): moq.BroadcastTracks
 	fun info(): moq.BroadcastInfo
-	fun track(name: kotlin.String): moq.TrackConsumer
-	fun datagrams(name: kotlin.String): moq.DatagramConsumer
+	@kotlin.jvm.Throws(ErrorException::class) fun track(name: kotlin.String): moq.TrackConsumer
+	@kotlin.jvm.Throws(ErrorException::class) fun datagrams(name: kotlin.String): moq.DatagramConsumer
 	fun isClosed(): kotlin.Boolean
 	suspend fun closed()
 	fun isClone(other: moq.BroadcastConsumer): kotlin.Boolean
@@ -2588,7 +2590,7 @@ class BroadcastDemand internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun close()
 	fun clone(): moq.BroadcastDemand
 	fun wanted(): kotlin.Boolean
-	suspend fun wantedChanged(): kotlin.Boolean
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun wantedChanged(): kotlin.Boolean
 }
 class BroadcastInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2604,8 +2606,8 @@ class BroadcastInfo internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun instanceSet(value: moq.Instance?)
 	fun produce(): moq.BroadcastProducer
 	companion object {
-		fun default(): moq.BroadcastInfo
-		fun new(): moq.BroadcastInfo
+		@kotlin.jvm.JvmStatic fun default(): moq.BroadcastInfo
+		@kotlin.jvm.JvmStatic fun new(): moq.BroadcastInfo
 	}
 }
 class BroadcastProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2613,38 +2615,38 @@ class BroadcastProducer internal constructor(raw: Long, lent: Boolean = false) :
 	fun clone(): moq.BroadcastProducer
 	fun info(): moq.BroadcastInfo
 	fun demand(): moq.BroadcastDemand
-	fun createTrack(name: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
-	fun createDatagrams(name: kotlin.String, info: moq.DatagramInfo): moq.DatagramProducer
-	fun reserveTrack(name: kotlin.String): moq.TrackRequest
-	fun reserveUnlistedTrack(name: kotlin.String): moq.TrackRequest
-	fun uniqueTrack(suffix: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createTrack(name: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createDatagrams(name: kotlin.String, info: moq.DatagramInfo): moq.DatagramProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun reserveTrack(name: kotlin.String): moq.TrackRequest
+	@kotlin.jvm.Throws(ErrorException::class) fun reserveUnlistedTrack(name: kotlin.String): moq.TrackRequest
+	@kotlin.jvm.Throws(ErrorException::class) fun uniqueTrack(suffix: kotlin.String, info: moq.TrackInfo?): moq.TrackProducer
 	fun uniqueName(suffix: kotlin.String): kotlin.String
 	fun requests(): moq.BroadcastRequests
 	fun consume(): moq.BroadcastConsumer
 	fun close_()
 	fun isClone(other: moq.BroadcastProducer): kotlin.Boolean
 	companion object {
-		fun new(info: moq.BroadcastInfo): moq.BroadcastProducer
+		@kotlin.jvm.JvmStatic fun new(info: moq.BroadcastInfo): moq.BroadcastProducer
 	}
 }
 class BroadcastRequests internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.BroadcastRequests
 	fun info(): moq.BroadcastInfo
-	suspend fun requestedTrack(): moq.TrackRequest
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun requestedTrack(): moq.TrackRequest
 	fun consume(): moq.BroadcastConsumer
 	fun datagrams(): moq.BroadcastDatagramRequests
-	fun lister(): moq.BroadcastLister
+	@kotlin.jvm.Throws(ErrorException::class) fun lister(): moq.BroadcastLister
 	suspend fun closed()
 	fun isClone(other: moq.BroadcastRequests): kotlin.Boolean
 }
 class BroadcastLister internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun pollWanted()
-	suspend fun pollUnwanted()
-	fun add(name: kotlin.String, info: moq.TrackInfo)
-	fun remove(kind: moq.BroadcastKind, name: kotlin.String)
-	fun finish(kind: moq.BroadcastKind, name: kotlin.String)
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun pollWanted()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun pollUnwanted()
+	@kotlin.jvm.Throws(ErrorException::class) fun add(name: kotlin.String, info: moq.TrackInfo)
+	@kotlin.jvm.Throws(ErrorException::class) fun remove(kind: moq.BroadcastKind, name: kotlin.String)
+	@kotlin.jvm.Throws(ErrorException::class) fun finish(kind: moq.BroadcastKind, name: kotlin.String)
 	fun synced()
 	fun clear()
 	fun end()
@@ -2652,7 +2654,7 @@ class BroadcastLister internal constructor(raw: Long, lent: Boolean = false) : A
 }
 class BroadcastTracks internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.BroadcastTracksEvent?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun next(): moq.BroadcastTracksEvent?
 	fun broadcast(): moq.BroadcastConsumer
 }
 class BroadcastTracksEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2667,7 +2669,7 @@ class CacheConfig internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun withCapacity(capacity: kotlin.ULong?): moq.CacheConfig
 	fun withExpiry(expiry: moq.Duration?): moq.CacheConfig
 	companion object {
-		fun default(): moq.CacheConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.CacheConfig
 	}
 }
 class CachePool internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2681,9 +2683,9 @@ class CachePool internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 	fun downgrade(): moq.CachePoolWeak
 	companion object {
-		fun default(): moq.CachePool
-		fun new(config: moq.CacheConfig): moq.CachePool
-		fun unbounded(): moq.CachePool
+		@kotlin.jvm.JvmStatic fun default(): moq.CachePool
+		@kotlin.jvm.JvmStatic fun new(config: moq.CacheConfig): moq.CachePool
+		@kotlin.jvm.JvmStatic fun unbounded(): moq.CachePool
 	}
 }
 class CachePoolWeak internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2697,8 +2699,8 @@ class DatagramProducer internal constructor(raw: Long, lent: Boolean = false) : 
 	fun clone(): moq.DatagramProducer
 	fun name(): kotlin.String
 	fun info(): moq.DatagramInfo
-	fun append(timestamp: moq.Timestamp, payload: moq.Bytes): kotlin.ULong
-	fun insert(datagram: moq.DatagramDatagram)
+	@kotlin.jvm.Throws(ErrorException::class) fun append(timestamp: moq.Timestamp, payload: moq.Bytes): kotlin.ULong
+	@kotlin.jvm.Throws(ErrorException::class) fun insert(datagram: moq.DatagramDatagram)
 	fun consume(): moq.DatagramConsumer
 	fun finish()
 	fun abort(err: moq.Error)
@@ -2716,8 +2718,8 @@ class DatagramConsumer internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun close()
 	fun clone(): moq.DatagramConsumer
 	fun name(): kotlin.String
-	suspend fun info(): moq.DatagramInfo
-	suspend fun recv(): moq.DatagramDatagram?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun info(): moq.DatagramInfo
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun recv(): moq.DatagramDatagram?
 	fun priority(): kotlin.Byte
 	fun setPriority(priority: kotlin.Byte)
 }
@@ -2733,18 +2735,18 @@ class DatagramInfo internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun prioritySet(value: kotlin.Byte)
 	fun withTimescale(timescale: moq.Timescale?): moq.DatagramInfo
 	fun withPriority(priority: kotlin.Byte): moq.DatagramInfo
-	fun rescale(timestamp: moq.Timestamp): moq.Timestamp
+	@kotlin.jvm.Throws(ErrorException::class) fun rescale(timestamp: moq.Timestamp): moq.Timestamp
 	companion object {
-		fun default(): moq.DatagramInfo
+		@kotlin.jvm.JvmStatic fun default(): moq.DatagramInfo
 	}
 }
 class FrameProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun group(): moq.GroupProducer
 	fun remaining(): kotlin.ULong
-	fun write(chunk: moq.Bytes)
-	fun finish(): moq.GroupProducer
-	fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(ErrorException::class) fun write(chunk: moq.Bytes)
+	@kotlin.jvm.Throws(ErrorException::class) fun finish(): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun abort(err: moq.Error)
 	val sizeGet: kotlin.ULong
 	val timestampGet: moq.Timestamp
 }
@@ -2758,36 +2760,36 @@ class FrameFrame internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun payloadSet(value: moq.Bytes)
 	fun arrived(): moq.ClockInstant
 	companion object {
-		fun new(timestamp: moq.Timestamp, payload: moq.Bytes): moq.FrameFrame
+		@kotlin.jvm.JvmStatic fun new(timestamp: moq.Timestamp, payload: moq.Bytes): moq.FrameFrame
 	}
 }
 class FrameConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.FrameConsumer
-	suspend fun readChunk(): moq.Bytes?
-	suspend fun readAll(): moq.Bytes
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun readChunk(): moq.Bytes?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun readAll(): moq.Bytes
 	val sizeGet: kotlin.ULong
 	val timestampGet: moq.Timestamp
 }
 class GroupProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun timescale(): moq.Timescale?
-	fun startAt(index: kotlin.ULong)
-	fun writeFrame(timestamp: moq.Timestamp, data: moq.Bytes)
-	fun createFrame(frame: moq.FrameInfo): moq.FrameProducer
-	fun finishAt(end: kotlin.ULong): moq.GroupFinished
-	fun finish(): moq.GroupFinished
-	fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(ErrorException::class) fun startAt(index: kotlin.ULong)
+	@kotlin.jvm.Throws(ErrorException::class) fun writeFrame(timestamp: moq.Timestamp, data: moq.Bytes)
+	@kotlin.jvm.Throws(ErrorException::class) fun createFrame(frame: moq.FrameInfo): moq.FrameProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun finishAt(end: kotlin.ULong): moq.GroupFinished
+	@kotlin.jvm.Throws(ErrorException::class) fun finish(): moq.GroupFinished
+	@kotlin.jvm.Throws(ErrorException::class) fun abort(err: moq.Error)
 	suspend fun ready(frame: moq.FrameInfo)
 	fun frameCount(): kotlin.ULong
 	fun consume(): moq.GroupConsumer
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun demand(): moq.GroupDemand
 	val startGet: kotlin.ULong
 }
 class GroupFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(ErrorException::class) fun abort(err: moq.Error)
 	fun frameCount(): kotlin.ULong
 	fun consume(): moq.GroupConsumer
 	val startGet: kotlin.ULong
@@ -2797,8 +2799,8 @@ class GroupDemand internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun clone(): moq.GroupDemand
 	fun start(): kotlin.ULong
 	fun wanted(): kotlin.Boolean
-	suspend fun wantedChanged(): kotlin.Boolean
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun wantedChanged(): kotlin.Boolean
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 }
 class GroupConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2810,9 +2812,9 @@ class GroupConsumer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun skipTo(index: kotlin.ULong)
 	fun frameCount(): kotlin.ULong
 	fun end(): kotlin.ULong?
-	suspend fun nextFrame(): moq.FrameConsumer?
-	suspend fun readFrame(): moq.FrameFrame?
-	suspend fun finished(): kotlin.ULong
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun nextFrame(): moq.FrameConsumer?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun readFrame(): moq.FrameFrame?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun finished(): kotlin.ULong
 	val startGet: kotlin.ULong
 }
 class GroupFetch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2826,7 +2828,7 @@ class GroupFetch internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	fun withPriority(priority: kotlin.Byte): moq.GroupFetch
 	fun withMaxDelay(maxDelay: moq.Duration): moq.GroupFetch
 	companion object {
-		fun default(): moq.GroupFetch
+		@kotlin.jvm.JvmStatic fun default(): moq.GroupFetch
 	}
 }
 class TrackFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2835,9 +2837,9 @@ class TrackFinished internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
 	fun requests(): moq.TrackRequests
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun abort(err: moq.Error)
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun consume(): moq.TrackConsumer
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 }
@@ -2845,7 +2847,7 @@ class TrackRequests internal constructor(raw: Long, lent: Boolean = false) : Aut
 	override fun close()
 	fun clone(): moq.TrackRequests
 	fun name(): kotlin.String
-	suspend fun requestedFill(): moq.TrackFill
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun requestedFill(): moq.TrackFill
 	fun demand(): moq.TrackDemand
 }
 class TrackDemand internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2853,9 +2855,9 @@ class TrackDemand internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun clone(): moq.TrackDemand
 	fun name(): kotlin.String
 	fun wanted(): kotlin.Boolean
-	suspend fun wantedChanged(): kotlin.Boolean
-	suspend fun refresh()
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun wantedChanged(): kotlin.Boolean
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun refresh()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 }
 class TrackSubscriber internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -2864,31 +2866,31 @@ class TrackSubscriber internal constructor(raw: Long, lent: Boolean = false) : A
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
 	fun control(): moq.TrackControl
-	suspend fun recvGroup(): moq.GroupConsumer?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun recvGroup(): moq.GroupConsumer?
 	fun ordered(): moq.TrackOrdered
 	fun isClone(other: moq.TrackSubscriber): kotlin.Boolean
 	suspend fun start(): kotlin.ULong?
 	fun floor(): kotlin.ULong?
 	fun nextInRange(from: kotlin.ULong): kotlin.ULong?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
-	suspend fun finished(): moq.TrackPosition
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun finished(): moq.TrackPosition
 	fun withRange(groups: moq.BoundsU64): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription
-	fun update(subscription: moq.TrackSubscription)
+	@kotlin.jvm.Throws(ErrorException::class) fun update(subscription: moq.TrackSubscription)
 	suspend fun largest(): moq.TrackPosition?
-	suspend fun refresh()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun refresh()
 }
 class TrackOrdered internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun info(): moq.TrackInfo
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
-	suspend fun nextGroup(): moq.TrackItem?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun nextGroup(): moq.TrackItem?
 	fun control(): moq.TrackControl
-	suspend fun refresh()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun refresh()
 	fun subscription(): moq.TrackSubscription
-	fun update(subscription: moq.TrackSubscription)
-	suspend fun finished(): moq.TrackPosition
+	@kotlin.jvm.Throws(ErrorException::class) fun update(subscription: moq.TrackSubscription)
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun finished(): moq.TrackPosition
 	suspend fun largest(): moq.TrackPosition?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun isClone(other: moq.TrackOrdered): kotlin.Boolean
@@ -2929,10 +2931,10 @@ class TrackInfo internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun withPriority(priority: kotlin.Byte): moq.TrackInfo
 	fun withCompression(compression: moq.TrackCompression): moq.TrackInfo
 	fun withRefresh(refresh: moq.TrackRefresh): moq.TrackInfo
-	fun rescale(timestamp: moq.Timestamp): moq.Timestamp
-	fun rescaleIn(timestamp: moq.Timestamp, key: kotlin.ULong): moq.Timestamp
+	@kotlin.jvm.Throws(ErrorException::class) fun rescale(timestamp: moq.Timestamp): moq.Timestamp
+	@kotlin.jvm.Throws(ErrorException::class) fun rescaleIn(timestamp: moq.Timestamp, key: kotlin.ULong): moq.Timestamp
 	companion object {
-		fun default(): moq.TrackInfo
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackInfo
 	}
 }
 class TrackRefresh internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2948,7 +2950,7 @@ class TrackRefresh internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun withRatio(ratio: kotlin.UInt?): moq.TrackRefresh
 	fun withInterval(interval: moq.Duration?): moq.TrackRefresh
 	companion object {
-		fun default(): moq.TrackRefresh
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackRefresh
 	}
 }
 class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2957,18 +2959,18 @@ class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
-	fun writeFrame(timestamp: moq.Timestamp, frame: moq.Bytes)
-	fun finish(): moq.TrackFinished
-	fun fail(err: moq.Error): moq.TrackFinished
-	fun finishAt(end: moq.TrackPosition)
-	fun startAt(key: kotlin.ULong?)
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun writeFrame(timestamp: moq.Timestamp, frame: moq.Bytes)
+	@kotlin.jvm.Throws(ErrorException::class) fun finish(): moq.TrackFinished
+	@kotlin.jvm.Throws(ErrorException::class) fun fail(err: moq.Error): moq.TrackFinished
+	@kotlin.jvm.Throws(ErrorException::class) fun finishAt(end: moq.TrackPosition)
+	@kotlin.jvm.Throws(ErrorException::class) fun startAt(key: kotlin.ULong?)
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(TrackProducerException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -2977,7 +2979,7 @@ class TrackProducer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun consume(): moq.TrackConsumer
 	fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
 	fun subscription(): moq.TrackSubscription?
-	suspend fun subscriptionChanged(): moq.TrackSubscription?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun subscriptionChanged(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 }
 class TrackAbortHandle internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -2992,17 +2994,17 @@ class TrackConsumer internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun unmetered(): moq.TrackConsumer
 	fun name(): kotlin.String
 	fun broadcast(): moq.BroadcastInfo
-	suspend fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
-	suspend fun fetchGroup(key: kotlin.ULong, options: moq.GroupFetch?): moq.GroupConsumer
-	suspend fun info(): moq.TrackInfo
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun subscribe(subscription: moq.TrackSubscription?): moq.TrackSubscriber
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun fetchGroup(key: kotlin.ULong, options: moq.GroupFetch?): moq.GroupConsumer
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun info(): moq.TrackInfo
 	suspend fun largest(): moq.TrackPosition?
 }
 class TrackControl internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TrackControl
 	fun subscription(): moq.TrackSubscription
-	fun update(subscription: moq.TrackSubscription)
-	suspend fun refresh()
+	@kotlin.jvm.Throws(ErrorException::class) fun update(subscription: moq.TrackSubscription)
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun refresh()
 }
 class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3023,7 +3025,7 @@ class TrackSubscription internal constructor(raw: Long, lent: Boolean = false) :
 	fun withRanges(ranges: kotlin.collections.List<moq.TrackRange>): moq.TrackSubscription
 	fun withOrder(order: moq.TrackOrder): moq.TrackSubscription
 	companion object {
-		fun default(): moq.TrackSubscription
+		@kotlin.jvm.JvmStatic fun default(): moq.TrackSubscription
 	}
 }
 class TrackFill internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3031,17 +3033,17 @@ class TrackFill internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 }
 class OriginFollowing internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun available(): moq.BroadcastConsumer?
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun available(): moq.BroadcastConsumer?
 }
 class OriginClaim internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.OriginClaim
 	fun instance(): moq.Instance
-	fun announce()
+	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	fun setCost(cost: moq.OriginCost)
-	fun setAuth(auth: moq.AuthCredential?)
+	@kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 	suspend fun requested(): moq.OriginRequest?
 }
 class OriginConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3057,8 +3059,8 @@ class OriginConfig internal constructor(raw: Long, lent: Boolean = false) : Auto
 	val cacheDurationGet: moq.Duration?
 	fun cacheDurationSet(value: moq.Duration?)
 	companion object {
-		fun default(): moq.OriginConfig
-		fun new(node: kotlin.ULong): moq.OriginConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.OriginConfig
+		@kotlin.jvm.JvmStatic fun new(node: kotlin.ULong): moq.OriginConfig
 	}
 }
 class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3067,21 +3069,21 @@ class OriginConsumer internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun node(): kotlin.ULong
 	fun withHidden(hidden: kotlin.Boolean): moq.OriginConsumer
 	fun covering(): moq.OriginConsumer
-	fun exclude(prefix: kotlin.String): moq.OriginConsumer
+	@kotlin.jvm.Throws(ErrorException::class) fun exclude(prefix: kotlin.String): moq.OriginConsumer
 	fun withStats(session: moq.StatsSession): moq.OriginConsumer
 	fun announced(): moq.AnnounceConsumer
 	fun routes(): moq.OriginRoutes
 	fun consume(): moq.OriginConsumer
-	fun follow(path: kotlin.String, instance: moq.Instance?): moq.OriginFollowing
-	fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginConsumer
-	suspend fun request(path: kotlin.String, instance: moq.Instance?): moq.BroadcastConsumer
+	@kotlin.jvm.Throws(ErrorException::class) fun follow(path: kotlin.String, instance: moq.Instance?): moq.OriginFollowing
+	@kotlin.jvm.Throws(ErrorException::class) fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginConsumer
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun request(path: kotlin.String, instance: moq.Instance?): moq.BroadcastConsumer
 	fun root(): moq.Path
 	fun allowed(): moq.Patterns
-	fun absolute(path: kotlin.String): moq.Path
+	@kotlin.jvm.Throws(ErrorException::class) fun absolute(path: kotlin.String): moq.Path
 }
 class OriginDriver internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
+	@kotlin.jvm.Throws(ErrorException::class) fun poll(now: moq.ClockInstant, waiter: moq.Waiter): moq.ClockInstant?
 }
 class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3093,23 +3095,23 @@ class OriginProducer internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun config(): moq.OriginConfig
 	fun node(): kotlin.ULong
 	fun isOwn(id: kotlin.ULong): kotlin.Boolean
-	fun route(path: kotlin.String, options: moq.OriginRouteOptions): moq.OriginRoute
-	fun claim(prefix: kotlin.String, options: moq.OriginRouteOptions): moq.OriginClaim
-	fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginProducer
-	fun exclude(prefix: kotlin.String): moq.OriginProducer
-	fun mount(at: kotlin.String, target: kotlin.String): moq.OriginProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun route(path: kotlin.String, options: moq.OriginRouteOptions): moq.OriginRoute
+	@kotlin.jvm.Throws(ErrorException::class) fun claim(prefix: kotlin.String, options: moq.OriginRouteOptions): moq.OriginClaim
+	@kotlin.jvm.Throws(ErrorException::class) fun scope(root: kotlin.String, patterns: moq.Patterns): moq.OriginProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun exclude(prefix: kotlin.String): moq.OriginProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun mount(at: kotlin.String, target: kotlin.String): moq.OriginProducer
 	fun consume(): moq.OriginConsumer
 	fun root(): moq.Path
 	fun allowed(): moq.Patterns
-	fun absolute(path: kotlin.String): moq.Path
+	@kotlin.jvm.Throws(ErrorException::class) fun absolute(path: kotlin.String): moq.Path
 	companion object {
-		fun new(config: moq.OriginConfig): kotlin.Pair<moq.OriginProducer, moq.OriginDriver>
+		@kotlin.jvm.JvmStatic fun new(config: moq.OriginConfig): kotlin.Pair<moq.OriginProducer, moq.OriginDriver>
 	}
 }
 class OriginRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun path(): moq.Path
-	fun route(options: moq.OriginRouteOptions): moq.OriginRoute
+	@kotlin.jvm.Throws(ErrorException::class) fun route(options: moq.OriginRouteOptions): moq.OriginRoute
 	fun serveProducer(broadcast: moq.BroadcastProducer)
 	fun serveConsumer(broadcast: moq.BroadcastConsumer)
 	fun reject(err: moq.Error)
@@ -3119,11 +3121,11 @@ class OriginRoute internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun clone(): moq.OriginRoute
 	fun broadcast(): moq.BroadcastProducer
 	fun instance(): moq.Instance
-	fun announce()
+	@kotlin.jvm.Throws(ErrorException::class) fun announce()
 	fun withdraw()
 	fun isAnnounced(): kotlin.Boolean
-	fun setCost(cost: moq.OriginCost)
-	fun setAuth(auth: moq.AuthCredential?)
+	@kotlin.jvm.Throws(ErrorException::class) fun setCost(cost: moq.OriginCost)
+	@kotlin.jvm.Throws(ErrorException::class) fun setAuth(auth: moq.AuthCredential?)
 }
 class OriginRouteInfo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3143,8 +3145,8 @@ class OriginRouteOptions internal constructor(raw: Long, lent: Boolean = false) 
 	fun withAuth(auth: moq.AuthCredential): moq.OriginRouteOptions
 	fun withInstance(instance: moq.Instance, epoch: kotlin.ULong): moq.OriginRouteOptions
 	companion object {
-		fun default(): moq.OriginRouteOptions
-		fun hidden(): moq.OriginRouteOptions
+		@kotlin.jvm.JvmStatic fun default(): moq.OriginRouteOptions
+		@kotlin.jvm.JvmStatic fun hidden(): moq.OriginRouteOptions
 	}
 }
 class OriginRouteEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3163,7 +3165,7 @@ class OriginRoutes internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun isClosed(): kotlin.Boolean
 	suspend fun pollSynced()
 	fun root(): moq.Path
-	fun absolute(prefix: kotlin.String): moq.Path
+	@kotlin.jvm.Throws(ErrorException::class) fun absolute(prefix: kotlin.String): moq.Path
 }
 class AnnounceConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3172,7 +3174,7 @@ class AnnounceConsumer internal constructor(raw: Long, lent: Boolean = false) : 
 	fun isClosed(): kotlin.Boolean
 	suspend fun pollSynced()
 	fun root(): moq.Path
-	fun absolute(prefix: kotlin.String): moq.Path
+	@kotlin.jvm.Throws(ErrorException::class) fun absolute(prefix: kotlin.String): moq.Path
 }
 class AnnounceEvent internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -3201,7 +3203,7 @@ class HangStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) :
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>)
 	companion object {
-		fun default(): moq.HangStatsSnapshot
+		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsSnapshot
 	}
 }
 class HangStatsRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3221,7 +3223,7 @@ class HangStatsRendition internal constructor(raw: Long, lent: Boolean = false) 
 	val bitrateGet: kotlin.ULong?
 	fun bitrateSet(value: kotlin.ULong?)
 	companion object {
-		fun default(): moq.HangStatsRendition
+		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsRendition
 	}
 }
 class HangStatsTransport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3241,7 +3243,7 @@ class HangStatsTransport internal constructor(raw: Long, lent: Boolean = false) 
 	val ageGet: moq.Duration?
 	fun ageSet(value: moq.Duration?)
 	companion object {
-		fun default(): moq.HangStatsTransport
+		@kotlin.jvm.JvmStatic fun default(): moq.HangStatsTransport
 	}
 }
 class HangEchoSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3255,7 +3257,7 @@ class HangEchoSnapshot internal constructor(raw: Long, lent: Boolean = false) : 
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangEchoRendition>>)
 	companion object {
-		fun default(): moq.HangEchoSnapshot
+		@kotlin.jvm.JvmStatic fun default(): moq.HangEchoSnapshot
 	}
 }
 class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3283,7 +3285,7 @@ class HangEchoRendition internal constructor(raw: Long, lent: Boolean = false) :
 	val arrivalGet: moq.HangEchoArrival?
 	fun arrivalSet(value: moq.HangEchoArrival?)
 	companion object {
-		fun default(): moq.HangEchoRendition
+		@kotlin.jvm.JvmStatic fun default(): moq.HangEchoRendition
 	}
 }
 class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3297,7 +3299,7 @@ class HangEchoArrival internal constructor(raw: Long, lent: Boolean = false) : A
 	val wallGet: moq.ClockWall
 	fun wallSet(value: moq.ClockWall)
 	companion object {
-		fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
+		@kotlin.jvm.JvmStatic fun new(timestamp: moq.Timestamp, wall: moq.ClockWall): moq.HangEchoArrival
 	}
 }
 class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3321,14 +3323,14 @@ class HangCatalogSkipped internal constructor(raw: Long, lent: Boolean = false) 
 	fun isEmpty(): kotlin.Boolean
 	fun version(): kotlin.ULong?
 	companion object {
-		fun default(): moq.HangCatalogSkipped
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogSkipped
 	}
 }
 class HangCatalogConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun pollNext(): moq.MoqJsonTimedCatalog?
+	@kotlin.jvm.Throws(HangErrorException::class) suspend fun pollNext(): moq.MoqJsonTimedCatalog?
 	companion object {
-		fun new(track: moq.TrackConsumer, delay: moq.Duration): moq.HangCatalogConsumer
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer, delay: moq.Duration): moq.HangCatalogConsumer
 	}
 }
 class HangCatalogAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3339,13 +3341,13 @@ class HangCatalogAudio internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun hashCode(): kotlin.Int
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>)
-	fun insert(name: kotlin.String, config: moq.HangCatalogAudioConfig)
+	@kotlin.jvm.Throws(HangErrorException::class) fun insert(name: kotlin.String, config: moq.HangCatalogAudioConfig)
 	fun remove(name: kotlin.String): moq.HangCatalogAudioConfig?
 	fun isEmpty(): kotlin.Boolean
 	fun enabled(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>
 	fun ranked(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogAudioConfig>>
 	companion object {
-		fun default(): moq.HangCatalogAudio
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogAudio
 	}
 }
 class HangCatalogAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3386,7 +3388,7 @@ class HangCatalogAudioConfig internal constructor(raw: Long, lent: Boolean = fal
 	fun delaySet(value: moq.Duration?)
 	fun sameIdentity(other: moq.HangCatalogAudioConfig): kotlin.Boolean
 	companion object {
-		fun new(codec: moq.HangCatalogAudioCodec, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.HangCatalogAudioConfig
+		@kotlin.jvm.JvmStatic fun new(codec: moq.HangCatalogAudioCodec, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.HangCatalogAudioConfig
 	}
 }
 class HangCatalogBinary internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3397,11 +3399,11 @@ class HangCatalogBinary internal constructor(raw: Long, lent: Boolean = false) :
 	override fun hashCode(): kotlin.Int
 	val tracksGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogBinaryConfig>>
 	fun tracksSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogBinaryConfig>>)
-	fun insert(name: kotlin.String, config: moq.HangCatalogBinaryConfig)
+	@kotlin.jvm.Throws(HangErrorException::class) fun insert(name: kotlin.String, config: moq.HangCatalogBinaryConfig)
 	fun remove(name: kotlin.String): moq.HangCatalogBinaryConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.HangCatalogBinary
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogBinary
 	}
 }
 class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3429,7 +3431,7 @@ class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = fa
 	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
-		fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
+		@kotlin.jvm.JvmStatic fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
 	}
 }
 class HangCatalogClock internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3440,9 +3442,9 @@ class HangCatalogClock internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun hashCode(): kotlin.Int
 	val wallGet: moq.Timestamp
 	fun wallSet(value: moq.Timestamp)
-	fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	@kotlin.jvm.Throws(HangErrorException::class) fun wallClock(pts: moq.Timestamp): moq.ClockWall
 	companion object {
-		fun new(wall: moq.Timestamp): moq.HangCatalogClock
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(HangErrorException::class) fun new(wall: moq.Timestamp): moq.HangCatalogClock
 	}
 }
 class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3452,7 +3454,7 @@ class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun default(): moq.HangCatalogContainer
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogContainer
 	}
 }
 class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3464,7 +3466,7 @@ class HangCatalogEcho internal constructor(raw: Long, lent: Boolean = false) : A
 	val pathGet: moq.PathRelative
 	fun pathSet(value: moq.PathRelative)
 	companion object {
-		fun new(path: moq.PathRelative): moq.HangCatalogEcho
+		@kotlin.jvm.JvmStatic fun new(path: moq.PathRelative): moq.HangCatalogEcho
 	}
 }
 class HangCatalogInclude internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3478,7 +3480,7 @@ class HangCatalogInclude internal constructor(raw: Long, lent: Boolean = false) 
 	val instanceGet: moq.Instance?
 	fun instanceSet(value: moq.Instance?)
 	companion object {
-		fun new(broadcast: moq.PathRelative): moq.HangCatalogInclude
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.PathRelative): moq.HangCatalogInclude
 	}
 }
 class HangCatalogJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3489,11 +3491,11 @@ class HangCatalogJson internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun hashCode(): kotlin.Int
 	val tracksGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogJsonConfig>>
 	fun tracksSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogJsonConfig>>)
-	fun insert(name: kotlin.String, config: moq.HangCatalogJsonConfig)
+	@kotlin.jvm.Throws(HangErrorException::class) fun insert(name: kotlin.String, config: moq.HangCatalogJsonConfig)
 	fun remove(name: kotlin.String): moq.HangCatalogJsonConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.HangCatalogJson
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogJson
 	}
 }
 class HangCatalogJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3521,7 +3523,7 @@ class HangCatalogJsonConfig internal constructor(raw: Long, lent: Boolean = fals
 	val extraGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
-		fun new(mode: moq.HangCatalogMode): moq.HangCatalogJsonConfig
+		@kotlin.jvm.JvmStatic fun new(mode: moq.HangCatalogMode): moq.HangCatalogJsonConfig
 	}
 }
 class HangCatalogStats internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3533,7 +3535,7 @@ class HangCatalogStats internal constructor(raw: Long, lent: Boolean = false) : 
 	val trackGet: kotlin.String
 	fun trackSet(value: kotlin.String)
 	companion object {
-		fun new(track: kotlin.String): moq.HangCatalogStats
+		@kotlin.jvm.JvmStatic fun new(track: kotlin.String): moq.HangCatalogStats
 	}
 }
 class HangCatalogText internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3544,11 +3546,11 @@ class HangCatalogText internal constructor(raw: Long, lent: Boolean = false) : A
 	override fun hashCode(): kotlin.Int
 	val renditionsGet: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogTextConfig>>
 	fun renditionsSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogTextConfig>>)
-	fun insert(name: kotlin.String, config: moq.HangCatalogTextConfig)
+	@kotlin.jvm.Throws(HangErrorException::class) fun insert(name: kotlin.String, config: moq.HangCatalogTextConfig)
 	fun remove(name: kotlin.String): moq.HangCatalogTextConfig?
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.HangCatalogText
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogText
 	}
 }
 class HangCatalogTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3578,7 +3580,7 @@ class HangCatalogTextConfig internal constructor(raw: Long, lent: Boolean = fals
 	val delayGet: moq.Duration?
 	fun delaySet(value: moq.Duration?)
 	companion object {
-		fun new(format: moq.HangCatalogTextFormat): moq.HangCatalogTextConfig
+		@kotlin.jvm.JvmStatic fun new(format: moq.HangCatalogTextFormat): moq.HangCatalogTextConfig
 	}
 }
 class HangCatalogTimeline internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3593,7 +3595,7 @@ class HangCatalogTimeline internal constructor(raw: Long, lent: Boolean = false)
 	fun intervalSet(value: moq.Duration?)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.HangCatalogTimeline
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogTimeline
 	}
 }
 class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3615,7 +3617,7 @@ class HangCatalogColor internal constructor(raw: Long, lent: Boolean = false) : 
 	val contentLightGet: moq.HangCatalogContentLight?
 	fun contentLightSet(value: moq.HangCatalogContentLight?)
 	companion object {
-		fun default(): moq.HangCatalogColor
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogColor
 	}
 }
 class HangCatalogProjection internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3625,7 +3627,7 @@ class HangCatalogProjection internal constructor(raw: Long, lent: Boolean = fals
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun default(): moq.HangCatalogProjection
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogProjection
 	}
 }
 class HangCatalogVideo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3642,14 +3644,14 @@ class HangCatalogVideo internal constructor(raw: Long, lent: Boolean = false) : 
 	fun rotationSet(value: kotlin.Double?)
 	val flipGet: kotlin.Boolean?
 	fun flipSet(value: kotlin.Boolean?)
-	fun insert(name: kotlin.String, config: moq.HangCatalogVideoConfig)
+	@kotlin.jvm.Throws(HangErrorException::class) fun insert(name: kotlin.String, config: moq.HangCatalogVideoConfig)
 	fun remove(name: kotlin.String): moq.HangCatalogVideoConfig?
 	fun isEmpty(): kotlin.Boolean
 	fun enabled(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogVideoConfig>>
 	fun ranked(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogVideoConfig>>
-	fun setProperties(properties: moq.HangCatalogVideoProperties)
+	@kotlin.jvm.Throws(HangErrorException::class) fun setProperties(properties: moq.HangCatalogVideoProperties)
 	companion object {
-		fun default(): moq.HangCatalogVideo
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVideo
 	}
 }
 class HangCatalogVideoProperties internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3665,7 +3667,7 @@ class HangCatalogVideoProperties internal constructor(raw: Long, lent: Boolean =
 	val flipGet: kotlin.Boolean?
 	fun flipSet(value: kotlin.Boolean?)
 	companion object {
-		fun default(): moq.HangCatalogVideoProperties
+		@kotlin.jvm.JvmStatic fun default(): moq.HangCatalogVideoProperties
 	}
 }
 class HangCatalogVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3722,25 +3724,25 @@ class HangCatalogVideoConfig internal constructor(raw: Long, lent: Boolean = fal
 	fun delaySet(value: moq.Duration?)
 	fun sameIdentity(other: moq.HangCatalogVideoConfig): kotlin.Boolean
 	companion object {
-		fun new(codec: moq.HangCatalogVideoCodec): moq.HangCatalogVideoConfig
+		@kotlin.jvm.JvmStatic fun new(codec: moq.HangCatalogVideoCodec): moq.HangCatalogVideoConfig
 	}
 }
 class MuxCatalogConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumer
 	}
 }
 class MuxCatalogConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExtra
 	}
 }
 class MuxCatalogConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(broadcast: moq.BroadcastConsumer, format: moq.MuxCatalogCatalogFormat): moq.MuxCatalogConsumerExt
 	}
 }
 class MuxCatalogEstimate internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3762,7 +3764,7 @@ class MuxCatalogEstimate internal constructor(raw: Long, lent: Boolean = false) 
 	fun withDelay(delay: moq.Duration?): moq.MuxCatalogEstimate
 	fun withFramerate(framerate: kotlin.Double?): moq.MuxCatalogEstimate
 	companion object {
-		fun default(): moq.MuxCatalogEstimate
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogEstimate
 	}
 }
 class MuxCatalogConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3775,7 +3777,7 @@ class MuxCatalogConfig internal constructor(raw: Long, lent: Boolean = false) : 
 	fun withMaxAge(maxAge: moq.Duration?): moq.MuxCatalogConfig
 	fun withBandwidth(bandwidth: moq.BandwidthAllocator): moq.MuxCatalogConfig
 	companion object {
-		fun default(): moq.MuxCatalogConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogConfig
 	}
 }
 class MuxCatalogConfigExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3800,7 +3802,7 @@ class MuxCatalogConfigExt internal constructor(raw: Long, lent: Boolean = false)
 }
 class MuxCatalogGuard internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val videoGet: moq.HangCatalogVideo
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
@@ -3821,16 +3823,16 @@ class MuxCatalogGuard internal constructor(raw: Long, lent: Boolean = false) : A
 	fun includeSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangCatalogInclude>>)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 }
 class MuxCatalogGuardExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
-	fun setSection(name: kotlin.String, value: moq.Json)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setSection(name: kotlin.String, value: moq.Json)
 	fun removeSection(name: kotlin.String): moq.Json?
 	val videoGet: moq.HangCatalogVideo
 	fun videoSet(value: moq.HangCatalogVideo)
@@ -3854,15 +3856,15 @@ class MuxCatalogGuardExtra internal constructor(raw: Long, lent: Boolean = false
 	fun extSet(value: moq.MuxCatalogHangExtra)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 }
 class MuxCatalogGuardExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val videoGet: moq.HangCatalogVideo
 	fun videoSet(value: moq.HangCatalogVideo)
 	val audioGet: moq.HangCatalogAudio
@@ -3885,326 +3887,326 @@ class MuxCatalogGuardExt internal constructor(raw: Long, lent: Boolean = false) 
 	fun extSet(value: moq.MuxContainerTsExt)
 	val skippedGet: moq.HangCatalogSkipped
 	fun skippedSet(value: moq.HangCatalogSkipped)
-	fun checkRenditions()
+	@kotlin.jvm.Throws(HangErrorException::class) fun checkRenditions()
 	fun withoutExt(): moq.HangCatalog
-	fun toJson(): kotlin.String
-	fun toVec(): moq.Bytes
-	fun toWriter(writer: moq.Bytes)
+	@kotlin.jvm.Throws(HangErrorException::class) fun toJson(): kotlin.String
+	@kotlin.jvm.Throws(HangErrorException::class) fun toVec(): moq.Bytes
+	@kotlin.jvm.Throws(HangErrorException::class) fun toWriter(writer: moq.Bytes)
 }
 class MuxCatalogProducer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogProducer
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
-	fun mutate(f: (moq.HangCatalog) -> kotlin.Unit)
-	fun modify(): moq.MuxCatalogGuard
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun mutate(f: (moq.HangCatalog) -> kotlin.Unit)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxCatalogGuard
 	fun snapshot(): moq.HangCatalog
 	fun clock(): moq.MuxClock
 	fun timebase(): moq.MuxCatalogTimebase
 	fun reserve(): moq.MuxCatalogReserved
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
 	fun isClaimedJsonConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedBinaryConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedVideoConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedAudioConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedTextConfig(name: kotlin.String): kotlin.Boolean
 	fun stats(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
-	fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
-	fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
-	fun consume(): moq.MuxCatalogHangConsumer
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(ErrorException::class) fun consume(): moq.MuxCatalogHangConsumer
 	fun abort(err: moq.Error)
-	fun finish()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfig): moq.MuxCatalogProducer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfig): moq.MuxCatalogProducer
 	}
 }
 class MuxCatalogProducerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogProducerExtra
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
-	fun mutate(f: (moq.HangCatalogExtra) -> kotlin.Unit)
-	fun modify(): moq.MuxCatalogGuardExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun mutate(f: (moq.HangCatalogExtra) -> kotlin.Unit)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxCatalogGuardExtra
 	fun snapshot(): moq.HangCatalogExtra
 	fun clock(): moq.MuxClock
 	fun timebase(): moq.MuxCatalogTimebaseExtra
 	fun reserve(): moq.MuxCatalogReservedExtra
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
 	fun isClaimedJsonConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedBinaryConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedVideoConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedAudioConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedTextConfig(name: kotlin.String): kotlin.Boolean
 	fun stats(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
-	fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
-	fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
-	fun consume(): moq.MuxCatalogHangConsumerExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(ErrorException::class) fun consume(): moq.MuxCatalogHangConsumerExtra
 	fun abort(err: moq.Error)
-	fun finish()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExtra): moq.MuxCatalogProducerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExtra): moq.MuxCatalogProducerExtra
 	}
 }
 class MuxCatalogProducerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogProducerExt
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
-	fun mutate(f: (moq.HangCatalogExt) -> kotlin.Unit)
-	fun modify(): moq.MuxCatalogGuardExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun mutate(f: (moq.HangCatalogExt) -> kotlin.Unit)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxCatalogGuardExt
 	fun snapshot(): moq.HangCatalogExt
 	fun clock(): moq.MuxClock
 	fun timebase(): moq.MuxCatalogTimebaseExt
 	fun reserve(): moq.MuxCatalogReservedExt
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
 	fun isClaimedJsonConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedBinaryConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedVideoConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedAudioConfig(name: kotlin.String): kotlin.Boolean
 	fun isClaimedTextConfig(name: kotlin.String): kotlin.Boolean
 	fun stats(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.HangStatsRendition>>
-	fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
-	fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
-	fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
-	fun consume(): moq.MuxCatalogHangConsumerExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonSnapshotJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig, options: moq.MuxJsonOptions): moq.MuxJsonSnapshotJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamConfig(track: moq.TrackProducer, config: moq.MuxJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(MuxErrorException::class) fun jsonStreamJsonConfig(track: moq.TrackProducer, config: moq.HangCatalogJsonConfig): moq.MuxJsonStreamJson
+	@kotlin.jvm.Throws(ErrorException::class) fun consume(): moq.MuxCatalogHangConsumerExt
 	fun abort(err: moq.Error)
-	fun finish()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExt): moq.MuxCatalogProducerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, config: moq.MuxCatalogConfigExt): moq.MuxCatalogProducerExt
 	}
 }
 class MuxCatalogTimebase internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebase
 	fun reserve(): moq.MuxCatalogReserved
-	fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExtra
 	fun reserve(): moq.MuxCatalogReservedExtra
-	fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogTimebaseExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogTimebaseExt
 	fun reserve(): moq.MuxCatalogReservedExt
-	fun place(pts: moq.Timestamp, wall: moq.ClockWall)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun place(pts: moq.Timestamp, wall: moq.ClockWall)
 }
 class MuxCatalogReserved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogReserved
 	fun withInterval(interval: moq.Duration?): moq.MuxCatalogReserved
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 }
 class MuxCatalogReservedExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogReservedExtra
 	fun withInterval(interval: moq.Duration?): moq.MuxCatalogReservedExtra
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 }
 class MuxCatalogReservedExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.MuxCatalogReservedExt
 	fun withInterval(interval: moq.Duration?): moq.MuxCatalogReservedExt
 	fun trackInfo(priority: kotlin.Byte): moq.TrackInfo
-	fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
-	fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
-	fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
-	fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
-	fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
-	fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
-	fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
-	fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
-	fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
-	fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
-	fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
-	fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
-	fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
-	fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
-	fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
-	fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
-	fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
-	fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
-	fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
-	fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun videoLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun audioLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textContainer(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textFmp4Wire(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLegacyWire(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun textLocWire(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerJsonConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerBinaryConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerVideoConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerAudioConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackContainerTextConfig(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackFmp4WireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLegacyWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireJsonConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogJsonConfig?): moq.MuxContainerProducerLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireBinaryConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogBinaryConfig?): moq.MuxContainerProducerLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireVideoConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogVideoConfig?): moq.MuxContainerProducerLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireAudioConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogAudioConfig?): moq.MuxContainerProducerLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun trackLocWireTextConfig(track: moq.TrackProducer, container: moq.MuxContainerLocWire, config: moq.HangCatalogTextConfig?): moq.MuxContainerProducerLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 }
 class MuxCatalogVideoHint internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -4242,87 +4244,87 @@ class MuxCatalogVideoHint internal constructor(raw: Long, lent: Boolean = false)
 	fun preferenceSet(value: kotlin.Int)
 	fun apply(config: moq.HangCatalogVideoConfig)
 	companion object {
-		fun default(): moq.MuxCatalogVideoHint
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogVideoHint
 	}
 }
 class MuxContainerConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun arrival(): moq.ClockInstant?
 	fun backlog(): moq.ClockInstant?
-	suspend fun read(): moq.MuxContainerRead?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerRead?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		fun new(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxCatalogHangContainer): moq.MuxContainerConsumerContainer
 	}
 }
 class MuxContainerConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun arrival(): moq.ClockInstant?
 	fun backlog(): moq.ClockInstant?
-	suspend fun read(): moq.MuxContainerRead?
+	@kotlin.jvm.Throws(MuxContainerFmp4ErrorException::class) suspend fun read(): moq.MuxContainerRead?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerFmp4Wire): moq.MuxContainerConsumerFmp4Wire
 	}
 }
 class MuxContainerConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun arrival(): moq.ClockInstant?
 	fun backlog(): moq.ClockInstant?
-	suspend fun read(): moq.MuxContainerRead?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerRead?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLegacyWire): moq.MuxContainerConsumerLegacyWire
 	}
 }
 class MuxContainerConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun arrival(): moq.ClockInstant?
 	fun backlog(): moq.ClockInstant?
-	suspend fun read(): moq.MuxContainerRead?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerRead?
 	fun isSkipped(groups: moq.RangeU64): kotlin.Boolean
 	fun setDelay(delay: moq.TrackDelay)
 	fun setPlayhead(playhead: moq.MuxSyncConsumer)
 	companion object {
-		fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber, format: moq.MuxContainerLocWire): moq.MuxContainerConsumerLocWire
 	}
 }
 class MuxContainerGroupConsumerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun start(): kotlin.ULong
-	suspend fun read(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		fun new(group: moq.GroupConsumer, format: moq.MuxCatalogHangContainer): moq.MuxContainerGroupConsumerContainer
+		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxCatalogHangContainer): moq.MuxContainerGroupConsumerContainer
 	}
 }
 class MuxContainerGroupConsumerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun start(): kotlin.ULong
-	suspend fun read(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxContainerFmp4ErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		fun new(group: moq.GroupConsumer, format: moq.MuxContainerFmp4Wire): moq.MuxContainerGroupConsumerFmp4Wire
+		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerFmp4Wire): moq.MuxContainerGroupConsumerFmp4Wire
 	}
 }
 class MuxContainerGroupConsumerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun start(): kotlin.ULong
-	suspend fun read(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		fun new(group: moq.GroupConsumer, format: moq.MuxContainerLegacyWire): moq.MuxContainerGroupConsumerLegacyWire
+		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerLegacyWire): moq.MuxContainerGroupConsumerLegacyWire
 	}
 }
 class MuxContainerGroupConsumerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun start(): kotlin.ULong
-	suspend fun read(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(): moq.MuxContainerFrame?
 	companion object {
-		fun new(group: moq.GroupConsumer, format: moq.MuxContainerLocWire): moq.MuxContainerGroupConsumerLocWire
+		@kotlin.jvm.JvmStatic fun new(group: moq.GroupConsumer, format: moq.MuxContainerLocWire): moq.MuxContainerGroupConsumerLocWire
 	}
 }
 class MuxContainerFinishedContainerAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -4543,11 +4545,11 @@ class MuxContainerFinishedLocWire internal constructor(raw: Long, lent: Boolean 
 }
 class MuxContainerGuardUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 }
 class MuxContainerGuardAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val broadcastGet: moq.PathRelative?
 	fun broadcastSet(value: moq.PathRelative?)
 	val trackGet: kotlin.String?
@@ -4582,7 +4584,7 @@ class MuxContainerGuardAudioConfig internal constructor(raw: Long, lent: Boolean
 }
 class MuxContainerGuardBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val broadcastGet: moq.PathRelative?
 	fun broadcastSet(value: moq.PathRelative?)
 	val trackGet: kotlin.String?
@@ -4604,7 +4606,7 @@ class MuxContainerGuardBinaryConfig internal constructor(raw: Long, lent: Boolea
 }
 class MuxContainerGuardJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val broadcastGet: moq.PathRelative?
 	fun broadcastSet(value: moq.PathRelative?)
 	val trackGet: kotlin.String?
@@ -4626,7 +4628,7 @@ class MuxContainerGuardJsonConfig internal constructor(raw: Long, lent: Boolean 
 }
 class MuxContainerGuardTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val broadcastGet: moq.PathRelative?
 	fun broadcastSet(value: moq.PathRelative?)
 	val trackGet: kotlin.String?
@@ -4650,7 +4652,7 @@ class MuxContainerGuardTextConfig internal constructor(raw: Long, lent: Boolean 
 }
 class MuxContainerGuardVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun commit()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun commit()
 	val broadcastGet: moq.PathRelative?
 	fun broadcastSet(value: moq.PathRelative?)
 	val trackGet: kotlin.String?
@@ -4701,10 +4703,10 @@ class MuxContainerGuardVideoConfig internal constructor(raw: Long, lent: Boolean
 }
 class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogAudioConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardAudioConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogAudioConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4717,22 +4719,22 @@ class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, l
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerAudioConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4743,10 +4745,10 @@ class MuxContainerProducerContainerAudioConfig internal constructor(raw: Long, l
 }
 class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogBinaryConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardBinaryConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogBinaryConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4759,22 +4761,22 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainerBinaryConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainerBinaryConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerBinaryConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4785,10 +4787,10 @@ class MuxContainerProducerContainerBinaryConfig internal constructor(raw: Long, 
 }
 class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogJsonConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardJsonConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogJsonConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4801,22 +4803,22 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainerJsonConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainerJsonConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerJsonConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4827,10 +4829,10 @@ class MuxContainerProducerContainerJsonConfig internal constructor(raw: Long, le
 }
 class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogTextConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogTextConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4843,22 +4845,22 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainerTextConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainerTextConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerTextConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4869,10 +4871,10 @@ class MuxContainerProducerContainerTextConfig internal constructor(raw: Long, le
 }
 class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogVideoConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardVideoConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogVideoConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4885,22 +4887,22 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerVideoConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4911,10 +4913,10 @@ class MuxContainerProducerContainerVideoConfig internal constructor(raw: Long, l
 }
 class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set()
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardUnit
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardUnit
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4927,22 +4929,22 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedContainer
-	fun fail(err: moq.Error): moq.MuxContainerFinishedContainer
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainer
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedContainer
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerContainerException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4951,15 +4953,15 @@ class MuxContainerProducerContainer internal constructor(raw: Long, lent: Boolea
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		fun new(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer): moq.MuxContainerProducerContainer
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxCatalogHangContainer): moq.MuxContainerProducerContainer
 	}
 }
 class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogAudioConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardAudioConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogAudioConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -4972,22 +4974,22 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4WireAudioConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4WireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireAudioConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -4998,10 +5000,10 @@ class MuxContainerProducerFmp4WireAudioConfig internal constructor(raw: Long, le
 }
 class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogBinaryConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardBinaryConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogBinaryConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5014,22 +5016,22 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4WireBinaryConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4WireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireBinaryConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireBinaryConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5040,10 +5042,10 @@ class MuxContainerProducerFmp4WireBinaryConfig internal constructor(raw: Long, l
 }
 class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogJsonConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardJsonConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogJsonConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5056,22 +5058,22 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4WireJsonConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4WireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireJsonConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireJsonConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5082,10 +5084,10 @@ class MuxContainerProducerFmp4WireJsonConfig internal constructor(raw: Long, len
 }
 class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogTextConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogTextConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5098,22 +5100,22 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4WireTextConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4WireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireTextConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireTextConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5124,10 +5126,10 @@ class MuxContainerProducerFmp4WireTextConfig internal constructor(raw: Long, len
 }
 class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogVideoConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardVideoConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogVideoConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5140,22 +5142,22 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4WireVideoConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4WireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4WireVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireVideoConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5166,10 +5168,10 @@ class MuxContainerProducerFmp4WireVideoConfig internal constructor(raw: Long, le
 }
 class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set()
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardUnit
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardUnit
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5182,22 +5184,22 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedFmp4Wire
-	fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4Wire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedFmp4Wire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedFmp4Wire
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerFmp4WireException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5206,15 +5208,15 @@ class MuxContainerProducerFmp4Wire internal constructor(raw: Long, lent: Boolean
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		fun new(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire): moq.MuxContainerProducerFmp4Wire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerFmp4Wire): moq.MuxContainerProducerFmp4Wire
 	}
 }
 class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogAudioConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardAudioConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogAudioConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5227,22 +5229,22 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWireAudioConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireAudioConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5253,10 +5255,10 @@ class MuxContainerProducerLegacyWireAudioConfig internal constructor(raw: Long, 
 }
 class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogBinaryConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardBinaryConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogBinaryConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5269,22 +5271,22 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWireBinaryConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireBinaryConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireBinaryConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5295,10 +5297,10 @@ class MuxContainerProducerLegacyWireBinaryConfig internal constructor(raw: Long,
 }
 class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogJsonConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardJsonConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogJsonConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5311,22 +5313,22 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWireJsonConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireJsonConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireJsonConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5337,10 +5339,10 @@ class MuxContainerProducerLegacyWireJsonConfig internal constructor(raw: Long, l
 }
 class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogTextConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogTextConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5353,22 +5355,22 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWireTextConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireTextConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireTextConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5379,10 +5381,10 @@ class MuxContainerProducerLegacyWireTextConfig internal constructor(raw: Long, l
 }
 class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogVideoConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardVideoConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogVideoConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5395,22 +5397,22 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWireVideoConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWireVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireVideoConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5421,10 +5423,10 @@ class MuxContainerProducerLegacyWireVideoConfig internal constructor(raw: Long, 
 }
 class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set()
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardUnit
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardUnit
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5437,22 +5439,22 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLegacyWire
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLegacyWire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLegacyWire
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLegacyWireException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5461,15 +5463,15 @@ class MuxContainerProducerLegacyWire internal constructor(raw: Long, lent: Boole
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		fun new(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire): moq.MuxContainerProducerLegacyWire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerLegacyWire): moq.MuxContainerProducerLegacyWire
 	}
 }
 class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogAudioConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardAudioConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogAudioConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5482,22 +5484,22 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWireAudioConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWireAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireAudioConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5508,10 +5510,10 @@ class MuxContainerProducerLocWireAudioConfig internal constructor(raw: Long, len
 }
 class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogBinaryConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardBinaryConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogBinaryConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5524,22 +5526,22 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWireBinaryConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWireBinaryConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireBinaryConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireBinaryConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5550,10 +5552,10 @@ class MuxContainerProducerLocWireBinaryConfig internal constructor(raw: Long, le
 }
 class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogJsonConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardJsonConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogJsonConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5566,22 +5568,22 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWireJsonConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWireJsonConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireJsonConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireJsonConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5592,10 +5594,10 @@ class MuxContainerProducerLocWireJsonConfig internal constructor(raw: Long, lent
 }
 class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogTextConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardTextConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogTextConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5608,22 +5610,22 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWireTextConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWireTextConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireTextConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireTextConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5634,10 +5636,10 @@ class MuxContainerProducerLocWireTextConfig internal constructor(raw: Long, lent
 }
 class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set(config: moq.HangCatalogVideoConfig)
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardVideoConfig
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(config: moq.HangCatalogVideoConfig)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5650,22 +5652,22 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWireVideoConfig
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWireVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWireVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireVideoConfigException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5676,10 +5678,10 @@ class MuxContainerProducerLocWireVideoConfig internal constructor(raw: Long, len
 }
 class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun set()
-	fun setBitrate(bitrate: kotlin.ULong)
-	fun modify(): moq.MuxContainerGuardUnit
-	fun timestamp(hint: moq.Timestamp?): moq.Timestamp
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setBitrate(bitrate: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun modify(): moq.MuxContainerGuardUnit
+	@kotlin.jvm.Throws(MuxErrorException::class) fun timestamp(hint: moq.Timestamp?): moq.Timestamp
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun estimate(): moq.MuxCatalogEstimate
@@ -5692,22 +5694,22 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun reportBitrate(bitrate: moq.BandwidthRate)
 	fun track(): moq.TrackProducer
 	fun liveEdge(): moq.Timestamp?
-	fun write(frame: moq.MuxContainerFrame)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
-	fun discontinuity()
-	fun finish(): moq.MuxContainerFinishedLocWire
-	fun fail(err: moq.Error): moq.MuxContainerFinishedLocWire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun write(frame: moq.MuxContainerFrame)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedLocWire
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fail(err: moq.Error): moq.MuxContainerFinishedLocWire
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxContainerProducerLocWireException::class) fun abortUnwanted(err: moq.Error)
 	fun consume(): moq.TrackSubscriber
 	fun broadcast(): moq.BroadcastInfo
 	fun info(): moq.TrackInfo
-	fun createGroup(group: moq.GroupInfo): moq.GroupProducer
-	fun appendGroup(start: moq.Timestamp): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun createGroup(group: moq.GroupInfo): moq.GroupProducer
+	@kotlin.jvm.Throws(ErrorException::class) fun appendGroup(start: moq.Timestamp): moq.GroupProducer
 	fun skipGroups(groups: moq.RangeU64)
 	fun finished(): moq.TrackPosition?
-	suspend fun closed()
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun closed()
 	fun isClosed(): kotlin.Boolean
 	fun largest(): moq.TrackPosition?
 	fun isClone(other: moq.TrackProducer): kotlin.Boolean
@@ -5716,44 +5718,44 @@ class MuxContainerProducerLocWire internal constructor(raw: Long, lent: Boolean 
 	fun subscription(): moq.TrackSubscription?
 	fun requests(): moq.TrackRequests
 	companion object {
-		fun new(track: moq.TrackProducer, container: moq.MuxContainerLocWire): moq.MuxContainerProducerLocWire
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackProducer, container: moq.MuxContainerLocWire): moq.MuxContainerProducerLocWire
 	}
 }
 class MuxFollowInstances internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.BroadcastConsumer?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.BroadcastConsumer?
 }
 class MuxImportContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxImportContainerFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxImportContainerFinished
 	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved, init: moq.MuxImportContainerInit): moq.MuxImportContainer
 	}
 }
 class MuxImportContainerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxImportContainerFinishedExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxImportContainerFinishedExtra
 	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportContainerInit): moq.MuxImportContainerExtra
 	}
 }
 class MuxImportContainerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxImportContainerFinishedExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxImportContainerFinishedExt
 	fun abort(err: moq.Error)
-	fun cut()
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportContainerInit): moq.MuxImportContainerExt
 	}
 }
 class MuxImportAudioInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5773,7 +5775,7 @@ class MuxImportAudioInit internal constructor(raw: Long, lent: Boolean = false) 
 	val bitrateGet: kotlin.ULong?
 	fun bitrateSet(value: kotlin.ULong?)
 	companion object {
-		fun new(format: moq.MuxImportAudioFormat, data: moq.Bytes): moq.MuxImportAudioInit
+		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportAudioFormat, data: moq.Bytes): moq.MuxImportAudioInit
 	}
 }
 class MuxImportContainerInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5787,7 +5789,7 @@ class MuxImportContainerInit internal constructor(raw: Long, lent: Boolean = fal
 	val dataGet: moq.Bytes
 	fun dataSet(value: moq.Bytes)
 	companion object {
-		fun new(format: moq.MuxImportContainerFormat, data: moq.Bytes): moq.MuxImportContainerInit
+		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportContainerFormat, data: moq.Bytes): moq.MuxImportContainerInit
 	}
 }
 class MuxImportVideoInit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5807,46 +5809,46 @@ class MuxImportVideoInit internal constructor(raw: Long, lent: Boolean = false) 
 	val priorityGet: kotlin.Byte
 	fun prioritySet(value: kotlin.Byte)
 	companion object {
-		fun new(format: moq.MuxImportVideoFormat, data: moq.Bytes): moq.MuxImportVideoInit
+		@kotlin.jvm.JvmStatic fun new(format: moq.MuxImportVideoFormat, data: moq.Bytes): moq.MuxImportVideoInit
 	}
 }
 class MuxImportTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
-	fun finish(): moq.MuxImportTrackFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxImportTrackFinished
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxImportTrackException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	fun demand(): moq.TrackDemand
 	fun name(): kotlin.String
 	companion object {
-		fun audioExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportAudioInit): moq.MuxImportTrack
-		fun audioExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportAudioInit): moq.MuxImportTrack
-		fun audioUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportAudioInit): moq.MuxImportTrack
-		fun videoExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportVideoInit): moq.MuxImportTrack
-		fun videoExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportVideoInit): moq.MuxImportTrack
-		fun videoUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportVideoInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun audioExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportAudioInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun audioExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportAudioInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun audioUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportAudioInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportVideoInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportVideoInit): moq.MuxImportTrack
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportVideoInit): moq.MuxImportTrack
 	}
 }
 class MuxImportTrackStream internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(data: moq.Bytes)
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxImportTrackFinished
-	fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxImportTrackFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxImportTrackStreamException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	fun demand(): moq.TrackDemand
 	fun name(): kotlin.String
 	companion object {
-		fun videoExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
-		fun videoExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
-		fun videoUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoExtra(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExtra, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoExt(request: moq.TrackRequest, reserved: moq.MuxCatalogReservedExt, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun videoUnit(request: moq.TrackRequest, reserved: moq.MuxCatalogReserved, init: moq.MuxImportVideoInit): moq.MuxImportTrackStream
 	}
 }
 class MuxJsonSnapshotJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5854,29 +5856,29 @@ class MuxJsonSnapshotJson internal constructor(raw: Long, lent: Boolean = false)
 	fun name(): kotlin.String
 	fun consume(): moq.TrackSubscriber
 	fun demand(): moq.TrackDemand
-	suspend fun refresh()
-	fun update(value: moq.Json, timestamp: moq.Timestamp)
-	fun finish()
-	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun refresh()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun update(value: moq.Json, timestamp: moq.Timestamp)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(MuxJsonSnapshotJsonException::class) fun abortUnwanted(err: moq.Error)
 }
 class MuxJsonStreamJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun name(): kotlin.String
 	fun consume(): moq.TrackSubscriber
 	fun demand(): moq.TrackDemand
-	fun append(value: moq.Json, timestamp: moq.Timestamp)
-	fun finish()
-	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun append(value: moq.Json, timestamp: moq.Timestamp)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun abort(err: moq.Error)
+	@kotlin.jvm.Throws(MuxJsonStreamJsonException::class) fun abortUnwanted(err: moq.Error)
 }
 class MuxJsonConsumerJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun mode(): moq.HangCatalogMode
-	suspend fun next(): moq.MoqJsonTimedJson?
-	suspend fun latest(): moq.MoqJsonTimedJson?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MoqJsonTimedJson?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun latest(): moq.MoqJsonTimedJson?
 	companion object {
-		suspend fun fromTrack(track: moq.TrackConsumer, config: moq.HangCatalogJsonConfig): moq.MuxJsonConsumerJson
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun fromTrack(track: moq.TrackConsumer, config: moq.HangCatalogJsonConfig): moq.MuxJsonConsumerJson
 	}
 }
 class MuxJsonConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5887,7 +5889,7 @@ class MuxJsonConfig internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun schemaSet(value: kotlin.String?)
 	fun withSchema(schema: kotlin.String): moq.MuxJsonConfig
 	companion object {
-		fun default(): moq.MuxJsonConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxJsonConfig
 	}
 }
 class MuxJsonOptions internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5898,7 +5900,7 @@ class MuxJsonOptions internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun deltasSet(value: kotlin.Boolean)
 	fun withDeltas(deltas: kotlin.Boolean): moq.MuxJsonOptions
 	companion object {
-		fun default(): moq.MuxJsonOptions
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxJsonOptions
 	}
 }
 class MuxRateGrant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5906,10 +5908,10 @@ class MuxRateGrant internal constructor(raw: Long, lent: Boolean = false) : Auto
 	fun assume(target: moq.MuxRateTarget)
 	fun policy(): moq.MuxRatePolicy
 	fun setPolicy(policy: moq.MuxRatePolicy)
-	suspend fun next(): moq.MuxRateTarget
+	@kotlin.jvm.Throws(ErrorException::class) suspend fun next(): moq.MuxRateTarget
 	fun failed()
 	companion object {
-		fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateGrant
+		@kotlin.jvm.JvmStatic fun new(grant: moq.BandwidthConsumer, policy: moq.MuxRatePolicy): moq.MuxRateGrant
 	}
 }
 class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5925,7 +5927,7 @@ class MuxRatePolicy internal constructor(raw: Long, lent: Boolean = false) : Aut
 	val lowerGet: moq.BandwidthRate?
 	fun lowerSet(value: moq.BandwidthRate?)
 	companion object {
-		fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
+		@kotlin.jvm.JvmStatic fun new(max: moq.BandwidthRate): moq.MuxRatePolicy
 	}
 }
 class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5936,7 +5938,7 @@ class MuxRateControl internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun setProbed(probed: kotlin.Boolean)
 	fun update(estimate: moq.BandwidthRate?, now: moq.ClockInstant): moq.MuxRateTarget?
 	companion object {
-		fun new(policy: moq.MuxRatePolicy): moq.MuxRateControl
+		@kotlin.jvm.JvmStatic fun new(policy: moq.MuxRatePolicy): moq.MuxRateControl
 	}
 }
 class MuxSelectBroadcast internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5951,7 +5953,7 @@ class MuxSelectBroadcast internal constructor(raw: Long, lent: Boolean = false) 
 	fun retainExt(catalog: moq.HangCatalogExt)
 	fun retainUnit(catalog: moq.HangCatalog)
 	companion object {
-		fun default(): moq.MuxSelectBroadcast
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectBroadcast
 	}
 }
 class MuxSelectVideo internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5961,7 +5963,7 @@ class MuxSelectVideo internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun name(name: kotlin.String): moq.MuxSelectVideo
 	fun codec(codec: moq.HangCatalogVideoCodecKind): moq.MuxSelectVideo
 	companion object {
-		fun default(): moq.MuxSelectVideo
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectVideo
 	}
 }
 class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5971,7 +5973,7 @@ class MuxSelectAudio internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun name(name: kotlin.String): moq.MuxSelectAudio
 	fun codec(codec: moq.HangCatalogAudioCodecKind): moq.MuxSelectAudio
 	companion object {
-		fun default(): moq.MuxSelectAudio
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxSelectAudio
 	}
 }
 class MuxSyncTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -5998,7 +6000,7 @@ class MuxSyncProducer internal constructor(raw: Long, lent: Boolean = false) : A
 	fun track(kind: moq.MuxContainerKind): moq.MuxSyncTrack
 	fun due(timestamp: moq.Timestamp): moq.ClockInstant?
 	companion object {
-		fun new(delay: moq.Duration): moq.MuxSyncProducer
+		@kotlin.jvm.JvmStatic fun new(delay: moq.Duration): moq.MuxSyncProducer
 	}
 }
 class MuxSyncConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6022,7 +6024,7 @@ class TokioTlsIdentity internal constructor(raw: Long, lent: Boolean = false) : 
 	fun clone(): moq.TokioTlsIdentity
 	fun fingerprint(): kotlin.String
 	companion object {
-		fun generate(hostnames: kotlin.collections.List<kotlin.String>): moq.TokioTlsIdentity
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioTlsErrorException::class) fun generate(hostnames: kotlin.collections.List<kotlin.String>): moq.TokioTlsIdentity
 	}
 }
 class TokioTlsConnect internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6046,9 +6048,9 @@ class TokioTlsConnect internal constructor(raw: Long, lent: Boolean = false) : A
 	val hostNameGet: kotlin.String?
 	fun hostNameSet(value: kotlin.String?)
 	fun deprecated(): moq.MoqTokioCliDeprecated
-	fun build(): moq.RustlsClientConfig
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun build(): moq.RustlsClientConfig
 	companion object {
-		fun default(): moq.TokioTlsConnect
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioTlsConnect
 	}
 }
 class TokioTlsListen internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6065,12 +6067,12 @@ class TokioTlsListen internal constructor(raw: Long, lent: Boolean = false) : Au
 	fun identitySet(value: moq.TokioTlsIdentity?)
 	val rootGet: kotlin.collections.List<moq.PathBuf>
 	fun rootSet(value: kotlin.collections.List<moq.PathBuf>)
-	fun load(): moq.TokioTlsServe
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun load(): moq.TokioTlsServe
 	fun deprecated(): moq.MoqTokioCliDeprecated
-	fun loadRoots(): moq.RustlsRootCertStore
-	fun serverConfig(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun loadRoots(): moq.RustlsRootCertStore
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun serverConfig(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
 	companion object {
-		fun default(): moq.TokioTlsListen
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioTlsListen
 	}
 }
 class TokioTlsServe internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6078,7 +6080,7 @@ class TokioTlsServe internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun debug(): kotlin.String
 	fun clone(): moq.TokioTlsServe
 	fun certificates(): moq.TokioTlsCertificates
-	fun config(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun config(alpn: kotlin.collections.List<moq.Bytes>): moq.RustlsServerConfig
 	fun peer(chain: kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>): moq.TokioTlsPeerIdentity
 }
 class TokioTlsPeerIdentity internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6088,7 +6090,7 @@ class TokioTlsPeerIdentity internal constructor(raw: Long, lent: Boolean = false
 	fun chain(): kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>
 	fun fingerprint(): kotlin.String?
 	fun name(): kotlin.String?
-	fun lineage(): kotlin.collections.List<kotlin.String>
+	@kotlin.jvm.Throws(TokioTlsErrorException::class) fun lineage(): kotlin.collections.List<kotlin.String>
 	fun issuer(): kotlin.String?
 	fun expiry(): moq.ClockWall?
 }
@@ -6098,14 +6100,14 @@ class TokioTlsCertificates internal constructor(raw: Long, lent: Boolean = false
 	fun clone(): moq.TokioTlsCertificates
 	fun fingerprints(): kotlin.collections.List<kotlin.String>
 	companion object {
-		fun fromPem(chain: moq.Bytes): moq.TokioTlsCertificates
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioTlsErrorException::class) fun fromPem(chain: moq.Bytes): moq.TokioTlsCertificates
 	}
 }
 class TokioTlsKeyLog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	companion object {
-		fun open(path: moq.PathBuf): moq.TokioTlsKeyLog
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(TokioTlsErrorException::class) fun open(path: moq.PathBuf): moq.TokioTlsKeyLog
 	}
 }
 class TokioClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6116,9 +6118,9 @@ class TokioClientConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun connectSet(value: moq.TokioConnectConfig)
 	val quicGet: moq.TokioQuicConfig
 	fun quicSet(value: moq.TokioQuicConfig)
-	fun init(): moq.TokioClient
+	@kotlin.jvm.Throws(TokioErrorException::class) fun init(): moq.TokioClient
 	companion object {
-		fun default(): moq.TokioClientConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioClientConfig
 	}
 }
 class TokioConnectConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6150,21 +6152,21 @@ class TokioConnectConfig internal constructor(raw: Long, lent: Boolean = false) 
 	val websocketGet: moq.MoqTokioWebsocketConfig
 	fun websocketSet(value: moq.MoqTokioWebsocketConfig)
 	fun deprecated(): moq.MoqTokioCliDeprecated
-	fun init(quic: moq.TokioQuicConfig): moq.TokioClient
+	@kotlin.jvm.Throws(TokioErrorException::class) fun init(quic: moq.TokioQuicConfig): moq.TokioClient
 	fun versions(): moq.Versions
 	fun resolve(): moq.MoqTokioConnectResolved
 	companion object {
-		fun default(): moq.TokioConnectConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioConnectConfig
 	}
 }
 class TokioConnectionMonitor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): moq.TokioConnectionMonitor
 	fun state(): moq.MoqTokioConnectionObservation
-	suspend fun stateChanged(after: kotlin.ULong): moq.MoqTokioConnectionObservation
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun stateChanged(after: kotlin.ULong): moq.MoqTokioConnectionObservation
 	fun presence(): moq.StatsPresence
-	suspend fun pollPresence(): moq.StatsPresence
-	suspend fun presenceChanged(): moq.StatsPresence
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun pollPresence(): moq.StatsPresence
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun presenceChanged(): moq.StatsPresence
 	fun stats(): moq.SessionStats?
 	fun failure(): moq.TokioError?
 	fun snapshot(): moq.MoqTokioConnectionSnapshot?
@@ -6197,15 +6199,15 @@ class TokioListenConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun resetSet(value: moq.MoqTokioListenReset)
 	fun deprecated(): moq.MoqTokioCliDeprecated
 	fun resolvedTimeout(): moq.Duration?
-	fun resolve(): moq.MoqTokioListenResolved
-	fun init(quic: moq.TokioQuicConfig): moq.TokioServer
-	fun initStreams(): moq.TokioServer
+	@kotlin.jvm.Throws(TokioErrorException::class) fun resolve(): moq.MoqTokioListenResolved
+	@kotlin.jvm.Throws(TokioErrorException::class) fun init(quic: moq.TokioQuicConfig): moq.TokioServer
+	@kotlin.jvm.Throws(TokioErrorException::class) fun initStreams(): moq.TokioServer
 	fun versions(): moq.Versions
 	fun server(): moq.Server
 	fun hasExplicitBind(): kotlin.Boolean
 	fun servesQuic(): kotlin.Boolean
 	companion object {
-		fun default(): moq.TokioListenConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioListenConfig
 	}
 }
 class TokioQuicConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6235,10 +6237,10 @@ class TokioQuicConfig internal constructor(raw: Long, lent: Boolean = false) : A
 	val keylogGet: moq.PathBuf?
 	fun keylogSet(value: moq.PathBuf?)
 	fun deprecated(): moq.MoqTokioCliDeprecated
-	fun validate()
+	@kotlin.jvm.Throws(TokioErrorException::class) fun validate()
 	fun resolve(): moq.MoqTokioQuicResolved
 	companion object {
-		fun default(): moq.TokioQuicConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioQuicConfig
 	}
 }
 class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6263,18 +6265,18 @@ class TokioServerConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun demuxSet(value: moq.MoqTokioQuicDemuxDemux)
 	val streamsGet: moq.MoqTokioServerStreams
 	fun streamsSet(value: moq.MoqTokioServerStreams)
-	fun init(): moq.TokioServer
-	fun initStreams(): moq.TokioServer
+	@kotlin.jvm.Throws(TokioErrorException::class) fun init(): moq.TokioServer
+	@kotlin.jvm.Throws(TokioErrorException::class) fun initStreams(): moq.TokioServer
 	companion object {
-		fun default(): moq.TokioServerConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TokioServerConfig
 	}
 }
 class TokioServerListener internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun accept(): moq.TokioServerRequest
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun accept(): moq.TokioServerRequest
 	suspend fun close_()
 	suspend fun closeStreams()
-	fun localAddr(): moq.SocketAddr
+	@kotlin.jvm.Throws(TokioErrorException::class) fun localAddr(): moq.SocketAddr
 	fun websocketLocalAddr(): moq.SocketAddr?
 	fun tcpLocalAddr(): moq.SocketAddr?
 	fun certificates(): moq.TokioTlsCertificates
@@ -6282,7 +6284,7 @@ class TokioServerListener internal constructor(raw: Long, lent: Boolean = false)
 }
 class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun reject(code: moq.SessionError)
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun reject(code: moq.SessionError)
 	fun withPublisherProducer(publish: moq.OriginProducer): moq.TokioServerRequest
 	fun withPublisherConsumer(publish: moq.OriginConsumer): moq.TokioServerRequest
 	fun withSubscriber(subscribe: moq.OriginProducer): moq.TokioServerRequest
@@ -6290,9 +6292,9 @@ class TokioServerRequest internal constructor(raw: Long, lent: Boolean = false) 
 	fun withStats(stats: moq.StatsSession): moq.TokioServerRequest
 	fun withLimits(limits: moq.SessionLimits): moq.TokioServerRequest
 	fun quicLimits(): moq.MoqTokioServerQuicLimits?
-	fun withQuicLimits(limits: moq.MoqQuicLimits): moq.TokioServerRequest
+	@kotlin.jvm.Throws(StringException::class) fun withQuicLimits(limits: moq.MoqQuicLimits): moq.TokioServerRequest
 	suspend fun expired()
-	suspend fun ok(): moq.Session
+	@kotlin.jvm.Throws(TokioErrorException::class) suspend fun ok(): moq.Session
 	fun transport(): moq.TokioTransport
 	fun url(): moq.Url?
 	fun authority(): kotlin.String?
@@ -6325,7 +6327,7 @@ class TransportMemoryConfig internal constructor(raw: Long, lent: Boolean = fals
 	val latencyGet: moq.Duration
 	fun latencySet(value: moq.Duration)
 	companion object {
-		fun default(): moq.TransportMemoryConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.TransportMemoryConfig
 	}
 }
 class TransportMemorySession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6341,29 +6343,29 @@ class TransportMemoryCloser internal constructor(raw: Long, lent: Boolean = fals
 }
 class MuxCatalogHangConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalog?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
 	companion object {
-		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumer
 	}
 }
 class MuxCatalogHangConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalogExtra?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
 	companion object {
-		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExtra
 	}
 }
 class MuxCatalogHangConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalogExt?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
 	companion object {
-		fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackConsumer): moq.MuxCatalogHangConsumerExt
 	}
 }
 class MuxCatalogHangContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		fun new(container: moq.HangCatalogContainer, kind: moq.MuxContainerKind): moq.MuxCatalogHangContainer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(container: moq.HangCatalogContainer, kind: moq.MuxContainerKind): moq.MuxCatalogHangContainer
 	}
 }
 class MuxCatalogHangExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6376,31 +6378,31 @@ class MuxCatalogHangExtra internal constructor(raw: Long, lent: Boolean = false)
 	fun iter(): kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>
 	fun len(): kotlin.ULong
 	fun isEmpty(): kotlin.Boolean
-	fun set(name: kotlin.String, value: moq.Json)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun set(name: kotlin.String, value: moq.Json)
 	fun remove(name: kotlin.String): moq.Json?
 	companion object {
-		fun default(): moq.MuxCatalogHangExtra
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCatalogHangExtra
 	}
 }
 class MuxCatalogMsfConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalog?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalog?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumer
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumer
 	}
 }
 class MuxCatalogMsfConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalogExtra?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExtra?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExtra
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExtra
 	}
 }
 class MuxCatalogMsfConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	suspend fun next(): moq.HangCatalogExt?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.HangCatalogExt?
 	companion object {
-		fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
+		@kotlin.jvm.JvmStatic fun new(track: moq.TrackSubscriber): moq.MuxCatalogMsfConsumerExt
 	}
 }
 class MuxCodecAacConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6411,10 +6413,10 @@ class MuxCodecAacConfig internal constructor(raw: Long, lent: Boolean = false) :
 	fun sampleRateSet(value: kotlin.UInt)
 	val channelCountGet: kotlin.UInt
 	fun channelCountSet(value: kotlin.UInt)
-	fun encode(): moq.Bytes
+	@kotlin.jvm.Throws(MuxCodecAacErrorException::class) fun encode(): moq.Bytes
 	companion object {
-		fun new(profile: kotlin.UByte, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecAacConfig
-		fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecAacConfig
+		@kotlin.jvm.JvmStatic fun new(profile: kotlin.UByte, sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecAacConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecAacErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecAacConfig
 	}
 }
 class MuxCodecAacError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6427,17 +6429,17 @@ class MuxCodecAacImport internal constructor(raw: Long, lent: Boolean = false) :
 	override fun close()
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun seek(start: kotlin.ULong)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxCodecAacImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecAacImport
 	}
 }
 class MuxCodecAnnexbError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6448,55 +6450,55 @@ class MuxCodecAnnexbError internal constructor(raw: Long, lent: Boolean = false)
 }
 class MuxCodecAv1Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(buf: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(buf: moq.Bytes)
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(start: kotlin.ULong)
-	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
+	@kotlin.jvm.Throws(MuxCodecAv1ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecAv1Import
 	}
 }
 class MuxCodecAv1Split internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
-	fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		fun default(): moq.MuxCodecAv1Split
-		fun new(): moq.MuxCodecAv1Split
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecAv1Split
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecAv1Split
 	}
 }
 class MuxCodecFlacImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun seek(start: kotlin.ULong)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxCodecFlacImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecFlacImport
 	}
 }
 class MuxCodecH264Avc1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun avcc(): moq.Bytes?
-	fun transform(payload: moq.Bytes): moq.Bytes?
+	@kotlin.jvm.Throws(MuxCodecH264ErrorException::class) fun transform(payload: moq.Bytes): moq.Bytes?
 	companion object {
-		fun default(): moq.MuxCodecH264Avc1
-		fun new(): moq.MuxCodecH264Avc1
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH264Avc1
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH264Avc1
 	}
 }
 class MuxCodecH264Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6526,49 +6528,49 @@ class MuxCodecH264Avcc internal constructor(raw: Long, lent: Boolean = false) : 
 	val codedHeightGet: kotlin.UInt?
 	fun codedHeightSet(value: kotlin.UInt?)
 	companion object {
-		fun parse(avcc: moq.Bytes): moq.MuxCodecH264Avcc
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecH264ErrorException::class) fun parse(avcc: moq.Bytes): moq.MuxCodecH264Avcc
 	}
 }
 class MuxCodecH264Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(buf: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(buf: moq.Bytes)
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun track(): moq.TrackProducer
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxCodecH264ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	fun reportSkipped(frames: kotlin.ULong)
 	fun reportBitrate(bitrate: moq.BandwidthRate)
-	fun seek(start: kotlin.ULong)
-	fun observeReorder(reorder: moq.Timestamp)
-	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH264Import
 	}
 }
 class MuxCodecH264Split internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
-	fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		fun default(): moq.MuxCodecH264Split
-		fun new(): moq.MuxCodecH264Split
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH264Split
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH264Split
 	}
 }
 class MuxCodecH265Hvc1 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun hvcc(): moq.Bytes?
-	fun transform(payload: moq.Bytes): moq.Bytes?
+	@kotlin.jvm.Throws(MuxCodecH265ErrorException::class) fun transform(payload: moq.Bytes): moq.Bytes?
 	companion object {
-		fun default(): moq.MuxCodecH265Hvc1
-		fun new(): moq.MuxCodecH265Hvc1
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH265Hvc1
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH265Hvc1
 	}
 }
 class MuxCodecH265Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6590,7 +6592,7 @@ class MuxCodecH265Hvcc internal constructor(raw: Long, lent: Boolean = false) : 
 	val ppsGet: kotlin.collections.List<moq.Bytes>
 	fun ppsSet(value: kotlin.collections.List<moq.Bytes>)
 	companion object {
-		fun parse(hvcc: moq.Bytes): moq.MuxCodecH265Hvcc
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecH265ErrorException::class) fun parse(hvcc: moq.Bytes): moq.MuxCodecH265Hvcc
 	}
 }
 class MuxCodecH265Sps internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6600,56 +6602,56 @@ class MuxCodecH265Sps internal constructor(raw: Long, lent: Boolean = false) : A
 	fun size(): kotlin.Pair<kotlin.UInt, kotlin.UInt>
 	fun videoSignal(): moq.MuxCodecH265VideoSignal?
 	companion object {
-		fun parse(nal: moq.Bytes): moq.MuxCodecH265Sps
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecH265ErrorException::class) fun parse(nal: moq.Bytes): moq.MuxCodecH265Sps
 	}
 }
 class MuxCodecH265Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(buf: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(buf: moq.Bytes)
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
 	fun track(): moq.TrackProducer
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxCodecH265ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
 	fun reportSkipped(frames: kotlin.ULong)
 	fun reportBitrate(bitrate: moq.BandwidthRate)
-	fun seek(start: kotlin.ULong)
-	fun observeReorder(reorder: moq.Timestamp)
-	fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun observeReorder(reorder: moq.Timestamp)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frames: kotlin.collections.List<moq.MuxContainerFrame>)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecH265Import
 	}
 }
 class MuxCodecH265Split internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
-	fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes, pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun flush(pts: moq.Timestamp?): kotlin.collections.List<moq.MuxContainerFrame>
 	fun reset()
 	companion object {
-		fun default(): moq.MuxCodecH265Split
-		fun new(): moq.MuxCodecH265Split
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxCodecH265Split
+		@kotlin.jvm.JvmStatic fun new(): moq.MuxCodecH265Split
 	}
 }
 class MuxCodecMp3Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun seek(start: kotlin.ULong)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxCodecMp3ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecMp3Import
 	}
 }
 class MuxCodecOpusConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6669,96 +6671,96 @@ class MuxCodecOpusConfig internal constructor(raw: Long, lent: Boolean = false) 
 	val mappingGet: moq.MuxCodecOpusMapping?
 	fun mappingSet(value: moq.MuxCodecOpusMapping?)
 	fun withPreSkip(preSkip: kotlin.UShort): moq.MuxCodecOpusConfig
-	fun encode(): moq.Bytes
+	@kotlin.jvm.Throws(MuxCodecOpusErrorException::class) fun encode(): moq.Bytes
 	companion object {
-		fun new(sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecOpusConfig
-		fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecOpusConfig
+		@kotlin.jvm.JvmStatic fun new(sampleRate: kotlin.UInt, channelCount: kotlin.UInt): moq.MuxCodecOpusConfig
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecOpusErrorException::class) fun parse(buf: moq.Mut<moq.Bytes>): moq.MuxCodecOpusConfig
 	}
 }
 class MuxCodecOpusImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun name(): kotlin.String
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerAudioConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerAudioConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun seek(start: kotlin.ULong)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxCodecOpusImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, config: moq.HangCatalogAudioConfig): moq.MuxCodecOpusImport
 	}
 }
 class MuxCodecVp8Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(buf: moq.Bytes)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(buf: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxCodecVp8ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp8Import
 	}
 }
 class MuxCodecVp9Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun initialize(buf: moq.Bytes)
-	fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun initialize(buf: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(frame: moq.Bytes, pts: moq.Timestamp?)
 	fun demand(): moq.TrackDemand
-	fun finish(): moq.MuxContainerFinishedContainerVideoConfig
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFinishedContainerVideoConfig
 	fun abort(err: moq.Error)
-	fun abortUnwanted(err: moq.Error)
-	fun cut(end: moq.Timestamp?)
-	fun discontinuity()
-	fun setEnabled(enabled: kotlin.Boolean)
-	fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxCodecVp9ImportException::class) fun abortUnwanted(err: moq.Error)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut(end: moq.Timestamp?)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun setEnabled(enabled: kotlin.Boolean)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
 	companion object {
-		fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
-		fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
-		fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExtra(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExtra, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newExt(track: moq.TrackProducer, reserved: moq.MuxCatalogReservedExt, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun newUnit(track: moq.TrackProducer, reserved: moq.MuxCatalogReserved, hint: moq.MuxCatalogVideoHint): moq.MuxCodecVp9Import
 	}
 }
 class MuxContainerFlvImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImport
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerFlvFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFlvImport
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFlvImport
 	}
 }
 class MuxContainerFlvImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImportExtra
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerFlvFinishedExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFlvImportExtra
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFlvImportExtra
 	}
 }
 class MuxContainerFlvImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerFlvImportExt
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerFlvFinishedExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFlvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFlvImportExt
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFlvImportExt
 	}
 }
 class MuxContainerFlvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6776,7 +6778,7 @@ class MuxContainerFlvFinishedExt internal constructor(raw: Long, lent: Boolean =
 class MuxContainerFmp4Wire internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	companion object {
-		fun fromInit(initData: moq.Bytes): moq.MuxContainerFmp4Wire
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxContainerFmp4ErrorException::class) fun fromInit(initData: moq.Bytes): moq.MuxContainerFmp4Wire
 	}
 }
 class MuxContainerFmp4Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6787,47 +6789,47 @@ class MuxContainerFmp4Error internal constructor(raw: Long, lent: Boolean = fals
 }
 class MuxContainerFmp4Import internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4Import
 	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4Import
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerFmp4Finished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFmp4Finished
 	fun abort(err: moq.Error)
-	fun seek(start: kotlin.ULong)
-	fun rejoin()
-	fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFmp4Import
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerFmp4Import
 	}
 }
 class MuxContainerFmp4ImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4ImportExtra
 	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4ImportExtra
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerFmp4FinishedExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFmp4FinishedExtra
 	fun abort(err: moq.Error)
-	fun seek(start: kotlin.ULong)
-	fun rejoin()
-	fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFmp4ImportExtra
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerFmp4ImportExtra
 	}
 }
 class MuxContainerFmp4ImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun cut()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun cut()
 	fun withSelect(select: moq.MuxSelectBroadcast): moq.MuxContainerFmp4ImportExt
 	fun withCmaf(cmaf: kotlin.Boolean): moq.MuxContainerFmp4ImportExt
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerFmp4FinishedExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerFmp4FinishedExt
 	fun abort(err: moq.Error)
-	fun seek(start: kotlin.ULong)
-	fun rejoin()
-	fun discontinuity()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun rejoin()
+	@kotlin.jvm.Throws(MuxErrorException::class) fun discontinuity()
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFmp4ImportExt
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerFmp4ImportExt
 	}
 }
 class MuxContainerFmp4Finished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6845,14 +6847,14 @@ class MuxContainerFmp4FinishedExt internal constructor(raw: Long, lent: Boolean 
 class MuxContainerFmp4Muxer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun timescale(): moq.Timescale
-	fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
-	suspend fun read(group: moq.GroupConsumer): kotlin.collections.List<moq.MuxContainerFrame>
-	fun pictureSize(keyframe: moq.MuxContainerFrame): kotlin.Pair<kotlin.UInt, kotlin.UInt>?
-	fun init(): moq.Bytes?
-	fun fragment(sequence: kotlin.UInt, frames: kotlin.collections.List<moq.MuxContainerFrame>, end: moq.Timestamp?): moq.Bytes
+	@kotlin.jvm.Throws(MuxErrorException::class) fun withTimescale(timescale: moq.Timescale): moq.MuxContainerFmp4Muxer
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun read(group: moq.GroupConsumer): kotlin.collections.List<moq.MuxContainerFrame>
+	@kotlin.jvm.Throws(MuxErrorException::class) fun pictureSize(keyframe: moq.MuxContainerFrame): kotlin.Pair<kotlin.UInt, kotlin.UInt>?
+	@kotlin.jvm.Throws(MuxErrorException::class) fun init(): moq.Bytes?
+	@kotlin.jvm.Throws(MuxErrorException::class) fun fragment(sequence: kotlin.UInt, frames: kotlin.collections.List<moq.MuxContainerFrame>, end: moq.Timestamp?): moq.Bytes
 	companion object {
-		fun video(config: moq.HangCatalogVideoConfig): moq.MuxContainerFmp4Muxer
-		fun audio(config: moq.HangCatalogAudioConfig): moq.MuxContainerFmp4Muxer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun video(config: moq.HangCatalogVideoConfig): moq.MuxContainerFmp4Muxer
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun audio(config: moq.HangCatalogAudioConfig): moq.MuxContainerFmp4Muxer
 	}
 }
 class MuxContainerLegacyAudio internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6863,40 +6865,40 @@ class MuxContainerLegacyAudio internal constructor(raw: Long, lent: Boolean = fa
 	override fun hashCode(): kotlin.Int
 	fun duration(payload: moq.Bytes): moq.Timestamp?
 	companion object {
-		fun new(config: moq.HangCatalogAudioConfig): moq.MuxContainerLegacyAudio?
+		@kotlin.jvm.JvmStatic fun new(config: moq.HangCatalogAudioConfig): moq.MuxContainerLegacyAudio?
 	}
 }
 class MuxContainerMkvImport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImport
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerMkvFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerMkvImport
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerMkvImport
 	}
 }
 class MuxContainerMkvImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImportExtra
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerMkvFinishedExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerMkvImportExtra
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerMkvImportExtra
 	}
 }
 class MuxContainerMkvImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerMkvImportExt
-	fun decode(data: moq.Bytes)
-	fun seek(start: kotlin.ULong)
-	fun finish(): moq.MuxContainerMkvFinishedExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun seek(start: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerMkvFinishedExt
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerMkvImportExt
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerMkvImportExt
 	}
 }
 class MuxContainerMkvFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6925,7 +6927,7 @@ class MuxContainerTsExt internal constructor(raw: Long, lent: Boolean = false) :
 	val mpegtsGet: moq.MuxContainerTsMpegts
 	fun mpegtsSet(value: moq.MuxContainerTsMpegts)
 	companion object {
-		fun default(): moq.MuxContainerTsExt
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsExt
 	}
 }
 class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6948,8 +6950,8 @@ class MuxContainerTsMpegts internal constructor(raw: Long, lent: Boolean = false
 	fun passthroughSet(value: moq.MuxContainerTsPassthroughTrack?)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.MuxContainerTsMpegts
-		fun deserialize(deserializer: moq.Json): moq.MuxContainerTsMpegts
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsMpegts
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun deserialize(deserializer: moq.Json): moq.MuxContainerTsMpegts
 	}
 }
 class MuxContainerTsPassthroughTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6963,7 +6965,7 @@ class MuxContainerTsPassthroughTrack internal constructor(raw: Long, lent: Boole
 	val randomAccessGet: kotlin.Boolean
 	fun randomAccessSet(value: kotlin.Boolean)
 	companion object {
-		fun new(track: kotlin.String): moq.MuxContainerTsPassthroughTrack
+		@kotlin.jvm.JvmStatic fun new(track: kotlin.String): moq.MuxContainerTsPassthroughTrack
 	}
 }
 class MuxContainerTsPesPacket internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6975,8 +6977,8 @@ class MuxContainerTsPesPacket internal constructor(raw: Long, lent: Boolean = fa
 	val streamTypeGet: kotlin.UByte
 	fun streamTypeSet(value: kotlin.UByte)
 	companion object {
-		fun default(): moq.MuxContainerTsPesPacket
-		fun new(streamType: kotlin.UByte): moq.MuxContainerTsPesPacket
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsPesPacket
+		@kotlin.jvm.JvmStatic fun new(streamType: kotlin.UByte): moq.MuxContainerTsPesPacket
 	}
 }
 class MuxContainerTsProgram internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -6992,7 +6994,7 @@ class MuxContainerTsProgram internal constructor(raw: Long, lent: Boolean = fals
 	val pmtPidGet: kotlin.UShort
 	fun pmtPidSet(value: kotlin.UShort)
 	companion object {
-		fun default(): moq.MuxContainerTsProgram
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsProgram
 	}
 }
 class MuxContainerTsSiEntry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7006,7 +7008,7 @@ class MuxContainerTsSiEntry internal constructor(raw: Long, lent: Boolean = fals
 	val intervalGet: moq.Duration?
 	fun intervalSet(value: moq.Duration?)
 	companion object {
-		fun default(): moq.MuxContainerTsSiEntry
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsSiEntry
 	}
 }
 class MuxContainerTsTrack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7024,8 +7026,8 @@ class MuxContainerTsTrack internal constructor(raw: Long, lent: Boolean = false)
 	val pesPacketGet: moq.MuxContainerTsPesPacket?
 	fun pesPacketSet(value: moq.MuxContainerTsPesPacket?)
 	companion object {
-		fun default(): moq.MuxContainerTsTrack
-		fun new(pid: kotlin.UShort): moq.MuxContainerTsTrack
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsTrack
+		@kotlin.jvm.JvmStatic fun new(pid: kotlin.UShort): moq.MuxContainerTsTrack
 	}
 }
 class MuxContainerTsVerbatim internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7039,8 +7041,8 @@ class MuxContainerTsVerbatim internal constructor(raw: Long, lent: Boolean = fal
 	val framingGet: moq.MuxContainerTsFraming
 	fun framingSet(value: moq.MuxContainerTsFraming)
 	companion object {
-		fun default(): moq.MuxContainerTsVerbatim
-		fun new(streamType: kotlin.UByte, framing: moq.MuxContainerTsFraming): moq.MuxContainerTsVerbatim
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsVerbatim
+		@kotlin.jvm.JvmStatic fun new(streamType: kotlin.UByte, framing: moq.MuxContainerTsFraming): moq.MuxContainerTsVerbatim
 	}
 }
 class MuxContainerTsError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7052,34 +7054,34 @@ class MuxContainerTsError internal constructor(raw: Long, lent: Boolean = false)
 class MuxContainerTsExportConsumerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumerExtra
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
-	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExtra): moq.MuxContainerTsExportConsumerExtra
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
+		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExtra, delay: moq.Duration): moq.MuxContainerTsExportConsumerExtra
 	}
 }
 class MuxContainerTsExportConsumerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumerExt
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
-	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
+	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumerExt): moq.MuxContainerTsExportConsumerExt
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
+		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumerExt, delay: moq.Duration): moq.MuxContainerTsExportConsumerExt
 	}
 }
 class MuxContainerTsExportConsumer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withMuxRate(muxRate: kotlin.ULong): moq.MuxContainerTsExportConsumer
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	fun stats(): moq.MuxContainerTsStatsExport
 	fun discontinuity(): kotlin.ULong
-	fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
+	@kotlin.jvm.Throws(MuxErrorException::class) fun follow(broadcast: moq.BroadcastConsumer, catalog: moq.MuxCatalogConsumer): moq.MuxContainerTsExportConsumer
 	companion object {
-		fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
+		@kotlin.jvm.JvmStatic fun new(source: moq.MuxSource, catalog: moq.MuxCatalogConsumer, delay: moq.Duration): moq.MuxContainerTsExportConsumer
 	}
 }
 class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7087,9 +7089,9 @@ class MuxContainerTsFollower internal constructor(raw: Long, lent: Boolean = fal
 	fun withFollow(follow: moq.Duration): moq.MuxContainerTsFollower
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollower
 	fun export(): moq.MuxContainerTsExportConsumer
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	companion object {
-		fun new(export: moq.MuxContainerTsExportConsumer): moq.MuxContainerTsFollower
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumer): moq.MuxContainerTsFollower
 	}
 }
 class MuxContainerTsFollowerExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7097,9 +7099,9 @@ class MuxContainerTsFollowerExtra internal constructor(raw: Long, lent: Boolean 
 	fun withFollow(follow: moq.Duration): moq.MuxContainerTsFollowerExtra
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollowerExtra
 	fun export(): moq.MuxContainerTsExportConsumerExtra
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	companion object {
-		fun new(export: moq.MuxContainerTsExportConsumerExtra): moq.MuxContainerTsFollowerExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExtra): moq.MuxContainerTsFollowerExtra
 	}
 }
 class MuxContainerTsFollowerExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7107,52 +7109,52 @@ class MuxContainerTsFollowerExt internal constructor(raw: Long, lent: Boolean = 
 	fun withFollow(follow: moq.Duration): moq.MuxContainerTsFollowerExt
 	fun withStitch(stitch: kotlin.Boolean): moq.MuxContainerTsFollowerExt
 	fun export(): moq.MuxContainerTsExportConsumerExt
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	companion object {
-		fun new(export: moq.MuxContainerTsExportConsumerExt): moq.MuxContainerTsFollowerExt
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(export: moq.MuxContainerTsExportConsumerExt): moq.MuxContainerTsFollowerExt
 	}
 }
 class MuxContainerTsPassthrough internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthrough
 	fun track(): kotlin.String
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerTsPassthroughFinished
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthrough
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsPassthrough
 	}
 }
 class MuxContainerTsPassthroughUnit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthroughUnit
 	fun track(): kotlin.String
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerTsPassthroughFinishedUnit
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinishedUnit
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthroughUnit
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsPassthroughUnit
 	}
 }
 class MuxContainerTsPassthroughExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withPcrPid(pid: kotlin.UShort): moq.MuxContainerTsPassthroughExtra
 	fun track(): kotlin.String
-	fun decode(data: moq.Bytes)
-	fun finish(): moq.MuxContainerTsPassthroughFinishedExtra
+	@kotlin.jvm.Throws(MuxErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxErrorException::class) fun finish(): moq.MuxContainerTsPassthroughFinishedExtra
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsPassthroughExtra
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsPassthroughExtra
 	}
 }
 class MuxContainerTsPrograms internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun decode(data: moq.Bytes)
 	fun stats(): moq.MuxContainerTsStatsSnapshot
-	fun finish(): moq.MuxContainerTsProgramsFinished
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsProgramsFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(origin: moq.OriginProducer, name: moq.Path, config: moq.MuxCatalogConfig): moq.MuxContainerTsPrograms
+		@kotlin.jvm.JvmStatic fun new(origin: moq.OriginProducer, name: moq.Path, config: moq.MuxCatalogConfig): moq.MuxContainerTsPrograms
 	}
 }
 class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7161,9 +7163,9 @@ class MuxContainerTsRelease internal constructor(raw: Long, lent: Boolean = fals
 	fun drift(): kotlin.Double?
 	fun outOfTolerance(): kotlin.ULong
 	fun stats(): moq.MuxContainerTsStatsRelease
-	suspend fun next(): moq.MuxContainerFrame?
+	@kotlin.jvm.Throws(MuxErrorException::class) suspend fun next(): moq.MuxContainerFrame?
 	companion object {
-		suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxErrorException::class) suspend fun new(source: moq.MuxSource, catalogFormat: moq.MuxCatalogCatalogFormat, delay: moq.Duration): moq.MuxContainerTsRelease
 	}
 }
 class MuxContainerTsRepublish internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7172,12 +7174,12 @@ class MuxContainerTsRepublish internal constructor(raw: Long, lent: Boolean = fa
 	fun broadcast(): moq.BroadcastProducer
 	fun catalog(): moq.MuxCatalogProducerExt
 	fun instance(): moq.Instance
-	fun decode(data: moq.Bytes): moq.MuxContainerTsRepublished?
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun decode(data: moq.Bytes): moq.MuxContainerTsRepublished?
 	fun stats(): moq.MuxContainerTsStatsSnapshot
-	fun finish(): moq.MuxContainerTsRepublishFinished
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsRepublishFinished
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(origin: moq.OriginProducer, name: moq.Path, instance: moq.Instance, config: moq.MuxCatalogConfig): moq.MuxContainerTsRepublish
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun new(origin: moq.OriginProducer, name: moq.Path, instance: moq.Instance, config: moq.MuxCatalogConfig): moq.MuxContainerTsRepublish
 	}
 }
 class MuxContainerTsRepublished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7193,39 +7195,39 @@ class MuxContainerTsImport internal constructor(raw: Long, lent: Boolean = false
 	override fun close()
 	fun withProgram(program: kotlin.UShort): moq.MuxContainerTsImport
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImport
-	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish(): moq.MuxContainerTsFinished
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun seek(sequence: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsFinished
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsImport
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReserved): moq.MuxContainerTsImport
 	}
 }
 class MuxContainerTsImportExtra internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withProgram(program: kotlin.UShort): moq.MuxContainerTsImportExtra
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImportExtra
-	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish(): moq.MuxContainerTsFinishedExtra
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun seek(sequence: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsFinishedExtra
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsImportExtra
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExtra): moq.MuxContainerTsImportExtra
 	}
 }
 class MuxContainerTsImportExt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun withProgram(program: kotlin.UShort): moq.MuxContainerTsImportExt
 	fun withContainer(container: moq.HangCatalogContainer): moq.MuxContainerTsImportExt
-	fun decode(data: moq.Bytes)
-	fun seek(sequence: kotlin.ULong)
-	fun finish(): moq.MuxContainerTsFinishedExt
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun decode(data: moq.Bytes)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun seek(sequence: kotlin.ULong)
+	@kotlin.jvm.Throws(MuxContainerTsErrorException::class) fun finish(): moq.MuxContainerTsFinishedExt
 	fun stats(): moq.MuxContainerTsStatsSnapshot
 	fun abort(err: moq.Error)
 	companion object {
-		fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsImportExt
+		@kotlin.jvm.JvmStatic fun new(broadcast: moq.BroadcastProducer, reserved: moq.MuxCatalogReservedExt): moq.MuxContainerTsImportExt
 	}
 }
 class MuxContainerTsFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7272,9 +7274,9 @@ class MuxCodecAacAdtsHeader internal constructor(raw: Long, lent: Boolean = fals
 	fun channelConfigSet(value: kotlin.UByte)
 	val blocksGet: kotlin.UByte
 	fun blocksSet(value: kotlin.UByte)
-	fun payload(packet: moq.Bytes): moq.Bytes
+	@kotlin.jvm.Throws(MuxCodecAacAdtsErrorException::class) fun payload(packet: moq.Bytes): moq.Bytes
 	companion object {
-		fun parse(data: moq.Bytes): moq.MuxCodecAacAdtsHeader
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MuxCodecAacAdtsErrorException::class) fun parse(data: moq.Bytes): moq.MuxCodecAacAdtsHeader
 	}
 }
 class MuxContainerTsPassthroughFinished internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7315,7 +7317,7 @@ class MuxContainerTsStatsReport internal constructor(raw: Long, lent: Boolean = 
 	val releaseGet: moq.MuxContainerTsStatsRelease?
 	fun releaseSet(value: moq.MuxContainerTsStatsRelease?)
 	companion object {
-		fun default(): moq.MuxContainerTsStatsReport
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsReport
 	}
 }
 class MuxContainerTsStatsSnapshot internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7348,7 +7350,7 @@ class MuxContainerTsStatsSnapshot internal constructor(raw: Long, lent: Boolean 
 	fun ptsErrorSet(value: kotlin.ULong)
 	fun isEmpty(): kotlin.Boolean
 	companion object {
-		fun default(): moq.MuxContainerTsStatsSnapshot
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsSnapshot
 	}
 }
 class MuxContainerTsStatsStream internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7384,7 +7386,7 @@ class MuxContainerTsStatsStream internal constructor(raw: Long, lent: Boolean = 
 	val ptsErrorGet: kotlin.ULong
 	fun ptsErrorSet(value: kotlin.ULong)
 	companion object {
-		fun default(): moq.MuxContainerTsStatsStream
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsStream
 	}
 }
 class MuxContainerTsStatsExport internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7398,7 +7400,7 @@ class MuxContainerTsStatsExport internal constructor(raw: Long, lent: Boolean = 
 	val releaseGet: moq.MuxContainerTsStatsRelease
 	fun releaseSet(value: moq.MuxContainerTsStatsRelease)
 	companion object {
-		fun default(): moq.MuxContainerTsStatsExport
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsExport
 	}
 }
 class MuxContainerTsStatsRelease internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7422,7 +7424,7 @@ class MuxContainerTsStatsRelease internal constructor(raw: Long, lent: Boolean =
 	val outOfToleranceGet: kotlin.ULong
 	fun outOfToleranceSet(value: kotlin.ULong)
 	companion object {
-		fun default(): moq.MuxContainerTsStatsRelease
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsRelease
 	}
 }
 class MuxContainerTsStatsLog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7430,8 +7432,8 @@ class MuxContainerTsStatsLog internal constructor(raw: Long, lent: Boolean = fal
 	fun sample(latest: moq.MuxContainerTsStatsSnapshot)
 	fun finish(latest: moq.MuxContainerTsStatsSnapshot)
 	companion object {
-		fun default(): moq.MuxContainerTsStatsLog
-		val INTERVAL: moq.Duration
+		@kotlin.jvm.JvmStatic fun default(): moq.MuxContainerTsStatsLog
+		@kotlin.jvm.JvmStatic val INTERVAL: moq.Duration
 	}
 }
 class MoqTokioAddrs internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7443,8 +7445,8 @@ class MoqTokioAddrs internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun or(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
 	fun asSlice(): kotlin.collections.List<moq.MoqTokioConnectAddr>
 	companion object {
-		fun new(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
-		fun collect(urls: kotlin.collections.List<moq.MoqTokioConnectAddr>): moq.MoqTokioAddrs?
+		@kotlin.jvm.JvmStatic fun new(addr: moq.MoqTokioConnectAddr): moq.MoqTokioAddrs
+		@kotlin.jvm.JvmStatic fun collect(urls: kotlin.collections.List<moq.MoqTokioConnectAddr>): moq.MoqTokioAddrs?
 	}
 }
 class MoqTokioCliDeprecated internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7459,7 +7461,7 @@ class MoqTokioCliDeprecated internal constructor(raw: Long, lent: Boolean = fals
 	fun removed(old: kotlin.String, env: kotlin.String?, note: kotlin.String)
 	fun toml(old: kotlin.String, new: kotlin.String, note: kotlin.String?)
 	companion object {
-		fun default(): moq.MoqTokioCliDeprecated
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioCliDeprecated
 	}
 }
 class MoqTokioCliBound internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7470,7 +7472,7 @@ class MoqTokioCliBound internal constructor(raw: Long, lent: Boolean = false) : 
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		val NONE: moq.MoqTokioCliBound
+		@kotlin.jvm.JvmStatic val NONE: moq.MoqTokioCliBound
 	}
 }
 class MoqTokioTcpTlsAcceptor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7488,7 +7490,7 @@ class MoqTokioAcceptHealth internal constructor(raw: Long, lent: Boolean = false
 	fun failures(failure: moq.MoqTokioAcceptFailure): kotlin.ULong
 	fun stalled(): moq.Duration?
 	companion object {
-		fun new(listener: kotlin.String): moq.MoqTokioAcceptHealth
+		@kotlin.jvm.JvmStatic fun new(listener: kotlin.String): moq.MoqTokioAcceptHealth
 	}
 }
 class MoqJsonTimedCatalog internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7502,7 +7504,7 @@ class MoqJsonTimedCatalog internal constructor(raw: Long, lent: Boolean = false)
 	val atGet: moq.Timestamp
 	fun atSet(value: moq.Timestamp)
 	companion object {
-		fun new(value: moq.HangCatalog, at: moq.Timestamp): moq.MoqJsonTimedCatalog
+		@kotlin.jvm.JvmStatic fun new(value: moq.HangCatalog, at: moq.Timestamp): moq.MoqJsonTimedCatalog
 	}
 }
 class MoqJsonTimedJson internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7516,7 +7518,7 @@ class MoqJsonTimedJson internal constructor(raw: Long, lent: Boolean = false) : 
 	val atGet: moq.Timestamp
 	fun atSet(value: moq.Timestamp)
 	companion object {
-		fun new(value: moq.Json, at: moq.Timestamp): moq.MoqJsonTimedJson
+		@kotlin.jvm.JvmStatic fun new(value: moq.Json, at: moq.Timestamp): moq.MoqJsonTimedJson
 	}
 }
 class RustlsClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7564,12 +7566,12 @@ class RustlsRootCertStore internal constructor(raw: Long, lent: Boolean = false)
 	val rootsGet: kotlin.collections.List<moq.RustlsPkiTypesTrustAnchor>
 	fun rootsSet(value: kotlin.collections.List<moq.RustlsPkiTypesTrustAnchor>)
 	fun addParsableCertificates(derCerts: kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>): kotlin.Pair<kotlin.ULong, kotlin.ULong>
-	fun add(der: moq.RustlsPkiTypesCertificateDer)
+	@kotlin.jvm.Throws(StringException::class) fun add(der: moq.RustlsPkiTypesCertificateDer)
 	fun subjects(): kotlin.collections.List<moq.RustlsDistinguishedName>
 	fun isEmpty(): kotlin.Boolean
 	fun len(): kotlin.ULong
 	companion object {
-		fun empty(): moq.RustlsRootCertStore
+		@kotlin.jvm.JvmStatic fun empty(): moq.RustlsRootCertStore
 	}
 }
 class RustlsPkiTypesCertificateDer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7580,7 +7582,7 @@ class RustlsPkiTypesCertificateDer internal constructor(raw: Long, lent: Boolean
 	override fun hashCode(): kotlin.Int
 	fun intoOwned(): moq.RustlsPkiTypesCertificateDer
 	companion object {
-		fun fromSlice(bytes: moq.Bytes): moq.RustlsPkiTypesCertificateDer
+		@kotlin.jvm.JvmStatic fun fromSlice(bytes: moq.Bytes): moq.RustlsPkiTypesCertificateDer
 	}
 }
 class MoqTokioConnectResolved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7605,7 +7607,7 @@ class MoqTokioConnectionHandover internal constructor(raw: Long, lent: Boolean =
 	val handoverGet: moq.TokioDuration?
 	fun handoverSet(value: moq.TokioDuration?)
 	companion object {
-		fun default(): moq.MoqTokioConnectionHandover
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioConnectionHandover
 	}
 }
 class MoqTokioWebsocketConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7618,7 +7620,7 @@ class MoqTokioWebsocketConfig internal constructor(raw: Long, lent: Boolean = fa
 	fun delaySet(value: moq.TokioDuration?)
 	fun resolve(): moq.MoqTokioWebsocketResolved
 	companion object {
-		fun default(): moq.MoqTokioWebsocketConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioWebsocketConfig
 	}
 }
 class MoqTokioConnectionObservation internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7673,7 +7675,7 @@ class MoqTokioTcpConfig internal constructor(raw: Long, lent: Boolean = false) :
 	val tlsGet: kotlin.Boolean?
 	fun tlsSet(value: kotlin.Boolean?)
 	companion object {
-		fun default(): moq.MoqTokioTcpConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioTcpConfig
 	}
 }
 class MoqTokioUnixConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7685,7 +7687,7 @@ class MoqTokioUnixConfig internal constructor(raw: Long, lent: Boolean = false) 
 	val allowGet: moq.MoqTokioUnixAllow
 	fun allowSet(value: moq.MoqTokioUnixAllow)
 	companion object {
-		fun default(): moq.MoqTokioUnixConfig
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioUnixConfig
 	}
 }
 class MoqTokioListenLoadBalancer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7699,7 +7701,7 @@ class MoqTokioListenLoadBalancer internal constructor(raw: Long, lent: Boolean =
 	val forwardGet: moq.MoqTokioListenForward
 	fun forwardSet(value: moq.MoqTokioListenForward)
 	companion object {
-		fun default(): moq.MoqTokioListenLoadBalancer
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenLoadBalancer
 	}
 }
 class MoqTokioListenReset internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7709,7 +7711,7 @@ class MoqTokioListenReset internal constructor(raw: Long, lent: Boolean = false)
 	val secretGet: moq.PathBuf?
 	fun secretSet(value: moq.PathBuf?)
 	companion object {
-		fun default(): moq.MoqTokioListenReset
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenReset
 	}
 }
 class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7741,18 +7743,18 @@ class MoqTokioQuicResolved internal constructor(raw: Long, lent: Boolean = false
 	fun keepAliveInterval(): moq.Duration
 	fun limits(): moq.MoqQuicLimits
 	companion object {
-		fun default(): moq.MoqTokioQuicResolved
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicResolved
 	}
 }
 class MoqTokioWebsocketListener internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
-	fun withProtocols(protocols: kotlin.collections.List<kotlin.String>): moq.MoqTokioWebsocketListener
+	@kotlin.jvm.Throws(MoqTokioWebsocketErrorException::class) fun withProtocols(protocols: kotlin.collections.List<kotlin.String>): moq.MoqTokioWebsocketListener
 	fun withQuic(quic: moq.MoqTokioQuicResolved): moq.MoqTokioWebsocketListener
-	fun localAddr(): moq.SocketAddr
+	@kotlin.jvm.Throws(MoqTokioWebsocketErrorException::class) fun localAddr(): moq.SocketAddr
 	fun acceptHealth(): moq.MoqTokioAcceptHealth
-	suspend fun accept(): moq.QmuxSession
+	@kotlin.jvm.Throws(MoqTokioWebsocketErrorException::class) suspend fun accept(): moq.QmuxSession
 	companion object {
-		suspend fun bind(addr: moq.SocketAddr): moq.MoqTokioWebsocketListener
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MoqTokioWebsocketErrorException::class) suspend fun bind(addr: moq.SocketAddr): moq.MoqTokioWebsocketListener
 	}
 }
 class MoqTokioQuicDemuxDemux internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7762,21 +7764,21 @@ class MoqTokioQuicDemuxDemux internal constructor(raw: Long, lent: Boolean = fal
 	fun counters(): moq.MoqSockDemuxCounters
 	fun webrtc(): moq.MoqTokioQuicDemuxWebRtc
 	companion object {
-		fun default(): moq.MoqTokioQuicDemuxDemux
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioQuicDemuxDemux
 	}
 }
 class MoqTokioServerStreams internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	companion object {
-		fun default(): moq.MoqTokioServerStreams
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioServerStreams
 	}
 }
 class MoqTokioServerQuicLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String
 	fun clone(): moq.MoqTokioServerQuicLimits
-	fun set(limits: moq.MoqQuicLimits)
+	@kotlin.jvm.Throws(StringException::class) fun set(limits: moq.MoqQuicLimits)
 }
 class MoqQuicLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
@@ -7796,9 +7798,9 @@ class MoqQuicLimits internal constructor(raw: Long, lent: Boolean = false) : Aut
 	fun receiveRateSet(value: moq.MoqQuicRate?)
 	val sendRateGet: moq.MoqQuicRate?
 	fun sendRateSet(value: moq.MoqQuicRate?)
-	fun validate()
+	@kotlin.jvm.Throws(StringException::class) fun validate()
 	companion object {
-		fun default(): moq.MoqQuicLimits
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqQuicLimits
 	}
 }
 class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7810,8 +7812,8 @@ class MoqTokioConnectAddr internal constructor(raw: Long, lent: Boolean = false)
 	fun url(): moq.Url
 	fun addresses(): kotlin.collections.List<moq.SocketAddr>?
 	companion object {
-		fun new(url: moq.Url): moq.MoqTokioConnectAddr
-		fun pinned(url: moq.Url, addrs: kotlin.collections.List<moq.SocketAddr>): moq.MoqTokioConnectAddr
+		@kotlin.jvm.JvmStatic fun new(url: moq.Url): moq.MoqTokioConnectAddr
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(MoqTokioConnectErrorException::class) fun pinned(url: moq.Url, addrs: kotlin.collections.List<moq.SocketAddr>): moq.MoqTokioConnectAddr
 	}
 }
 class RustlsPkiTypesTrustAnchor internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7851,7 +7853,7 @@ class MoqTokioListenForward internal constructor(raw: Long, lent: Boolean = fals
 	val peersGet: moq.PathBuf?
 	fun peersSet(value: moq.PathBuf?)
 	companion object {
-		fun default(): moq.MoqTokioListenForward
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioListenForward
 	}
 }
 class RustlsClientDangerDangerousClientConfig internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7865,9 +7867,9 @@ class RustlsClientResumption internal constructor(raw: Long, lent: Boolean = fal
 	fun clone(): moq.RustlsClientResumption
 	fun tls12Resumption(tls12: moq.RustlsClientTls12Resumption): moq.RustlsClientResumption
 	companion object {
-		fun default(): moq.RustlsClientResumption
-		fun inMemorySessions(num: kotlin.ULong): moq.RustlsClientResumption
-		fun disabled(): moq.RustlsClientResumption
+		@kotlin.jvm.JvmStatic fun default(): moq.RustlsClientResumption
+		@kotlin.jvm.JvmStatic fun inMemorySessions(num: kotlin.ULong): moq.RustlsClientResumption
+		@kotlin.jvm.JvmStatic fun disabled(): moq.RustlsClientResumption
 	}
 }
 class RustlsDistinguishedName internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7875,7 +7877,7 @@ class RustlsDistinguishedName internal constructor(raw: Long, lent: Boolean = fa
 	fun debug(): kotlin.String
 	fun clone(): moq.RustlsDistinguishedName
 	companion object {
-		fun inSequence(bytes: moq.Bytes): moq.RustlsDistinguishedName
+		@kotlin.jvm.JvmStatic fun inSequence(bytes: moq.Bytes): moq.RustlsDistinguishedName
 	}
 }
 class MoqTokioWebsocketResolved internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7898,7 +7900,7 @@ class MoqTokioUnixAllow internal constructor(raw: Long, lent: Boolean = false) :
 	val pidGet: kotlin.IntArray
 	fun pidSet(value: kotlin.IntArray)
 	companion object {
-		fun default(): moq.MoqTokioUnixAllow
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqTokioUnixAllow
 	}
 }
 class MoqTokioWebsocketError internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7912,7 +7914,7 @@ class QmuxSession internal constructor(raw: Long, lent: Boolean = false) : AutoC
 	fun clone(): moq.QmuxSession
 	fun protocol(): kotlin.String?
 	fun version(): moq.MoqQuicConnectionMuxVersion
-	fun setLimits(limits: moq.MoqQuicLimits)
+	@kotlin.jvm.Throws(StringException::class) fun setLimits(limits: moq.MoqQuicLimits)
 	fun peerCertificates(): kotlin.collections.List<moq.RustlsPkiTypesCertificateDer>?
 	fun serverName(): kotlin.String?
 }
@@ -7923,7 +7925,7 @@ class MoqSockDemuxCounters internal constructor(raw: Long, lent: Boolean = false
 	fun discard(reason: moq.MoqSockDemuxDiscard)
 	fun get(reason: moq.MoqSockDemuxDiscard): kotlin.ULong
 	companion object {
-		fun default(): moq.MoqSockDemuxCounters
+		@kotlin.jvm.JvmStatic fun default(): moq.MoqSockDemuxCounters
 	}
 }
 class MoqTokioQuicDemuxWebRtc internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7939,7 +7941,7 @@ class RustlsPkiTypesDer internal constructor(raw: Long, lent: Boolean = false) :
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun fromSlice(der: moq.Bytes): moq.RustlsPkiTypesDer
+		@kotlin.jvm.JvmStatic fun fromSlice(der: moq.Bytes): moq.RustlsPkiTypesDer
 	}
 }
 class MoqTokioQuicDemuxDatagram internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -7965,14 +7967,14 @@ class Url internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
 	companion object {
-		fun parse(input: kotlin.String): moq.Url
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): moq.Url
 	}
 }
 class Json internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun toText(): kotlin.String
 	companion object {
-		fun parse(input: kotlin.String): moq.Json
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun parse(input: kotlin.String): moq.Json
 	}
 }
 class Instant internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -8225,13 +8227,13 @@ fun clockInterval(period: moq.Duration): moq.ClockInterval
 fun clockIntervalAt(start: moq.ClockInstant, period: moq.Duration): moq.ClockInterval
 suspend fun clockSleep(duration: moq.Duration)
 suspend fun clockSleepUntil(at: moq.ClockInstant)
-suspend fun clockTimeout(duration: moq.Duration, future: suspend () -> kotlin.Unit)
-suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
+@kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeout(duration: moq.Duration, future: suspend () -> kotlin.Unit)
+@kotlin.jvm.Throws(ClockElapsedException::class) suspend fun clockTimeoutAt(deadline: moq.ClockInstant, future: suspend () -> kotlin.Unit)
 val SERVERDEFAULTTIMEOUT: moq.Duration
 suspend fun timeRunDriver(driver: moq.Driver): moq.Error
 suspend fun timeRunOriginDriver(driver: moq.OriginDriver): moq.Error
-fun varintDecodeQuic(r: moq.Mut<moq.Bytes>): kotlin.ULong
-fun varintEncodeQuic(value: kotlin.ULong, w: moq.Mut<moq.Bytes>)
+@kotlin.jvm.Throws(DecodeErrorException::class) fun varintDecodeQuic(r: moq.Mut<moq.Bytes>): kotlin.ULong
+@kotlin.jvm.Throws(EncodeErrorException::class) fun varintEncodeQuic(value: kotlin.ULong, w: moq.Mut<moq.Bytes>)
 val CACHEDEFAULTEXPIRY: moq.Duration
 val HANGECHOSUFFIX: kotlin.String
 val HANGECHOTRACK: kotlin.String
@@ -8242,24 +8244,24 @@ val HANGCONTAINERTIMESCALE: moq.Timescale
 fun hangContainerTrackInfo(priority: kotlin.Byte): moq.TrackInfo
 val MUXCONTAINERDELAYMAX: moq.Duration
 val MUXRATERETRY: moq.Duration
-fun tokioTlsParseFingerprint(value: kotlin.String): ArrayU8x32
+@kotlin.jvm.Throws(TokioTlsErrorException::class) fun tokioTlsParseFingerprint(value: kotlin.String): ArrayU8x32
 fun tokioOriginSpawn(): moq.OriginProducer
 fun transportMemoryPair(config: moq.TransportMemoryConfig): kotlin.Pair<moq.TransportMemorySession, moq.TransportMemorySession>
-fun muxCodecAacConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecAacConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
 val MUXCODECANNEXBSTARTCODE: moq.Bytes
-fun muxCodecAnnexbFromLengthPrefixed(payload: moq.Bytes, lengthSize: kotlin.ULong, prefix: moq.Bytes?): moq.Bytes
+@kotlin.jvm.Throws(MuxCodecAnnexbErrorException::class) fun muxCodecAnnexbFromLengthPrefixed(payload: moq.Bytes, lengthSize: kotlin.ULong, prefix: moq.Bytes?): moq.Bytes
 fun muxCodecAnnexbBuildPrefix(nals: kotlin.collections.List<moq.Bytes>): moq.Bytes
-fun muxCodecAnnexbLengthPrefixedToAnnexb(data: moq.Bytes, lengthSize: kotlin.ULong, out: moq.Mut<moq.Bytes>)
-fun muxCodecAnnexbAfterStartCode(b: moq.Bytes): kotlin.ULong?
+@kotlin.jvm.Throws(MuxCodecAnnexbErrorException::class) fun muxCodecAnnexbLengthPrefixedToAnnexb(data: moq.Bytes, lengthSize: kotlin.ULong, out: moq.Mut<moq.Bytes>)
+@kotlin.jvm.Throws(MuxCodecAnnexbErrorException::class) fun muxCodecAnnexbAfterStartCode(b: moq.Bytes): kotlin.ULong?
 fun muxCodecAnnexbFindStartCode(b: moq.Bytes): kotlin.Pair<kotlin.ULong, kotlin.ULong>?
-fun muxCodecFlacConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
-fun muxCodecH264Config(buf: moq.Bytes): moq.HangCatalogVideoConfig
-fun muxCodecH265Config(buf: moq.Bytes): moq.HangCatalogVideoConfig
-fun muxCodecMp3Config(init: moq.Bytes): moq.HangCatalogAudioConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecFlacConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecH264Config(buf: moq.Bytes): moq.HangCatalogVideoConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecH265Config(buf: moq.Bytes): moq.HangCatalogVideoConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecMp3Config(init: moq.Bytes): moq.HangCatalogAudioConfig
 val MUXCODECOPUSWARMUP: moq.Duration
 fun muxCodecOpusPacketSamples(packet: moq.Bytes): kotlin.UInt?
-fun muxCodecOpusConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
-fun muxContainerMp4Repair(file: java.nio.channels.SeekableByteChannel): moq.MuxContainerMp4Finish?
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxCodecOpusConfig(init: moq.Bytes): moq.HangCatalogAudioConfig
+@kotlin.jvm.Throws(MuxErrorException::class) fun muxContainerMp4Repair(file: java.nio.channels.SeekableByteChannel): moq.MuxContainerMp4Finish?
 interface StartSeekable {
 	fun seekStart(offset: ULong): ULong
 }

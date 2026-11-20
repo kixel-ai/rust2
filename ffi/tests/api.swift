@@ -1,8 +1,10 @@
 // The api fixture's Swift test: the script fixtures/api/examples/transcript.rs runs
-// natively, through the generated Swift. tests/fixtures.rs compares the transcripts.
+// natively, through the generated Swift, which tests/fixtures/transcript writes as
+// transcript.swift's `transcript()`. tests/fixtures.rs compares the transcripts. Each
+// function transcript.rs defines is this file's, by the same name.
 //
-// With an argument, it instead checks the futures' semantics, what releasing frees, or
-// breaks a contract, which must fail.
+// With an argument, it instead checks what only Swift says, the futures' semantics, what
+// releasing frees, or breaks a contract, which must fail.
 
 import Api
 import BasicContainers
@@ -12,7 +14,7 @@ import NoDump
 #endif
 
 // The Log callback: keeps even levels.
-final class PrintLog: Log {
+final class Print: Log {
 	func log(_ level: UInt8, _ line: String) -> Bool {
 		print("log \(level) \(line)")
 		return level % 2 == 0
@@ -23,6 +25,7 @@ final class PrintLog: Log {
 		print("freed")
 	}
 }
+
 
 /// A Log that counts its frees.
 final class DropLog: Log {
@@ -55,18 +58,6 @@ final class CancelLog: Log, @unchecked Sendable {
 		lines.value += 1
 		return true
 	}
-}
-
-func bound(_ b: BoundU64) -> String {
-	switch b {
-	case .included(let n): return "Included(\(n))"
-	case .excluded(let n): return "Excluded(\(n))"
-	case .unbounded: return "Unbounded"
-	}
-}
-
-func debug<T>(_ value: T) -> String {
-	String(reflecting: value)
 }
 
 func text(_ data: Bytes) -> String {
@@ -118,15 +109,6 @@ func refusal(_ reason: String) -> Refusal {
 		return refusal
 	} catch {}
 	fatalError("refuse returned")
-}
-
-/// Each of `items` as `each` prints it, joined by commas.
-func listed<T: ~Copyable>(_ items: borrowing UniqueArray<T>, _ each: (borrowing T) -> String) -> String {
-	var out: [String] = []
-	for i in 0..<items.count {
-		out.append(each(items[i]))
-	}
-	return out.joined(separator: ", ")
 }
 
 /// A path's bytes as Rust's `escape_ascii` prints them.
@@ -251,322 +233,11 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 	return try! value.get()
 }
 
-func script() {
-	print("limit \(LIMIT)")
-
-	let p = Point(x: 1, y: 2).offset(2, 3)
-	print("offset \(p.x) \(p.y)")
-	print("debug \(debug(p))")
-	print("eq \(p == Point(x: 3, y: 5))")
-	let d = Point.default()
-	print("default \(d.x) \(d.y)")
-
-	var c = Counter.new("c", 5)
-	print("get \(try! c.get())")
-	print("name \(try! c.name())")
-	print("add ok \(try! c.add(10))")
-	do {
-		_ = try c.add(2000)
-	} catch let e as Api.Error {
-		print("add err \(e) \(debug(e))")
-	} catch {
-		check(false, "add throws an Error")
-	}
-	do {
-		_ = try c.sub(20)
-	} catch let e as Api.Error {
-		print("sub err \(e) \(debug(e))")
-	} catch {
-		check(false, "sub throws an Error")
-	}
-	try! c.rename("d")
-	print("name \(try! c.name())")
-	print("is d \(try! c.`is`("d"))")
-	var copy = try! c.clone()
-	_ = try! copy.add(1)
-	print("clone \(try! copy.get()) original \(try! c.get())")
-	print("debug \(try! c.debugDescription)")
-	let label = try! c.intoLabel(p)
-	print("label \(debug(label))")
-	print("note \(hasText(Note(text: ""))) \(hasText(Note(text: nil)))")
-
-	// A tuple holding a handle is a struct of its elements.
-	let split = try! Counter.new("s", 7).split(5)
-	print("split \(try! split._0.name()) \(try! split._0.get()) \(try! split._1.name()) \(try! split._1.get())")
-	let one = try! only(Counter.new("o", 3))
-	print("only \(try! one.name()) \(try! one.get())")
-	let (w8, w16, w32, w64) = widths(98305)
-	print("widths \(w8) \(w16) \(w32) \(w64)")
-	for b: UInt64 in [2, 0] {
-		do {
-			let (q, r) = try divide(7, b)
-			print("divide \(q) \(r)")
-		} catch {
-			print("divide err \(error)")
-		}
-	}
-	for n: UInt64 in [98305, 0] {
-		if let s = spread(n) {
-			print("spread \(s.0) \(s.1) \(s.2) \(s.3)")
-		} else {
-			print("spread none")
-		}
-	}
-	for needle in ["lo", "x"] {
-		if let found = find(Bytes("hello".utf8), Bytes(needle.utf8)) {
-			print("find \(found.0) \(found.1)")
-		} else {
-			print("find none")
-		}
-	}
-	let statRows = rows([Point(x: 1, y: 2), Point(x: 3, y: 3)])
-	print("rows \(statRows.map { "\($0.0) \(debug($0.1)) \($0.2.x) \($0.2.y)" }.joined(separator: ", "))")
-	// Each handle in a tuple moves in, as one taken by value does, and an array of them is a
-	// `UniqueArray`.
-	var ranks = UniqueArray<TupleStringCounter>()
-	ranks.append(TupleStringCounter("low", Counter.new("l", 1)))
-	ranks.append(TupleStringCounter("high", Counter.new("h", 9)))
-	let board = try! Board.new(ranks)
-	let ranked = try! board.ranked()
-	print("ranked \(listed(ranked) { "\($0._0) \(try! $0._1.name()) \(try! $0._1.get())" })")
-	let best = try! board.best()
-	print("best \(try! best.name()) \(try! best.get())")
-	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
-	// key once, the last kept.
-	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])
-		.with("c", Point(x: 5, y: 6))
-	let atlasPoints = atlas.points.map { "\($0.0) \($0.1.x) \($0.1.y)" }.joined(separator: ", ")
-	print("atlas \(atlasPoints); ids \(atlas.ids.map { "\($0)" }.joined(separator: " "))")
-	// Another crate's error crosses as its message.
-	for text in ["80", "x"] {
-		do {
-			print("port \(try port(text))")
-		} catch let e as StringError {
-			print("port err \(e.error)")
-		} catch {
-			check(false, "port throws its message")
-		}
-	}
-	let span = Span(bounds: (2, 10), named: ("s", .square))
-	let (lowerHalf, upperHalf) = halves(span)
-	print("halves \(lowerHalf.0) \(lowerHalf.1) \(upperHalf.0) \(upperHalf.1) \(debug(span))")
-	let (swappedN, swappedText) = swapped(("t", 4))
-	print("swapped \(swappedN) \(swappedText)")
-	// A tuple of one is its element, so `Option<(Option<u32>,)>` nests two optionals.
-	for value: UInt32?? in [.none, .some(nil), .some(3)] {
-		switch doubled(value) {
-		case .none: print("doubled None")
-		case .some(let inner): print("doubled Some((\(inner.map { "Some(\($0))" } ?? "None"),))")
-		}
-	}
-	print("lent back \(Array(lentBack(Bytes([1, 2])))) boxed \(Array(boxedTuple(Bytes([3]))))")
-	// A borrowed string and an owned one share a tuple struct.
-	print("title Some((\"\(title(true)!)\",)) \(title(false) == nil ? "None" : "Some") named Some((\"\(named("x")!)\",))")
-
-	// Each lent counter is a new handle to a clone.
-	var registry = try! Registry.new(Counter.new("first", 1))
-	print("last \(try! registry.last() != nil)")
-	try! registry.push(Counter.new("last", 2))
-	var first = try! registry.firstGet()
-	_ = try! first.add(10)
-	print("first \(try! registry.firstGet().get()) lent \(try! first.get())")
-	var last = try! registry.last()!
-	_ = try! last.add(10)
-	print("last \(try! registry.last()!.get()) lent \(try! last.get())")
-	// A closure lent for the call edits the first counter through a handle.
-	let by: UInt64 = 5
-	let edited = try! registry.edit { counter in
-		_ = try! counter.add(by)
-		return try! counter.edited() && counter.get() == 6
-	}
-	print("edit \(edited) \(try! registry.firstGet().get())")
-	// A setter moves an object in, as assignment does, closing its handle.
-	try! registry.firstSet(Counter.new("second", 3))
-	print("set first \(try! registry.firstGet().get()) \(try! registry.firstGet().name())")
-	print("walk \(walk(3) { cursor in try! cursor.at() * 2 })")
-	print("each \(each(2) { at in print("visit \(at)") })")
-	print("offset \(offset({ 7 }, 3))")
-	print("shift \(shift({ 7 }, 4))")
-
-	let name = Name.owned("a")
-	var joined = try! name.join(Name.owned("b"))
-	print("joined \(try! joined.asStr()) \(try! joined.debugDescription) \(try! joined == name)")
-	try! joined.rename("c")
-	print("renamed \(try! joined.asStr())")
-	let long = try! longer(joined, Name.owned("dd"))
-	print("longer \(try! long.asStr())")
-	print("unnamed [\(try! unnamed().asStr())]")
-	let lit = Name.borrowed("lit")
-	print("borrowed \(try! lit.asStr()) \(try! lit.shares(Name.borrowed("lit"))) \(try! lit.shares(Name.borrowed("other")))")
-
-	print("total \(total(RangeU64(start: 2, end: 5)))")
-	print("reach \(reach(2, 5))")
-	let scaledHex = [
-		scaled(U128(high: .max, low: .max), 1), scaled(U128(high: 1, low: 1), 1 << 63), scaled(U128(high: 1 << 63, low: 0), 2),
-	].map { v in
-		v.map { v in [v.high, v.low].map { h in Swift.String(repeating: "0", count: 16 - Swift.String(h, radix: 16).count) + Swift.String(h, radix: 16) }.joined() } ?? "none"
-	}
-	print("scaled \(scaledHex.joined(separator: " "))")
-	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
-	let sumHex = { (sum: ArrayU8x4) in sum.map { Swift.String(format: "%02x", $0) }.joined() }
-	var digest = Digest.new()
-	try! digest.sumSet(try! fingerprint("deadbeef"))
-	var unparsed = ""
-	do {
-		_ = try fingerprint("zz")
-	} catch let e as StringError {
-		unparsed = e.error
-	} catch {
-		check(false, "fingerprint throws its message")
-	}
-	print("digest \(sumHex(try! digest.sumGet)) \(sumHex(try! digest.flipped(ArrayU8x4([0xff, 0, 0xff, 0])!))) \(unparsed)")
-	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
-	var batch = Batch.new(), batch2 = pair()
-	let accepted = (1...5).filter { try! batch.push($0) }.count
-	let paired = (1...3).filter { try! batch2.push($0) }.count
-	let emptied = try! drain4(&batch)
-	print("batch \(try! batch.capacity()) \(accepted) \(emptied) \(try! drain4(&batch)) \(try! batch2.capacity()) \(paired) \(try! drain2(&batch2))")
-	print("capacities \(try! capacities42(batch, batch2)) \(try! capacities22(batch2, batch2))")
-	let wide = widen(RangeU64(start: 2, end: 5), 1)
-	print("widen \(wide.start) \(wide.end)")
-	let counts = [
-		BoundsU64(start: .included(2), end: .excluded(5)),
-		BoundsU64(start: .included(2), end: .included(5)),
-		BoundsU64(start: .included(3), end: .unbounded),
-		BoundsU64(start: .unbounded, end: .unbounded),
-		BoundsU64(start: .excluded(2), end: .included(4)),
-	].map { count($0) }
-	print("count \(counts.map(String.init).joined(separator: " "))")
-	print("end \(bound(end(3))) \(bound(end(0)))")
-	let (endsStart, endsEnd) = ends(3)
-	print("ends \(bound(endsStart)) \(bound(endsEnd))")
-	for n: UInt64 in [2, 5] {
-		do {
-			print("below \(try Api.below(n, 3))")
-		} catch let e as BoundsU64Error {
-			print("below err \(bound(e.error.start)) \(bound(e.error.end))")
-		} catch {
-			check(false, "below throws its bounds")
-		}
-	}
-	let window = Window(range: RangeU64(start: 2, end: 8), end: end(5))
-	print("window \(window.contains(4)) \(window.contains(6)) \(debug(window))")
-
-	print(greet("x", .square))
-	print("len \(len(Bytes("abc".utf8)))")
-	let binary = Bytes([0xff, 0, 0x61])
-	print("hex \(hex(binary))")
-	print("timed hex \(timedHex(binary))")
-	print("sample hex \(sampleHex(binary))")
-	print("queued hex \(queuedHex(binary))")
-	print("tick \(tickName(Label(name: "tick", at: nil, ttl: nil)))")
-	print("rooted \(rootedName(Label(name: "rooted", at: nil, ttl: nil)))")
-	print("stored \(storedText("stored"))")
-	print("layer \(layerName(Label(name: "layer", at: nil, ttl: nil)))")
-	for event: Event in [.moved(p), .named(name: "n"), .done] {
-		print(describe(event))
-	}
-	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
-	// Rust's seconds are a u64, past Int64's.
-	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
-	let past = RustDuration.seconds(UInt64(Int64.max) + 1)
-	check(
-		extended(past, try! RustDuration(secs: UInt64(Int64.max), nanos: 999_999_999)) == rustMax,
-		"a duration past Int64's seconds crosses")
-	check(extended(try! RustDuration(secs: .max, nanos: 999_999_996), .nanoseconds(3)) == rustMax, "Rust's longest duration crosses")
-	check(extended(rustMax, .nanoseconds(1)) == nil, "Rust refuses a duration past its longest")
-	durations(rustMax)
-
-	// A `Copy` handle passed by value is copied, so it stays usable.
-	let stamp = Stamp.fromMillis(2500)
-	print("secs \(stamp.secs())")
-	print("later \(Stamp.fromMillis(3000).later(stamp))")
-	print("secs \(stamp.secs())")
-	print("whole \(debug(stamp.whole()))")
-	var message = Message.new(stamp, Bytes("body".utf8))
-	print("payload \(text(try! message.payloadGet))")
-	print("stamp \(debug(try! message.stampGet!))")
-	print("sent \(try! message.sent())")
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-	let reset = Stamp.fromMillis(4000)
-	try! message.stampSet(reset)
-	try! message.payloadSet(Bytes("edited".utf8))
-	print("payload \(text(try! message.payloadGet))")
-	print("stamp \(debug(try! message.stampGet!))")
-	print("secs \(reset.secs())")
-	try! message.stampSet(nil)
-	print("stamp \(try! message.stampGet != nil)")
-
-	// A value past a word, copied across: a closure takes and returns one by value.
-	let moment = Moment.new(1500, 1000)!
-	print("moment \(moment.millis()) \(Moment.new(1, 0) == nil)")
-	let shifted = shifted(moment) { $0.after(500) }
-	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
-	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
-
-	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
-	let gap = Gap.new(7, 3)
-	print("gap \(gap.sum()) \(gap == Gap.new(7, 3))")
-	let berth = Berth.new(4)
-	print("berth Some(\(berth.at()!)) \(Berth.new(nil).at() == nil ? "None" : "Some")")
-
-	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
-	var score = Score.of(2)
-	let step = Score.of(3)
-	score.add(step)
-	score.add(step)
-	print("score \(score.count()) \(step.doubled().count()) \(step.count())")
-	var scoreCopy = score
-	let taken = scoreCopy.take()
-	print("taken \(taken) \(scoreCopy.count()) \(score.count())")
-	var otherScore = step
-	let before = scoreCopy.absorb(&otherScore)
-	print("absorbed \(before.0) \(before.1) \(scoreCopy.count()) \(otherScore.count()) \(step.count())")
-	var hits = Hits.of(1, 2)
-	let keptHits = hits
-	hits.add(Hits.of(10, 20))
-	hits.hitsSet(7)
-	print("hits \(hits.hitsGet) \(hits.missesGet) \(keptHits.hitsGet) \(keptHits.missesGet) \(hits == keptHits)")
-	var counted = keptHits
-	let countedSame = counted.eq(keptHits)
-	print("counted \(countedSame) \(counted.hitsGet)")
-	var extent = Extent.new(5, 3)
-	let extentStart = extent
-	let old = extent.slide(10)
-	extent.startSet(extent.startGet + 1)
-	print("extent \(old) \(extent.startGet) \(extent.end()) \(extentStart.startGet) \(extentStart.end())")
-	let weighted = Weighted(score: step, weight: 4)
-	print("weighted \(weighted.total()) \(weighted.score.count() + step.count())")
-	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
-	let mark = Mark.of(1)
-	try! mark.add(2)
-	let parcel = Parcel(mark: mark, payload: Bytes("abc".utf8))
-	print("heft \(try! heft((mark, Bytes("ab".utf8)), parcel, TupleCounterBytes(Counter.new("w", 1), Bytes("abcd".utf8))))")
-	// A value's `&mut self` beside a checked handle.
-	var noted = Score.of(2)
-	let notedBefore = try! noted.note(Mark.of(5))
-	print("noted \(notedBefore) \(noted.count())")
-
-	// Bound first, so Swift's reference is gone before the print.
-	let kept = emit(PrintLog(), Bytes([1, 2, 3, 4]))
-	print("kept \(kept)")
-	do {
-		let logger = Logger.new(PrintLog())
-		print("write \(logger.write("hi"))")
-	}
-	print("dropped")
-	// Rust calls it on another thread, before the call returns.
-	let threshold: UInt8 = 2
-	let filtered = filter(Bytes([1, 2, 3, 4])) { level, line in
-		print("filter \(level) \(line)")
-		return level > threshold
-	}
-	print("filtered \(filtered)")
-
+/// A channel's futures, on an executor the script drains, so it sees each wait and the
+/// wake that queues its resume.
+func channel() {
 	let channel = Channel.new()
 	let wakes = Cell(0)
-	// On an executor the script drains, so it sees the receive wait and its wake queue
-	// the resume.
 	let q = Queue()
 	let got = Cell<Bytes?>(nil)
 	q.launch { got.value = try await channel.recv() }
@@ -621,140 +292,115 @@ func script() {
 		try! waiter.context()()
 	}
 	print("woken \(wakes.value)")
+}
 
-	var list = try! Node.new(2, nil)
-	try! list.push(1)
-	print("node \(try! list.sum())")
-	// An optional boxed field that is not Clone, lent as `Some` of a handle.
-	if let next = try! list.nextGet() {
-		print("node next \(try! next.valueGet)")
-	} else {
-		print("node next 0")
+/// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+func drive() {
+	let start = Moment.new(0, 1000)!
+	let calls = Cell(0)
+	let stopped = block {
+		try await Api.drive(start) { now, waiter in
+			calls.value += 1
+			switch calls.value {
+			case 1: return now.after(5)
+			case 2:
+				print("drive \(now.millis() - start.millis())")
+				try! waiter.waker()()
+				return nil
+			default: throw StringError(error: "stopped after \(calls.value)")
+			}
+		}
 	}
+	print("drive \(stopped)")
+}
 
-	let tally = Tally.new()
-	_ = try! tally.bump()
-	print("tally \(try! tally.bump()) \(try! tally == tally)")
-	print("both \(try! bumpBoth(tally, tally))")
-	print("peek \(try! peek(tally) { lent in try! lent.bump() })")
-
-	let grown = grow(Area.new(Size(width: 2, height: 3)), 1)
-	let size = grown.size()
-	print("area \(size.width) \(size.height) \(grown.pixels())")
-
-	// Generic types, each at the instances it infers, named by their arguments.
-	let pair = PairU32(left: 2, right: 5)
-	let swappedPair = pair.swap()
-	print("pair \(swappedPair.left) \(swappedPair.right) sum \(pair.sum()) \(debug(pair)) \(pair == swappedPair)")
-	print("even \(pair.even()) \(PairU32(left: 7, right: 7).even())")
-	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	let sized: PairSizeU8 = tag(Size(width: 1, height: 2), 3)
-	let flipped: PairU8Size = sized.swap()
-	print("sized \(flipped.left) \(flipped.right.width) \(debug(flipped))")
-	let beside = PairU32(left: 258, right: 9).besideSize(sized.left)
-	print("beside \(beside.left) \(debug(beside))")
-	// At its default, named as the type itself.
-	var stack = Stack.new()
-	for (i, n) in ["a", "b"].enumerated() {
-		try! stack.push(Counter.new(n, UInt64(i) + 1))
-	}
-	let top = try! stack.pop()!.get()
-	print("stack \(try! stack.depth()) Some(\(top)) \(try! stack.pop() != nil) \(try! stack.pop() == nil)")
-	// Generic functions and methods, at each implementation of the trait bounding them, by
-	// reference, which leaves Swift its handle.
-	let fromPoint = Counter.seededPoint("p", Point(x: -3, y: 4))
-	let fromSize = Counter.seededSize("s", Size(width: 5, height: 6))
-	let fromCounter = try! Counter.seededCounter("c", fromPoint)
-	let fromPolar = Counter.seededPolarPoint("q", PolarPoint(turns: 1, distance: 2))
-	print(
-		"seeded \(try! fromPoint.get()) \(try! fromSize.get()) \(try! fromCounter.get()) \(try! fromPolar.get()) "
-			+ "past \(try! stack.depthPastPoint(Point(x: 1, y: 2))) seeds \(seedsPointSize(Size(width: 2, height: 3)))")
-
-	// A trait implemented for `Point` and `&Point` apart: one instance.
-	print("weigh \(weighPoint(Point(x: -1, y: 2)))")
-	// A function named as the type it returns, and one named as a type it does not.
-	print("polar \(polarPoint(2)!.distance) \(polarPoint(0) == nil) area \(area(Size(width: 2, height: 3)))")
-	// Two types whose paths join alike, the second kept apart where its path splits.
-	print("wind \(wind(PolarTurn(whole: 2), Polar_Turn(part: 3)))")
-	// Names that clash in some language, each kept apart there.
-	let clashSpan = ClashSpan(width: 4)
-	let clashStore = ClashStore.new(7)
-	print(
-		"clash \(debug(ClashTone(hz: 440))) \(debug(ClashTone_(db: 3))) \(debug(Cancelled(step: 2))) "
-			+ "span \(clashSpan.width_()) \(clashSpan.toString()) \(clashSpan) "
-			+ "store \(clashStore.free()) \(clashStore.close()) "
-			+ "audio \(clashAudioEncoderFinish()) \(clashAudioEncoderFinish_()) "
-			+ "nested \(clashNested(((1, 2), 3), (1, 2, 3)))"
-	)
-	// Instances that name each other, and one made only by an impl of it.
-	let crossed = cross(LeftRightU8(value: RightU8(value: 1)), RightLeftU8(value: LeftU8(value: 2)))
-	print("cross \(crossed) outer \(OuterInnerU8.new(4).get())")
-	// A bound that outlives the call takes a value, and an instance only a constant names.
-	print("kept \(keptPoint(Point(x: 1, y: -2))) boxed \(BOXED.value)")
-	print("keep \(keepPoint(Point(x: 1, y: -2)))")
-	let five = Point(x: 5, y: 2)
-	print("kept or \(keptOrPoint(five)) \(keptOrPoint(nil)) keeper \(keeperPoint(five))")
-	// Inferred instances taking a lent closure and a foreign implementation, and one only
-	// its impl of a trait names.
-	let sides = PairU32(left: 2, right: 5)
-	print("apply \(applyU32(sides) { side in side * 3 })")
-	let report = reportU32(sides, PrintLog())
-	print("report \(report)")
-	print("wrapped \(keptWrapU32(WrapU32(value: 4)))")
-	let keptLog = keeps(PrintLog())
-	print("keeps \(keptLog.value)")
-
-	// Its Drop runs when Swift releases the last reference, not before.
+/// Readers over bytes, whose reads fail, and that seek past `Int64.max`.
+func readers() {
+	var memory = Memory(Data("hello world".utf8))
+	printTail { try tail(&memory, 5) }
+	check(memory.at == 6, "a reader's seeks stay once the call returns")
+	var broken = Broken()
+	printTail { try tail(&broken, 5) }
+	// A seek from the start reaches the reader whole, past `Int64.max`, as `Cursor` takes one.
+	var far = Far()
 	do {
-		let token = Token.new(7)
-		withExtendedLifetime(token) { print("token \(try! token.idGet) dropped \(dropped())") }
-	}
-	print("dropped \(dropped())")
-
-	// A field and the method of its name, each its own member.
-	var retry = Retry.new(5)
-	let limit = try! retry.limitGet
-	print("retry \(limit != nil ? 1 : 0) \(limit ?? 0) \(try! retry.limit()) \(try! retry.delay())")
-	// The renamed field's setter, named as its getter.
-	try! retry.limitSet(nil)
-	print("retry \(try! retry.limit())")
-	print("slot \(try! SlotU8.new(200).value())")
-
-	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
-	let base = try! Url.parse("https://example.com/a/b")
-	print("url \(try! base.description) host \(try! host(base).map { "Some(\"\($0)\")" } ?? "None")")
-	let url = try! resolve(try! base.clone(), "c?d")
-	print("resolve \(try! url.description) \(try! url == base)")
-	do {
-		_ = try Url.parse("no scheme")
+		print("sought \(try seekTo(&far, UInt64.max))")
 	} catch let e as StringError {
-		print("parse err \(e.error)")
+		print("sought error \(e.error)")
 	} catch {
-		check(false, "parse throws its message")
+		check(false, "seekTo throws its io::Error's message")
 	}
-	let v4 = SocketAddr.v4(SocketAddrV4(ip: Ipv4Addr(127, 0, 0, 1), port: 8080))
-	let loopback = Ipv6Addr(bits: U128(1))
-	let v6 = SocketAddr.v6(SocketAddrV6(ip: loopback, port: 443, scopeId: 3))
-	print("ports \(ports([v4, v6]))")
-	let peer = Peer(addr: v6, names: ["a", "b"]).next("c")
-	print("peer \(debug(peer)) \(peer.aliases())")
-	let file = file("dir", "f\\'\"\t")
-	print("file \(escaped(file))")
-	print("parents \(parents([file, "/"]).map { $0.map(escaped) ?? "none" }.joined(separator: " "))")
-	let words = words(" one two  three ")
-	print("words \(words.count) \(words)")
-	print("sentence \(sentence(words)) \(sentence(nil))")
-	print("sentence \(sentence([]))|")
-	print("either \(either("abc")) \(either(nil))")
-	print("prefixed \(String(decoding: prefixed(Bytes("cd".utf8), Bytes("ab".utf8)), as: UTF8.self)) \(String(decoding: prefixed(Bytes("cd".utf8), nil), as: UTF8.self))")
-	print("coordinates \(coordinates(Point(x: 2, y: 3))) \(coordinates(nil))")
+}
+
+/// Futures of a value that is not Send, made on this thread, so awaited on an executor the
+/// script drains on it.
+func localLater(_ local: consuming Local) {
+	let held = Held(local)
+	let later = Cell<UInt32>(0)
+	let q = Queue()
+	q.launch { later.value = try await localOrNewLater(local: held.local).bump() }
+	q.drain()
+	print("local later \(later.value)")
+	print("local later fresh \(block { try await localOrNewLater().bump() })")
+}
+
+/// A path no Rust string spells: bytes that are not UTF-8.
+func unspelled() -> PathBuf {
+	stray()
+}
+
+/// A path's bytes in hex.
+func pathHex(_ path: PathBuf) -> String {
+	hex(path.bytes)
+}
+
+/// A duration as its seconds and nine digits of nanoseconds.
+func seconds(_ d: RustDuration) -> String {
+	"\(d.secs).\(String(d.nanos).leftPadded(9))"
+}
+
+/// A duration in whole milliseconds.
+func millis(_ d: RustDuration) -> UInt64 {
+	d.secs * 1000 + UInt64(d.nanos) / 1_000_000
+}
+
+/// A char's code point.
+func code(_ c: Unicode.Scalar) -> UInt32 {
+	c.value
+}
+
+/// The list reversed.
+func reversed<T: ~Copyable>(_ list: consuming UniqueArray<T>) -> UniqueArray<T> {
+	var out = UniqueArray<T>()
+	while list.count > 0 {
+		out.append(list.remove(at: list.count - 1))
+	}
+	return out
+}
+
+/// Each float's bits.
+func f64Bits(_ floats: [Double]) -> [UInt64] {
+	floats.map(\.bitPattern)
+}
+
+/// What the transcript's script says only in Rust, or Swift alone has: its own types'
+/// conversions, the errors and checks it throws, and its protocols.
+func checks() {
+	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
+	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
+	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
+	// Rust's seconds are a u64, past Int64's.
+	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
+	let past = RustDuration.seconds(UInt64(Int64.max) + 1)
+	check(
+		extended(past, try! RustDuration(secs: UInt64(Int64.max), nanos: 999_999_999)) == rustMax,
+		"a duration past Int64's seconds crosses")
+	check(extended(try! RustDuration(secs: .max, nanos: 999_999_996), .nanoseconds(3)) == rustMax, "Rust's longest duration crosses")
+	check(extended(rustMax, .nanoseconds(1)) == nil, "Rust refuses a duration past its longest")
+	durations(rustMax)
 	do {
-		// An optional borrowed handle is an overload with it and one without; one borrowed
-		// mutably is an optional `inout`.
 		let two = Counter.new("two", 2)
-		var three: Counter? = Counter.new("three", 3)
-		var none: Counter? = nil
-		print("plus \(try! two.plus(other: three!)) \(try! two.plus())")
+		let three = Counter.new("three", 3)
 		// A list and an option holding a struct beside a class, whose handle each moves.
 		var pairs = UniqueArray<TupleCounterRefusal>()
 		pairs.append(TupleCounterRefusal(Counter.new("a", 1), refusal("x")))
@@ -808,105 +454,16 @@ func script() {
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(
-			try! two.clamped() == 2 && two.clamped(low: three!) == 3 && two.clamped(high: one) == 1
-				&& two.clamped(low: one, high: three!) == 2,
+			try! two.clamped() == 2 && two.clamped(low: three) == 3 && two.clamped(high: one) == 1
+				&& two.clamped(low: one, high: three) == 2,
 			"clamped overloads each optional borrow"
 		)
-		print("add_to \(try! two.addTo(&three)) \(try! two.addTo(&none)) \(try! three!.get())")
 	}
 	do {
-		var encoded = Bytes("0,".utf8)
-		putNumber(1, &encoded)
-		putNumber(23, &encoded)
-		print("put_number \(String(decoding: encoded, as: UTF8.self))")
-		var entry = (Bytes("ab".utf8), UInt32(1))
-		let stamps = pushCounted(&entry, UInt8(ascii: "c"))
-		print("push_counted \(stamps) \(String(decoding: entry.0, as: UTF8.self)) \(entry.1)")
-		var digits = Bytes("7x9".utf8)
-		let firstDigit = try! digit(&digits)
-		let skipped = (try? digit(&digits)) == nil
-		let lastDigit = try! digit(&digits)
-		print("digit \(firstDigit) \(skipped) \(lastDigit) \(digits.count)")
-		var nudged = Point(x: 1, y: 2)
-		nudge(&nudged, 3)
-		print("nudge \(nudged.x) \(nudged.y)")
-	}
-	do {
-		let config = secure("h3")
-		print("secure \(try! alpnLent(config)) \(try! alpn(config.clone()))")
-		let cert = certify(Bytes("der".utf8))
-		let certLength = try! certLen(cert)
-		let der = text(try! certDer(cert))
-		var chain = UniqueArray<TlsCert>()
-		chain.append(certify(Bytes("a".utf8)))
-		chain.append(certify(Bytes("bc".utf8)))
-		print("cert \(certLength) \(der) \(try! chainLen(chain))")
-		// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
-		print("resolver \(try! resolved(resolver("r1")))")
-		var codecs = Codecs.new()
-		print("codecs \(try! codecs.ids())")
-		var listed = try! codecs.listGet()
-		var reversed = UniqueArray<TlsCodec>()
-		reversed.append(listed.remove(at: 1))
-		reversed.append(listed.remove(at: 0))
-		try! codecs.listSet(reversed)
-		print("codecs reversed \(try! codecs.ids())")
-		// A standard library value no type maps, in a handle.
-		let failed = failure("boom")
-		let message = try! failureMessage(failed)
-		print("failure \(message) \(try! failureKind(failed))")
-		// Iterators, passed as the arrays of their items.
-		print("sum_all \(sumAll([1, 2, 3]))")
-		var weighed = UniqueArray<Counter>()
-		weighed.append(Counter.new("w", 3))
-		print("weigh_all \(try! weighAllCounter(weighed))")
-		print("offered_len \(offeredLen([Bytes("h3".utf8), Bytes("moq-00".utf8)]))")
-		print("join_words \(joinWords(["a", "b", "c"]))")
-		// Bytes that must be `'static`, interned.
-		print("der \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
-		print("der again \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
-		let session = try! resume("h3", 60)
-		print("resume \(session.alpn()) \(session.lifetime().seconds)")
-		do {
-			_ = try resume("", 60)
-		} catch let e as StringError {
-			print("resume err \(e.error)")
-		} catch {
-			check(false, "resume throws its message")
-		}
-		var meters = Meters.new()
-		let first = try! meters.first()
-		_ = try! first.add(2)
-		print("lent \(try! first.add(3)) \(try! meters.first().count())")
-		try! meters.clear()
-		print("cleared \(try! meters.first().count())")
-		let last = try! meters.lastGet()
-		_ = try! last.add(4)
-		print("field lent \(try! last.add(1))")
-		// An optional field that is not Clone, lent as `Some` of a handle.
-		var hasSpare = false
-		if let _ = try! meters.spareGet() {
-			hasSpare = true
-		}
-		print("spare \(hasSpare)")
-		try! meters.spareSet(Meter.default())
-		if let spare = try! meters.spareGet() {
-			_ = try! spare.add(5)
-			print("spare lent \(try! spare.add(1))")
-		}
-		let tallies = Tallies.new()
-		_ = try! tallies.first().bump()
-		print("tallied \(try! tallies.first().bump())")
-	}
-	do {
-		// A draft borrowing its ledger exclusively until it is consumed, through which its
-		// sheet's members are reached by Deref and DerefMut: the ledger refuses any other use
-		// meanwhile.
+		// A draft borrows its ledger exclusively until it is consumed: the ledger refuses any
+		// other use meanwhile.
 		var ledger = Ledger.new()
-		var draft = try! ledger.edit()
-		try! draft.titleSet("minutes")
-		try! draft.write("first")
-		print("draft \(try! draft.titleGet) \(try! draft.lines()) \(try! draft.describe()) \(try! draft.edited())")
+		let draft = try! ledger.edit()
 		do {
 			_ = try ledger.published()
 			check(false, "a lent ledger refuses a read")
@@ -918,206 +475,10 @@ func script() {
 		} catch {
 			check(false, "a lent ledger threw \(error)")
 		}
-		print("committed \(try! draft.commit())")
-		print("ledger \(try! ledger.title()) \(try! ledger.published())")
-		let read = try! ledger.edit()
-		print("read \(try! read.lines()) \(try! read.edited())")
-		_ = consume read
-		var second = try! ledger.edit()
-		try! second.write("second")
-		_ = consume second
-		print("dropped \(try! ledger.published())")
-		print("receipt \(try! ledger.receipt().count())")
-		// A field holding a borrow, read through.
-		do {
-			// The tab lends its field, so it outlives the read.
-			let tab = try! ledger.tab()
-			print("tab \(try! tab.ledgerGet().published())")
-			print("tab label \(try! tab.labelGet)")
-		}
-		var marker = Marker.new("m", 3, 5)
-		try! marker.ySet(7)
-		print("forwarded \(PadU16.wide().title()) \(Layered.new().lines()) \(try! marker.xGet) \(try! marker.yGet) [\(PadU8.small().describe())] [\(PadU16.wide().describe())]")
-		_ = consume marker
-		try! ledger.seal()
-		do {
-			_ = try ledger.edit()
-			check(false, "a sealed ledger refuses a draft")
-		} catch let e as Api.Error {
-			print("sealed \(e)")
-		} catch {
-			check(false, "a sealed ledger throws an Error")
-		}
+		_ = consume draft
 	}
-	print("chunks \(chunks(Bytes("abcde".utf8), 2).map { Array($0) })")
-	var counters = counters(["x", "y"])
-	print("counters \(listed(counters) { "\(try! $0.name()) \(try! $0.get())" })")
-	// Each counter moves in.
-	var some = UniqueArray<Counter>()
-	some.append(counters.remove(at: 0))
-	var boxed = UniqueArray<Counter>()
-	boxed.append(counters.remove(at: 0))
-	print("worth \(try! worth(some, boxed)) \(try! worth(nil, UniqueArray()))")
-	print("held \([try! heldCount(Counter.new("h", 4)), try! heldCount(nil)].map { $0.map { "Some(\($0))" } ?? "None" }.joined(separator: " "))")
-	print("boxed \(try! boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(try! boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
-	print("less \(less(5, 2))")
-	print("sums \(sums([[1, 2], [], [3]]))")
-	print("least \(least([[3, 1], [], [2]]).map { "\($0)" }.joined(separator: " "))")
-	numbers("edges", Numbers.edges())
-	numbers("reversed", Numbers.edges().reversed())
-	let edges = Numbers.edges()
-	let nan = Measure.new(Double.nan, false)
-	print("float equal \(edges == edges) \(edges == Numbers.edges()) \(Numbers.zero(true) == Numbers.zero(false)) \(nan == nan) \(Measure.new(-0.0, true) == Measure.new(0.0, false))")
-	print("sum u32 \(sumU32([])) \(sumU32([UInt32.max, UInt32.max, 2]))")
-	print("doubled i64 \(doubledI64([Int64.min, -1, 0, Int64.max]))")
-	print("boxed floats \(boxedFloats([-0.0, Double(bitPattern: 0x7ff8_0000_0000_0001)]).map(\.bitPattern))")
-	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
-	let noneSum = summed([])
-	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
-	print("longest \(longest(["a", "abc"])) \(longest([]))")
-	print("first of Some(\"\(firstOf(["a", "b"])!)\") \(firstOf([]) ?? "None")")
-	let limits = byteLimits(Bytes("a".utf8), Bytes("bc".utf8))
-	let waits = breadth(LimitsDuration(low: .milliseconds(5), high: .seconds(2)))
-	let low = String(decoding: limits.low, as: UTF8.self)
-	let high = String(decoding: limits.high, as: UTF8.self)
-	print("limits \(low) \(high) breadth \(waits.secs * 1000 + UInt64(waits.nanos) / 1_000_000)")
-	let parts = String(decoding: Api.joined([Bytes("ab".utf8), Bytes(), Bytes("c".utf8)]), as: UTF8.self)
-	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Bytes("hello".utf8)))")
-	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
-	print("json \(try! encode(doc))")
-	// A returned Cow crosses as an owned string or bytes.
-	print("cow \(unescaped(#"a\b"#)) \(unescaped("plain")) \(unzeroed(Bytes([1, 0, 2])).count) \(unzeroed(Bytes([3])).count)")
-	// A type parameter bounded by Deserializer takes a JSON document, moved in.
-	let spot = try! Spot.deserialize(try! Json.parse("[1, 2]"))
-	print("spot \(spot.x) \(spot.y)")
-	do {
-		_ = try Spot.deserialize(try! Json.parse("\"x\""))
-		check(false, "a spot refuses a string")
-	} catch let e as StringError {
-		print("spot err \(e.error)")
-	} catch {
-		check(false, "deserialize throws its message")
-	}
-	let tagged = try! tagged(doc, "t")
-	print("tagged \(try! tagged.toText())")
-	// A JSON object's entries cross as pairs of a key and its document, each moved in.
-	var pairs = UniqueArray<TupleStringJson>()
-	pairs.append(TupleStringJson("b", try! Json.parse("[1]")))
-	pairs.append(TupleStringJson("a", try! Json.parse("2")))
-	let jsonEntries = try! entries(pairs, "t")
-	print("entries \(listed(jsonEntries) { "\($0._0) \(try! $0._1.toText())" })")
-	do {
-		_ = try Json.parse("{\"a\":")
-	} catch let e as StringError {
-		print("json parse err \(e.error)")
-	} catch {
-		check(false, "parse throws its message")
-	}
-	let site = try! Site.new(base)
-	print("site \(try! site.homeGet().description) \(try! site.homeGet().description)")
-
-	// Slices, passed in and returned as clones, and the socket address of each family.
-	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
-	print("both \(Shape.BOTH) primes \(PRIMES)")
-	var trail = Trail.new([Point(x: 1, y: 2), Point(x: 3, y: 4)], ["a", "b"])
-	print("trail \(try! trail.points()) \(try! trail.labels())")
-	// Returned iterators, each collected at the call: drained labels are gone after.
-	print("iterated \(try! trail.iter()) \(try! trail.names()) \(Array(try! trail.bytes()))")
-	print("drained \(try! trail.drain()) then \(try! trail.labels())")
-	// A filter, collected at the call.
-	print("beyond \(try! trail.beyond(1).map { "\($0.x) \($0.y)" }.joined(separator: ", "))")
-	let numbered = numbered(["p", "q"])
-	print("numbered \(listed(numbered) { "\(try! $0.name()) \(try! $0.get())" })")
-	let (next4, next6) = nexts(SocketAddrV4(ip: Ipv4Addr(127, 0, 0, 1), port: 8080), SocketAddrV6(ip: loopback, port: 443, scopeId: 3))
-	print("nexts \(next4.ip.octets.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
-	let (nextIp4, nextIp6) = nextIps(Ipv4Addr(10, 0, 0, 255), Ipv6Addr(bits: U128(0xffff)))
-	let mapped = flip(.v4(Ipv4Addr(127, 0, 0, 1)))
-	let ips = [IpAddr.v4(nextIp4), .v6(nextIp6), mapped, flip(mapped), flip(.v6(loopback))]
-	print("ips \(ips.map(ipHex).joined(separator: " "))")
-	lossless()
-
-	// serde_json's map iterator, collected as pairs of a key and its document.
-	var sectionPairs = UniqueArray<TupleStringJson>()
-	sectionPairs.append(TupleStringJson("b", try! Json.parse("[1]")))
-	sectionPairs.append(TupleStringJson("a", try! Json.parse("2")))
-	let jsonSections = try! sections(sectionPairs)
-	print("sections \(listed(jsonSections) { "\($0._0) \(try! $0._1.toText())" })")
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	let millis = { (d: RustDuration) in d.secs * 1000 + UInt64(d.nanos) / 1_000_000 }
-	let began = now()
-	let ended = later(began, .milliseconds(1500))
-	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .seconds(0))) \(began == ended)")
-	print("has_instant \(hasInstant(began)) \(hasInstant(nil))")
-	// tracing's level, and its filter as an optional level whose nil is `OFF`.
-	var verbosity = Verbosity.new(.warn)
-	print("verbosity \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter())))")
-	try! verbosity.levelSet(.trace)
-	print("verbosity \(try! verbosity.levelGet == .trace) \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter()))) \(spell(louder(nil)))")
-
-	print("made \(made(3) { "\($0) times" })")
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
-	let nine = Ticket.new(9)
-	let given = reissue(Ticket.new(7)) { Ticket.new($0.number() + 1) }.number()
-	let held = reissue(Ticket.new(7)) { _ in nine }.number()
-	print("reissued \(given) \(held), cloned \(Ticket.clones())")
-	// A record's traits borrow the checked handle it holds.
-	let nines = Mark.of(9)
-	let front = try! seat(nines, 1)
-	let back = try! seat(nines, 2)
-	print("seat \(try! front.debugDescription) \(try! front == front) \(try! front == back)")
 	// A kept closure, called on another thread after the call that took it returned.
 	check(try! Spawned.new { 7 }.join() == 7, "a kept closure runs on another thread")
-	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	let start = Moment.new(0, 1000)!
-	let calls = Cell(0)
-	let stopped = block {
-		try await drive(start) { now, waiter in
-			calls.value += 1
-			switch calls.value {
-			case 1: return now.after(5)
-			case 2:
-				print("drive \(now.millis() - start.millis())")
-				try! waiter.waker()()
-				return nil
-			default: throw StringError(error: "stopped after \(calls.value)")
-			}
-		}
-	}
-	print("drive \(stopped)")
-	var memory = Memory(Data("hello world".utf8))
-	printTail { try tail(&memory, 5) }
-	check(memory.at == 6, "a reader's seeks stay once the call returns")
-	var broken = Broken()
-	printTail { try tail(&broken, 5) }
-	// A seek from the start reaches the reader whole, past `Int64.max`, as `Cursor` takes one.
-	var far = Far()
-	do {
-		print("sought \(try seekTo(&far, UInt64.max))")
-	} catch let e as StringError {
-		print("sought error \(e.error)")
-	} catch {
-		check(false, "seekTo throws its io::Error's message")
-	}
-	print("non zeros \(describeNonZeros(nonZeros()))")
-	for hop in [nil, 1, UInt64.max] as [UInt64?] {
-		print("hop \(nextHop(hop.map { try! NonZero($0) }).map { "Some(\($0))" } ?? "None")")
-	}
-	print("farther hop \(fartherHop(PairNonZeroU16(left: try! NonZero(3), right: try! NonZero(.max))))")
-	do {
-		let local = Local.new()
-		let shared = try! localOrNew(local: local)
-		let bumped = try! local.bump()
-		print("local \(bumped) \(try! shared.bump())")
-		print("local fresh \(try! localOrNew().bump())")
-		print("local either \(try! bumpEither(shared))")
-		// Made on this thread, so awaited on the executor the script drains on it.
-		let held = Held(local)
-		let later = Cell<UInt32>(0)
-		q.launch { later.value = try await localOrNewLater(local: held.local).bump() }
-		q.drain()
-		print("local later \(later.value)")
-		print("local later fresh \(block { try await localOrNewLater().bump() })")
-	}
 	// A zero, which Swift's integer holds and Rust's `NonZero` does not, makes none, and a
 	// record holding one keeps the protocols its traits give.
 	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")
@@ -1125,7 +486,9 @@ func script() {
 	check(try! NonZero<Int8>(.min) < NonZero(1), "a NonZero compares as its integer")
 	let debuggable: any CustomDebugStringConvertible = nonZeros()
 	check(debuggable.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
+	lossless()
 	targets()
+	print("checks ok")
 }
 
 /// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
@@ -1636,26 +999,42 @@ func lentKept() {
 }
 #endif
 
-/// `bytes` in hex, two digits each.
-func hexBytes(_ bytes: some Sequence<UInt8>) -> String {
+/// `bytes` in lowercase hex, two digits each.
+func hex(_ bytes: some Sequence<UInt8>) -> String {
 	bytes.map { String($0, radix: 16).leftPadded(2) }.joined()
 }
 
 /// An IP address's octets in hex, so their length shows its family.
 func ipHex(_ ip: IpAddr) -> String {
 	switch ip {
-	case .v4(let ip): return hexBytes(ip.octets)
-	case .v6(let ip): return hexBytes(ip.octets)
+	case .v4(let ip): return ipHex(ip)
+	case .v6(let ip): return ipHex(ip)
 	}
+}
+
+func ipHex(_ ip: Ipv4Addr) -> String {
+	hex(ip.octets)
+}
+
+func ipHex(_ ip: Ipv6Addr) -> String {
+	hex(ip.octets)
 }
 
 /// A socket address as its IP's octets in hex, its port, flow label, and scope, each
 /// IPv6's alone, apart by colons.
 func socketHex(_ addr: SocketAddr) -> String {
 	switch addr {
-	case .v4(let v4): return "\(hexBytes(v4.ip.octets)):\(v4.port)"
-	case .v6(let v6): return "\(hexBytes(v6.ip.octets)):\(v6.port):\(v6.flowinfo):\(v6.scopeId)"
+	case .v4(let v4): return socketHex(v4)
+	case .v6(let v6): return socketHex(v6)
 	}
+}
+
+func socketHex(_ v4: SocketAddrV4) -> String {
+	"\(hex(v4.ip.octets)):\(v4.port)"
+}
+
+func socketHex(_ v6: SocketAddrV6) -> String {
+	"\(hex(v6.ip.octets)):\(v6.port):\(v6.flowinfo):\(v6.scopeId)"
 }
 
 /// Whether `body` throws a `CheckError` from `function`.
@@ -1689,47 +1068,31 @@ func durations(_ rustMax: RustDuration) {
 	check(refused("RustDuration(_:)") { _ = try RustDuration(swiftMax + .nanoseconds(1) / 2) }, "past the longest by less than a nanosecond throws")
 }
 
-/// Each type's edge values, passed through Rust and back, as transcript.rs prints them,
-/// and the conversions to and from each runtime type, which throw or return nil for a
-/// value Rust's type cannot hold.
+
+/// The conversions to and from each runtime type, which throw or return nil for a value
+/// Rust's type cannot hold, and its protocols, which agree with Rust's.
 func lossless() {
-	let spans = [
-		RustDuration.seconds(0), .nanoseconds(1), .nanoseconds(UInt64(Int64.max) + 1),
-		try! RustDuration(secs: .max, nanos: 999_999_999),
-	].map { sameDuration($0) }
-	print("lossless duration \(spans.map { "\($0.secs).\(String($0.nanos).leftPadded(9))" }.joined(separator: " "))")
-	print("lossless u64 \(sameU64(0)) \(sameU64(1 << 63)) \(sameU64(.max))")
-	print("lossless usize \(sameUsize(0)) \(sameUsize(.max))")
-	print("lossless isize \(sameIsize(.min)) \(sameIsize(.max))")
-	let wides = [U128(0), U128(high: 1, low: 0), U128(high: .max, low: .max)].map { sameU128($0) }
-	print("lossless u128 \(wides.map { hexBytes(withUnsafeBytes(of: ($0.high.bigEndian, $0.low.bigEndian)) { Array($0) }) }.joined(separator: " "))")
-	let chars: [Unicode.Scalar] = ["\0", "\u{d7ff}", "\u{e000}", "\u{10ffff}"]
-	print("lossless char \(chars.map { String(sameChar($0).value, radix: 16) }.joined(separator: " "))")
 	check(sameString("a\u{0}é\u{10ffff}") == "a\u{0}é\u{10ffff}", "text crosses")
 	// A path that is not UTF-8, which no String holds, keeps its bytes.
 	let strayPath = stray()
 	check(strayPath.string == nil && PathBuf("a/é").string == "a/é", "a path's text is nil unless UTF-8")
-	print("lossless path \(hexBytes(samePath("a/é").bytes)) \(hexBytes(samePath(strayPath).bytes))")
 	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
 	visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
 	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")
-	let v4 = sameSocketAddrV4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max))
 	let ip6 = Ipv6Addr(bits: U128(high: 1 << 48, low: 2))
-	let v6 = sameSocketAddrV6(SocketAddrV6(ip: ip6, port: 3, flowinfo: .max, scopeId: .max))
-	let addrs = [SocketAddr.v4(v4), .v6(v6)]
-	print("lossless socket \(addrs.map(socketHex).joined(separator: " ")) \(addrs.map { socketHex(sameSocketAddr($0)) }.joined(separator: " "))")
+	let addrs = [SocketAddr.v4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max)), .v6(SocketAddrV6(ip: ip6, port: 3))]
 	// A key hashes by Rust's `Hash`, which agrees with its `==`.
 	let a = Key.new("a")
 	let b = Key.new("b")
-	print("key \(hashed(a) == hashed(Key.new("a"))) \(hashed(a) == hashed(b))")
+	check(hashed(a) == hashed(Key.new("a")) && hashed(a) != hashed(b), "a key hashes as Rust's Hash does")
 	let edge6 = Ipv6Addr(octets: [0xff, 0xff] + Array(repeating: 0, count: 13) + [1])!
-	print("lossless ip \(ipHex(sameIpAddr(.v4(Ipv4Addr(255, 255, 255, 255))))) \(ipHex(sameIpAddr(.v6(edge6))))")
 	// Octets convert both ways, and only exactly as many as the family holds.
 	check(Ipv4Addr(octets: [1, 2, 3, 4]) == Ipv4Addr(1, 2, 3, 4) && Ipv4Addr(1, 2, 3, 4).bits == 0x0102_0304, "IPv4 octets convert")
 	check(Ipv6Addr(octets: edge6.octets) == edge6 && edge6.bits == U128(high: 0xffff << 48, low: 1), "IPv6 octets convert")
 	check(Ipv4Addr(octets: [1, 2, 3]) == nil && Ipv6Addr(octets: [UInt8](repeating: 0, count: 4)) == nil, "octets of another length convert to nil")
 	check(SocketAddr(ip: .v6(ip6), port: 3) == .v6(SocketAddrV6(ip: ip6, port: 3)) && addrs[1].ip == .v6(ip6) && addrs[0].port == .max, "a socket address is its IP and port")
 }
+
 
 /// `key`'s hash by Swift's own hasher, which `Hashable` uses.
 func hashed(_ key: borrowing Key) -> Int {
@@ -1778,7 +1141,8 @@ struct Main {
 	static func main() {
 		let args = CommandLine.arguments.dropFirst()
 		switch args.first {
-		case nil: script()
+		case nil: transcript()
+		case "checks": checks()
 		case "futures": futures()
 		case "owned": owned()
 		case "shared": shared()

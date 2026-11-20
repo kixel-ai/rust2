@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x258a865fea197bc9ULL)
+#define API_CONTRACT ((uint64_t)0x1f86b0f8d481ff25ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -143,6 +143,7 @@ typedef struct api_Latch api_Latch;
 typedef struct api_Token api_Token;
 typedef struct api_Stack api_Stack;
 typedef struct api_Refusal api_Refusal;
+typedef struct api_Fault api_Fault;
 typedef struct api_c api_c;
 typedef struct api_Key api_Key;
 typedef struct api_clash_Seed api_clash_Seed;
@@ -461,6 +462,10 @@ typedef struct api_option_Reading {
 	bool some;
 	api_Reading value;
 } api_option_Reading;
+typedef struct api_option_Shape {
+	bool some;
+	api_Shape value;
+} api_option_Shape;
 typedef struct api_Stamp {
 	uint64_t opaque[1];
 } api_Stamp;
@@ -1094,6 +1099,7 @@ bool api_Point_eq(const api_Point *a, const api_Point *b);
 api_buf api_Point_debug(const api_Point *self);
 api_Point api_Point_default(void);
 api_Point api_Point_offset(const api_Point *self, int32_t dx, int32_t dy);
+int32_t api_Point_get_x(void);
 void api_Label_free(api_Label *self);
 bool api_Label_eq(const api_Label *a, const api_Label *b);
 api_buf api_Label_debug(const api_Label *self);
@@ -1325,6 +1331,7 @@ void api_Platform_free(api_Platform *self);
 void api_Placement_free(api_Placement *self);
 bool api_Shape_eq(const api_Shape *a, const api_Shape *b);
 api_buf api_Shape_debug(const api_Shape *self);
+api_option_Shape api_Shape_value_of(api_buf name);
 api_vec_Shape api_Shape_ALL(void);
 api_vec_Shape api_Shape_BOTH(void);
 void api_Event_free(api_Event *self);
@@ -1857,6 +1864,9 @@ void api_Refusal_free(api_Refusal *self);
 void api_Refusal_drop(api_Refusal *self, api_status *status);
 api_buf api_Refusal_to_string(const api_Refusal *self, api_status *status);
 api_buf api_Refusal_debug(const api_Refusal *self, api_status *status);
+void api_Fault_free(api_Fault *self);
+api_buf api_Fault_to_string(const api_Fault *self);
+api_buf api_Fault_debug(const api_Fault *self);
 void api_c_free(api_c *self);
 bool api_c_eq(const api_c *a, const api_c *b);
 api_buf api_c_debug(const api_c *self);
@@ -2252,6 +2262,7 @@ api_buf api_reasons(api_vec_tuple_Counter_Refusal pairs, api_option_tuple_Counte
 size_t api_excuse(api_buf note, api_tuple_bytes_Refusal entry, api_status *status);
 uint32_t api_relay(api_Log log, api_vec_Refusal refusals, api_status *status);
 bool api_refuse(api_buf reason, uint32_t *out, api_Refusal **err);
+bool api_jam(uint32_t n, uint32_t *out, api_Fault **err);
 api_Platform api_platform(void);
 uint32_t api_pointer_bits(api_Platform platform);
 api_Labelled api_same_labelled(api_Labelled labelled);

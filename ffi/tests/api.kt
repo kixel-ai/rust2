@@ -1,8 +1,9 @@
 // The api fixture's Kotlin test: the script fixtures/api/examples/transcript.rs runs
-// natively, through the generated Kotlin. tests/fixtures.rs compares the transcripts.
+// natively, through the Kotlin tests/fixtures/transcript writes from it, which calls the
+// functions here that transcript.rs defines. tests/fixtures.rs compares the transcripts.
 //
-// With an argument, it instead checks the futures' semantics, or breaks a contract, which
-// must fail.
+// With an argument, it instead checks the futures' semantics, what the GC frees, what
+// only Kotlin's types bound, or breaks a contract, which must fail.
 
 @file:OptIn(ExperimentalUnsignedTypes::class)
 
@@ -27,7 +28,7 @@ import kotlinx.coroutines.withTimeout
 annotation class OwnFrame
 
 // The Log callback: keeps even levels.
-class PrintLog : Log, AutoCloseable {
+class Print : Log, AutoCloseable {
 	override fun log(level: UByte, line: String): Boolean {
 		println("log $level $line")
 		return level.toInt() % 2 == 0
@@ -51,310 +52,79 @@ fun numbers(what: String, n: Numbers) {
 	println("$what some ${n.some?.let { "Some(${it.contentToString()})" } ?: "None"}")
 }
 
-fun bound(b: BoundU64): String = when (b.kind) {
-	Bound.INCLUDED -> "Included(${b.value})"
-	Bound.EXCLUDED -> "Excluded(${b.value})"
-	Bound.UNBOUNDED -> "Unbounded"
+/** A path's bytes as Rust's `escape_ascii` prints them. */
+fun escaped(path: PathBuf): String = path.toByteArray().joinToString("") {
+	when (val b = it.toInt() and 0xff) {
+		'\t'.code -> "\\t"
+		'\r'.code -> "\\r"
+		'\n'.code -> "\\n"
+		'\\'.code, '\''.code, '"'.code -> "\\${b.toChar()}"
+		in 0x20 until 0x7f -> b.toChar().toString()
+		else -> "\\x%02x".format(b)
+	}
 }
 
-fun script() {
-	println("limit $LIMIT")
+/** Bytes in hex, as transcript.rs prints them. */
+fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
 
-	val p = Point(1, 2).offset(2, 3)
-	println("offset ${p.x} ${p.y}")
-	println("debug ${p.debug()}")
-	println("eq ${p == Point(3, 5)}")
-	val d = Point.default()
-	println("default ${d.x} ${d.y}")
+fun hex(array: ArrayU8x4): String = hex(array.toByteArray())
 
-	val c = Counter.new("c", 5u)
-	println("get ${c.get()}")
-	println("name ${c.name()}")
-	println("add ok ${c.add(10u)}")
-	try {
-		c.add(2000u)
-	} catch (e: ErrorException) {
-		println("add err ${e.message} ${e.error.debug()}")
-	}
-	try {
-		c.sub(20u)
-	} catch (e: ErrorException) {
-		println("sub err ${e.message} ${e.error.debug()}")
-	}
-	c.rename("d")
-	println("name ${c.name()}")
-	println("is d ${c.`is`("d")}")
-	c.clone().use { copy ->
-		copy.add(1u)
-		println("clone ${copy.get()} original ${c.get()}")
-	}
-	println("debug ${c.debug()}")
-	val label = c.intoLabel(p)
-	println("label ${label.debug()}")
-	println("note ${hasText(Note(""))} ${hasText(Note(null))}")
+fun pathHex(path: PathBuf): String = hex(path.toByteArray())
 
-	val (below, above) = Counter.new("s", 7u).split(5u)
-	println("split ${below.name()} ${below.get()} ${above.name()} ${above.get()}")
-	val (only) = only(Counter.new("o", 3u))
-	println("only ${only.name()} ${only.get()}")
-	val (w8, w16, w32, w64) = widths(98305u)
-	println("widths $w8 $w16 $w32 $w64")
-	for (b in listOf(2uL, 0uL)) {
-		try {
-			val (q, r) = divide(7u, b)
-			println("divide $q $r")
-		} catch (e: ErrorException) {
-			println("divide err ${e.message}")
-		}
-	}
-	// A tuple inside another type is a Pair, a Triple, or a longer tuple class.
-	for (n in listOf(98305uL, 0uL)) {
-		val spread = spread(n)
-		println(if (spread == null) "spread none" else "spread ${spread.first} ${spread.second} ${spread.third} ${spread.fourth}")
-	}
-	for (needle in listOf("lo", "x")) {
-		val found = find(Bytes("hello".encodeToByteArray()), Bytes(needle.encodeToByteArray()))
-		println(if (found == null) "find none" else "find ${found.first} ${found.second}")
-	}
-	val statRows = rows(listOf(Point(1, 2), Point(3, 3)))
-	println("rows ${statRows.joinToString(", ") { (name, shape, p) -> "$name ${shape.debug()} ${p.x} ${p.y}" }}")
-	// Each handle in a tuple moves in, as one taken by value does.
-	Board.new(listOf(Pair("low", Counter.new("l", 1u)), Pair("high", Counter.new("h", 9u)))).use { board ->
-		val ranked = board.ranked()
-		println("ranked ${ranked.joinToString(", ") { (name, counter) -> "$name ${counter.name()} ${counter.get()}" }}")
-		ranked.forEach { it.second.close() }
-		board.best().use { println("best ${it.name()} ${it.get()}") }
-	}
-	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
-	// key once, the last kept.
-	val atlas = Atlas(listOf(Pair("b", Point(1, 1)), Pair("ab", Point(2, 3)), Pair("b", Point(4, 4))), listOf(3u, 1u, 3u))
-		.with("c", Point(5, 6))
-	val atlasPoints = atlas.points.joinToString(", ") { (name, p) -> "$name ${p.x} ${p.y}" }
-	println("atlas $atlasPoints; ids ${atlas.ids.joinToString(" ")}")
-	// Another crate's error crosses as its message.
-	for (text in listOf("80", "x")) {
-		try {
-			println("port ${port(text)}")
-		} catch (e: StringException) {
-			println("port err ${e.error}")
-		}
-	}
-	val span = Span(Pair(2u, 10u), Pair("s", Shape.SQUARE))
-	val (lowerHalf, upperHalf) = halves(span)
-	println("halves ${lowerHalf.first} ${lowerHalf.second} ${upperHalf.first} ${upperHalf.second} ${span.debug()}")
-	val (swappedN, swappedText) = swapped(Pair("t", 4u))
-	println("swapped $swappedN $swappedText")
-	for (value in listOf(null, Tuple1<UInt?>(null), Tuple1<UInt?>(3u))) {
-		val doubled = doubled(value)
-		println(if (doubled == null) "doubled None" else "doubled Some((${doubled.first?.let { "Some($it)" } ?: "None"},))")
-	}
-	// A borrowed or boxed tuple of one is a tuple, not its element.
-	val lentOne = lentBack(Tuple1(Bytes(byteArrayOf(1, 2)))).first.toByteArray().toList()
-	val boxedOne = boxedTuple(Bytes(byteArrayOf(3))).first.toByteArray().toList()
-	println("lent back $lentOne boxed $boxedOne")
-	// A borrowed string and an owned one share a tuple struct.
-	println("title Some((\"${title(true)!!.first}\",)) ${if (title(false) == null) "None" else "Some"} named Some((\"${named("x")!!.first}\",))")
+/** A duration as its seconds and nine digits of nanoseconds. */
+fun seconds(d: Duration): String = "${d.secs}.${d.nanos.toString().padStart(9, '0')}"
 
-	// Each lent counter is a new handle to a clone.
-	val registry = Registry.new(Counter.new("first", 1u))
-	println("last ${registry.last() != null}")
-	registry.push(Counter.new("last", 2u))
-	val first = registry.firstGet
-	first.add(10u)
-	println("first ${registry.firstGet.get()} lent ${first.get()}")
-	val last = registry.last()!!
-	last.add(10u)
-	println("last ${registry.last()!!.get()} lent ${last.get()}")
-	// A closure lent for the call edits the first counter through a handle.
-	val by = 5uL
-	val edited = registry.edit { counter ->
-		counter.add(by)
-		counter.edited() && counter.get() == 6uL
+/** A duration in whole milliseconds. */
+fun millis(d: Duration): ULong = d.secs * 1000uL + d.nanos / 1_000_000u
+
+/** A char's code point, which Kotlin holds it as. */
+fun code(c: Int): UInt = c.toUInt()
+
+fun reversed(list: List<TlsCodec>): List<TlsCodec> = list.reversed()
+
+fun f64Bits(floats: DoubleArray): ULongArray = ULongArray(floats.size) { floats[it].toRawBits().toULong() }
+
+/** An address's octets in hex, so their length shows its family. */
+fun ipHex(ip: IpAddr): String = hex(
+	when (ip) {
+		is Ipv4Addr -> ip.octets()
+		is Ipv6Addr -> ip.octets()
+	},
+)
+
+/** A socket address as its IP's octets in hex, its port, flow label, and scope, each IPv6's alone. */
+fun socketHex(addr: SocketAddr): String = when (addr) {
+	is SocketAddrV4 -> "${hex(addr.ip.octets())}:${addr.port}"
+	is SocketAddrV6 -> "${hex(addr.ip.octets())}:${addr.port}:${addr.flowinfo}:${addr.scopeId}"
+}
+
+/** A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone surrogate. */
+fun unspelled(): PathBuf = when (java.io.File.separatorChar) {
+	'\\' -> PathBuf(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte()))
+	else -> stray()
+}
+
+/** The bytes as text. */
+fun Bytes.text(): String = toByteArray().decodeToString()
+
+fun check(ok: Boolean, what: String) {
+	if (!ok) {
+		System.err.println("failed: $what")
+		kotlin.system.exitProcess(1)
 	}
-	println("edit $edited ${registry.firstGet.get()}")
-	// A setter moves an object in, as assignment does, closing its handle.
-	registry.firstSet(Counter.new("second", 3u))
-	println("set first ${registry.firstGet.get()} ${registry.firstGet.name()}")
-	println("walk ${walk(3u) { cursor -> cursor.at() * 2u }}")
-	println("each ${each(2u) { at -> println("visit $at") }}")
-	println("offset ${offset({ 7u }, 3u)}")
-	println("shift ${shift({ 7u }, 4u)}")
+}
 
-	val name = Name.owned("a")
-	val joined = name.join(Name.owned("b"))
-	println("joined ${joined.asStr()} ${joined.debug()} ${joined == name}")
-	joined.rename("c")
-	println("renamed ${joined.asStr()}")
-	val long = longer(joined, Name.owned("dd"))
-	println("longer ${long.asStr()}")
-	println("unnamed [${unnamed().asStr()}]")
-	val lit = Name.borrowed("lit")
-	println("borrowed ${lit.asStr()} ${lit.shares(Name.borrowed("lit"))} ${lit.shares(Name.borrowed("other"))}")
+/** Whether [f] throws `IllegalArgumentException`, as a value its Rust type cannot hold does. */
+fun rejects(f: () -> Any?): Boolean = runCatching(f).exceptionOrNull() is IllegalArgumentException
 
-	println("total ${total(RangeU64(2u, 5u))}")
-	println("reach ${reach(2u, 5u)}")
-	val two = java.math.BigInteger.valueOf(2)
-	val scaled = listOf(scaled(two.pow(128) - java.math.BigInteger.ONE, 1u), scaled(two.pow(64) + java.math.BigInteger.ONE, 1uL shl 63), scaled(two.pow(127), 2u))
-	println("scaled " + scaled.joinToString(" ") { it?.toString(16)?.padStart(32, '0') ?: "none" })
-	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
-		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
-	}
-	Digest.new().use { digest ->
-		digest.sumSet(fingerprint("deadbeef"))
-		val unparsed = try {
-			fingerprint("zz").toString()
-		} catch (e: StringException) {
-			e.error
-		}
-		println("digest ${digest.sumGet} ${digest.flipped(ArrayU8x4(byteArrayOf(-1, 0, -1, 0)))} $unparsed")
-		check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
-	}
-	Batch.new().use { batch ->
-		pair().use { batch2 ->
-			val accepted = (1u..5u).count { batch.push(it) }
-			val paired = (1u..3u).count { batch2.push(it) }
-			val emptied = drain4(batch)
-			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${batch2.capacity()} $paired ${drain2(batch2)}")
-			println("capacities ${capacities42(batch, batch2)} ${capacities22(batch2, batch2)}")
-		}
-	}
-	val wide = widen(RangeU64(2u, 5u), 1u)
-	println("widen ${wide.start} ${wide.end}")
-	val counts = listOf(
-		BoundsU64(BoundU64(Bound.INCLUDED, 2u), BoundU64(Bound.EXCLUDED, 5u)),
-		BoundsU64(BoundU64(Bound.INCLUDED, 2u), BoundU64(Bound.INCLUDED, 5u)),
-		BoundsU64(BoundU64(Bound.INCLUDED, 3u), BoundU64(Bound.UNBOUNDED, 0u)),
-		BoundsU64(BoundU64(Bound.UNBOUNDED, 0u), BoundU64(Bound.UNBOUNDED, 0u)),
-		BoundsU64(BoundU64(Bound.EXCLUDED, 2u), BoundU64(Bound.INCLUDED, 4u)),
-	).map { count(it) }
-	println("count ${counts.joinToString(" ")}")
-	println("end ${bound(end(3u))} ${bound(end(0u))}")
-	val (endsStart, endsEnd) = ends(3u)
-	println("ends ${bound(endsStart)} ${bound(endsEnd)}")
-	for (n in listOf(2uL, 5uL)) {
-		try {
-			println("below ${below(n, 3u)}")
-		} catch (e: BoundsU64Exception) {
-			println("below err ${bound(e.error.start)} ${bound(e.error.end)}")
-		}
-	}
-	val window = Window(RangeU64(2u, 8u), end(5u))
-	println("window ${window.contains(4u)} ${window.contains(6u)} ${window.debug()}")
+fun script() = transcript()
 
-	println(greet("x", Shape.SQUARE))
-	println("len ${len(Bytes("abc".encodeToByteArray()))}")
-	val binary = Bytes(byteArrayOf(0xff.toByte(), 0, 'a'.code.toByte()))
-	println("hex ${hex(binary)}")
-	println("timed hex ${timedHex(binary)}")
-	println("sample hex ${sampleHex(binary)}")
-	println("queued hex ${queuedHex(binary)}")
-	println("tick ${tickName(Label("tick", null, null))}")
-	println("rooted ${rootedName(Label("rooted", null, null))}")
-	println("stored ${storedText("stored")}")
-	println("layer ${layerName(Label("layer", null, null))}")
-	for (event in listOf(Event.Moved(p), Event.Named("n"), Event.Done)) {
-		println(describe(event))
-	}
-
-	// A `Copy` handle passed by value is copied, so it stays usable.
-	val stamp = Stamp.fromMillis(2500u)
-	println("secs ${stamp.secs()}")
-	println("later ${Stamp.fromMillis(3000u).later(stamp)}")
-	println("secs ${stamp.secs()}")
-	println("whole ${stamp.whole().debug()}")
-	val message = Message.new(stamp, Bytes("body".encodeToByteArray()))
-	println("payload ${message.payloadGet.text()}")
-	println("stamp ${message.stampGet!!.debug()}")
-	println("sent ${message.sent()}")
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-	val reset = Stamp.fromMillis(4000u)
-	message.stampSet(reset)
-	message.payloadSet(Bytes("edited".encodeToByteArray()))
-	println("payload ${message.payloadGet.text()}")
-	println("stamp ${message.stampGet!!.debug()}")
-	println("secs ${reset.secs()}")
-	message.stampSet(null)
-	println("stamp ${message.stampGet != null}")
-
-	// A value past a word, copied across: a closure takes and returns one by value.
-	val moment = Moment.new(1500u, 1000u)!!
-	println("moment ${moment.millis()} ${Moment.new(1u, 0u) == null}")
-	val shifted = shifted(moment) { m -> m.after(500u) }
-	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
-	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
-	// A record holding one crosses as its words, in and out, and a call with no slots
-	// left for one passes it encoded.
-	val clocked = clockedAfter(Clocked(moment, 1u), 500u)
-	check(clocked == Clocked(moment.after(500u), 2u) && clocked.at.millis() == 2000uL, "a record's moment crosses as its words")
-	check(crammed(moment, shifted, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL) == 1500uL + 2000uL + 124uL, "a crammed call passes its last moment encoded")
-	// A `Result` of one returns it directly, or throws.
-	check(momentAt(1500u, 1000u) == moment && stampAt(5u) == Stamp.fromMillis(5u), "a result's value returns directly")
-	check(runCatching { momentAt(1u, 0u) }.isFailure && runCatching { stampAt(0u) }.isFailure, "a result's error throws")
-	// One of 128 words is made with no constructor of a parameter each, and passed encoded.
-	val broad = Wide.new(ULong.MAX_VALUE)
-	check(broad.sum() == 8001uL - 1uL && broad == Wide.new(ULong.MAX_VALUE) && broad != Wide.new(0u), "a wide value crosses")
-
-	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
-	val gap = Gap.new(7u, 3u)
-	println("gap ${gap.sum()} ${gap == Gap.new(7u, 3u)}")
-	val berth = Berth.new(4u)
-	println("berth Some(${berth.at()}) ${if (Berth.new(null).at() == null) "None" else "Some"}")
-
-	// A `Copy` type changed in place is a value, which a `&mut self` method returns as the
-	// call left it, Rust's own return beside it: a change reaches only the copy it replaces.
-	var score = Score.of(2u)
-	val step = Score.of(3u)
-	score = score.add(step)
-	score = score.add(step)
-	println("score ${score.count()} ${step.doubled().count()} ${step.count()}")
-	var scoreCopy = score
-	val (taken, taken0) = scoreCopy.take()
-	scoreCopy = taken
-	println("taken $taken0 ${scoreCopy.count()} ${score.count()}")
-	val otherScore = Mut(step)
-	val (absorbed, before0, before1) = scoreCopy.absorb(otherScore)
-	scoreCopy = absorbed
-	println("absorbed $before0 $before1 ${scoreCopy.count()} ${otherScore.value.count()} ${step.count()}")
-	var hits = Hits.of(1u, 2u)
-	val keptHits = hits
-	hits = hits.add(Hits.of(10u, 20u))
-	hits = hits.hitsSet(7u)
-	println("hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}")
-	val (counted, countedSame) = keptHits.eq(keptHits)
-	println("counted $countedSame ${counted.hitsGet}")
-	var extent = Extent.new(5u, 3u)
-	val extentStart = extent
-	val (slid, old) = extent.slide(10u)
-	extent = slid
-	extent = extent.startSet(extent.startGet + 1u)
-	println("extent $old ${extent.startGet} ${extent.end()} ${extentStart.startGet} ${extentStart.end()}")
-	val weighted = Weighted(step, 4u)
-	println("weighted ${weighted.total()} ${weighted.score.count() + step.count()}")
-	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
-	val mark = Mark.of(1uL)
-	mark.add(2uL)
-	val parcel = Parcel(mark, Bytes("abc".encodeToByteArray()))
-	println("heft ${heft(Pair(mark, Bytes("ab".encodeToByteArray())), parcel, Pair(Counter.new("w", 1u), Bytes("abcd".encodeToByteArray())))}")
-	// A value's `&mut self` beside a checked handle.
-	val (noted, notedBefore) = Score.of(2uL).note(Mark.of(5uL))
-	println("noted $notedBefore ${noted.count()}")
-
-	println("kept ${emit(PrintLog(), Bytes(byteArrayOf(1, 2, 3, 4)))}")
-	Logger.new(PrintLog()).use { logger -> println("write ${logger.write("hi")}") }
-	println("dropped")
-	// Rust calls it on another thread, before the call returns.
-	val threshold = 2
-	val kept = filter(Bytes(byteArrayOf(1, 2, 3, 4))) { level, line ->
-		println("filter $level $line")
-		level.toInt() > threshold
-	}
-	println("filtered $kept")
-
+// A channel's futures, on a dispatcher the script drains, so it sees the receive pend and
+// its wake queue the resume.
+fun channel() {
 	val channel = Channel.new()
 	var wakes = 0
 	val waker = Waker { wakes++ }
-	// On a dispatcher the script drains, so it sees the receive pend and its wake queue
-	// the resume.
 	val q = Queue()
 	var got: Bytes? = null
 	CoroutineScope(q.asCoroutineDispatcher()).launch { got = channel.recv() }
@@ -406,416 +176,34 @@ fun script() {
 		waiter.context().wake()
 	}
 	println("woken $wakes")
+}
 
-	val list = Node.new(2u, null)
-	list.push(1u)
-	println("node ${list.sum()}")
-	// An optional boxed field that is not Clone, lent as a handle or null.
-	println("node next ${list.nextGet?.use { it.valueGet } ?: 0u}")
-
-	val tally = Tally.new()
-	tally.bump()
-	println("tally ${tally.bump()} ${tally == tally}")
-	println("both ${bumpBoth(tally, tally)}")
-	println("peek ${peek(tally) { lent -> lent.bump() }}")
-
-	val area = grow(Area.new(Size(2u, 3u)), 1u)
-	val size = area.size()
-	println("area ${size.width} ${size.height} ${area.pixels()}")
-
-	// Generic types, each at the instances it infers, named by their arguments.
-	val pair = PairU32(2u, 5u)
-	val swapped = pair.swap()
-	println("pair ${swapped.left} ${swapped.right} sum ${pair.sum()} ${pair.debug()} ${pair == swapped}")
-	println("even ${pair.even()} ${PairU32(7u, 7u).even()}")
-	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	val sized: PairSizeU8 = tag(Size(1u, 2u), 3u)
-	val flipped: PairU8Size = sized.swap()
-	println("sized ${flipped.left} ${flipped.right.width} ${flipped.debug()}")
-	val beside = PairU32(258u, 9u).besideSize(sized.left)
-	println("beside ${beside.left} ${beside.debug()}")
-	// At its default, named as the type itself.
-	val stack = Stack.new()
-	for ((i, n) in listOf("a", "b").withIndex()) {
-		stack.push(Counter.new(n, i.toULong() + 1u))
-	}
-	val top = stack.pop()!!.get()
-	println("stack ${stack.depth()} Some($top) ${stack.pop() != null} ${stack.pop() == null}")
-	// Generic functions and methods, at each implementation of the trait bounding them, by
-	// reference, which leaves Kotlin its handle.
-	val fromPoint = Counter.seededPoint("p", Point(-3, 4))
-	val fromSize = Counter.seededSize("s", Size(5u, 6u))
-	val fromCounter = Counter.seededCounter("c", fromPoint)
-	val fromPolar = Counter.seededPolarPoint("q", PolarPoint(1u, 2u))
-	println(
-		"seeded ${fromPoint.get()} ${fromSize.get()} ${fromCounter.get()} ${fromPolar.get()} " +
-			"past ${stack.depthPastPoint(Point(1, 2))} seeds ${seedsPointSize(Size(2u, 3u))}",
-	)
-
-	// A trait implemented for `Point` and `&Point` apart: one instance.
-	println("weigh ${weighPoint(Point(-1, 2))}")
-	// A function named as the type it returns, and one named as a type it does not.
-	println("polar ${polarPoint(2u)!!.distance} ${polarPoint(0u) == null} area ${area(Size(2u, 3u))}")
-	// Two types whose paths join alike, the second kept apart where its path splits.
-	println("wind ${wind(PolarTurn(2u), Polar_Turn(3u))}")
-	// Names that clash in some language, each kept apart there.
-	val clashSpan = ClashSpan(4u)
-	ClashStore.new(7u).use { clashStore ->
-		val clashPair = Pair(Pair(1.toUByte(), 2.toUShort()), 3u)
-		val clashTriple = Tuple1(Triple(1.toUByte(), 2.toUShort(), 3u))
-		println(
-			"clash ${ClashTone(440u).debug()} ${ClashTone_(3u).debug()} ${Cancelled(2u).debug()} " +
-				"span ${clashSpan.width()} ${clashSpan.toString_()} $clashSpan " +
-				"store ${clashStore.free()} ${clashStore.close_()} " +
-				"audio ${clashAudioEncoderFinish()} ${clashAudioEncoderFinish_()} nested ${clashNested(clashPair, clashTriple)}"
-		)
-	}
-	// Instances that name each other, and one made only by an impl of it.
-	println("cross ${cross(LeftRightU8(RightU8(1u)), RightLeftU8(LeftU8(2u)))} outer ${OuterInnerU8.new(4u).get()}")
-	// A bound that outlives the call takes a value, and an instance only a constant names.
-	println("kept ${keptPoint(Point(1, -2))} boxed ${BOXED.value}")
-	println("keep ${keepPoint(Point(1, -2))}")
-	val five = Point(5, 2)
-	println("kept or ${keptOrPoint(five)} ${keptOrPoint(null)} keeper ${keeperPoint(five)}")
-	// Inferred instances taking a lent closure and a foreign implementation, and one only
-	// its impl of a trait names.
-	val sides = PairU32(2u, 5u)
-	println("apply ${applyU32(sides) { side -> side * 3u }}")
-	println("report ${reportU32(sides, PrintLog())}")
-	println("wrapped ${keptWrapU32(WrapU32(4u))}")
-	println("keeps ${keeps(PrintLog()).value}")
-
-	// Its Drop runs when Kotlin closes the handle, not before.
-	val token = Token.new(7u)
-	println("token ${token.idGet} dropped ${dropped()}")
-	token.close()
-	println("dropped ${dropped()}")
-
-	// A field and the method of its name, each its own member.
-	val retry = Retry.new(5u)
-	val limit = retry.limitGet
-	println("retry ${if (limit != null) 1 else 0} ${limit ?: 0u} ${retry.limit()} ${retry.delay()}")
-	// The renamed field's setter, named as its getter.
-	retry.limitSet(null)
-	println("retry ${retry.limit()}")
-	println("slot ${SlotU8.new(200u).value()}")
-
-	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
-	val base = Url.parse("https://example.com/a/b")
-	println("url $base host ${host(base)?.let { "Some(\"$it\")" } ?: "None"}")
-	resolve(base.clone(), "c?d").use { url -> println("resolve $url ${url == base}") }
-	try {
-		Url.parse("no scheme").close()
-	} catch (e: StringException) {
-		println("parse err ${e.error}")
-	}
-	val v4 = SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 8080u)
-	val loopback = ByteArray(16).also { it[15] = 1 }
-	val v6 = SocketAddrV6(Ipv6Addr(loopback), 443u, 0u, 3u)
-	println("ports ${ports(listOf(v4, v6)).contentToString()}")
-	val peer = Peer(v6, listOf("a", "b")).next("c")
-	println("peer ${peer.debug()} ${peer.aliases().joinToString(", ", "[", "]") { "\"$it\"" }}")
-	val file = file(PathBuf("dir"), "f\\'\"\t")
-	println("file ${escaped(file)}")
-	println("parents ${parents(listOf(file, PathBuf("/"))).joinToString(" ") { it?.let(::escaped) ?: "none" }}")
-	val words = words(" one two  three ")
-	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
-	println("sentence ${sentence(words)} ${sentence(null)}")
-	println("sentence ${sentence(emptyList())}|")
-	println("either ${either("abc")} ${either(null)}")
-	val cd = Bytes("cd".encodeToByteArray())
-	println("prefixed ${prefixed(cd, Bytes("ab".encodeToByteArray())).toByteArray().decodeToString()} ${prefixed(cd, null).toByteArray().decodeToString()}")
-	println("coordinates ${coordinates(Point(2, 3))} ${coordinates(null)}")
-	Counter.new("two", 2u).use { two ->
-		Counter.new("three", 3u).use { three ->
-			println("plus ${two.plus(three)} ${two.plus(null)}")
-			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
-			check(two.offset(3u, 4u) == 36uL, "a method's parameters named handle and h are its own")
-		}
-	}
-	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
-	// A function taking a JNI env, which Kotlin alone exports, passing its thread's.
-	val any = Any()
-	check(sameObject(any, any) && !sameObject(any, Any()) && sameObject(null, null) && !sameObject(any, null), "a JObject crosses as the reference Kotlin passed")
-	Counter.new("five", 5u).use { five ->
-		check(five.plusIfString(2u, "s") == 7uL && five.plusIfString(2u, 1) == 5uL, "a method takes the env between parameters Kotlin passes")
-		check((runCatching { five.plusIfString(2u, null) }.exceptionOrNull() as? StringException)?.error == "the object is null", "a JNI function's error throws")
-	}
-	for (fail in listOf(false, true)) {
-		val thrown = runCatching { thrown(fail) }.exceptionOrNull()
-		check(thrown is IllegalStateException && thrown.message == "thrown", "an exception the Rust left pending throws, failing or not")
-	}
-	var closed = false
-	val sink = object : Log, AutoCloseable {
-		override fun log(level: UByte, line: String): Boolean = true
-
-		override fun close() {
-			closed = true
-		}
-	}
-	val dropped = runCatching { thrownLogger(sink) }.exceptionOrNull()
-	check(dropped is IllegalStateException && dropped.message == "logger" && closed, "a result dropped for a pending exception closes its callback, then throws it")
-	check(jniOne() == 1u, "a facade module named jni is the facade's")
-	val encoded = Mut(Bytes("0,".encodeToByteArray()))
-	putNumber(1u, encoded)
-	putNumber(23u, encoded)
-	println("put_number ${encoded.value.toByteArray().decodeToString()}")
-	val entry = Mut(Pair(Bytes("ab".encodeToByteArray()), 1u))
-	val stamps = pushCounted(entry, 'c'.code.toUByte())
-	println("push_counted $stamps ${entry.value.first.toByteArray().decodeToString()} ${entry.value.second}")
-	val digits = Mut(Bytes("7x9".encodeToByteArray()))
-	val firstDigit = digit(digits)
-	val skipped = try {
-		digit(digits)
-		false
-	} catch (e: ErrorException) {
-		true
-	}
-	println("digit $firstDigit $skipped ${digit(digits)} ${digits.value.size}")
-	val nudged = Mut(Point(1, 2))
-	nudge(nudged, 3)
-	println("nudge ${nudged.value.x} ${nudged.value.y}")
-	secure("h3").use { config -> println("secure ${alpnLent(config)} ${alpn(config.clone())}") }
-	val cert = certify(Bytes("der".encodeToByteArray()))
-	val certLen = certLen(cert)
-	println("cert $certLen ${certDer(cert).text()} ${chainLen(listOf(certify(Bytes("a".encodeToByteArray())), certify(Bytes("bc".encodeToByteArray()))))}")
-	// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
-	println("resolver ${resolved(resolver("r1"))}")
-	Codecs.new().use { codecs ->
-		println("codecs ${codecs.ids()}")
-		codecs.listSet(codecs.listGet.reversed())
-		println("codecs reversed ${codecs.ids()}")
-	}
-	// A standard library value no type maps, in a handle.
-	val failure = failure("boom")
-	println("failure ${failureMessage(failure)} ${failureKind(failure)}")
-	// Iterators, passed as the arrays of their items.
-	println("sum_all ${sumAll(listOf(1u, 2u, 3u))}")
-	println("weigh_all ${weighAllCounter(listOf(Counter.new("w", 3u)))}")
-	println("offered_len ${offeredLen(listOf(Bytes("h3".encodeToByteArray()), Bytes("moq-00".encodeToByteArray())))}")
-	println("join_words ${joinWords(listOf("a", "b", "c"))}")
-	// Bytes that must be `'static`, interned.
-	Der.fromSlice(Bytes("der".encodeToByteArray())).use { println("der ${it.bytes().text()}") }
-	Der.fromSlice(Bytes("der".encodeToByteArray())).use { println("der again ${it.bytes().text()}") }
-	resume("h3", 60u).use { session -> println("resume ${session.alpn()} ${session.lifetime().seconds}") }
-	try {
-		resume("", 60u)
-	} catch (e: StringException) {
-		println("resume err ${e.error}")
-	}
-	Meters.new().use { meters ->
-		meters.first().use { first ->
-			first.add(2uL)
-			println("lent ${first.add(3uL)} ${meters.first().use { it.count() }}")
-		}
-		meters.clear()
-		println("cleared ${meters.first().use { it.count() }}")
-		meters.lastGet.use { last ->
-			last.add(4uL)
-			println("field lent ${last.add(1uL)}")
-		}
-		// An optional field that is not Clone, lent as `Some` of a handle.
-		println("spare ${meters.spareGet != null}")
-		meters.spareSet(Meter.default())
-		meters.spareGet!!.use { spare ->
-			spare.add(5uL)
-			println("spare lent ${spare.add(1uL)}")
-		}
-	}
-	Tallies.new().use { tallies ->
-		tallies.first().use { it.bump() }
-		println("tallied ${tallies.first().use { it.bump() }}")
-	}
-	// A draft borrowing its ledger exclusively until it closes, through which its sheet's
-	// members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
-	Ledger.new().use { ledger ->
-		val draft = ledger.edit()
-		draft.titleSet("minutes")
-		draft.write("first")
-		println("draft ${draft.titleGet} ${draft.lines()} ${draft.describe()} ${draft.edited()}")
-		val refused = runCatching { ledger.published() }.exceptionOrNull()
-		check(
-			refused is IllegalStateException && refused.message == "api_Ledger_published: a handle is borrowed exclusively",
-			"a lent ledger refuses a read: $refused",
-		)
-		println("committed ${draft.commit()}")
-		println("ledger ${ledger.title()} ${ledger.published()}")
-		ledger.edit().use { println("read ${it.lines()} ${it.edited()}") }
-		ledger.edit().use { it.write("second") }
-		println("dropped ${ledger.published()}")
-		println("receipt ${ledger.receipt().use { it.count() }}")
-		// A field holding a borrow, read through.
-		ledger.tab().use { tab ->
-			println("tab ${tab.ledgerGet.use { it.published() }}")
-			println("tab label ${tab.labelGet}")
-		}
-		Marker.new("m", 3, 5).use { marker ->
-			marker.ySet(7)
-			val title = PadU16.wide().use { it.title() }
-			val lines = Layered.new().use { it.lines() }
-			val small = PadU8.small().use { it.describe() }
-			val wide = PadU16.wide().use { it.describe() }
-			println("forwarded $title $lines ${marker.xGet} ${marker.yGet} [$small] [$wide]")
-		}
-		ledger.seal()
-		try {
-			ledger.edit().close()
-		} catch (e: ErrorException) {
-			println("sealed ${e.message}")
-		}
-	}
-	println("chunks ${chunks(Bytes("abcde".encodeToByteArray()), 2uL).map { it.toByteArray().toList() }}")
-	val counters = counters(listOf("x", "y"))
-	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")
-	// Each counter moves in, so Kotlin closes it.
-	println("worth ${worth(listOf(counters[0]), listOf(counters[1]))} ${worth(null, emptyList())}")
-	for (counter in counters) {
-		check(runCatching { counter.get() }.exceptionOrNull() is IllegalStateException, "a counter moved in is closed")
-	}
-	println("held ${listOf(heldCount(Tuple1(Counter.new("h", 4u))), heldCount(null)).joinToString(" ") { if (it == null) "None" else "Some($it)" }}")
-	println("boxed ${boxedName(boxedCounter("b"))?.let { "Some(\"$it\")" }} ${boxedName(null) ?: "None"} ${boxedCounter(null) == null}")
-	println("less ${less(5u, 2u)}")
-	println("sums ${sums(listOf(uintArrayOf(1u, 2u), UIntArray(0), uintArrayOf(3u))).contentToString()}")
-	println("least ${least(listOf(listOf(3u, 1u), listOf(), listOf(2u))).joinToString(" ")}")
-	check(splitLast(intArrayOf(1, 2, -3)) == splitLast(intArrayOf(1, 2, -3)), "a tuple holding an array compares by contents")
-	check(splitLast(intArrayOf(1, 2, -3)).hashCode() == splitLast(intArrayOf(1, 2, -3)).hashCode(), "a tuple holding an array hashes by contents")
-	check(Shadowed(intArrayOf(1), 0u, 0u) == Shadowed(intArrayOf(1), 0u, 0u) && Shadowed(intArrayOf(1), 0u, 0u) != Shadowed(intArrayOf(2), 0u, 0u), "a field named other compares as itself")
-	check(Builtin.Any(intArrayOf(1)) == Builtin.Any(intArrayOf(1)) && Builtin.Any(intArrayOf(1)).hashCode() == Builtin.Any(intArrayOf(1)).hashCode(), "a variant named Any compares by contents")
-	check(Builtin.Native(Double.NaN) != Builtin.Native(Double.NaN) && Builtin.Int(-0.0) == Builtin.Int(0.0) && Builtin.Boolean(1.0) != Builtin.Int(1.0), "variants named as Kotlin's builtins compare as Rust's")
-	check(Qualifiers(-0.0, 1.0) == Qualifiers(0.0, 1.0) && Qualifiers(-0.0, 1.0).hashCode() == Qualifiers(0.0, 1.0).hashCode() && Qualifiers(Double.NaN, 1.0) != Qualifiers(Double.NaN, 1.0), "fields named as the package and kotlin compare as Rust's")
-	numbers("edges", Numbers.edges())
-	numbers("reversed", Numbers.edges().reversed())
-	val edges = Numbers.edges()
-	val nan = Measure.new(Double.NaN, false)
-	println("float equal ${edges == edges} ${edges == Numbers.edges()} ${Numbers.zero(true) == Numbers.zero(false)} ${nan == nan} ${Measure.new(-0.0, true) == Measure.new(0.0, false)}")
-	check(Numbers.zero(true).hashCode() == Numbers.zero(false).hashCode(), "a negative zero hashes as zero does")
-	check(Measure.new(-0.0, true).hashCode() == Measure.new(0.0, false).hashCode(), "a negative zero hashes as zero does in a nested record")
-	val ints = edges.copy(f32s = FloatArray(0), f64s = DoubleArray(0))
-	val alike = Numbers.edges().copy(f32s = FloatArray(0), f64s = DoubleArray(0))
-	check(ints == alike && ints.hashCode() == alike.hashCode(), "records of arrays compare by contents")
-	val back = edges.reversed().reversed()
-	check(back.copy(f32s = FloatArray(0), f64s = DoubleArray(0)) == ints, "every integer edge value crosses both ways exactly")
-	check(back.f32s.map { it.toRawBits() } == edges.f32s.map { it.toRawBits() } && back.f64s.map { it.toRawBits() } == edges.f64s.map { it.toRawBits() }, "every float edge value crosses both ways exactly")
-	check(edges.copy(some = null).reversed().some == null, "a missing array stays missing")
-	check(edges.copy(some = IntArray(0)).reversed().some?.size == 0, "an empty array is no missing one")
-	check(edges.copy(some = intArrayOf(Int.MIN_VALUE, 7)).reversed().some.contentEquals(intArrayOf(7, Int.MIN_VALUE)), "an array in an option crosses in a record")
-	println("sum u32 ${sumU32(UIntArray(0))} ${sumU32(uintArrayOf(UInt.MAX_VALUE, UInt.MAX_VALUE, 2u))}")
-	println("doubled i64 ${doubledI64(longArrayOf(Long.MIN_VALUE, -1, 0, Long.MAX_VALUE)).contentToString()}")
-	val floats = boxedFloats(doubleArrayOf(-0.0, Double.fromBits(0x7ff8000000000001L)))
-	println("boxed floats ${floats.map { it.toRawBits().toULong() }}")
-	val summed = summed(listOf(Point(1, 2), Point(-4, 6)))
-	val noneSummed = summed(emptyList())
-	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
-	println("longest ${longest(listOf("a", "abc"))} ${longest(emptyList())}")
-	println("first of Some(\"${firstOf(listOf("a", "b"))}\") ${firstOf(emptyList()) ?: "None"}")
-	val limits = byteLimits(Bytes("a".encodeToByteArray()), Bytes("bc".encodeToByteArray()))
-	val waits = breadth(LimitsDuration(Duration(5.milliseconds), Duration(2.seconds)))
-	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.toKotlinDuration().inWholeMilliseconds}")
-	val parts = joined(listOf(Bytes("ab".encodeToByteArray()), Bytes(ByteArray(0)), Bytes("c".encodeToByteArray()))).toByteArray().decodeToString()
-	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen(Bytes("hello".encodeToByteArray()))}")
-	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
-	println("json ${encode(doc)}")
-	// A returned Cow crosses as an owned string or bytes.
-	println(
-		"cow ${unescaped("a\\b")} ${unescaped("plain")} ${unzeroed(Bytes(byteArrayOf(1, 0, 2))).size} " +
-			"${unzeroed(Bytes(byteArrayOf(3))).size}",
-	)
-	// A type parameter bounded by Deserializer takes a JSON document, moved in.
-	val spot = Spot.deserialize(Json.parse("[1, 2]"))
-	println("spot ${spot.x} ${spot.y}")
-	try {
-		Spot.deserialize(Json.parse("\"x\""))
-		check(false, "a spot refuses a string")
-	} catch (e: StringException) {
-		println("spot err ${e.error}")
-	}
-	tagged(doc, "t").use { tagged -> println("tagged ${tagged.toText()}") }
-	// A JSON object's entries cross as pairs of a key and its document, each moved in.
-	val jsonEntries = entries(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))), "t")
-	println("entries ${jsonEntries.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
-	jsonEntries.forEach { it.second.close() }
-	try {
-		Json.parse("{\"a\":").close()
-	} catch (e: StringException) {
-		println("json parse err ${e.error}")
-	}
-	val site = Site.new(base)
-	site.homeGet.use { a -> site.homeGet.use { b -> println("site $a $b") } }
-
-	// Slices, passed in and returned as clones, and the socket address of each family.
-	println("shapes ${Shape.ALL.joinToString(", ", "[", "]") { it.debug() }} greetings ${GREETINGS.joinToString(", ", "[", "]") { "\"$it\"" }}")
-	println("both ${Shape.BOTH.joinToString(", ", "[", "]") { it.debug() }} primes ${PRIMES.joinToString(", ", "[", "]")}")
-	Trail.new(listOf(Point(1, 2), Point(3, 4)), listOf("a", "b")).use { trail ->
-		println("trail ${trail.points().joinToString(", ", "[", "]") { it.debug() }} ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
-		// Returned iterators, each collected at the call: drained labels are gone after.
-		println("iterated ${trail.iter().joinToString(", ", "[", "]") { it.debug() }} ${trail.names().joinToString(", ", "[", "]") { "\"$it\"" }} ${trail.bytes().toByteArray().joinToString(", ", "[", "]") { it.toUByte().toString() }}")
-		println("drained ${trail.drain().joinToString(", ", "[", "]") { it.debug() }} then ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
-		// A filter, collected at the call.
-		println("beyond ${trail.beyond(1).joinToString(", ") { "${it.x} ${it.y}" }}")
-	}
-	val numbered = numbered(listOf("p", "q"))
-	println("numbered ${numbered.joinToString(", ") { "${it.name()} ${it.get()}" }}")
-	numbered.forEach { it.close() }
-	val (next4, next6) = nexts(v4, v6)
-	println("nexts ${next4.ip} ${next4.port} ${next6.port} ${next6.scopeId}")
-	val (nextIp4, nextIp6) = nextIps(Ipv4Addr(10u, 0u, 0u, 255u), Ipv6Addr(ByteArray(16).also { it[14] = -1; it[15] = -1 }))
-	val mapped = flip(Ipv4Addr(127u, 0u, 0u, 1u))
-	val ips = listOf(nextIp4, nextIp6, mapped, flip(mapped), flip(Ipv6Addr(loopback)))
-	println("ips ${ips.joinToString(" ") { ipHex(it) }}")
-	lossless()
-
-	// serde_json's map iterator, collected as pairs of a key and its document.
-	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
-	println("sections ${jsonSections.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
-	jsonSections.forEach { it.second.close() }
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	val began = now()
-	val ended = later(began, Duration(1500.milliseconds))
-	val same = later(began, Duration.ZERO)
-	println("instants ${since(ended, began).toKotlinDuration().inWholeMilliseconds} ${since(began, ended).toKotlinDuration().inWholeMilliseconds} ${began == same} ${began == ended}")
-	println("has_instant ${hasInstant(began)} ${hasInstant(null)}")
-	// tracing's level, and its filter as an optional level whose null is `OFF`.
-	Verbosity.new(Level.WARN).use { verbosity ->
-		println("verbosity ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))}")
-		verbosity.levelSet(Level.TRACE)
-		println("verbosity ${verbosity.levelGet == Level.TRACE} ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))} ${spell(louder(null))}")
-	}
-
-	println("made ${made(3u) { n -> "$n times" }}")
-	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
-	val nine = Ticket.new(9u)
-	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
-	val held = reissue(Ticket.new(7u)) { nine }.number()
-	println("reissued $given $held, cloned ${Ticket.clones()}")
-	// A record's traits borrow the checked handle it holds.
-	val nines = Mark.of(9uL)
-	val front = seat(nines, 1u)
-	val rear = seat(nines, 2u)
-	println("seat ${front.debug()} ${front == front.copy()} ${front == rear}")
-	// A kept closure, called on another thread after the call that took it returned.
-	check(Spawned.new { 7u }.join() == 7u, "a kept closure runs on another thread")
-	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	Moment.new(0u, 1000u)!!.let { start ->
-		var calls = 0
-		val stopped = runBlocking {
-			drive(start) { now, waiter ->
-				calls += 1
-				when (calls) {
-					1 -> now.after(5u)
-					2 -> {
-						println("drive ${now.millis() - start.millis()}")
-						waiter.waker().let { waker ->
-							waker.wake()
-							(waker as AutoCloseable).close()
-						}
-						null
+// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+fun drive() {
+	val start = Moment.new(0u, 1000u)!!
+	var calls = 0
+	val stopped = runBlocking {
+		drive(start) { now, waiter ->
+			calls += 1
+			when (calls) {
+				1 -> now.after(5u)
+				2 -> {
+					println("drive ${now.millis() - start.millis()}")
+					waiter.waker().let { waker ->
+						waker.wake()
+						(waker as AutoCloseable).close()
 					}
-					else -> throw StringException("stopped after $calls")
+					null
 				}
+				else -> throw StringException("stopped after $calls")
 			}
 		}
-		println("drive $stopped")
 	}
+	println("drive $stopped")
+}
+
+// Readers over bytes, whose reads fail, and that seek past `Long.MAX_VALUE`.
+fun readers() {
 	for (file in listOf(Memory("hello world".encodeToByteArray()), Broken())) {
 		try {
 			val (tail, at) = tail(file, 5u)
@@ -830,17 +218,10 @@ fun script() {
 	} catch (e: StringException) {
 		println("sought error ${e.error}")
 	}
-	println("non zeros ${describeNonZeros(nonZeros())}")
-	for (hop in listOf(null, 1UL, ULong.MAX_VALUE)) {
-		println("hop ${nextHop(hop)?.let { "Some($it)" } ?: "None"}")
-	}
-	println("farther hop ${fartherHop(PairNonZeroU16(3u, UShort.MAX_VALUE))}")
-	val local = Local.new()
-	val shared = localOrNew(local)
-	val bumped = local.bump()
-	println("local $bumped ${shared.bump()}")
-	println("local fresh ${localOrNew(null).bump()}")
-	println("local either ${bumpEither(null, shared)}")
+}
+
+// Futures of a value that is not `Send`, run on this thread.
+fun localLater(local: Local) {
 	println("local later ${runBlocking { localOrNewLater(local) }.bump()}")
 	println("local later fresh ${runBlocking { localOrNewLater(null) }.bump()}")
 }
@@ -897,86 +278,111 @@ open class Broken : java.nio.channels.SeekableByteChannel {
 	override fun close() {}
 }
 
-/** A path's bytes as Rust's `escape_ascii` prints them. */
-fun escaped(path: PathBuf): String = path.toByteArray().joinToString("") {
-	when (val b = it.toInt() and 0xff) {
-		'\t'.code -> "\\t"
-		'\r'.code -> "\\r"
-		'\n'.code -> "\\n"
-		'\\'.code, '\''.code, '"'.code -> "\\${b.toChar()}"
-		in 0x20 until 0x7f -> b.toChar().toString()
-		else -> "\\x%02x".format(b)
-	}
-}
-
-/** The bytes as text. */
-fun Bytes.text(): String = toByteArray().decodeToString()
-
-fun check(ok: Boolean, what: String) {
-	if (!ok) {
-		System.err.println("failed: $what")
-		kotlin.system.exitProcess(1)
-	}
-}
-
-/** Bytes in hex, as transcript.rs prints them. */
-fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
-
-/** An address's octets in hex, so their length shows its family. */
-fun ipHex(ip: IpAddr): String = hex(
-	when (ip) {
-		is Ipv4Addr -> ip.octets()
-		is Ipv6Addr -> ip.octets()
-	},
-)
-
-/** A socket address as its IP's octets in hex, its port, flow label, and scope, each IPv6's alone. */
-fun socketHex(addr: SocketAddr): String = when (addr) {
-	is SocketAddrV4 -> "${hex(addr.ip.octets())}:${addr.port}"
-	is SocketAddrV6 -> "${hex(addr.ip.octets())}:${addr.port}:${addr.flowinfo}:${addr.scopeId}"
-}
-
-/** Whether [f] throws `IllegalArgumentException`, as a value its Rust type cannot hold does. */
-fun rejects(f: () -> Any?): Boolean = runCatching(f).exceptionOrNull() is IllegalArgumentException
-
 /**
- * Each type's edge values, passed through Rust and back, as transcript.rs prints them; then
- * each value the Kotlin type holds and Rust's cannot, which throws, and each conversion to
- * and from the idiomatic type, which throws where the other cannot hold a value exactly.
+ * What the transcript's script says only in Rust: Kotlin's own errors, equality, and
+ * conversions, each value the Kotlin type holds and Rust's cannot, which throws, and each
+ * conversion to and from the idiomatic type, which throws where the other cannot hold a
+ * value exactly.
  */
-fun lossless() {
-	val durations = listOf(Duration.ZERO, Duration(0u, 1u), Duration(9223372036u, 854775808u), Duration.MAX)
-		.map { sameDuration(it) }
-	println("lossless duration ${durations.joinToString(" ") { "${it.secs}.${it.nanos.toString().padStart(9, '0')}" }}")
-	println("lossless u64 ${sameU64(0u)} ${sameU64(1uL shl 63)} ${sameU64(ULong.MAX_VALUE)}")
-	println("lossless usize ${sameUsize(0u)} ${sameUsize(ULong.MAX_VALUE)}")
-	println("lossless isize ${sameIsize(Long.MIN_VALUE)} ${sameIsize(Long.MAX_VALUE)}")
+fun checks() {
 	val two = java.math.BigInteger.valueOf(2)
-	val wides = listOf(java.math.BigInteger.ZERO, two.pow(64), two.pow(128) - java.math.BigInteger.ONE)
-	println("lossless u128 ${wides.joinToString(" ") { sameU128(it).toString(16).padStart(32, '0') }}")
-	println("lossless char ${listOf(0, 0xd7ff, 0xe000, 0x10ffff).joinToString(" ") { sameChar(it).toString(16) }}")
-	// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone surrogate.
-	val unspelled = when (java.io.File.separatorChar) {
-		'\\' -> byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())
-		else -> byteArrayOf(-1)
+	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
+		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
-	println("lossless path ${listOf(PathBuf("a/é"), PathBuf(unspelled)).joinToString(" ") { hex(samePath(it).toByteArray()) }}")
-	val v4 = sameSocketAddrV4(SocketAddrV4(Ipv4Addr(UInt.MAX_VALUE), UShort.MAX_VALUE))
-	val v6 = sameSocketAddrV6(SocketAddrV6(Ipv6Addr(ByteArray(16).also { it[1] = 1; it[15] = 2 }), 3u, UInt.MAX_VALUE, UInt.MAX_VALUE))
-	println("lossless socket ${socketHex(v4)} ${socketHex(v6)} ${listOf(v4, v6).joinToString(" ") { socketHex(sameSocketAddr(it)) }}")
+	check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
+
+	// A record holding a value past a word crosses as its words, in and out, and a call
+	// with no slots left for one passes it encoded.
+	val moment = Moment.new(1500u, 1000u)!!
+	val shifted = moment.after(500u)
+	val clocked = clockedAfter(Clocked(moment, 1u), 500u)
+	check(clocked == Clocked(moment.after(500u), 2u) && clocked.at.millis() == 2000uL, "a record's moment crosses as its words")
+	check(crammed(moment, shifted, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL) == 1500uL + 2000uL + 124uL, "a crammed call passes its last moment encoded")
+	// A `Result` of one returns it directly, or throws.
+	check(momentAt(1500u, 1000u) == moment && stampAt(5u) == Stamp.fromMillis(5u), "a result's value returns directly")
+	check(runCatching { momentAt(1u, 0u) }.isFailure && runCatching { stampAt(0u) }.isFailure, "a result's error throws")
+	// One of 128 words is made with no constructor of a parameter each, and passed encoded.
+	val broad = Wide.new(ULong.MAX_VALUE)
+	check(broad.sum() == 8001uL - 1uL && broad == Wide.new(ULong.MAX_VALUE) && broad != Wide.new(0u), "a wide value crosses")
+
+	Counter.new("two", 2u).use { two ->
+		check(two.offset(3u, 4u) == 36uL, "a method's parameters named handle and h are its own")
+	}
+	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
+	// A function taking a JNI env, which Kotlin alone exports, passing its thread's.
+	val any = Any()
+	check(sameObject(any, any) && !sameObject(any, Any()) && sameObject(null, null) && !sameObject(any, null), "a JObject crosses as the reference Kotlin passed")
+	Counter.new("five", 5u).use { five ->
+		check(five.plusIfString(2u, "s") == 7uL && five.plusIfString(2u, 1) == 5uL, "a method takes the env between parameters Kotlin passes")
+		check((runCatching { five.plusIfString(2u, null) }.exceptionOrNull() as? StringException)?.error == "the object is null", "a JNI function's error throws")
+	}
+	for (fail in listOf(false, true)) {
+		val thrown = runCatching { thrown(fail) }.exceptionOrNull()
+		check(thrown is IllegalStateException && thrown.message == "thrown", "an exception the Rust left pending throws, failing or not")
+	}
+	var closed = false
+	val sink = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() {
+			closed = true
+		}
+	}
+	val dropped = runCatching { thrownLogger(sink) }.exceptionOrNull()
+	check(dropped is IllegalStateException && dropped.message == "logger" && closed, "a result dropped for a pending exception closes its callback, then throws it")
+	check(jniOne() == 1u, "a facade module named jni is the facade's")
+
+	// A draft borrows its ledger exclusively until it closes: the ledger refuses any other
+	// use meanwhile.
+	Ledger.new().use { ledger ->
+		ledger.edit().use { draft ->
+			draft.write("first")
+			val refused = runCatching { ledger.published() }.exceptionOrNull()
+			check(
+				refused is IllegalStateException && refused.message == "api_Ledger_published: a handle is borrowed exclusively",
+				"a lent ledger refuses a read: $refused",
+			)
+		}
+	}
+	// Each counter moves in, so Kotlin closes it.
+	val counters = counters(listOf("x", "y"))
+	worth(listOf(counters[0]), listOf(counters[1]))
+	for (counter in counters) {
+		check(runCatching { counter.get() }.exceptionOrNull() is IllegalStateException, "a counter moved in is closed")
+	}
+	// A kept closure, called on another thread after the call that took it returned.
+	check(Spawned.new { 7u }.join() == 7u, "a kept closure runs on another thread")
+
+	check(splitLast(intArrayOf(1, 2, -3)) == splitLast(intArrayOf(1, 2, -3)), "a tuple holding an array compares by contents")
+	check(splitLast(intArrayOf(1, 2, -3)).hashCode() == splitLast(intArrayOf(1, 2, -3)).hashCode(), "a tuple holding an array hashes by contents")
+	check(Shadowed(intArrayOf(1), 0u, 0u) == Shadowed(intArrayOf(1), 0u, 0u) && Shadowed(intArrayOf(1), 0u, 0u) != Shadowed(intArrayOf(2), 0u, 0u), "a field named other compares as itself")
+	check(Builtin.Any(intArrayOf(1)) == Builtin.Any(intArrayOf(1)) && Builtin.Any(intArrayOf(1)).hashCode() == Builtin.Any(intArrayOf(1)).hashCode(), "a variant named Any compares by contents")
+	check(Builtin.Native(Double.NaN) != Builtin.Native(Double.NaN) && Builtin.Int(-0.0) == Builtin.Int(0.0) && Builtin.Boolean(1.0) != Builtin.Int(1.0), "variants named as Kotlin's builtins compare as Rust's")
+	check(Qualifiers(-0.0, 1.0) == Qualifiers(0.0, 1.0) && Qualifiers(-0.0, 1.0).hashCode() == Qualifiers(0.0, 1.0).hashCode() && Qualifiers(Double.NaN, 1.0) != Qualifiers(Double.NaN, 1.0), "fields named as the package and kotlin compare as Rust's")
+	val edges = Numbers.edges()
+	check(Numbers.zero(true).hashCode() == Numbers.zero(false).hashCode(), "a negative zero hashes as zero does")
+	check(Measure.new(-0.0, true).hashCode() == Measure.new(0.0, false).hashCode(), "a negative zero hashes as zero does in a nested record")
+	val ints = edges.copy(f32s = FloatArray(0), f64s = DoubleArray(0))
+	val alike = Numbers.edges().copy(f32s = FloatArray(0), f64s = DoubleArray(0))
+	check(ints == alike && ints.hashCode() == alike.hashCode(), "records of arrays compare by contents")
+	val back = edges.reversed().reversed()
+	check(back.copy(f32s = FloatArray(0), f64s = DoubleArray(0)) == ints, "every integer edge value crosses both ways exactly")
+	check(back.f32s.map { it.toRawBits() } == edges.f32s.map { it.toRawBits() } && back.f64s.map { it.toRawBits() } == edges.f64s.map { it.toRawBits() }, "every float edge value crosses both ways exactly")
+	check(edges.copy(some = null).reversed().some == null, "a missing array stays missing")
+	check(edges.copy(some = IntArray(0)).reversed().some?.size == 0, "an empty array is no missing one")
+	check(edges.copy(some = intArrayOf(Int.MIN_VALUE, 7)).reversed().some.contentEquals(intArrayOf(7, Int.MIN_VALUE)), "an array in an option crosses in a record")
+
 	// Kotlin's own hash of a key is Rust's `Hash`, as its `equals` is Rust's `==`.
 	Key.new("a").use { a ->
 		Key.new("a").use { same ->
 			Key.new("b").use { b ->
-				println("key ${a.hashCode() == same.hashCode()} ${a.hashCode() == b.hashCode()}")
 				check(a == same && a != b, "keys compare as Rust's")
+				check(a.hashCode() == same.hashCode() && a.hashCode() != b.hashCode(), "keys hash as Rust's")
 				check(a.hashCode() == a.hashOf().toLong().hashCode(), "a key hashes as Rust's Hash")
 				check(setOf(a, b).contains(same), "a key finds its equal in a set")
 			}
 		}
 	}
-	val v6Max = Ipv6Addr(ByteArray(16).also { it[0] = -1; it[1] = -1; it[15] = 1 })
-	println("lossless ip ${ipHex(sameIpAddr(Ipv4Addr(UInt.MAX_VALUE)))} ${ipHex(sameIpAddr(v6Max))}")
 
 	// Durations: exact both ways, and checked against kotlin.time's.
 	check(rejects { Duration(0u, 1_000_000_000u) }, "a second of nanoseconds is no Duration's")
@@ -995,8 +401,8 @@ fun lossless() {
 
 	// Text: a lone surrogate throws, passed alone or encoded, before anything moves.
 	check(rejects { sameString("a\ud800") } && rejects { sameString("\udc00b") }, "a lone surrogate is no Rust text")
-	check(sameString("\ud83d\ude00") == "\ud83d\ude00", "a surrogate pair is one char")
-	check(sameString("x".repeat(1023) + "\ud83d\ude00") == "x".repeat(1023) + "\ud83d\ude00", "a pair split across chunks is one char")
+	check(sameString("😀") == "😀", "a surrogate pair is one char")
+	check(sameString("x".repeat(1023) + "😀") == "x".repeat(1023) + "😀", "a pair split across chunks is one char")
 	check(rejects { joinWords(listOf("a", "\ud800")) }, "a lone surrogate in a list throws")
 	val kept = Counter.new("kept", 1u)
 	check(rejects { Board.new(listOf(Pair("\ud800", kept))) }, "a lone surrogate beside a moved object throws")
@@ -1006,9 +412,13 @@ fun lossless() {
 	// Paths: any bytes on Unix, and text only where it is UTF-8.
 	val stray = stray()
 	check(stray.toByteArray().contentEquals(byteArrayOf(-1)) && stray == PathBuf(byteArrayOf(-1)), "a path keeps bytes no String holds")
-	check(rejects { stray.toText() } && rejects { stray.toPath() } && stray.toString() == "\ufffd", "a path that is not UTF-8 has no text")
+	check(rejects { stray.toText() } && rejects { stray.toPath() } && stray.toString() == "�", "a path that is not UTF-8 has no text")
 	check(rejects { PathBuf("\ud800") }, "a lone surrogate has no path")
-	check(PathBuf("a/é").toText() == "a/é" && PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts")
+	check(PathBuf("a/é").toText() == "a/é", "a UTF-8 path converts")
+	// `java.nio.file` is on Android from API 26.
+	if (runCatching { Class.forName("java.nio.file.Paths") }.isSuccess) {
+		check(PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts to a Path")
+	}
 	check(_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())) && !_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte(), 0xed.toByte(), 0xb0.toByte(), 0x80.toByte())), "a lone surrogate is WTF-8, a pair encoded apart is not")
 	check(!_wtf8(byteArrayOf(-1)) && !_wtf8(byteArrayOf(0xc0.toByte(), 0x80.toByte())) && _wtf8("a/é😀".encodeToByteArray()), "WTF-8 is UTF-8 otherwise")
 
@@ -1028,6 +438,7 @@ fun lossless() {
 	check(IpAddr.of(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))) == Ipv4Addr(127u, 0u, 0u, 1u), "an IPv4 address converts")
 	check(Ipv6Addr(ByteArray(16).also { it[1] = 1; it[15] = 2 }).toString() == "1::2" && Ipv6Addr(ByteArray(16)).toString() == "::", "IPv6 prints as Rust's")
 	check(SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 80u).toString() == "127.0.0.1:80", "IPv4 prints as Rust's")
+	println("checks ok")
 }
 
 // A queue of jobs that a test runs when it chooses: the dispatcher coroutines resume on.
@@ -1311,6 +722,8 @@ fun broken(which: String) {
 			Node.new(2u, tail)
 			tail.sum()
 		}
+		// A Rust panic cannot unwind into the JVM, so it aborts.
+		"panicked" -> Clash.Unit.reading(0u)
 		"outlived" -> Meters.new().let { meters ->
 			val first = meters.first()
 			meters.clear()
@@ -1412,6 +825,10 @@ fun owned() {
 	}
 	collected(lentAround() + 1u, "the GC frees lent bytes nothing reaches")
 	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
+	reads(Bytes(window(java.nio.ByteBuffer.allocateDirect(1031).also { b -> repeat(1031) { b.put(it, 9) } }, 3, 1025)), 9, "a direct buffer's bytes")
+	buffers()
+	check(Point.getX() == 0 && Point(3, 4).x == 3, "a companion's getX keeps its Kotlin name beside x's getter")
+	check(Shape.Companion.valueOf("square") == Shape.SQUARE && Shape.valueOf("SQUARE") == Shape.SQUARE, "a companion's valueOf keeps its Kotlin name beside the enum's own")
 
 	// A call after close throws, and close frees at once, once.
 	val before = dropped()
@@ -1582,6 +999,59 @@ fun reads(bytes: Bytes, value: Byte, what: String) {
 	for (read in outOfRange) {
 		check(runCatching(read).exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a read out of range")
 	}
+	for (direct in listOf(true, false)) {
+		val kind = if (direct) "a direct buffer" else "a heap buffer"
+		val into = window(if (direct) java.nio.ByteBuffer.allocateDirect(n + 3) else java.nio.ByteBuffer.allocate(n + 3), 2, n)
+		check(bytes.copyInto(into, 1) === into && into.position() == n + 1, "$what copied into $kind move its position")
+		check(into.get(1) == 0.toByte() && (2 until n + 1).all { into.get(it) == value } && into.get(n + 1) == 0.toByte(), "$what copied into $kind at its position")
+		val full = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 1, n - 1)
+		check(runCatching { bytes.copyInto(full) }.exceptionOrNull() is java.nio.BufferOverflowException && full.position() == 1 && full.get(1) == 0.toByte(), "$what refuse $kind too short, writing nothing")
+		val readOnly = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 0, n).asReadOnlyBuffer()
+		check(runCatching { bytes.copyInto(readOnly) }.exceptionOrNull() is java.nio.ReadOnlyBufferException, "$what refuse $kind read-only")
+		check(runCatching { bytes.copyInto(into, 2, 1) }.exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a range out of order for $kind")
+	}
+}
+
+// [buffer] from [position] for [n] bytes, set through `Buffer`, whose `position` and
+// `limit` every JVM and Android level has.
+fun window(buffer: java.nio.ByteBuffer, position: Int, n: Int): java.nio.ByteBuffer {
+	val moved: java.nio.Buffer = buffer
+	moved.limit(position + n).position(position)
+	return buffer
+}
+
+// A ByteBuffer's bytes, from its position until its limit, cross direct or heap, read-only
+// or not, at a call's top level and in a record, short or long; they hold the buffer
+// without a copy, so a later write shows, apart from its position and limit.
+fun buffers() {
+	for (n in listOf(0, 5, 1025, 4000)) {
+		val payload = ByteArray(n) { (it * 7 + 1).toByte() }
+		val direct = window(java.nio.ByteBuffer.allocateDirect(n + 5), 3, n)
+		for (i in 0 until n) direct.put(3 + i, payload[i])
+		val heap = java.nio.ByteBuffer.wrap(ByteArray(n + 4).also { payload.copyInto(it, 2) }, 2, n).slice()
+		for ((kind, buffer) in listOf("direct", direct, "heap", heap, "read-only direct", direct.asReadOnlyBuffer(), "read-only heap", heap.asReadOnlyBuffer()).chunked(2)) {
+			val bytes = Bytes(buffer as java.nio.ByteBuffer)
+			val what = "$n bytes of a $kind buffer"
+			check(bytes.size == n && bytes == Bytes(payload) && bytes.hashCode() == Bytes(payload).hashCode(), "$what equal Kotlin's")
+			check(prefixed(bytes, null).toByteArray().contentEquals(payload), "$what cross a call")
+			check(prefixed(Bytes(payload), bytes).toByteArray().contentEquals(payload + payload), "$what cross a call as an Option")
+			check(nextPacket(Packet(1u, bytes)).payload.toByteArray().contentEquals(payload), "$what cross in a record")
+			if (n > 2) {
+				check(prefixed(bytes.slice(1, n - 1), null).toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of $what crosses as its range")
+				check(nextPacket(Packet(1u, bytes.slice(1, n - 1))).payload.toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of $what crosses in a record as its range")
+			}
+		}
+		if (n > 0) {
+			val bytes = Bytes(direct)
+			window(direct, 0, n + 5)
+			direct.put(3, 42)
+			window(direct, 0, 0)
+			check(bytes[0] == 42.toByte() && bytes[n - 1] == payload[n - 1] && bytes.size == n && prefixed(bytes, null)[0] == 42.toByte(), "a direct buffer is held without a copy, apart from its position and limit")
+			check(bytes.copyInto(ByteArray(n))[0] == 42.toByte() && bytes == Bytes(byteArrayOf(42) + payload.copyOfRange(1, n)), "a direct buffer reads apart from its limit")
+		}
+	}
+	// Rust's bytes, short ones copied and long ones lent, copy into a buffer once.
+	for (n in listOf(5, 1025, 4000)) reads(prefixed(Bytes(ByteArray(n) { 8 }), null), 8, "$n bytes Rust returned")
 }
 
 // Never closed, and long enough to be lent.
@@ -1873,6 +1343,7 @@ fun main(args: Array<String>) {
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
 		args[0] == "clash" -> clash()
+		args[0] == "checks" -> checks()
 		else -> broken(args[0])
 	}
 }

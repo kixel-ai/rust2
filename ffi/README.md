@@ -262,7 +262,10 @@ item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
 public names. A clash that renames a kept class, function, or member reports its language
-and old and new names at the item's span. Staged `--api` files have no binding names; a
+and old and new names at the item's span. An error type's exception class is known by its
+error type and the type the language holds it as, since Kotlin's `UShortArray` and
+`List<UShort>` may share one error type: one added beside another adds a class, and a
+native type respelled or gone breaks nothing while a class still bears its old name. Staged `--api` files have no binding names; a
 baseline must be a complete export. An older baseline without name tables still has its
 structure checked, reporting each break before the error that it lacks names, so its
 re-export with this version accepts no break that check would have caught. A binding
@@ -429,6 +432,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Android**: the build script links the library with 16 KB pages, which Google Play
+  requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
+  panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
+  message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
+  app's stderr goes nowhere.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -631,7 +639,10 @@ the rest cross encoded.
   `IllegalStateException` naming the function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
-  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
+  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
+  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
+  `default()`, whose name Java reserves; one whose JVM name a field's getter has, as
+  `getX()` beside `x`, takes a trailing `_` on the JVM alone. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -642,11 +653,18 @@ the rest cross encoded.
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,
   `val (y, n) = x.take()`.
 - **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
-  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
-  at a call's top level or in a record; those Rust lends a closure or trait method are
-  copied. A `Bytes` is read only through `size`,
-  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
-  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  which `Bytes(ByteArray)` and `Bytes(ByteBuffer)` hold without a copy, are copied once
+  into a buffer Rust takes, at a call's top level or in a record; those Rust lends a
+  closure or trait method are copied. A direct `ByteBuffer`'s, as a `MediaCodec` output
+  is, are copied straight from its memory, from its position until its limit when made;
+  a heap one's array is shared, or copied when made if it is read-only. Writing a direct
+  buffer's bytes while a call copies them, or reading them while one copies into it, is a
+  race whose bytes are undefined; a buffer Android made inaccessible, as `MediaCodec` does
+  on releasing it, throws `IllegalStateException` before Rust reads it. A `Bytes` is
+  read only through `size`, `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of
+  Rust's memory escapes and no read meets it freed; `copyInto(ByteBuffer)` copies into a
+  buffer at its position once, as `put` does, straight into a direct one's memory, such as
+  a `MediaCodec` input's. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
@@ -663,7 +681,7 @@ the rest cross encoded.
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
   compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
-  holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  holding it, whose message is its `Display`, a checked `Exception` each function that throws it declares with `@Throws`, so Java can catch it. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
 - **Std values** no Kotlin or Java type holds exactly are the runtime's own, each holding
@@ -674,7 +692,7 @@ the rest cross encoded.
   which is never negative or infinite in Rust and drops what is below a millisecond past
   about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
   Windows, made from them or from a `String`, and converted to one or to a
-  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  `java.nio.file.Path` by `toText()` and `toPath()` (Android's `java.nio.file` starts at API 26), which throw where it is not UTF-8;
   its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
   is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
   each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
@@ -742,7 +760,8 @@ the rest cross encoded.
 ## Python
 
 `<prefix>.py` is Python over a CPython extension that `--features python` builds into the
-same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
+same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
+free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
@@ -769,7 +788,8 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. A field is a
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. An object, as
+  an opaque value and a record, takes weak references (`weakref.ref`). A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -780,10 +800,13 @@ caller imports it with no ignores.
   thread: on the next turn of the event loop that ran there when a call made a value that
   is not `Send`, though the loop calls nothing into Rust, else at its next call or as it
   exits.
-- **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
-  against itself, as Rust does, and **enums** an `Enum`
-  of upper-case members, or for one with data a class of a dataclass per variant,
-  `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
+- **Records** are slotted classes, written out as `@dataclass(slots=True,
+  weakref_slot=True)` would make them, so no `dataclass` runs at import: an `__init__`
+  taking each field, `__match_args__`, a dataclass's `repr`, and `__eq__` comparing the
+  fields, a float by IEEE `==` even against itself, as Rust does. `dataclasses.fields`,
+  `replace`, and `asdict` take one, as its `__dataclass_fields__` is made on its first read,
+  and so does `copy.replace`. **Enums** are an `Enum` of upper-case members, or for one
+  with data a class of such a record per variant, `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal. An **opaque value** is a class of the runtime's `Value`, which holds its bytes
   in place, so only Rust makes or reads one: making one raises `TypeError`. It is shared
@@ -799,7 +822,11 @@ caller imports it with no ignores.
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
   microseconds up to 999,999,999 days. A zero passed for a `NonZero` raises `ValueError`. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
-  holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
+  holding it in `error`, whose `str` is its `Display`. An enum's, or an object's whose
+  type is an enum, raises a subclass per variant, `ErrorException.Timeout`, which
+  `ErrorException(error)` makes too, so `except ErrorException.Timeout` catches that
+  variant alone; one of a variant a `#[non_exhaustive]` enum's crate adds after the export
+  raises `ErrorException` itself. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
@@ -841,7 +868,8 @@ caller imports it with no ignores.
   to a socket the loop reads, without the GIL, or during a call on the loop's own thread,
   writes nothing and schedules the loop's dispatch once the call returns. Cancelling the task frees the future and
   loses nothing. The call polls it once before suspending, and a future is awaited once,
-  as a coroutine is.
+  as a coroutine is. Futures and wakers run on asyncio's event loop alone: an await or a
+  `Waker` where none runs, as under trio, raises `RuntimeError` saying so.
 - An **awaitable Python implements** is an `Awaitable[None]`, such as a coroutine, passed
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
   cancels the task, or closes a coroutine it never started. One that raises, or that
@@ -1338,9 +1366,10 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, with what Swift alone refuses, each of which fails the
-export, and what else it left out, such as what C can never hold and the traits C cannot
-implement, and why. It fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+lists each refused item at its span, a binding's own refusals such as Swift's included,
+each of which fails the export, and what else it left out, such as what C can never hold
+and the traits C cannot implement, and why. It fails on an `instance not inferred` refusal,
+which is a bug in the exporter's inference
 rather than in the crate.
 
 ## TypeScript (web)
@@ -1449,7 +1478,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   payload costs 0.2 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
   1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
   has each engine's.
-- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
+- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does; where the engine lacks that symbol, as stable Safari does, `rt` defines it as `Symbol.for("Symbol.dispose")`, which esbuild's `using` falls back to too. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
   disposed and no call holds it, so one disposed while a later argument lowers fails the
@@ -1491,7 +1520,7 @@ just ffi shapes   # round-trip every sampled type shape in every language but KN
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
-nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
@@ -1501,9 +1530,15 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. `tests/api.c` runs the same script as the
-fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
-then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
+and that wasm32's fail. Each language's script is written at test time by
+`tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
+typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
+a construct a language's writer cannot spell, fails the test naming it. Each function the
+example defines is a hook each language's test writes by hand under the same name, for what
+tests its idiom, such as futures and readers, or prints a value no two bindings shape alike.
+A new rule's case is a few lines of `main`, which every language then runs.
+`tests/api.c` runs the script through the C, and its transcript must match the native one
+line for line; then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
 `tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
@@ -1516,12 +1551,16 @@ pushed out of one, and that each object of many threads' returns, closes, and dr
 freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
+segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
+panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
+x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
+API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
-abort with its message; the Python with another contract must refuse the library.
+abort with its message; the Python with another contract must refuse the library. `api_free_threaded` imports it under
+nixpkgs' free-threaded CPython, which the dev shell names in `PYTHON_FREE_THREADED`, and checks the `ImportError`.
 `api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
@@ -1542,15 +1581,20 @@ binding, which builds for each, and staged with `--api` and `--with`; a build fo
 not exported fails, and items that differ between the two are refused, naming both.
 The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each
 leaf alone and in each wrapper, then nested to depth 3 from a fixed seed, and emit a crate
-of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a closure's
-parameter and return and in a future besides. Its census decides what exports, so a shape
-refused by design is left out rather than failed. Each language's driver is a generated
-flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
-own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
-the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
-fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
-on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
-until the sampler covers it.
+of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in each
+position a binding maps apart: a closure's parameter and return, a future, a `Result`'s
+value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
+object's methods, and a trait a caller implements. A digest hashes floats by their bits,
+so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
+decides what exports, so a shape refused by design is left out rather than failed. Each
+language's driver, the web's on Node included, is a generated list of these calls whose
+printed digests must match the crate's own, run natively, or as wasm under Node's WASI
+for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
+every sampled shape and, as the nightly does, more drawn from the day's seed, which it
+prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
+each with the quest that fixes it; the driver skips those calls, so the fix deletes its
+entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
+`Type` variant fails `ir_covered` until the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use

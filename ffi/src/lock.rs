@@ -79,6 +79,19 @@ pub(crate) fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	format!("error {}", abi.spell(&owned(ty)))
 }
 
+/// Record `name`, the exception class an error of type `err` throws as, which the language
+/// holds as `native`. One error key may name several classes, as Kotlin's `UShortArray` and
+/// `List<UShort>` both spell `vec_u16`, so each is known by its native type too: a type
+/// added beside it adds a class rather than renaming one, and a class that loses its name to
+/// it is a rename. The key alone names the last, as a baseline from before knew it. A
+/// generator's spelling of `native` may change, so [`name_breaks`] holds the key alone, or a
+/// native type gone from it, kept while any class of the key still bears its name.
+pub(crate) fn exception(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, err: &Type, native: &str, name: &str) {
+	let key = error_key(abi, err);
+	names.insert(format!("{key} / as {native}"), name.to_string());
+	names.insert(key, name.to_string());
+}
+
 /// Compare the names the generators actually emitted, retaining the current item's span.
 ///
 /// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
@@ -173,6 +186,18 @@ pub(crate) fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'
 				continue;
 			}
 			let new = now.get(language).and_then(|names| names.get(key));
+			// An exception known by its key alone names one class of several the key may have,
+			// as a baseline from before they were known apart wrote it, and one known by a
+			// native type no class has now was respelled or dropped: kept while one has it.
+			if key.starts_with("error ")
+				&& (key == owner || new.is_none())
+				&& now.get(language).is_some_and(|names| {
+					(names.range(format!("{owner} / as ")..))
+						.take_while(|(k, _)| k.starts_with(&format!("{owner} / as ")))
+						.any(|(_, name)| name == old)
+				}) {
+				continue;
+			}
 			// Missing parts need a name diagnostic unless the owner's structural change
 			// already reports the break, such as a removed variant or changed signature.
 			if new.is_none()
@@ -685,6 +710,23 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 		}
 		(Item::Object(i), Item::Object(j)) => {
 			traits(b.objects[i].traits, n.objects[j].traits);
+			// A binding names an enum object's variants, as Python's exception subclasses.
+			for variant in &b.objects[i].variants {
+				let Some(other) = n.objects[j].variants.iter().find(|v| v.name == variant.name) else {
+					changes.push(format!("variant `{}` is removed", variant.name));
+					continue;
+				};
+				let lost: Vec<&str> = (b.named(variant.on).into_iter())
+					.filter(|t| n.targets.iter().any(|n| n == t) && !n.named(other.on).contains(t))
+					.collect();
+				if !lost.is_empty() {
+					changes.push(format!(
+						"variant `{}` is no longer on {}",
+						variant.name,
+						lost.join(", ")
+					));
+				}
+			}
 			let mut ours = merge::bare_object(&b.objects[i]);
 			maps.types(&mut ours.args);
 			let mut theirs = merge::bare_object(&n.objects[j]);
@@ -891,11 +933,73 @@ mod tests {
 	}
 
 	#[test]
-	fn tuple_c_rename_is_reported_once() {
+	fn enum_object_variant_removal_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
 		let mut base = api();
-		base.objects.push(crate::ir::Object {
-			path: vec!["lock".into(), "A_B".into()],
-			shown: vec!["lock".into(), "A_B".into()],
+		base.objects.push(object("Fault"));
+		base.objects[0].variants = vec![variant("Busy"), variant("Lost")];
+		base.functions[0].err = Some(Type::Object(0));
+		let mut now = base.clone();
+		now.objects[0].variants.push(variant("Late"));
+		assert!(breaks(&base, &now, "lock").is_empty(), "an added variant passes");
+		now.objects[0].variants.remove(1);
+		let found = breaks(&base, &now, "lock");
+		assert!(
+			found.iter().any(|b| b.what.contains("variant `Lost` is removed")),
+			"{:?}",
+			found.iter().map(|b| &b.what).collect::<Vec<_>>()
+		);
+	}
+
+	#[test]
+	fn python_variant_rename_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.objects.push(object("Fault"));
+		base.objects[0].variants = vec![variant("FooBar")];
+		base.functions[0].err = Some(Type::Object(0));
+		let old = crate::python::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
+		assert_eq!(old.names["error Fault / variant FooBar"], "FaultException.FooBar");
+		// `Foo_Bar` added first takes `FooBar`, which the kept variant had.
+		let mut now = base.clone();
+		now.objects[0].variants.insert(0, variant("Foo_Bar"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added variant passes structurally"
+		);
+		let abi = Abi::new(&now, "lock");
+		let new = crate::python::generate(&abi, "lock", 0).unwrap();
+		let changes = name_breaks(
+			&BTreeMap::from([("Python".into(), old.names)]),
+			&BTreeMap::from([("Python".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert!(
+			changes.iter().any(|c| c
+				.what
+				.contains("`FaultException.FooBar` is now `FaultException.FooBar_`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
+	fn object(name: &str) -> crate::ir::Object {
+		crate::ir::Object {
+			path: vec!["lock".into(), name.into()],
+			shown: vec!["lock".into(), name.into()],
 			home: Home {
 				krate: "lock_a".into(),
 				outside: 1,
@@ -911,9 +1015,16 @@ mod tests {
 			lifetimes: 0,
 			methods: vec![],
 			traits: Traits::default(),
+			variants: vec![],
 			foreign: false,
 			opaque: None,
-		});
+		}
+	}
+
+	#[test]
+	fn tuple_c_rename_is_reported_once() {
+		let mut base = api();
+		base.objects.push(object("A_B"));
 		base.functions[0].ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(0), Type::Int(Int::U64)])));
 		let old = crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
 		let mut now = base.clone();

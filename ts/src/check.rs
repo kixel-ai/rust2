@@ -26,6 +26,7 @@ fn tsconfig(files: &[String]) -> String {
 		r#"{{
 	"compilerOptions": {{
 		"strict": true,
+		"noImplicitOverride": true,
 		"noEmit": true,
 		"pretty": false,
 		"target": "es2022",

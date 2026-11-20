@@ -21,8 +21,6 @@ then see change. A sibling planned later adds itself to `Required` here.
 
 - [C and C++ idioms](/quest/m1/ffi-export/cpp-idioms.md) - numeric slice views and must-use returns change the C++ API
 - [Swift spans](/quest/m1/ffi-export/swift-span.md) - lent bytes and slices change the Swift API
-- [Kotlin idioms](/quest/m1/ffi-export/kotlin-idioms.md) - direct buffers and Java annotations change the Kotlin API
-- [Python idioms](/quest/m1/ffi-export/python-idioms.md) - the exception hierarchy changes the Python API
 - [Dart analysis](/quest/m1/ffi-export/dart-analyze.md) - lint fixes may rename generated Dart
 - [Docs](/quest/m1/ffi-export/docs.md) - doc links and deprecations in every binding
 - [Niche values](/quest/m1/ffi-export/niche-values.md) - moq's `Timestamp` changes from a handle back to a value in every binding

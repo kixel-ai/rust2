@@ -289,6 +289,23 @@ pub fn failing_borrowed() -> Result<u32, &'static str> {
 	Err("failure")
 }
 
+/// An error whose key, `vec_u16`, `added` gives a `BTreeSet<u16>` too, which Kotlin,
+/// Python, and Dart hold as another type and so throw as an exception of its own: an
+/// addition. A `Vec<NonZero<u16>>` shares its C type, which Dart holds apart.
+pub fn samples() -> Result<u32, Vec<u16>> {
+	Err(vec![1])
+}
+
+#[cfg(feature = "added")]
+pub fn samples_set() -> Result<u32, std::collections::BTreeSet<u16>> {
+	Err([1].into())
+}
+
+#[cfg(feature = "added")]
+pub fn samples_nonzero() -> Result<u32, Vec<std::num::NonZero<u16>>> {
+	Err(vec![std::num::NonZero::<u16>::MIN])
+}
+
 /// Error wrappers and variants occupy their own language namespaces.
 #[cfg(not(feature = "closures"))]
 pub fn failing() -> Result<u32, String> {

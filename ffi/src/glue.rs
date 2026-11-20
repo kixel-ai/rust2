@@ -21,14 +21,16 @@ use crate::ir::{
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
+const ANDROID: &str = include_str!("../runtime/rt/android.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
 const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
-/// crate which it builds for, as the `cfg` [`CFG`]. On macOS, a CPython extension leaves
-/// Python's symbols for the interpreter that loads it to resolve.
+/// crate which it builds for, as the `cfg` [`CFG`]. On Android, it aligns the library to
+/// 16 KB pages. On macOS, a CPython extension leaves Python's symbols for the interpreter
+/// that loads it to resolve.
 fn build(targets: &[String]) -> String {
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
 	let list = list.join(", ");
@@ -45,6 +47,11 @@ fn build(targets: &[String]) -> String {
 		\t\tpanic!(\"exported for {names}, not {{target}}: export again with --target {{target}}\");\n\
 		\t}}\n\
 		\tprintln!(\"cargo::rustc-cfg={CFG}=\\\"{{target}}\\\"\");\n\
+		\t// rustc leaves Android's page size to the NDK, whose r27 and older align to 4 KB, and\n\
+		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
 		}}\n",
@@ -377,7 +384,7 @@ impl Crate<'_> {
 		// Only Kotlin passes a JNI value, so every other language exports the rest.
 		let rest = self.abi.api.without_jni();
 		let rest = self.abi.without_jni(&rest);
-		let (header, contract) = crate::c::header(&rest, &self.packages());
+		let (header, contract, c) = crate::c::header(&rest, &self.packages());
 		let cpp = crate::cpp::headers(&rest, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(&rest, &self.packages(), contract)?;
@@ -387,6 +394,7 @@ impl Crate<'_> {
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
+			("C", c),
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
 			("Python", python.names),
@@ -422,12 +430,14 @@ impl Crate<'_> {
 			checking: Cell::new(false),
 			reserved: Cell::new(false),
 			web: web.is_some(),
+			variants: String::new(),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
 		output.file(&out.join("src/lib.rs"), &generator.out);
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("src/rt/android.rs"), ANDROID);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("src/rt/thread.rs"), THREAD);
 		output.file(&out.join("src/rt/future.rs"), FUTURE);
@@ -628,6 +638,8 @@ struct Gen<'a> {
 	reserved: Cell<bool>,
 	/// Whether the API serves the web, whose glue the crate's `web` feature builds.
 	web: bool,
+	/// The Python glue's functions telling which variant an object that is an enum holds.
+	variants: String,
 }
 
 impl Gen<'_> {
@@ -1490,6 +1502,12 @@ impl Gen<'_> {
 		for function in &api.functions {
 			self.function(function, None);
 		}
+		if !self.variants.is_empty() {
+			let variants = crate::kotlin::indent_by(&std::mem::take(&mut self.variants), 1);
+			self.line(format!(
+				"/// Which variant each object that is an enum holds, for the Python glue, which raises an\n/// error's own subclass by it.\n#[cfg(feature = \"python\")]\npub(crate) mod variant {{\n\tuse super::*;\n\n{variants}}}\n"
+			));
+		}
 	}
 
 	/// The functions object `i`'s std traits export, borrowing its handles `this`, `a`,
@@ -1566,6 +1584,31 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{away}{body}\n}}\n"
 			));
+		}
+		let variants = &self.abi.api.objects[i].variants;
+		if !variants.is_empty() {
+			// Each variant by its index plus one, or `0` for one the export knows no name of,
+			// as a `#[non_exhaustive]` enum's own crate may add.
+			let arms: String = (variants.iter().enumerate())
+				.map(|(n, v)| format!("{}\n\t\tT::{} {{ .. }} => {},", self.arm(v.on), ident(&v.name), n + 1))
+				.collect();
+			let body = wrap(
+				status,
+				"u32",
+				&format!("let this = {this};\n\tmatch {deref}this {{{arms}\n\t\t_ => 0,\n\t}}"),
+			);
+			let away = away(&name, &["this"]);
+			let function = format!(
+				"#[allow(unreachable_patterns, reason = \"an exhaustive enum's wildcard\")]\npub(crate) unsafe fn {name}(this: {handle}{param}) -> u32 {{\n\ttype T = {path};\n\tlet w = \"{name}_variant\";\n\t{away}{body}\n}}\n"
+			);
+			let function = match self.cfg(self.on) {
+				None => function,
+				Some(cfg) => format!(
+					"#[cfg({cfg})]\n{function}#[cfg(not({cfg}))]\n#[allow(unused_variables, reason = \"a call fails before reading any\")]\npub(crate) unsafe fn {name}(this: {handle}{param}) -> u32 {{\n\trt::fail(\"{name}_variant\", \"it is not on this library's target\")\n}}\n"
+				),
+			};
+			self.variants.push_str(&function);
+			self.variants.push('\n');
 		}
 		if traits.debug {
 			let body = wrap(

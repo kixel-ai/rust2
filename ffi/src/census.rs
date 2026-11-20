@@ -10,15 +10,9 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown, with `swift`, each function Swift alone refuses
-/// and why; `at` locates a span.
-pub(crate) fn render(
-	api: &Api,
-	collected: &Report,
-	swift: &[(&Function, String)],
-	clashes: &[Clash],
-	at: &dyn Fn(Span) -> String,
-) -> String {
+/// The census of the facade as Markdown, Swift's refusals among the rest; `at` locates a
+/// span.
+pub(crate) fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
 	let records = &api.records;
 	let enums = &api.enums;
 	let objects: Vec<_> = api.objects.iter().filter(|o| !o.foreign).collect();
@@ -26,9 +20,6 @@ pub(crate) fn render(
 	let callbacks = api.callbacks.len();
 	let constants = api.constants.len();
 	let refused = |kinds: &[&str]| collected.refusals.iter().filter(|r| kinds.contains(&r.kind)).count();
-	let swift_functions = (swift.iter())
-		.filter(|(f, _)| api.functions.iter().any(|g| std::ptr::eq(*f, g)))
-		.count();
 	// A field counts once, by its getter, though it exports a setter too.
 	let items = |methods: &[Function]| {
 		(methods.iter())
@@ -55,16 +46,11 @@ pub(crate) fn render(
 		let _ = writeln!(out, "| {name} | {exported} | {refused} | {share} |");
 	};
 	row("Types", types, refused(&["struct", "enum", "union", "instance"]));
-	// Swift's refusals are in the API, so they leave its counts.
-	row(
-		"Functions",
-		functions.saturating_sub(swift_functions),
-		refused(&["fn"]) + swift_functions,
-	);
+	row("Functions", functions, refused(&["fn"]));
 	row(
 		"Methods and fields of exported types",
-		methods.saturating_sub(swift.len() - swift_functions),
-		refused(&["method", "field"]) + swift.len() - swift_functions,
+		methods,
+		refused(&["method", "field"]),
 	);
 	row("Traits", callbacks, 0);
 	row("Constants", constants, refused(&["const"]));
@@ -152,12 +138,6 @@ pub(crate) fn render(
 		);
 	}
 
-	if !swift.is_empty() {
-		let _ = writeln!(out, "\n## Refused by Swift\n");
-		for (function, why) in swift {
-			let _ = writeln!(out, "- {why}, at {}", at(function.span));
-		}
-	}
 	if !clashes.is_empty() {
 		let _ = writeln!(out, "\n## C names claimed twice\n");
 		for (name, (first, _), (second, span)) in clashes {

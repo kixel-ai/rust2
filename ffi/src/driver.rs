@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use rustc_ast as ast;
+use rustc_data_structures::fx::FxHashSet;
 use rustc_driver::{Callbacks, Compilation};
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
@@ -14,6 +15,7 @@ use rustc_span::{FileName, Span};
 
 use crate::abi::Abi;
 use crate::config;
+use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
@@ -172,15 +174,14 @@ impl Callbacks for Export {
 			package: &self.facade.name,
 			crates: &self.crates,
 		};
-		let collected = collect::collect(tcx, &facade);
-		let report = &collected.report;
+		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
 			// What Swift refuses fails the export too, so the census lists it with the rest.
-			// Swift exports the API without what takes a JNI value, as the export does.
-			let rest = collected.api.without_jni();
-			let swift = crate::swift::refusals(&abi.without_jni(&rest));
-			let text = census::render(&collected.api, report, &swift, &abi.clashes, &|span| at(tcx, span));
+			let (api, swift) = swift_refused(&collected.api, &self.facade.lib);
+			let report = &mut collected.report;
+			report.refusals.extend(swift);
+			let text = census::render(&api, report, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -192,6 +193,7 @@ impl Callbacks for Export {
 			}
 			return stop_on_errors(tcx);
 		}
+		let report = &collected.report;
 		for refusal in &report.refusals {
 			refuse(tcx, refusal, None);
 		}
@@ -217,6 +219,50 @@ impl Callbacks for Export {
 			tcx.dcx().err(format!("rust2-ffi: {err}"));
 		}
 		stop_on_errors(tcx)
+	}
+}
+
+/// `api` without what Swift refuses, and each it refuses as a census refusal: to a fixed
+/// point, since leaving out a function that throws an object bare can make that object
+/// noncopyable, refusing another that throws it inside a value. Swift exports the API
+/// without what takes a JNI value, as the export does.
+fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<collect::Refusal>) {
+	let mut api = api.clone();
+	let mut refused = Vec::new();
+	loop {
+		let abi = Abi::new(&api, lib);
+		let rest = api.without_jni();
+		// A function refused for each of several reasons is one refusal of them all, its
+		// reasons in a row.
+		let mut found: Vec<collect::Refusal> = Vec::new();
+		for r in crate::swift::refusals(&abi.without_jni(&rest)) {
+			let why = collect::Why {
+				construct: r.construct,
+				detail: String::new(),
+				note: None,
+			};
+			let path = r.function.shown[1..].join("::");
+			match found.last_mut() {
+				Some(last) if last.path == path => last.why.push(why),
+				_ => found.push(collect::Refusal {
+					path,
+					kind: r.kind,
+					span: r.function.span,
+					why: vec![why],
+				}),
+			}
+		}
+		if found.is_empty() {
+			return (api, refused);
+		}
+		let gone: FxHashSet<&str> = found.iter().map(|r| r.path.as_str()).collect();
+		let keep =
+			|methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(f.shown[1..].join("::").as_str()));
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		refused.extend(found);
 	}
 }
 
@@ -384,8 +430,16 @@ impl Export {
 		}
 		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
 		let rest = api.without_jni();
-		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
-			tcx.dcx().span_err(function.span, format!("rust2-ffi: {why}"));
+		for refusal in crate::swift::refusals(&abi.without_jni(&rest)) {
+			tcx.dcx().span_err(
+				refusal.function.span,
+				format!(
+					"rust2-ffi: cannot export {} `{}`: {}",
+					refusal.kind,
+					refusal.function.shown[1..].join("::"),
+					refusal.why
+				),
+			);
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
 		let baseline = match self.baseline(tcx, &target) {

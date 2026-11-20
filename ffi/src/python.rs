@@ -6,10 +6,10 @@
 //! is `moq.TrackProducer`, and its method `moq_track_producer_append_group` is
 //! `TrackProducer.append_group`. A keyword, or a member Python gives every such class,
 //! takes a trailing `_`. An object is a class owning its handle, freed once its last
-//! reference goes; a record a dataclass; an enum an `Enum`, or for
-//! one with data a class with a dataclass per variant; a trait an abstract class; a
-//! closure any callable; a reader a `ForeignReader`; a future an awaitable; an error an
-//! exception. The runtime they
+//! reference goes; a record a class written as a dataclass would make it; an enum an
+//! `Enum`, or for one with data a class with such a record per variant; a trait an abstract
+//! class; a closure any callable; a reader a `ForeignReader`; a future an awaitable; an
+//! error an exception, with a subclass per variant of an enum. The runtime they
 //! share, [`runtime/rt.py`](../runtime/rt.py), holds the awaitable and the queue an event
 //! loop reads its wakes from; the glue's, [`runtime/python.rs`](../runtime/python.rs),
 //! the conversions and the types the extension defines.
@@ -27,7 +27,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -62,9 +62,15 @@ const TAKEN: &[&str] = &[
 	"_abc",
 	"_array",
 	"_asyncio",
-	"_dataclass",
+	"_dataclasses",
+	"_Record",
+	"_Dataclass",
+	"_NotImplemented",
+	"_RuntimeError",
+	"_getattr",
 	"_same",
 	"_all",
+	"_any",
 	"_dict",
 	"_float",
 	"_int",
@@ -206,15 +212,19 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import BaseException as _BaseException\n\
 		from builtins import Exception as _Exception\n\
 		from builtins import ImportError as _ImportError\n\
+		from builtins import NotImplemented as _NotImplemented\n\
 		from builtins import NotImplementedError as _NotImplementedError\n\
+		from builtins import RuntimeError as _RuntimeError\n\
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
+		from builtins import any as _any\n\
 		from builtins import bool as _bool\n\
 		from builtins import bytearray as _bytearray\n\
 		from builtins import bytes as _bytes\n\
 		from builtins import dict as _dict\n\
 		from builtins import float as _float\n\
+		from builtins import getattr as _getattr\n\
 		from builtins import int as _int\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
@@ -227,10 +237,16 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import str as _str\n\
 		from builtins import tuple as _tuple\n\
 		from builtins import type as _type\n\
-		from builtins import zip as _zip\n\
-		from dataclasses import dataclass as _dataclass\n\n\
-		_get_running_loop = _asyncio.get_running_loop\n\
+		from builtins import zip as _zip\n\n\
+		if _typing.TYPE_CHECKING:\n\
+		\timport dataclasses as _dataclasses\n\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
+		def _get_running_loop() -> _asyncio.AbstractEventLoop:\n\
+		\t\"\"\"The running asyncio event loop, which every future and `Waker` of this module runs on.\"\"\"\n\
+		\ttry:\n\
+		\t\treturn _asyncio.get_running_loop()\n\
+		\texcept _RuntimeError:\n\
+		\t\traise _RuntimeError(\"{p}'s futures and wakers run on a running asyncio event loop, and none is running: trio and other event loops are unsupported\") from None\n\n\n\
 		def _same(a: _object, b: _object, /) -> _bool:\n\
 		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
 		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
@@ -255,7 +271,18 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		def _load() -> _object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
-		\timport os\n\n\
+		\timport os\n\
+		\timport re\n\n\
+		\t# Loading by path skips the filename tag that keeps a GIL build's library out of a\n\
+		\t# free-threaded interpreter, which the stable ABI does not cover and which would crash.\n\
+		\t# Its extension suffixes carry the tag (`314t`, or `314td` on a POSIX debug build, after `_d` on a Windows one),\n\
+		\t# where sysconfig's `Py_GIL_DISABLED` follows an overridden sysconfig data file, as a\n\
+		\t# Nix shell sets.\n\
+		\tif _any(re.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+td?[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
+		\t\traise _ImportError(\n\
+		\t\t\t\"{p}.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use: \"\n\
+		\t\t\tf\"{{_sys.implementation.name}} {{_sys.version.partition(' ')[0]}}, free-threaded\"\n\
+		\t\t)\n\n\
 		\tname = {{\"win32\": \"{p}.dll\", \"darwin\": \"lib{p}.dylib\"}}.get(_sys.platform, \"lib{p}.so\")\n\
 		\tpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)\n\
 		\tloader = importlib.machinery.ExtensionFileLoader(\"_{p}\", path)\n\
@@ -822,15 +849,148 @@ impl<'a> Gen<'a> {
 			);
 		}
 		for (name, ty) in &self.exceptions.clone() {
-			let py = self.py_ty(ty);
-			let _ = write!(
-				self.py,
-				"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\n"
-			);
+			self.exception_class(name, ty);
 		}
 	}
 
-	/// A range's bound or pair of bounds as a dataclass, and its glue; a `Range` is
+	/// The exception class `name` of an error of type `ty`: for an enum's, or an object's
+	/// that is one, a subclass per variant, such as `ErrorException.Timeout`, which the
+	/// class makes of a value of that variant.
+	fn exception_class(&mut self, name: &str, ty: &Type) {
+		let py = self.py_ty(ty);
+		let abi = self.abi;
+		let key = crate::lock::error_key(abi, ty);
+		let ty = strip_box(&strip_refs(ty));
+		// The Rust type, its variants' names, how `__new__` picks the subclass of `error`, and
+		// what the class declares for type checkers besides each subclass.
+		let (rust, variants, pick, declared) = match ty {
+			Type::Enum(i) if !abi.api.enums[i].variants.is_empty() => {
+				let e = &abi.api.enums[i];
+				// By what tells a variant apart: a plain enum's member, or the class of a
+				// variant of one with data.
+				let key = match e.plain() {
+					true => "error",
+					false => "_type(error)",
+				};
+				let names: Vec<&str> = e.variants.iter().map(|v| v.name.as_str()).collect();
+				let pick = format!("_{name}_variants.get({key}, cls)");
+				(abi.api.rust(&e.path, &e.args), names, pick, String::new())
+			}
+			Type::Object(i) if !abi.api.objects[i].variants.is_empty() => {
+				let object = &abi.api.objects[i];
+				let declared = self.variant(i, name, &py);
+				let names: Vec<&str> = object.variants.iter().map(|v| v.name.as_str()).collect();
+				let pick = format!("_{name}_variants[{name}._variant(error)]");
+				(abi.api.rust(&object.path, &object.args), names, pick, declared)
+			}
+			_ => {
+				let _ = write!(
+					self.py,
+					"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\n"
+				);
+				return;
+			}
+		};
+		let vnames = variant_classes(variants.iter().copied());
+		// Kept apart by order, a subclass's name is locked, so a variant added before one
+		// whose name it takes breaks the baseline.
+		for (variant, vname) in variants.iter().zip(&vnames) {
+			self.locked
+				.insert(format!("{key} / variant {variant}"), format!("{name}.{vname}"));
+		}
+		let aliases: String = (vnames.iter())
+			.map(|v| format!("\t\t{v}: _typing.TypeAlias = \"_{name}_{v}\"\n"))
+			.collect();
+		let _ = write!(
+			self.py,
+			"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\n\n\tEach variant raises its own subclass, such as `{name}.{}`, which `{name}(error)`\n\tmakes too.\"\"\"\n\n\tdef __new__(cls, error: {py}) -> _typing.Self:\n\t\tvariant = {pick} if cls is {name} else cls\n\t\treturn _typing.cast(_typing.Self, _Exception.__new__(variant, error))\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\tif _typing.TYPE_CHECKING:\n{declared}{aliases}\n\n",
+			vnames[0]
+		);
+		for (vname, variant) in vnames.iter().zip(&variants) {
+			let class = format!("_{name}_{vname}");
+			let _ = write!(
+				self.py,
+				"class {class}({name}):\n\t\"\"\"`{rust}::{variant}` Rust returned as an error.\"\"\"\n\n\n{class}.__name__ = \"{vname}\"\n{class}.__qualname__ = \"{name}.{vname}\"\nif not _typing.TYPE_CHECKING:\n\t{name}.{vname} = {class}\n\n\n"
+			);
+		}
+		let classes: Vec<String> = vnames.iter().map(|v| format!("\t_{name}_{v},\n")).collect();
+		let _ = match ty {
+			// An object's variant is its index plus one, or `0` for one the export knows no
+			// name of, which raises the class itself.
+			Type::Object(_) => write!(
+				self.py,
+				"_{name}_variants: _tuple[_type[{name}], ...] = (\n\t{name},\n{})\n\n\n",
+				classes.concat()
+			),
+			_ => {
+				let e = match ty {
+					Type::Enum(i) => &abi.api.enums[i],
+					_ => unreachable!("an enum"),
+				};
+				let entries: Vec<String> = (e.variants.iter().zip(&vnames))
+					.map(|(v, vname)| match e.plain() {
+						true => format!("\t{py}.{}: _{name}_{vname},\n", abi::snake(&v.name).to_uppercase()),
+						false => format!("\t_{py}_{vname}: _{name}_{vname},\n"),
+					})
+					.collect();
+				let by = match e.plain() {
+					true => py.clone(),
+					false => format!("_type[{py}]"),
+				};
+				write!(
+					self.py,
+					"_{name}_variants: _dict[{by}, _type[{name}]] = {{\n{}}}\n\n\n",
+					entries.concat()
+				)
+			}
+		};
+	}
+
+	/// The static method `_variant` of the exception class `name` of object `i`'s errors,
+	/// of Python type `py`, telling which variant one holds by its index plus one, or `0`
+	/// for one the export knows no name of; returning its declaration, for type checkers.
+	/// No Rust name reaches the exception class, so none clashes with it.
+	fn variant(&mut self, i: usize, name: &str, py: &str) -> String {
+		let ty = Type::Object(i);
+		let c = self.abi.object(i);
+		let bare = format!("{}_variant", self.bare(&c));
+		let on = std::mem::replace(&mut self.on, self.abi.api.objects[i].on);
+		let this = self.lift(
+			&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+			"a[0]",
+			"false",
+		);
+		let (status, arg, check) = match self.abi.traits_status_of(&ty) {
+			true => (
+				"let mut status = 0;\n\t\t",
+				", &mut status",
+				format!("\n\t\ts.status(status, \"{c}_variant\")?;"),
+			),
+			false => ("", "", String::new()),
+		};
+		let body = self.checked(
+			&bare,
+			&format!(
+				"let this = {this}?;\n\t\t{status}let ret = rt::call(|| crate::variant::{c}(this{arg}));{check}\n\t\ts.done();\n\t\trt::uint_out(ret as u64)"
+			),
+		);
+		let _ = write!(
+			self.glue,
+			"unsafe extern \"C\" fn variant_{c}(_: *mut PyObject, a: *const *mut PyObject, n: Py_ssize_t, kw: *mut PyObject) -> *mut PyObject {{\n\trt::wrap(|| unsafe {{\n\t\tlet a = rt::params::<1>(None, a, n, kw, &[\"error\"], \"{name}._variant\")?;\n\t\tlet s = &mut rt::Scope::default();\n\t\t{body}\n\t}})\n}}\n\n"
+		);
+		let docs = "Which variant `error` holds, by its index plus one, or `0` for one no name is known of.";
+		let doc = c_str(&format!("_variant(error)\n--\n\n{docs}"));
+		let t = self.t(&format!("exc_{name}"));
+		self.members.push(format!(
+			"rt::Member::Static({t}, rt::function(c\"_variant\", {doc}, variant_{c}))"
+		));
+		self.on = on;
+		format!(
+			"\t\t@_staticmethod\n\t\tdef _variant(error: {py}, /) -> _int:\n\t\t\t\"\"\"{docs}\"\"\"\n\t\t\t...\n\n"
+		)
+	}
+
+	/// A range's bound or pair of bounds as a record, and its glue; a `Range` is
 	/// Python's `range`.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
@@ -841,7 +1001,7 @@ impl<'a> Gen<'a> {
 				let (kind, value) = (self.key("kind"), self.key("value"));
 				let t_bound = self.t(&bound);
 				(
-					"\tkind: Bound\n\tvalue: _int\n".to_string(),
+					vec![("kind", "Bound".to_string()), ("value", "_int".to_string())],
 					format!(
 						"let k = rt::field(o, {t}, {kind}, s)?;\n\tlet v = rt::attr(o, {value}, s)?;\n\tOk(crate::{c} {{ kind: rt::member_in(k, {t_bound})?, value: rt::int_in::<{r}>(v)? }})",
 						t = self.t(c),
@@ -859,7 +1019,7 @@ impl<'a> Gen<'a> {
 				let (start, end) = (self.key("start"), self.key("end"));
 				let class = self.class(&bound);
 				(
-					format!("\tstart: {class}\n\tend: {class}\n"),
+					vec![("start", class.clone()), ("end", class)],
 					format!(
 						"let a = rt::field(o, {t}, {start}, s)?;\n\tlet b = rt::attr(o, {end}, s)?;\n\tOk(crate::{c} {{ start: r_{bound}(a, s)?, end: r_{bound}(b, s)? }})",
 						t = self.t(c)
@@ -873,7 +1033,15 @@ impl<'a> Gen<'a> {
 			other => unreachable!("{other:?} is no range"),
 		};
 		self.register(c, name.clone());
-		let _ = write!(self.py, "@_dataclass(slots=True)\nclass {name}:\n{fields}\n\n");
+		let fields: Vec<Slot> = (fields.into_iter())
+			.map(|(name, ty)| Slot {
+				name: name.to_string(),
+				ty,
+				docs: String::new(),
+				same: false,
+			})
+			.collect();
+		let _ = write!(self.py, "{}\n\n", record_class(&name, "_Record", "", &fields, &[]));
 		let _ = write!(
 			self.glue,
 			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{read}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\t{write}\n}}\n\n"
@@ -997,8 +1165,8 @@ impl<'a> Gen<'a> {
 				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
-		// An opaque value compares through Rust, as an object does; a record's fields
-		// compare as a dataclass's.
+		// An opaque value compares through Rust, as an object does; a record compares its
+		// fields, as `record_class` writes.
 		if (object || opaque) && t.eq {
 			let other = match object {
 				true => self.lift(
@@ -1119,9 +1287,6 @@ impl<'a> Gen<'a> {
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
-		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
-			body.python.push(ieee_eq(&name, &data));
-		}
 		if record.opaque.is_some() {
 			let text = format!(
 				"{rust}\n\n{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
@@ -1139,27 +1304,19 @@ impl<'a> Gen<'a> {
 			);
 			return;
 		}
-		let fields: String = record
-			.fields
-			.iter()
-			.map(|f| {
-				format!(
-					"\t{}: {}\n{}",
-					field_name(&f.name),
-					self.py_field(&f.ty),
-					docstring(&f.docs, "\t")
-				)
+		let fields: Vec<Slot> = (record.fields.iter())
+			.map(|f| Slot {
+				name: field_name(&f.name),
+				ty: self.py_field(&f.ty),
+				docs: f.docs.clone(),
+				same: own_eq(abi, &f.ty),
 			})
 			.collect();
-		let repr = match record.traits.debug {
-			true => ", repr=False",
-			false => "",
-		};
+		let docs = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.py,
-			"@_dataclass(slots=True{repr})\nclass {name}:\n{}{fields}{}\n\n",
-			docstring(&format!("{rust}\n\n{}", record.docs), "\t"),
-			body.members().iter().map(|m| format!("\n{m}")).collect::<String>()
+			"{}\n\n",
+			record_class(&name, "_Record", &docs, &fields, &body.members())
 		);
 		// The glue.
 		let mut reads = Vec::new();
@@ -1233,7 +1390,12 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
-		let mut data: Vec<String> = e.variants.iter().map(|v| kw(&pascal(&v.name))).collect();
+		let vnames = variant_classes(e.variants.iter().map(|v| v.name.as_str()));
+		for (variant, vname) in e.variants.iter().zip(&vnames) {
+			let key = format!("{} / variant {}", crate::lock::type_key(&e.shown), variant.name);
+			self.locked.insert(key, format!("{name}.{vname}"));
+		}
+		let mut data = vnames.clone();
 		let fields: BTreeSet<String> = e
 			.variants
 			.iter()
@@ -1243,8 +1405,7 @@ impl<'a> Gen<'a> {
 		data.extend(fields);
 		self.methods(&e.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		// Each variant's class is bound on the enum's once made, after the enum's own.
-		for variant in &e.variants {
-			let vname = kw(&pascal(&abi::snake(&variant.name)));
+		for vname in &vnames {
 			body.native
 				.push(format!("\t{vname}: _typing.TypeAlias = \"_{name}_{vname}\"\n"));
 		}
@@ -1254,33 +1415,24 @@ impl<'a> Gen<'a> {
 			docstring(&format!("{rust}\n\n{}", e.docs), "\t"),
 			body.members().iter().map(|m| format!("\n{m}")).collect::<String>()
 		);
-		let repr = match e.traits.debug {
-			true => ", repr=False",
-			false => "",
-		};
 		let mut reads = Vec::new();
 		let mut writes = Vec::new();
-		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = kw(&pascal(&variant.name));
+		for (n, (variant, vname)) in e.variants.iter().zip(&vnames).enumerate() {
 			let class = format!("_{name}_{vname}");
 			let key = abi::payload(&c, &variant.name);
 			let tv = self.register(&key, class.clone());
-			let fields: String = variant
-				.fields
-				.iter()
-				.map(|f| format!("\t{}: {}\n", field_name(&f.name), self.py_field(&f.ty)))
+			let fields: Vec<Slot> = (variant.fields.iter())
+				.map(|f| Slot {
+					name: field_name(&f.name),
+					ty: self.py_field(&f.ty),
+					docs: f.docs.clone(),
+					same: own_eq(abi, &f.ty),
+				})
 				.collect();
-			let fields = match fields.is_empty() {
-				true => "\tpass\n".to_string(),
-				false if variant.fields.iter().any(|f| own_eq(abi, &f.ty)) => {
-					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
-					format!("{fields}\n{}", ieee_eq(&class, &names))
-				}
-				false => fields,
-			};
 			let _ = write!(
 				self.py,
-				"@_dataclass(slots=True{repr})\nclass {class}({name}):\n{fields}\n\n{class}.__name__ = \"{vname}\"\n{class}.__qualname__ = \"{name}.{vname}\"\nif not _typing.TYPE_CHECKING:\n\t{name}.{vname} = {class}\n\n\n"
+				"{}\n\n{class}.__name__ = \"{vname}\"\n{class}.__qualname__ = \"{name}.{vname}\"\nif not _typing.TYPE_CHECKING:\n\t{name}.{vname} = {class}\n\n\n",
+				record_class(&class, &format!("{name}, _Record"), "", &fields, &[])
 			);
 			// A value of a variant the library's target lacks is refused as it crosses.
 			let missing = match abi.cfg(variant.on) {
@@ -1378,10 +1530,10 @@ impl<'a> Gen<'a> {
 			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
-					method
-						.params
-						.iter()
-						.map(|p| format!("{}: {}", param_name(&p.name), self.py_lent(&p.ty))),
+					param_names(&method.params)
+						.into_iter()
+						.zip(&method.params)
+						.map(|(name, p)| format!("{name}: {}", self.py_lent(&p.ty))),
 				)
 				.collect();
 			body.push(format!(
@@ -1532,7 +1684,7 @@ impl<'a> Gen<'a> {
 				thrown
 			}
 		};
-		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		crate::lock::exception(&mut self.locked, self.abi, e, &py, &thrown);
 		thrown
 	}
 
@@ -1671,6 +1823,9 @@ impl<'a> Gen<'a> {
 		let member = match (place, constant) {
 			(Place::Top, true) => self.claim(&member.to_uppercase(), format!("const `{}`", function.path.join("::"))),
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
+			// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
+			// and its alias `SP`, so the later is kept apart again.
+			(Place::Static, true) => self::member(&member.to_uppercase(), reserved),
 			_ => member,
 		};
 
@@ -1714,9 +1869,8 @@ impl<'a> Gen<'a> {
 		let mut closures = Vec::new();
 		// Each parameter Rust writes back, by its argument's index, and what it holds.
 		let mut written: Vec<(usize, Type)> = Vec::new();
-		for param in &function.params {
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			let name = param_name(&param.name);
 			let annotation = match &param.ty {
 				Type::Ref(_, inner) if param.ty.written() => format!("Mut[{}]", self.py_ty(inner)),
 				ty => self.py_param(ty),
@@ -1849,8 +2003,7 @@ impl<'a> Gen<'a> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			if let Type::Closure(closure_) = &param.ty {
 				let lent = &closure_.params;
 				match closure_.kept {
@@ -1885,7 +2038,7 @@ impl<'a> Gen<'a> {
 		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
 		match direct {
 			true => {
-				let names: Vec<String> = function.params.iter().map(|p| param_name(&p.name)).collect();
+				let names = param_names(&function.params);
 				let d = Direct {
 					member: &member,
 					place,
@@ -1931,9 +2084,7 @@ impl<'a> Gen<'a> {
 				return None;
 			}
 			(Access::Const, Place::Static) if constant => {
-				// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
-				// and its alias `SP`, so the later is kept apart again.
-				let name = self::member(&member.to_uppercase(), reserved);
+				let name = member.clone();
 				self.natives
 					.push(format!("@_staticmethod\ndef {bare}() -> {ret}: ...\n"));
 				// An `Enum` makes a member of any other value, to a type checker as at run time.
@@ -2087,6 +2238,20 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	name
 }
 
+/// The class names of variants `names`, as Python spells them: `FooBar` for Rust's
+/// `FooBar` and `Foo_Bar` alike, so a later one an earlier one took takes a trailing `_`.
+fn variant_classes<'n>(names: impl Iterator<Item = &'n str>) -> Vec<String> {
+	let mut classes: Vec<String> = Vec::new();
+	for name in names {
+		let mut class = kw(&pascal(name));
+		while classes.contains(&class) {
+			class.push('_');
+		}
+		classes.push(class);
+	}
+	classes
+}
+
 /// A field's Python name: a positional one's is `_0`, `_1`, ...
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
@@ -2095,13 +2260,28 @@ fn field_name(name: &str) -> String {
 	}
 }
 
-/// A parameter's Python name, apart from the runtime's names a body reads.
+/// A parameter's Python name, apart from the runtime's names a body reads: not `_any`, which
+/// only `_load` reads, and it has no parameter.
 fn param_name(name: &str) -> String {
 	let name = kw(&abi::snake(name));
-	match TAKEN.contains(&name.as_str()) || name == "self" {
+	match (TAKEN.contains(&name.as_str()) && name != "_any") || name == "self" {
 		true => format!("{name}_"),
 		false => name,
 	}
+}
+
+/// The Python names of `params`, each apart from the others: one that an earlier parameter's
+/// rename took, such as `_all_` after `_all`, gets another `_`.
+fn param_names<'a>(params: impl IntoIterator<Item = &'a Param>) -> Vec<String> {
+	let mut out: Vec<String> = Vec::new();
+	for param in params {
+		let mut name = param_name(&param.name);
+		while out.contains(&name) {
+			name.push('_');
+		}
+		out.push(name);
+	}
+	out
 }
 
 /// The name a member's code declares, for [`Gen::distinct`].
@@ -2158,29 +2338,123 @@ fn number(ty: &Type) -> &'static str {
 	}
 }
 
-/// Whether a record or variant holding `ty` needs [`ieee_eq`]: `ty` holds a float, or a
-/// block, which may be a buffer passed in whose own `==` compares item by item.
+/// Whether a record or variant compares its field of `ty` through `_same`: `ty` holds a
+/// float, or a block, which may be a buffer passed in whose own `==` compares item by item.
 fn own_eq(abi: &Abi, ty: &Type) -> bool {
 	abi.api.holds_float(ty) || ty.holds_block()
 }
 
-/// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
-/// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
-/// a NaN it holds would equal itself, and a numpy array it holds would raise.
-fn ieee_eq(class: &str, fields: &[String]) -> String {
-	let same: Vec<String> = fields
+/// A field of a record's class.
+struct Slot {
+	/// Its Python name.
+	name: String,
+	/// Its Python annotation.
+	ty: String,
+	docs: String,
+	/// Whether it compares through `_same`, as [`own_eq`] says.
+	same: bool,
+}
+
+/// The class `name` of a record, subclassing `bases`, as `@dataclass(slots=True,
+/// weakref_slot=True)` would make it but written out, so no `dataclass` runs at import: its
+/// `fields` slotted beside a weak reference and in `__match_args__`, an `__init__` taking
+/// each, and an `__eq__` comparing each as Rust's `==` does; then its `members`.
+/// `_Record`, among `bases`, adds a dataclass's `repr`, `__dataclass_fields__`, and
+/// `__replace__`.
+fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &[String]) -> String {
+	let quoted: Vec<String> = fields.iter().map(|f| format!("\"{}\"", f.name)).collect();
+	let tuple = |items: &[String]| match items {
+		[one] => format!("({one},)"),
+		items => format!("({})", items.join(", ")),
+	};
+	let slots: Vec<String> = quoted.iter().cloned().chain(["\"__weakref__\"".to_string()]).collect();
+	let mut out = format!(
+		"class {name}({bases}):\n{}\t__slots__ = {}\n\t__match_args__ = {}\n",
+		docstring(docs, "\t"),
+		tuple(&slots),
+		tuple(&quoted),
+	);
+	for f in fields {
+		let _ = write!(out, "\t{}: {}\n{}", f.name, f.ty, docstring(&f.docs, "\t"));
+	}
+	if !fields.is_empty() {
+		let params: Vec<String> = fields.iter().map(|f| format!(", {}: {}", f.name, f.ty)).collect();
+		// pyright takes a name with no lower case letter, such as a tuple's `_0`, for a
+		// constant, which `__init__` would redefine.
+		let sets: Vec<String> = (fields.iter())
+			.map(|f| match f.name.chars().any(char::is_lowercase) {
+				true => format!("\t\tself.{0} = {0}\n", f.name),
+				false => format!(
+					"\t\tself.{0} = {0}  # pyright: ignore[reportConstantRedefinition]\n",
+					f.name
+				),
+			})
+			.collect();
+		let _ = write!(
+			out,
+			"\n\tdef __init__(self{}) -> None:\n{}",
+			params.concat(),
+			sets.concat()
+		);
+	}
+	// As a dataclass's, `__eq__` takes only its own class, not a subclass; the `isinstance` is for
+	// the type checkers. A dataclass's own `__eq__` compares tuples of its fields before Python 3.13, which take
+	// a value as equal to itself, so a NaN would equal itself and a numpy array would raise.
+	let eq: Vec<String> = fields
 		.iter()
-		.map(|f| format!(" and _same(self.{f}, other.{f})"))
+		.map(|f| match f.same {
+			true => format!("_same(self.{0}, other.{0})", f.name),
+			false => format!("self.{0} == other.{0}", f.name),
+		})
 		.collect();
-	format!(
-		"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}){}\n",
-		same.concat()
-	)
+	let eq = match eq.is_empty() {
+		true => "True".to_string(),
+		false => eq.join(" and "),
+	};
+	let _ = write!(
+		out,
+		"\n\tdef __eq__(self, other: _object) -> _bool:\n\t\tif not _isinstance(other, {name}) or other.__class__ is not self.__class__:\n\t\t\treturn _NotImplemented\n\t\treturn {eq}\n"
+	);
+	for m in members {
+		let _ = write!(out, "\n{m}");
+	}
+	out
 }
 
 #[cfg(test)]
 mod tests {
-	use super::member;
+	use super::{member, param_name, param_names, variant_classes};
+	use crate::ir::{Param, Type};
+
+	#[test]
+	fn params_keep_apart() {
+		let params = |names: &[&str]| {
+			let params: Vec<Param> = names
+				.iter()
+				.map(|n| Param {
+					name: n.to_string(),
+					ty: Type::Bool,
+					interned: false,
+				})
+				.collect();
+			param_names(&params)
+		};
+		// `_any` is read only by `_load`, which has no parameter, so it keeps its name.
+		assert_eq!(param_name("_any"), "_any");
+		assert_eq!(param_name("_all"), "_all_");
+		assert_eq!(params(&["_all", "_all_"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["_all_", "_all"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["a", "b"]), ["a", "b"]);
+	}
+
+	#[test]
+	fn variant_classes_keep_apart() {
+		let names = ["FooBar", "Foo_Bar", "None", "Late"];
+		assert_eq!(
+			variant_classes(names.into_iter()),
+			["FooBar", "FooBar_", "None_", "Late"]
+		);
+	}
 
 	#[test]
 	fn member_keeps_clear_of_the_runtime_aliases() {
