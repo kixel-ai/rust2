@@ -38,8 +38,13 @@ namespace api {
 		compare_to = 2,
 		partial_compare_to = 3,
 	};
+	enum class clash_Level {
+		default_ = 0,
+		debug = 1,
+	};
 	inline constexpr ::std::uint64_t LIMIT = API_LIMIT;
 	inline constexpr ::std::int64_t FAR = API_FAR;
+	inline constexpr ::std::int32_t EOF_ = API_EOF;
 	inline constexpr ::std::uint64_t URL = API_URL;
 	[[deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note")]] inline constexpr ::std::uint64_t STEP = API_STEP;
 	class RUST2_FFI_CONSUMABLE Board {
@@ -655,6 +660,15 @@ namespace api {
 		static ::api::clash_Store new_(::std::uint32_t count);
 		RUST2_FFI_CALLABLE ::std::uint32_t free_() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t close() const;
+		RUST2_FFI_CALLABLE void wait() const;
+		RUST2_FFI_CALLABLE void finalize() const;
+	};
+	class RUST2_FFI_CONSUMABLE clash_Reader {
+		RUST2_FFI_UNCONSUMED clash_Reader(clash_Reader &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Reader &operator=(clash_Reader &&other) noexcept = default;
+		static ::api::clash_Reader new_(::api::input bytes);
+		RUST2_FFI_CALLABLE ::api::result<::std::uint8_t, ::api::clash_Malformed> read_byte();
+		RUST2_FFI_CALLABLE ::api::result<void, ::api::clash_Malformed> unread_byte();
 	};
 	class RUST2_FFI_CONSUMABLE Spawned {
 		RUST2_FFI_UNCONSUMED Spawned(Spawned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -722,6 +736,11 @@ namespace api {
 		virtual ~Turner() = default;
 		virtual ::std::uint64_t by() const = 0;
 		[[deprecated("turn `Turner::by` instead")]] virtual ::std::uint64_t once() const = 0;
+	};
+	class clash_Source {
+		virtual ~clash_Source() = default;
+		virtual void wait() const = 0;
+		virtual ::std::uint8_t read_byte() const = 0;
 	};
 	struct Parcel {
 		::api::Mark mark;
@@ -1236,6 +1255,21 @@ namespace api {
 		static ::api::clash_Break Sp();
 		static ::api::clash_Break SP();
 	};
+	struct clash_Malformed {
+		::std::uint8_t at;
+		friend bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+		friend bool operator!=(const clash_Malformed &a__, const clash_Malformed &b_);
+		::api::buf to_string() const;
+		::api::buf debug() const;
+		bool is(::std::uint8_t at_) const;
+	};
+	struct clash_Errno {
+		::std::int32_t errno_;
+		friend bool operator==(const clash_Errno &a__, const clash_Errno &b_);
+		friend bool operator!=(const clash_Errno &a__, const clash_Errno &b_);
+		::api::buf debug() const;
+		static ::api::clash_Errno NULL_();
+	};
 	struct clash_Escaped {
 		::std::uint8_t new_;
 		friend bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
@@ -1367,6 +1401,12 @@ namespace api {
 	struct clash_Candidate_Match {
 		::std::uint8_t _0;
 	};
+	struct clash_Tag_Application {
+		::std::uint32_t number;
+	};
+	struct clash_Tag_Private {
+		::std::uint32_t number;
+	};
 	#if defined(__cpp_lib_three_way_comparison)
 	inline ::std::partial_ordering operator<=>(const Quantity &a__, const Quantity &b_);
 	#endif
@@ -1440,6 +1480,8 @@ namespace api {
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
 	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
 	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
+	inline bool operator==(const clash_Malformed &a__, const clash_Malformed &b_);
+	inline bool operator==(const clash_Errno &a__, const clash_Errno &b_);
 	inline bool operator==(const clash_Escaped &a__, const clash_Escaped &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
@@ -1512,6 +1554,15 @@ namespace api {
 	inline bool operator==(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline bool operator!=(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
 	inline ::api::buf clash_Candidate_debug(const ::api::clash_Candidate &self);
+	inline bool operator==(::api::clash_Level a__, ::api::clash_Level b_);
+	inline bool operator!=(::api::clash_Level a__, ::api::clash_Level b_);
+	inline ::api::buf clash_Level_debug(::api::clash_Level self);
+	inline clash_Level clash_Level_default();
+	inline ::std::uint8_t clash_Level_index(::api::clash_Level self);
+	inline bool operator==(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline bool operator!=(const ::api::clash_Tag &a__, const ::api::clash_Tag &b_);
+	inline ::api::buf clash_Tag_debug(const ::api::clash_Tag &self);
+	inline ::std::uint32_t clash_Tag_number(const ::api::clash_Tag &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -1756,6 +1807,7 @@ namespace api {
 	inline ::api::buf describe_non_zeros(const ::api::NonZeros &non_zeros);
 	inline ::std::optional<::std::uint64_t> next_hop(const ::std::optional<::std::uint64_t> &hop);
 	inline ::std::uint16_t farther_hop(const ::api::Pair_non_zero_u16 &hops);
+	inline ::std::int32_t WEXITSTATUS_(::std::int32_t status);
 	inline ::api::duration same_duration(::api::duration v);
 	inline ::std::uint64_t same_u64(::std::uint64_t v);
 	inline ::std::size_t same_usize(::std::size_t v);
@@ -1784,6 +1836,7 @@ namespace api {
 	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
 	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
 	inline ::api::clash_Empty_string clash_empty();
+	inline ::std::uint8_t clash_waited(::std::unique_ptr<::api::clash_Source> source);
 	inline ::api::result<::api::clash_Tone, ::std::vector<::api::clash_Tone>> clash_audible(const ::api::clash_Tone &tone);
 	inline ::std::uint32_t clash_nested(const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t>, ::std::uint32_t>> &a__, const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t, ::std::uint32_t>>> &b_);
 	inline ::std::uint8_t clash_audio_encoder_finish();
@@ -2103,6 +2156,7 @@ namespace api {
 	enum class Family;
 	enum class VecClashTone;
 	enum class Tier;
+	enum class clash_Level;
 	enum class Level;
 	struct Parcel;
 	struct Weighted;
@@ -2173,6 +2227,8 @@ namespace api {
 	struct clash_Span;
 	struct clash_Any;
 	struct clash_Break;
+	struct clash_Malformed;
+	struct clash_Errno;
 	struct clash_Escaped;
 	struct tls_policy_Lifetime;
 	struct Core;
@@ -2242,6 +2298,7 @@ namespace api {
 	class clash_Seed;
 	class clash_Empty_string;
 	class clash_Store;
+	class clash_Reader;
 	class tls_Session;
 	class Url;
 	class Json;
@@ -2261,6 +2318,7 @@ namespace api {
 	class Scan;
 	class Beat;
 	class Turner;
+	class clash_Source;
 	struct Choice_Empty;
 	struct Choice_Picked;
 	using Choice = ::std::variant<Choice_Empty, Choice_Picked>;
@@ -2317,6 +2375,9 @@ namespace api {
 	struct clash_Candidate_None;
 	struct clash_Candidate_Match;
 	using clash_Candidate = ::std::variant<clash_Candidate_None, clash_Candidate_Match>;
+	struct clash_Tag_Application;
+	struct clash_Tag_Private;
+	using clash_Tag = ::std::variant<clash_Tag_Application, clash_Tag_Private>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;
