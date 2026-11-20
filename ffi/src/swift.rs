@@ -20,14 +20,19 @@
 //! Bytes are the runtime's `Bytes`: those Rust returned lend its buffer, and pass back to
 //! Rust as a second owner of it, so neither way copies them. Swift's own bytes and text
 //! pass as views of Swift's memory at a call's top level, which Rust copies once where it
-//! keeps them; nested in another value, they are copied once into a buffer Rust takes.
+//! keeps them; nested in another value, they are copied once into a buffer Rust takes. A
+//! slice Rust borrows, of bytes or a block's numbers, is a `Span` either way: a parameter
+//! Rust reads in place, and bytes Rust lends a closure or callback, which Swift's compiler
+//! keeps from escaping the call.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Closure, Family, Function, Int, Literal, Mutability, On, Order, Param, Receiver, Type};
+use crate::ir::{
+	Access, Closure, Collection, Family, Function, Int, Literal, Mutability, On, Order, Param, Receiver, Type,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -342,6 +347,29 @@ impl<'a> Gen<'a> {
 		unique(&self.structs, ty)
 	}
 
+	/// The element of the span Swift borrows a shared slice of bytes or of a block's numbers
+	/// as, in place, which the compiler keeps from escaping the call.
+	fn spanned(&self, ty: &Type) -> Option<String> {
+		match ty {
+			Type::Ref(Mutability::Not, inner) => match &**inner {
+				Type::Slice => Some("Swift.UInt8".to_string()),
+				list @ Type::List(Collection::Slice, elem) if list.block().is_some() => Some(self.sw(elem)),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	/// The Swift type of a parameter of type `ty`, which Rust takes or lends: a slice it
+	/// borrows is a span, and any other type as [`Self::sw`] has it.
+	fn param(&self, ty: &Type) -> String {
+		match (ty, self.spanned(unoption(ty))) {
+			(Type::Option(_), Some(elem)) => format!("Swift.Span<{elem}>?"),
+			(_, Some(elem)) => format!("Swift.Span<{elem}>"),
+			(_, None) => self.sw(ty),
+		}
+	}
+
 	/// The ownership a parameter of type `ty` declares, which Swift requires of a
 	/// noncopyable one: `&T` borrows it, `&mut T` is `inout`, and a value moves in.
 	fn ownership(&self, ty: &Type) -> &'static str {
@@ -414,7 +442,7 @@ impl<'a> Gen<'a> {
 			Type::Closure(closure_) => {
 				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = (params.iter())
-					.map(|p| format!("{}{}", self.ownership(p), self.sw(p)))
+					.map(|p| format!("{}{}", self.ownership(p), self.param(p)))
 					.collect();
 				let throws = match closure_.err {
 					Some(_) => " throws",
@@ -694,9 +722,14 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Swift value of the C value `e` of type `ty`, which C lends a callback or closure
-	/// for its call: bytes and text copied, and a scalar as it is.
+	/// for its call: a slice as a span of it in place, other bytes and text copied, and a
+	/// scalar as it is.
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
+		let span =
+			|e: &str| format!("Swift.Span(_unsafeElements: Swift.UnsafeBufferPointer(start: {e}.ptr, count: {e}.len))");
 		match ty {
+			_ if self.spanned(ty).is_some() => span(e),
+			Type::Option(inner) if self.spanned(inner).is_some() => format!("({e}.ptr == nil ? nil : {})", span(e)),
 			Type::Str | Type::String => format!("Native.string(lent: {e})"),
 			Type::Path | Type::PathBuf => format!("Native.path(lent: {e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lent: {e})"),
@@ -1439,7 +1472,7 @@ impl<'a> Gen<'a> {
 			);
 			members.push(full(false, &member, method.params.iter().map(|_| "_".to_string())));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
-				.map(|(p, name)| format!("_ {name}: {}", self.sw(&p.ty)))
+				.map(|(p, name)| format!("_ {name}: {}", self.param(&p.ty)))
 				.collect();
 			let ret = match method.ok {
 				Type::Unit => String::new(),
@@ -1581,6 +1614,18 @@ impl<'a> Gen<'a> {
 			(Type::Future, _) => {
 				arg.exprs.push(format!("Native.future({e})"));
 				arg.gives = true;
+			}
+			// A span is a view of Swift's memory, which Rust borrows in place.
+			(ty, _) if self.spanned(unoption(ty)).is_some() => {
+				let b = format!("b{k}_");
+				let make = match unoption(ty) {
+					Type::Ref(_, list) if let Type::List(_, elem) = &**list => {
+						format!(", {}.init(ptr:len:owner:)", abi.list(elem))
+					}
+					_ => String::new(),
+				};
+				arg.open = Some((format!("{tr}Native.view({e}{make}) {{ {b} in"), "}".to_string()));
+				arg.exprs.push(b);
 			}
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
@@ -1882,9 +1927,10 @@ impl<'a> Gen<'a> {
 				(false, Type::Closure(closure_)) if closure_.kept => "@escaping ",
 				// Rust reads and seeks the reader in place.
 				(false, Type::Ref(_, inner)) if **inner == Type::Reader => "inout ",
+				(false, ty) if self.spanned(unoption(ty)).is_some() => "borrowing ",
 				(false, _) => self.ownership(&param.ty),
 			};
-			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
+			params.push(format!("_ {name}: {ownership}{}", self.param(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr, &what);
 			arena |= needs;
 			args.push(arg);
@@ -2470,6 +2516,14 @@ fn unique(structs: &BTreeSet<usize>, ty: &Type) -> bool {
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => unique(structs, inner),
 		Type::Tuple(elements) => elements.iter().any(|e| unique(structs, e)),
 		_ => false,
+	}
+}
+
+/// `ty`, or what it holds if an `Option`.
+fn unoption(ty: &Type) -> &Type {
+	match ty {
+		Type::Option(inner) => inner,
+		ty => ty,
 	}
 }
 
