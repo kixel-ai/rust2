@@ -4,6 +4,7 @@
 
 import array
 import asyncio
+import dataclasses
 import io
 
 import api
@@ -54,3 +55,14 @@ stopped: str = asyncio.run(api.drive(start, drive))
 made: str = api.made(3, lambda n: f"{n} times")
 spawned: int = api.Spawned.new(lambda: 7).join()
 polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))
+
+# An error's variant is its own subclass, and a record a dataclass to `dataclasses`.
+try:
+	api.jam(0)
+except api.FaultException.Busy as busy:
+	fault: api.Fault = busy.error
+except api.ErrorException.Overflow as overflow:
+	error: api.Error = overflow.error
+over: api.ErrorException.Overflow = api.ErrorException.Overflow(api.Error.Overflow())
+moved: api.Point = dataclasses.replace(api.Point(1, 2), x=3)
+named: tuple[str, ...] = tuple(f.name for f in dataclasses.fields(moved))

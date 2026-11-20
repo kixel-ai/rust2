@@ -792,7 +792,8 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. A field is a
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. An object, as
+  an opaque value and a record, takes weak references (`weakref.ref`). A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -803,10 +804,13 @@ caller imports it with no ignores.
   thread: on the next turn of the event loop that ran there when a call made a value that
   is not `Send`, though the loop calls nothing into Rust, else at its next call or as it
   exits.
-- **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
-  against itself, as Rust does, and **enums** an `Enum`
-  of upper-case members, or for one with data a class of a dataclass per variant,
-  `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
+- **Records** are slotted classes, written out as `@dataclass(slots=True,
+  weakref_slot=True)` would make them, so no `dataclass` runs at import: an `__init__`
+  taking each field, `__match_args__`, a dataclass's `repr`, and `__eq__` comparing the
+  fields, a float by IEEE `==` even against itself, as Rust does. `dataclasses.fields`,
+  `replace`, and `asdict` take one, as its `__dataclass_fields__` is made on its first read,
+  and so does `copy.replace`. **Enums** are an `Enum` of upper-case members, or for one
+  with data a class of such a record per variant, `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal. An **opaque value** is a class of the runtime's `Value`, which holds its bytes
   in place, so only Rust makes or reads one: making one raises `TypeError`. It is shared
@@ -822,7 +826,11 @@ caller imports it with no ignores.
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
   microseconds up to 999,999,999 days. A zero passed for a `NonZero` raises `ValueError`. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
-  holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
+  holding it in `error`, whose `str` is its `Display`. An enum's, or an object's whose
+  type is an enum, raises a subclass per variant, `ErrorException.Timeout`, which
+  `ErrorException(error)` makes too, so `except ErrorException.Timeout` catches that
+  variant alone; one of a variant a `#[non_exhaustive]` enum's crate adds after the export
+  raises `ErrorException` itself. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
@@ -864,7 +872,8 @@ caller imports it with no ignores.
   to a socket the loop reads, without the GIL, or during a call on the loop's own thread,
   writes nothing and schedules the loop's dispatch once the call returns. Cancelling the task frees the future and
   loses nothing. The call polls it once before suspending, and a future is awaited once,
-  as a coroutine is.
+  as a coroutine is. Futures and wakers run on asyncio's event loop alone: an await or a
+  `Waker` where none runs, as under trio, raises `RuntimeError` saying so.
 - An **awaitable Python implements** is an `Awaitable[None]`, such as a coroutine, passed
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
   cancels the task, or closes a coroutine it never started. One that raises, or that
