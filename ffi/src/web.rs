@@ -1987,7 +1987,7 @@ impl Gen<'_> {
 			let params: Vec<Ty> = method.params.iter().map(|p| abi.ty(&p.ty)).collect();
 			let ret = abi.ty(&method.ok);
 			let called = self.import_decl(&name, &params, &ret);
-			fields.push(format!("{m}: Some({called})"));
+			fields.push(format!("{}: Some({called})", abi::member(method)));
 			// The import, which calls the implementation the token names.
 			let module = std::mem::replace(&mut self.module, "glue".to_string());
 			let t = self.named(class.clone());
