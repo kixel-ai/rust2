@@ -1179,7 +1179,8 @@ function quotient(a: Wide, b: Wide, bits: number, signed: boolean, remainder: bo
 	return one(bigChecked(n / d, bits, signed, "divide", at));
 }
 
-// A magnitude's 32-bit words, most significant first, which `divideWords` divides in place.
+// A magnitude's 32-bit words, most significant first, which `divideWords` divides in place
+// where the dividend or the divisor is negative.
 const words = /* @__PURE__ */ new Uint32Array(4);
 
 /** Negates the 128 bits in `words`. */
@@ -1202,8 +1203,8 @@ function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remaind
 		panic(remainder ? "attempt to calculate the remainder with overflow" : "attempt to divide with overflow", at);
 	}
 	if (!negative && b > 0) {
-		// The common case divides in locals, two words a stage, not through `words`: that typed
-		// array, read and written as doubles, costs SpiderMonkey more than the divisions.
+		// The common case divides in locals, two words a stage: `words`, a typed array read and
+		// written as doubles, cost more than the divisions in every engine, Firefox most.
 		const wide = "w1" in a;
 		// A 128-bit dividend under 2^64 divides in its low stage alone.
 		const top = wide && (a.hi !== 0 || a.w2 !== 0);
@@ -1214,7 +1215,8 @@ function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remaind
 		let q1 = 0;
 		let q2 = 0;
 		let q3 = 0;
-		// Under 2^21, a remainder and a word make a double, and divide a word a step.
+		// Under 2^21, the remainder and a whole word make an exact double: a division a word,
+		// not one for each 16 bits.
 		const small = b <= 2097152;
 		for (let stage = top ? 0 : 1; stage < 2; stage++) {
 			q0 = q2;
