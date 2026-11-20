@@ -1705,7 +1705,9 @@ position a binding maps apart: a closure's parameter and return, a future, a `Re
 value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
 object's methods, and a trait a caller implements. A digest hashes floats by their bits,
 so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
-decides what exports, so a shape refused by design is left out rather than failed. Each
+decides what exports, so a shape refused by design, for a construct `BY_DESIGN` names
+(such as a closure's signature or a nested `Option`), is left out rather than failed, and
+any other refusal fails the test, so a value type the exporter stops taking fails it. Each
 language's driver, the web's on Node included, is a generated list of these calls whose
 printed digests must match the crate's own, run natively, or as wasm under Node's WASI
 for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
