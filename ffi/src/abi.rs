@@ -1292,12 +1292,15 @@ impl<'a> Abi<'a> {
 	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
 	/// which runs on the isolate's own thread with no thread hop. It is a `&self` or
 	/// `&mut self` method, or the read or write of a `pub` field, of a `Send` object, which no
-	/// object that is not `Send` may lend, taking only scalars and returning one or nothing, whose Rust
-	/// [`Function::leaf`] proves: each body it runs, the method's and each `Deref`'s on the
-	/// way, calls only bodies proven the same way and core's intrinsics that only compute,
-	/// drops nothing whose drop runs other code, loops nowhere, recurses nowhere, asserts
-	/// nothing, which would run the panic hook on failure, and uses no static. Its MIR proves
-	/// it, which is the code that runs, not how its source looks or what an attribute claims.
+	/// object that is not `Send` may lend, taking only scalars and returning one or nothing,
+	/// whose Rust [`Function::leaf`] proves: each body it runs, the method's and each
+	/// `Deref`'s on the way, calls only bodies proven the same way and core's intrinsics that
+	/// only compute, drops nothing whose drop runs other code, loops nowhere, recurses
+	/// nowhere, asserts nothing, which would run the panic hook on failure, and uses no
+	/// static. Its MIR proves it, which is the code that runs, not how its source looks or
+	/// what an attribute claims: the MIR the export's check compiles, with `debug_assertions`
+	/// on, so code only a build without them compiles, under `cfg(not(debug_assertions))`, is
+	/// code the proof never sees.
 	///
 	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
 	/// another thread that waits on the GIL. A leaf's only shared state is the handle's
