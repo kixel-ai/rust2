@@ -577,7 +577,7 @@ export class MpscPermits<T> extends Iter<MpscPermit<T>> implements Disposable {
 	}
 
 	/** `ExactSizeIterator::len`. */
-	len(): number {
+	override len(): number {
 		return this.n;
 	}
 

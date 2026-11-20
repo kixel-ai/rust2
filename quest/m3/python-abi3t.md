@@ -11,9 +11,11 @@ interpreter nightly.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-18: ✅ m3, since no consumer asks, after
-[the refusal](/quest/m1/ffi-free-threaded.md) fixes the crash (rejected: both in m1; no
-quest).
+Decided with the maintainer on 2026-11-18: ✅ m3, since no consumer asks, after the
+refusal fixes the crash (rejected: both in m1; no quest). The refusal is in; it checks the
+extension suffixes for the free-threaded tag in `_load` (`ffi/src/python.rs`) and
+`api_free_threaded` (`ffi/tests/fixtures.rs`) tests it, so this quest narrows both to
+pre-3.15 free-threaded builds, which an abi3t library cannot load in.
 
 It needs the `PyModExport` entry point with a `Py_mod_abi` slot ([PEP 793](https://peps.python.org/pep-0793/)),
 which also brings the multi-phase init subinterpreters need; per-object data through
@@ -27,4 +29,3 @@ Public API: the wheels released; the Python API is unchanged.
 ## Required
 
 - [Exporter](/quest/m1/ffi-export/README.md) - the Python binding's API is settled before its runtime is rewritten
-- [Refuse free-threaded CPython](/quest/m1/ffi-free-threaded.md) - the crash is fixed first
