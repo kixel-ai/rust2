@@ -1,6 +1,8 @@
 // api.dart
 extension type const U64.fromBits(int bits) {
 	U64(int value);
+	factory U64.fromBigInt(BigInt value);
+	static const max = U64.fromBits(-1);
 	int toInt();
 	BigInt toBigInt();
 	String toRadixString(int radix);
@@ -566,9 +568,9 @@ final class Booth {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Cancelled_ {
+final class Cancelled2 {
 	final int step;
-	const Cancelled_({required this.step});
+	const Cancelled2({required this.step});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -638,15 +640,15 @@ final class Spot {
 	@override int get hashCode;
 	factory Spot.deserialize(Json deserializer);
 }
-final class Deprecated_ {
+final class Deprecated2 {
 	final bool on;
 	@Deprecated('') final int lower;
 	final bool deprecated;
-	const Deprecated_({required this.on, required this.lower, required this.deprecated});
+	const Deprecated2({required this.on, required this.lower, required this.deprecated});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	factory Deprecated_.default_();
+	factory Deprecated2.default_();
 }
 final class Dial {
 	final U64 level;
@@ -676,9 +678,9 @@ final class PolarPoint {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Polar_Turn {
+final class PolarTurn2 {
 	final int part;
-	const Polar_Turn({required this.part});
+	const PolarTurn2({required this.part});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -690,9 +692,9 @@ final class ClashTone {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class ClashTone_ {
+final class ClashTone2 {
 	final int db;
-	const ClashTone_({required this.db});
+	const ClashTone2({required this.db});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -720,8 +722,8 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get SP;
-	static ClashBreak get SP_;
+	static ClashBreak get sp;
+	static ClashBreak get sp_;
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -749,9 +751,9 @@ final class ChoicePicked extends Choice {
 sealed class Array {
 	const Array();
 }
-final class ArrayU8x4_ extends Array {
+final class ArrayU8x42 extends Array {
 	final int $0;
-	const ArrayU8x4_(this.$0);
+	const ArrayU8x42(this.$0);
 }
 sealed class Platform {
 	const Platform();
@@ -782,8 +784,8 @@ enum Shape {
 	const Shape(this._c);
 	String debug();
 	static Shape? valueOf(String name);
-	static List<Shape> get ALL;
-	static List<Shape> get BOTH;
+	static List<Shape> get all;
+	static List<Shape> get both;
 }
 sealed class Event {
 	const Event();
@@ -860,8 +862,8 @@ final class ClashBytes extends Clash {
 	final typed.Uint8List $0;
 	const ClashBytes(this.$0);
 }
-final class ClashAny_ extends Clash {
-	const ClashAny_();
+final class ClashAny2 extends Clash {
+	const ClashAny2();
 }
 final class ClashUnit extends Clash {
 	const ClashUnit();
@@ -1173,8 +1175,8 @@ final class SlotU8 extends _Object {
 	int value();
 }
 final class Resolving extends _Object {
-	TlsResolver get $0_get;
-	void $0_set(TlsResolver value);
+	TlsResolver get $0Get;
+	void $0Set(TlsResolver value);
 	factory Resolving(String name);
 }
 final class Codecs extends _Object {
@@ -1500,7 +1502,7 @@ final class Key extends _Object {
 }
 final class ClashSeed extends _Object {
 	factory ClashSeed.default_();
-	factory ClashSeed.default__();
+	factory ClashSeed.default2_();
 	int value();
 	bool bool_();
 }
@@ -1627,10 +1629,10 @@ final class VecClashToneException implements Exception {
 	const VecClashToneException(this.error);
 	@override String toString();
 }
-const LIMIT = U64.fromBits(1000);
-const FAR = 9223372036854775807;
-const URL = U64.fromBits(1000);
-@Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const STEP = U64.fromBits(1);
+const limit = U64.fromBits(1000);
+const far = 9223372036854775807;
+const url = U64.fromBits(1000);
+@Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const step = U64.fromBits(1);
 bool hasText(Note note);
 U64 marked(Mark apiMarked);
 Reading? reading(int n);
@@ -1748,7 +1750,7 @@ U64 keptPolarPoint(PolarPoint from);
 int keepPoint(Point kept);
 int keptOrPoint(Point? kept);
 int keeperPoint(Point keeper);
-BoxedU16 get BOXED;
+BoxedU16 get boxed;
 BoxedU8 keeps(Log log);
 int weighPoint(Point from);
 int applyNonZeroU16(PairNonZeroU16 pair, int Function(int) f);
@@ -1756,7 +1758,7 @@ int applyU32(PairU32 pair, int Function(int) f);
 int reportNonZeroU16(PairNonZeroU16 pair, Log log);
 int reportU32(PairU32 pair, Log log);
 int tallyLogCount(Log log);
-int wind(PolarTurn whole, Polar_Turn part);
+int wind(PolarTurn whole, PolarTurn2 part);
 U64 area(Size size);
 U64 seedsPointPoint(Point from);
 U64 seedsPointCounter(Counter from);
@@ -1846,8 +1848,8 @@ RustDuration since(Instant later, Instant earlier);
 bool hasInstant(Instant? at);
 Level? louder(Level? filter);
 String spell(Level? filter);
-List<String> get GREETINGS;
-typed.Uint32List get PRIMES;
+List<String> get greetings;
+typed.Uint32List get primes;
 List<Counter> numbered(List<String> names);
 (SocketAddrV4, SocketAddrV6) nexts(SocketAddrV4 v4, SocketAddrV6 v6);
 (Ipv4Addr, Ipv6Addr) nextIps(Ipv4Addr v4, Ipv6Addr v6);

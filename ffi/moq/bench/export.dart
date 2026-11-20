@@ -125,7 +125,7 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
 Future<Map<String, Span>> round() async {
   final out = <String, Span>{};
   final broadcast = moq.BroadcastInfo().produce();
-  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.MICRO));
+  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.micro));
   final frame = Uint8List(100);
   micros = 0;
 

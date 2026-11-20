@@ -1,6 +1,8 @@
 // moq.dart
 extension type const U64.fromBits(int bits) {
 	U64(int value);
+	factory U64.fromBigInt(BigInt value);
+	static const max = U64.fromBits(-1);
 	int toInt();
 	BigInt toBigInt();
 	String toRadixString(int radix);
@@ -179,21 +181,15 @@ final class TimeOverflow implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Timescale implements Comparable<Timescale> {
+final class Timescale {
 	@override String toString();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Timescale other);
-	bool operator <(Timescale other);
-	bool operator <=(Timescale other);
-	bool operator >(Timescale other);
-	bool operator >=(Timescale other);
-	@override int compareTo(Timescale other);
-	static Timescale get SECOND;
-	static Timescale get MILLI;
-	static Timescale get MICRO;
-	static Timescale get NANO;
+	static Timescale get second;
+	static Timescale get milli;
+	static Timescale get micro;
+	static Timescale get nano;
 	factory Timescale(U64 unitsPerSecond);
 	U64 asU64();
 }
@@ -201,12 +197,7 @@ final class Timestamp {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Timestamp other);
-	bool operator <(Timestamp other);
-	bool operator <=(Timestamp other);
-	bool operator >(Timestamp other);
-	bool operator >=(Timestamp other);
-	static Timestamp get ZERO;
+	static Timestamp get zero;
 	factory Timestamp(U64 value, Timescale scale);
 	factory Timestamp.unscaled(U64 key);
 	factory Timestamp.fromScale(U64 value, U64 unitsPerSecond);
@@ -226,17 +217,11 @@ final class Timestamp {
 	Timestamp checkedAdd(Timestamp rhs);
 	Timestamp checkedSub(Timestamp rhs);
 }
-final class ClockInstant implements Comparable<ClockInstant> {
+final class ClockInstant {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(ClockInstant other);
-	bool operator <(ClockInstant other);
-	bool operator <=(ClockInstant other);
-	bool operator >(ClockInstant other);
-	bool operator >=(ClockInstant other);
-	@override int compareTo(ClockInstant other);
-	static ClockInstant get ZERO;
+	static ClockInstant get zero;
 	factory ClockInstant.now();
 	RustDuration elapsed();
 	RustDuration durationSince(ClockInstant earlier);
@@ -255,18 +240,12 @@ final class ClockElapsed implements Exception {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class ClockWall implements Comparable<ClockWall> {
+final class ClockWall {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(ClockWall other);
-	bool operator <(ClockWall other);
-	bool operator <=(ClockWall other);
-	bool operator >(ClockWall other);
-	bool operator >=(ClockWall other);
-	@override int compareTo(ClockWall other);
-	static ClockWall get UNIX_EPOCH;
-	static ClockWall get MOQ_EPOCH;
+	static ClockWall get unixEpoch;
+	static ClockWall get moqEpoch;
 	factory ClockWall.now();
 	RustDuration? checkedDurationSince(ClockWall earlier);
 	RustDuration saturatingDurationSince(ClockWall earlier);
@@ -528,18 +507,12 @@ final class TransportLimits {
 	U64? get receiveWindowGet;
 	TransportLimits receiveWindowSet(U64? value);
 }
-final class BandwidthRate implements Comparable<BandwidthRate> {
+final class BandwidthRate {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(BandwidthRate other);
-	bool operator <(BandwidthRate other);
-	bool operator <=(BandwidthRate other);
-	bool operator >(BandwidthRate other);
-	bool operator >=(BandwidthRate other);
-	@override int compareTo(BandwidthRate other);
 	factory BandwidthRate.default_();
-	static BandwidthRate get ZERO;
+	static BandwidthRate get zero;
 	factory BandwidthRate.fromBps(U64 bps);
 	factory BandwidthRate.fromKbps(U64 kbps);
 	factory BandwidthRate.fromMbps(U64 mbps);
@@ -562,18 +535,12 @@ final class FrameInfo {
 	const FrameInfo({required this.size, required this.timestamp});
 	String debug();
 }
-final class GroupInfo implements Comparable<GroupInfo> {
+final class GroupInfo {
 	final U64 start;
 	const GroupInfo({required this.start});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(GroupInfo other);
-	bool operator <(GroupInfo other);
-	bool operator <=(GroupInfo other);
-	bool operator >(GroupInfo other);
-	bool operator >=(GroupInfo other);
-	@override int compareTo(GroupInfo other);
 }
 final class TrackDelay {
 	final RustDuration? min;
@@ -586,16 +553,10 @@ final class TrackDelay {
 	TrackDelay withMin(RustDuration? min);
 	TrackDelay withMax(RustDuration? max);
 }
-final class TrackPosition implements Comparable<TrackPosition> {
+final class TrackPosition {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(TrackPosition other);
-	bool operator <(TrackPosition other);
-	bool operator <=(TrackPosition other);
-	bool operator >(TrackPosition other);
-	bool operator >=(TrackPosition other);
-	@override int compareTo(TrackPosition other);
 	factory TrackPosition.default_();
 	U64 get groupGet;
 	TrackPosition groupSet(U64 value);
@@ -604,46 +565,28 @@ final class TrackPosition implements Comparable<TrackPosition> {
 	factory TrackPosition(U64 group, U64 frame);
 	factory TrackPosition.group(U64 group);
 }
-final class TrackRange implements Comparable<TrackRange> {
+final class TrackRange {
 	final TrackAnchor start;
 	final TrackAnchor? end;
 	const TrackRange({required this.start, required this.end});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(TrackRange other);
-	bool operator <(TrackRange other);
-	bool operator <=(TrackRange other);
-	bool operator >(TrackRange other);
-	bool operator >=(TrackRange other);
-	@override int compareTo(TrackRange other);
 	factory TrackRange.live();
 	factory TrackRange.oldest();
 }
-final class OriginCost implements Comparable<OriginCost> {
+final class OriginCost {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(OriginCost other);
-	bool operator <(OriginCost other);
-	bool operator <=(OriginCost other);
-	bool operator >(OriginCost other);
-	bool operator >=(OriginCost other);
-	@override int compareTo(OriginCost other);
 	factory OriginCost.default_();
 	factory OriginCost(U64 cost);
 	U64 value();
 }
-final class OriginPriority implements Comparable<OriginPriority> {
+final class OriginPriority {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(OriginPriority other);
-	bool operator <(OriginPriority other);
-	bool operator <=(OriginPriority other);
-	bool operator >(OriginPriority other);
-	bool operator >=(OriginPriority other);
-	@override int compareTo(OriginPriority other);
 	factory OriginPriority.default_();
 	factory OriginPriority(int priority);
 	int value();
@@ -697,7 +640,7 @@ final class HangCatalogAv1 {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory HangCatalogAv1.default_();
-	static String get PREFIX;
+	static String get prefix;
 }
 final class HangCatalogMastering {
 	final HangCatalogChromaticity red;
@@ -1201,7 +1144,7 @@ enum StatsFailure {
 	expired(3),
 	const StatsFailure(this._c);
 	String debug();
-	static List<StatsFailure> get ALL;
+	static List<StatsFailure> get all;
 	String asStr();
 }
 enum StatsRefusalKind {
@@ -1213,7 +1156,7 @@ enum StatsRefusalKind {
 	expired(5),
 	const StatsRefusalKind(this._c);
 	String debug();
-	static List<StatsRefusalKind> get ALL;
+	static List<StatsRefusalKind> get all;
 	String asStr();
 }
 enum StatsRouteClose {
@@ -1226,7 +1169,7 @@ enum StatsRouteClose {
 	other(6),
 	const StatsRouteClose(this._c);
 	String debug();
-	static List<StatsRouteClose> get ALL;
+	static List<StatsRouteClose> get all;
 	String asStr();
 }
 enum StatsRouteRefusal {
@@ -1235,7 +1178,7 @@ enum StatsRouteRefusal {
 	looped(2),
 	const StatsRouteRefusal(this._c);
 	String debug();
-	static List<StatsRouteRefusal> get ALL;
+	static List<StatsRouteRefusal> get all;
 	String asStr();
 }
 enum StatsWithdrawal {
@@ -1243,7 +1186,7 @@ enum StatsWithdrawal {
 	drain(1),
 	const StatsWithdrawal(this._c);
 	String debug();
-	static List<StatsWithdrawal> get ALL;
+	static List<StatsWithdrawal> get all;
 	String asStr();
 }
 enum TransportAddress {
@@ -1288,17 +1231,11 @@ enum TrackCompression {
 	String debug();
 	factory TrackCompression.default_();
 }
-sealed class TrackAnchor implements Comparable<TrackAnchor> {
+sealed class TrackAnchor {
 	const TrackAnchor();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(TrackAnchor other);
-	bool operator <(TrackAnchor other);
-	bool operator <=(TrackAnchor other);
-	bool operator >(TrackAnchor other);
-	bool operator >=(TrackAnchor other);
-	@override int compareTo(TrackAnchor other);
 }
 final class TrackAnchorRelative extends TrackAnchor {
 	final U64 $0;
@@ -1527,7 +1464,7 @@ enum MuxCatalogCatalogFormat {
 	const MuxCatalogCatalogFormat(this._c);
 	String debug();
 	factory MuxCatalogCatalogFormat.default_();
-	static MuxCatalogCatalogFormat get DEFAULT;
+	static MuxCatalogCatalogFormat get default2_;
 	String extension();
 	static MuxCatalogCatalogFormat? detect(String name);
 }
@@ -1979,7 +1916,7 @@ enum MoqTokioAcceptFailure {
 	const MoqTokioAcceptFailure(this._c);
 	@override String toString();
 	String debug();
-	static List<MoqTokioAcceptFailure> get ALL;
+	static List<MoqTokioAcceptFailure> get all;
 	String asStr();
 }
 enum MoqTokioRedirect {
@@ -2034,26 +1971,26 @@ final class RustlsProtocolVersionSSLv2 extends RustlsProtocolVersion {
 final class RustlsProtocolVersionSSLv3 extends RustlsProtocolVersion {
 	const RustlsProtocolVersionSSLv3();
 }
-final class RustlsProtocolVersionTLSv1_0 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_0();
+final class RustlsProtocolVersionTLSv10 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv10();
 }
-final class RustlsProtocolVersionTLSv1_1 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_1();
+final class RustlsProtocolVersionTLSv11 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv11();
 }
-final class RustlsProtocolVersionTLSv1_2 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_2();
+final class RustlsProtocolVersionTLSv12 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv12();
 }
-final class RustlsProtocolVersionTLSv1_3 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_3();
+final class RustlsProtocolVersionTLSv13 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv13();
 }
-final class RustlsProtocolVersionDTLSv1_0 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_0();
+final class RustlsProtocolVersionDTLSv10 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv10();
 }
-final class RustlsProtocolVersionDTLSv1_2 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_2();
+final class RustlsProtocolVersionDTLSv12 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv12();
 }
-final class RustlsProtocolVersionDTLSv1_3 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_3();
+final class RustlsProtocolVersionDTLSv13 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv13();
 }
 final class RustlsProtocolVersionUnknown extends RustlsProtocolVersion {
 	final int $0;
@@ -2072,7 +2009,7 @@ enum MoqQuicConnectionMuxVersion {
 	qMux02(2),
 	const MoqQuicConnectionMuxVersion(this._c);
 	String debug();
-	static List<MoqQuicConnectionMuxVersion> get ALL;
+	static List<MoqQuicConnectionMuxVersion> get all;
 	bool usesRecords();
 	String alpn();
 	String prefix();
@@ -2084,7 +2021,7 @@ enum MoqSockDemuxDiscard {
 	overflow(3),
 	const MoqSockDemuxDiscard(this._c);
 	String debug();
-	static List<MoqSockDemuxDiscard> get ALL;
+	static List<MoqSockDemuxDiscard> get all;
 	String asStr();
 }
 enum MoqSockUdpEcnCodepoint {
@@ -2095,7 +2032,7 @@ enum MoqSockUdpEcnCodepoint {
 	String debug();
 	static MoqSockUdpEcnCodepoint? fromBits(int x);
 }
-enum Level implements Comparable<Level> {
+enum Level {
 	trace(0),
 	debug(1),
 	info(2),
@@ -2103,12 +2040,6 @@ enum Level implements Comparable<Level> {
 	error(4),
 	const Level(this._c);
 	@override String toString();
-	int? partialCompareTo(Level other);
-	bool operator <(Level other);
-	bool operator <=(Level other);
-	bool operator >(Level other);
-	bool operator >=(Level other);
-	@override int compareTo(Level other);
 }
 final class Park extends _Object {
 	String debug();
@@ -2145,34 +2076,22 @@ final class Driver extends _Object {
 	String debug();
 	ClockInstant? poll(ClockInstant now, Waiter waiter);
 }
-final class Instance extends _Object implements Comparable<Instance> {
+final class Instance extends _Object {
 	@override String toString();
 	String debug();
 	Instance clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Instance other);
-	bool operator <(Instance other);
-	bool operator <=(Instance other);
-	bool operator >(Instance other);
-	bool operator >=(Instance other);
-	@override int compareTo(Instance other);
 	factory Instance.random();
 	String asStr();
 	bool isMinted();
 }
-final class Path extends _Object implements Comparable<Path> {
+final class Path extends _Object {
 	@override String toString();
 	String debug();
 	Path clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Path other);
-	bool operator <(Path other);
-	bool operator <=(Path other);
-	bool operator >(Path other);
-	bool operator >=(Path other);
-	@override int compareTo(Path other);
 	factory Path.default_();
 	factory Path(String s);
 	factory Path.fromStatic(String s);
@@ -2188,18 +2107,12 @@ final class Path extends _Object implements Comparable<Path> {
 	Path? tryResolve(PathRelative rel);
 	PathRelative? relative(Path base);
 }
-final class Pattern extends _Object implements Comparable<Pattern> {
+final class Pattern extends _Object {
 	@override String toString();
 	String debug();
 	Pattern clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Pattern other);
-	bool operator <(Pattern other);
-	bool operator <=(Pattern other);
-	bool operator >(Pattern other);
-	bool operator >=(Pattern other);
-	@override int compareTo(Pattern other);
 	factory Pattern.default_();
 	factory Pattern(List<Segment> segments);
 	factory Pattern.all();
@@ -2316,7 +2229,7 @@ final class Version extends _Object {
 	Version clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static List<Version> get ALL;
+	static List<Version> get all;
 	bool hasRequestPath();
 	String asStr();
 	String alpn();
@@ -2333,17 +2246,11 @@ final class Versions extends _Object {
 	bool contains(Version version);
 	List<Version> iter();
 }
-final class Specificity extends _Object implements Comparable<Specificity> {
+final class Specificity extends _Object {
 	String debug();
 	Specificity clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Specificity other);
-	bool operator <(Specificity other);
-	bool operator <=(Specificity other);
-	bool operator >(Specificity other);
-	bool operator >=(Specificity other);
-	@override int compareTo(Specificity other);
 }
 final class ClockClock extends _Object {
 	String debug();
@@ -2378,7 +2285,7 @@ final class ClockManual extends _Object {
 	String debug();
 	ClockManual clone();
 	factory ClockManual.default_();
-	static ClockWall get WALL_START;
+	static ClockWall get wallStart;
 	factory ClockManual();
 	ClockInstant now();
 	ClockWall wall();
@@ -2396,7 +2303,7 @@ final class ClockWallMap extends _Object {
 	String debug();
 	ClockWallMap clone();
 	factory ClockWallMap.default_();
-	static RustDuration get TOLERANCE;
+	static RustDuration get tolerance;
 	void sample(ClockInstant now, ClockWall wall);
 	ClockInstant? map(ClockWall at);
 }
@@ -2432,7 +2339,7 @@ final class HangCatalog extends _Object {
 	void includeSet(List<(String, HangCatalogInclude)> value);
 	HangCatalogSkipped get skippedGet;
 	void skippedSet(HangCatalogSkipped value);
-	static String get DEFAULT_NAME;
+	static String get defaultName;
 	static TrackInfo defaultTrackInfo();
 	static TrackSubscription defaultSubscription();
 	void checkRenditions();
@@ -2526,12 +2433,12 @@ final class MuxClock extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory MuxClock.default_();
-	static Timescale get TIMESCALE;
+	static Timescale get timescale;
 	factory MuxClock();
 	factory MuxClock.at(ClockInstant epoch, ClockWall wall);
 	Timestamp now();
 	Timestamp capture(ClockInstant at);
-	Timescale timescale();
+	Timescale timescale_();
 	HangCatalogClock? wall();
 	ClockWall wallClock(Timestamp pts);
 }
@@ -2550,7 +2457,7 @@ final class MuxIngest extends _Object {
 	MuxCatalogConfig catalog();
 }
 final class MuxLingerUnit extends _Object {
-	static RustDuration get DEFAULT;
+	static RustDuration get default_;
 	factory MuxLingerUnit(List<BroadcastProducer> broadcasts, RustDuration duration);
 	Cancelable<void> wait();
 }
@@ -2586,18 +2493,12 @@ final class MuxError extends _Object implements Exception {
 	String debug();
 	MuxError clone();
 }
-final class TokioDuration extends _Object implements Comparable<TokioDuration> {
+final class TokioDuration extends _Object {
 	@override String toString();
 	String debug();
 	TokioDuration clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(TokioDuration other);
-	bool operator <(TokioDuration other);
-	bool operator <=(TokioDuration other);
-	bool operator >(TokioDuration other);
-	bool operator >=(TokioDuration other);
-	@override int compareTo(TokioDuration other);
 	factory TokioDuration.default_();
 }
 final class TokioBackoff extends _Object {
@@ -3047,7 +2948,7 @@ final class BandwidthCap extends _Object {
 	void rateSet(BandwidthRate value);
 	RustDuration get burstGet;
 	void burstSet(RustDuration value);
-	static RustDuration get DEFAULT_BURST;
+	static RustDuration get defaultBurst;
 	factory BandwidthCap(BandwidthRate rate);
 	BandwidthCap withBurst(RustDuration burst);
 }
@@ -3077,7 +2978,7 @@ final class BandwidthViewers extends _Object {
 	String debug();
 	BandwidthViewers clone();
 	factory BandwidthViewers.default_();
-	static BandwidthRate get MAX_TARGET;
+	static BandwidthRate get maxTarget;
 	factory BandwidthViewers(BandwidthWeak estimate);
 	BandwidthViewer watch(BandwidthRate max);
 	void setTarget(BandwidthRate? target);
@@ -7318,7 +7219,7 @@ final class MuxContainerTsStatsRelease extends _Object {
 }
 final class MuxContainerTsStatsLog extends _Object {
 	factory MuxContainerTsStatsLog.default_();
-	static RustDuration get INTERVAL;
+	static RustDuration get interval;
 	void sample(MuxContainerTsStatsSnapshot latest);
 	void finish(MuxContainerTsStatsSnapshot latest);
 }
@@ -7350,7 +7251,7 @@ final class MoqTokioCliBound extends _Object {
 	MoqTokioCliBound clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static MoqTokioCliBound get NONE;
+	static MoqTokioCliBound get none;
 }
 final class MoqTokioTcpTlsAcceptor extends _Object {
 	MoqTokioTcpTlsAcceptor clone();
@@ -7750,35 +7651,23 @@ final class MoqTokioQuicDemuxDatagram extends _Object {
 final class MoqSockDemuxPin extends _Object {
 	String debug();
 }
-final class Url extends _Object implements Comparable<Url> {
+final class Url extends _Object {
 	@override String toString();
 	String debug();
 	Url clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Url other);
-	bool operator <(Url other);
-	bool operator <=(Url other);
-	bool operator >(Url other);
-	bool operator >=(Url other);
-	@override int compareTo(Url other);
 	factory Url.parse(String input);
 }
 final class Json extends _Object {
 	factory Json.parse(String input);
 	String toText();
 }
-final class Instant extends _Object implements Comparable<Instant> {
+final class Instant extends _Object {
 	String debug();
 	Instant clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	int? partialCompareTo(Instant other);
-	bool operator <(Instant other);
-	bool operator <=(Instant other);
-	bool operator >(Instant other);
-	bool operator >=(Instant other);
-	@override int compareTo(Instant other);
 }
 final class RustlsServerConfig extends _Object {
 	RustlsServerConfig clone();
@@ -7810,16 +7699,16 @@ final class StringException implements Exception {
 	const StringException(this.error);
 	@override String toString();
 }
-const PATH_MAX_PARTS = U64.fromBits(32);
-const PATH_MAX_BYTES = U64.fromBits(4096);
-const PATTERN_MAX_SEGMENTS = U64.fromBits(32);
-const PATTERN_MAX_INTERSECTIONS = U64.fromBits(1024);
-const SETUP_TOKEN_OUT_OF_BAND = U64.fromBits(0);
-const TRANSPORT_MIN_RECEIVE_WINDOW = U64.fromBits(1048576);
-const TRANSPORT_SETUP_RECEIVE_WINDOW = U64.fromBits(131102);
-const HANG_CATALOG_MAX_SAFE_INTEGER = U64.fromBits(9007199254740991);
-String get IMPLEMENTATION;
-List<String> get ALPNS;
+const pathMaxParts = U64.fromBits(32);
+const pathMaxBytes = U64.fromBits(4096);
+const patternMaxSegments = U64.fromBits(32);
+const patternMaxIntersections = U64.fromBits(1024);
+const setupTokenOutOfBand = U64.fromBits(0);
+const transportMinReceiveWindow = U64.fromBits(1048576);
+const transportSetupReceiveWindow = U64.fromBits(131102);
+const hangCatalogMaxSafeInteger = U64.fromBits(9007199254740991);
+String get implementation;
+List<String> get alpns;
 String escape(String content);
 String unescape(String segment);
 ClockInstant clockNow();
@@ -7835,26 +7724,26 @@ Cancelable<void> clockSleep(RustDuration duration);
 Cancelable<void> clockSleepUntil(ClockInstant at);
 Cancelable<void> clockTimeout(RustDuration duration, Future<void> future);
 Cancelable<void> clockTimeoutAt(ClockInstant deadline, Future<void> future);
-RustDuration get SERVER_DEFAULT_TIMEOUT;
+RustDuration get serverDefaultTimeout;
 Cancelable<Error> timeRunDriver(Driver driver);
 Cancelable<Error> timeRunOriginDriver(OriginDriver driver);
 U64 varintDecodeQuic(Mut<typed.Uint8List> r);
 void varintEncodeQuic(U64 value, Mut<typed.Uint8List> w);
-RustDuration get CACHE_DEFAULT_EXPIRY;
-String get HANG_ECHO_SUFFIX;
-String get HANG_ECHO_TRACK;
+RustDuration get cacheDefaultExpiry;
+String get hangEchoSuffix;
+String get hangEchoTrack;
 bool hangEchoIsEcho(Path path);
-HangCatalogPriorities get HANG_CATALOG_PRIORITY;
-RustDuration get HANG_CONTAINER_MAX_AGE;
-Timescale get HANG_CONTAINER_TIMESCALE;
+HangCatalogPriorities get hangCatalogPriority;
+RustDuration get hangContainerMaxAge;
+Timescale get hangContainerTimescale;
 TrackInfo hangContainerTrackInfo(int priority);
-RustDuration get MUX_CONTAINER_DELAY_MAX;
-RustDuration get MUX_RATE_RETRY;
+RustDuration get muxContainerDelayMax;
+RustDuration get muxRateRetry;
 ArrayU8x32 tokioTlsParseFingerprint(String value);
 OriginProducer tokioOriginSpawn();
 (TransportMemorySession, TransportMemorySession) transportMemoryPair(TransportMemoryConfig config);
 HangCatalogAudioConfig muxCodecAacConfig(typed.Uint8List init);
-typed.Uint8List get MUX_CODEC_ANNEXB_START_CODE;
+typed.Uint8List get muxCodecAnnexbStartCode;
 typed.Uint8List muxCodecAnnexbFromLengthPrefixed(typed.Uint8List payload, U64 lengthSize, typed.Uint8List? prefix);
 typed.Uint8List muxCodecAnnexbBuildPrefix(List<typed.Uint8List> nals);
 void muxCodecAnnexbLengthPrefixedToAnnexb(typed.Uint8List data, U64 lengthSize, Mut<typed.Uint8List> out);
@@ -7864,7 +7753,7 @@ HangCatalogAudioConfig muxCodecFlacConfig(typed.Uint8List init);
 HangCatalogVideoConfig muxCodecH264Config(typed.Uint8List buf);
 HangCatalogVideoConfig muxCodecH265Config(typed.Uint8List buf);
 HangCatalogAudioConfig muxCodecMp3Config(typed.Uint8List init);
-RustDuration get MUX_CODEC_OPUS_WARMUP;
+RustDuration get muxCodecOpusWarmup;
 int? muxCodecOpusPacketSamples(typed.Uint8List packet);
 HangCatalogAudioConfig muxCodecOpusConfig(typed.Uint8List init);
 MuxContainerMp4Finish? muxContainerMp4Repair(SeekableReader file);

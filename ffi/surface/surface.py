@@ -285,7 +285,7 @@ class Braced:
             elif depth == 0 and c == "{":
                 j = self.close(i)
                 header, hmask = code[hs:i], masked[hs:i]
-                if assignment(hmask) is not None:
+                if assignment(hmask) is not None and not self.initializers(hmask):
                     # A value, such as a lambda or a set literal, that the `;` ends.
                     i = j + 1
                     continue
@@ -309,6 +309,11 @@ class Braced:
             i += 1
         if masked[hs:end].strip():
             raise Malformed(f"a declaration without its end: {squash(code[hs:end])[:80]}")
+
+    def initializers(self, hmask):
+        """Whether a Dart header is a constructor with an initializer list (`A(x) : _x = x`),
+        whose `{` opens a body rather than a value."""
+        return self.lang == "dart" and re.search(r"\)\s*:[^;]*$", hmask) is not None
 
     def friend(self, hmask):
         """Whether a C++ declaration declares a function as a friend, which a caller finds by
