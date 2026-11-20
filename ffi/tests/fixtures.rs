@@ -496,14 +496,11 @@ fn api_valgrind() {
 		generated: Some(cpp_transcript()),
 		..api.link()
 	};
-	cxx(
-		&link,
-		17,
-		true,
-		&manifest_dir().join("tests").join("api.cpp"),
-		&cpp,
-	);
-	for (exe, cases) in [(&c, &["statuses", "threads"][..]), (&cpp, &["futures", "lifetimes", "checks"])] {
+	cxx(&link, 17, true, &manifest_dir().join("tests").join("api.cpp"), &cpp);
+	for (exe, cases) in [
+		(&c, &["statuses", "threads"][..]),
+		(&cpp, &["futures", "lifetimes", "checks"]),
+	] {
 		for case in std::iter::once(None).chain(cases.iter().copied().map(Some)) {
 			let output = run(Command::new("valgrind")
 				.args([
