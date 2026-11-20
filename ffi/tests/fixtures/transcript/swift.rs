@@ -108,9 +108,12 @@ func _fails<T: ~Copyable, E: Swift.Error>(_: E.Type, _ body: () throws -> T) -> 
 	}
 }
 
-/// Rust's `Ord` of two values, through `Comparable`.
-func _cmp<T: Comparable>(_ a: T, _ b: T) -> Swift.Int8 {
-	a < b ? -1 : b < a ? 1 : 0
+/// Rust's `Ord` of two values, through their `<`, which agrees with it and throws where a
+/// check of a handle can fail, so a type without `Comparable` orders too.
+func _cmp<T: ~Copyable>(
+	_ a: borrowing T, _ b: borrowing T, _ lt: (borrowing T, borrowing T) throws -> Swift.Bool
+) rethrows -> Swift.Int8 {
+	try lt(a, b) ? -1 : try lt(b, a) ? 1 : 0
 }
 "#;
 
@@ -1203,7 +1206,7 @@ impl Emitter<'_> {
 				}
 				let (a, b) = (self.expr(a, out), self.expr(b, out));
 				let op = match op {
-					Op::Cmp => return format!("_cmp({a}, {b})"),
+					Op::Cmp => return format!("_cmp({a}, {b}, <)"),
 					Op::Eq => "==",
 					Op::Ne => "!=",
 					Op::Lt => "<",

@@ -2991,9 +2991,20 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	}
 }
 
-/// A field's Dart name.
+/// A field's Dart name, clear of the members every object has and of the comparison methods
+/// any type may gain, so a type that gains `PartialOrd` or `Ord` renames no field.
 fn field_name(name: &str) -> String {
-	member(name, OBJECT)
+	member(
+		name,
+		&[
+			"hashCode",
+			"noSuchMethod",
+			"runtimeType",
+			"toString",
+			"compareTo",
+			"partialCompareTo",
+		],
+	)
 }
 
 /// A parameter's Dart name. The call's own locals end in `_`, which no camel-case name does.

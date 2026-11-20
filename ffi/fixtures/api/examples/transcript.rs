@@ -1032,6 +1032,16 @@ fn main() {
 		Tier::High.cmp(&Tier::Low) as i8,
 		Tier::Low.cmp(&Tier::High) as i8
 	);
+	// A pass's handle is checked, so its comparisons can fail, yet it still orders by `Ord`.
+	let (t1, t2) = (api::Pass::new(1), api::Pass::new(2));
+	println!(
+		"pass {} {} {} {} {}",
+		t1 < t2,
+		t1 >= t2,
+		t1.cmp(&t2) as i8,
+		t2.cmp(&t1) as i8,
+		t1.cmp(&t1) as i8
+	);
 	println!(
 		"lossless ip {} {}",
 		ip_hex(api::same_ip_addr("255.255.255.255".parse().unwrap())),

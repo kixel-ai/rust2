@@ -1347,6 +1347,16 @@ func (self *Part) Equal(other *Part) (bool, error)
 func (self *Part) GoString() string
 func (self *Part) ValueGet() (uint64, error)
 func (self *Part) ValueSet(value uint64) error
+type Pass struct {
+	Handle_ *p_rt.Handle_
+}
+func NewPass(number uint32) *Pass
+func (self *Pass) Close() error
+func (self *Pass) Compare(other *Pass) (int, error)
+func (self *Pass) Equal(other *Pass) (bool, error)
+func (self *Pass) GoString() string
+func (self *Pass) PartialCompare(other *Pass) (int, bool, error)
+func (self *Pass) Redeem() (uint32, error)
 type Peer struct {
 	Addr  p_rt.SocketAddr
 	Names []string
@@ -1430,6 +1440,28 @@ func (self *Quantity) Close() error
 func (self *Quantity) Equal(other *Quantity) (bool, error)
 func (self *Quantity) GoString() string
 func (self *Quantity) PartialCompare(other *Quantity) (int, bool, error)
+type Rank interface {
+	GoString() string
+	Equal(other Rank) bool
+	PartialCompare(other Rank) (int, bool)
+	Compare(other Rank) int
+}
+type RankRanked struct {
+	Compare_         uint8
+	PartialCompare_  uint8
+	CompareTo        uint8
+	PartialCompareTo uint8
+}
+func (self RankRanked) Compare(other Rank) int
+func (self RankRanked) Equal(other Rank) bool
+func (self RankRanked) GoString() string
+func (self RankRanked) PartialCompare(other Rank) (int, bool)
+type RankUnranked struct {
+}
+func (self RankUnranked) Compare(other Rank) int
+func (self RankUnranked) Equal(other Rank) bool
+func (self RankUnranked) GoString() string
+func (self RankUnranked) PartialCompare(other Rank) (int, bool)
 type Rated struct {
 	Bytes_ [2]uint64
 	Made_ bool

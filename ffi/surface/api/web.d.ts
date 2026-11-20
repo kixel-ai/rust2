@@ -1043,6 +1043,17 @@ export type Parcel = {
     payload: Uint8Array;
 };
 
+// Pass.ts
+import * as rt from "./rt.ts";
+export type Pass = rt.Handle<"Pass">;
+export declare function debug(self: Pass): string;
+export declare function eq(a: Pass, b: Pass): boolean;
+export declare function partialCmp(a: Pass, b: Pass): number | undefined;
+export declare function cmp(a: Pass, b: Pass): number;
+export declare function new$(number: number): Pass;
+export declare function redeem(self: Pass): number;
+export { new$ as new };
+
 // Peer.ts
 import * as rt from "./rt.ts";
 export type Peer = {
@@ -1130,6 +1141,21 @@ export declare function eq(a: Quantity, b: Quantity): boolean;
 export declare function partialCmp(a: Quantity, b: Quantity): number | undefined;
 export declare function new$(value: rt.i64, unit: number): Quantity;
 export { new$ as new };
+
+// Rank.ts
+export type Rank = {
+    tag: "Unranked";
+} | {
+    tag: "Ranked";
+    compare: number;
+    partialCompare: number;
+    compareTo: number;
+    partialCompareTo: number;
+};
+export declare function debug(self: Rank): string;
+export declare function eq(a: Rank, b: Rank): boolean;
+export declare function partialCmp(a: Rank, b: Rank): number | undefined;
+export declare function cmp(a: Rank, b: Rank): number;
 
 // Rated.ts
 import * as rt from "./rt.ts";
@@ -1690,6 +1716,7 @@ import type { PolarPoint } from "./PolarPoint.ts";
 import type { PolarTurn } from "./PolarTurn.ts";
 import type { Polar_Turn } from "./Polar_Turn.ts";
 import type { Qualifiers } from "./Qualifiers.ts";
+import type { Rank } from "./Rank.ts";
 import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
@@ -1785,6 +1812,7 @@ export declare const k_Node: rt.Kind;
 export declare const k_Outer_Inner_u8: rt.Kind;
 export declare const k_Pad_u16: rt.Kind;
 export declare const k_Pad_u8: rt.Kind;
+export declare const k_Pass: rt.Kind;
 export declare const k_Plain: rt.Kind;
 export declare const k_Quantity: rt.Kind;
 export declare const k_Receipt: rt.Kind;
@@ -2078,6 +2106,7 @@ export declare function w_Platform(p: number, v: Platform): void;
 export declare function w_Point(p: number, v: Point): void;
 export declare function w_PolarTurn(p: number, v: PolarTurn): void;
 export declare function w_Qualifiers(p: number, v: Qualifiers): void;
+export declare function w_Rank(p: number, v: Rank): void;
 export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;

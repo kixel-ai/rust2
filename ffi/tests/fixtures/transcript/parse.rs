@@ -1287,6 +1287,7 @@ impl Scope<'_> {
 			fail(c, "`cmp` of no type of the API");
 		}
 		let b = self.check(&m.args[0], &want);
+		self.ordered(c, vec![&a, &b]);
 		Expr::new(Kind::Binary(Op::Cmp, Box::new(a), Box::new(b)), Type::Int(Int::I8))
 	}
 

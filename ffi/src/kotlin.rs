@@ -3831,8 +3831,6 @@ fn opaque_of(abi: &Abi<'_>, c: &Ty) -> Option<Opaque> {
 		.and_then(|i| abi.api.records[i].opaque)
 }
 
-/// The properties of an opaque value's class holding it, a word each: a value class's
-/// `bits`, or `w0` and on.
 /// The `Comparable` a class ordered by `ord` implements, after `sep`: only a total order is.
 fn comparable(ord: Order, name: &str, sep: &str) -> String {
 	match ord {
@@ -3841,6 +3839,8 @@ fn comparable(ord: Order, name: &str, sep: &str) -> String {
 	}
 }
 
+/// The properties of an opaque value's class holding it, a word each: a value class's
+/// `bits`, or `w0` and on.
 fn holders(opaque: &Opaque) -> Vec<String> {
 	match word(opaque) {
 		true => vec!["bits".to_string()],

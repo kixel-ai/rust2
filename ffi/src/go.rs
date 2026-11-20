@@ -43,7 +43,9 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Type};
+use crate::ir::{
+	Access, Closure, Collection, Function, Home, Int, Literal, On, Order, Param, Receiver, Traits, Type, Variant,
+};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -1684,7 +1686,7 @@ impl<'a> Gen<'a> {
 	/// The methods a type's std traits export: `Display` is `String`, `Debug` `GoString`,
 	/// `PartialEq` `Equal`, and `Clone` an object's `Clone`; and the package's function for
 	/// `Default`.
-	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits) -> (Vec<Method>, Option<Method>) {
+	fn traits(&mut self, ty: &Type, c: &str, t: Traits) -> (Vec<Method>, Option<Method>) {
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);
@@ -2032,31 +2034,40 @@ impl<'a> Gen<'a> {
 	/// field takes it.
 	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
-		let t = record.traits;
-		let methods = [
-			(t.display, "String"),
-			(t.debug, "GoString"),
-			(t.eq, "Equal"),
-			(t.ord != Order::None, "PartialCompare"),
-			(t.ord == Order::Total, "Compare"),
-			(self.errored(&Type::Record(i)), "Error"),
-		];
-		let mut taken: BTreeSet<String> = (methods.iter())
-			.filter(|(has, _)| *has)
-			.map(|(_, name)| name.to_string())
-			.collect();
+		let mut taken = self.trait_methods(&Type::Record(i), record.traits);
 		(record.fields.iter())
 			.map(|f| {
-				let mut name = field_name(&f.name);
-				while !taken.insert(name.clone()) {
-					name.push('_');
-				}
+				let name = unique(&mut taken, field_name(&f.name));
 				self.locked.insert(
 					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
 					name.clone(),
 				);
 				name
 			})
+			.collect()
+	}
+
+	/// The Go names of a data enum's variant's fields, clear of the methods its traits add.
+	fn variant_fields(&self, i: usize, variant: &Variant) -> Vec<String> {
+		let mut taken = self.trait_methods(&Type::Enum(i), self.abi.api.enums[i].traits);
+		(variant.fields.iter())
+			.map(|f| unique(&mut taken, field_name(&f.name)))
+			.collect()
+	}
+
+	/// The methods the traits `t` of the type `ty` add, which a field's name must clear.
+	fn trait_methods(&self, ty: &Type, t: Traits) -> BTreeSet<String> {
+		let methods = [
+			(t.display, "String"),
+			(t.debug, "GoString"),
+			(t.eq, "Equal"),
+			(t.ord != Order::None, "PartialCompare"),
+			(t.ord == Order::Total, "Compare"),
+			(self.errored(ty), "Error"),
+		];
+		(methods.iter())
+			.filter(|(has, _)| *has)
+			.map(|(_, name)| name.to_string())
 			.collect()
 	}
 
@@ -2259,8 +2270,8 @@ impl<'a> Gen<'a> {
 		);
 		for variant in &e.variants {
 			let vname = self.variants[&(c.clone(), variant.name.clone())].clone();
-			let fields: Vec<(String, String)> = (variant.fields.iter())
-				.map(|f| (field_name(&f.name), self.go(&f.ty)))
+			let fields: Vec<(String, String)> = (self.variant_fields(i, variant).into_iter())
+				.zip(variant.fields.iter().map(|f| self.go(&f.ty)))
 				.collect();
 			let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 			members.extend(methods.iter().map(|m| m.name.clone()));
@@ -2330,15 +2341,16 @@ impl<'a> Gen<'a> {
 				lowers.push(format!("\tcase {vname}:\n{check}\t\tc.tag = {n}\n"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter())
-				.map(|f| {
+			let names = self.variant_fields(i, variant);
+			let lifted: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
 					let value = self.lift(&f.ty, &format!("p.{}", cgo_field(&abi::escape(&f.name))));
-					format!("{}: {value}", field_name(&f.name))
+					format!("{name}: {value}")
 				})
 				.collect();
-			let lowered: Vec<String> = (variant.fields.iter())
-				.map(|f| {
-					let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
+			let lowered: Vec<String> = (variant.fields.iter().zip(&names))
+				.map(|(f, name)| {
+					let value = self.lower(&f.ty, &format!("v.{name}"));
 					format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 				})
 				.collect();
@@ -3484,6 +3496,14 @@ fn c_int(int: Int) -> &'static str {
 }
 
 /// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
+/// `name`, with `_` appended until it is clear of `taken`, which then holds it.
+fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
+	while !taken.insert(name.clone()) {
+		name.push('_');
+	}
+	name
+}
+
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
 		true => format!("V{name}"),

@@ -5117,6 +5117,37 @@ impl PartialOrd for Quantity {
 	}
 }
 
+/// A pass: an object whose derived `Ord` is a total order, and whose handle a call checks,
+/// since `redeem` moves it out.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pass {
+	number: u32,
+}
+
+impl Pass {
+	pub fn new(number: u32) -> Pass {
+		Pass { number }
+	}
+
+	/// Its number, using it up.
+	pub fn redeem(self) -> u32 {
+		self.number
+	}
+}
+
+/// A rank: a data enum with `Ord` whose fields are named as the comparison methods a
+/// binding gives it, which each binding's names for them must keep apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank {
+	Unranked,
+	Ranked {
+		compare: u8,
+		partial_compare: u8,
+		compare_to: u8,
+		partial_compare_to: u8,
+	},
+}
+
 /// A tier: an enum whose derived `Ord` orders its variants as declared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tier {
