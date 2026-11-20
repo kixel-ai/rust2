@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x58bd9ce2295566a8ULL)
+#define API_CONTRACT ((uint64_t)0xbc34fa72e19da1afULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1459,8 +1459,8 @@ void api_Local_free(api_Local *self);
 void api_Local_drop(api_Local *self, api_status *status);
 bool api_Local_eq(const api_Local *a, const api_Local *b, api_status *status);
 uint64_t api_Local_hash(const api_Local *self, api_status *status);
-api_Local *api_Local_default(void);
-api_Local *api_Local_default_homed(void);
+API_MUST_USE api_Local *api_Local_default(void);
+API_MUST_USE api_Local *api_Local_default_homed(void);
 API_MUST_USE api_Local *api_Local_new(void);
 API_MUST_USE api_Local *api_Local_new_homed(void);
 uint32_t api_Local_bump(const api_Local *self, api_status *status);
@@ -1521,7 +1521,7 @@ void api_Resolving_0_set(api_Resolving *self, api_tls_Resolver *value, api_statu
 API_MUST_USE api_Resolving *api_Resolving_new(api_buf name);
 void api_Codecs_free(api_Codecs *self);
 void api_Codecs_drop(api_Codecs *self, api_status *status);
-api_Codecs *api_Codecs_default(void);
+API_MUST_USE api_Codecs *api_Codecs_default(void);
 API_MUST_USE api_vec_tls_Codec api_Codecs_list_get(const api_Codecs *self, api_status *status);
 void api_Codecs_list_set(api_Codecs *self, api_vec_tls_Codec value, api_status *status);
 API_MUST_USE api_Codecs *api_Codecs_new(void);
@@ -1573,7 +1573,7 @@ void api_Counter_free(api_Counter *self);
 void api_Counter_drop(api_Counter *self, api_status *status);
 API_MUST_USE api_Counter *api_Counter_clone(const api_Counter *self, api_status *status);
 API_MUST_USE api_buf api_Counter_debug(const api_Counter *self, api_status *status);
-api_Counter *api_Counter_default(void);
+API_MUST_USE api_Counter *api_Counter_default(void);
 API_MUST_USE api_Counter *api_Counter_new(api_buf name, uint64_t start);
 uint64_t api_Counter_get(const api_Counter *self, api_status *status);
 uint64_t api_Counter_offset(const api_Counter *self, uint64_t handle, uint64_t h, api_status *status);
@@ -1601,13 +1601,13 @@ API_MUST_USE api_Counter *api_Counter_seeded_Wrap_u32(api_buf name, api_Wrap_u32
 API_MUST_USE api_Counter *api_Counter_seeded_polar_Point(api_buf name, api_polar_Point from);
 void api_Meter_free(api_Meter *self);
 void api_Meter_drop(api_Meter *self, api_status *status);
-api_Meter *api_Meter_default(void);
+API_MUST_USE api_Meter *api_Meter_default(void);
 uint64_t api_Meter_add(const api_Meter *self, uint64_t n, api_status *status);
 uint64_t api_Meter_count(const api_Meter *self, api_status *status);
 void api_Meter_reset(api_Meter *self, api_status *status);
 void api_Meters_free(api_Meters *self);
 void api_Meters_drop(api_Meters *self, api_status *status);
-api_Meters *api_Meters_default(void);
+API_MUST_USE api_Meters *api_Meters_default(void);
 API_MUST_USE api_Meter *api_Meters_last_get(const api_Meters *self, api_status *status);
 void api_Meters_last_set(api_Meters *self, api_Meter *value, api_status *status);
 API_MUST_USE api_Meter *api_Meters_spare_get(const api_Meters *self, api_status *status);
@@ -1617,7 +1617,7 @@ API_MUST_USE api_Meter *api_Meters_first(const api_Meters *self, api_status *sta
 void api_Meters_clear(api_Meters *self, api_status *status);
 void api_Registry_free(api_Registry *self);
 void api_Registry_drop(api_Registry *self, api_status *status);
-api_Registry *api_Registry_default(void);
+API_MUST_USE api_Registry *api_Registry_default(void);
 API_MUST_USE api_Counter *api_Registry_first_get(const api_Registry *self, api_status *status);
 void api_Registry_first_set(api_Registry *self, api_Counter *value, api_status *status);
 API_MUST_USE api_Registry *api_Registry_new(api_Counter *first, api_status *status);
@@ -1626,7 +1626,7 @@ void api_Registry_push(api_Registry *self, api_Counter *counter, api_status *sta
 bool api_Registry_edit(api_Registry *self, bool (*edit)(void *data, api_Counter *), void *edit_data, api_status *status);
 void api_Ledger_free(api_Ledger *self);
 void api_Ledger_drop(api_Ledger *self, api_status *status);
-api_Ledger *api_Ledger_default(void);
+API_MUST_USE api_Ledger *api_Ledger_default(void);
 API_MUST_USE api_Ledger *api_Ledger_new(void);
 API_MUST_USE bool api_Ledger_edit(api_Ledger *self, api_Draft **out, api_Error *err, api_status *status);
 API_MUST_USE bool api_Ledger_edit_homed(api_Ledger *self, api_Draft **out, api_Error *err, api_status *status);
@@ -1650,7 +1650,7 @@ void api_Sheet_free(api_Sheet *self);
 void api_Sheet_drop(api_Sheet *self, api_status *status);
 API_MUST_USE api_Sheet *api_Sheet_clone(const api_Sheet *self, api_status *status);
 API_MUST_USE api_buf api_Sheet_debug(const api_Sheet *self, api_status *status);
-api_Sheet *api_Sheet_default(void);
+API_MUST_USE api_Sheet *api_Sheet_default(void);
 API_MUST_USE api_buf api_Sheet_title_get(const api_Sheet *self, api_status *status);
 void api_Sheet_title_set(api_Sheet *self, api_buf value, api_status *status);
 API_MUST_USE api_Sheet *api_Sheet_new(void);
@@ -1671,7 +1671,7 @@ void api_Name_rename(api_Name *self, api_buf text, api_status *status);
 void api_Channel_free(api_Channel *self);
 void api_Channel_drop(api_Channel *self, api_status *status);
 API_MUST_USE api_Channel *api_Channel_clone(const api_Channel *self, api_status *status);
-api_Channel *api_Channel_default(void);
+API_MUST_USE api_Channel *api_Channel_default(void);
 API_MUST_USE api_Channel *api_Channel_new(void);
 void api_Channel_clear(api_Channel *self, api_status *status);
 void api_Channel_send(const api_Channel *self, api_buf payload, api_status *status);
@@ -1761,7 +1761,7 @@ void api_Tally_free(api_Tally *self);
 void api_Tally_drop(api_Tally *self, api_status *status);
 bool api_Tally_eq(const api_Tally *a, const api_Tally *b, api_status *status);
 API_MUST_USE api_buf api_Tally_debug(const api_Tally *self, api_status *status);
-api_Tally *api_Tally_default(void);
+API_MUST_USE api_Tally *api_Tally_default(void);
 API_MUST_USE api_Tally *api_Tally_new(void);
 uint32_t api_Tally_bump(const api_Tally *self, api_status *status);
 typedef struct api_Tally_bump_later_future api_Tally_bump_later_future;
@@ -1773,7 +1773,7 @@ API_MUST_USE api_Tally_bump_later_future *api_Tally_bump_later_homed(const api_T
 API_MUST_USE api_poll api_Tally_bump_later_start_homed(const api_Tally *self, uint32_t *out, api_Tally_bump_later_future **future, api_status *status);
 void api_Tallies_free(api_Tallies *self);
 void api_Tallies_drop(api_Tallies *self, api_status *status);
-api_Tallies *api_Tallies_default(void);
+API_MUST_USE api_Tallies *api_Tallies_default(void);
 API_MUST_USE api_Tallies *api_Tallies_new(void);
 API_MUST_USE api_Tally *api_Tallies_first(const api_Tallies *self, api_status *status);
 void api_Plain_free(api_Plain *self);
@@ -1811,7 +1811,7 @@ API_MUST_USE api_poll api_Gauge_reaches_poll(api_Gauge_reaches_future *future, a
 void api_Gauge_reaches_future_free(api_Gauge_reaches_future *future);
 void api_Latch_free(api_Latch *self);
 API_MUST_USE api_Latch *api_Latch_clone(const api_Latch *self);
-api_Latch *api_Latch_default(void);
+API_MUST_USE api_Latch *api_Latch_default(void);
 bool api_Latch_set(const api_Latch *self, uint32_t value);
 api_option_u32 api_Latch_get(const api_Latch *self);
 void api_Token_free(api_Token *self);
@@ -1824,7 +1824,7 @@ API_MUST_USE api_vec_Token api_Token_twice(const api_Token *self, api_status *st
 void api_Stack_free(api_Stack *self);
 void api_Stack_drop(api_Stack *self, api_status *status);
 API_MUST_USE api_buf api_Stack_debug(const api_Stack *self, api_status *status);
-api_Stack *api_Stack_default(void);
+API_MUST_USE api_Stack *api_Stack_default(void);
 API_MUST_USE api_Stack *api_Stack_new(void);
 void api_Stack_push(api_Stack *self, api_Counter *item, api_status *status);
 API_MUST_USE api_Counter *api_Stack_pop(api_Stack *self, api_status *status);
@@ -1850,7 +1850,7 @@ API_MUST_USE api_buf api_Key_debug(const api_Key *self);
 API_MUST_USE api_Key *api_Key_new(api_buf name);
 uint64_t api_Key_hash_of(const api_Key *self);
 void api_clash_Seed_free(api_clash_Seed *self);
-api_clash_Seed *api_clash_Seed_default(void);
+API_MUST_USE api_clash_Seed *api_clash_Seed_default(void);
 API_MUST_USE api_clash_Seed *api_clash_Seed_default_(void);
 uint32_t api_clash_Seed_value(const api_clash_Seed *self);
 bool api_clash_Seed_bool(const api_clash_Seed *self);

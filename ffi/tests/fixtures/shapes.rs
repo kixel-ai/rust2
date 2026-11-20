@@ -1446,6 +1446,7 @@ fn round_trip(built: &Built, language: &str) {
 				include: built.out.join("include"),
 				staticlib: built.staticlib(),
 				native: &built.native,
+				generated: None,
 			};
 			super::cxx(&link, 17, false, &main, &exe);
 			run(&mut Command::new(&exe))
@@ -1555,7 +1556,7 @@ fn round_trip(built: &Built, language: &str) {
 			let main = dir.join("main.dart");
 			step::write(&main, dart(built, calls));
 			let lib = built.lib.join(super::shared(&name));
-			let dill = super::dart_compile(&name, &dir, &built.out.join("dart"), &lib, &main);
+			let dill = super::dart_compile(&name, &dir, &built.out.join("dart"), &lib, &main, &[]);
 			run(&mut super::dart_run(&dill, &[]))
 		}
 		_ => unreachable!("no driver for {language}"),

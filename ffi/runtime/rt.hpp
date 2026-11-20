@@ -802,7 +802,9 @@ void spawn(task &slot, typename Op::raw *raw, Exec exec, F f);
 
 // A future running on an executor until it calls back with the output. Destroying it
 // cancels the future: once that returns, the callback has finished or never runs, and the
-// executor is never called again, so it may go too. A task dropped at once never runs.
+// executor is never called again, so it may go too. A task dropped before its executor
+// starts the job never runs; one dropped at once may still lose that race to an executor
+// on another thread.
 class [[nodiscard]] task {
 	detail::task_node *node_ = nullptr;
 

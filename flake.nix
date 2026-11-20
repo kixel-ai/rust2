@@ -297,6 +297,9 @@
             # compiler on PATH has.
             RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
+            # The free-threaded CPython the generated Python must refuse. By path, since its
+            # python3 would shadow the GIL build's on PATH.
+            PYTHON_FREE_THREADED = "${pkgs.python314FreeThreading}/bin/python3.14t";
             # The pinned toolchain goes on PATH ahead of everything the host had, which
             # shadows the Cargo shim `mbx setup` installs. Put it back in front, as moq's dev
             # shell does, so cargo builds through mbx's cache wherever the host set one up,

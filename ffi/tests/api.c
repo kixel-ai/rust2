@@ -1,6 +1,10 @@
 /* The api fixture's C test: the script fixtures/api/examples/transcript.rs runs
  * natively, through the exported C ABI. tests/fixtures.rs compares the transcripts.
  *
+ * The script is transcript.c, which tests/fixtures/transcript generates from the
+ * transcript's; this file holds the functions it calls by the transcript's names, and
+ * the checks its output does not show.
+ *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
 #include <math.h>
@@ -29,65 +33,6 @@ static void print(const char *before, api_buf buf, const char *after) {
 
 /* Drops a must-use result on purpose: before C23, GCC warns of one even cast to void. */
 #define DISCARD(call) ((void)!(call))
-
-/* Print each of `numbers`' lists, its floats as their bits, as transcript.rs does. */
-#define PRINT_LIST(list, fmt, cast)                                           \
-	do {                                                                  \
-		printf("[");                                                  \
-		for (size_t i_ = 0; i_ < (list).len; i_++) {                  \
-			printf(i_ ? ", " fmt : fmt, cast((list).ptr[i_]));    \
-		}                                                             \
-		printf("]");                                                  \
-	} while (0)
-
-static unsigned long long f32_bits(float f) {
-	uint32_t bits;
-	memcpy(&bits, &f, sizeof bits);
-	return bits;
-}
-
-static unsigned long long f64_bits(double f) {
-	uint64_t bits;
-	memcpy(&bits, &f, sizeof bits);
-	return bits;
-}
-
-static void numbers(const char *what, const api_Numbers *n) {
-	printf("%s u16 ", what);
-	PRINT_LIST(n->u16s, "%u", (unsigned));
-	printf("\n");
-	printf("%s u32 ", what);
-	PRINT_LIST(n->u32s, "%u", (unsigned));
-	printf("\n");
-	printf("%s u64 ", what);
-	PRINT_LIST(n->u64s, "%llu", (unsigned long long));
-	printf("\n");
-	printf("%s i8 ", what);
-	PRINT_LIST(n->i8s, "%d", (int));
-	printf("\n");
-	printf("%s i16 ", what);
-	PRINT_LIST(n->i16s, "%d", (int));
-	printf("\n");
-	printf("%s i32 ", what);
-	PRINT_LIST(n->i32s, "%d", (int));
-	printf("\n");
-	printf("%s i64 ", what);
-	PRINT_LIST(n->i64s, "%lld", (long long));
-	printf("\n");
-	printf("%s f32 ", what);
-	PRINT_LIST(n->f32s, "%llu", f32_bits);
-	printf("\n");
-	printf("%s f64 ", what);
-	PRINT_LIST(n->f64s, "%llu", f64_bits);
-	printf("\n");
-	if (n->some.ptr) {
-		printf("%s some Some(", what);
-		PRINT_LIST(n->some, "%d", (int));
-		printf(")\n");
-	} else {
-		printf("%s some None\n", what);
-	}
-}
 
 static int wakes = 0;
 static int drops = 0;
@@ -239,30 +184,6 @@ static bool started_futures(void) {
 	return ok;
 }
 
-/* made's closure: a string it hands Rust, as api_buf_copy made it. */
-static api_buf made_times(void *data, uint32_t n) {
-	(void)data;
-	char text[32];
-	snprintf(text, sizeof text, "%u times", (unsigned)n);
-	return api_buf_copy(str(text));
-}
-
-/* reissue's closures: a new ticket, and a copy of one C keeps. */
-static api_Ticket reissue_next(void *data, api_Ticket ticket) {
-	(void)data;
-	return api_Ticket_new(api_Ticket_number(&ticket) + 1);
-}
-
-static api_Ticket reissue_kept(void *data, api_Ticket ticket) {
-	(void)ticket;
-	return *(const api_Ticket *)data;
-}
-
-/* shifted's closure: the moment 500 ticks later. */
-static api_Moment moment_after(void *data, api_Moment moment) {
-	(void)data;
-	return api_Moment_after(&moment, 500);
-}
 
 static uint32_t spawned_task(void *data) {
 	(void)data;
@@ -426,111 +347,6 @@ static void tail(api_foreign_reader reader) {
 	}
 }
 
-/* Closures C implements that Rust keeps or that return what Rust then owns, and readers
- * C implements: whether each behaved. */
-static bool closures(void) {
-	print("made ", api_made(3, made_times, NULL), "\n");
-
-	/* A closure taking and returning `Copy` values copies them, never running their `Clone`. */
-	api_Ticket kept = api_Ticket_new(9);
-	api_Ticket seven = api_Ticket_new(7);
-	api_Ticket given = api_reissue(seven, reissue_next, NULL);
-	api_Ticket held = api_reissue(seven, reissue_kept, &kept);
-	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(&given), (unsigned)api_Ticket_number(&held),
-		(unsigned)api_Ticket_clones());
-	/* A record's traits borrow the checked handle it holds. */
-	api_Mark *nine = api_Mark_of(9);
-	api_Seat front = api_seat(nine, 1, NULL);
-	api_Seat back = api_seat(nine, 2, NULL);
-	print("seat ", api_Seat_debug(&front, NULL), "");
-	printf(" %s %s\n", api_Seat_eq(&front, &front, NULL) ? "true" : "false",
-		api_Seat_eq(&front, &back, NULL) ? "true" : "false");
-	api_Seat_free(&back);
-	api_Seat_free(&front);
-	api_Mark_free(nine);
-
-	/* A kept closure, called on another thread after the call that took it returned. */
-	bool spawned_freed = false;
-	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
-	uint32_t joined = api_Spawned_join(spawned, NULL);
-	api_Spawned_free(spawned);
-	if (joined != 7 || !spawned_freed) {
-		return false;
-	}
-
-	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
-	api_Moment start = api_Moment_new(0, 1000).value;
-	driver d = {.start = start};
-	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
-	api_buf stopped;
-	int woken = wakes;
-	while (api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING) {
-	}
-	print("drive ", stopped, "\n");
-	bool ok = d.freed && wakes == woken + 1;
-	api_drive_future_free(drive);
-
-	/* Dropped before it finishes, it frees the closure it kept. */
-	driver idle = {.start = start};
-	drive = api_drive(start, drive_idle, &idle, drive_free);
-	ok = ok && api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING && !idle.freed;
-	api_drive_future_free(drive);
-	ok = ok && idle.freed;
-
-	memory hello = {.bytes = "hello world", .len = 11};
-	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
-	tail((api_foreign_reader){.read = broken_read, .seek = broken_seek, .data = NULL});
-
-	/* A seek from the start reaches the reader whole, past INT64_MAX, as `Cursor` takes one. */
-	uint64_t landed = 0;
-	api_buf landed_err;
-	if (api_seek_to((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello}, UINT64_MAX, &landed,
-			&landed_err)) {
-		printf("sought %llu\n", (unsigned long long)landed);
-	} else {
-		print("sought error ", landed_err, "\n");
-	}
-	print("non zeros ", api_describe_non_zeros(api_non_zeros()), "\n");
-	api_option_non_zero_u64 hops[] = {{0}, {.some = true, .value = 1}, {.some = true, .value = UINT64_MAX}};
-	for (size_t i = 0; i < sizeof hops / sizeof hops[0]; i++) {
-		api_option_non_zero_u64 hop = api_next_hop(hops[i]);
-		if (hop.some) {
-			printf("hop Some(%llu)\n", (unsigned long long)hop.value);
-		} else {
-			printf("hop None\n");
-		}
-	}
-	printf("farther hop %u\n", (unsigned)api_farther_hop((api_Pair_non_zero_u16){.left = 3, .right = UINT16_MAX}));
-	{
-		api_status local_status = 0;
-		api_Local *local = api_Local_new();
-		api_Local *shared = api_local_or_new(local, &local_status);
-		uint32_t once = api_Local_bump(local, &local_status);
-		printf("local %u %u\n", once, api_Local_bump(shared, &local_status));
-		api_Local *fresh = api_local_or_new(NULL, &local_status);
-		printf("local fresh %u\n", api_Local_bump(fresh, &local_status));
-		printf("local either %u\n", api_bump_either(NULL, shared, &local_status));
-		const api_Local *froms[2] = {local, NULL};
-		const char *labels[2] = {"local later", "local later fresh"};
-		for (int i = 0; i < 2; i++) {
-			api_local_or_new_later_future *later = api_local_or_new_later(froms[i], &local_status);
-			api_Local *made = NULL;
-			while (local_status == 0 &&
-				   api_local_or_new_later_poll(later, (api_waker){0}, &made, &local_status) == API_POLL_PENDING) {
-			}
-			printf("%s %u\n", labels[i], made ? api_Local_bump(made, &local_status) : 0);
-			api_Local_free(made);
-			api_local_or_new_later_future_free(later);
-		}
-		if (local_status != 0) {
-			ok = false;
-		}
-		api_Local_free(fresh);
-		api_Local_free(shared);
-		api_Local_free(local);
-	}
-	return ok;
-}
 
 /* The Log callback: keeps even levels. */
 static bool log_line(void *data, uint8_t level, api_buf line) {
@@ -544,44 +360,6 @@ static void log_free(void *data) {
 	printf("freed\n");
 }
 
-/* A lent closure: adds data's amount to the counter lent for the call. */
-static bool edit(void *data, api_Counter *counter) {
-	DISCARD(api_Counter_add(counter, *(const uint64_t *)data, NULL, NULL, NULL));
-	return api_Counter_edited(counter, NULL) && api_Counter_get(counter, NULL) == 6;
-}
-
-/* Lent closures borrowing their object shared: one `Sync`, one not. */
-static uint32_t seven(void *data) {
-	(void)data;
-	return 7;
-}
-
-/* A lent closure of an inferred instance's type. */
-static uint32_t triple(void *data, uint32_t side) {
-	(void)data;
-	return side * 3;
-}
-
-static uint64_t visit(void *data, const api_Cursor *cursor) {
-	(void)data;
-	return api_Cursor_at(cursor, NULL) * 2;
-}
-
-static void print_visit(void *data, uint32_t at) {
-	(void)data;
-	printf("visit %u\n", at);
-}
-
-static uint32_t peek_tally(void *data, const api_Tally *tally) {
-	(void)data;
-	return api_Tally_bump(tally, NULL);
-}
-
-/* A lent closure, which Rust calls on another thread: keeps levels above data's. */
-static bool keep_line(void *data, uint8_t level, api_buf line) {
-	printf("filter %u %.*s\n", level, (int)line.len, (const char *)line.ptr);
-	return level > *(const uint8_t *)data;
-}
 
 /* Breaks a lent handle's contract: frees it, or moves its value out. */
 static bool free_lent(void *data, api_Counter *counter) {
@@ -597,617 +375,46 @@ static bool move_lent(void *data, api_Counter *counter) {
 	return false;
 }
 
-/* Bytes as Rust's `escape_ascii` prints those of a path. */
-static void print_escaped(const char *before, api_buf buf, const char *after) {
-	printf("%s", before);
-	for (size_t i = 0; i < buf.len; i++) {
-		uint8_t b = buf.ptr[i];
-		switch (b) {
-		case '\t':
-			printf("\\t");
-			break;
-		case '\r':
-			printf("\\r");
-			break;
-		case '\n':
-			printf("\\n");
-			break;
-		case '\\':
-		case '\'':
-		case '"':
-			printf("\\%c", b);
-			break;
-		default:
-			if (b >= 0x20 && b < 0x7f) {
-				putchar(b);
-			} else {
-				printf("\\x%02x", b);
-			}
-		}
-	}
-	printf("%s", after);
-	api_buf_free(buf);
+
+/* The transcript's own functions, which the generated script calls by the names
+ * transcript.rs gives them, defined after it, beside the helpers it defines. */
+static api_Log Print(void);
+static void channel(void);
+static void drive(void);
+static void readers(void);
+static void local_later(const api_Local *local);
+static api_buf hex(api_buf bytes);
+static api_buf escaped(api_buf path);
+static api_buf path_hex(api_buf path);
+static api_buf seconds(api_duration d);
+static uint64_t millis(api_duration d);
+static uint32_t code(uint32_t c);
+static api_vec_tls_Codec reversed(api_vec_tls_Codec list);
+static api_vec_u64 f64_bits(api_vec_f64 floats);
+static api_buf socket_hex(api_socket_addr addr);
+static api_buf ip_hex(api_ip_addr ip);
+static void numbers(api_buf what, api_Numbers n);
+static api_buf unspelled(void);
+
+#include "transcript.c"
+
+/* Each string a function of the transcript's returns is the script's to free. */
+
+static api_buf copied(const char *text, size_t len) {
+	return api_buf_copy((api_buf){.ptr = (const uint8_t *)text, .len = len});
 }
 
-/* A socket address, as Rust's Display prints the ones the script makes. */
-static void print_addr(api_socket_addr addr) {
-	if (!addr.v6) {
-		const uint8_t *ip = addr.addr.v4.ip.octets;
-		printf("%u.%u.%u.%u:%u", ip[0], ip[1], ip[2], ip[3], addr.addr.v4.port);
-		return;
-	}
-	/* Only the loopback, `::1`. */
-	printf("[::%u%%%u]:%u", addr.addr.v6.ip.octets[15], addr.addr.v6.scope_id, addr.addr.v6.port);
+/* Print's Log: keeps even levels, and says when Rust frees it. */
+static api_Log Print(void) {
+	static const api_Log_vtable vtable = {.free = log_free, .log = log_line};
+	return (api_Log){.vtable = &vtable};
 }
 
-/* Bytes in hex. */
-static void print_hex(const uint8_t *bytes, size_t len) {
-	for (size_t i = 0; i < len; i++) {
-		printf("%02x", bytes[i]);
-	}
-}
-
-/* A socket address as the script's socket_hex prints it. */
-static void print_socket_hex(api_socket_addr addr) {
-	if (!addr.v6) {
-		print_hex(addr.addr.v4.ip.octets, 4);
-		printf(":%u", addr.addr.v4.port);
-		return;
-	}
-	print_hex(addr.addr.v6.ip.octets, 16);
-	printf(":%u:%u:%u", addr.addr.v6.port, addr.addr.v6.flowinfo, addr.addr.v6.scope_id);
-}
-
-/* An IP address's bytes in hex, so its length shows its family. */
-static void print_ip_hex(api_ip_addr ip) {
-	if (ip.v6) {
-		print_hex(ip.ip.v6.octets, 16);
-	} else {
-		print_hex(ip.ip.v4.octets, 4);
-	}
-}
-
-/* A bound, as Rust's Debug prints it. */
-static void print_bound(api_bound_u64 bound) {
-	switch (bound.kind) {
-	case API_BOUND_INCLUDED:
-		printf("Included(%llu)", (unsigned long long)bound.value);
-		break;
-	case API_BOUND_EXCLUDED:
-		printf("Excluded(%llu)", (unsigned long long)bound.value);
-		break;
-	case API_BOUND_UNBOUNDED:
-		printf("Unbounded");
-		break;
-	}
-}
-
-static int script(void) {
-	printf("limit %llu\n", (unsigned long long)API_LIMIT);
-
-	api_Point start = {.x = 1, .y = 2};
-	api_Point p = api_Point_offset(&start, 2, 3);
-	printf("offset %d %d\n", p.x, p.y);
-	print("debug ", api_Point_debug(&p), "\n");
-	api_Point expected = {.x = 3, .y = 5};
-	printf("eq %s\n", api_Point_eq(&p, &expected) ? "true" : "false");
-	api_Point d = api_Point_default();
-	printf("default %d %d\n", d.x, d.y);
-
-	api_Counter *c = api_Counter_new(str("c"), 5);
-	printf("get %llu\n", (unsigned long long)api_Counter_get(c, NULL));
-	print("name ", api_Counter_name(c, NULL), "\n");
-	uint64_t v;
-	api_Error err;
-	if (api_Counter_add(c, 10, &v, &err, NULL)) {
-		printf("add ok %llu\n", (unsigned long long)v);
-	}
-	if (!api_Counter_add(c, 2000, &v, &err, NULL)) {
-		print("add err ", api_Error_to_string(&err), " ");
-		print("", api_Error_debug(&err), "\n");
-		api_Error_free(&err);
-	}
-	if (!api_Counter_sub(c, 20, &v, &err, NULL)) {
-		printf("sub err underflow by %llu ", (unsigned long long)err.underflow.by);
-		print("", api_Error_debug(&err), "\n");
-		api_Error_free(&err);
-	}
-	api_Counter_rename(c, str("d"), NULL);
-	print("name ", api_Counter_name(c, NULL), "\n");
-	printf("is d %s\n", api_Counter_is(c, str("d"), NULL) ? "true" : "false");
-	api_Counter *copy = api_Counter_clone(c, NULL);
-	DISCARD(api_Counter_add(copy, 1, NULL, NULL, NULL));
-	printf("clone %llu original %llu\n", (unsigned long long)api_Counter_get(copy, NULL),
-		   (unsigned long long)api_Counter_get(c, NULL));
-	api_Counter_free(copy);
-	print("debug ", api_Counter_debug(c, NULL), "\n");
-	api_Label label = api_Counter_into_label(c, (api_option_Point){.some = true, .value = p}, NULL);
-	api_Counter_free(c);
-	print("label ", api_Label_debug(&label), "\n");
-	api_Label_free(&label);
-	/* Empty text is not none: only a null pointer is. */
-	api_Note empty = {.text = {.ptr = (const uint8_t *)"", .len = 0}};
-	printf("note %s %s\n", api_has_text(empty) ? "true" : "false", api_has_text((api_Note){0}) ? "true" : "false");
-
-	/* A tuple returns through one out pointer per element. */
-	api_Counter *whole = api_Counter_new(str("s"), 7);
-	api_Counter *below, *above;
-	api_Counter_split(whole, 5, &below, &above, NULL);
-	api_Counter_free(whole);
-	print("split ", api_Counter_name(below, NULL), " ");
-	printf("%llu ", (unsigned long long)api_Counter_get(below, NULL));
-	print("", api_Counter_name(above, NULL), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(above, NULL));
-	api_Counter_free(below);
-	api_Counter_free(above);
-	api_Counter *one = api_Counter_new(str("o"), 3);
-	api_Counter *only;
-	api_only(one, &only, NULL);
-	api_Counter_free(one);
-	print("only ", api_Counter_name(only, NULL), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(only, NULL));
-	api_Counter_free(only);
-	uint8_t w8;
-	int16_t w16;
-	uint32_t w32;
-	uint64_t w64;
-	api_widths(98305, &w8, &w16, &w32, &w64);
-	printf("widths %u %d %u %llu\n", w8, w16, w32, (unsigned long long)w64);
-	uint64_t divisors[] = {2, 0};
-	for (int i = 0; i < 2; i++) {
-		uint64_t q, r;
-		if (api_divide(7, divisors[i], &q, &r, &err)) {
-			printf("divide %llu %llu\n", (unsigned long long)q, (unsigned long long)r);
-		} else {
-			print("divide err ", api_Error_to_string(&err), "\n");
-			api_Error_free(&err);
-		}
-	}
-	/* A tuple inside another type is a struct, its fields _0, _1, and so on. */
-	uint64_t spreads[] = {98305, 0};
-	for (int i = 0; i < 2; i++) {
-		api_option_tuple_u8_i16_u32_u64 spread = api_spread(spreads[i]);
-		if (spread.some) {
-			printf("spread %u %d %u %llu\n", spread.value._0, spread.value._1, spread.value._2,
-				   (unsigned long long)spread.value._3);
-		} else {
-			printf("spread none\n");
-		}
-	}
-	const char *needles[] = {"lo", "x"};
-	for (int i = 0; i < 2; i++) {
-		api_option_tuple_usize_usize found = api_find(str("hello"), str(needles[i]));
-		if (found.some) {
-			printf("find %zu %zu\n", found.value._0, found.value._1);
-		} else {
-			printf("find none\n");
-		}
-	}
-	api_Point row_points[] = {{.x = 1, .y = 2}, {.x = 3, .y = 3}};
-	api_vec_tuple_string_Shape_Point stat_rows = api_rows((api_vec_Point){.ptr = row_points, .len = 2});
-	printf("rows");
-	for (size_t i = 0; i < stat_rows.len; i++) {
-		/* The array's free frees each element's buffer. */
-		printf("%s%.*s ", i == 0 ? " " : ", ", (int)stat_rows.ptr[i]._0.len, (const char *)stat_rows.ptr[i]._0.ptr);
-		print("", api_Shape_debug(&stat_rows.ptr[i]._1), " ");
-		printf("%d %d", stat_rows.ptr[i]._2.x, stat_rows.ptr[i]._2.y);
-	}
-	printf("\n");
-	api_vec_tuple_string_Shape_Point_free(stat_rows);
-	/* Each handle in a tuple moves in, as one taken by value does. */
-	api_tuple_string_Counter meters[] = {
-		{._0 = str("low"), ._1 = api_Counter_new(str("l"), 1)},
-		{._0 = str("high"), ._1 = api_Counter_new(str("h"), 9)},
-	};
-	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2}, NULL);
-	api_Counter_free(meters[0]._1);
-	api_Counter_free(meters[1]._1);
-	api_vec_tuple_string_Counter ranked = api_Board_ranked(board, NULL);
-	printf("ranked");
-	for (size_t i = 0; i < ranked.len; i++) {
-		printf("%s%.*s ", i == 0 ? " " : ", ", (int)ranked.ptr[i]._0.len, (const char *)ranked.ptr[i]._0.ptr);
-		print("", api_Counter_name(ranked.ptr[i]._1, NULL), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(ranked.ptr[i]._1, NULL));
-	}
-	printf("\n");
-	api_vec_tuple_string_Counter_free(ranked);
-	api_Counter *best = api_Board_best(board, NULL);
-	print("best ", api_Counter_name(best, NULL), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(best, NULL));
-	api_Counter_free(best);
-	api_Board_free(board);
-	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
-	 * key once, the last kept. */
-	api_tuple_string_Point atlas_points[] = {
-		{._0 = str("b"), ._1 = {.x = 1, .y = 1}},
-		{._0 = str("ab"), ._1 = {.x = 2, .y = 3}},
-		{._0 = str("b"), ._1 = {.x = 4, .y = 4}},
-	};
-	uint32_t atlas_ids[] = {3, 1, 3};
-	api_Atlas loose = {
-		.points = {.ptr = atlas_points, .len = 3},
-		.ids = {.ptr = atlas_ids, .len = 3},
-	};
-	api_Atlas atlas = api_Atlas_with(&loose, str("c"), (api_Point){.x = 5, .y = 6});
-	printf("atlas");
-	for (size_t i = 0; i < atlas.points.len; i++) {
-		printf("%s%.*s ", i == 0 ? " " : ", ", (int)atlas.points.ptr[i]._0.len, (const char *)atlas.points.ptr[i]._0.ptr);
-		printf("%d %d", atlas.points.ptr[i]._1.x, atlas.points.ptr[i]._1.y);
-	}
-	printf("; ids");
-	for (size_t i = 0; i < atlas.ids.len; i++) {
-		printf(" %u", atlas.ids.ptr[i]);
-	}
-	printf("\n");
-	api_Atlas_free(&atlas);
-	/* Another crate's error crosses as its message. */
-	const char *port_texts[] = {"80", "x"};
-	for (size_t i = 0; i < 2; i++) {
-		uint16_t port;
-		api_buf port_err;
-		if (api_port(str(port_texts[i]), &port, &port_err)) {
-			printf("port %u\n", port);
-		} else {
-			print("port err ", port_err, "\n");
-		}
-	}
-	api_Span span = {
-		.bounds = {._0 = 2, ._1 = 10},
-		.named = {.some = true, .value = {._0 = str("s"), ._1 = API_SHAPE_SQUARE}},
-	};
-	api_tuple_u32_u32 lower_half, upper_half;
-	api_halves(span, &lower_half, &upper_half);
-	printf("halves %u %u %u %u ", lower_half._0, lower_half._1, upper_half._0, upper_half._1);
-	print("", api_Span_debug(&span), "\n");
-	uint32_t swapped_n;
-	api_buf swapped_text;
-	api_swapped((api_tuple_string_u32){._0 = str("t"), ._1 = 4}, &swapped_n, &swapped_text);
-	printf("swapped %u ", swapped_n);
-	print("", swapped_text, "\n");
-	api_option_tuple_option_u32 doubles[] = {
-		{.some = false},
-		{.some = true, .value = {._0 = {.some = false}}},
-		{.some = true, .value = {._0 = {.some = true, .value = 3}}},
-	};
-	for (int i = 0; i < 3; i++) {
-		api_option_tuple_option_u32 doubled = api_doubled(doubles[i]);
-		if (!doubled.some) {
-			printf("doubled None\n");
-		} else if (!doubled.value._0.some) {
-			printf("doubled Some((None,))\n");
-		} else {
-			printf("doubled Some((Some(%u),))\n", doubled.value._0.value);
-		}
-	}
-	/* A borrowed or boxed tuple of one is a tuple struct, not its element. */
-	uint8_t lent_bytes[] = {1, 2};
-	uint8_t boxed_bytes[] = {3};
-	api_tuple_bytes lent_one = api_lent_back((api_tuple_bytes){._0 = {.ptr = lent_bytes, .len = 2}});
-	api_tuple_bytes boxed_one = api_boxed_tuple((api_buf){.ptr = boxed_bytes, .len = 1});
-	api_buf both[] = {lent_one._0, boxed_one._0};
-	for (int i = 0; i < 2; i++) {
-		printf("%s[", i == 0 ? "lent back " : " boxed ");
-		for (size_t j = 0; j < both[i].len; j++) {
-			printf("%s%u", j == 0 ? "" : ", ", both[i].ptr[j]);
-		}
-		printf("]");
-		api_buf_free(both[i]);
-	}
-	printf("\n");
-	/* A borrowed string and an owned one share a tuple struct. */
-	api_option_tuple_string formal = api_title(true);
-	api_option_tuple_string informal = api_title(false);
-	api_option_tuple_string named = api_named(str("x"));
-	print("title Some((\"", formal.value._0, "\",)) ");
-	printf("%s ", informal.some ? "Some" : "None");
-	print("named Some((\"", named.value._0, "\",))\n");
-
-	/* Each lent counter is a new handle to a clone. */
-	/* A handle whose value moved in is still the caller's to free. */
-	api_Counter *moved = api_Counter_new(str("first"), 1);
-	api_Registry *registry = api_Registry_new(moved, NULL);
-	api_Counter_free(moved);
-	printf("last %s\n", api_Registry_last(registry, NULL) != NULL ? "true" : "false");
-	moved = api_Counter_new(str("last"), 2);
-	api_Registry_push(registry, moved, NULL);
-	api_Counter_free(moved);
-	api_Counter *first = api_Registry_first_get(registry, NULL);
-	DISCARD(api_Counter_add(first, 10, NULL, NULL, NULL));
-	api_Counter *lent = api_Registry_first_get(registry, NULL);
-	printf("first %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
-		   (unsigned long long)api_Counter_get(first, NULL));
-	api_Counter_free(lent);
-	api_Counter_free(first);
-	api_Counter *last = api_Registry_last(registry, NULL);
-	DISCARD(api_Counter_add(last, 10, NULL, NULL, NULL));
-	lent = api_Registry_last(registry, NULL);
-	printf("last %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
-		   (unsigned long long)api_Counter_get(last, NULL));
-	api_Counter_free(lent);
-	api_Counter_free(last);
-	uint64_t by = 5;
-	bool edited = api_Registry_edit(registry, edit, &by, NULL);
-	first = api_Registry_first_get(registry, NULL);
-	printf("edit %s %llu\n", edited ? "true" : "false", (unsigned long long)api_Counter_get(first, NULL));
-	api_Counter_free(first);
-	/* A setter moves an object in, as assignment does, leaving the handle to be freed. */
-	api_Counter *second = api_Counter_new(str("second"), 3);
-	api_Registry_first_set(registry, second, NULL);
-	api_Counter_free(second);
-	first = api_Registry_first_get(registry, NULL);
-	printf("set first %llu ", (unsigned long long)api_Counter_get(first, NULL));
-	print("", api_Counter_name(first, NULL), "\n");
-	api_Counter_free(first);
-	printf("walk %llu\n", (unsigned long long)api_walk(3, visit, NULL));
-	printf("each %u\n", api_each(2, print_visit, NULL));
-	printf("offset %u\n", api_offset(seven, NULL, 3));
-	printf("shift %u\n", api_shift(seven, NULL, 4));
-	api_Registry_free(registry);
-
-	/* A type generic only over lifetimes is a handle to its 'static form. */
-	api_Name *name = api_Name_owned(str("a"));
-	api_Name *b = api_Name_owned(str("b"));
-	api_Name *joined = api_Name_join(name, b, NULL);
-	api_Name_free(b);
-	print("joined ", api_Name_as_str(joined, NULL), " ");
-	print("", api_Name_debug(joined, NULL), " ");
-	printf("%s\n", api_Name_eq(joined, name, NULL) ? "true" : "false");
-	api_Name_free(name);
-	char text[] = "c";
-	api_Name_rename(joined, str(text), NULL);
-	/* The name took a copy: the caller's buffer is its own again. */
-	text[0] = 'x';
-	print("renamed ", api_Name_as_str(joined, NULL), "\n");
-	api_Name *dd = api_Name_owned(str("dd"));
-	api_Name *longest = api_longer(joined, dd, NULL);
-	print("longer ", api_Name_as_str(longest, NULL), "\n");
-	api_Name_free(longest);
-	api_Name_free(dd);
-	api_Name_free(joined);
-	api_Name *unnamed = api_unnamed();
-	print("unnamed [", api_Name_as_str(unnamed, NULL), "]\n");
-	api_Name_free(unnamed);
-	/* Two buffers of equal text, interned into one string. */
-	char lit_text[] = "lit", again_text[] = "lit";
-	api_Name *lit = api_Name_borrowed(str(lit_text));
-	api_Name *again = api_Name_borrowed(str(again_text));
-	api_Name *other = api_Name_borrowed(str("other"));
-	print("borrowed ", api_Name_as_str(lit, NULL), " ");
-	printf("%s %s\n", api_Name_shares(lit, again, NULL) ? "true" : "false", api_Name_shares(lit, other, NULL) ? "true" : "false");
-	api_Name_free(lit);
-	api_Name_free(again);
-	api_Name_free(other);
-
-	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
-	printf("reach %u\n", (unsigned)api_reach(2, 5));
-	api_option_u128 scaled[] = {
-		api_scaled((api_u128){.lo = UINT64_MAX, .hi = UINT64_MAX}, 1),
-		api_scaled((api_u128){.lo = 1, .hi = 1}, 1ULL << 63),
-		api_scaled((api_u128){.hi = 1ULL << 63}, 2),
-	};
-	printf("scaled");
-	for (size_t i = 0; i < 3; i++) {
-		if (scaled[i].some) {
-			printf(" %016llx%016llx", (unsigned long long)scaled[i].value.hi, (unsigned long long)scaled[i].value.lo);
-		} else {
-			printf(" none");
-		}
-	}
-	printf("\n");
-	api_array_u8_4 sum, unparsed;
-	api_buf unparsed_err;
-	if (!api_fingerprint(str("deadbeef"), &sum, &unparsed_err) || api_fingerprint(str("zz"), &unparsed, &unparsed_err)) {
-		return 1;
-	}
-	api_Digest *digest = api_Digest_new();
-	api_Digest_sum_set(digest, sum, NULL);
-	api_array_u8_4 got = api_Digest_sum_get(digest, NULL);
-	api_array_u8_4 masked = api_Digest_flipped(digest, (api_array_u8_4){{0xff, 0, 0xff, 0}}, NULL);
-	printf("digest %02x%02x%02x%02x %02x%02x%02x%02x", got.items[0], got.items[1], got.items[2], got.items[3],
-		masked.items[0], masked.items[1], masked.items[2], masked.items[3]);
-	print(" ", unparsed_err, "\n");
-	api_Digest_free(digest);
-	api_Batch *batch = api_Batch_new();
-	unsigned accepted = 0;
-	for (uint32_t v = 1; v <= 5; v++) {
-		accepted += api_Batch_push(batch, v, NULL);
-	}
-	api_Batch_2 *batch2 = api_pair();
-	unsigned paired = 0;
-	for (uint32_t v = 1; v <= 3; v++) {
-		paired += api_Batch_2_push(batch2, v, NULL);
-	}
-	unsigned long long emptied = api_drain_4(batch, NULL);
-	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch, NULL), accepted, emptied,
-		(unsigned long long)api_drain_4(batch, NULL), api_Batch_2_capacity(batch2, NULL), paired, (unsigned long long)api_drain_2(batch2, NULL));
-	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2, NULL), api_capacities_2_2(batch2, batch2, NULL));
-	api_Batch_2_free(batch2);
-	api_Batch_free(batch);
-	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
-	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
-	api_bounds_u64 ranges[] = {
-		{.start = {API_BOUND_INCLUDED, 2}, .end = {API_BOUND_EXCLUDED, 5}},
-		{.start = {API_BOUND_INCLUDED, 2}, .end = {API_BOUND_INCLUDED, 5}},
-		{.start = {API_BOUND_INCLUDED, 3}},
-		{.start = {API_BOUND_UNBOUNDED, 0}},
-		{.start = {API_BOUND_EXCLUDED, 2}, .end = {API_BOUND_INCLUDED, 4}},
-	};
-	printf("count");
-	for (int i = 0; i < 5; i++) {
-		printf(" %zu", api_count(ranges[i]));
-	}
-	printf("\n");
-	printf("end ");
-	print_bound(api_end(3));
-	printf(" ");
-	print_bound(api_end(0));
-	printf("\n");
-	api_bound_u64 ends_start, ends_end;
-	api_ends(3, &ends_start, &ends_end);
-	printf("ends ");
-	print_bound(ends_start);
-	printf(" ");
-	print_bound(ends_end);
-	printf("\n");
-	uint64_t belows[] = {2, 5};
-	for (int i = 0; i < 2; i++) {
-		uint64_t n;
-		api_bounds_u64 outside;
-		if (api_below(belows[i], 3, &n, &outside)) {
-			printf("below %llu\n", (unsigned long long)n);
-		} else {
-			printf("below err ");
-			print_bound(outside.start);
-			printf(" ");
-			print_bound(outside.end);
-			printf("\n");
-		}
-	}
-	api_Window window = {.range = {.start = 2, .end = 8}, .end = api_end(5)};
-	printf("window %s %s ", api_Window_contains(&window, 4) ? "true" : "false",
-		   api_Window_contains(&window, 6) ? "true" : "false");
-	print("", api_Window_debug(&window), "\n");
-
-	print("", api_greet(str("x"), API_SHAPE_SQUARE), "\n");
-	printf("len %zu\n", api_len(str("abc")));
-	api_buf binary = {.ptr = (const uint8_t *)"\xff\0a", .len = 3};
-	print("hex ", api_hex(binary), "\n");
-	print("timed hex ", api_timed_hex(binary), "\n");
-	print("sample hex ", api_sample_hex(binary), "\n");
-	print("queued hex ", api_queued_hex(binary), "\n");
-	print("tick ", api_tick_name((api_Label){.name = str("tick")}), "\n");
-	print("rooted ", api_rooted_name((api_Label){.name = str("rooted")}), "\n");
-	print("stored ", api_stored_text(str("stored")), "\n");
-	print("layer ", api_layer_name((api_Label){.name = str("layer")}), "\n");
-	api_Event events[3] = {
-		{.tag = API_EVENT_MOVED, .moved = {._0 = p}},
-		{.tag = API_EVENT_NAMED, .named = {.name = str("n")}},
-		{.tag = API_EVENT_DONE},
-	};
-	for (int i = 0; i < 3; i++) {
-		print("", api_describe(events[i]), "\n");
-	}
-
-	/* A `Copy` value passed by value is copied, so it stays usable, and frees nothing. */
-	api_Stamp stamp = api_Stamp_from_millis(2500);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
-	api_Stamp later = api_Stamp_from_millis(3000);
-	printf("later %s\n", api_Stamp_later(&later, stamp) ? "true" : "false");
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
-	api_Stamp rounded = api_Stamp_whole(&stamp);
-	print("whole ", api_Stamp_debug(&rounded), "\n");
-	api_Message *message = api_Message_new((api_option_Stamp){.some = true, .value = stamp}, str("body"));
-	print("payload ", api_Message_payload_get(message, NULL), "\n");
-	api_option_Stamp read = api_Message_stamp_get(message, NULL);
-	print("stamp ", api_Stamp_debug(&read.value), "\n");
-	printf("sent %s\n", api_Message_sent(message, NULL) ? "true" : "false");
-	/* Setters assign in place: the bytes are copied in, and a `Copy` value copied. */
-	api_Stamp reset = api_Stamp_from_millis(4000);
-	api_Message_stamp_set(message, (api_option_Stamp){.some = true, .value = reset}, NULL);
-	api_Message_payload_set(message, str("edited"), NULL);
-	print("payload ", api_Message_payload_get(message, NULL), "\n");
-	read = api_Message_stamp_get(message, NULL);
-	print("stamp ", api_Stamp_debug(&read.value), "\n");
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&reset));
-	api_Message_stamp_set(message, (api_option_Stamp){0}, NULL);
-	printf("stamp %s\n", api_Message_stamp_get(message, NULL).some ? "true" : "false");
-	api_Message_free(message);
-
-	/* A value past a word, copied across: a closure takes and returns one by value. */
-	api_option_Moment made = api_Moment_new(1500, 1000);
-	api_Moment moment = made.value;
-	printf("moment %llu %s\n", (unsigned long long)api_Moment_millis(&moment),
-		   api_Moment_new(1, 0).some ? "false" : "true");
-	api_Moment shifted = api_shifted(moment, moment_after, NULL);
-	api_Moment later_moment = api_Moment_after(&moment, 500);
-	printf("shifted %llu %s\n", (unsigned long long)api_Moment_millis(&shifted),
-		   api_Moment_eq(&shifted, &later_moment) ? "true" : "false");
-	api_Moment wrapped = api_Moment_after(&moment, UINT64_MAX);
-	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
-		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
-
-	/* A value with padding, or bytes that vary, is a handle, as no table says where padding is. */
-	api_Gap *gap = api_Gap_new(7, 3);
-	api_Gap *same_gap = api_Gap_new(7, 3);
-	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(gap), api_Gap_eq(gap, same_gap) ? "true" : "false");
-	api_Gap_free(same_gap);
-	api_Gap_free(gap);
-	api_Berth *berth = api_Berth_new((api_option_u32){.some = true, .value = 4});
-	api_Berth *empty_berth = api_Berth_new((api_option_u32){0});
-	api_option_u32 berth_at = api_Berth_at(berth);
-	printf("berth Some(%u) %s\n", berth_at.value, api_Berth_at(empty_berth).some ? "Some" : "None");
-	api_Berth_free(empty_berth);
-	api_Berth_free(berth);
-
-	/* A `Copy` type changed in place is a value, whose change reaches only the copy changed. */
-	api_Score score = api_Score_of(2);
-	api_Score step = api_Score_of(3);
-	api_Score_add(&score, step);
-	api_Score_add(&score, step);
-	api_Score doubled_score = api_Score_doubled(&step);
-	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(&score),
-		   (unsigned long long)api_Score_count(&doubled_score), (unsigned long long)api_Score_count(&step));
-	api_Score score_copy = score;
-	uint64_t taken = api_Score_take(&score_copy);
-	printf("taken %llu %llu %llu\n", (unsigned long long)taken, (unsigned long long)api_Score_count(&score_copy),
-		   (unsigned long long)api_Score_count(&score));
-	api_Score other_score = step;
-	uint64_t before0, before1;
-	api_Score_absorb(&score_copy, other_score, &other_score, &before0, &before1);
-	printf("absorbed %llu %llu %llu %llu %llu\n", (unsigned long long)before0, (unsigned long long)before1,
-		   (unsigned long long)api_Score_count(&score_copy), (unsigned long long)api_Score_count(&other_score),
-		   (unsigned long long)api_Score_count(&step));
-	api_Hits hits = api_Hits_of(1, 2);
-	api_Hits kept = hits;
-	api_Hits_add(&hits, api_Hits_of(10, 20));
-	api_Hits_hits_set(&hits, 7);
-	printf("hits %llu %llu %llu %llu %s\n", (unsigned long long)api_Hits_hits_get(&hits),
-		   (unsigned long long)api_Hits_misses_get(&hits), (unsigned long long)api_Hits_hits_get(&kept),
-		   (unsigned long long)api_Hits_misses_get(&kept),
-		   api_Hits_eq(&hits, &kept) ? "true" : "false");
-	api_Hits counted = kept;
-	bool counted_same = api_Hits_eq_(&counted, kept);
-	printf("counted %s %llu\n", counted_same ? "true" : "false", (unsigned long long)api_Hits_hits_get(&counted));
-	api_Extent extent = api_Extent_new(5, 3);
-	api_Extent extent_start = extent;
-	uint64_t old = api_Extent_slide(&extent, 10);
-	api_Extent_start_set(&extent, api_Extent_start_get(&extent) + 1);
-	printf("extent %llu %llu %llu %llu %llu\n", (unsigned long long)old,
-		   (unsigned long long)api_Extent_start_get(&extent), (unsigned long long)api_Extent_end(&extent),
-		   (unsigned long long)api_Extent_start_get(&extent_start), (unsigned long long)api_Extent_end(&extent_start));
-	api_Weighted weighted = {.score = step, .weight = 4};
-	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted),
-		   (unsigned long long)(api_Score_count(&weighted.score) + api_Score_count(&step)));
-	api_Weighted_free(&weighted);
-	/* A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move. */
-	api_Mark *mark = api_Mark_of(1);
-	api_Mark_add(mark, 2, NULL);
-	api_Counter *hefted = api_Counter_new(str("w"), 1);
-	printf("heft %llu\n", (unsigned long long)api_heft((api_tuple_Mark_bytes){mark, str("ab")},
-							 (api_Parcel){.mark = mark, .payload = str("abc")},
-							 (api_tuple_Counter_bytes){hefted, str("abcd")}, NULL));
-	api_Counter_free(hefted);
-	/* A value's `&mut self` beside a checked handle. */
-	api_Score noted = api_Score_of(2);
-	api_Mark *noted_by = api_Mark_of(5);
-	uint64_t noted_before = api_Score_note(&noted, noted_by, NULL);
-	printf("noted %llu %llu\n", (unsigned long long)noted_before, (unsigned long long)api_Score_count(&noted));
-	api_Mark_free(noted_by);
-	api_Mark_free(mark);
-
-	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
-	uint8_t levels[] = {1, 2, 3, 4};
-	api_buf lines = {.ptr = levels, .len = sizeof levels};
-	printf("kept %u\n", api_emit((api_Log){.vtable = &print_log}, lines));
-	api_Logger *logger = api_Logger_new((api_Log){.vtable = &print_log});
-	printf("write %s\n", api_Logger_write(logger, str("hi")) ? "true" : "false");
-	api_Logger_free(logger);
-	printf("dropped\n");
-	uint8_t threshold = 2;
-	printf("filtered %u\n", api_filter(lines, keep_line, &threshold));
-
+/* A channel's futures, polled by hand. */
+static void channel(void) {
 	api_Channel *channel = api_Channel_new();
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	api_Error err;
 	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 	api_buf payload;
 	printf("recv pending %s\n", api_Channel_recv_poll(recv, waker, &payload) == API_POLL_PENDING ? "true" : "false");
@@ -1319,880 +526,340 @@ static int script(void) {
 	returned = api_Waiter_context(waiter, NULL);
 	returned.wake(returned.data);
 	printf("woken %d\n", wakes);
+
 	/* Passed back, it moves into Rust as any waker does. */
 	int woken = wakes;
 	api_Channel_notify(channel, returned, NULL);
 	api_Waiter_free(waiter);
 	api_Channel_send(channel, str("again"), NULL);
 	if (wakes != woken + 1) {
-		return 1;
+		tr_fail("a waker passed back did not wake");
 	}
 	api_Channel_clear(channel, NULL);
 	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
 	take = api_Channel_poll_take(channel, NULL);
 	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
-		return 1;
+		tr_fail("a poll_take of an empty channel was ready");
 	}
 	woken = wakes;
 	api_Channel_send(channel, str("later"), NULL);
 	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
-		return 1;
+		tr_fail("a pending poll_take's waiter did not wake");
 	}
 	api_buf_free(payload);
 	api_Channel_poll_take_future_free(take);
 	api_Channel_free(channel);
+	/* Each future dropped its waker once it finished, and Rust the one it was given. */
+	if (drops != 15) {
+		tr_fail("a waker was not dropped");
+	}
+}
 
-	/* A value that holds itself is an object. */
-	api_Node *list = api_Node_new(1, NULL, NULL);
-	api_Node_push(list, 2, NULL);
-	printf("node %llu\n", (unsigned long long)api_Node_sum(list, NULL));
-	api_Node_free(list);
+/* A kept closure: called again at the instant it asks for, then once its waiter wakes. */
+static void drive(void) {
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	api_Moment start = api_Moment_new(0, 1000).value;
+	driver d = {.start = start};
+	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
+	api_buf stopped;
+	int woken = wakes;
+	while (api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING) {
+	}
+	print("drive ", stopped, "\n");
+	if (!d.freed || wakes != woken + 1) {
+		tr_fail("drive kept its closure, or its waiter did not wake");
+	}
+	api_drive_future_free(drive);
+}
 
-	api_Tally *tally = api_Tally_new();
-	api_Tally_bump(tally, NULL);
-	uint32_t count = api_Tally_bump(tally, NULL);
-	printf("tally %u %s\n", count, api_Tally_eq(tally, tally, NULL) ? "true" : "false");
-	printf("both %u\n", api_bump_both(tally, tally, NULL));
-	printf("peek %u\n", api_peek(tally, peek_tally, NULL, NULL));
-	api_Tally_free(tally);
+/* Readers C implements: one over bytes, one whose reads fail, and a seek from the start
+ * past INT64_MAX, which reaches the reader whole, as `Cursor` takes one. */
+static void readers(void) {
+	memory hello = {.bytes = "hello world", .len = 11};
+	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
+	tail((api_foreign_reader){.read = broken_read, .seek = broken_seek, .data = NULL});
+	memory empty = {.bytes = "", .len = 0};
+	uint64_t landed = 0;
+	api_buf landed_err;
+	if (api_seek_to((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &empty}, UINT64_MAX, &landed,
+			&landed_err)) {
+		printf("sought %llu\n", (unsigned long long)landed);
+	} else {
+		print("sought error ", landed_err, "\n");
+	}
+}
 
-	/* Another export's types, which this export's function takes and returns. */
-	api_Area *small = api_Area_new((api_Size){.width = 2, .height = 3});
-	api_Area *area = api_grow(small, 1);
-	api_Area_free(small);
-	api_Size size = api_Area_size(area);
-	printf("area %u %u %llu\n", size.width, size.height, (unsigned long long)api_Area_pixels(area));
-	api_Area_free(area);
-
-	/* Generic types, each at the instances it infers, named by their arguments. */
-	api_Pair_u32 pair = {.left = 2, .right = 5};
-	api_Pair_u32 swapped = api_Pair_u32_swap(&pair);
-	printf("pair %u %u sum %u ", swapped.left, swapped.right, api_Pair_u32_sum(&pair));
-	print("", api_Pair_u32_debug(&pair), " ");
-	printf("%s\n", api_Pair_u32_eq(&pair, &swapped) ? "true" : "false");
-	api_Pair_u32 twins = {.left = 7, .right = 7};
-	printf("even %s %s\n", api_Pair_u32_even(&pair) ? "true" : "false",
-	       api_Pair_u32_even(&twins) ? "true" : "false");
-	/* An instance renamed alone, beside another of `Pair` that keeps its name. */
-	api_Pair_Size_u8 sizes = api_tag((api_Size){.width = 1, .height = 2}, 3);
-	api_Pair_u8_Size flipped = api_Pair_Size_u8_swap(&sizes);
-	printf("sized %u %u ", flipped.left, flipped.right.width);
-	print("", api_Pair_u8_Size_debug(&flipped), "\n");
-	api_Pair_u32 byte = {.left = 258, .right = 9};
-	api_Pair_u8_Size beside = api_Pair_u32_beside_Size(&byte, sizes.left);
-	printf("beside %u ", beside.left);
-	print("", api_Pair_u8_Size_debug(&beside), "\n");
-	/* At its default, named as the type itself. */
-	api_Stack *stack = api_Stack_new();
-	const char *names[] = {"a", "b"};
+/* Futures of a value that is not Send, polled on this thread until each is ready. */
+static void local_later(const api_Local *local) {
+	api_status status = 0;
+	const api_Local *froms[2] = {local, NULL};
+	const char *labels[2] = {"local later", "local later fresh"};
 	for (int i = 0; i < 2; i++) {
-		api_Counter *pushed = api_Counter_new(str(names[i]), (uint64_t)i + 1);
-		api_Stack_push(stack, pushed, NULL);
-		api_Counter_free(pushed);
+		api_local_or_new_later_future *later = api_local_or_new_later(froms[i], &status);
+		api_Local *made = NULL;
+		while (status == 0 && api_local_or_new_later_poll(later, (api_waker){0}, &made, &status) == API_POLL_PENDING) {
+		}
+		printf("%s %u\n", labels[i], made ? api_Local_bump(made, &status) : 0);
+		api_Local_free(made);
+		api_local_or_new_later_future_free(later);
 	}
-	api_Counter *top = api_Stack_pop(stack, NULL);
-	printf("stack %zu Some(%llu)", api_Stack_depth(stack, NULL), (unsigned long long)api_Counter_get(top, NULL));
-	api_Counter_free(top);
-	api_Counter *next = api_Stack_pop(stack, NULL);
-	printf(" %s", next != NULL ? "true" : "false");
-	api_Counter_free(next);
-	printf(" %s\n", api_Stack_pop(stack, NULL) == NULL ? "true" : "false");
-	/* Generic functions and methods, at each implementation of the trait bounding them, by
-	   reference, which leaves C its handle. */
-	api_Counter *from_point = api_Counter_seeded_Point(str("p"), (api_Point){.x = -3, .y = 4});
-	api_Counter *from_size = api_Counter_seeded_Size(str("s"), (api_Size){.width = 5, .height = 6});
-	api_Counter *from_counter = api_Counter_seeded_Counter(str("c"), from_point, NULL);
-	/* Two instances whose arguments share a last segment: one takes its module too. */
-	api_Counter *from_polar = api_Counter_seeded_polar_Point(str("q"), (api_polar_Point){.turns = 1, .distance = 2});
-	printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", (unsigned long long)api_Counter_get(from_point, NULL),
-	       (unsigned long long)api_Counter_get(from_size, NULL), (unsigned long long)api_Counter_get(from_counter, NULL),
-	       (unsigned long long)api_Counter_get(from_polar, NULL),
-	       (unsigned long long)api_Stack_depth_past_Point(stack, (api_Point){.x = 1, .y = 2}, NULL),
-	       (unsigned long long)api_seeds_Point_Size((api_Size){.width = 2, .height = 3}));
-	api_Counter_free(from_point);
-	api_Counter_free(from_size);
-	api_Counter_free(from_counter);
-	api_Counter_free(from_polar);
-	api_Stack_free(stack);
-
-	/* A trait implemented for `Point` and `&Point` apart: one instance. */
-	printf("weigh %u\n", api_weigh_Point((api_Point){.x = -1, .y = 2}));
-	/* A function named as the type it returns, and one named as a type it does not. */
-	printf("polar %u %s area %llu\n", api_polar_point(2).value.distance, api_polar_point(0).some ? "false" : "true",
-	       (unsigned long long)api_area((api_Size){.width = 2, .height = 3}));
-	printf("wind %u\n", api_wind((api_PolarTurn){.whole = 2}, (api_polar_Turn){.part = 3}));
-	/* Names that clash in some language, each kept apart there. */
-	api_clash_Tone tone = {.hz = 440};
-	api_clash_TONE loud = {.db = 3};
-	api_Cancelled cancelled = {.step = 2};
-	print("clash ", api_clash_Tone_debug(&tone), " ");
-	print("", api_clash_TONE_debug(&loud), " ");
-	print("", api_Cancelled_debug(&cancelled), "");
-	api_clash_Span clash_span = {.width = 4};
-	printf(" span %u ", api_clash_Span_width(&clash_span));
-	print("", api_clash_Span_to_string_(&clash_span), " ");
-	print("", api_clash_Span_to_string(&clash_span), "");
-	api_clash_Store *clash_store = api_clash_Store_new(7);
-	printf(" store %u %u", api_clash_Store_free_(clash_store), api_clash_Store_close(clash_store));
-	api_clash_Store_free(clash_store);
-	api_option_tuple_tuple_u8_u16_u32 clash_pair = {.some = true, .value = {._0 = {._0 = 1, ._1 = 2}, ._1 = 3}};
-	api_option_tuple_tuple_u8_u16_u32_ clash_triple = {.some = true, .value = {._0 = {._0 = 1, ._1 = 2, ._2 = 3}}};
-	printf(" audio %u %u nested %u\n", api_clash_audio_encoder_finish(), api_clash_audio_encoder_finish_(),
-	       api_clash_nested(clash_pair, clash_triple));
-	/* Instances that name each other, and one made only by an impl of it. */
-	api_Outer_Inner_u8 *outer = api_Outer_Inner_u8_new(4);
-	printf("cross %u outer %u\n",
-	       api_cross((api_Left_Right_u8){.value = {.value = 1}}, (api_Right_Left_u8){.value = {.value = 2}}),
-	       api_Outer_Inner_u8_get(outer));
-	api_Outer_Inner_u8_free(outer);
-	/* A bound that outlives the call takes a value, and an instance only a constant names. */
-	printf("kept %llu boxed %u\n", (unsigned long long)api_kept_Point((api_Point){.x = 1, .y = -2}), api_BOXED().value);
-	printf("keep %d\n", api_keep_Point((api_Point){.x = 1, .y = -2}));
-	api_Point five = {.x = 5, .y = 2};
-	printf("kept or %d %d keeper %d\n", api_kept_or_Point((api_option_Point){.some = true, .value = five}),
-		api_kept_or_Point((api_option_Point){0}), api_keeper_Point(five));
-	/* Inferred instances taking a lent closure and a foreign implementation, and one only
-	 * its impl of a trait names. */
-	api_Pair_u32 sides = {.left = 2, .right = 5};
-	printf("apply %u\n", api_apply_u32(sides, triple, NULL));
-	printf("report %u\n", api_report_u32(sides, (api_Log){.vtable = &print_log}));
-	printf("wrapped %llu\n", (unsigned long long)api_kept_Wrap_u32((api_Wrap_u32){.value = 4}));
-	printf("keeps %u\n", api_keeps((api_Log){.vtable = &print_log}).value);
-
-	/* Its Drop runs when C frees the handle, not before. */
-	api_Token *token = api_Token_new(7);
-	printf("token %u dropped %u\n", api_Token_id_get(token, NULL), api_dropped());
-	api_Token_free(token);
-	printf("dropped %u\n", api_dropped());
-
-	/* A field and the method of its name, each its own function. */
-	api_Retry *retry = api_Retry_new((api_option_u32){.some = true, .value = 5});
-	api_option_u32 limit = api_Retry_limit_get(retry, NULL);
-	printf("retry %d %u %u %u\n", limit.some, limit.value, api_Retry_limit(retry, NULL), api_Retry_delay(retry, NULL));
-	/* The renamed field's setter, named as its getter. */
-	api_Retry_limit_set(retry, (api_option_u32){0}, NULL);
-	printf("retry %u\n", api_Retry_limit(retry, NULL));
-	api_Retry_free(retry);
-	api_Slot_u8 *slot = api_Slot_u8_new(200);
-	printf("slot %u\n", api_Slot_u8_value(slot));
-	api_Slot_u8_free(slot);
-	/* Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s. */
-	api_Url *base;
-	api_buf parse_err;
-	if (!api_Url_parse(str("https://example.com/a/b"), &base, &parse_err)) {
-		return 1;
+	if (status != 0) {
+		tr_fail("a local's future failed");
 	}
-	print("url ", api_Url_to_string(base, NULL), " host ");
-	api_buf host = api_host(base, NULL);
-	if (host.ptr != NULL) {
-		print("Some(\"", host, "\")\n");
+}
+
+/* Bytes in hex, two digits each. */
+static api_buf hex(api_buf bytes) {
+	char text[256];
+	size_t n = 0;
+	for (size_t i = 0; i < bytes.len && n + 3 <= sizeof text; i++) {
+		n += (size_t)snprintf(text + n, sizeof text - n, "%02x", bytes.ptr[i]);
+	}
+	return copied(text, n);
+}
+
+/* A path's bytes as `escape_ascii` prints them. */
+static api_buf escaped(api_buf path) {
+	tr_text t = {0};
+	for (size_t i = 0; i < path.len; i++) {
+		uint8_t b = path.ptr[i];
+		switch (b) {
+		case '\t':
+			tr_str(&t, "\\t");
+			break;
+		case '\r':
+			tr_str(&t, "\\r");
+			break;
+		case '\n':
+			tr_str(&t, "\\n");
+			break;
+		case '\\':
+		case '\'':
+		case '"':
+			tr_fmt(&t, "\\%c", b);
+			break;
+		default:
+			if (b >= 0x20 && b < 0x7f) {
+				tr_put(&t, (const char *)&b, 1);
+			} else {
+				tr_fmt(&t, "\\x%02x", b);
+			}
+		}
+	}
+	return tr_done(&t);
+}
+
+static api_buf path_hex(api_buf path) {
+	return hex(path);
+}
+
+/* A duration as its seconds and nine digits of nanoseconds. */
+static api_buf seconds(api_duration d) {
+	char text[64];
+	int n = snprintf(text, sizeof text, "%llu.%09u", (unsigned long long)d.secs, (unsigned)d.nanos);
+	return copied(text, (size_t)n);
+}
+
+/* A duration in whole milliseconds. */
+static uint64_t millis(api_duration d) {
+	return d.secs * 1000 + d.nanos / 1000000;
+}
+
+/* A char's code point. */
+static uint32_t code(uint32_t c) {
+	return c;
+}
+
+/* The list reversed in place, a view of it: the script frees the list it passed. */
+static api_vec_tls_Codec reversed(api_vec_tls_Codec list) {
+	api_tls_Codec **items = (api_tls_Codec **)list.ptr;
+	for (size_t i = 0; i < list.len / 2; i++) {
+		api_tls_Codec *swap = items[i];
+		items[i] = items[list.len - 1 - i];
+		items[list.len - 1 - i] = swap;
+	}
+	return (api_vec_tls_Codec){.ptr = list.ptr, .len = list.len};
+}
+
+/* Each float's bits, a view of storage of its own. */
+static api_vec_u64 f64_bits(api_vec_f64 floats) {
+	static uint64_t bits[64];
+	if (floats.len > sizeof bits / sizeof bits[0]) {
+		tr_fail("f64_bits of too many floats");
+	}
+	for (size_t i = 0; i < floats.len; i++) {
+		memcpy(&bits[i], &floats.ptr[i], sizeof bits[i]);
+	}
+	return (api_vec_u64){.ptr = bits, .len = floats.len};
+}
+
+static void put_hex(tr_text *t, const uint8_t *bytes, size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		tr_fmt(t, "%02x", bytes[i]);
+	}
+}
+
+/* A socket address as its IP's bytes in hex, its port, flow label, and scope, each
+ * IPv6's alone, apart by colons. */
+static api_buf socket_hex(api_socket_addr addr) {
+	tr_text t = {0};
+	if (!addr.v6) {
+		put_hex(&t, addr.addr.v4.ip.octets, 4);
+		tr_fmt(&t, ":%u", addr.addr.v4.port);
 	} else {
-		printf("None\n");
+		put_hex(&t, addr.addr.v6.ip.octets, 16);
+		tr_fmt(&t, ":%u:%u:%u", addr.addr.v6.port, addr.addr.v6.flowinfo, addr.addr.v6.scope_id);
 	}
-	api_Url *resolved;
-	api_buf resolve_err;
-	api_Url *base_clone = api_Url_clone(base, NULL);
-	if (api_resolve(base_clone, str("c?d"), &resolved, &resolve_err, NULL)) {
-		print("resolve ", api_Url_to_string(resolved, NULL), " ");
-		printf("%s\n", api_Url_eq(resolved, base, NULL) ? "true" : "false");
-		api_Url_free(resolved);
-	} else {
-		print("resolve err ", resolve_err, "\n");
-	}
-	api_Url_free(base_clone);
-	api_Url_free(base);
-	api_Url *bad;
-	if (api_Url_parse(str("no scheme"), &bad, &parse_err)) {
-		print("parse ", api_Url_to_string(bad, NULL), "\n");
-		api_Url_free(bad);
-	} else {
-		print("parse err ", parse_err, "\n");
-	}
+	return tr_done(&t);
+}
 
-	api_socket_addr addrs[2] = {
-		{.addr.v4 = {.ip = {{127, 0, 0, 1}}, .port = 8080}},
-		{.v6 = true, .addr.v6 = {.ip = {{[15] = 1}}, .port = 443, .scope_id = 3}},
-	};
-	api_vec_u16 ports = api_ports((api_vec_socket_addr){.ptr = addrs, .len = 2});
-	printf("ports [%u, %u]\n", ports.ptr[0], ports.ptr[1]);
-	api_vec_u16_free(ports);
-	api_buf peer_names[] = {str("a"), str("b")};
-	api_Peer peer_start = {.addr = addrs[1], .names = {.ptr = peer_names, .len = 2}};
-	api_Peer peer = api_Peer_next(&peer_start, str("c"));
-	printf("peer Peer { addr: ");
-	print_addr(peer.addr);
-	printf(", names: [");
-	for (size_t i = 0; i < peer.names.len; i++) {
-		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)peer.names.ptr[i].len, (const char *)peer.names.ptr[i].ptr);
+/* An address's bytes in hex, so the length shows its family. */
+static api_buf ip_hex(api_ip_addr ip) {
+	tr_text t = {0};
+	if (ip.v6) {
+		put_hex(&t, ip.ip.v6.octets, 16);
+	} else {
+		put_hex(&t, ip.ip.v4.octets, 4);
 	}
-	printf("] } [");
-	api_vec_string aliases = api_Peer_aliases(&peer);
-	for (size_t i = 0; i < aliases.len; i++) {
-		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)aliases.ptr[i].len, (const char *)aliases.ptr[i].ptr);
-	}
-	printf("]\n");
-	api_vec_string_free(aliases);
-	api_buf debug = api_Peer_debug(&peer);
-	api_Peer_free(&peer);
-	api_buf_free(debug);
+	return tr_done(&t);
+}
 
-	/* A path's bytes as the OS holds them, which need not be UTF-8. */
+static unsigned long long bits32(float f) {
+	uint32_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static unsigned long long bits64(double f) {
+	uint64_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+/* Print each of `numbers`' lists, its floats as their bits. */
+#define PRINT_LIST(list, fmt, cast)                                           \
+	do {                                                                  \
+		printf("[");                                                  \
+		for (size_t i_ = 0; i_ < (list).len; i_++) {                  \
+			printf(i_ ? ", " fmt : fmt, cast((list).ptr[i_]));    \
+		}                                                             \
+		printf("]");                                                  \
+	} while (0)
+
+static void numbers(api_buf what_buf, api_Numbers n) {
+	int w = (int)what_buf.len;
+	const char *what = (const char *)what_buf.ptr;
+	printf("%.*s u16 ", w, what);
+	PRINT_LIST(n.u16s, "%u", (unsigned));
+	printf("\n%.*s u32 ", w, what);
+	PRINT_LIST(n.u32s, "%u", (unsigned));
+	printf("\n%.*s u64 ", w, what);
+	PRINT_LIST(n.u64s, "%llu", (unsigned long long));
+	printf("\n%.*s i8 ", w, what);
+	PRINT_LIST(n.i8s, "%d", (int));
+	printf("\n%.*s i16 ", w, what);
+	PRINT_LIST(n.i16s, "%d", (int));
+	printf("\n%.*s i32 ", w, what);
+	PRINT_LIST(n.i32s, "%d", (int));
+	printf("\n%.*s i64 ", w, what);
+	PRINT_LIST(n.i64s, "%lld", (long long));
+	printf("\n%.*s f32 ", w, what);
+	PRINT_LIST(n.f32s, "%llu", bits32);
+	printf("\n%.*s f64 ", w, what);
+	PRINT_LIST(n.f64s, "%llu", bits64);
+	printf("\n");
+	if (n.some.ptr) {
+		printf("%.*s some Some(", w, what);
+		PRINT_LIST(n.some, "%d", (int));
+		printf(")\n");
+	} else {
+		printf("%.*s some None\n", w, what);
+	}
+}
+
+/* A path no Rust string spells: bytes that are not UTF-8. */
+static api_buf unspelled(void) {
+	return api_stray();
+}
+
+
+/* What the transcript's output does not show: each check of the ABI's contract beyond it. */
+static void checks(void) {
+	/* A name takes a copy: the caller's buffer is its own again. */
+	api_Name *name = api_Name_owned(str("a"));
+	char text[] = "c";
+	api_Name_rename(name, str(text), NULL);
+	text[0] = 'x';
+	api_buf renamed = api_Name_as_str(name, NULL);
+	if (renamed.len != 1 || renamed.ptr[0] != 'c') {
+		tr_fail("a rename kept the caller's buffer");
+	}
+	api_buf_free(renamed);
+	api_Name_free(name);
+
+	/* A path's bytes as the OS holds them, which need not be UTF-8. A second owner of the
+	 * buffer goes to Rust, which takes it, so stray stays ours. */
 	api_buf stray = api_stray();
-	/* A second owner of the buffer goes to Rust, which takes it, so stray stays ours. */
 	api_buf in_stray = api_file(api_buf_clone(stray), str("f"));
 	if (in_stray.len != 3 || memcmp(in_stray.ptr, "\xff/f", 3) != 0) {
-		return 1;
+		tr_fail("a cloned buffer passed to Rust was not its own");
 	}
 	api_buf_free(stray);
 	api_buf_free(in_stray);
-	api_buf file = api_file(str("dir"), str("f\\'\"\t"));
-	api_buf paths[] = {file, str("/")};
-	api_vec_option_path parents = api_parents((api_vec_path){.ptr = paths, .len = 2});
-	print_escaped("file ", file, "\n");
-	printf("parents");
-	for (size_t i = 0; i < parents.len; i++) {
-		if (parents.ptr[i].ptr != NULL) {
-			print_escaped(" ", parents.ptr[i], "");
-		} else {
-			printf(" none");
-		}
-	}
-	printf("\n");
-	/* Each element taken: the array alone is freed. */
-	parents.len = 0;
-	api_vec_option_path_free(parents);
 
-	api_vec_string words = api_words(str(" one two  three "));
-	printf("words %zu [", words.len);
-	for (size_t i = 0; i < words.len; i++) {
-		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)words.ptr[i].len, (const char *)words.ptr[i].ptr);
+	api_Key *key = api_Key_new(str("a"));
+	if (api_Key_hash(key) != api_Key_hash_of(key)) {
+		tr_fail("api_Key_hash differs from Rust's own hash");
 	}
-	printf("]\n");
-	print("sentence ", api_sentence(words), " ");
-	print("", api_sentence((api_vec_string){0}), "\n");
-	api_vec_string_free(words);
-	/* An empty array that is not None: its pointer is not null. */
-	api_buf no_words[1];
-	print("sentence ", api_sentence((api_vec_string){.ptr = no_words, .len = 0}), "|\n");
-	/* An optional borrow: a null buffer or handle is None. */
-	printf("either %zu %zu\n", api_either(str("abc")), api_either((api_buf){0}));
-	print("prefixed ", api_prefixed(str("cd"), str("ab")), " ");
-	print("", api_prefixed(str("cd"), (api_buf){0}), "\n");
-	api_Point corner = {.x = 2, .y = 3};
-	printf("coordinates %d %d\n", api_coordinates((api_option_Point){.some = true, .value = corner}),
-		api_coordinates((api_option_Point){0}));
-	api_Counter *two = api_Counter_new(str("two"), 2);
-	api_Counter *three = api_Counter_new(str("three"), 3);
-	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three, NULL),
-		(unsigned long long)api_Counter_plus(two, NULL, NULL));
-	bool added = api_Counter_add_to(two, three, NULL);
-	bool added_none = api_Counter_add_to(two, NULL, NULL);
-	printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
-		(unsigned long long)api_Counter_get(three, NULL));
-	api_Counter_free(two);
-	api_Counter_free(three);
-
-	/* A value passed for &mut: Rust writes back what the call left, which the caller frees.
-	 * A view passed stays the caller's, and a buffer Rust returned Rust takes back. */
-	api_buf encoded, appended;
-	api_put_number(1, str("0,"), &encoded);
-	api_put_number(23, encoded, &appended);
-	print("put_number ", appended, "\n");
-	api_tuple_bytes_u32 stamped;
-	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
-	printf("push_counted %u ", stamps);
-	print("", stamped._0, " ");
-	printf("%u\n", stamped._1);
-	api_buf digits_left, digits_rest;
-	uint8_t first_digit, last_digit;
-	api_Error digit_error;
-	DISCARD(api_digit(str("7x9"), &digits_left, &first_digit, &digit_error));
-	/* The failed call took a byte too. Each buffer Rust returned it takes back. */
-	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
-	DISCARD(api_digit(digits_rest, &digits_left, &last_digit, &digit_error));
-	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
-	api_buf_free(digits_left);
-	api_Point nudged = {.x = 1, .y = 2};
-	api_nudge(nudged, 3, &nudged);
-	printf("nudge %d %d\n", nudged.x, nudged.y);
-
-	/* An Arc of another crate's type: an opaque handle, taken back by value or lent. */
-	api_tls_Config *config = api_secure(str("h3"));
-	print("secure ", api_alpn_lent(config, NULL), " ");
-	api_tls_Config *config_copy = api_tls_Config_clone(config, NULL);
-	print("", api_alpn(config_copy, NULL), "\n");
-	api_tls_Config_free(config_copy);
-	api_tls_Config_free(config);
-	/* Another crate's value by value: an opaque handle, lent or taken back. */
-	api_tls_Cert *cert = api_certify(str("der"));
-	printf("cert %llu ", (unsigned long long)api_cert_len(cert, NULL));
-	print("", api_cert_der(cert, NULL), " ");
-	api_tls_Cert_free(cert);
-	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
-	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}, NULL));
-	api_tls_Cert_free(chain[0]);
-	api_tls_Cert_free(chain[1]);
-	/* Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value. */
-	api_tls_Resolver *resolver = api_resolver(str("r1"));
-	print("resolver ", api_resolved(resolver, NULL), "\n");
-	api_tls_Resolver_free(resolver);
-	api_Codecs *codecs = api_Codecs_new();
-	printf("codecs %u\n", api_Codecs_ids(codecs, NULL));
-	api_vec_tls_Codec listed = api_Codecs_list_get(codecs, NULL);
-	api_tls_Codec *codecs_reversed[2] = {listed.ptr[1], listed.ptr[0]};
-	api_Codecs_list_set(codecs, (api_vec_tls_Codec){.ptr = codecs_reversed, .len = 2}, NULL);
-	/* The setter took each handle's value: the array, and the handles, are still ours to free. */
-	api_vec_tls_Codec_free(listed);
-	printf("codecs reversed %u\n", api_Codecs_ids(codecs, NULL));
-	api_Codecs_free(codecs);
-	/* A standard library value no type maps, in a handle. */
-	api_std_io_Error *failure = api_failure(str("boom"));
-	print("failure ", api_failure_message(failure, NULL), " ");
-	print("", api_failure_kind(failure, NULL), "\n");
-	api_std_io_Error_free(failure);
-	/* Iterators, passed as the arrays of their items. */
-	const uint32_t summed_items[] = {1, 2, 3};
-	printf("sum_all %u\n", api_sum_all((api_vec_u32){.ptr = summed_items, .len = 3}));
-	/* Each counter moves in, leaving its handle only to free. */
-	api_Counter *weighed = api_Counter_new(str("w"), 3);
-	printf("weigh_all %llu\n", (unsigned long long)api_weigh_all_Counter((api_vec_Counter){.ptr = &weighed, .len = 1}, NULL));
-	api_Counter_free(weighed);
-	const api_buf alpns[] = {str("h3"), str("moq-00")};
-	printf("offered_len %zu\n", api_offered_len((api_vec_bytes){.ptr = alpns, .len = 2}));
-	const api_buf joined_words[] = {str("a"), str("b"), str("c")};
-	print("join_words ", api_join_words((api_vec_string){.ptr = joined_words, .len = 3}), "\n");
-	/* Bytes that must be `'static`, interned. */
-	for (int i = 0; i < 2; i++) {
-		api_Der *der = api_Der_from_slice(str("der"));
-		print(i == 0 ? "der " : "der again ", api_Der_bytes(der), "\n");
-		api_Der_free(der);
-	}
-	/* Another crate's type only signatures name, exported by its path there, and its error,
-	 * which crosses as its message. */
-	api_tls_Session *session;
-	api_buf session_err;
-	if (!api_resume(str("h3"), 60, &session, &session_err)) {
-		return 1;
-	}
-	print("resume ", api_tls_Session_alpn(session), " ");
-	printf("%u\n", api_tls_Session_lifetime(session).seconds);
-	api_tls_Session_free(session);
-	if (api_resume(str(""), 60, &session, &session_err)) {
-		return 1;
-	}
-	print("resume err ", session_err, "\n");
-	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
-	{
-		api_Meters *lender = api_Meters_new();
-		api_Meter *first = api_Meters_first(lender, NULL);
-		api_Meter_add(first, 2, NULL);
-		unsigned long long added = api_Meter_add(first, 3, NULL);
-		api_Meter *again = api_Meters_first(lender, NULL);
-		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again, NULL));
-		api_Meter_free(again);
-		api_Meter_free(first);
-		api_Meters_clear(lender, NULL);
-		again = api_Meters_first(lender, NULL);
-		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again, NULL));
-		api_Meter_free(again);
-		/* A field that is not Clone, lent as a method's borrowed return is. */
-		api_Meter *last = api_Meters_last_get(lender, NULL);
-		api_Meter_add(last, 4, NULL);
-		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1, NULL));
-		api_Meter_free(last);
-		/* An optional field that is not Clone, lent as `Some` of a handle. */
-		api_Meter *spare = api_Meters_spare_get(lender, NULL);
-		printf("spare %s\n", spare != NULL ? "true" : "false");
-		api_Meter *fresh = api_Meter_default();
-		api_Meters_spare_set(lender, fresh, NULL);
-		api_Meter_free(fresh);
-		spare = api_Meters_spare_get(lender, NULL);
-		api_Meter_add(spare, 5, NULL);
-		printf("spare lent %llu\n", (unsigned long long)api_Meter_add(spare, 1, NULL));
-		api_Meter_free(spare);
-		api_Meters_free(lender);
-		/* One lent from a handle that is not Sync, on one thread at a time. */
-		api_Tallies *tallies = api_Tallies_new();
-		api_Tally *tallied = api_Tallies_first(tallies, NULL);
-		api_Tally_bump(tallied, NULL);
-		api_Tally_free(tallied);
-		tallied = api_Tallies_first(tallies, NULL);
-		printf("tallied %u\n", api_Tally_bump(tallied, NULL));
-		api_Tally_free(tallied);
-		api_Tallies_free(tallies);
-	}
-	/* A draft borrowing its ledger exclusively until it drops, through which its sheet's
-	 * members are reached by Deref and DerefMut. */
-	{
-		api_Ledger *ledger = api_Ledger_new();
-		api_Draft *draft;
-		api_Error err;
-		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
-		api_Draft_title_set(draft, str("minutes"), NULL);
-		api_Draft_write(draft, str("first"), NULL);
-		print("draft ", api_Draft_title_get(draft, NULL), " ");
-		printf("%u ", api_Draft_lines(draft, NULL));
-		print("", api_Draft_describe(draft, NULL), " ");
-		printf("%s\n", api_Draft_edited(draft, NULL) ? "true" : "false");
-		printf("committed %u\n", api_Draft_commit(draft, NULL));
-		api_Draft_free(draft);
-		print("ledger ", api_Ledger_title(ledger, NULL), " ");
-		printf("%u\n", api_Ledger_published(ledger, NULL));
-		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
-		printf("read %u %s\n", api_Draft_lines(draft, NULL), api_Draft_edited(draft, NULL) ? "true" : "false");
-		api_Draft_free(draft);
-		DISCARD(api_Ledger_edit(ledger, &draft, &err, NULL));
-		api_Draft_write(draft, str("second"), NULL);
-		api_Draft_free(draft);
-		printf("dropped %u\n", api_Ledger_published(ledger, NULL));
-		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
-		printf("receipt %u\n", api_Receipt_count(receipt, NULL));
-		api_Receipt_free(receipt);
-		{
-			api_Pad_u8 *small = api_Pad_u8_small();
-			api_Pad_u16 *wide = api_Pad_u16_wide();
-			api_Layered *layered = api_Layered_new();
-			api_Marker *marker = api_Marker_new(str("m"), 3, 5);
-			api_Marker_y_set(marker, 7, NULL);
-			printf("forwarded %u %u %d %d", api_Pad_u16_title(wide), api_Layered_lines(layered),
-			       api_Marker_x_get(marker, NULL), api_Marker_y_get(marker, NULL));
-			print(" [", api_Pad_u8_describe(small), "]");
-			print(" [", api_Pad_u16_describe(wide), "]\n");
-			api_Marker_free(marker);
-			api_Layered_free(layered);
-			api_Pad_u16_free(wide);
-			api_Pad_u8_free(small);
-		}
-		api_Ledger_seal(ledger, NULL);
-		if (!api_Ledger_edit(ledger, &draft, &err, NULL)) {
-			print("sealed ", api_Error_to_string(&err), "\n");
-			api_Error_free(&err);
-		}
-		api_Ledger_free(ledger);
-	}
-
-	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
-	printf("chunks [");
-	for (size_t i = 0; i < chunks.len; i++) {
-		printf("%s[", i == 0 ? "" : ", ");
-		for (size_t j = 0; j < chunks.ptr[i].len; j++) {
-			printf("%s%u", j == 0 ? "" : ", ", chunks.ptr[i].ptr[j]);
-		}
-		printf("]");
-	}
-	printf("]\n");
-	api_vec_bytes_free(chunks);
-
-	api_buf counter_names[] = {str("x"), str("y")};
-	api_vec_Counter counters = api_counters((api_vec_string){.ptr = counter_names, .len = 2});
-	printf("counters");
-	for (size_t i = 0; i < counters.len; i++) {
-		print(i == 0 ? " " : ", ", api_Counter_name(counters.ptr[i], NULL), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(counters.ptr[i], NULL));
-	}
-	printf("\n");
-	/* Each counter moves in, leaving its handle only to free. */
-	uint64_t worth = api_worth((api_vec_Counter){.ptr = counters.ptr, .len = 1}, (api_vec_Counter){.ptr = counters.ptr + 1, .len = 1}, NULL);
-	uint64_t none = api_worth((api_vec_Counter){0}, (api_vec_Counter){.ptr = counters.ptr, .len = 0}, NULL);
-	printf("worth %llu %llu\n", (unsigned long long)worth, (unsigned long long)none);
-	api_vec_Counter_free(counters);
-	api_Counter *held = api_Counter_new(str("h"), 4);
-	api_option_u64 counts[] = {
-		api_held_count((api_option_tuple_Counter){.some = true, .value = {._0 = held}}, NULL),
-		api_held_count((api_option_tuple_Counter){0}, NULL),
-	};
-	api_Counter_free(held);
-	printf("held");
-	for (size_t i = 0; i < 2; i++) {
-		if (counts[i].some) {
-			printf(" Some(%llu)", (unsigned long long)counts[i].value);
-		} else {
-			printf(" None");
-		}
-	}
-	printf("\n");
-	api_Counter *boxed = api_boxed_counter(str("b"));
-	print("boxed Some(\"", api_boxed_name(boxed, NULL), "\") ");
-	api_Counter_free(boxed);
-	printf("%s %s\n", api_boxed_name(NULL, NULL).ptr ? "Some" : "None", api_boxed_counter((api_buf){0}) ? "false" : "true");
-	printf("less %u\n", api_less(5, 2));
-
-	uint32_t row0[] = {1, 2};
-	uint32_t row2[] = {3};
-	api_vec_u32 rows[] = {{.ptr = row0, .len = 2}, {.ptr = row0, .len = 0}, {.ptr = row2, .len = 1}};
-	api_vec_u32 sums = api_sums((api_vec_vec_u32){.ptr = rows, .len = 3});
-	printf("sums [%u, %u, %u]\n", sums.ptr[0], sums.ptr[1], sums.ptr[2]);
-	api_vec_u32_free(sums);
-	uint32_t set0[] = {3, 1};
-	uint32_t set2[] = {2};
-	api_vec_u32 sets[] = {{.ptr = set0, .len = 2}, {.ptr = set0, .len = 0}, {.ptr = set2, .len = 1}};
-	api_vec_vec_u32 least = api_least((api_vec_vec_u32){.ptr = sets, .len = 3});
-	printf("least");
-	for (size_t i = 0; i < least.len; i++) {
-		printf(" [");
-		for (size_t j = 0; j < least.ptr[i].len; j++) {
-			printf(j ? ", %u" : "%u", least.ptr[i].ptr[j]);
-		}
-		printf("]");
-	}
-	printf("\n");
-	api_vec_vec_u32_free(least);
-	api_Numbers edges = api_Numbers_edges();
-	numbers("edges", &edges);
-	api_Numbers reversed = api_Numbers_reversed(&edges);
-	numbers("reversed", &reversed);
-	api_Numbers others = api_Numbers_edges();
-	api_Numbers negative = api_Numbers_zero(true);
-	api_Numbers positive = api_Numbers_zero(false);
-	api_Measure nan = api_Measure_new(NAN, false);
-	api_Measure under = api_Measure_new(-0.0, true);
-	api_Measure over = api_Measure_new(0.0, false);
-	printf("float equal %s %s %s %s %s\n", api_Numbers_eq(&edges, &edges) ? "true" : "false",
-	       api_Numbers_eq(&edges, &others) ? "true" : "false", api_Numbers_eq(&negative, &positive) ? "true" : "false",
-	       api_Measure_eq(&nan, &nan) ? "true" : "false", api_Measure_eq(&under, &over) ? "true" : "false");
-	api_Numbers_free(&edges);
-	api_Numbers_free(&reversed);
-	api_Numbers_free(&others);
-	api_Numbers_free(&negative);
-	api_Numbers_free(&positive);
-	api_Measure_free(&nan);
-	api_Measure_free(&under);
-	api_Measure_free(&over);
-	uint32_t totals[] = {UINT32_MAX, UINT32_MAX, 2};
-	printf("sum u32 %llu %llu\n", (unsigned long long)api_sum_u32((api_vec_u32){0}),
-	       (unsigned long long)api_sum_u32((api_vec_u32){.ptr = totals, .len = 3}));
-	int64_t doubling[] = {INT64_MIN, -1, 0, INT64_MAX};
-	api_vec_i64 doubled = api_doubled_i64((api_vec_i64){.ptr = doubling, .len = 4});
-	printf("doubled i64 ");
-	PRINT_LIST(doubled, "%lld", (long long));
-	printf("\n");
-	api_vec_i64_free(doubled);
-	uint64_t nan_bits = 0x7ff8000000000001;
-	double floats[2] = {-0.0, 0};
-	memcpy(&floats[1], &nan_bits, sizeof nan_bits);
-	api_vec_f64 boxed_floats = api_boxed_floats((api_vec_f64){.ptr = floats, .len = 2});
-	printf("boxed floats ");
-	PRINT_LIST(boxed_floats, "%llu", f64_bits);
-	printf("\n");
-	api_vec_f64_free(boxed_floats);
-	api_Point summands[] = {{.x = 1, .y = 2}, {.x = -4, .y = 6}};
-	api_Point summed = api_summed((api_vec_Point){.ptr = summands, .len = 2});
-	api_Point none_summed = api_summed((api_vec_Point){.ptr = summands, .len = 0});
-	printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
-	api_buf longest_words[] = {str("a"), str("abc")};
-	size_t most = api_longest((api_vec_string){.ptr = longest_words, .len = 2});
-	size_t no_longest = api_longest((api_vec_string){.ptr = longest_words, .len = 0});
-	printf("longest %zu %zu\n", most, no_longest);
-	api_buf no_first = api_first_of((api_vec_string){.ptr = longest_words, .len = 0});
-	print("first of Some(\"", api_first_of((api_vec_string){.ptr = longest_words, .len = 2}), "\") ");
-	printf("%s\n", no_first.ptr == NULL ? "None" : "Some");
-	api_Limits_bytes limits = api_byte_limits(str("a"), str("bc"));
-	api_duration breadth = api_breadth((api_Limits_duration){.low = {.secs = 0, .nanos = 5000000}, .high = {.secs = 2, .nanos = 0}});
-	printf("limits %.*s %.*s breadth %llu\n", (int)limits.low.len, (const char *)limits.low.ptr, (int)limits.high.len,
-		(const char *)limits.high.ptr, (unsigned long long)(breadth.secs * 1000 + breadth.nanos / 1000000));
-	api_Limits_bytes_free(&limits);
-	api_buf parts[] = {str("ab"), str(""), str("c")};
-	print("joined ", api_joined((api_vec_bytes){.ptr = parts, .len = 3}), " ");
-	api_buf no_parts = api_joined((api_vec_bytes){.ptr = parts, .len = 0});
-	printf("%zu read %llu\n", no_parts.len, (unsigned long long)api_read_len(str("hello")));
-	api_buf_free(no_parts);
-
-	/* JSON crosses as a document, made from text and read back as text. */
-	api_Json *doc;
-	if (!api_Json_parse(str("{\"b\": [1, 2.5, null], \"a\": \"\\u00e9\"}"), &doc, &parse_err)) {
-		return 1;
-	}
-	print("json ", api_encode(doc, NULL), "\n");
-	print("timed text ", api_timed_text(doc, NULL), "\n");
-	api_Json *tagged = api_tagged(doc, str("t"), NULL);
-	api_Json_free(doc);
-	print("tagged ", api_Json_to_text(tagged, NULL), "\n");
-	api_Json_free(tagged);
-	/* A JSON object's entries cross as pairs of a key and its document, each moved in. */
-	api_tuple_string_Json json_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
-	if (!api_Json_parse(str("[1]"), &json_pairs[0]._1, &parse_err) ||
-	    !api_Json_parse(str("2"), &json_pairs[1]._1, &parse_err)) {
-		return 1;
-	}
-	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"), NULL);
-	api_Json_free(json_pairs[0]._1);
-	api_Json_free(json_pairs[1]._1);
-	printf("entries");
-	for (size_t i = 0; i < json_entries.len; i++) {
-		printf("%s%.*s ", i == 0 ? " " : ", ", (int)json_entries.ptr[i]._0.len, (const char *)json_entries.ptr[i]._0.ptr);
-		print("", api_Json_to_text(json_entries.ptr[i]._1, NULL), "");
-	}
-	printf("\n");
-	api_vec_tuple_string_Json_free(json_entries);
-	api_Json *broken;
-	if (api_Json_parse(str("{\"a\":"), &broken, &parse_err)) {
-		print("json parse ", api_Json_to_text(broken, NULL), "\n");
-		api_Json_free(broken);
-	} else {
-		print("json parse err ", parse_err, "\n");
-	}
-
-	api_Url *home;
-	if (!api_Url_parse(str("https://example.com/a/b"), &home, &parse_err)) {
-		return 1;
-	}
-	api_Site *site = api_Site_new(home, NULL);
-	api_Url *home0 = api_Site_home_get(site, NULL);
-	api_Url *home1 = api_Site_home_get(site, NULL);
-	print("site ", api_Url_to_string(home0, NULL), " ");
-	print("", api_Url_to_string(home1, NULL), "\n");
-	api_Url_free(home0);
-	api_Url_free(home1);
-	api_Site_free(site);
-	api_Url_free(home);
-
-	/* Slices, passed in and returned as clones, and the socket address of each family. */
-	api_vec_Shape shapes = api_Shape_ALL();
-	printf("shapes [");
-	for (size_t i = 0; i < shapes.len; i++) {
-		print(i == 0 ? "" : ", ", api_Shape_debug(&shapes.ptr[i]), "");
-	}
-	api_vec_Shape_free(shapes);
-	api_vec_string greetings = api_GREETINGS();
-	printf("] greetings [");
-	for (size_t i = 0; i < greetings.len; i++) {
-		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)greetings.ptr[i].len, (const char *)greetings.ptr[i].ptr);
-	}
-	printf("]\n");
-	api_vec_string_free(greetings);
-	api_vec_Shape shapes_both = api_Shape_BOTH();
-	printf("both [");
-	for (size_t i = 0; i < shapes_both.len; i++) {
-		print(i == 0 ? "" : ", ", api_Shape_debug(&shapes_both.ptr[i]), "");
-	}
-	api_vec_Shape_free(shapes_both);
-	api_vec_u32 primes = api_PRIMES();
-	printf("] primes [");
-	for (size_t i = 0; i < primes.len; i++) {
-		printf("%s%u", i == 0 ? "" : ", ", primes.ptr[i]);
-	}
-	printf("]\n");
-	api_vec_u32_free(primes);
-	api_Point trail_points[] = {{.x = 1, .y = 2}, {.x = 3, .y = 4}};
-	api_buf trail_names[] = {str("a"), str("b")};
-	api_Trail *trail =
-		api_Trail_new((api_vec_Point){.ptr = trail_points, .len = 2}, (api_vec_string){.ptr = trail_names, .len = 2});
-	api_vec_Point points = api_Trail_points(trail, NULL);
-	printf("trail [");
-	for (size_t i = 0; i < points.len; i++) {
-		print(i == 0 ? "" : ", ", api_Point_debug(&points.ptr[i]), "");
-	}
-	api_vec_Point_free(points);
-	api_vec_Label labels = api_Trail_labels(trail, NULL);
-	printf("] [");
-	for (size_t i = 0; i < labels.len; i++) {
-		print(i == 0 ? "" : ", ", api_Label_debug(&labels.ptr[i]), "");
-	}
-	printf("]\n");
-	api_vec_Label_free(labels);
-	/* Returned iterators, each collected at the call: drained labels are gone after. */
-	api_vec_Point iter_points = api_Trail_iter(trail, NULL);
-	printf("iterated [");
-	for (size_t i = 0; i < iter_points.len; i++) {
-		print(i == 0 ? "" : ", ", api_Point_debug(&iter_points.ptr[i]), "");
-	}
-	api_vec_Point_free(iter_points);
-	api_vec_string iter_names = api_Trail_names(trail, NULL);
-	printf("] [");
-	for (size_t i = 0; i < iter_names.len; i++) {
-		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)iter_names.ptr[i].len, (const char *)iter_names.ptr[i].ptr);
-	}
-	api_vec_string_free(iter_names);
-	api_buf iter_bytes = api_Trail_bytes(trail, NULL);
-	printf("] [");
-	for (size_t i = 0; i < iter_bytes.len; i++) {
-		printf("%s%u", i == 0 ? "" : ", ", iter_bytes.ptr[i]);
-	}
-	printf("]\n");
-	api_buf_free(iter_bytes);
-	api_vec_Label drained = api_Trail_drain(trail, NULL);
-	printf("drained [");
-	for (size_t i = 0; i < drained.len; i++) {
-		print(i == 0 ? "" : ", ", api_Label_debug(&drained.ptr[i]), "");
-	}
-	api_vec_Label_free(drained);
-	api_vec_Label left = api_Trail_labels(trail, NULL);
-	printf("] then [");
-	for (size_t i = 0; i < left.len; i++) {
-		print(i == 0 ? "" : ", ", api_Label_debug(&left.ptr[i]), "");
-	}
-	printf("]\n");
-	api_vec_Label_free(left);
-	/* A filter, collected at the call. */
-	api_vec_Point beyond = api_Trail_beyond(trail, 1, NULL);
-	printf("beyond");
-	for (size_t i = 0; i < beyond.len; i++) {
-		printf("%s%d %d", i == 0 ? " " : ", ", beyond.ptr[i].x, beyond.ptr[i].y);
-	}
-	printf("\n");
-	api_vec_Point_free(beyond);
-	api_Trail_free(trail);
-	api_buf numbered_names[] = {str("p"), str("q")};
-	api_vec_Counter numbered = api_numbered((api_vec_string){.ptr = numbered_names, .len = 2});
-	printf("numbered");
-	for (size_t i = 0; i < numbered.len; i++) {
-		print(i == 0 ? " " : ", ", api_Counter_name(numbered.ptr[i], NULL), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(numbered.ptr[i], NULL));
-	}
-	printf("\n");
-	api_vec_Counter_free(numbered);
-	api_socket_addr_v4 at4 = {.ip = {{127, 0, 0, 1}}, .port = 8080};
-	api_socket_addr_v6 at6 = {.ip = {{[15] = 1}}, .port = 443, .scope_id = 3};
-	api_socket_addr_v4 next4;
-	api_socket_addr_v6 next6;
-	api_nexts(at4, at6, &next4, &next6);
-	const uint8_t *n4 = next4.ip.octets;
-	printf("nexts %u.%u.%u.%u %u %u %u\n", n4[0], n4[1], n4[2], n4[3], next4.port, next6.port, next6.scope_id);
-	api_ipv4_addr ip4 = {{10, 0, 0, 255}}, nextip4;
-	api_ipv6_addr ip6 = {{[14] = 0xff, [15] = 0xff}}, nextip6;
-	api_next_ips(ip4, ip6, &nextip4, &nextip6);
-	api_ip_addr mapped = api_flip((api_ip_addr){.ip.v4 = {{127, 0, 0, 1}}});
-	api_ip_addr ips[] = {
-		{.ip.v4 = nextip4},
-		{.v6 = true, .ip.v6 = nextip6},
-		mapped,
-		api_flip(mapped),
-		api_flip((api_ip_addr){.v6 = true, .ip.v6 = {{[15] = 1}}}),
-	};
-	printf("ips");
-	for (size_t i = 0; i < sizeof ips / sizeof ips[0]; i++) {
-		printf(" ");
-		print_ip_hex(ips[i]);
-	}
-	printf("\n");
-
-	/* Lossless round trips: each type's edge values, passed through Rust and back. */
-	api_duration durations[] = {{0, 0}, {0, 1}, {9223372036u, 854775808u}, {UINT64_MAX, 999999999u}};
-	printf("lossless duration");
-	for (size_t i = 0; i < sizeof durations / sizeof durations[0]; i++) {
-		api_duration d = api_same_duration(durations[i]);
-		printf(" %llu.%09u", (unsigned long long)d.secs, d.nanos);
-	}
-	printf("\n");
-	printf("lossless u64 %llu %llu %llu\n", (unsigned long long)api_same_u64(0),
-		   (unsigned long long)api_same_u64(1ull << 63), (unsigned long long)api_same_u64(UINT64_MAX));
-	printf("lossless usize %zu %zu\n", api_same_usize(0), api_same_usize(SIZE_MAX));
-	printf("lossless isize %td %td\n", api_same_isize(PTRDIFF_MIN), api_same_isize(PTRDIFF_MAX));
-	api_u128 u128s[] = {{0, 0}, {0, 1}, {UINT64_MAX, UINT64_MAX}};
-	printf("lossless u128");
-	for (size_t i = 0; i < sizeof u128s / sizeof u128s[0]; i++) {
-		api_u128 v = api_same_u128(u128s[i]);
-		printf(" %016llx%016llx", (unsigned long long)v.hi, (unsigned long long)v.lo);
-	}
-	printf("\n");
-	uint32_t chars[] = {0, 0xd7ff, 0xe000, 0x10ffff};
-	printf("lossless char");
-	for (size_t i = 0; i < sizeof chars / sizeof chars[0]; i++) {
-		printf(" %x", api_same_char(chars[i]));
-	}
-	printf("\n");
-	api_buf same_paths[] = {str("a/\xc3\xa9"), {.ptr = (const uint8_t *)"\xff", .len = 1}};
-	printf("lossless path");
-	for (size_t i = 0; i < sizeof same_paths / sizeof same_paths[0]; i++) {
-		api_buf path = api_same_path(same_paths[i]);
-		printf(" ");
-		print_hex(path.ptr, path.len);
-		api_buf_free(path);
-	}
-	printf("\n");
-	api_socket_addr_v4 sv4 = api_same_socket_addr_v4((api_socket_addr_v4){.ip = {{255, 255, 255, 255}}, .port = UINT16_MAX});
-	api_socket_addr_v6 sv6 = api_same_socket_addr_v6(
-		(api_socket_addr_v6){.ip = {{0, 1, [15] = 2}}, .port = 3, .flowinfo = UINT32_MAX, .scope_id = UINT32_MAX});
-	api_socket_addr sockets[] = {{.addr.v4 = sv4}, {.v6 = true, .addr.v6 = sv6}};
-	printf("lossless socket");
-	for (size_t i = 0; i < 2; i++) {
-		printf(" ");
-		print_socket_hex(sockets[i]);
-	}
-	for (size_t i = 0; i < 2; i++) {
-		printf(" ");
-		print_socket_hex(api_same_socket_addr(sockets[i]));
-	}
-	printf("\n");
-	api_Key *key_a = api_Key_new(str("a")), *key_a2 = api_Key_new(str("a")), *key_b = api_Key_new(str("b"));
-	if (api_Key_hash(key_a) != api_Key_hash_of(key_a)) {
-		fprintf(stderr, "api_Key_hash differs from Rust's own hash\n");
-		abort();
-	}
-	printf("key %s %s\n", api_Key_hash(key_a) == api_Key_hash(key_a2) ? "true" : "false",
-		   api_Key_hash(key_a) == api_Key_hash(key_b) ? "true" : "false");
-	api_Key_free(key_a);
-	api_Key_free(key_a2);
-	api_Key_free(key_b);
-	printf("lossless ip ");
-	print_ip_hex(api_same_ip_addr((api_ip_addr){.ip.v4 = {{255, 255, 255, 255}}}));
-	printf(" ");
-	print_ip_hex(api_same_ip_addr((api_ip_addr){.v6 = true, .ip.v6 = {{0xff, 0xff, [15] = 1}}}));
-	printf("\n");
-
-	/* serde_json's map iterator, collected as pairs of a key and its document. */
-	api_tuple_string_Json section_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
-	if (!api_Json_parse(str("[1]"), &section_pairs[0]._1, &parse_err) ||
-	    !api_Json_parse(str("2"), &section_pairs[1]._1, &parse_err)) {
-		return 1;
-	}
-	api_vec_tuple_string_Json sections = api_sections((api_vec_tuple_string_Json){.ptr = section_pairs, .len = 2}, NULL);
-	api_Json_free(section_pairs[0]._1);
-	api_Json_free(section_pairs[1]._1);
-	printf("sections");
-	for (size_t i = 0; i < sections.len; i++) {
-		printf("%s%.*s ", i == 0 ? " " : ", ", (int)sections.ptr[i]._0.len, (const char *)sections.ptr[i]._0.ptr);
-		print("", api_Json_to_text(sections.ptr[i]._1, NULL), "");
-	}
-	printf("\n");
-	api_vec_tuple_string_Json_free(sections);
-
-	/* An instant only Rust makes, a handle, as its padding is wherever rustc puts it, which
-	 * each call copies out of, and compares. */
-	api_Instant *began = api_now();
-	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
-	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
-	api_duration forward = api_since(ended, began);
-	api_duration backward = api_since(began, ended);
-	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
-		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
-		   api_Instant_eq(began, ended) ? "true" : "false");
-	/* An instant lent inside an `Option`, which takes no handle. */
-	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
-	api_Instant_free(same);
-	api_Instant_free(ended);
-	api_Instant_free(began);
-
-	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
-	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);
-	print("verbosity ", api_spell(api_Verbosity_filter(verbosity, NULL)), " ");
-	print("", api_spell(api_louder(api_Verbosity_filter(verbosity, NULL))), "\n");
-	api_Verbosity_level_set(verbosity, API_LEVEL_TRACE, NULL);
-	printf("verbosity %s ", api_Verbosity_level_get(verbosity, NULL) == API_LEVEL_TRACE ? "true" : "false");
-	print("", api_spell(api_Verbosity_filter(verbosity, NULL)), " ");
-	print("", api_spell(api_louder(api_Verbosity_filter(verbosity, NULL))), " ");
-	print("", api_spell(api_louder((api_option_Level){.some = false})), "\n");
-	api_Verbosity_free(verbosity);
+	api_Key_free(key);
 
 	/* A returned `Vec<&Token>` holds clones, which its free drops. */
 	api_Token *twice = api_Token_new(9);
 	uint32_t before = api_dropped();
 	api_vec_Token tokens = api_Token_twice(twice, NULL);
 	if (tokens.len != 2 || api_Token_id_get(tokens.ptr[1], NULL) != 9) {
-		return 1;
+		tr_fail("api_Token_twice");
 	}
 	api_vec_Token_free(tokens);
 	if (api_dropped() != before + 2) {
-		return 1;
+		tr_fail("a returned vec's free did not drop its clones");
 	}
 	api_Token_free(twice);
 
-	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 15) {
-		return 1;
+	/* A kept closure, called on another thread after the call that took it returned. */
+	bool spawned_freed = false;
+	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
+	uint32_t joined = api_Spawned_join(spawned, NULL);
+	api_Spawned_free(spawned);
+	if (joined != 7 || !spawned_freed) {
+		tr_fail("a spawned closure");
 	}
-	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;
+
+	/* Dropped before it finishes, a drive frees the closure it kept. */
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	api_Moment start = api_Moment_new(0, 1000).value;
+	driver idle = {.start = start};
+	api_drive_future *drive = api_drive(start, drive_idle, &idle, drive_free);
+	api_buf stopped;
+	if (api_drive_poll(drive, waker, &stopped) != API_POLL_PENDING || idle.freed) {
+		tr_fail("an idle drive");
+	}
+	api_drive_future_free(drive);
+	if (!idle.freed) {
+		tr_fail("a dropped drive kept its closure");
+	}
+
+	if (!foreign_futures()) {
+		tr_fail("foreign futures");
+	}
+	if (!forwarding()) {
+		tr_fail("forwarding");
+	}
+	if (!started_futures()) {
+		tr_fail("started futures");
+	}
 }
+
 
 /* Each breaks a contract, which must abort with a message naming the function. */
 /* A counter a closure was lent, which it fails to move out, then reads as it was. */
@@ -3003,5 +1670,7 @@ int main(int argc, char **argv) {
 	if (argc > 1) {
 		return broken(argv[1]);
 	}
-	return script();
+	script();
+	checks();
+	return 0;
 }

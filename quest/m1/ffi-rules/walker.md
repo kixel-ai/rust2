@@ -17,7 +17,3 @@ several positions (#710 added 130 to 260 lines to each generator), and barely he
 value type, whose cost is mostly per-language runtime code.
 
 Public API: none.
-
-## Required
-
-- [The transcript as data](/quest/m1/ffi-rules/transcript.md) - the tests a walker change must pass no longer need porting by hand

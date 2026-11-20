@@ -586,8 +586,10 @@ packages place it in.
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
   a `task` that cancels when destroyed, after which the callback has finished or never
-  runs and the executor is never called again, so a `task` dropped at once never runs; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine on the
-  executor. An executor is any callable taking a `void()` job to run once, later, on any
+  runs and the executor is never called again: a `task` dropped before its executor starts
+  the job never runs, though one dropped at once may lose that race to an executor on
+  another thread; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine
+  on the executor. An executor is any callable taking a `void()` job to run once, later, on any
   thread: never inline, since a wake may come from inside Rust. Each wake that lands while
   the future polls polls it again, and a future has one poller at a time, since awaiting
   it moves it.
@@ -763,7 +765,8 @@ the rest cross encoded.
 ## Python
 
 `<prefix>.py` is Python over a CPython extension that `--features python` builds into the
-same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
+same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
+free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
@@ -1526,9 +1529,15 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. `tests/api.c` runs the same script as the
-fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
-then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
+and that wasm32's fail. Each language's script is written at test time by
+`tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
+typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
+a construct a language's writer cannot spell, fails the test naming it. Each function the
+example defines is a hook each language's test writes by hand under the same name, for what
+tests its idiom, such as futures and readers, or prints a value no two bindings shape alike.
+A new rule's case is a few lines of `main`, which every language then runs.
+`tests/api.c` runs the script through the C, and its transcript must match the native one
+line for line; then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
 `tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
@@ -1549,7 +1558,8 @@ API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
-abort with its message; the Python with another contract must refuse the library.
+abort with its message; the Python with another contract must refuse the library. `api_free_threaded` imports it under
+nixpkgs' free-threaded CPython, which the dev shell names in `PYTHON_FREE_THREADED`, and checks the `ImportError`.
 `api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
