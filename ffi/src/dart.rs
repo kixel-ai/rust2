@@ -547,7 +547,10 @@ impl<'a> Gen<'a> {
 		}
 		keys.sort();
 		let types: BTreeSet<String> = (self.classes.keys()).map(|c| self.class(c)).collect();
-		let names = keys.iter().map(|(name, variant)| format!("{name}{}", variant.replace('_', ""))).collect();
+		let names = keys
+			.iter()
+			.map(|(name, variant)| format!("{name}{}", variant.replace('_', "")))
+			.collect();
 		let names = unique(names, |name| taken(name) || types.contains(name));
 		keys.into_iter().zip(names).collect()
 	}
@@ -1314,7 +1317,10 @@ impl<'a> Gen<'a> {
 					let member = abi::escape(&abi::snake(&variant.name));
 					let mut args = Vec::new();
 					for field in &variant.fields {
-						let value = self.lift(&field.ty, &format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name))));
+						let value = self.lift(
+							&field.ty,
+							&format!("c.$u.{}.{}", slot(&member), slot(&abi::escape(&field.name))),
+						);
 						args.push(match variant.tuple {
 							true => value,
 							false => format!("{}: {value}", field_name(&field.name)),
@@ -2003,7 +2009,8 @@ impl<'a> Gen<'a> {
 		let body = format!(
 			"{owned_ctor}{lent_ctor}\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _register() => _own = {own}(this, _raw);\n\n{close}"
 		);
-		self.constructors.insert(name.clone(), (owned_ctor, lent_ctor, freeing.clone()));
+		self.constructors
+			.insert(name.clone(), (owned_ctor, lent_ctor, freeing.clone()));
 		let mut body = vec![body];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
@@ -2084,7 +2091,7 @@ impl<'a> Gen<'a> {
 				.collect();
 			let call = format!("(_n.lent[data.address] as {name}).{member}({})", lifted.join(", "));
 			let what = format!("{rust}::{}", method.name());
-			let t = format!("_cb${}${}", mangle(self.bare(&c)), mangle(method.name()));
+			let t = format!("_cb${}${}", mangle(self.bare(c)), mangle(method.name()));
 			let body = match &method.ok {
 				Type::Unit => format!("{call};"),
 				ok => format!("return {};", self.lower(ok, &call)),
@@ -2092,7 +2099,7 @@ impl<'a> Gen<'a> {
 			let tramp = self.trampoline_fn(&t, &c_params, &ret, &body, &what, &[]);
 			trampolines.push(tramp);
 			// Its relay in the glue.
-			let relay = format!("{}_cb_{}_{}", self.space, self.bare(&c), method.name());
+			let relay = format!("{}_cb_{}_{}", self.space, self.bare(c), method.name());
 			let mut fn_params = vec![Ty::Data];
 			fn_params.extend(c_params.iter().cloned());
 			let native = self.native_fn(&relay, fn_params.clone(), ret.clone());
@@ -2114,7 +2121,7 @@ impl<'a> Gen<'a> {
 				m = method.name(),
 			);
 		}
-		let tables = format!("_tables${}", mangle(self.bare(&c)));
+		let tables = format!("_tables${}", mangle(self.bare(c)));
 		self.helpers.insert(
 			tables.clone(),
 			format!(
@@ -2125,7 +2132,6 @@ impl<'a> Gen<'a> {
 		);
 		self.on = on;
 	}
-
 
 	/// A static function `name` C calls with `data` and `c_params`, running `body`, which
 	/// returns the C result, with each object in `lent` closed after, and aborting on what
@@ -2436,7 +2442,10 @@ impl<'a> Gen<'a> {
 					if self.tabled.insert(cb.clone()) {
 						self.callback_tables(&cb);
 					}
-					args.push(format!("_n.give(_tables${}, {name}, {name}.close)", mangle(self.bare(&cb))));
+					args.push(format!(
+						"_n.give(_tables${}, {name}, {name}.close)",
+						mangle(self.bare(&cb))
+					));
 					gave = true;
 				}
 				(Type::Waker, _) => {
@@ -3036,10 +3045,7 @@ fn classes(abi: &Abi<'_>, taken: &dyn Fn(&str) -> bool) -> HashMap<String, Strin
 		.map(|(c, name)| (name.clone(), c.clone()))
 		.collect();
 	apart.sort();
-	let mut used: BTreeSet<String> = (classes.values())
-		.filter(|name| !name.contains('_'))
-		.cloned()
-		.collect();
+	let mut used: BTreeSet<String> = (classes.values()).filter(|name| !name.contains('_')).cloned().collect();
 	for (name, c) in apart {
 		let base = name.trim_end_matches('_').replace('_', "");
 		let free = alternatives(&base)

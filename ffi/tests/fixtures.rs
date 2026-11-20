@@ -2051,7 +2051,10 @@ fn api_dart() {
 		&lint.join("analysis_options.yaml"),
 		std::fs::read_to_string(manifest_dir().join("tests/dart_lints.yaml")).unwrap(),
 	);
-	step::write(&lint.join("api.dart"), std::fs::read_to_string(generated.join("api.dart")).unwrap());
+	step::write(
+		&lint.join("api.dart"),
+		std::fs::read_to_string(generated.join("api.dart")).unwrap(),
+	);
 	let step = Step {
 		stamp: &dir.join("analyze.stamp"),
 		reads: &[&lint],
@@ -3397,11 +3400,16 @@ fn lock() {
 	let names = locked("names");
 	assert!(!names.status.success(), "binding renames passed the lock");
 	let stderr = String::from_utf8_lossy(&names.stderr);
-	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+	// Dart's lints allow no `_` in a type's name, so it takes a number instead.
+	for (language, new) in [
+		("Kotlin", "GraphicsEncoder_Finish"),
+		("Swift", "GraphicsEncoder_Finish"),
+		("Go", "GraphicsEncoder_Finish"),
+		("Dart", "GraphicsEncoderFinish2"),
+		("Python", "GraphicsEncoder_Finish"),
+	] {
 		assert!(
-			stderr.contains(&format!(
-				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
-			)),
+			stderr.contains(&format!("its {language} name `GraphicsEncoderFinish` is now `{new}`")),
 			"missing class rename for {language}:\n{stderr}"
 		);
 	}
@@ -3435,8 +3443,8 @@ fn lock() {
 		"its Kotlin name `StringException` is now `StringException_`",
 		"its Python name `StringException` is now `StringException_`",
 		"its Swift name `StringError` is now `StringError_`",
-		"its Dart name `StringException` is now `StringException_`",
-		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Dart name `StringException` is now `StringException2`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle2`",
 		"its Go name `ModeFast` is now `ModeFast_`",
 		"its Go name `GoString` is now `GoString_`",
 		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
@@ -3467,10 +3475,14 @@ fn lock() {
 	.unwrap();
 	assert!(!output.status.success());
 	let stderr = String::from_utf8_lossy(&output.stderr);
-	for language in ["Kotlin", "Python", "Dart"] {
+	for (language, new) in [
+		("Kotlin", "StringException_"),
+		("Python", "StringException_"),
+		("Dart", "StringException2"),
+	] {
 		assert!(
 			stderr.contains(&format!(
-				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+				"exception class for `string`: its {language} name `StringException` is now `{new}`"
 			)),
 			"{stderr}"
 		);
