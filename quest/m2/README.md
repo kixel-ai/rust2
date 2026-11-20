@@ -46,7 +46,7 @@ The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README
 [m1](/quest/m1/README.md#plan) records why.
 
 Decided with the maintainer on 2026-11-18, in the per-language audit: ✅ the translator
-gets a second performance pass before the gate, [all of it](/quest/m2/wasm/ts-speed/README.md),
+gets a second performance pass before the gate, all of it,
 slice scalarization included. Rejected: only the cheap levers before the gate; all of it
 after the gate. Its testing finds, [fuzzing](/quest/m3/ts-fuzz.md) and
 [random MIR programs](/quest/m3/ts-rustlantis.md), wait in m3 under the gate rule; better

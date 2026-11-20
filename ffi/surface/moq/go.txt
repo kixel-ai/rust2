@@ -1001,11 +1001,13 @@ func ClockNow() ClockInstant
 func (self ClockInstant) CheckedAdd(duration p_rt.Duration) *ClockInstant
 func (self ClockInstant) CheckedDurationSince(earlier ClockInstant) *p_rt.Duration
 func (self ClockInstant) CheckedSub(duration p_rt.Duration) *ClockInstant
+func (self ClockInstant) Compare(other ClockInstant) int
 func (self ClockInstant) DurationSince(earlier ClockInstant) p_rt.Duration
 func (self ClockInstant) Elapsed() p_rt.Duration
 func (self ClockInstant) Equal(other ClockInstant) bool
 func (self ClockInstant) GoString() string
 func (self ClockInstant) IntoStd() *p_std.Instant
+func (self ClockInstant) PartialCompare(other ClockInstant) (int, bool)
 func (self ClockInstant) SaturatingAdd(duration p_rt.Duration) ClockInstant
 func (self ClockInstant) SaturatingDurationSince(earlier ClockInstant) p_rt.Duration
 func (self ClockInstant) SaturatingSub(duration p_rt.Duration) ClockInstant
@@ -1056,8 +1058,10 @@ func NewClockWall() ClockWall
 func (self ClockWall) CheckedAdd(duration p_rt.Duration) *ClockWall
 func (self ClockWall) CheckedDurationSince(earlier ClockWall) *p_rt.Duration
 func (self ClockWall) CheckedSub(duration p_rt.Duration) *ClockWall
+func (self ClockWall) Compare(other ClockWall) int
 func (self ClockWall) Equal(other ClockWall) bool
 func (self ClockWall) GoString() string
+func (self ClockWall) PartialCompare(other ClockWall) (int, bool)
 func (self ClockWall) SaturatingAdd(duration p_rt.Duration) ClockWall
 func (self ClockWall) SaturatingDurationSince(earlier ClockWall) p_rt.Duration
 type ClockWallMap struct {
@@ -1319,18 +1323,21 @@ type CatalogHangConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumer(track *p_net.TrackConsumer) (*CatalogHangConsumer, error)
+func (self *CatalogHangConsumer) All(ctx context.Context) iter.Seq2[*p_hang.Catalog, error]
 func (self *CatalogHangConsumer) Close() error
 func (self *CatalogHangConsumer) Next(ctx context.Context) (*p_hang.Catalog, error)
 type CatalogHangConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumerExt(track *p_net.TrackConsumer) (*CatalogHangConsumerExt, error)
+func (self *CatalogHangConsumerExt) All(ctx context.Context) iter.Seq2[*HangCatalogExt, error]
 func (self *CatalogHangConsumerExt) Close() error
 func (self *CatalogHangConsumerExt) Next(ctx context.Context) (*HangCatalogExt, error)
 type CatalogHangConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogHangConsumerExtra(track *p_net.TrackConsumer) (*CatalogHangConsumerExtra, error)
+func (self *CatalogHangConsumerExtra) All(ctx context.Context) iter.Seq2[*HangCatalogExtra, error]
 func (self *CatalogHangConsumerExtra) Close() error
 func (self *CatalogHangConsumerExtra) Next(ctx context.Context) (*HangCatalogExtra, error)
 type CatalogHangContainer struct {
@@ -1356,18 +1363,21 @@ type CatalogMsfConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumer(track *p_net.TrackSubscriber) (*CatalogMsfConsumer, error)
+func (self *CatalogMsfConsumer) All(ctx context.Context) iter.Seq2[*p_hang.Catalog, error]
 func (self *CatalogMsfConsumer) Close() error
 func (self *CatalogMsfConsumer) Next(ctx context.Context) (*p_hang.Catalog, error)
 type CatalogMsfConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumerExt(track *p_net.TrackSubscriber) (*CatalogMsfConsumerExt, error)
+func (self *CatalogMsfConsumerExt) All(ctx context.Context) iter.Seq2[*HangCatalogExt, error]
 func (self *CatalogMsfConsumerExt) Close() error
 func (self *CatalogMsfConsumerExt) Next(ctx context.Context) (*HangCatalogExt, error)
 type CatalogMsfConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewCatalogMsfConsumerExtra(track *p_net.TrackSubscriber) (*CatalogMsfConsumerExtra, error)
+func (self *CatalogMsfConsumerExtra) All(ctx context.Context) iter.Seq2[*HangCatalogExtra, error]
 func (self *CatalogMsfConsumerExtra) Close() error
 func (self *CatalogMsfConsumerExtra) Next(ctx context.Context) (*HangCatalogExtra, error)
 type CatalogMsfError interface {
@@ -4255,6 +4265,7 @@ type ContainerTsExportConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumer(source *Source, catalog *CatalogConsumer, delay p_rt.Duration) (*ContainerTsExportConsumer, error)
+func (self *ContainerTsExportConsumer) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumer) Close() error
 func (self *ContainerTsExportConsumer) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumer) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumer) (*ContainerTsExportConsumer, error)
@@ -4265,6 +4276,7 @@ type ContainerTsExportConsumerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumerExt(source *Source, catalog *CatalogConsumerExt, delay p_rt.Duration) (*ContainerTsExportConsumerExt, error)
+func (self *ContainerTsExportConsumerExt) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumerExt) Close() error
 func (self *ContainerTsExportConsumerExt) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumerExt) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumerExt) (*ContainerTsExportConsumerExt, error)
@@ -4275,6 +4287,7 @@ type ContainerTsExportConsumerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsExportConsumerExtra(source *Source, catalog *CatalogConsumerExtra, delay p_rt.Duration) (*ContainerTsExportConsumerExtra, error)
+func (self *ContainerTsExportConsumerExtra) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsExportConsumerExtra) Close() error
 func (self *ContainerTsExportConsumerExtra) Discontinuity() (uint64, error)
 func (self *ContainerTsExportConsumerExtra) Follow(broadcast *p_net.BroadcastConsumer, catalog *CatalogConsumerExtra) (*ContainerTsExportConsumerExtra, error)
@@ -4313,6 +4326,7 @@ type ContainerTsFollower struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollower(export *ContainerTsExportConsumer) (*ContainerTsFollower, error)
+func (self *ContainerTsFollower) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollower) Close() error
 func (self *ContainerTsFollower) Export() (*ContainerTsExportConsumer, error)
 func (self *ContainerTsFollower) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4322,6 +4336,7 @@ type ContainerTsFollowerExt struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollowerExt(export *ContainerTsExportConsumerExt) (*ContainerTsFollowerExt, error)
+func (self *ContainerTsFollowerExt) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollowerExt) Close() error
 func (self *ContainerTsFollowerExt) Export() (*ContainerTsExportConsumerExt, error)
 func (self *ContainerTsFollowerExt) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4331,6 +4346,7 @@ type ContainerTsFollowerExtra struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsFollowerExtra(export *ContainerTsExportConsumerExtra) (*ContainerTsFollowerExtra, error)
+func (self *ContainerTsFollowerExtra) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsFollowerExtra) Close() error
 func (self *ContainerTsFollowerExtra) Export() (*ContainerTsExportConsumerExtra, error)
 func (self *ContainerTsFollowerExtra) Next(ctx context.Context) (*ContainerFrame, error)
@@ -4383,6 +4399,7 @@ type ContainerTsMpegts struct {
 	Handle_ *p_rt.Handle_
 }
 func ContainerTsMpegtsDefault() *ContainerTsMpegts
+func ContainerTsMpegtsDeserialize(deserializer *p_serdejson.Json) (*ContainerTsMpegts, error)
 func (self *ContainerTsMpegts) Clone() (*ContainerTsMpegts, error)
 func (self *ContainerTsMpegts) Close() error
 func (self *ContainerTsMpegts) Equal(other *ContainerTsMpegts) (bool, error)
@@ -4505,6 +4522,7 @@ type ContainerTsRelease struct {
 	Handle_ *p_rt.Handle_
 }
 func NewContainerTsRelease(ctx context.Context, source *Source, catalogFormat CatalogCatalogFormat, delay p_rt.Duration) (*ContainerTsRelease, error)
+func (self *ContainerTsRelease) All(ctx context.Context) iter.Seq2[ContainerFrame, error]
 func (self *ContainerTsRelease) Close() error
 func (self *ContainerTsRelease) Drift() (*float64, error)
 func (self *ContainerTsRelease) Dropped() (uint64, error)
@@ -4746,6 +4764,7 @@ func (self *Error) String() string
 type FollowInstances struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *FollowInstances) All(ctx context.Context) iter.Seq2[*p_net.BroadcastConsumer, error]
 func (self *FollowInstances) Close() error
 func (self *FollowInstances) Next(ctx context.Context) (*p_net.BroadcastConsumer, error)
 type HangCatalogExt struct {
@@ -5059,6 +5078,7 @@ type JsonConsumerJson struct {
 	Handle_ *p_rt.Handle_
 }
 func JsonConsumerJsonFromTrack(ctx context.Context, track *p_net.TrackConsumer, config *p_hang.CatalogJsonConfig) (*JsonConsumerJson, error)
+func (self *JsonConsumerJson) All(ctx context.Context) iter.Seq2[*p_json.TimedJson, error]
 func (self *JsonConsumerJson) Close() error
 func (self *JsonConsumerJson) Latest(ctx context.Context) (*p_json.TimedJson, error)
 func (self *JsonConsumerJson) Mode() (p_hang.CatalogMode, error)
@@ -5287,6 +5307,7 @@ type AnnounceConsumer struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *AnnounceConsumer) Absolute(prefix string) (*Path, error)
+func (self *AnnounceConsumer) All(ctx context.Context) iter.Seq2[*AnnounceEvent, error]
 func (self *AnnounceConsumer) Close() error
 func (self *AnnounceConsumer) IsClosed() (bool, error)
 func (self *AnnounceConsumer) Next(ctx context.Context) (*AnnounceEvent, error)
@@ -5353,6 +5374,7 @@ func (self *AuthRequest) Token() (p_rt.Bytes, error)
 type AuthRequests struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *AuthRequests) All(ctx context.Context) iter.Seq2[*AuthRequest, error]
 func (self *AuthRequests) Close() error
 func (self *AuthRequests) Next(ctx context.Context) (*AuthRequest, error)
 type AuthToken struct {
@@ -5451,8 +5473,10 @@ func BandwidthRateZERO() BandwidthRate
 func BandwidthViewersMAX_TARGET() BandwidthRate
 func (self BandwidthRate) AbsDiff(other_ BandwidthRate) BandwidthRate
 func (self BandwidthRate) AsBps() uint64
+func (self BandwidthRate) Compare(other BandwidthRate) int
 func (self BandwidthRate) Equal(other BandwidthRate) bool
 func (self BandwidthRate) GoString() string
+func (self BandwidthRate) PartialCompare(other BandwidthRate) (int, bool)
 func (self BandwidthRate) Scaled(factor float64) BandwidthRate
 type BandwidthReservation struct {
 	Handle_ *p_rt.Handle_
@@ -5579,6 +5603,7 @@ func (self *BroadcastRequests) RequestedTrack(ctx context.Context) (*TrackReques
 type BroadcastTracks struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *BroadcastTracks) All(ctx context.Context) iter.Seq2[*BroadcastTracksEvent, error]
 func (self *BroadcastTracks) Broadcast() (*BroadcastConsumer, error)
 func (self *BroadcastTracks) Close() error
 func (self *BroadcastTracks) Next(ctx context.Context) (*BroadcastTracksEvent, error)
@@ -5843,8 +5868,10 @@ func (self *GroupFinished) StartGet() (uint64, error)
 type GroupInfo struct {
 	Start uint64
 }
+func (self GroupInfo) Compare(other GroupInfo) int
 func (self GroupInfo) Equal(other GroupInfo) bool
 func (self GroupInfo) GoString() string
+func (self GroupInfo) PartialCompare(other GroupInfo) (int, bool)
 type GroupProducer struct {
 	Handle_ *p_rt.Handle_
 }
@@ -5869,9 +5896,11 @@ func InstanceRandom() *Instance
 func (self *Instance) AsStr() (string, error)
 func (self *Instance) Clone() (*Instance, error)
 func (self *Instance) Close() error
+func (self *Instance) Compare(other *Instance) (int, error)
 func (self *Instance) Equal(other *Instance) (bool, error)
 func (self *Instance) GoString() string
 func (self *Instance) IsMinted() (bool, error)
+func (self *Instance) PartialCompare(other *Instance) (int, bool, error)
 func (self *Instance) String() string
 type OriginClaim struct {
 	Handle_ *p_rt.Handle_
@@ -5926,8 +5955,10 @@ type OriginCost struct {
 }
 func NewOriginCost(cost uint64) OriginCost
 func OriginCostDefault() OriginCost
+func (self OriginCost) Compare(other OriginCost) int
 func (self OriginCost) Equal(other OriginCost) bool
 func (self OriginCost) GoString() string
+func (self OriginCost) PartialCompare(other OriginCost) (int, bool)
 func (self OriginCost) Value() uint64
 type OriginDriver struct {
 	Handle_ *p_rt.Handle_
@@ -5954,8 +5985,10 @@ type OriginPriority struct {
 }
 func NewOriginPriority(priority int8) OriginPriority
 func OriginPriorityDefault() OriginPriority
+func (self OriginPriority) Compare(other OriginPriority) int
 func (self OriginPriority) Equal(other OriginPriority) bool
 func (self OriginPriority) GoString() string
+func (self OriginPriority) PartialCompare(other OriginPriority) (int, bool)
 func (self OriginPriority) Value() int8
 type OriginProducer struct {
 	Handle_ *p_rt.Handle_
@@ -6044,6 +6077,7 @@ type OriginRoutes struct {
 	Handle_ *p_rt.Handle_
 }
 func (self *OriginRoutes) Absolute(prefix string) (*Path, error)
+func (self *OriginRoutes) All(ctx context.Context) iter.Seq2[*OriginRouteEvent, error]
 func (self *OriginRoutes) Close() error
 func (self *OriginRoutes) IsClosed() (bool, error)
 func (self *OriginRoutes) Next(ctx context.Context) (*OriginRouteEvent, error)
@@ -6060,6 +6094,7 @@ func PathFromStatic(s string) (*Path, error)
 func (self *Path) AsStr() (string, error)
 func (self *Path) Clone() (*Path, error)
 func (self *Path) Close() error
+func (self *Path) Compare(other *Path) (int, error)
 func (self *Path) Equal(other *Path) (bool, error)
 func (self *Path) GoString() string
 func (self *Path) HasPrefix(prefix *Path) (bool, error)
@@ -6067,6 +6102,7 @@ func (self *Path) Head(n uint) (*Path, error)
 func (self *Path) IsEmpty() (bool, error)
 func (self *Path) Join(other_ *Path) (*Path, error)
 func (self *Path) Len() (uint, error)
+func (self *Path) PartialCompare(other *Path) (int, bool, error)
 func (self *Path) Relative(base *Path) (*PathRelative, error)
 func (self *Path) Resolve(rel *PathRelative) (*Path, error)
 func (self *Path) String() string
@@ -6993,8 +7029,10 @@ func TimescaleMILLI() Timescale
 func TimescaleNANO() Timescale
 func TimescaleSECOND() Timescale
 func (self Timescale) AsU64() uint64
+func (self Timescale) Compare(other Timescale) int
 func (self Timescale) Equal(other Timescale) bool
 func (self Timescale) GoString() string
+func (self Timescale) PartialCompare(other Timescale) (int, bool)
 func (self Timescale) String() string
 type Timestamp struct {
 	Bytes_ [2]uint64
@@ -7019,6 +7057,7 @@ func (self Timestamp) Convert(newScale Timescale) (Timestamp, error)
 func (self Timestamp) Equal(other Timestamp) bool
 func (self Timestamp) GoString() string
 func (self Timestamp) IsZero() bool
+func (self Timestamp) PartialCompare(other Timestamp) (int, bool)
 func (self Timestamp) Scale() *Timescale
 func (self Timestamp) Value() uint64
 type TrackAbortHandle struct {
@@ -7031,21 +7070,29 @@ func (self *TrackAbortHandle) IsClosed() (bool, error)
 type TrackAnchor interface {
 	GoString() string
 	Equal(other TrackAnchor) bool
+	PartialCompare(other TrackAnchor) (int, bool)
+	Compare(other TrackAnchor) int
 }
 type TrackAnchorOldest struct {
 }
+func (self TrackAnchorOldest) Compare(other TrackAnchor) int
 func (self TrackAnchorOldest) Equal(other TrackAnchor) bool
 func (self TrackAnchorOldest) GoString() string
+func (self TrackAnchorOldest) PartialCompare(other TrackAnchor) (int, bool)
 type TrackAnchorRelative struct {
 	V0 uint64
 }
+func (self TrackAnchorRelative) Compare(other TrackAnchor) int
 func (self TrackAnchorRelative) Equal(other TrackAnchor) bool
 func (self TrackAnchorRelative) GoString() string
+func (self TrackAnchorRelative) PartialCompare(other TrackAnchor) (int, bool)
 type TrackAnchorTime struct {
 	V0 uint64
 }
+func (self TrackAnchorTime) Compare(other TrackAnchor) int
 func (self TrackAnchorTime) Equal(other TrackAnchor) bool
 func (self TrackAnchorTime) GoString() string
+func (self TrackAnchorTime) PartialCompare(other TrackAnchor) (int, bool)
 type TrackCompression int32
 const (
 	TrackCompressionNone    TrackCompression = 0
@@ -7171,12 +7218,14 @@ type TrackPosition struct {
 func NewTrackPosition(group uint64, frame uint64) TrackPosition
 func TrackPositionDefault() TrackPosition
 func TrackPositionGroup(group uint64) TrackPosition
+func (self TrackPosition) Compare(other TrackPosition) int
 func (self TrackPosition) Equal(other TrackPosition) bool
 func (self TrackPosition) FrameGet() uint64
 func (self *TrackPosition) FrameSet(value uint64)
 func (self TrackPosition) GoString() string
 func (self TrackPosition) GroupGet() uint64
 func (self *TrackPosition) GroupSet(value uint64)
+func (self TrackPosition) PartialCompare(other TrackPosition) (int, bool)
 type TrackProducer struct {
 	Handle_ *p_rt.Handle_
 }
@@ -7214,8 +7263,10 @@ type TrackRange struct {
 }
 func TrackRangeLive() TrackRange
 func TrackRangeOldest() TrackRange
+func (self TrackRange) Compare(other TrackRange) int
 func (self TrackRange) Equal(other TrackRange) bool
 func (self TrackRange) GoString() string
+func (self TrackRange) PartialCompare(other TrackRange) (int, bool)
 type TrackRefresh struct {
 	Handle_ *p_rt.Handle_
 }
@@ -7464,6 +7515,10 @@ CONSTANTS
 const PATTERN_MAX_INTERSECTIONS uint = 1024
 const PATTERN_MAX_SEGMENTS uint = 32
 
+FUNCTIONS
+func Escape(content string) (string, error)
+func Unescape(segment string) (string, error)
+
 TYPES
 type IntersectionError int32
 const (
@@ -7517,6 +7572,7 @@ func (self *Pattern) AsStr() (string, error)
 func (self *Pattern) Captures(matched *Pattern) (*[]*Pattern, error)
 func (self *Pattern) Clone() (*Pattern, error)
 func (self *Pattern) Close() error
+func (self *Pattern) Compare(other *Pattern) (int, error)
 func (self *Pattern) Contains(other_ *Pattern) (bool, error)
 func (self *Pattern) Equal(other *Pattern) (bool, error)
 func (self *Pattern) GoString() string
@@ -7526,6 +7582,7 @@ func (self *Pattern) Intersect(other_ *Pattern) (*Patterns, error)
 func (self *Pattern) IsLiteral() (bool, error)
 func (self *Pattern) Matches(path string) (bool, error)
 func (self *Pattern) Overlaps(other_ *Pattern) (bool, error)
+func (self *Pattern) PartialCompare(other *Pattern) (int, bool, error)
 func (self *Pattern) Rebase(root string) (*Patterns, error)
 func (self *Pattern) Rooted(root string) (*Pattern, error)
 func (self *Pattern) Segments() ([]Segment, error)
@@ -7584,8 +7641,10 @@ type Specificity struct {
 }
 func (self *Specificity) Clone() (*Specificity, error)
 func (self *Specificity) Close() error
+func (self *Specificity) Compare(other *Specificity) (int, error)
 func (self *Specificity) Equal(other *Specificity) (bool, error)
 func (self *Specificity) GoString() string
+func (self *Specificity) PartialCompare(other *Specificity) (int, bool, error)
 
 package qmux // import "moq/qmux"
 
@@ -7846,6 +7905,7 @@ func (self *ClientConfig) TimeProviderSet(value *TimeProvider) error
 type ClientDangerDangerousClientConfig struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *ClientDangerDangerousClientConfig) CfgGet() (*ClientConfig, error)
 func (self *ClientDangerDangerousClientConfig) Close() error
 func (self *ClientDangerDangerousClientConfig) GoString() string
 type ClientResumption struct {
@@ -8086,8 +8146,10 @@ type Instant struct {
 }
 func (self *Instant) Clone() (*Instant, error)
 func (self *Instant) Close() error
+func (self *Instant) Compare(other *Instant) (int, error)
 func (self *Instant) Equal(other *Instant) (bool, error)
 func (self *Instant) GoString() string
+func (self *Instant) PartialCompare(other *Instant) (int, bool, error)
 
 package tokio // import "moq/tokio"
 
@@ -8386,8 +8448,10 @@ type Duration struct {
 func DurationDefault() *Duration
 func (self *Duration) Clone() (*Duration, error)
 func (self *Duration) Close() error
+func (self *Duration) Compare(other *Duration) (int, error)
 func (self *Duration) Equal(other *Duration) (bool, error)
 func (self *Duration) GoString() string
+func (self *Duration) PartialCompare(other *Duration) (int, bool, error)
 func (self *Duration) String() string
 type Error struct {
 	Handle_ *p_rt.Handle_
@@ -8938,13 +9002,15 @@ package tracingcore // import "moq/tracingcore"
 TYPES
 type Level int32
 const (
-	LevelTrace Level = 0
-	LevelDebug Level = 1
+	LevelError Level = 0
+	LevelWarn  Level = 1
 	LevelInfo  Level = 2
-	LevelWarn  Level = 3
-	LevelError Level = 4
+	LevelDebug Level = 3
+	LevelTrace Level = 4
 )
+func (self Level) Compare(other Level) int
 func (self Level) Equal(other Level) bool
+func (self Level) PartialCompare(other Level) (int, bool)
 func (self Level) String() string
 
 package url // import "moq/url"
@@ -8956,7 +9022,9 @@ type Url struct {
 func UrlParse(input string) (*Url, error)
 func (self *Url) Clone() (*Url, error)
 func (self *Url) Close() error
+func (self *Url) Compare(other *Url) (int, error)
 func (self *Url) Equal(other *Url) (bool, error)
 func (self *Url) GoString() string
+func (self *Url) PartialCompare(other *Url) (int, bool, error)
 func (self *Url) String() string
 

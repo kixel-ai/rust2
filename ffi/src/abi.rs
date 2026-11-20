@@ -16,7 +16,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Receiver, Type};
+use crate::ir::{
+	Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Order, Receiver, Type,
+};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -1004,6 +1006,33 @@ impl<'a> Abi<'a> {
 		}
 	}
 
+	/// Whether a value of `ty` holds memory Rust allocated.
+	pub(crate) fn owns(&self, ty: &Type) -> bool {
+		self.holds(ty, false)
+	}
+
+	/// Whether C's copy of a returned `ty` holds memory Rust allocated: a reference
+	/// returns as an owned copy of what it borrows.
+	pub(crate) fn returns_owned(&self, ty: &Type) -> bool {
+		self.holds(ty, true)
+	}
+
+	fn holds(&self, ty: &Type, refs: bool) -> bool {
+		match ty {
+			_ if Abi::is_buf(ty) => true,
+			Type::Object(_) | Type::List(..) => true,
+			Type::Ref(_, inner) if refs => self.holds(inner, refs),
+			Type::Option(inner) | Type::Box(inner) => self.holds(inner, refs),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.holds(ty, refs)),
+			Type::Record(i) => self.api.records[*i].fields.iter().any(|f| self.holds(&f.ty, refs)),
+			Type::Enum(i) => self.api.enums[*i]
+				.variants
+				.iter()
+				.any(|v| v.fields.iter().any(|f| self.holds(&f.ty, refs))),
+			_ => false,
+		}
+	}
+
 	/// Whether `ty` crosses as a `<prefix>_buf`.
 	pub(crate) fn is_buf(ty: &Type) -> bool {
 		matches!(
@@ -1889,6 +1918,12 @@ impl<'a> Abi<'a> {
 		if traits.hash {
 			claim("hash");
 		}
+		if traits.ord != Order::None {
+			claim("partial_cmp");
+		}
+		if traits.ord == Order::Total {
+			claim("cmp");
+		}
 		if traits.display {
 			claim("to_string");
 		}
@@ -2065,10 +2100,10 @@ pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 		.collect()
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword with `_`
-/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
-/// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
-/// another, so no two names escape to one.
+/// A name that C or C++, which includes the header, would read as a keyword or macro or
+/// reserve for itself with `_` appended, and one starting with a digit with `_` prepended.
+/// Appended, since MSVC reads `_inline`, `_asm`, and `_try` as keywords too; a name
+/// already ending in `_` takes another, so no two names escape to one.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -2169,19 +2204,80 @@ pub(crate) fn escape(name: &str) -> String {
 		"wchar_t",
 		"xor",
 		"xor_eq",
-		// Macros GNU dialects predefine, as CMake's default `-std=gnu11` and `-std=gnu++17` do.
+		// A macro 32-bit x86's GNU dialects predefine, which `macros.txt`, of 64-bit hosts,
+		// lacks.
 		"i386",
-		"linux",
-		"unix",
 	];
-	// `out0`, `out1`, ... are a returned tuple's.
-	let out = name
-		.strip_prefix("out")
-		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) => format!("{name}_"),
-		_ => name.to_string(),
+		_ => {
+			let stem = name.trim_end_matches('_');
+			let trailing = name.len() - stem.len();
+			// `out0`, `out1`, ... are a returned tuple's.
+			let out = stem
+				.strip_prefix("out")
+				.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+			// A keyword's or reserved name's own spelling is never one of its family's, so they
+			// count from `stem_`: `bool`, which C defines as a macro too, keeps its one `_`.
+			match out || KEYWORDS.contains(&stem) || reserved(name) {
+				true => unmacroed(&format!("{stem}_"), trailing, |_| false),
+				false => unmacroed(stem, trailing + usize::from(trailing > 0), |_| false),
+			}
+		}
+	}
+}
+
+/// `stem` with trailing `_`s, as many as the `n`th count, from none, at which neither a
+/// macro nor what `also` names holds it: so the names of one stem keep their order and stay
+/// apart, as `_STRING_H` and `_STRING_H_` are both macros, and none takes a macro's.
+pub(crate) fn unmacroed(stem: &str, n: usize, also: impl Fn(&str) -> bool) -> String {
+	let mut name = stem.to_string();
+	let mut free = 0;
+	loop {
+		if !(defined(&name) || also(&name)) {
+			if free == n {
+				return name;
+			}
+			free += 1;
+		}
+		name.push('_');
+	}
+}
+
+/// Whether a C or C++ header may define `name` as a macro, one `macros.sh` found, which would
+/// expand where the header names it.
+pub(crate) fn defined(name: &str) -> bool {
+	static MACROS: std::sync::LazyLock<Vec<&str>> = std::sync::LazyLock::new(|| {
+		(include_str!("macros.txt").lines())
+			.filter(|line| !line.starts_with('#'))
+			.collect()
+	});
+	MACROS.binary_search(&name).is_ok()
+}
+
+/// Whether C and C++ reserve a name for the implementation, as `_Bool` and `__cplusplus`:
+/// one starting with `__` or `_` and an uppercase letter. Appending keeps it reserved, so
+/// escaping one by appending never meets a name the escape leaves alone.
+pub(crate) fn reserved(name: &str) -> bool {
+	let mut chars = name.chars();
+	chars.next() == Some('_') && chars.next().is_some_and(|c| c == '_' || c.is_ascii_uppercase())
+}
+
+/// The keywords a Rust name takes raw, `r#type`.
+pub(crate) const RUST_KEYWORDS: &[&str] = &[
+	"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+	"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move",
+	"mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type", "typeof",
+	"unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+];
+
+/// A callback method's member of its `<callback>_vtable`, which C and each binding's Rust
+/// glue name alike: its [`escape`]d name, with `_` appended to a Rust keyword too and to
+/// `free`, the table's own. Escaping stays injective, so no two members share a name.
+pub(crate) fn member(method: &Function) -> String {
+	match method.name() {
+		name if name == "free" || RUST_KEYWORDS.contains(&name) => format!("{name}_"),
+		name => escape(name),
 	}
 }
 
@@ -2196,7 +2292,36 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, past_cycles, shortest, unique};
+	use super::{apart, defined, escape, past_cycles, shortest, unique};
+
+	#[test]
+	fn escapes_keep_apart_from_every_macro() {
+		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
+		for stem in macros.map(|m| m.trim_end_matches('_')) {
+			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
+			// A C++ keyword's escape merges a name with its own, which each scope's names keep
+			// apart, as `cpp::named` does.
+			let keyword = crate::cpp::escape(stem) != super::unmacroed(stem, 0, |name| name == "i386");
+			let escapes: &[fn(&str) -> String] = match keyword {
+				true => &[escape],
+				false => &[escape, crate::cpp::escape],
+			};
+			for escape in escapes {
+				let escaped: std::collections::BTreeSet<String> = family.iter().map(|n| escape(n)).collect();
+				assert_eq!(escaped.len(), family.len(), "{stem}'s names escape alike");
+				assert!(!escaped.iter().any(|e| defined(e)), "{stem}'s names escape to a macro");
+			}
+		}
+	}
+
+	#[test]
+	fn reserved_names_escape_apart() {
+		assert_eq!(escape("_Bool"), "_Bool_");
+		assert_eq!(escape("__cplusplus"), "__cplusplus_");
+		assert_eq!(escape("__cplusplus_"), "__cplusplus__");
+		assert_eq!(escape("_bool"), "_bool");
+		assert_eq!(escape("_1"), "_1");
+	}
 
 	#[test]
 	fn past_cycles_marks_what_a_cycle_reaches() {

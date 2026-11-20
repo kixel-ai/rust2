@@ -42,6 +42,19 @@ class Print(api.Log):
 		print("freed")
 
 
+class Edits(api.Undo):
+	"""The Undo callback: each method returns its own digit."""
+
+	def delete(self, n):
+		return n - 1
+
+	def free(self):
+		return 2
+
+	def type(self):
+		return 3
+
+
 def bound(b):
 	match b.kind:
 		case api.Bound.INCLUDED:
@@ -313,6 +326,63 @@ def readers():
 		print(f"sought error {e}")
 
 
+def streams():
+	"""Streams, each iterated by `async for`: to its end, left early, and to an error, past
+	which the stream goes on."""
+
+	async def run():
+		counts = [str(count) async for count in api.Countdown.new(3)]
+		print(f"countdown {' '.join(counts)}")
+		# A loop left early takes nothing past the item it stopped at.
+		countdown = api.Countdown.new(5)
+		async for count in countdown:
+			if count == 4:
+				break
+		print(f"countdown after break {await countdown.next()}")
+		# Each payload sends the next, which `!` fails and an empty one ends.
+		channel = api.Channel.new()
+		feed = channel.feed()
+		for first in ("a", "c"):
+			channel.send(first.encode())
+			try:
+				async for payload in feed:
+					got = text(payload)
+					print(f"feed {got}")
+					channel.send({"a": b"b", "b": b"!"}.get(got, b""))
+				print("feed end")
+			except api.ErrorException as e:
+				print(f"feed error {e}")
+
+	asyncio.run(run())
+
+
+async def streamed():
+	"""A stream's iteration cancelled while its `next` pends loses nothing: the payload
+	sent after it is the next one `next` returns."""
+	channel = api.Channel.new()
+	feed = channel.feed()
+	got = []
+
+	async def iterate():
+		async for payload in feed:
+			got.append(text(payload))
+
+	task = asyncio.ensure_future(iterate())
+	await asyncio.sleep(0)
+	check(not task.done(), "a stream's iteration waits for a payload")
+	task.cancel()
+	try:
+		await task
+		check(False, "a cancelled iteration raises")
+	except asyncio.CancelledError:
+		pass
+	channel.send(b"kept")
+	check(got == [], "a cancelled iteration took nothing")
+	payload = await asyncio.wait_for(feed.next(), 5)
+	check(payload is not None and text(payload) == "kept", "a cancelled iteration loses nothing")
+	check(aiter(feed) is feed, "a stream iterates itself")
+
+
 def local_later(local):
 	"""Futures of a value that is not `Send`, run on this thread."""
 	loop = asyncio.new_event_loop()
@@ -428,6 +498,11 @@ def futures():
 		check(False, "a future's borrowing error raises")
 	except api.StringException as e:
 		check(e.error == "malformed: ", "a future's borrowing error is its message")
+	# A future returning a `Cow` that borrows its text owns it before the future ends.
+	check(loop.run_until_complete(api.unescaped_later("a\\b")) == "ab", "a future's owned Cow crosses")
+	check(loop.run_until_complete(api.unescaped_later("plain")) == "plain", "a future's borrowed Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe("c\\d")) == "cd", "a future's optional Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe(None)) is None, "a future's absent Cow crosses")
 
 	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
 	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.
@@ -562,6 +637,7 @@ def futures():
 	loop.run_until_complete(asyncio.wait_for(foreign(), 5))
 	loop.run_until_complete(asyncio.wait_for(polled(), 5))
 	loop.run_until_complete(asyncio.wait_for(kept(), 5))
+	loop.run_until_complete(asyncio.wait_for(streamed(), 5))
 	loop.close()
 	reading()
 	print("futures ok")
@@ -1265,6 +1341,19 @@ def idioms():
 	check(type(e) is RuntimeError and "asyncio" in str(e) and "trio" in str(e), str(e))
 	e = raised(lambda: api.Waker(lambda: None))
 	check(type(e) is RuntimeError and "asyncio" in str(e), str(e))
+
+	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
+	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
+	# reserves, and each constant `__getattr__` makes; and no import: what the module binds
+	# without a leading `_` but its `__future__` import.
+	star = {}
+	exec("from api import *", star)
+	del star["__builtins__"]
+	check(star["_deprecated_"](1) == 2, "a pub fn named with a leading underscore")
+	check(star["__all___"](1) == 3, "a pub fn named as a name Python reserves")
+	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
+	expected = public | {"_deprecated_", "__all___"} | set(api._consts)
+	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
 	print("idioms ok")
 
 

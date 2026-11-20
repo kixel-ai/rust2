@@ -11,7 +11,7 @@ be refused, and the census also lists API items left out by those rules.
 what each refusal asks you to change.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -59,18 +59,9 @@ An export again rewrites only the files whose content changed, and removes from
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
-```toml
-# ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. A type
-# no facade module re-exports goes by its crate's name and its public path there. Each
-# must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
-# `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
-# method or constant shares with a field names the method, and `field@` the field.
-# A `cfg`-stripped item is found through a glob re-export only while its source module
-# keeps an exported item; under a glob of a module a `cfg` empties, the exclude fails as
-# naming nothing exported.
-exclude = ["track::Producer::poll_closed"]
-```
+It reads no config: the package is in the current directory unless `--manifest-path` says
+where, and an item the rules cannot export fails the export at its span. Nothing leaves an
+item out but the source itself: `#[doc(hidden)]`, or a `cfg` that leaves it out of a build.
 
 ## Rules
 
@@ -108,7 +99,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
 | a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
-| an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the config names each by the object's path |
+| an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the census names each by the object's path |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message; a `()` error, as once_cell's `race::OnceBool::set` returns, is refused, having no value to raise |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
@@ -132,8 +123,9 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
 | a type implementing `PartialEq` and `Hash` | beside `<T>_eq`, `uint64_t <T>_hash`, its `Hash` through std's hasher with its fixed keys, so equal values hash alike in every binding |
-| `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
-| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
+| a type implementing `PartialOrd` with itself | `int8_t <T>_partial_cmp(a, b)`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or 2 when the two are unordered; with `Ord`, `int8_t <T>_cmp(a, b)` too, -1, 0, or 1. Every binding's `<` and its kin call `_partial_cmp`, as Rust's do, and its total order, where it has one, `_cmp` |
+| `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq` and ordered by `_cmp`, with none of its methods |
+| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `ERROR` (0) to `TRACE` (4), numbered in tracing's `Ord`, the more verbose after the less, so every language's own order of it agrees with Rust's |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |
@@ -152,7 +144,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read`, not bounded by `Seek` | `&[u8]` |
 | `impl Iterator<Item = X>` taken | `Vec<X>`, whose items Rust iterates; for `X` of `&str` or `&[u8]`, an array of buffers C lends for the call; an iterator of other references, or one a future or a callback takes, is refused |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| another type parameter | `serde_json::Value` for a serde `Serialize`, `Deserialize`, or `Deserializer` bound, as a derived `deserialize` takes, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
@@ -167,11 +159,21 @@ maps, which may name more. Inference finishes before any type is mapped, so mapp
 never adds an instance. An instance that holds an instance of a type inside it, such as
 `Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
+A field holding a reference, as `&'a mut ClientConfig` in rustls's
+`DangerousClientConfig` is, is read through it, lent where it is not `Clone`, and has no
+setter, since no borrow C holds outlives a call. A returned `Cow<'_, str>` or
+`Cow<'_, [u8]>` crosses as the string or bytes it owns, a copy C would make of a borrow
+anyway; a `Cow` anywhere else is refused, as C would hand Rust its form. A future owns
+its output before it ends, so it may return a `Cow` only on its own, in an `Option`, or
+as a tuple's element, and an error's only as `Cow<str>`, whose message crosses. Another crate's
+type that only refused items name, as `std::net::TcpListener` in moq-tokio's
+`server::Streams` is, is one no export returns, so those items are left out with it.
+
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
-alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`, through a `Box` too: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
@@ -179,8 +181,8 @@ is the call's. A signature may not lend C's borrow for one that is `'static`, bu
 exclusive lend: a `&mut self` method of an object returning an object, bare or as a
 `Result`'s `Ok`, that borrows the receiver's lifetime alone and is not `Copy`, as a lock's
 guard does, which its handle holds with the receiver's exclusive borrow; a copy would
-carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `Debug`, `Display`,
-`Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
+carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `PartialOrd`, `Ord`,
+`Debug`, `Display`, `Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
 `'static` form, and its `Deref` target must name no lifetime. So must each of the
 method's own bounds naming the receiver's lifetime, as the binding's lend gives the call a
 borrow of any lifetime. A parameter is a reference
@@ -194,6 +196,19 @@ object no export C can call returns or lends to a closure, a generic type no exp
 instantiates, a type parameter bounded by another crate's trait no type C holds implements,
 and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
+
+An object's method `next` of `&self` or `&mut self`, taking nothing else, whose future
+outputs `Option<T>` or `Result<Option<T>, E>`, such as moq's `announce::Consumer::next`, is
+a stream: beside the method, each binding but C and C++ iterates it in its language's own
+protocol, calling `next` once per item until it yields `None` or an error, which ends the
+iteration with that error, thrown or, in Go and on the web, its last item. Swift's
+`AsyncSequence` takes only a copyable element, so there a stream of a noncopyable object keeps
+`next` alone. The adapter reads no item ahead, so a loop left early leaves the
+next item to the next call, and cancelling the iteration drops the pending `next`'s
+future, as dropping it in Rust would: it loses an item only where that future does when
+dropped, as one that is not cancel-safe does. C++ keeps the method alone, since it has no
+asynchronous iteration of its own: `std::generator` is synchronous, so a loop
+`co_await`s each `next`.
 
 ## Targets
 
@@ -232,7 +247,7 @@ A target's check may need its own C toolchain, as moq's `aws-lc-sys` and `ring` 
 for a check, which only its own host may have. `--api file` writes one target's API, with
 the spans of its items, instead of exporting; an export elsewhere adds it with
 `--with file`, as though it had checked that target too. Both must check the same
-package, features, and `exclude`, from the same sources: a staged span's file is relative
+package and features, from the same sources: a staged span's file is relative
 to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
 dropped for the other target's span where the file differs.
 
@@ -261,11 +276,14 @@ API breaks the one in `file`, with an error at each item that names how:
   A tuple's struct, known by its Rust spelling, is renamed the same way when another
   tuple's elements run together into its name.
 
-An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
+An item is known by its kind and Rust path. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
-it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
-public names. A clash that renames a kept class, function, or member reports its language
+it compares C's names and the C++, Kotlin, Python, Swift, Go, Dart, and TypeScript generators' own
+public names. Each table holds the names its binding declares: a function, type, constant,
+field, variant, a variant's field, exception class, the member a std trait exports, and in C
+and Swift a tuple's struct, keyed by kind and Rust path, as `type api::Point / field x` and
+`type api::Point / Clone`. A clash that renames a kept class, function, or member reports its language
 and old and new names at the item's span. An error type's exception class is known by its
 error type and the type the language holds it as, since Kotlin's `UShortArray` and
 `List<UShort>` may share one error type: one added beside another adds a class, and a
@@ -417,7 +435,12 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   any poll. A null `poll` aborts.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
-  buffers lent for the call, and returns a scalar.
+  buffers lent for the call, and returns a scalar. Each method is its table's member by
+  its name, with `_` appended where C, C++, or Rust reads it as a keyword, where a header
+  or GNU dialect defines it as a macro (`src/macros.txt`: `unix`, `EOF`), where C and C++ reserve it
+  (`_Bool`, `__cplusplus`), where the ABI's own parameters take it (`data`, `out`, `err`,
+  `future`, `waker`, `out0`, ...), where it ends in `_`, and for `free`, the table's own:
+  `delete`, `free`, `type`, and `data` are `delete_`, `free_`, `type_`, and `data_`.
 - **Closures** are a function and its data, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
   with a `free`, which Rust calls once it drops the closure, done or not, maybe before
@@ -438,6 +461,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Must-use returns**: a function returning a handle, a buffer, a waker, a value holding
+  any of those or a `Vec`, such as a record with a `String` field, a poll, or a fallible
+  call's `bool` is `<PREFIX>_MUST_USE`, C23's and C++17's `[[nodiscard]]`, or
+  GCC's and Clang's `warn_unused_result` before C23, since dropping it leaks or loses an
+  error. Docs are `/** */`, which Doxygen reads.
 - **Android**: the build script links the library with 16 KB pages, which Google Play
   requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
   panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
@@ -474,10 +502,7 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
-  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
-  `exclude` of a type or method by the generic type's path leaves it out of every
-  instance, and by the instance's path
-  (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
 
 ## C++
 
@@ -495,15 +520,22 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
-  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
-  underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
-  as does a member named as its class or one of its fields, and a parameter named as a
-  member or as anything in the namespace, which it would hide.
+  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
+  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
+  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
+  as does a member named as its class, one of its fields, or a member a trait gives it,
+  and a parameter named as a member or as anything in the namespace, which it would hide.
+  A name already ending in `_` takes as many more as keep it apart and off every macro:
+  `unix_` becomes `unix__`.
+  A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
+  until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
-  `std::hash` hashes it. A type whose copies may share one value, by the rule below,
+  `std::hash` hashes it. Every type implementing `PartialOrd` has `<`, `<=`, `>`, and `>=`,
+  through Rust's `partial_cmp`, and from C++20 `<=>`: a `std::weak_ordering` through `cmp`
+  with `Ord`, since Rust's `Equal` promises agreement with `==` alone, and else a
+  `std::partial_ordering`. A type whose copies may share one value, by the rule below,
   owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
   into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
   `const`, and `self` methods are `&&`, so a call that moves the value out reads
@@ -550,8 +582,14 @@ packages place it in.
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
-  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
-  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float. One whose
+  refuses for a view or `str()` of a temporary `buf`, and from Clang 23 `-Wlifetime-safety`
+  for one kept past its `buf` across statements: `buf` is a `[[gsl::Owner]]`, and `view`,
+  `slice`, and `items` are `[[gsl::Pointer]]`s. A `Vec<T>` is a `std::vector`. A list
+  parameter of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, as
+  `&[f32]` or `Vec<u64>`, is a `slice<T>`, which Rust reads in place and copies only if it
+  keeps it: a pointer and a count, or any contiguous range of `T`, such as a
+  `std::vector`, a `std::array`, a C array, a braced list, or from C++20 a
+  `std::span<const T>`, which it converts back to. One whose
   items hold bytes is taken as `items` of `view`s, which points into a `std::vector` of them
   in place and converts any other range whose items convert and outlive the call, such as a
   returned `std::vector<buf>`, but not a range of temporaries. A `std::vector` moved in
@@ -560,7 +598,9 @@ packages place it in.
   handle is taken as `taken`, a `std::vector` of them moved in as it is, or any other such
   range moved in, each handle moved out of it. A socket address is a `socket_addr`, an IP
   address an `ip_addr`, and a `u128` a `u128`, each the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
-  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
+  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`. A `result`, `future`, `task`, or
+  `buf` is `[[nodiscard]]`, as Rust's `Result` and futures are `#[must_use]`: dropping
+  one unread loses an error, cancels a call, or reads bytes for nothing.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** are any callable, taken by a template parameter, which Rust calls from any
   thread, one call at a time. One lent for a call Rust calls only during the call; one Rust
@@ -582,8 +622,10 @@ packages place it in.
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
   a `task` that cancels when destroyed, after which the callback has finished or never
-  runs and the executor is never called again; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine on the
-  executor. An executor is any callable taking a `void()` job to run once, later, on any
+  runs and the executor is never called again: a `task` dropped before its executor starts
+  the job never runs, though one dropped at once may lose that race to an executor on
+  another thread; and from C++20, `co_await std::move(f).via(exec)` resumes the coroutine
+  on the executor. An executor is any callable taking a `void()` job to run once, later, on any
   thread: never inline, since a wake may come from inside Rust. Each wake that lands while
   the future polls polls it again, and a future has one poller at a time, since awaiting
   it moves it.
@@ -642,7 +684,10 @@ the rest cross encoded.
   the GC frees it once it collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
-  hash folded as `Long.hashCode` folds it, or 0 without one. A value that is not `Send`
+  hash folded as `Long.hashCode` folds it, or 0 without one. `PartialOrd` is
+  `partialCompareTo`, null when unordered, and `Ord` makes it `Comparable`, whose
+  `compareTo`, and so `<`, is Rust's `cmp`; an enum class's `compareTo` stays Kotlin's
+  own by declaration order, which Kotlin makes final. A value that is not `Send`
   throws an `IllegalStateException` when used on another thread than the one that made
   it, and closed or collected on another, it drops on its own at its next call or as it
   exits. A future that is not `Send` made from none lives on a home, so a coroutine a
@@ -747,6 +792,9 @@ the rest cross encoded.
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
+- A **stream**'s `asFlow()` is a cold `Flow` of what its `next` yields, ending at null or
+  with what `next` throws: each collection calls `next` once per item, and cancelling it
+  cancels the pending `next`.
 - A **future Kotlin implements** is a `suspend () -> Unit`, which Rust's first poll
   launches in the calling coroutine's context, on its dispatcher, or on `Default` for one
   that does not dispatch. It runs on a job of its own, so the caller never waits on it,
@@ -801,11 +849,13 @@ caller imports it with no ignores.
   top-level names that clash. A keyword, a member Python gives every such class, or a
   method named as a field takes a trailing `_`. A member or top-level name may be a
   builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
-  Constructors such as `new` stay static methods: `Counter.new(1)`.
+  Constructors such as `new` stay static methods: `Counter.new(1)`. The module's `__all__`
+  lists every export, so `from moq import *` reaches one whose Rust name starts with `_`
+  too, and none of the module's own imports or helpers.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. An object, as
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. `PartialOrd` is `<`, `<=`, `>`, and `>=`, through Rust's `partial_cmp`, each false when the two are unordered. An object, as
   an opaque value and a record, takes weak references (`weakref.ref`). A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
@@ -834,7 +884,9 @@ caller imports it with no ignores.
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
-  `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `bytes`. Strings are `str`, `u128` an `int`, a float a `float`, whose 64 bits hold an
+  `f32`'s NaN as `struct` widens one, its payload shifted up and its quiet bit kept, so a
+  signaling one returns exactly where the hardware's conversion would quiet it, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   the runtime's `Duration`, a `NamedTuple` of `secs` and `nanos` as Rust holds them, which
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
@@ -893,6 +945,9 @@ caller imports it with no ignores.
   anything but Rust cancels, prints its traceback and aborts. A value that is not
   awaitable, or a future of another loop, raises at the call. A poll lent one pinned,
   as `Waiter.poll_future`, is an `async def` taking it, whose future owns it.
+- A **stream** is its own async iterator: `async for item in feed` awaits `next()` once
+  per item through `__anext__`, which raises `StopAsyncIteration` at `None` and the
+  error of a `Result`'s `Err`.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.
@@ -929,7 +984,8 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
   `Equatable` unless it throws, as below, and `Hashable` with `Hash`, whose `hash(into:)`
-  combines Rust's hash; `Display` is `description` and `Debug`
+  combines Rust's hash; `PartialOrd` is `<`, `<=`, `>`, and `>=`, through Rust's
+  `partial_cmp`, and with `Ord` makes it `Comparable` unless it throws; `Display` is `description` and `Debug`
   `debugDescription`, which Swift conforms no noncopyable type to yet. A `Copy` object,
   which Rust copies where it takes one by value, and an object thrown as an error, which
   `Swift.Error` requires be copyable, are final classes instead, whose handle a call
@@ -1025,6 +1081,13 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `CancellationError`. Each call is its own future, so it has one poller. The call makes
   and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
   on only if that poll pends; the signal latches a wake that lands before it parks.
+- A **stream** is `stream()`, which consumes the object into a generated `<T>Stream`
+  owning it, a final class that is an `AsyncSequence`: `for try await x in feed.stream()`.
+  Each loop's `AsyncIterator` ends for good at nil or an error, as the protocol requires,
+  and the next loop, or `next()` on the class, calls Rust's `next` again, which may go on
+  as Rust's does, as after a loop left early. Its `next` runs on the caller's isolation,
+  through `next(isolation:)` and `nonisolated(nonsending)`. `AsyncSequence` takes only a copyable element, so a stream of
+  a noncopyable object keeps `next` alone.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
@@ -1136,7 +1199,9 @@ other than one in its own form, `module <path>` and `go 1.24`.
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
   interface's. Positional fields are `V0`, `V1`, and so on. `Display` is `String()`,
-  `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
+  `Debug` `GoString()`, `PartialEq` `Equal(other)`, `PartialOrd` `PartialCompare(other)`,
+  -1, 0, or 1 and false when unordered, and `Ord` `Compare(other)`, the shape
+  `slices.SortFunc` takes, all through Rust's, and `Default` a
   function of the package, `PointDefault()`. An object's exported `Handle_` field, and a
   trait's `<Trait>Vtable_` function, are how one generated package reaches another's,
   since cgo gives each its own C types: callers use neither. An **opaque value** is a
@@ -1218,6 +1283,10 @@ other than one in its own form, `module <path>` and `go 1.24`.
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
+- A **stream** has `All(ctx)`, an `iter.Seq2[T, error]` that a `for item, err := range`
+  ranges over, calling `Next(ctx)` once for each item: an error, ctx's included, is its
+  last, and leaves the stream usable. Of a method another package keeps, it is that
+  package's `<Type>All`, as `Next` is `<Type>Next`.
 - A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
   a goroutine of its own. Its context derives from the call's, `context.Background()` for
   a call without one, so it carries the caller's values and deadline, and the caller's
@@ -1240,15 +1309,19 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
   camel case, so `moq_track_Producer` is `TrackProducer`, and its method
-  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant in
-  upper case (`LIMIT`). A function of a type
+  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant too
+  (`limit`), as Dart's lints name one. A function of a type
   that returns it is a constructor, which may share its name with a field: an object's
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
   (`Position.group`). A type's other functions are static members. Two types whose
-  names would match are kept apart as Kotlin's are (`TokioConnect_Error`). A reserved word takes
-  a trailing `_` (`Point.default_()`), and names that clash, such as one the runtime
-  declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
-  names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
+  names would match are kept apart by a number (`Cancelled2`), as a type's name holds no
+  `_`, which Dart's lints refuse. A reserved word takes a trailing `_` (`Point.default_()`),
+  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`); names that clash,
+  such as one the runtime declares or a data enum's variant class, are kept apart the same
+  way. The glue's C names are `<prefix>_dart_`, with a `_` more for each C name of the
+  export already there. The generated file passes `dart analyze --fatal-infos` with
+  `package:lints/core.yaml`, the lints pub.dev scores a package with ([`tests/dart_lints.yaml`](tests/dart_lints.yaml)),
+  and no `ignore_for_file`.
 - **Objects** are final classes owning their handle. Of a checked type, `close()` drops
   the value through Rust's own `_drop`, as Rust's `drop` would, and frees the handle in
   the same crossing, and a `close()` while a call borrows the value, from a closure that
@@ -1271,7 +1344,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
   over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, and
   `Hash` `hashCode`, all through Rust's; without `Hash`, `hashCode` throws an
-  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `Default` is a
+  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `PartialOrd` is
+  `<`, `<=`, `>`, `>=`, and `partialCompareTo`, null when unordered, through Rust's
+  `partial_cmp`, and `Ord` makes it `Comparable`, whose `compareTo` is Rust's `cmp`. `Default` is a
   constructor, `default_()`. An
   **opaque value** is a final class of its bytes as `int`s, with a private constructor,
   so only Rust makes one. It never changes: a `&mut self` method, a field's setter
@@ -1286,6 +1361,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `isize` past 32 bits on a 32-bit target, and a zero passed for a `NonZero` throws an
   `ArgumentError`. A `char` is a `String` of one Unicode scalar, and any other throws an
   `ArgumentError`.
+- **Floats** are `double`. An `f32` crosses `dart:ffi` as its bits, a NaN widened into the
+  `double`'s by them, its payload shifted up and its quiet bit kept, since the hardware's
+  conversion `dart:ffi` makes of a `Float` would quiet a signaling one: the glue converts
+  its bits at each call, and a struct holding one crosses as the glue's twin of it, whose
+  `f32`s are integers as Dart's class declares them. Any other `double` passed for one
+  rounds to the nearest `f32`.
 - **Bytes** a call takes are a `Uint8List`, and text a `String`, which throws an
   `ArgumentError` passed in holding a lone surrogate, since UTF-8 has no form of one and
   Dart's encoder would replace it. Rust keeps Dart's own
@@ -1345,6 +1426,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future unless it finished, which cancels it in Rust and loses nothing: the next call
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
+- A **stream** is `asStream()`, a single-subscription `Stream<T>` that calls `next` only
+  while its listener listens and is not paused, one call at a time, and adds each item
+  synchronously from the event loop, so a pause or cancel in the listener's handler lands
+  before the next call. A pause or cancel cancels the pending call, which loses nothing
+  where `next` is cancel-safe, so `await for`, which pauses while its body runs, reads
+  nothing ahead. An error is its last event.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
   are, which Rust polls until it completes, or which a poll owns, as
   `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
@@ -1393,13 +1480,9 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, a binding's own refusals such as Swift's included,
-then the `exclude` list that exports the rest, and
-what else it left out, such as what C can never hold and the traits C cannot implement, and why.
-That list is checked by collecting again with it: it holds what Swift alone refuses, and
-not an instance only refused items named, which nothing names once they are left out.
-It ignores the config's `exclude`, but lists each exclude that leaves out an item that
-would export, and fails on it, so the list holds only what the export refuses. It also
-fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+each of which fails the export, and what else it left out, such as what C can never hold
+and the traits C cannot implement, and why. It fails on an `instance not inferred` refusal,
+which is a bug in the exporter's inference
 rather than in the crate.
 
 ## TypeScript (web)
@@ -1470,7 +1553,14 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   by `tag`. A tuple is an array, `Option<T>` is `T | undefined`, or `T | rt.None` where `T`
   can already be `undefined`, `Result<T, E>` an `rt.Result`, `{ ok: true, value }` or `{ ok:
   false, error }`, and an error is that value, never thrown. `u8` through `u32`, `usize`,
-  `isize`, `f32`, `f64`, and `char` are numbers, each checked as it crosses in; `u64`, `i64`,
+  `isize`, and `char` are numbers, each checked as it crosses in. `f32` and `f64` are
+  `rt.f32` and `rt.f64`, a number but for a NaN other than Rust's `NAN`, which `NaN`
+  stands for: that one is its bits, `{ bits }` or `{ hi, lo }`, since an engine quiets or,
+  once it optimizes, canonicalizes a NaN in any number it converts. A NaN's form follows
+  its bits, which wasm leaves arithmetic to choose by host: Rust's `0.0 / 0.0` is `NaN` on
+  ARM, but on x86 it has its sign set, so it is `{ bits: 0xffc00000 }`. A number passed for an
+  `f32` must be one exactly, and `rt.f32Number` or `rt.f64Number` give a plain number,
+  dropping a NaN's bits. `u64`, `i64`,
   and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit
   limbs past it, converted from the `bigint` a wasm `i64` is at the boundary, which costs a
   getter 9% over returning that `bigint` as it is. `String` and `&str` are strings, bytes a
@@ -1482,6 +1572,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   memory, which it gives back once the call returns, and reads what Rust returns at the
   layouts C's wasm32 ABI gives the header's structs, passing a struct of one scalar as it,
   any other through a pointer to a copy, and one returned through a pointer passed first.
+  A float, alone or a struct's one scalar, crosses as a struct does, read and written as
+  its bits: the glue wraps each function passing one by value, and shims each JavaScript
+  implements, to take it through memory.
   Text Rust returns is copied out, and its buffer freed at once, so no view outlives a
   growth of memory, which detaches it; what Rust lends a closure or trait is copied before
   any call it makes can grow memory.
@@ -1524,11 +1617,19 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   once it drops an implementation, and **closures** are functions: each is a C function
   the module imports from `rust2`, whose data is a token the binding finds the value by, so
   JavaScript never writes the module's function table. Its std traits are functions of its
-  module: `toString`, `debug`, an object's `clone`, `eq`, with `Hash` `hash`, and `default`.
+  module: `toString`, `debug`, an object's `clone`, `eq`, with `Hash` `hash`, `partialCmp`
+  from `PartialOrd`, undefined when unordered, `cmp` from `Ord`, the shape
+  `Array.prototype.sort` takes, and `default`.
 - **Futures** are an `rt.Call`, a `Promise` with `cancel()`: the call polls once as it is
   made, and each wake polls again on a microtask, never inside the wake. Cancelling frees
   the future in Rust, losing nothing, and rejects with `rt.Cancelled`. A future JavaScript
   implements is any promise, a waker a function, and a reader an `rt.Reader`.
+- **Streams** are an `AsyncIterableIterator` from the type's `values(self)`, as a
+  `ReadableStream`'s `values()` is, which `for await` takes: of `T` for `Option<T>`, and for
+  `Result<Option<T>, E>` of `rt.Result<T, E>`, whose `Err` comes last, since an error is a
+  value, never thrown. Calls of `next` never overlap, and `return`, as a loop's `break`
+  calls, cancels a pending one in Rust and resolves it as done; one that finished first
+  still gives its item.
 - **Failure**: a run-time check that fails throws an `Error` naming the C function and the
   check, as each binding raises. Rust's panic aborts the module, as do a throw out of a
   closure, trait, or reader, since Rust has nowhere to unwind to: the message goes to
@@ -1546,7 +1647,7 @@ just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
@@ -1567,7 +1668,9 @@ typed subset of Rust checked against the export's `api.json`: an item it cannot 
 a construct a language's writer cannot spell, fails the test naming it. Each function the
 example defines is a hook each language's test writes by hand under the same name, for what
 tests its idiom, such as futures and readers, or prints a value no two bindings shape alike.
-A new rule's case is a few lines of `main`, which every language then runs.
+A new rule's case is a few lines of `main`, which every language then runs; a new value
+type's rule adds none, as the shape tests below cover it, unless it needs an idiom or
+protocol test of its own.
 `tests/api.c` runs the script through the C, and its transcript must match the native one
 line for line; then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
@@ -1619,19 +1722,19 @@ position a binding maps apart: a closure's parameter and return, a future, a `Re
 value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
 object's methods, and a trait a caller implements. A digest hashes floats by their bits,
 so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
-decides what exports, so a shape refused by design is left out rather than failed. Each
+decides what exports, so a shape refused by design, for a construct `BY_DESIGN` names
+(such as a closure's signature or a nested `Option`), is left out rather than failed, and
+any other refusal fails the test, so a value type the exporter stops taking fails it. Each
 language's driver, the web's on Node included, is a generated list of these calls whose
 printed digests must match the crate's own, run natively, or as wasm under Node's WASI
 for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
 every sampled shape and, as the nightly does, more drawn from the day's seed, which it
-prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
-each with the quest that fixes it; the driver skips those calls, so the fix deletes its
-entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
-`Type` variant fails `ir_covered` until the sampler covers it.
+prints and `RUST2_SHAPES_SEED` replays. A new IR `Type` variant fails `ir_covered` until
+the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
-<crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
+<crate>::*;`. Each is censused, then, where the census refuses nothing, exported, and
 its glue, C and C++ programs including its headers (compiled, not linked, since a crate
 may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
 built; a panic, an error, or a binding that does not build fails it, a refusal not.
@@ -1681,6 +1784,9 @@ and cgocheck2, and `tests/api.py`'s checks on a debug build of the newest CPytho
 blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` and the
 protocol scripts from `tests/miri/protocol.rs` under Miri with strict provenance. The
 protocol scripts' C driver runs under each sanitizer too.
+On aarch64 the glue builds without outline atomics (`-Ctarget-feature=-outline-atomics`): the
+instrumented `compiler_builtins` would answer the runtime's own atomics, before its shadow
+exists, and crash it in `__asan_init`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a

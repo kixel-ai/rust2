@@ -38,6 +38,20 @@ pub fn hash<T: std::hash::Hash + ?Sized>(value: &T) -> u64 {
 	std::hash::BuildHasher::hash_one(&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(), value)
 }
 
+/// `a`'s `PartialOrd` against `b`, as C reads it: -1 less, 0 equal, 1 greater, or 2 when
+/// they are unordered.
+pub fn partial_cmp<T: PartialOrd + ?Sized>(a: &T, b: &T) -> i8 {
+	match a.partial_cmp(b) {
+		Some(ordering) => ordering as i8,
+		None => 2,
+	}
+}
+
+/// `a`'s `Ord` against `b`: -1 less, 0 equal, or 1 greater.
+pub fn cmp<T: Ord + ?Sized>(a: &T, b: &T) -> i8 {
+	a.cmp(b) as i8
+}
+
 /// Abort with a message naming the C function whose contract was broken.
 #[cold]
 pub fn fail(what: &str, msg: &str) -> ! {

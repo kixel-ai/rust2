@@ -1,33 +1,45 @@
-# [S] A release rebuilds the same from any checkout path
+# [M] A release rebuilds the same from any checkout path
 
 ## Goal
 
-The generated crate's version hashes its `Cargo.toml`, which names the facade by absolute
-path, and cargo hashes that version into every symbol: two checkouts of one commit at
-different paths make different libraries. The exporter writes the dependency relative to
-its output, so [a rebuild](/ffi/release/README.md#reproducible-builds) at any path makes the
-same bytes, and `reproduce` in `bindings-test.yml` builds the second copy elsewhere.
+A [rebuild](/ffi/release/README.md#reproducible-builds) of a commit makes the same bytes
+at any checkout path, and `reproduce` in `bindings-test.yml` builds its second copy of the
+source and the export elsewhere.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-19, in the pick of [#874](https://github.com/kixel-ai/rust2/pull/874): ✅ kept (rejected: dropping it).
+Decided with the maintainer on 2026-11-19, in the pick of [#874](https://github.com/kixel-ai/rust2/pull/874): ✅ kept the relative dependency (rejected: dropping it).
 
-Found by [the reproducible-releases quest](https://github.com/kixel-ai/rust2/pull/874):
-`glue.rs`'s `generate` writes `path = {facade.dir}`. Measured there: two exports of the api
-fixture from copies at different paths differ in the version's hash and in every symbol
-hash; the same path with another export directory is byte for byte equal on Linux and for the wheels.
-The Go module's Windows GNU library is not: `dlltool` names its `kernel32` import members'
-symbols (`_head_D__a_rust2_..._export_target_go_...`) after the path of the target
-directory, which `--remap-path-prefix` does not reach (and a random rustc temporary directory in it,
-which the builder zeroes), so `reproduce` rebuilds from a new
-export at the same path. Find a target directory path that is the same everywhere (or a
-rustc that remaps it) so the CI rebuild can move the export again.
+Done: the generated crate's manifest names the facade, each `[patch]` path, and each
+path crate it reaches relative to its export, so its version hash, and with it every
+symbol of the glue crate, is the same from any checkout. Two exports of one commit at
+other paths are byte for byte equal while each keeps its position relative to its crate
+(`export_is_relocatable`); an export at another depth writes another relative path, so
+another hash. It stays absolute where no
+relative path reads right: an export whose own path holds a symlink (cargo joins `..`
+lexically), or on another Windows drive from the crate.
 
-Fall back to the absolute path where no relative one exists, such as another Windows drive.
-Check `cli.rs`'s other absolute manifest paths (its "each path absolute" note) for the same
-dependence.
+Still differing, measured on the api fixture from two checkouts at other paths: the
+facade's own symbols. Cargo hashes a path package outside the workspace root into its
+metadata by its absolute path, so the glue's `[workspace]` root, the export, cannot make
+the facade's hash relative whatever the manifest says. Nothing in the manifest, `RUSTFLAGS`,
+or `--remap-path-prefix` reaches it. So `reproduce` can still only move the export, as it
+could before.
 
-Public API: none.
+The Windows GNU Go library is the same kind: `dlltool` names its `kernel32` import
+members' symbols (`_head_D__a_rust2_..._export_target_go_...`) after the path of the target
+directory (and a random rustc temporary directory in it, which the builder zeroes).
+
+Recommendation: the builder builds through one fixed spelling. `package.py build` links
+a fixed-name directory (a symlink, a junction on Windows) to the common ancestor of the
+crate's workspace and the export, and runs cargo on the manifest, the target directories,
+and the remap prefixes through it, never resolved. Cargo then hashes the same facade path
+and dlltool the same target directory wherever the checkout is. `reproduce` then moves both
+the source and the export for its second copy, keeping the export's depth below the common
+ancestor. Only CI shows it on macOS and Windows, which
+the linked directory and `Path.resolve()` calls in `package.py` could break: try it there.
+The alternative for the dlltool path alone is a target directory under a fixed absolute
+root, which leaves the facade's hash.
 
 ## Related
 

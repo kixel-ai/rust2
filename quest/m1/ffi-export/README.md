@@ -77,7 +77,7 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
-  requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
+  required the refusals epic, since finished. Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
   epic's `Required` holds back every child, so none could start until moq's pin bump, which
   then waited on a rind release the maintainer held.
@@ -89,23 +89,24 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   landed.
 - Not planned then: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does, until the four `[L]` children that each
-  rewrite every generator landed. They have; [the rule-cost epic](/quest/m1/ffi-rules/README.md)
-  now plans its spike.
+  rewrite every generator landed. They have, and its spike on Go
+  ([kixel-ai/rust2#924](https://github.com/kixel-ai/rust2/pull/924)) recommends against
+  it: Go's output stayed byte-identical, but the walker would have absorbed about 12 of the
+  172 lines [kixel-ai/rust2#710](https://github.com/kixel-ai/rust2/pull/710) added to
+  `go.rs`, and no files, since a rule's cost is each language's spelling, runtime, and tests.
 
 Decided with the maintainer on 2026-11-18, in the per-language audit:
 
 - ✅ Breaking changes to a generated API that the audit found are children here, and land
   as soon as possible: "You're allowed to break the API absolutely. Do it sooner." They
   are the API surface lock (`ffi/surface/`), which landed first,
-  [C and C++](/quest/m1/ffi-export/cpp-idioms.md), Swift (landed),
-  Kotlin (landed), Python (landed),
-  [Dart](/quest/m1/ffi-export/dart-analyze.md), and docs.
+  C and C++, Swift (landed),
+  Kotlin (landed), Python (landed), Dart (landed), and docs.
   Rejected: only the surface lock holding the pin; all of them after the pin.
 - ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as
-  decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),
-  [speed](/quest/m1/ffi-speed/README.md), [rule cost](/quest/m1/ffi-rules/README.md),
-  [packaging](/quest/m1/ffi-packaging/README.md), [ordering](/quest/m1/ffi-ord.md), and
-  [stream adapters](/quest/m1/ffi-streams.md).
+  decided on 2026-11-12: [speed](/quest/m1/ffi-speed/README.md), rule cost (landed),
+  [packaging](/quest/m1/ffi-packaging/README.md), ordering and stream adapters (landed),
+  with [Swift streams of noncopyable objects](/quest/m1/swift-async-reader.md).
 - Dropped: a per-function contract in place of the whole-header hash, since moq links
   statically and the strict check is what fails loud; C layout `_Static_assert`s, since
   mainstream ABIs agree and the API lock catches layout changes; and Kotlin Multiplatform,

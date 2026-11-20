@@ -17,7 +17,6 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"macro" => "export a function that does what the macro does, or mark the macro `#[doc(hidden)]`",
 		"static" => "export a function returning the value, or a `const`",
 		"item kind" => "export a function, type, trait, or constant that wraps it, or mark it `#[doc(hidden)]`",
-		"excluded type" => "the config leaves this type out, so leave out each item that names it too",
 		"doc(hidden) type" => "remove `#[doc(hidden)]` from the type, or mark this item `#[doc(hidden)]` too",
 		"discriminant outside `i32`" => "give each variant a discriminant within `i32`, as a C enum holds",
 		"non-exhaustive variant" => "remove `#[non_exhaustive]` from the variant, since a binding lists every field",
@@ -37,6 +36,9 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"instance holding an instance of a type inside it" => {
 			"do not nest the generic type in itself at a deeper instance, as `Cell<Cell<u8>>` does"
 		}
+		crate::collect::DEEPER => {
+			"spell the instance in a signature of its own, such as a function returning it, or stop nesting generic types in a method's signature"
+		}
 		"unmet bound of the instance" | "unmet bound" => {
 			"implement the bound for the type, or loosen it; an instance exports only where every bound holds"
 		}
@@ -48,6 +50,15 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 			"export a `bool` or an integer below 128 bits, a value that evaluates at compile time, or a function returning the value"
 		}
 		"type" => "use a type the README's rules table maps, or wrap it in one of your own",
+		"Cow other than a returned string or bytes" => {
+			"take `&str`, `&[u8]`, or an owned value instead, and return `Cow` only as a whole `Cow<str>` or `Cow<[u8]>`"
+		}
+		"Cow a future returns inside a collection" => {
+			"return the `Cow` itself, in an `Option`, or in a tuple, or collect owned `String`s or `Vec<u8>`s instead"
+		}
+		"Cow a future returns in its error" => {
+			"make the future's error `Cow<str>`, which crosses as its message, or an owned value"
+		}
 		"128-bit integer" => "use `u128`, which exports, or an integer of 64 bits or fewer",
 		"NonZero" => "use `NonZero` of an integer of 64 bits or fewer",
 		"Range" | "Bound" => "use `Range` or `Bound` of an integer of 64 bits or fewer",

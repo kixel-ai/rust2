@@ -84,6 +84,9 @@ fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<Args<O
 					"--census" => &mut census,
 					_ => &mut manifest,
 				};
+				if slot.is_some() {
+					return Err(format!("{arg} is given twice\n\n{usage}"));
+				}
 				*slot = Some(absolute(Path::new(value))?);
 			}
 			"--" => {

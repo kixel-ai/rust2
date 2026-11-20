@@ -223,6 +223,12 @@ int main(void) {
 	uint64_t secs = 0;
 	CHECK(moq_Timestamp_from_millis(1500, &at, &overflow));
 	CHECK(moq_Timestamp_as_secs(&at, &secs, &overflow) && secs == 1);
+	/* Timestamps order in time across scales, and a scaled one and an unscaled key not at all. */
+	moq_Timestamp second;
+	CHECK(moq_Timestamp_from_secs(1, &second, &overflow));
+	CHECK(moq_Timestamp_partial_cmp(&second, &at) == -1);
+	CHECK(moq_Timestamp_partial_cmp(&at, &second) == 1);
+	CHECK(moq_Timestamp_partial_cmp(&key, &at) == 2);
 	CHECK(!moq_group_Producer_write_frame(writer, at, str("late"), &err, NULL));
 	CHECK(err != NULL && is(moq_Error_to_string(err, NULL), "frame timestamp doesn't fit its track"));
 	moq_Error_free(err);
@@ -432,7 +438,7 @@ int main(void) {
 	CHECK(guarded != NULL && moq_hang_catalog_Stats_eq(guarded, want, NULL));
 	moq_hang_catalog_Stats_free(guarded);
 	moq_status held = 0;
-	moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, &held);
+	CHECK(!moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, &held));
 	CHECK(held == MOQ_STATUS_BORROWED);
 	moq_mux_catalog_Guard_Extra_stats_set(guard, NULL, NULL);
 	CHECK(moq_mux_catalog_Guard_Extra_commit(guard, &mux_err, NULL));

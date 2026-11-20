@@ -816,6 +816,15 @@ impl Ledger {
 		}
 	}
 
+	/// A tab on this ledger, holding its exclusive borrow in a field, as rustls's
+	/// `ClientConfig::dangerous` does.
+	pub fn tab(&mut self) -> Tab<'_> {
+		Tab {
+			ledger: self,
+			label: "ledger",
+		}
+	}
+
 	pub fn slip(&mut self) -> Slip<'_> {
 		Slip {
 			receipt: Receipt(&self.published),
@@ -823,6 +832,14 @@ impl Ledger {
 			here: std::marker::PhantomData,
 		}
 	}
+}
+
+/// What [`Ledger::tab`] lends: fields holding borrows, which C reads through and never
+/// assigns, lent where what they borrow is not `Clone`, and copied where it is.
+#[non_exhaustive]
+pub struct Tab<'a> {
+	pub ledger: &'a mut Ledger,
+	pub label: &'a str,
 }
 
 mod noted {
@@ -1675,6 +1692,86 @@ impl Channel {
 			payload if payload.is_empty() => Err(Error::Underflow { by: 1 }),
 			payload => Ok(payload),
 		}
+	}
+
+	/// What this channel receives from now on, as a stream.
+	pub fn feed(&self) -> Feed {
+		Feed(self.clone())
+	}
+}
+
+/// What a channel receives, as a stream each binding iterates in its language's own
+/// protocol: each payload, ending at an empty one and failing at `!`.
+pub struct Feed(Channel);
+
+impl Feed {
+	/// The next payload, waiting for it: `None` at an empty one, and an error at `!`.
+	/// Dropped while it waits, it loses nothing, since only the poll returning a payload
+	/// takes it.
+	pub async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+		match self.0.recv().await {
+			payload if payload.is_empty() => Ok(None),
+			payload if payload == "!" => Err(Error::Overflow),
+			payload => Ok(Some(payload)),
+		}
+	}
+}
+
+/// Counts down to 1, then ends: a stream each binding iterates in its language's own
+/// protocol, whose every count pends once first.
+pub struct Countdown {
+	left: u32,
+	told: Option<Box<dyn Log>>,
+}
+
+impl Countdown {
+	pub fn new(from: u32) -> Self {
+		Self { left: from, told: None }
+	}
+
+	/// A countdown telling `log` each count in the poll that returns it, so a binding's
+	/// adapter sees a callback in the poll that finishes its call.
+	pub fn told(from: u32, log: Box<dyn Log>) -> Self {
+		Self {
+			left: from,
+			told: Some(log),
+		}
+	}
+
+	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
+	/// adapter waits on a wake between items.
+	pub async fn next(&mut self) -> Option<u32> {
+		let mut pended = false;
+		std::future::poll_fn(|cx| {
+			if !std::mem::replace(&mut pended, true) {
+				cx.waker().wake_by_ref();
+				return Poll::Pending;
+			}
+			Poll::Ready(())
+		})
+		.await;
+		let count = self.left;
+		self.left = count.saturating_sub(1);
+		if let Some(log) = &self.told {
+			log.log(0, &format!("count {count}"));
+		}
+		(count > 0).then_some(count)
+	}
+}
+
+/// A countdown whose `next` is deprecated, as is each binding's adapter calling it, so a
+/// binding that refuses a use of what is deprecated still builds.
+pub struct Retired(Countdown);
+
+impl Retired {
+	pub fn new(from: u32) -> Self {
+		Self(Countdown::new(from))
+	}
+
+	/// The next count, or `None` past 1.
+	#[deprecated(note = "count with [`Countdown`]")]
+	pub async fn next(&mut self) -> Option<u32> {
+		self.0.next().await
 	}
 }
 
@@ -2869,22 +2966,11 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
-	/// Its field exports, but the method of its name is refused, so the config excludes
-	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
-	pub jitter: u32,
-	/// Its field exports, but Swift refuses the method of its name, so the config excludes
-	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
-	pub spread: u64,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self {
-			limit,
-			delay: None,
-			jitter: 0,
-			spread: 0,
-		}
+		Self { limit, delay: None }
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -2897,16 +2983,6 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
-	}
-
-	/// The spread plus three optional borrowed counters, past what Swift takes.
-	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-		self.spread + among(first, second, third)
-	}
-
-	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
-	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
-		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -3066,7 +3142,9 @@ pub fn hex(payload: impl Payload) -> String {
 	payload.into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into.
+/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into. Hidden,
+/// so a parameter that converts into one takes what converts instead.
+#[doc(hidden)]
 pub struct Timed<P> {
 	pub value: P,
 	pub at: Option<Stamp>,
@@ -3084,18 +3162,6 @@ impl<B: AsRef<[u8]>> From<B> for Timed<Bytes> {
 /// A timed payload's bytes in hex, which need not be UTF-8, owned as it is `'static`.
 pub fn timed_hex(payload: impl Into<Timed<Bytes>> + 'static) -> String {
 	hex(payload.into().value)
-}
-
-/// A reference stamped with no time, as moq's `Timed` converts one.
-impl<'a, V> From<&'a V> for Timed<&'a V> {
-	fn from(value: &'a V) -> Self {
-		Self { value, at: None }
-	}
-}
-
-/// A timed value's compact JSON text, taken as moq's JSON tracks take theirs.
-pub fn timed_text<'a, T: serde::Serialize + 'a>(value: impl Into<Timed<&'a T>>) -> String {
-	serde_json::to_string(value.into().value).expect("a JSON document serializes")
 }
 
 /// A timed payload on a track, which what converts into one converts into.
@@ -4728,6 +4794,44 @@ pub struct DoubleArray {
 	pub len: u32,
 }
 
+/// The value of `errno`, a macro `<cerrno>` defines: a C++ function of this name must not
+/// be rewritten as `(*__errno_location ())`.
+pub fn errno() -> i32 {
+	7
+}
+
+/// A function named as `assert`, which `<cassert>` defines as a macro.
+pub fn assert(holds: bool) -> bool {
+	holds
+}
+
+/// A function named as `offsetof`, which `<cstddef>` defines as a macro.
+pub fn offsetof(field: u8) -> u8 {
+	field
+}
+
+/// A record of fields named as macros a C library's headers define, which each binding
+/// keeps apart.
+pub mod macros {
+	/// A record of fields named as `stdin`, `stdout`, and `stderr`, macros on some C libraries.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Streams {
+		pub stdin: u8,
+		pub stdout: u8,
+		pub stderr: u8,
+		pub errno: u8,
+	}
+
+	/// The sum of `streams`' fields, and `errno`, a parameter named as the macro.
+	pub fn streamed(streams: Streams, errno: u8) -> u32 {
+		u32::from(streams.stdin)
+			+ u32::from(streams.stdout)
+			+ u32::from(streams.stderr)
+			+ u32::from(streams.errno)
+			+ u32::from(errno)
+	}
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]
@@ -4876,6 +4980,118 @@ pub mod clash {
 		pub fn close(&self) -> u32 {
 			self.count + 1
 		}
+
+		/// Nothing, named and typed as a final method of `java.lang.Object`, as parking_lot's
+		/// `Once::wait` is.
+		pub fn wait(&self) {}
+
+		/// Nothing, named and typed as the method a JVM finalizer overrides.
+		pub fn finalize(&self) {}
+	}
+
+	/// A level, whose values are named as the members `Debug` and `Default` give a type, as
+	/// log's `Level::Debug` and nu-ansi-term's `Color::Default` are.
+	#[derive(Clone, Copy, Debug, Default, PartialEq)]
+	pub enum Level {
+		#[default]
+		Default,
+		Debug,
+	}
+
+	impl Level {
+		/// Its place from one, by the name of what every Dart enum has, as petgraph's
+		/// `Direction::index` is.
+		pub fn index(self) -> u8 {
+			self as u8 + 1
+		}
+	}
+
+	/// A tag, whose variants' field `number` its method of that name reads, as der's `Tag`'s
+	/// are.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Tag {
+		Application { number: u32 },
+		Private { number: u32 },
+	}
+
+	impl Tag {
+		/// The number, and whether it is private in the next decimal place.
+		pub fn number(&self) -> u32 {
+			match *self {
+				Tag::Application { number } => number,
+				Tag::Private { number } => number + 10,
+			}
+		}
+	}
+
+	/// Malformed input at an offset, an error whose `is` go vet reads as `errors.Is`, as
+	/// anyhow's `Error::is` is.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Malformed {
+		pub at: u8,
+	}
+
+	impl Malformed {
+		/// Whether it is at `at`.
+		pub fn is(&self, at: u8) -> bool {
+			self.at == at
+		}
+	}
+
+	impl std::fmt::Display for Malformed {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "malformed at {}", self.at)
+		}
+	}
+
+	/// Bytes read one at a time, whose methods go vet reads as `io.ByteScanner`'s, as
+	/// untrusted's `Reader::read_byte` is.
+	pub struct Reader {
+		bytes: Vec<u8>,
+		at: usize,
+	}
+
+	impl Reader {
+		pub fn new(bytes: Vec<u8>) -> Reader {
+			Reader { bytes, at: 0 }
+		}
+
+		/// The next byte, or the end as malformed: of another signature than vet's.
+		pub fn read_byte(&mut self) -> Result<u8, Malformed> {
+			let byte = *self.bytes.get(self.at).ok_or(Malformed { at: self.at as u8 })?;
+			self.at += 1;
+			Ok(byte)
+		}
+
+		/// Back a byte, or malformed at the start: of the signature vet's has.
+		pub fn unread_byte(&mut self) -> Result<(), Malformed> {
+			self.at = self.at.checked_sub(1).ok_or(Malformed { at: 0 })?;
+			Ok(())
+		}
+	}
+
+	/// What a caller waits on, whose methods are named as `java.lang.Object`'s final `wait`
+	/// and as `io.ByteReader`'s `ReadByte`.
+	pub trait Source {
+		fn wait(&self);
+		fn read_byte(&self) -> u8;
+	}
+
+	/// The byte `source` reads once it waited.
+	pub fn waited(source: impl Source) -> u8 {
+		source.wait();
+		source.read_byte()
+	}
+
+	/// An error number, in a field named as `errno.h`'s macro.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Errno {
+		pub errno: i32,
+	}
+
+	impl Errno {
+		/// None, named as `stddef.h`'s macro, as wasm-bindgen's `JsValue::NULL` is.
+		pub const NULL: Errno = Errno { errno: 0 };
 	}
 
 	pub mod audio {
@@ -4889,6 +5105,24 @@ pub mod clash {
 		/// Two.
 		pub fn finish() -> u8 {
 			2
+		}
+	}
+
+	/// A byte, whose methods `delete` and `delete_` C++ escapes alike, as `delete_`.
+	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+	pub struct Escaped {
+		pub new: u8,
+	}
+
+	impl Escaped {
+		/// `new`, by a method C++ escapes as `delete_`.
+		pub fn delete(&self) -> u8 {
+			self.new
+		}
+
+		/// `new` plus the arguments, by parameters C++ escapes alike.
+		pub fn delete_(&self, new: u8, new_: u8) -> u8 {
+			self.new + new * 10 + new_ * 100
 		}
 	}
 
@@ -4974,9 +5208,13 @@ pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
 
-/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
-pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
+/// The end of a stream, named as `stdio.h`'s macro, as libc's is.
+pub const EOF: i32 = -1;
+
+/// A wait status's exit code, named as `sys/wait.h`'s macro, as libc's is.
+#[allow(non_snake_case, reason = "the clash under test")]
+pub fn WEXITSTATUS(status: i32) -> i32 {
+	(status >> 8) & 0xff
 }
 
 /// A record named as C++'s `==` names its first argument, which must not hide it.
@@ -5109,6 +5347,74 @@ pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
 	v
 }
 
+/// A version: a record whose derived `Ord` is a total order, `major` first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Version {
+	pub major: u16,
+	pub minor: u16,
+}
+
+/// A quantity: an object whose hand-written `PartialOrd` leaves quantities of two units
+/// unordered, as moq's timestamps of two scales are, so it has no `Ord`.
+#[derive(Debug, PartialEq)]
+pub struct Quantity {
+	value: i64,
+	unit: char,
+}
+
+impl Quantity {
+	pub fn new(value: i64, unit: char) -> Quantity {
+		Quantity { value, unit }
+	}
+}
+
+impl PartialOrd for Quantity {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		(self.unit == other.unit).then(|| self.value.cmp(&other.value))
+	}
+}
+
+/// A pass: an object whose derived `Ord` is a total order, and whose handle a call checks,
+/// since `redeem` moves it out.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pass {
+	number: u32,
+}
+
+impl Pass {
+	pub fn new(number: u32) -> Pass {
+		Pass { number }
+	}
+
+	/// Its number, using it up.
+	pub fn redeem(self) -> u32 {
+		self.number
+	}
+}
+
+/// A rank: a data enum with `Ord` whose fields are named as the comparison methods a
+/// binding gives it, which each binding's names for them must keep apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank {
+	Unranked,
+	Ranked {
+		compare: u8,
+		partial_compare: u8,
+		compare_to: u8,
+		partial_compare_to: u8,
+	},
+}
+
+/// A tier: an enum whose derived `Ord` orders its variants as declared.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+	Low,
+	High,
+	/// Named as Dart's comparison methods are, which its constants keep apart.
+	CompareTo,
+	PartialCompareTo,
+}
+
 /// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by
 /// Rust's, as a map keyed by it needs.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -5131,6 +5437,47 @@ impl Key {
 	}
 }
 
+/// `text` without its backslashes, borrowed where it has none, as moq-pattern's `unescape` is.
+pub fn unescaped(text: &str) -> Cow<'_, str> {
+	match text.contains('\\') {
+		true => Cow::Owned(text.replace('\\', "")),
+		false => Cow::Borrowed(text),
+	}
+}
+
+/// [`unescaped`], later: the future owns the text it borrows, so what it returns is
+/// owned before the future ends.
+pub async fn unescaped_later(text: &str) -> Cow<'_, str> {
+	unescaped(text)
+}
+
+/// [`unescaped`] of `text` if any, later.
+pub async fn unescaped_maybe(text: Option<&str>) -> Option<Cow<'_, str>> {
+	text.map(unescaped)
+}
+
+/// `bytes` without their zeros, borrowed where they have none.
+pub fn unzeroed(bytes: &[u8]) -> Cow<'_, [u8]> {
+	match bytes.contains(&0) {
+		true => Cow::Owned(bytes.iter().copied().filter(|b| *b != 0).collect()),
+		false => Cow::Borrowed(bytes),
+	}
+}
+
+/// A spot that reads itself from any serde deserializer, as `#[serde(remote = "Self")]`
+/// derives an inherent `deserialize`, which moq-mux's `Mpegts` has.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+	pub x: u32,
+	pub y: u32,
+}
+
+impl Spot {
+	pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let (x, y) = <(u32, u32) as serde::Deserialize>::deserialize(deserializer)?;
+		Ok(Self { x, y })
+	}
+}
 /// A type named as Kotlin's and Dart's deprecation annotation, which the bindings' own
 /// annotations must not resolve to.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -5147,6 +5494,17 @@ pub struct Deprecated {
 /// must not resolve to.
 pub fn deprecated(note: u8) -> u8 {
 	note
+}
+
+/// One more than `note`, by a name starting with an underscore, which `pub` still exports,
+/// and which Python's module takes for its own deprecation decorator.
+pub fn _deprecated(note: u8) -> u8 {
+	note + 1
+}
+
+/// Two more than `note`, by a name Python reserves, as the module's own `__all__` is.
+pub fn __all__(note: u8) -> u8 {
+	note + 2
 }
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
@@ -5269,6 +5627,24 @@ pub trait Turner {
 #[allow(deprecated, reason = "it calls the method it deprecates")]
 pub fn turned(dial: Dial, turner: impl Turner) -> Result<Dial, Error> {
 	dial.turn(turner.by())?.turn(turner.once())
+}
+
+/// An edit history, implemented in each binding, whose methods are named as a C++
+/// keyword, a C table's own `free`, and a Rust keyword.
+pub trait Undo {
+	/// What deleting `n` edits leaves.
+	fn delete(&self, n: u32) -> u32;
+
+	/// How many edits it frees.
+	fn free(&self) -> u32;
+
+	/// Its kind of edit.
+	fn r#type(&self) -> u8;
+}
+
+/// `undo`'s methods' results as decimal digits: `delete(n)`, `free()`, then `type()`.
+pub fn undone(undo: impl Undo, n: u32) -> u32 {
+	undo.delete(n) * 100 + undo.free() * 10 + u32::from(undo.r#type())
 }
 
 /// The most a [`Dial`] turns, a name the web's globals take too: [`URL`] links its own.

@@ -998,6 +998,10 @@ namespace moq {
 	class clock_Instant {
 		friend bool operator==(const clock_Instant &a, const clock_Instant &b);
 		friend bool operator!=(const clock_Instant &a, const clock_Instant &b);
+		friend bool operator<(const clock_Instant &a, const clock_Instant &b);
+		friend bool operator<=(const clock_Instant &a, const clock_Instant &b);
+		friend bool operator>(const clock_Instant &a, const clock_Instant &b);
+		friend bool operator>=(const clock_Instant &a, const clock_Instant &b);
 		::moq::buf debug() const;
 		static ::moq::clock_Instant ZERO();
 		static ::moq::clock_Instant now();
@@ -1021,6 +1025,10 @@ namespace moq {
 	class clock_Wall {
 		friend bool operator==(const clock_Wall &a, const clock_Wall &b);
 		friend bool operator!=(const clock_Wall &a, const clock_Wall &b);
+		friend bool operator<(const clock_Wall &a, const clock_Wall &b);
+		friend bool operator<=(const clock_Wall &a, const clock_Wall &b);
+		friend bool operator>(const clock_Wall &a, const clock_Wall &b);
+		friend bool operator>=(const clock_Wall &a, const clock_Wall &b);
 		::moq::buf debug() const;
 		static ::moq::clock_Wall UNIX_EPOCH();
 		static ::moq::clock_Wall MOQ_EPOCH();
@@ -1032,8 +1040,22 @@ namespace moq {
 		::std::optional<::moq::clock_Wall> checked_sub(::moq::duration duration_) const;
 	};
 	inline bool operator==(const clock_Instant &a, const clock_Instant &b);
+	inline bool operator<(const clock_Instant &a, const clock_Instant &b);
+	inline bool operator<=(const clock_Instant &a, const clock_Instant &b);
+	inline bool operator>(const clock_Instant &a, const clock_Instant &b);
+	inline bool operator>=(const clock_Instant &a, const clock_Instant &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const clock_Instant &a, const clock_Instant &b);
+	#endif
 	inline bool operator==(const clock_Elapsed &a, const clock_Elapsed &b);
 	inline bool operator==(const clock_Wall &a, const clock_Wall &b);
+	inline bool operator<(const clock_Wall &a, const clock_Wall &b);
+	inline bool operator<=(const clock_Wall &a, const clock_Wall &b);
+	inline bool operator>(const clock_Wall &a, const clock_Wall &b);
+	inline bool operator>=(const clock_Wall &a, const clock_Wall &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const clock_Wall &a, const clock_Wall &b);
+	#endif
 	inline bool operator==(::moq::clock_MissedTickBehavior a, ::moq::clock_MissedTickBehavior b);
 	inline bool operator!=(::moq::clock_MissedTickBehavior a, ::moq::clock_MissedTickBehavior b);
 	inline ::moq::buf clock_MissedTickBehavior_debug(::moq::clock_MissedTickBehavior self);
@@ -4201,6 +4223,7 @@ namespace moq {
 		RUST2_FFI_CALLABLE void mux_rate_set(const ::std::optional<::std::uint64_t> &value);
 		RUST2_FFI_CALLABLE ::std::optional<::moq::mux_container_ts_PassthroughTrack> passthrough_get() const;
 		RUST2_FFI_CALLABLE void passthrough_set(::std::optional<::moq::mux_container_ts_PassthroughTrack> value);
+		static ::moq::result<::moq::mux_container_ts_Mpegts, ::moq::buf> deserialize(::moq::Json __deserializer_);
 		RUST2_FFI_CALLABLE bool is_empty() const;
 	};
 	class RUST2_FFI_CONSUMABLE mux_container_ts_PassthroughTrack {
@@ -5195,6 +5218,10 @@ namespace moq {
 		Instance &operator=(const Instance &other) = default;
 		friend bool operator==(const Instance &a, const Instance &b);
 		friend bool operator!=(const Instance &a, const Instance &b);
+		friend bool operator<(const Instance &a, const Instance &b);
+		friend bool operator<=(const Instance &a, const Instance &b);
+		friend bool operator>(const Instance &a, const Instance &b);
+		friend bool operator>=(const Instance &a, const Instance &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -5209,6 +5236,10 @@ namespace moq {
 		Path &operator=(const Path &other) = default;
 		friend bool operator==(const Path &a, const Path &b);
 		friend bool operator!=(const Path &a, const Path &b);
+		friend bool operator<(const Path &a, const Path &b);
+		friend bool operator<=(const Path &a, const Path &b);
+		friend bool operator>(const Path &a, const Path &b);
+		friend bool operator>=(const Path &a, const Path &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -6546,6 +6577,10 @@ namespace moq {
 	class Timescale {
 		friend bool operator==(const Timescale &a, const Timescale &b);
 		friend bool operator!=(const Timescale &a, const Timescale &b);
+		friend bool operator<(const Timescale &a, const Timescale &b);
+		friend bool operator<=(const Timescale &a, const Timescale &b);
+		friend bool operator>(const Timescale &a, const Timescale &b);
+		friend bool operator>=(const Timescale &a, const Timescale &b);
 		::moq::buf to_string() const;
 		::moq::buf debug() const;
 		static ::moq::Timescale SECOND();
@@ -6558,6 +6593,10 @@ namespace moq {
 	class Timestamp {
 		friend bool operator==(const Timestamp &a, const Timestamp &b);
 		friend bool operator!=(const Timestamp &a, const Timestamp &b);
+		friend bool operator<(const Timestamp &a, const Timestamp &b);
+		friend bool operator<=(const Timestamp &a, const Timestamp &b);
+		friend bool operator>(const Timestamp &a, const Timestamp &b);
+		friend bool operator>=(const Timestamp &a, const Timestamp &b);
 		::moq::buf debug() const;
 		static ::moq::Timestamp ZERO();
 		static ::moq::result<::moq::Timestamp, ::moq::TimeOverflow> new_(::std::uint64_t value, const ::moq::Timescale &scale);
@@ -6835,6 +6874,10 @@ namespace moq {
 	class bandwidth_Rate {
 		friend bool operator==(const bandwidth_Rate &a, const bandwidth_Rate &b);
 		friend bool operator!=(const bandwidth_Rate &a, const bandwidth_Rate &b);
+		friend bool operator<(const bandwidth_Rate &a, const bandwidth_Rate &b);
+		friend bool operator<=(const bandwidth_Rate &a, const bandwidth_Rate &b);
+		friend bool operator>(const bandwidth_Rate &a, const bandwidth_Rate &b);
+		friend bool operator>=(const bandwidth_Rate &a, const bandwidth_Rate &b);
 		::moq::buf debug() const;
 		static bandwidth_Rate default_();
 		static ::moq::bandwidth_Rate ZERO();
@@ -6862,6 +6905,10 @@ namespace moq {
 		::std::uint64_t start;
 		friend bool operator==(const group_Info &a, const group_Info &b);
 		friend bool operator!=(const group_Info &a, const group_Info &b);
+		friend bool operator<(const group_Info &a, const group_Info &b);
+		friend bool operator<=(const group_Info &a, const group_Info &b);
+		friend bool operator>(const group_Info &a, const group_Info &b);
+		friend bool operator>=(const group_Info &a, const group_Info &b);
 		::moq::buf debug() const;
 	};
 	struct track_Delay {
@@ -6877,6 +6924,10 @@ namespace moq {
 	class track_Position {
 		friend bool operator==(const track_Position &a, const track_Position &b);
 		friend bool operator!=(const track_Position &a, const track_Position &b);
+		friend bool operator<(const track_Position &a, const track_Position &b);
+		friend bool operator<=(const track_Position &a, const track_Position &b);
+		friend bool operator>(const track_Position &a, const track_Position &b);
+		friend bool operator>=(const track_Position &a, const track_Position &b);
 		::moq::buf debug() const;
 		static track_Position default_();
 		::std::uint64_t group_get() const;
@@ -6899,6 +6950,10 @@ namespace moq {
 		::std::optional<::moq::track_Anchor> end;
 		friend bool operator==(const track_Range &a, const track_Range &b);
 		friend bool operator!=(const track_Range &a, const track_Range &b);
+		friend bool operator<(const track_Range &a, const track_Range &b);
+		friend bool operator<=(const track_Range &a, const track_Range &b);
+		friend bool operator>(const track_Range &a, const track_Range &b);
+		friend bool operator>=(const track_Range &a, const track_Range &b);
 		::moq::buf debug() const;
 		static ::moq::track_Range live();
 		static ::moq::track_Range oldest();
@@ -6906,6 +6961,10 @@ namespace moq {
 	class origin_Cost {
 		friend bool operator==(const origin_Cost &a, const origin_Cost &b);
 		friend bool operator!=(const origin_Cost &a, const origin_Cost &b);
+		friend bool operator<(const origin_Cost &a, const origin_Cost &b);
+		friend bool operator<=(const origin_Cost &a, const origin_Cost &b);
+		friend bool operator>(const origin_Cost &a, const origin_Cost &b);
+		friend bool operator>=(const origin_Cost &a, const origin_Cost &b);
 		::moq::buf debug() const;
 		static origin_Cost default_();
 		static ::moq::origin_Cost new_(::std::uint64_t cost);
@@ -6914,6 +6973,10 @@ namespace moq {
 	class origin_Priority {
 		friend bool operator==(const origin_Priority &a, const origin_Priority &b);
 		friend bool operator!=(const origin_Priority &a, const origin_Priority &b);
+		friend bool operator<(const origin_Priority &a, const origin_Priority &b);
+		friend bool operator<=(const origin_Priority &a, const origin_Priority &b);
+		friend bool operator>(const origin_Priority &a, const origin_Priority &b);
+		friend bool operator>=(const origin_Priority &a, const origin_Priority &b);
 		::moq::buf debug() const;
 		static origin_Priority default_();
 		static ::moq::origin_Priority new_(::std::int8_t priority);
@@ -7005,9 +7068,29 @@ namespace moq {
 	};
 	struct transport_memory_Error_Closed {
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Instance &a, const Instance &b);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Path &a, const Path &b);
+	#endif
 	inline bool operator==(const TimeOverflow &a, const TimeOverflow &b);
 	inline bool operator==(const Timescale &a, const Timescale &b);
+	inline bool operator<(const Timescale &a, const Timescale &b);
+	inline bool operator<=(const Timescale &a, const Timescale &b);
+	inline bool operator>(const Timescale &a, const Timescale &b);
+	inline bool operator>=(const Timescale &a, const Timescale &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Timescale &a, const Timescale &b);
+	#endif
 	inline bool operator==(const Timestamp &a, const Timestamp &b);
+	inline bool operator<(const Timestamp &a, const Timestamp &b);
+	inline bool operator<=(const Timestamp &a, const Timestamp &b);
+	inline bool operator>(const Timestamp &a, const Timestamp &b);
+	inline bool operator>=(const Timestamp &a, const Timestamp &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::partial_ordering operator<=>(const Timestamp &a, const Timestamp &b);
+	#endif
 	inline bool operator==(const setup_Token &a, const setup_Token &b);
 	inline bool operator==(const session_Limits &a, const session_Limits &b);
 	inline bool operator==(const stats_Content &a, const stats_Content &b);
@@ -7024,16 +7107,65 @@ namespace moq {
 	inline bool operator==(const transport_ReceiveWindow &a, const transport_ReceiveWindow &b);
 	inline bool operator==(const transport_Limits &a, const transport_Limits &b);
 	inline bool operator==(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	inline bool operator<(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	inline bool operator<=(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	inline bool operator>(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	inline bool operator>=(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const bandwidth_Rate &a, const bandwidth_Rate &b);
+	#endif
 	inline bool operator==(const datagram_Datagram &a, const datagram_Datagram &b);
 	inline bool operator==(const group_Info &a, const group_Info &b);
+	inline bool operator<(const group_Info &a, const group_Info &b);
+	inline bool operator<=(const group_Info &a, const group_Info &b);
+	inline bool operator>(const group_Info &a, const group_Info &b);
+	inline bool operator>=(const group_Info &a, const group_Info &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const group_Info &a, const group_Info &b);
+	#endif
 	inline bool operator==(const track_Delay &a, const track_Delay &b);
 	inline bool operator==(const track_Position &a, const track_Position &b);
+	inline bool operator<(const track_Position &a, const track_Position &b);
+	inline bool operator<=(const track_Position &a, const track_Position &b);
+	inline bool operator>(const track_Position &a, const track_Position &b);
+	inline bool operator>=(const track_Position &a, const track_Position &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const track_Position &a, const track_Position &b);
+	#endif
 	inline bool operator==(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
 	inline bool operator!=(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	inline bool operator<(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	inline bool operator<=(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	inline bool operator>(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	inline bool operator>=(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const ::moq::track_Anchor &a, const ::moq::track_Anchor &b);
+	#endif
 	inline ::moq::buf track_Anchor_debug(const ::moq::track_Anchor &self);
 	inline bool operator==(const track_Range &a, const track_Range &b);
+	inline bool operator<(const track_Range &a, const track_Range &b);
+	inline bool operator<=(const track_Range &a, const track_Range &b);
+	inline bool operator>(const track_Range &a, const track_Range &b);
+	inline bool operator>=(const track_Range &a, const track_Range &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const track_Range &a, const track_Range &b);
+	#endif
 	inline bool operator==(const origin_Cost &a, const origin_Cost &b);
+	inline bool operator<(const origin_Cost &a, const origin_Cost &b);
+	inline bool operator<=(const origin_Cost &a, const origin_Cost &b);
+	inline bool operator>(const origin_Cost &a, const origin_Cost &b);
+	inline bool operator>=(const origin_Cost &a, const origin_Cost &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const origin_Cost &a, const origin_Cost &b);
+	#endif
 	inline bool operator==(const origin_Priority &a, const origin_Priority &b);
+	inline bool operator<(const origin_Priority &a, const origin_Priority &b);
+	inline bool operator<=(const origin_Priority &a, const origin_Priority &b);
+	inline bool operator>(const origin_Priority &a, const origin_Priority &b);
+	inline bool operator>=(const origin_Priority &a, const origin_Priority &b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const origin_Priority &a, const origin_Priority &b);
+	#endif
 	inline ::moq::buf EncodeError_to_string(::moq::EncodeError self);
 	inline ::moq::buf EncodeError_debug(::moq::EncodeError self);
 	inline bool operator==(const ::moq::SessionError &a, const ::moq::SessionError &b);
@@ -7201,6 +7333,10 @@ namespace moq {
 		Pattern &operator=(const Pattern &other) = default;
 		friend bool operator==(const Pattern &a, const Pattern &b);
 		friend bool operator!=(const Pattern &a, const Pattern &b);
+		friend bool operator<(const Pattern &a, const Pattern &b);
+		friend bool operator<=(const Pattern &a, const Pattern &b);
+		friend bool operator>(const Pattern &a, const Pattern &b);
+		friend bool operator>=(const Pattern &a, const Pattern &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -7253,6 +7389,10 @@ namespace moq {
 		Specificity &operator=(const Specificity &other) = default;
 		friend bool operator==(const Specificity &a, const Specificity &b);
 		friend bool operator!=(const Specificity &a, const Specificity &b);
+		friend bool operator<(const Specificity &a, const Specificity &b);
+		friend bool operator<=(const Specificity &a, const Specificity &b);
+		friend bool operator>(const Specificity &a, const Specificity &b);
+		friend bool operator>=(const Specificity &a, const Specificity &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
@@ -7276,6 +7416,12 @@ namespace moq {
 	};
 	struct Segment_Globstar {
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Pattern &a, const Pattern &b);
+	#endif
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Specificity &a, const Specificity &b);
+	#endif
 	inline bool operator==(const ::moq::InvalidPattern &a, const ::moq::InvalidPattern &b);
 	inline bool operator!=(const ::moq::InvalidPattern &a, const ::moq::InvalidPattern &b);
 	inline ::moq::buf InvalidPattern_to_string(const ::moq::InvalidPattern &self);
@@ -7288,6 +7434,8 @@ namespace moq {
 	inline bool operator!=(const ::moq::Segment &a, const ::moq::Segment &b);
 	inline ::moq::buf Segment_to_string(const ::moq::Segment &self);
 	inline ::moq::buf Segment_debug(const ::moq::Segment &self);
+	inline ::moq::buf escape(::moq::input content);
+	inline ::moq::buf unescape(::moq::input segment);
 }
 namespace std {
 	template <> struct hash<::moq::Pattern> {
@@ -7408,8 +7556,13 @@ namespace moq {
 #if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)
 #include <coroutine>
 #endif
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && __has_include(<compare>)
+#include <compare>
+#endif
 namespace moq {
 	#if defined(__clang__)
+	#define RUST2_FFI_OWNER(T) [[gsl::Owner(T)]]
+	#define RUST2_FFI_POINTER(T) [[gsl::Pointer(T)]]
 	#define RUST2_FFI_LIFETIMEBOUND [[clang::lifetimebound]]
 	#define RUST2_FFI_CONSUMABLE [[clang::consumable(unconsumed)]]
 	#define RUST2_FFI_CALLABLE [[clang::callable_when("unconsumed", "unknown")]]
@@ -7417,6 +7570,8 @@ namespace moq {
 	#define RUST2_FFI_UNCONSUMED [[clang::return_typestate(unconsumed)]]
 	#define RUST2_FFI_MOVED_FROM [[clang::return_typestate(consumed)]]
 	#else
+	#define RUST2_FFI_OWNER(T)
+	#define RUST2_FFI_POINTER(T)
 	#define RUST2_FFI_LIFETIMEBOUND
 	#define RUST2_FFI_CONSUMABLE
 	#define RUST2_FFI_CALLABLE
@@ -7432,7 +7587,7 @@ namespace moq {
 		borrow &operator=(const borrow &) = delete;
 		T *operator->() const noexcept;
 	};
-	class view {
+	class RUST2_FFI_POINTER(::std::uint8_t) view {
 		view() noexcept : data_(detail::bytes(nullptr, 0)), size_(0);
 		view(const void *data, ::std::size_t size) noexcept : data_(detail::bytes(data, size)), size_(size);
 		view(const char *text) noexcept : view(text, ::std::strlen(text));
@@ -7444,7 +7599,26 @@ namespace moq {
 		const ::std::uint8_t *end() const noexcept;
 		::std::string_view str() const noexcept;
 	};
-	class buf {
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Winit-list-lifetime"
+	#endif
+	template <class T> class RUST2_FFI_POINTER(T) slice {
+		slice() noexcept : data_(nullptr), size_(0);
+		slice(const T *data, ::std::size_t size) noexcept : data_(data), size_(size);
+		template <::std::size_t N> slice(const T (&array RUST2_FFI_LIFETIMEBOUND)[N]) noexcept : data_(array), size_(N);
+		slice(::std::initializer_list<T> list RUST2_FFI_LIFETIMEBOUND) noexcept : data_(list.begin()), size_(list.size());
+		template <class R, class = ::std::enable_if_t<::std::is_same_v< ::std::remove_cv_t<::std::remove_pointer_t<decltype(::std::declval<const R &>().data())>>, T>>, class = decltype(::std::declval<const R &>().size())> slice(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept : data_(range.data()), size_(range.size());
+		const T *data() const noexcept;
+		::std::size_t size() const noexcept;
+		bool empty() const noexcept;
+		const T *begin() const noexcept;
+		const T *end() const noexcept;
+	};
+	#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic pop
+	#endif
+	class [[nodiscard]] RUST2_FFI_OWNER(::std::uint8_t) buf {
 		buf() noexcept;
 		explicit buf(view bytes) : buf();
 		buf(const buf &other) : buf();
@@ -7469,7 +7643,7 @@ namespace moq {
 		input &operator=(input &&) = delete;
 		~input();
 	};
-	template <class T> class items {
+	template <class T> class RUST2_FFI_POINTER(T) items {
 		items(const ::std::vector<T> &vector RUST2_FFI_LIFETIMEBOUND) noexcept : data_(vector.data()), size_(vector.size());
 		items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size());
 		template <class R, class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> && !::std::is_same_v<::std::decay_t<R>, items> && detail::lasting<const R, T> && ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>> items(const R &range RUST2_FFI_LIFETIMEBOUND);
@@ -7491,7 +7665,7 @@ namespace moq {
 		::std::size_t size() const noexcept;
 		bool empty() const noexcept;
 	};
-	template <class T, class E> class result {
+	template <class T, class E> class [[nodiscard]] result {
 		static result ok(T value);
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -7508,7 +7682,7 @@ namespace moq {
 		const E &error() const &;
 		E &&error() &&;
 	};
-	template <class E> class result<void, E> {
+	template <class E> class [[nodiscard]] result<void, E> {
 		static result ok();
 		static result err(E error);
 		bool has_value() const noexcept;
@@ -7527,13 +7701,13 @@ namespace moq {
 	};
 	template <class T> using poll_t = ::std::conditional_t<::std::is_void_v<T>, bool, ::std::optional<T>>;
 	class task;
-	class task {
+	class [[nodiscard]] task {
 		task() noexcept = default;
 		task(task &&other) noexcept : node_(::std::exchange(other.node_, nullptr));
 		task &operator=(task &&other) noexcept;
 		~task();
 	};
-	template <class Op> class future {
+	template <class Op> class [[nodiscard]] future {
 		using output = typename Op::output;
 		future(future &&other) noexcept : raw_(::std::exchange(other.raw_, nullptr)), last_(::std::exchange(other.last_, nullptr));
 		future &operator=(future &&other) noexcept;
@@ -8527,6 +8701,7 @@ namespace moq {
 		RUST2_FFI_UNCONSUMED rustls_client_danger_DangerousClientConfig(rustls_client_danger_DangerousClientConfig &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		rustls_client_danger_DangerousClientConfig &operator=(rustls_client_danger_DangerousClientConfig &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
+		RUST2_FFI_CALLABLE ::moq::rustls_ClientConfig cfg_get() const;
 	};
 	class RUST2_FFI_CONSUMABLE rustls_client_Resumption {
 		RUST2_FFI_UNCONSUMED rustls_client_Resumption(rustls_client_Resumption &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -8766,9 +8941,16 @@ namespace moq {
 		Instant &operator=(const Instant &other) = default;
 		friend bool operator==(const Instant &a, const Instant &b);
 		friend bool operator!=(const Instant &a, const Instant &b);
+		friend bool operator<(const Instant &a, const Instant &b);
+		friend bool operator<=(const Instant &a, const Instant &b);
+		friend bool operator>(const Instant &a, const Instant &b);
+		friend bool operator>=(const Instant &a, const Instant &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Instant &a, const Instant &b);
+	#endif
 }
 namespace std {
 	template <> struct hash<::moq::Instant> {
@@ -8830,6 +9012,10 @@ namespace moq {
 		tokio_Duration &operator=(const tokio_Duration &other) = default;
 		friend bool operator==(const tokio_Duration &a, const tokio_Duration &b);
 		friend bool operator!=(const tokio_Duration &a, const tokio_Duration &b);
+		friend bool operator<(const tokio_Duration &a, const tokio_Duration &b);
+		friend bool operator<=(const tokio_Duration &a, const tokio_Duration &b);
+		friend bool operator>(const tokio_Duration &a, const tokio_Duration &b);
+		friend bool operator>=(const tokio_Duration &a, const tokio_Duration &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
@@ -9540,11 +9726,11 @@ namespace moq {
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static moq_tokio_unix_Allow default_();
 		RUST2_FFI_CALLABLE ::std::vector<::std::uint32_t> uid_get() const;
-		RUST2_FFI_CALLABLE void uid_set(const ::std::vector<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE void uid_set(::moq::slice<::std::uint32_t> value);
 		RUST2_FFI_CALLABLE ::std::vector<::std::uint32_t> gid_get() const;
-		RUST2_FFI_CALLABLE void gid_set(const ::std::vector<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE void gid_set(::moq::slice<::std::uint32_t> value);
 		RUST2_FFI_CALLABLE ::std::vector<::std::int32_t> pid_get() const;
-		RUST2_FFI_CALLABLE void pid_set(const ::std::vector<::std::int32_t> &value);
+		RUST2_FFI_CALLABLE void pid_set(::moq::slice<::std::int32_t> value);
 	};
 	class RUST2_FFI_CONSUMABLE moq_tokio_websocket_Error {
 		RUST2_FFI_UNCONSUMED moq_tokio_websocket_Error(moq_tokio_websocket_Error &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -9585,6 +9771,9 @@ namespace moq {
 	};
 	struct moq_tokio_connect_Error_MissingHost {
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const tokio_Duration &a, const tokio_Duration &b);
+	#endif
 	inline bool operator==(::moq::tokio_ConnectError a, ::moq::tokio_ConnectError b);
 	inline bool operator!=(::moq::tokio_ConnectError a, ::moq::tokio_ConnectError b);
 	inline ::moq::buf tokio_ConnectError_to_string(::moq::tokio_ConnectError self);
@@ -9647,14 +9836,21 @@ namespace std {
 #include "rt.hpp"
 namespace moq {
 	enum class Level {
-		trace = 0,
-		debug = 1,
+		error = 0,
+		warn = 1,
 		info = 2,
-		warn = 3,
-		error = 4,
+		debug = 3,
+		trace = 4,
 	};
 	inline bool operator==(::moq::Level a, ::moq::Level b);
 	inline bool operator!=(::moq::Level a, ::moq::Level b);
+	inline bool operator<(::moq::Level a, ::moq::Level b);
+	inline bool operator<=(::moq::Level a, ::moq::Level b);
+	inline bool operator>(::moq::Level a, ::moq::Level b);
+	inline bool operator>=(::moq::Level a, ::moq::Level b);
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(::moq::Level a, ::moq::Level b);
+	#endif
 	inline ::moq::buf Level_to_string(::moq::Level self);
 }
 #endif
@@ -9671,11 +9867,18 @@ namespace moq {
 		Url &operator=(const Url &other) = default;
 		friend bool operator==(const Url &a, const Url &b);
 		friend bool operator!=(const Url &a, const Url &b);
+		friend bool operator<(const Url &a, const Url &b);
+		friend bool operator<=(const Url &a, const Url &b);
+		friend bool operator>(const Url &a, const Url &b);
+		friend bool operator>=(const Url &a, const Url &b);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::moq::buf to_string() const;
 		RUST2_FFI_CALLABLE ::moq::buf debug() const;
 		static ::moq::result<::moq::Url, ::moq::buf> parse(::moq::input input_);
 	};
+	#if defined(__cpp_lib_three_way_comparison)
+	inline ::std::weak_ordering operator<=>(const Url &a, const Url &b);
+	#endif
 }
 namespace std {
 	template <> struct hash<::moq::Url> {

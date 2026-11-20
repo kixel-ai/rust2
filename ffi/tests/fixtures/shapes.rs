@@ -2,9 +2,10 @@
 //! value types from what the exporter's IR holds, nested to a bounded depth, and emits a
 //! crate of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a
 //! closure's parameter and return and a future's output besides. The census of that crate
-//! says which items export, so a shape the exporter refuses by design fails the export,
-//! not the test; each language's driver is a generated flat list of calls whose printed
-//! digests must match the crate's own, run natively.
+//! says which items export, so a shape the exporter refuses by design, a construct
+//! `BY_DESIGN` names, is left out rather than failed, and any other refusal fails the test;
+//! each language's driver is a generated flat list of calls whose printed digests must
+//! match the crate's own, run natively.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -206,7 +207,7 @@ fn is_ord(shape: &Shape) -> bool {
 	)
 }
 
-/// The fixed set [`KNOWN`] checks: each leaf alone, each leaf in each wrapper, then `extra`
+/// The fixed set: each leaf alone, each leaf in each wrapper, then `extra`
 /// sampled to depth 3 from a fixed seed.
 fn shapes(extra: usize) -> Vec<Shape> {
 	let leaves = leaves();
@@ -293,6 +294,9 @@ fn gate() -> Vec<Shape> {
 		]);
 	}
 	shapes.push(Shape::Map(Box::new(Shape::String), Box::new(Shape::Bytes)));
+	// An object record holding a record that is not Clone, a field the census refuses.
+	let object = || Shape::Object(Box::new(Shape::U128));
+	shapes.push(Shape::Record(vec![object(), Shape::Record(vec![Shape::Int("u8")])]));
 	shapes.push(Shape::Set(Box::new(Shape::Int("u64"))));
 	shapes
 }
@@ -631,13 +635,6 @@ impl Feed for f32 {
 	fn feed(&self, h: &mut Fnv) {
 		use std::fmt::Write;
 		let _ = write!(h, "f32 {:#x};", self.to_bits());
-		// The transcript marks a call that digests a NaN other than the one a float's
-		// arithmetic makes: signaling, its quiet bit clear, or quiet with a payload or sign.
-		#[cfg(feature = "transcript")]
-		if self.is_nan() && self.to_bits() != f32::NAN.to_bits() {
-			let class = if self.to_bits() & 1 << 22 == 0 { "signaling" } else { "quiet" };
-			println!("nan {class} f32");
-		}
 	}
 }
 
@@ -645,11 +642,6 @@ impl Feed for f64 {
 	fn feed(&self, h: &mut Fnv) {
 		use std::fmt::Write;
 		let _ = write!(h, "f64 {:#x};", self.to_bits());
-		#[cfg(feature = "transcript")]
-		if self.is_nan() && self.to_bits() != f64::NAN.to_bits() {
-			let class = if self.to_bits() & 1 << 51 == 0 { "signaling" } else { "quiet" };
-			println!("nan {class} f64");
-		}
 	}
 }
 
@@ -957,10 +949,8 @@ const SEEDS: [u64; 3] = [0, 1, 0xdead_beef];
 /// The shapes' crate, as the census left it: which shapes export, and the script.
 struct Crate {
 	dir: PathBuf,
-	shapes: Vec<Shape>,
-	/// How many of `shapes` are the fixed set, which [`KNOWN`] checks, and the seed the
-	/// rest are drawn from, if any.
-	drawn: Option<(usize, u64)>,
+	/// The seed the shapes past the fixed set are drawn from, if any.
+	drawn: Option<u64>,
 	/// Each shape's Rust type, by `N`.
 	types: Vec<String>,
 	calls: Vec<Call>,
@@ -970,7 +960,7 @@ struct Crate {
 
 /// Write the crate of `shapes` named `name` in the scratch directory, ask the exporter what
 /// exports, and run its script natively.
-fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
+fn emit(name: &str, shapes: &[Shape], drawn: Option<u64>) -> Crate {
 	let dir = scratch().join(name);
 	let mut emit = Emit {
 		items: String::new(),
@@ -995,25 +985,28 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 	);
 	let manifest = format!(
 		"[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\n\n\
-		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n\
-		# Marks each call of the native script that digests a NaN of its own bits.\n[features]\ntranscript = []\n\n[workspace]\n"
+		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n[workspace]\n"
 	);
-	super::write_all(
-		&dir,
-		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")],
-	);
+	super::write_all(&dir, &[("Cargo.toml", &manifest), ("src/lib.rs", &lib)]);
 	// The api fixture's versions, resolved offline.
 	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 
+	// What the census refuses, the crate leaves out, as the export would fail on it.
 	let refused = refused(&dir);
 	let exported = |item: Item, n: usize| item.paths(n).iter().all(|path| !refused.absent.contains(path));
-	let mut excludes: Vec<&String> = refused.exclude.iter().collect();
-	excludes.sort();
-	let config = excludes
-		.iter()
-		.map(|path| format!("    \"{path}\",\n"))
-		.collect::<String>();
-	super::step::write(&dir.join("ffi.toml"), format!("exclude = [\n{config}]\n"));
+	let mut kept = lib;
+	for path in &refused.refused {
+		kept = cfg_out(&kept, path);
+		// sink_N names no shape, so the census leaves it out with its trait rather than
+		// refusing it, yet it calls make_N.
+		if let Some(n) = path.strip_prefix("make_")
+			&& let sink = format!("sink_{n}")
+			&& !refused.refused.contains(&sink)
+		{
+			kept = cfg_out(&kept, &sink);
+		}
+	}
+	super::write_all(&dir, &[("src/lib.rs", &kept)]);
 
 	let mut calls = Vec::new();
 	for n in 0..shapes.len() {
@@ -1081,12 +1074,11 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Crate {
 	super::write_all(&dir, &[("examples/transcript.rs", &script)]);
 	// Apart from the exporter's build, which cleans the crate each time.
 	let transcript = run(cargo()
-		.args(["run", "--quiet", "--example", "transcript", "--features", "transcript"])
+		.args(["run", "--quiet", "--example", "transcript"])
 		.env("CARGO_TARGET_DIR", dir.join("native"))
 		.current_dir(&dir));
 	Crate {
 		dir,
-		shapes: shapes.to_vec(),
 		drawn,
 		types,
 		calls,
@@ -1106,52 +1098,150 @@ fn later<T>(f: impl Future<Output = T>) -> T {
 fn main() {
 ";
 
-/// What the census of the crate in `dir` says does not export: the config that exports
-/// what maps, and what leaves itself out.
+/// What the census of the crate in `dir` says does not export: what it refuses, Swift's
+/// refusals included, and what leaves itself out.
 fn refused(dir: &Path) -> Refused {
 	let census = dir.join("census");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(dir.join("Cargo.toml"))
 		.arg("--census")
 		.arg(&census)
 		.env("CARGO_TARGET_DIR", dir.join("build")));
 	let name = dir.file_name().unwrap().to_string_lossy();
 	let report = std::fs::read_to_string(census.join(format!("{name}.md"))).unwrap();
-	let exclude = match report.split_once("## The config that exports what maps") {
-		Some((_, config)) => config
-			.lines()
-			.skip_while(|line| *line != "exclude = [")
-			.skip(1)
-			.take_while(|line| *line != "]")
-			.map(|line| line.trim().trim_end_matches(',').trim_matches('"').to_string())
-			.collect(),
-		None => Vec::new(),
-	};
-	// The traits C cannot implement, and what C can never hold, leave themselves out.
-	let mut absent = exclude.clone();
-	for section in [
-		"## Traits left out, since C cannot implement them",
-		"## What C can never hold, left out",
-	] {
-		let Some((_, list)) = report.split_once(section) else {
-			continue;
+	let mut unexpected = Vec::new();
+	// `checked` sections fail on a construct BY_DESIGN does not name; what C can never hold
+	// follows from what else is left out.
+	let mut section = |heading: &str, checked: bool| -> Vec<String> {
+		let Some((_, list)) = report.split_once(heading) else {
+			return Vec::new();
 		};
-		absent.extend(
-			(list.lines().skip(1))
-				.take_while(|line| !line.starts_with("## "))
-				.filter_map(|line| Some(line.strip_prefix("- `")?.split_once('`')?.0.to_string())),
-		);
+		let mut paths = Vec::new();
+		for line in (list.lines().skip(1)).take_while(|line| !line.starts_with("## ")) {
+			let Some((_, rest)) = line.split_once('`') else {
+				continue;
+			};
+			let (path, rest) = rest.split_once('`').unwrap();
+			let (_, reasons) = rest.split_once(": ").unwrap();
+			if checked
+				&& constructs(reasons)
+					.iter()
+					.any(|construct| !BY_DESIGN.contains(construct))
+			{
+				unexpected.push(line.to_string());
+			}
+			paths.push(path.to_string());
+		}
+		paths
+	};
+	let mut refused = section("## Refused items", true);
+	refused.sort();
+	refused.dedup();
+	// The traits C cannot implement, and what C can never hold, leave themselves out.
+	let mut absent = refused.clone();
+	absent.extend(section("## Traits left out, since C cannot implement them", true));
+	absent.extend(section("## What C can never hold, left out", false));
+	assert!(
+		unexpected.is_empty(),
+		"the census refuses a shape's items for a construct BY_DESIGN does not name:\n{}",
+		unexpected.join("\n")
+	);
+	Refused { refused, absent }
+}
+
+/// The constructs the census refuses a shape's items for by design: positions a binding
+/// cannot spell for some values. Any other refusal fails the test, so a value type the
+/// exporter stops taking fails here rather than leaving out every shape that holds it.
+const BY_DESIGN: &[&str] = &[
+	// A closure crosses only primitives, strings, and objects; lent_N and made_N.
+	"closure signature",
+	// A foreign trait's methods likewise; SinkN.
+	"callback signature",
+	// A borrow of an object inside an Option, Box, or collection, which would move it
+	// out of the caller's handle; digest_N and its kin of such shapes.
+	"reference to a handle inside a value",
+	// C has one None per option; maybe_N of an Option shape.
+	"nested Option",
+	// A borrowed return crosses as a clone; a record field holding a record not Clone.
+	"borrowed return that is not Clone",
+	// Swift.Error must be copyable; try_N of an object shape.
+	"error holding an object Swift cannot copy",
+];
+
+/// The constructs of a census line's reasons, `construct` or ``construct `detail` ``,
+/// joined by `; `, where a detail such as `[u8; 16]` may hold `; ` itself.
+fn constructs(reasons: &str) -> Vec<&str> {
+	let mut constructs = Vec::new();
+	let mut rest = reasons;
+	while !rest.is_empty() {
+		let end = rest.find(['`', ';']).unwrap_or(rest.len());
+		constructs.push(rest[..end].trim());
+		rest = &rest[end..];
+		if let Some(detail) = rest.strip_prefix('`') {
+			rest = detail.split_once('`').unwrap().1;
+		}
+		rest = rest.strip_prefix(';').unwrap_or(rest).trim_start();
 	}
-	Refused { exclude, absent }
+	constructs
+}
+
+#[test]
+fn census_constructs() {
+	assert_eq!(constructs("nested Option"), ["nested Option"]);
+	assert_eq!(
+		constructs("closure signature `[u8; 16]`; error holding an object Swift cannot copy"),
+		["closure signature", "error holding an object Swift cannot copy"]
+	);
 }
 
 /// What the census of the shapes' crate says does not export.
 struct Refused {
-	/// The paths its config leaves out.
-	exclude: Vec<String>,
+	/// The paths it refuses, which the crate leaves out, as the export would fail on them.
+	refused: Vec<String>,
 	/// Those, and what leaves itself out.
 	absent: Vec<String>,
+}
+
+/// `lib` with the item at `path` configured out: a function or type, or a method by its
+/// type's path. A record's field loses its `pub` instead, which leaves its accessors out
+/// while the crate's own literals still name it.
+fn cfg_out(lib: &str, path: &str) -> String {
+	if let Some((ty, field)) = path.split_once("::")
+		&& let Some(start) = lib.find(&format!("pub struct {ty} {{"))
+	{
+		let end = start + lib[start..].find("\n}").expect("a record's body ends");
+		let at = (lib[start..end].find(&format!("\tpub {field}: ")))
+			.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no field of the crate's"));
+		let at = start + at + 1;
+		return format!("{}{}", &lib[..at], &lib[at + "pub ".len()..]);
+	}
+	let (from, name) = match path.split_once("::") {
+		Some((ty, method)) => {
+			let from = lib
+				.find(&format!("impl {ty} "))
+				.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no item of the crate's"));
+			(from, method)
+		}
+		None => (0, path),
+	};
+	let at = ["pub fn ", "pub async fn ", "pub struct ", "pub enum "]
+		.iter()
+		.filter_map(|head| {
+			let rest = &lib[from..];
+			[
+				format!("{head}{name}("),
+				format!("{head}{name} "),
+				format!("{head}{name}<"),
+			]
+			.iter()
+			.filter_map(|item| rest.find(item.as_str()))
+			.min()
+		})
+		.min()
+		.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no item of the crate's"));
+	let at = from + at;
+	format!("{}#[cfg(any())]\n{}", &lib[..at], &lib[at..])
 }
 
 /// Each variant of the IR's `Type`, from its source.
@@ -1191,14 +1281,14 @@ struct Built {
 	web: std::sync::OnceLock<(PathBuf, String)>,
 }
 
-/// Emit, census, export, and build the crate of `shapes` named `name`, of which `drawn`
-/// says how many are the fixed set and the seed of the rest, if any.
-fn build(name: &str, shapes: &[Shape], drawn: Option<(usize, u64)>) -> Built {
+/// Emit, census, export, and build the crate of `shapes` named `name`, those past the fixed
+/// set drawn from the seed `drawn`, if any.
+fn build(name: &str, shapes: &[Shape], drawn: Option<u64>) -> Built {
 	let krate = emit(name, shapes, drawn);
 	let out = krate.dir.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(krate.dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(krate.dir.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		// One binding for the host and the target the web binding serves, as the api
@@ -1259,14 +1349,7 @@ impl Built {
 				.env("RUSTFLAGS", "-D warnings"));
 			let native = self.krate.dir.join("native-web");
 			run(cargo()
-				.args([
-					"build",
-					"--quiet",
-					"--example",
-					"transcript",
-					"--features",
-					"transcript",
-				])
+				.args(["build", "--quiet", "--example", "transcript"])
 				.args(["--target", super::WEB])
 				.env("CARGO_TARGET_DIR", &native)
 				.current_dir(&self.krate.dir));
@@ -1300,46 +1383,15 @@ impl Built {
 		self.krate.dir.join("drivers").join(language)
 	}
 
-	/// The calls `language`'s driver runs, each with the line native Rust printed for it in
-	/// `transcript`: every call but those [`KNOWN`] says it gets wrong today, each entry of
-	/// which must match one of the fixed set's.
-	fn expected<'a>(&self, language: &str, transcript: &'a str) -> Vec<(Call, &'a str)> {
-		// Each call's line, after the NaNs it digested, as `signaling f32` or `quiet f64`.
-		let mut lines: Vec<(&str, Vec<&str>)> = Vec::new();
-		let mut nans = Vec::new();
-		for line in transcript.lines() {
-			match line.strip_prefix("nan ") {
-				Some(nan) => nans.push(nan),
-				None => lines.push((line, std::mem::take(&mut nans))),
-			}
-		}
+	/// The calls a driver runs, each with the line native Rust printed for it in `transcript`.
+	fn expected<'a>(&self, transcript: &'a str) -> Vec<(Call, &'a str)> {
+		let lines: Vec<&str> = transcript.lines().collect();
 		assert_eq!(
 			lines.len(),
 			self.krate.calls.len(),
 			"the native script printed a line per call"
 		);
-		let entries: Vec<&Known> = KNOWN.iter().filter(|k| k.language == language).collect();
-		let calls: Vec<(Call, &str, &[&str])> = (self.krate.calls.iter().zip(&lines))
-			.map(|(call, (line, nans))| (*call, *line, nans.as_slice()))
-			.collect();
-		let skipped =
-			|(call, _, nans): &(Call, &str, &[&str]), k: &Known| (k.skips)(&self.krate.shapes[call.n], call.kind, nans);
-		if let Some((fixed, _)) = self.krate.drawn {
-			for k in &entries {
-				// The gate's subset may hold none of an entry's calls; the nightly's fixed set
-				// holds each.
-				assert!(
-					calls.iter().any(|c| c.0.n < fixed && skipped(c, k)),
-					"KNOWN's {language} entry for {} ({}) matches no call: remove it",
-					k.what,
-					k.quest
-				);
-			}
-		}
-		(calls.iter())
-			.filter(|c| !entries.iter().any(|k| skipped(c, k)))
-			.map(|&(call, line, _)| (call, line))
-			.collect()
+		self.krate.calls.iter().copied().zip(lines).collect()
 	}
 
 	/// Asserts `language`'s driver printed what native Rust did for each of `expected`,
@@ -1364,7 +1416,7 @@ impl Built {
 			}
 		}
 		let drawn = match self.krate.drawn {
-			Some((_, seed)) => format!("; shapes past the fixed set drawn from RUST2_SHAPES_SEED={seed}"),
+			Some(seed) => format!("; shapes past the fixed set drawn from RUST2_SHAPES_SEED={seed}"),
 			None => String::new(),
 		};
 		assert!(
@@ -1375,54 +1427,6 @@ impl Built {
 			lines.len(),
 			String::from_utf8_lossy(&output.stderr)
 		);
-	}
-}
-
-/// A round trip a binding gets wrong today.
-struct Known {
-	language: &'static str,
-	what: &'static str,
-	/// Whether a call of a shape, which digested these NaNs natively, as `signaling f32` or
-	/// `quiet f64`, does what it gets wrong, which the language's driver skips.
-	skips: fn(&Shape, Kind, &[&str]) -> bool,
-	/// The quest that fixes it.
-	quest: &'static str,
-}
-
-/// The round trips a binding gets wrong today, each the quest's to fix: the language, what
-/// it gets wrong, the calls it skips for it, and the quest. The nightly fails on an entry
-/// matching no call of its fixed set, but its calls stay skipped after a fix, so the quest
-/// that fixes one deletes its entry.
-const KNOWN: &[Known] = &[
-	Known {
-		language: "python",
-		what: "a signaling NaN of an f32, which a float holds quieted",
-		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-	Known {
-		language: "dart",
-		what: "a signaling NaN of an f32, which a double holds quieted",
-		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-	Known {
-		language: "web",
-		what: "a NaN's bits, which a number loses: quieted, and canonicalized once V8 optimizes",
-		skips: |shape, _, nans| !nans.is_empty() && crosses(shape, &|s| matches!(s, Shape::F32 | Shape::F64)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-];
-
-/// Whether a value of `shape` holds a `leaf` the binding converts, which one inside an
-/// object does not: the object crosses as a handle, and only Rust reads its field.
-fn crosses(shape: &Shape, leaf: &dyn Fn(&Shape) -> bool) -> bool {
-	match shape {
-		Shape::Object(_) => false,
-		Shape::Option(s) | Shape::Vec(s) | Shape::Set(s) | Shape::Box(s) | Shape::Enum(s) => crosses(s, leaf),
-		Shape::Map(k, v) => crosses(k, leaf) || crosses(v, leaf),
-		Shape::Tuple(s) | Shape::Record(s) => s.iter().any(|s| crosses(s, leaf)),
-		s => leaf(s),
 	}
 }
 
@@ -2744,7 +2748,7 @@ function plain<T>(v: T): Plain<T> {
 fn round_trip(built: &Built, language: &str) {
 	// The test that drew the shapes may have passed, its message captured: each failing one
 	// names the seed again.
-	if let Some((_, seed)) = built.krate.drawn {
+	if let Some(seed) = built.krate.drawn {
 		eprintln!("shapes past the fixed set drawn from RUST2_SHAPES_SEED={seed}");
 	}
 	let name = built.name();
@@ -2754,7 +2758,7 @@ fn round_trip(built: &Built, language: &str) {
 		"web" => built.wasm_transcript(),
 		_ => &built.krate.transcript,
 	};
-	let expected = built.expected(language, transcript);
+	let expected = built.expected(transcript);
 	let calls: Vec<Call> = expected.iter().map(|(call, _)| *call).collect();
 	let calls = &calls[..];
 	let output = match language {
@@ -2942,11 +2946,10 @@ fn sampled() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
 	BUILT.get_or_init(|| {
 		let mut all = shapes(SAMPLES);
-		let fixed = all.len();
 		let seed = day_seed();
 		eprintln!("the nightly's new shapes are drawn from seed {seed}: RUST2_SHAPES_SEED={seed} reproduces them");
 		all.extend(drawn(seed, SAMPLES));
-		build("sampled", &all, Some((fixed, seed)))
+		build("sampled", &all, Some(seed))
 	})
 }
 

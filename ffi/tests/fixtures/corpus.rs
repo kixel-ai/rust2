@@ -1,8 +1,9 @@
 //! A pinned corpus of popular crates.io crates, `corpus/crates.txt`, each exported through
 //! a facade of its own, `pub use <crate>::*;`, as a consumer would export it. Each is
-//! censused, then exported with the `exclude` its census writes, and its glue and every
-//! language's binding of it built. A panic, an error with or without a span, or a binding
-//! that does not build fails the run; a refusal does not, since the census lists it.
+//! censused, then, if the census refuses nothing, since a refusal fails the export, exported,
+//! and its glue and every language's binding of it built. A panic, an error with or without a
+//! span, or a binding that does not build fails the run; a refusal does not, since the census
+//! lists it.
 //!
 //! The facades are one workspace, resolved by `corpus/Cargo.lock`, so a run builds what the
 //! last update resolved. `just ffi corpus-update` takes the top crates by all-time
@@ -19,33 +20,10 @@ use super::{cargo, manifest_dir, run, scratch, step};
 /// The crates a census, an export, or a binding of fails today, each with the quest that
 /// fixes it, or else why none can. They are not run; the quest's PR deletes its entry.
 const KNOWN: &[(&str, &str)] = &[
-	("anyhow", "/quest/m1/ffi-apart.md"),
-	("axum", "/quest/m1/ffi-corpus-bugs.md"),
-	("bytes", "/quest/m1/ffi-corpus-bugs.md"),
 	(
 		"core-foundation",
 		"macOS's CoreFoundation: calls a platform library this host lacks, so no binding loads",
 	),
-	("crossbeam-utils", "/quest/m1/ffi-apart.md"),
-	("darling", "/quest/m1/ffi-apart.md"),
-	("der", "/quest/m1/ffi-apart.md"),
-	("env_logger", "/quest/m1/ffi-apart.md"),
-	("errno", "/quest/m1/ffi-corpus-bugs.md"),
-	("hermit-abi", "/quest/m1/ffi-apart.md"),
-	("hyper", "/quest/m1/ffi-corpus-bugs.md"),
-	("icu_locale_core", "/quest/m1/ffi-apart.md"),
-	("itertools", "/quest/m1/ffi-apart.md"),
-	("js-sys", "/quest/m1/ffi-inference.md"),
-	("libc", "/quest/m1/ffi-apart.md"),
-	("log", "/quest/m1/ffi-apart.md"),
-	("nu-ansi-term", "/quest/m1/ffi-apart.md"),
-	("object", "/quest/m1/ffi-apart.md"),
-	("parking_lot", "/quest/m1/ffi-apart.md"),
-	("petgraph", "/quest/m1/ffi-apart.md"),
-	("prettyplease", "/quest/m1/ffi-apart.md"),
-	("redox_syscall", "/quest/m1/ffi-apart.md"),
-	("untrusted", "/quest/m1/ffi-apart.md"),
-	("wasm-bindgen", "/quest/m1/ffi-apart.md"),
 	(
 		"windows-core",
 		"Windows's API: calls a platform library this host lacks, so no binding loads",
@@ -181,6 +159,82 @@ struct Passed {
 	refused: usize,
 }
 
+/// A crate whose items take the root names of what the runtimes of the bindings declare,
+/// `bytes`'s own `Bytes` among them, and the lowercase macros of the C library's headers,
+/// binds in every language: each corpus crate that failed in one did so as these do, though
+/// a refusal now keeps most of them from reaching a binding.
+#[test]
+fn runtime_names() {
+	let package = super::package(
+		"runtime_names",
+		&[(
+			"src/lib.rs",
+			"\
+pub struct Bytes {
+	data: Vec<u8>,
+}
+
+impl Bytes {
+	pub fn counting(len: u8) -> Self {
+		Self { data: (0..len).collect() }
+	}
+
+	pub fn split_off(&mut self, at: usize) -> Self {
+		Self { data: self.data.split_off(at) }
+	}
+}
+
+pub struct Waker {
+	pub woken: bool,
+}
+
+pub struct Mut {
+	pub by: u8,
+}
+
+pub struct Bound {
+	pub limit: u8,
+}
+
+pub fn errno() -> i32 {
+	7
+}
+
+pub fn assert(holds: bool) -> bool {
+	holds
+}
+
+pub fn offsetof(field: u8) -> u8 {
+	field
+}
+
+pub struct Streams {
+	pub stdin: u8,
+	pub stdout: u8,
+	pub stderr: u8,
+}
+",
+		)],
+	);
+	let out = package.join("out");
+	let output = super::output(
+		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", package.join("build")),
+	);
+	assert!(
+		output.status.success(),
+		"the export failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let built = bind("runtime_names", &out).unwrap_or_else(|(stage, output)| panic!("{stage}: {}", trimmed(&output)));
+	languages("runtime_names", &out, &package, &built)
+		.unwrap_or_else(|(stage, output)| panic!("{stage}: {}", trimmed(&output)));
+}
+
 /// Census and export every crate of the corpus, or of `CORPUS_SHARD`'s `i/n`, the `i`th of
 /// `n` slices, or those `CORPUS_CRATES` names, and build each binding, writing the report
 /// to `target/tmp/corpus/report.md`, or a shard's to `target/tmp/corpus-<i>-of-<n>/report.md`.
@@ -242,11 +296,9 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	let facade = workspace().join(name);
 	let dir = base().join("crates").join(name);
 	let build = base().join("build");
-	let exporter = |config: &Path, mode: &str, out: &Path| {
+	let exporter = |mode: &str, out: &Path| {
 		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
-		cmd.arg("--config")
-			.arg(config)
-			.arg("--manifest-path")
+		cmd.arg("--manifest-path")
 			.arg(facade.join("Cargo.toml"))
 			.arg(mode)
 			.arg(out)
@@ -254,20 +306,21 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 			.env("CARGO_TARGET_DIR", &build);
 		cmd
 	};
-	// The census ignores the config's `exclude`, so an empty one serves.
-	let empty = dir.join("census.toml");
-	step::write(&empty, "exclude = []\n");
 	let census = dir.join("census");
-	let output = super::output(&mut exporter(&empty, "--census", &census));
+	let output = super::output(&mut exporter("--census", &census));
 	if !output.status.success() {
 		return Err(fail(stage(&output, "census"), &output));
 	}
 	let text = std::fs::read_to_string(census.join(format!("corpus-{name}.md"))).unwrap();
-	let exclude = excluded(&text);
-	let config = dir.join("ffi.toml");
-	step::write(&config, &exclude);
+	let refused = refusals(&text);
+	if refused > 0 {
+		return Ok(Passed {
+			krate: name.clone(),
+			refused,
+		});
+	}
 	let out = dir.join("out");
-	let output = super::output(&mut exporter(&config, "--out", &out));
+	let output = super::output(&mut exporter("--out", &out));
 	if !output.status.success() {
 		return Err(fail(stage(&output, "export"), &output));
 	}
@@ -276,10 +329,7 @@ fn one(krate: &Krate) -> Result<Passed, Failure> {
 	languages(&lib, &out, &dir, &built).map_err(|(stage, output)| fail(stage.to_string(), &output))?;
 	Ok(Passed {
 		krate: name.clone(),
-		refused: exclude
-			.lines()
-			.filter(|line| line.trim_start().starts_with('"'))
-			.count(),
+		refused: 0,
 	})
 }
 
@@ -301,13 +351,12 @@ fn stage(output: &Output, stage: &str) -> String {
 	}
 }
 
-/// The `exclude` the census writes, which exports what maps: none where it refuses nothing.
-fn excluded(census: &str) -> String {
-	let Some(start) = census.find("```toml\nexclude = [") else {
-		return "exclude = []\n".to_string();
-	};
-	let toml = &census[start + "```toml\n".len()..];
-	toml[..toml.find("```").expect("the config's block ends")].to_string()
+/// How many items the census refuses: its table's refused column, Swift's included.
+fn refusals(census: &str) -> usize {
+	(census.lines())
+		.take_while(|line| !line.starts_with("Exported types:"))
+		.filter_map(|line| line.strip_prefix("| ")?.split(" | ").nth(2)?.parse::<usize>().ok())
+		.sum()
 }
 
 /// The first lines of what a command printed, where its first error is, enough to say why
