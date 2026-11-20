@@ -120,16 +120,17 @@ impl Header<'_> {
 	}
 
 	/// `sig`'s declaration, marked must-use if dropping what it returns leaks or loses
-	/// something: a handle, bytes, a `Vec`, a poll, or whether a `fallible` call failed.
-	fn prototype(&self, sig: &Sig, fallible: bool) -> String {
+	/// something: a handle, bytes, a waker, a value that `owns` memory, such as a `Vec`, a
+	/// poll, or whether a `fallible` call failed.
+	fn prototype(&self, sig: &Sig, owns: bool, fallible: bool) -> String {
 		let params: Vec<String> = sig.params.iter().map(|(n, ty)| self.decl(ty, n)).collect();
 		let params = match params.is_empty() {
 			true => "void".to_string(),
 			false => params.join(", "),
 		};
 		let must_use = match &sig.ret {
-			Ty::Handle { .. } | Ty::Future(_) | Ty::Buf | Ty::Poll => true,
-			Ty::Struct(name) => self.abi.lists.contains_key(name),
+			Ty::Handle { .. } | Ty::Future(_) | Ty::Buf | Ty::Waker | Ty::Poll => true,
+			Ty::Struct(_) => owns,
 			Ty::Bool => fallible,
 			_ => false,
 		};
@@ -290,13 +291,7 @@ impl Header<'_> {
 		for (i, record) in api.records.iter().enumerate() {
 			let name = abi.record(i);
 			self.line(format!("/* {} */", abi.api.rust(&record.path, &record.args)).trim_end());
-			self.value_functions(
-				&name,
-				Ty::Struct(name.clone()),
-				record.traits,
-				record.opaque.is_none(),
-				abi.value_status(&Type::Record(i)),
-			);
+			self.value_functions(&name, &Type::Record(i), record.traits, record.opaque.is_none());
 			let owner = Ty::Struct(name.clone());
 			for method in &record.methods {
 				self.function(method, Some(&owner));
@@ -310,13 +305,7 @@ impl Header<'_> {
 				continue;
 			}
 			self.line(format!("/* {} */", abi.api.rust(&e.path, &e.args)));
-			self.value_functions(
-				&name,
-				ty.clone(),
-				e.traits,
-				!e.plain(),
-				abi.value_status(&Type::Enum(i)),
-			);
+			self.value_functions(&name, &Type::Enum(i), e.traits, !e.plain());
 			for method in &e.methods {
 				self.function(method, Some(&ty));
 			}
@@ -512,11 +501,12 @@ impl Header<'_> {
 		));
 	}
 
-	/// The functions a value type's std traits export, and its `free` if it owns memory.
-	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool, status: bool) {
+	/// The functions a value type's std traits export, and its `free` if it has one.
+	fn value_functions(&mut self, name: &str, value: &Type, traits: Traits, free: bool) {
 		let p = &self.abi.prefix;
 		let upper = p.to_uppercase();
-		let status = match status {
+		let ty = self.abi.ty(value);
+		let status = match self.abi.value_status(value) {
 			true => format!(", {p}_status *status"),
 			false => String::new(),
 		};
@@ -539,7 +529,11 @@ impl Header<'_> {
 			self.line(format!("{upper}_MUST_USE {p}_buf {name}_debug({this}{status});"));
 		}
 		if traits.default {
-			self.line(format!("{} {name}_default(void);", self.decl(&ty, "")));
+			let must_use = match self.abi.owns(value) {
+				true => format!("{upper}_MUST_USE "),
+				false => String::new(),
+			};
+			self.line(format!("{must_use}{} {name}_default(void);", self.decl(&ty, "")));
 		}
 	}
 
@@ -635,13 +629,13 @@ impl Header<'_> {
 			.into_iter()
 			.chain(homed)
 			{
-				let prototype = self.prototype(&sig, false);
+				let prototype = self.prototype(&sig, false, false);
 				self.line(prototype);
 			}
 			return;
 		}
 		for sig in std::iter::once(export.call.clone()).chain(export.homed_call()) {
-			let prototype = self.prototype(&sig, function.err.is_some());
+			let prototype = self.prototype(&sig, self.abi.owns(function.ok.base()), function.err.is_some());
 			self.line(prototype);
 		}
 	}

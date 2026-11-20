@@ -957,6 +957,22 @@ impl<'a> Abi<'a> {
 		}
 	}
 
+	/// Whether a value of `ty` holds memory Rust allocated.
+	pub(crate) fn owns(&self, ty: &Type) -> bool {
+		match ty {
+			_ if Abi::is_buf(ty) => true,
+			Type::Object(_) | Type::List(..) => true,
+			Type::Option(inner) | Type::Box(inner) => self.owns(inner),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.owns(ty)),
+			Type::Record(i) => self.api.records[*i].fields.iter().any(|f| self.owns(&f.ty)),
+			Type::Enum(i) => self.api.enums[*i]
+				.variants
+				.iter()
+				.any(|v| v.fields.iter().any(|f| self.owns(&f.ty))),
+			_ => false,
+		}
+	}
+
 	/// Whether `ty` crosses as a `<prefix>_buf`.
 	pub(crate) fn is_buf(ty: &Type) -> bool {
 		matches!(
