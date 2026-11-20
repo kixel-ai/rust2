@@ -874,7 +874,8 @@ enum Kind {
 	/// `HolderN::new(make_N(seed))`, `swap(make_N(seed ^ 1))`, printing the digests of
 	/// what that returns, of `digest()`, and of `into_inner()`.
 	Held,
-	/// `sink_N(seed, s)` of an `s` whose `echo` returns what it takes.
+	/// `sink_N(seed, s)` of an `s` whose `echo` returns what it takes, printing `echoed` in a
+	/// foreign driver so its line shows the callback ran.
 	Sink,
 }
 
@@ -1347,6 +1348,10 @@ impl Built {
 		let got = String::from_utf8_lossy(&output.stdout);
 		let mut wrong = String::new();
 		let lines: Vec<&str> = got.lines().collect();
+		// A sink's foreign `echo` prints `echoed` once, before its call's line.
+		let expected: Vec<(Call, &str)> = (expected.iter())
+			.flat_map(|&(call, want)| (call.kind == Kind::Sink).then_some((call, "echoed")).into_iter().chain([(call, want)]))
+			.collect();
 		for (i, (call, want)) in expected.iter().enumerate() {
 			let line = lines.get(i).copied().unwrap_or("<missing>");
 			if line != *want {
@@ -1716,7 +1721,7 @@ fn c(built: &Built, calls: &[Call]) -> String {
 					let param = &param[..param.rfind([' ', '*']).unwrap() + 1];
 					let _ = writeln!(
 						closures,
-						"static {ret} sink{n}_echo(void *data, {param}v) {{\n\t(void)data;\n\treturn v;\n}}\n\n\
+						"static {ret} sink{n}_echo(void *data, {param}v) {{\n\t(void)data;\n\tprintf(\"echoed\\n\");\n\treturn v;\n}}\n\n\
 						static void sink{n}_free(void *data) {{\n\t(void)data;\n}}\n\n\
 						static const {sink}_vtable sink{n} = {{.free = sink{n}_free, .echo = sink{n}_echo}};\n"
 					);
@@ -1890,10 +1895,13 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 					let echo = echo.strip_prefix("virtual ").unwrap().strip_suffix(" = 0;").unwrap();
 					let _ = writeln!(
 						sinks,
-						"struct Echo{n} final : {name}::Sink{n} {{\n\t{echo} override {{\n\t\treturn v;\n\t}}\n}};\n"
+						"struct Echo{n} final : {name}::Sink{n} {{\n\t{echo} override {{\n\t\tstd::cout << \"echoed\\n\";\n\t\treturn v;\n\t}}\n}};\n"
 					);
 				}
-				print(format!("{name}::sink_{n}({seed}u, std::make_unique<Echo{n}>())"))
+				// Its result first, since C++ streams the label before evaluating the next operand.
+				format!(
+					"\t{{\n\t\tauto d = {name}::sink_{n}({seed}u, std::make_unique<Echo{n}>());\n\t\tstd::cout << \"{label} \" << d << '\\n';\n\t}}"
+				)
 			}
 		};
 		let _ = writeln!(body, "{line}");
@@ -1982,7 +1990,7 @@ fn kotlin(built: &Built, calls: &[Call]) -> String {
 					.nth(1)
 					.expect("the Kotlin declares the sink");
 				let echo = interface.lines().next().unwrap().trim();
-				format!("sink{n}({seed}uL, object : Sink{n} {{ override {echo} = v }})")
+				format!("sink{n}({seed}uL, object : Sink{n} {{ override {echo} {{ println(\"echoed\"); return v }} }})")
 			}
 		};
 		format!("\tprintln(\"{} ${{{value}}}\")", call.label())
@@ -2037,7 +2045,7 @@ fn python(built: &Built, calls: &[Call]) -> String {
 				if echoes.insert(n) {
 					let _ = writeln!(
 						sinks,
-						"class Echo{n}(s.Sink{n}):\n\tdef echo(self, v: typing.Any) -> typing.Any:\n\t\treturn v\n\n"
+						"class Echo{n}(s.Sink{n}):\n\tdef echo(self, v: typing.Any) -> typing.Any:\n\t\tprint(\"echoed\")\n\t\treturn v\n\n"
 					);
 				}
 				format!("s.sink_{n}({seed}, Echo{n}())")
@@ -2183,7 +2191,7 @@ fn swift(calls: &[Call], source: &str) -> String {
 						.nth(1)
 						.expect("the Swift declares the sink");
 					let echo = protocol.lines().next().unwrap().trim();
-					let _ = writeln!(sinks, "struct Echo{n}: Sink{n} {{\n\t{echo} {{\n\t\tv\n\t}}\n}}\n");
+					let _ = writeln!(sinks, "struct Echo{n}: Sink{n} {{\n\t{echo} {{\n\t\tprint(\"echoed\")\n\t\treturn v\n\t}}\n}}\n");
 				}
 				format!("{}sink{n}({seed}, Echo{n}())", tr(&[format!("sink{n}")]))
 			}
@@ -2388,7 +2396,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 					let echo = interface.lines().next().unwrap().trim().replace("p_rt.", "rt.");
 					let _ = writeln!(
 						sinks,
-						"type echo{n} struct{{}}\n\nfunc (echo{n}) {echo} {{\n\treturn v\n}}\n"
+						"type echo{n} struct{{}}\n\nfunc (echo{n}) {echo} {{\n\tfmt.Println(\"echoed\")\n\treturn v\n}}\n"
 					);
 				}
 				format!("one(s.Sink{n}_({seed}, echo{n}{{}}))")
@@ -2570,7 +2578,7 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 					let echo = prefixed;
 					let _ = writeln!(
 						sinks,
-						"final class Echo{n} extends s.Sink{n} {{\n  @override\n  {echo} => v;\n}}\n"
+						"final class Echo{n} extends s.Sink{n} {{\n  @override\n  {echo} {{\n    print('echoed');\n    return v;\n  }}\n}}\n"
 					);
 				}
 				format!("s.sink{n}({}, Echo{n}())", u(seed))
@@ -2647,7 +2655,7 @@ fn web(built: &Built, calls: &[Call]) -> String {
 				);
 				continue;
 			}
-			Kind::Sink => format!("s.sink{n}({}, {{ echo: (v) => v }})", u(seed)),
+			Kind::Sink => format!("s.sink{n}({}, {{ echo: (v) => {{ print(\"echoed\"); return v; }} }})", u(seed)),
 		};
 		let _ = writeln!(body, "print(`{label} ${{dec({value})}}`);");
 	}
@@ -2676,10 +2684,16 @@ const print = (line: string) => console.log(line);
 const dec = (v: rt.u64) => (typeof v === \"number\" ? `${v}` : `${rt.u64ToBig(v)}`);
 
 /** `v` as a place holds it: the bytes Rust returned copied into arrays. */
-function plain<T>(v: T): never {
-	if (v instanceof rt.Bytes) return v.slice() as never;
-	if (Array.isArray(v)) return v.map(plain) as never;
-	return v as never;
+type Plain<T> = T extends rt.Bytes
+	? Uint8Array<ArrayBuffer>
+	: T extends readonly unknown[]
+		? { -readonly [K in keyof T]: Plain<T[K]> }
+		: T;
+
+function plain<T>(v: T): Plain<T> {
+	if (v instanceof rt.Bytes) return v.slice() as Plain<T>;
+	if (Array.isArray(v)) return v.map(plain) as Plain<T>;
+	return v as Plain<T>;
 }
 
 ";

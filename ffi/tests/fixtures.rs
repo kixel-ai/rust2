@@ -3720,10 +3720,12 @@ fn lock() {
 	);
 	// A baseline from before an exception was known by its native type too, whose key alone
 	// names one class of those an addition gives it.
-	let mut legacy: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	let original: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	let mut legacy = original.clone();
 	for names in legacy["names"].as_object_mut().unwrap().values_mut() {
 		names.as_object_mut().unwrap().retain(|key, _| !key.contains(" / as "));
 	}
+	assert_ne!(legacy, original, "the baseline holds no native exception key to drop");
 	let path = dir.join("legacy.json");
 	std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
 	let args = ["--baseline".as_ref(), path.as_os_str()];
@@ -3736,7 +3738,7 @@ fn lock() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	// A generator that respells a native type, such as an alias it renames, renames no class.
-	let mut respelled: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	let mut respelled = original.clone();
 	for names in respelled["names"].as_object_mut().unwrap().values_mut() {
 		let names = names.as_object_mut().unwrap();
 		*names = std::mem::take(names)
@@ -3747,6 +3749,7 @@ fn lock() {
 			})
 			.collect();
 	}
+	assert_ne!(respelled, original, "the baseline holds no native exception key to respell");
 	let path = dir.join("respelled.json");
 	std::fs::write(&path, serde_json::to_vec(&respelled).unwrap()).unwrap();
 	let args = ["--baseline".as_ref(), path.as_os_str()];
