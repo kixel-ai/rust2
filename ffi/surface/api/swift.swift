@@ -1165,6 +1165,10 @@ public final class Refusal: @unchecked Sendable {
 	@inlinable public var description: Swift.String { get }
 	@inlinable public var debugDescription: Swift.String { get }
 }
+public final class Fault: @unchecked Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+}
 public struct C: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: borrowing C, b: borrowing C) -> Swift.Bool
@@ -1286,6 +1290,7 @@ public struct VecClashToneError: Swift.Error, CustomStringConvertible {
 	@inlinable public var description: Swift.String { get }
 }
 extension Error: Swift.Error {}
+extension Fault: Swift.Error {}
 extension Refusal: Swift.Error {}
 public let LIMIT: Swift.UInt64
 public let FAR: Swift.Int64
@@ -1516,6 +1521,7 @@ public let FAR: Swift.Int64
 @inlinable public func excuse(_ note: Bytes, _ entry: (Bytes, Refusal)) throws -> Swift.UInt
 @inlinable public func relay(_ log: any Log, _ refusals: [Refusal]) throws -> Swift.UInt32
 @inlinable public func refuse(_ reason: Swift.String) throws -> Swift.UInt32
+@inlinable public func jam(_ n: Swift.UInt32) throws -> Swift.UInt32
 @inlinable public func platform() -> Platform
 @inlinable public func pointerBits(_ platform: Platform) -> Swift.UInt32
 @inlinable public func sameLabelled(_ labelled: Labelled) -> Labelled

@@ -4486,6 +4486,42 @@ pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	}))
 }
 
+/// Why [`jam`] failed: an enum whose own `Drop` makes it an object, whose variants a
+/// binding still tells apart, as Python raises each as its own subclass.
+#[derive(Debug)]
+pub enum Fault {
+	/// Nothing is free.
+	Busy,
+	/// What was sent is lost.
+	Lost(String),
+	/// Too late, by this many.
+	Late { by: u32 },
+}
+
+impl Drop for Fault {
+	fn drop(&mut self) {}
+}
+
+impl fmt::Display for Fault {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Fault::Busy => write!(f, "busy"),
+			Fault::Lost(what) => write!(f, "lost {what}"),
+			Fault::Late { by } => write!(f, "late by {by}"),
+		}
+	}
+}
+
+/// Fails with the fault `n` picks: busy, lost, or late, and for any other `n`, returns it.
+pub fn jam(n: u32) -> Result<u32, Fault> {
+	match n {
+		0 => Err(Fault::Busy),
+		1 => Err(Fault::Lost("frame".to_string())),
+		2 => Err(Fault::Late { by: 7 }),
+		n => Ok(n),
+	}
+}
+
 /// The kind of target the library was built for. One binding serves the host and wasm32,
 /// so it has every target's variants, and a target refuses one it lacks. As wasm32's comes
 /// first, `Native`'s Rust discriminant differs between the two, which its C tag does not.

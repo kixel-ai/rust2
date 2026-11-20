@@ -455,6 +455,12 @@ export { new$ as new };
 export type Family = "Native" | "Wasm";
 export declare function debug(self: Family): string;
 
+// Fault.ts
+import * as rt from "./rt.ts";
+export type Fault = rt.Handle<"Fault">;
+export declare function toString(self: Fault): string;
+export declare function debug(self: Fault): string;
+
 // FiledReceipt.ts
 import * as rt from "./rt.ts";
 export type FiledReceipt = rt.Handle<"FiledReceipt">;
@@ -1618,6 +1624,7 @@ export declare const k_Cursor: rt.Kind;
 export declare const k_Der: rt.Kind;
 export declare const k_Digest: rt.Kind;
 export declare const k_Draft: rt.Kind;
+export declare const k_Fault: rt.Kind;
 export declare const k_Filed_Receipt: rt.Kind;
 export declare const k_Gap: rt.Kind;
 export declare const k_Gauge: rt.Kind;
@@ -2095,6 +2102,7 @@ import type { Draft } from "./Draft.ts";
 import type { Error_ } from "./Error_.ts";
 import type { Event } from "./Event.ts";
 import type { Family } from "./Family.ts";
+import type { Fault } from "./Fault.ts";
 import type { Gauge } from "./Gauge.ts";
 import type { Instant } from "./Instant.ts";
 import type { Json } from "./Json.ts";
@@ -2446,6 +2454,7 @@ export declare function reasons(pairs: ([Counter, Refusal])[], last: [Counter, R
 export declare function excuse(note: Uint8Array | rt.Bytes, entry: [Uint8Array, Refusal]): number;
 export declare function relay(log: Log, refusals: Refusal[]): number;
 export declare function refuse(reason: string): rt.Result<number, Refusal>;
+export declare function jam(n: number): rt.Result<number, Fault>;
 export declare function platform(): Platform;
 export declare function pointerBits(platform: Platform): number;
 export declare function sameLabelled(labelled: Labelled): Labelled;

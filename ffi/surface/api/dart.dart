@@ -1339,6 +1339,10 @@ final class Refusal extends _Object implements Exception {
 	@override String toString();
 	String debug();
 }
+final class Fault extends _Object implements Exception {
+	@override String toString();
+	String debug();
+}
 final class C extends _Object {
 	String debug();
 	@override bool operator ==(Object other);
@@ -1687,6 +1691,7 @@ String reasons(List<(Counter, Refusal)> pairs, (Counter, Refusal)? last);
 U64 excuse(typed.Uint8List note, (typed.Uint8List, Refusal) entry);
 int relay(Log log, List<Refusal> refusals);
 int refuse(String reason);
+int jam(int n);
 Platform platform();
 int pointerBits(Platform platform);
 Labelled sameLabelled(Labelled labelled);

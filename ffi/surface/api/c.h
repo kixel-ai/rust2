@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x56dc8776c75ad783ULL)
+#define API_CONTRACT ((uint64_t)0xcadf3d448a865171ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -142,6 +142,7 @@ typedef struct api_Latch api_Latch;
 typedef struct api_Token api_Token;
 typedef struct api_Stack api_Stack;
 typedef struct api_Refusal api_Refusal;
+typedef struct api_Fault api_Fault;
 typedef struct api_c api_c;
 typedef struct api_Key api_Key;
 typedef struct api_clash_Seed api_clash_Seed;
@@ -690,9 +691,6 @@ typedef struct api_Clocked {
 	api_Moment at;
 	uint32_t count;
 } api_Clocked;
-typedef struct api_Rated {
-	uint64_t opaque[2];
-} api_Rated;
 typedef struct api_Hits {
 	uint64_t opaque[2];
 } api_Hits;
@@ -1165,10 +1163,6 @@ uint64_t api_Wide_sum(const api_Wide *self);
 void api_Clocked_free(api_Clocked *self);
 bool api_Clocked_eq(const api_Clocked *a, const api_Clocked *b);
 api_buf api_Clocked_debug(const api_Clocked *self);
-bool api_Rated_eq(const api_Rated *a, const api_Rated *b);
-api_buf api_Rated_debug(const api_Rated *self);
-api_Rated api_Rated_new(uint64_t count, uint64_t scale);
-uint64_t api_Rated_scale(const api_Rated *self);
 api_buf api_Score_debug(const api_Score *self);
 api_Score api_Score_of(uint64_t count);
 uint64_t api_Score_count(const api_Score *self);
@@ -1840,6 +1834,9 @@ void api_Refusal_free(api_Refusal *self);
 void api_Refusal_drop(api_Refusal *self, api_status *status);
 api_buf api_Refusal_to_string(const api_Refusal *self, api_status *status);
 api_buf api_Refusal_debug(const api_Refusal *self, api_status *status);
+void api_Fault_free(api_Fault *self);
+api_buf api_Fault_to_string(const api_Fault *self);
+api_buf api_Fault_debug(const api_Fault *self);
 void api_c_free(api_c *self);
 bool api_c_eq(const api_c *a, const api_c *b);
 api_buf api_c_debug(const api_c *self);
@@ -2236,6 +2233,7 @@ api_buf api_reasons(api_vec_tuple_Counter_Refusal pairs, api_option_tuple_Counte
 size_t api_excuse(api_buf note, api_tuple_bytes_Refusal entry, api_status *status);
 uint32_t api_relay(api_Log log, api_vec_Refusal refusals, api_status *status);
 bool api_refuse(api_buf reason, uint32_t *out, api_Refusal **err);
+bool api_jam(uint32_t n, uint32_t *out, api_Fault **err);
 api_Platform api_platform(void);
 uint32_t api_pointer_bits(api_Platform platform);
 api_Labelled api_same_labelled(api_Labelled labelled);
