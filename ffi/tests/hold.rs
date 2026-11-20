@@ -171,7 +171,11 @@ impl Hold {
 	/// under a borrow, reopening it, and the handle freed. `None` while a hold or a close
 	/// stands, when the binding holds it for a drop alone and then gives up the owner's hold.
 	fn drop_free(&self, refused: bool) -> Option<bool> {
-		if self.state.compare_exchange(HELD, CLOSED | CLOSING, SeqCst, SeqCst).is_err() {
+		if self
+			.state
+			.compare_exchange(HELD, CLOSED | CLOSING, SeqCst, SeqCst)
+			.is_err()
+		{
 			return None;
 		}
 		if refused {
