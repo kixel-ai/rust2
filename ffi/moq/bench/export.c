@@ -98,33 +98,47 @@ static moq_frame_Frame *read_frame(moq_group_Consumer *reader) {
 	return read;
 }
 
-static moq_group_Producer *append_group(moq_track_Producer *track) {
+/* A new timestamp `micros` microseconds in, to free. */
+static moq_Timestamp *stamp(uint64_t micros) {
+	moq_Timestamp *at = NULL;
+	moq_TimeOverflow overflow;
+	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
+		fail("from_micros");
+	}
+	return at;
+}
+
+/* A group keyed by its start, which must exceed every earlier group's on the track. */
+static moq_group_Producer *append_group(moq_track_Producer *track, const moq_Timestamp *start) {
 	moq_group_Producer *group = NULL;
 	moq_Error *err = NULL;
-	if (!moq_track_Producer_append_group(track, &group, &err, NULL)) {
+	if (!moq_track_Producer_append_group(track, start, &group, &err, NULL)) {
 		fail("append_group");
 	}
 	return group;
 }
 
-static void write_frame(moq_group_Producer *group, moq_Timestamp at, moq_buf frame) {
+static void write_frame(moq_group_Producer *group, const moq_Timestamp *at, moq_buf frame) {
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_write_frame(group, (moq_option_Timestamp){.some = true, .value = at}, frame, &err, NULL)) {
+	if (!moq_group_Producer_write_frame(group, at, frame, &err, NULL)) {
 		fail("write_frame");
 	}
 }
 
 static void finish(moq_group_Producer *group) {
+	moq_group_Finished *finished = NULL;
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_finish(group, &err, NULL)) {
+	if (!moq_group_Producer_finish(group, &finished, &err, NULL)) {
 		fail("finish");
 	}
+	moq_group_Finished_free(finished);
 	moq_group_Producer_free(group);
 }
 
 /* Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
- * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. */
-static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, moq_Timestamp at, size_t size, unsigned *sum) {
+ * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. Each
+ * group starts at the next of `micros`, and its frames share that start. */
+static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, uint64_t *micros, size_t size, unsigned *sum) {
 	size_t groups = (64u << 20) / (size * FRAMES);
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
@@ -133,7 +147,8 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 	snprintf(name, sizeof name, "throughput[%zu]", size);
 	span start = begin();
 	for (size_t g = 0; g < groups; g++) {
-		moq_group_Producer *group = append_group(track);
+		moq_Timestamp *at = stamp((*micros)++);
+		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
@@ -144,6 +159,7 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 			moq_frame_Frame_free(read);
 		}
 		finish(group);
+		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span ns = end(start, (double)(groups * FRAMES * size), name);
@@ -174,7 +190,7 @@ static void *work(void *arg) {
 	}
 	if (w->getter) {
 		for (int i = 0; i < N; i++) {
-			sum += (unsigned)moq_group_Demand_sequence(w->handle, NULL);
+			sum += (unsigned)moq_group_Demand_start(w->handle, NULL);
 		}
 	} else {
 		for (int i = 0; i < N; i++) {
@@ -236,11 +252,15 @@ static void round_(int print) {
 	}
 	span call = end(start, N, "call");
 
-	moq_group_Producer *demanded = append_group(track);
+	/* Groups start where the frames before them left off, as moq's own bench keys them. */
+	uint64_t micros = 0;
+	moq_Timestamp *demanded_at = stamp(micros++);
+	moq_group_Producer *demanded = append_group(track, demanded_at);
+	moq_Timestamp_free(demanded_at);
 	moq_group_Demand *demand = moq_group_Producer_demand(demanded, NULL);
 	start = begin();
 	for (int i = 0; i < N; i++) {
-		sum += (unsigned)moq_group_Demand_sequence(demand, NULL);
+		sum += (unsigned)moq_group_Demand_start(demand, NULL);
 	}
 	span getter = end(start, N, "getter");
 
@@ -280,35 +300,41 @@ static void round_(int print) {
 	}
 	span object = end(start, N, "object");
 
-	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must. */
-	uint64_t micros = 0;
+	/* A primitive pub field read, which reaches no user code. */
+	moq_track_Info *read = moq_track_Producer_info(track, NULL);
+	start = begin();
+	for (int i = 0; i < N; i++) {
+		sum += (unsigned)moq_track_Info_priority_get(read, NULL);
+	}
+	span field = end(start, N, "field");
+	moq_track_Info_free(read);
+
+	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must, and each
+	 * group started at its first frame's. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_group_Producer *group = append_group(track);
+		moq_Timestamp *first = stamp(micros);
+		moq_group_Producer *group = append_group(track, first);
+		moq_Timestamp_free(first);
 		for (int f = 0; f < FRAMES; f++) {
-			moq_Timestamp at;
-			moq_TimeOverflow overflow;
-			if (!moq_Timestamp_from_micros(micros++, &at, &overflow)) {
-				fail("from_micros");
-			}
+			moq_Timestamp *at = stamp(micros++);
 			write_frame(group, at, frame);
+			moq_Timestamp_free(at);
 		}
 		finish(group);
 	}
 	span stamped = end(start, N, "stamped");
 
-	moq_Timestamp at;
-	moq_TimeOverflow overflow;
-	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
-		fail("from_micros");
-	}
+	/* Every frame at its group's start, converted once per group. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_group_Producer *group = append_group(track);
+		moq_Timestamp *at = stamp(micros++);
+		moq_group_Producer *group = append_group(track, at);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
 		}
 		finish(group);
+		moq_Timestamp_free(at);
 	}
 	span write = end(start, N, "write");
 
@@ -325,7 +351,8 @@ static void round_(int print) {
 	moq_frame_Frame *last = NULL;
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_group_Producer *group = append_group(track);
+		moq_Timestamp *at = stamp(micros++);
+		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
@@ -335,6 +362,7 @@ static void round_(int print) {
 			last = read_frame(reader);
 		}
 		finish(group);
+		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span ready = end(start, N, "ready");
@@ -342,7 +370,8 @@ static void round_(int print) {
 	/* Each read polled before its frame is written, so it pends, then polled again. */
 	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
-		moq_group_Producer *group = append_group(track);
+		moq_Timestamp *at = stamp(micros++);
+		moq_group_Producer *group = append_group(track, at);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
 			moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader, NULL);
@@ -358,6 +387,7 @@ static void round_(int print) {
 			moq_frame_Frame_free(read);
 		}
 		finish(group);
+		moq_Timestamp_free(at);
 		moq_group_Consumer_free(reader);
 	}
 	span woken = end(start, N, "woken");
@@ -374,7 +404,7 @@ static void round_(int print) {
 
 	span mbps[sizeof sizes / sizeof sizes[0]];
 	for (size_t i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
-		mbps[i] = throughput(track, subscriber, at, sizes[i], &sum);
+		mbps[i] = throughput(track, subscriber, &micros, sizes[i], &sum);
 	}
 
 	sink = sum;
@@ -383,8 +413,8 @@ static void round_(int print) {
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {
-		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, stamped, write, ready, woken, payload_};
+		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "field", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, field, stamped, write, ready, woken, payload_};
 		for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) {
 			printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}

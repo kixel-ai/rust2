@@ -11,6 +11,11 @@ publish = false
 [package.metadata.rust-analyzer]
 rustc_private = true
 
+# Mounted by `#[path]` into a copy of an export, or by more than one test, which cargo-shear
+# does not follow.
+[package.metadata.cargo-shear]
+ignored-paths = ["tests/miri/*.rs", "tests/protocol/*.rs"]
+
 [workspace]
 # Its own workspace, apart from the repo's: the driver builds on ts's pinned nightly,
 # which rust-toolchain.toml links.
@@ -22,6 +27,7 @@ resolver = "3"
 allow_attributes_without_reason = "warn"
 
 [dependencies]
+oxc = { version = "0.159.0", default-features = false, features = ["codegen", "isolated_declarations", "semantic", "transformer"] }
 rust2-driver = { path = "../driver" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.154"

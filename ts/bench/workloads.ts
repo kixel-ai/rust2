@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "split" | "join" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, frames, strings, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "split" | "join" | "mix" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, hash rounds, packets, lines, steps, frames, strings, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -140,6 +140,13 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 		pair(`str/${name}`, strings, 19, selector, [BigInt(strings)]);
 		out.push({ name: `str/join/${name}`, op: "join", items: strings, input: Uint8Array.of(21, selector, ...u64(BigInt(strings))) });
 		out.push({ name: `str/keyed/${name}`, op: "map", items: strings, input: Uint8Array.of(22, selector, ...u64(BigInt(strings))) });
+	});
+
+	// `bench.rs`'s op 23: 64-bit hash arithmetic that stays past 2^53, a generator's steps and
+	// a multiplicative hash reduced by a divisor and a modulus past 2^32.
+	const seed = 0x9e3779b97f4a7c15n;
+	["splitmix", "mul-div"].forEach((name, selector) => {
+		out.push({ name: `int/${name}`, op: "mix", items: count, input: Uint8Array.of(23, selector, ...[BigInt(count), seed].flatMap(u64)) });
 	});
 	return out;
 }

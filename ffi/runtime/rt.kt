@@ -257,7 +257,8 @@ class __Writer {
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
 		held?.forEachIndexed { i, h -> h.release(slots[i]) }
-		java.lang.ref.Reference.reachabilityFence(kept)
+		// A fence on each, which keeps it reachable up to here.
+		kept?.forEach { if (it != null) __Keep.fence(it) }
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
@@ -472,7 +473,8 @@ abstract class __Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owne
  * once no call does, and a call after [close] throws. [close] of one whose value Rust
  * checks, which [drop] drops, drops the value as Rust's own drop does, throwing while a
  * call borrows it in Rust; of any other, it throws while a call holds it. An owned one is
- * freed once the GC collects [owner], if nothing closed it.
+ * freed once the GC collects [owner], if nothing closed it: it starts in its thread's
+ * [__Nursery], and registers with the GC only once it leaves that open.
  */
 class __Handle(
 	owner: Any,
@@ -480,7 +482,7 @@ class __Handle(
 	private val free: __Drop?,
 	private val type: String,
 	private val drop: __Close? = null,
-) : __Cleanup(if (free == null) null else owner) {
+) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
 	// once closed, one set while an unchecked [close] decides, and one set once calls
 	// contended for them, after which they hold it in [SLOTS]: one word, so a call reads
@@ -492,8 +494,23 @@ class __Handle(
 	// even while a closed handle is still reachable.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var key = 0L
 
+	// What frees it once the GC collects its owner, from when it leaves its nursery open.
+	// Plain: a free that misses an eviction's write leaves a cleanup that finds it closed.
+	private var cleanup: __Collected? = null
+
 	init {
-		if (free != null) track()
+		if (free != null) __Nursery.push(owner, this)
+	}
+
+	/**
+	 * Register it with the GC as it leaves its nursery, unless closed, when its last hold
+	 * frees it. Racing that close, it may register one closed meanwhile, whose cleanup then
+	 * finds it closed and frees nothing: [CLOSED], claimed once, decides the one free.
+	 */
+	internal fun evict(owner: Any) {
+		// An unchecked close still deciding may leave it open.
+		if (state and (CLOSED or CLOSING) == CLOSED) return
+		cleanup = __Collected(owner, this)
 	}
 
 	/** Hold it for a call, until [release] takes what this returns. Throws once closed. */
@@ -633,13 +650,13 @@ class __Handle(
 		release(-1)
 	}
 
-	// Free it once no hold is left.
+	// Free it once no hold is left, which happens once.
 	private fun freed(n: Long) {
-		if (n < HELD && free != null && untrack()) free.drop(raw)
+		if (n < HELD && free != null) {
+			cleanup?.stop()
+			free.drop(raw)
+		}
 	}
-
-	// A call still holding it frees it once it returns.
-	override fun collected() = abandon()
 
 	/** Run [block] with the raw handle, held until it returns. */
 	inline fun <R> hold(block: (Long) -> R): R {
@@ -681,6 +698,126 @@ class __Handle(
 	}
 }
 
+/** What frees an owned handle once the GC collects [owner]: a call still holding it frees it once it returns. */
+private class __Collected(owner: Any, private val handle: __Handle) : __Cleanup(owner) {
+	init {
+		track()
+	}
+
+	override fun collected() {
+		untrack()
+		handle.abandon()
+	}
+
+	/** Stop it, as the handle is freed first. */
+	fun stop() {
+		untrack()
+	}
+}
+
+/**
+ * The latest owned handles a thread was returned, each beside its owner, which a free
+ * leaves without the GC's registration, a phantom reference linked under a lock, which
+ * costs more than the rest of a return and its close together. One that leaves it open,
+ * pushed out by later returns or with its nursery once the GC drops that, registers then.
+ */
+private class __Nursery {
+	// Kept reachable while here, so an eviction can register them. Only the thread
+	// whose [__Ring] reaches it touches these, until [flush], once nothing reaches that.
+	@kotlin.jvm.JvmField val owners = arrayOfNulls<Any>(LEN)
+	@kotlin.jvm.JvmField val handles = arrayOfNulls<__Handle>(LEN)
+
+	/**
+	 * Register each handle still open, once the GC collected the ring that reached this,
+	 * and let go of them all, so none waits on the others to be collected. The collector
+	 * stopped the thread that filled them after its last push, which orders its writes
+	 * before this.
+	 */
+	fun flush() {
+		for (i in 0 until LEN) {
+			handles[i]?.evict(owners[i]!!)
+			handles[i] = null
+			owners[i] = null
+		}
+	}
+
+	companion object {
+		/**
+		 * How many of the latest objects returned a nursery holds: an object dropped
+		 * unclosed is freed only once this many more were returned on its thread, or the
+		 * GC dropped its nursery, so it bounds what a dropped object keeps of Rust's.
+		 */
+		const val LEN = 64
+
+		// Each thread's ring, held weakly, which a collection that reaches it while the
+		// thread is not pushing drops: so an idle thread's nursery keeps what it holds only
+		// until such a collection and one more, not forever.
+		private val RINGS = java.lang.ThreadLocal<java.lang.ref.WeakReference<__Ring>>()
+
+		/** Put [handle], which [owner] owns, in this thread's nursery, oldest out. */
+		fun push(owner: Any, handle: __Handle) {
+			var ring = RINGS.get()?.get()
+			if (ring == null) {
+				ring = __Ring(__Nursery())
+				__Flush(ring)
+				RINGS.set(java.lang.ref.WeakReference(ring))
+			}
+			ring.push(owner, handle)
+		}
+	}
+}
+
+/** What a thread holds of its nursery, only weakly, so the GC drops an idle one. */
+private class __Ring(@kotlin.jvm.JvmField val nursery: __Nursery) {
+	// The oldest slot once full.
+	private var next = 0
+
+	fun push(owner: Any, handle: __Handle) {
+		val n = nursery
+		val i = next
+		n.handles[i]?.evict(n.owners[i]!!)
+		n.owners[i] = owner
+		n.handles[i] = handle
+		next = (i + 1) and (__Nursery.LEN - 1)
+		// Its flush must not run while this pushes, and no plain store keeps it reachable.
+		__Keep.fence(this)
+	}
+}
+
+/** Keeps an object reachable up to here, by the strongest means the platform has. */
+private object __Keep {
+	// Decided once, so the compiler folds the branch away.
+	@kotlin.jvm.JvmField val REFERENCE = try {
+		java.lang.ref.Reference::class.java.getMethod("reachabilityFence", Any::class.java)
+		true
+	} catch (e: NoSuchMethodException) {
+		false
+	}
+
+	/**
+	 * `Reference.reachabilityFence` where the platform has it, free on HotSpot, which
+	 * Android adds at API 28. Elsewhere a monitor held on [o], which keeps [o] a root while
+	 * held, and which no earlier write is ordered after.
+	 */
+	fun fence(o: Any) {
+		if (REFERENCE) java.lang.ref.Reference.reachabilityFence(o) else synchronized(o) {}
+	}
+}
+
+/** What flushes a ring's nursery once the GC collects the ring. */
+private class __Flush(ring: __Ring) : __Cleanup(ring) {
+	private val nursery = ring.nursery
+
+	init {
+		track()
+	}
+
+	override fun collected() {
+		untrack()
+		nursery.flush()
+	}
+}
+
 /** A waker Rust returned: [wake] wakes it through Rust until [close], or the GC, drops it. */
 class __Returned(raw: Long) : Waker, AutoCloseable {
 	private val handle = __Handle(this, raw, __Drop { __waker_drop(it) }, "Waker")
@@ -703,8 +840,7 @@ fun interface __Close {
 /**
  * Rust's buffer, which [owner] holds, freed once the GC collects this. Each read passes it
  * to the JNI function reading the buffer, as JNI keeps an argument reachable until the call
- * returns: a fence on every JVM and Android level, where `Reference.reachabilityFence`
- * needs API 28.
+ * returns, on every JVM and Android level.
  */
 class __Lent(internal val owner: Long) {
 	init {

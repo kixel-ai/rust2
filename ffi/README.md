@@ -58,7 +58,8 @@ manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. Each
+# Paths from the facade's root left out: a module, an item, or one method or field. A type
+# no facade module re-exports goes by its crate's name and its public path there. Each
 # must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
 # `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
@@ -94,7 +95,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
+| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
 | any other type | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value; one that is not `Send`, such as kio's `clock::Entered`, stays on the thread that made it, as [the C ABI](#the-c-abi)'s threads say |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -106,7 +107,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `fn` and inherent `pub` methods | functions named through their type |
 | an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the config names each by the object's path |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
-| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message; a `()` error, as once_cell's `race::OnceBool::set` returns, is refused, having no value to raise |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust, and when its future borrows the arguments, the future owns them as an `async fn`'s does, holding each in place until it drops |
@@ -275,6 +276,17 @@ break, export without `--baseline` and commit the `api.json` it writes. Its span
 to the workspace and cargo's home, as a staged API's are, so a removed item's error points
 where it was while its file is unchanged.
 
+The lock compares the API and the names each generator gives it, not the signatures each
+language renders, so a generator change alone, such as a Kotlin type for a Rust one, passes
+it. rust2 locks those too: [`surface/`](surface) holds each binding's API as its language
+renders it, for the api fixture and moq's stand-in, and `just ci` fails where a generator
+renders another. `just ffi surface` rewrites them; a PR changing any binding's API commits
+the diff. Each is the language's own reading where one needs no build: Python's `ast` for
+the `.pyi` a type checker sees, `go doc -all` for Go, `tsc`'s declarations for the web
+binding. C, C++, Kotlin, Swift, and Dart are an outline of the generated source: each
+public declaration up to its body, without comments or private members. The files are x86_64
+Linux's exports, as the merge queue runs on, since a header names its targets.
+
 ## The C ABI
 
 - **Handles** are `Arc`s, and a call borrows the value as Rust's receiver or parameter
@@ -418,6 +430,11 @@ where it was while its file is unchanged.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Android**: the build script links the library with 16 KB pages, which Google Play
+  requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
+  panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
+  message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
+  app's stderr goes nowhere.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -470,7 +487,9 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
+  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
+  underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -598,8 +617,13 @@ the rest cross encoded.
   `close()` throws. Of a checked type, `close()` drops the value through Rust's own
   `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
   Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
-  `close()` frees the handle, and throws while a call holds it. One never closed is freed
-  once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
+  `close()` frees the handle, and throws while a call holds it. A returned object waits in
+  a nursery of the last 64 its thread returned, where `close()` frees it without the GC's
+  registration, a phantom reference linked into a list under a lock. One never closed is
+  registered once pushed out, by 64 later returns on its thread or with its nursery, which
+  the thread holds only weakly, so a collection reaching it while it is not returning, as a
+  full one does, drops it; then
+  the GC frees it once it collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
   hash folded as `Long.hashCode` folds it, or 0 without one. A value that is not `Send`
@@ -659,7 +683,7 @@ the rest cross encoded.
   which is never negative or infinite in Rust and drops what is below a millisecond past
   about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
   Windows, made from them or from a `String`, and converted to one or to a
-  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  `java.nio.file.Path` by `toText()` and `toPath()` (Android's `java.nio.file` starts at API 26), which throw where it is not UTF-8;
   its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
   is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
   each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
@@ -730,7 +754,13 @@ the rest cross encoded.
 same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
-function in-process, so a call is one crossing, which releases the GIL while Rust runs.
+function in-process, so a call is one crossing, which releases the GIL while Rust runs,
+so Rust may call Python back from any thread meanwhile. A leaf keeps it: a read or write of
+a primitive `pub` field of a `Send` object reached without a `Deref`, or a `PartialEq` or
+`Hash` derived, or std's, down to primitives, which the export proves runs no code but
+std's and the glue's, waits on no lock, and calls no Python, so it cannot deadlock on the
+GIL (`Abi::leaf` in `src/abi.rs` gives the argument). A field read costs 26 ns that way,
+against 63 releasing it ([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
@@ -880,7 +910,9 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   any executor awaits it.
 - **Checks**: a borrow or move Rust's rules refuse at run time, such as a borrow of a value
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
-  the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
+  the rule, before any Rust code runs, so the call changed nothing, but that a call
+  consuming an object took it, as its parameter consumes it whether or not the value moves,
+  and frees it as a scope's end would. So every function whose objects can fail a check `throws`, and a
   field read stays a property whose getter throws, except one of a noncopyable value,
   whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
   checks can fail, or a record or enum holding one, `description` and `debugDescription`
@@ -1282,8 +1314,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future's poll and `cancel()` included, runs on a thread of its own, acting as the
   caller's for the handles it borrows, while the isolate's thread runs what Rust calls
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
-  on can call into Dart. An isolate may move between threads, so a value that is not
-  `Send` is made on a home, a thread Rust owns, which runs each call on it.
+  on can call into Dart. A leaf, as Python keeps the GIL across, is a leaf call (`isLeaf`)
+  to the C function on the isolate's thread, with no hop and no arena: a field read costs
+  13 ns, against 31, and against 2 us while Rust holds a closure. A call that holds only
+  its receiver holds it with no arena either. An isolate may move between threads, so a
+  value that is not `Send` is made on a home, a thread Rust owns, which runs each call on
+  it.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
@@ -1313,6 +1349,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
+That list is checked by collecting again with it: it holds what Swift alone refuses, and
+not an instance only refused items named, which nothing names once they are left out.
 It ignores the config's `exclude`, but lists each exclude that leaves out an item that
 would export, and fails on it, so the list holds only what the export refuses. It also
 fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
@@ -1327,8 +1365,24 @@ its neighbors by their `.ts` names; the `.wasm` needs no tool run on it after `c
 and no wasm-bindgen. The binding serves
 `wasm32-wasip1` alone: an item another target has and it lacks is left out, not declared to
 fail. `load(source)` of `index.ts` compiles and instantiates the module, from its bytes, a
-`Response`, or a `WebAssembly.Module`, before any other call, and checks its contract and
-target there.
+`Response`, a `WebAssembly.Module`, or its URL, before any other call, and checks its
+contract and target there. Without a source it loads `<prefix>.wasm` beside `index.ts`,
+through `new URL("./<prefix>.wasm", import.meta.url)`, which Vite and webpack follow into
+the bundle; a `file:` URL is read through Node's file system, where `process.getBuiltinModule`
+finds one, since Node's `fetch` refuses the scheme. A runtime with source phase imports,
+Node 24 and Deno, may pass `import source module from "<package>/<prefix>.wasm"` instead.
+
+`web/` is an npm package too, since Node strips no type under `node_modules`
+([nodejs#57215](https://github.com/nodejs/node/issues/57215)): beside each `.ts` the
+export writes its `.js`, the types stripped by [oxc](https://oxc.rs) and each import named
+by its `.js` file, and its `.d.ts`, declared from that file alone, as JSR requires too, so
+every export states its type. Its `package.json` names it as the facade's package and
+version, exports `index` as the package and each other module by its name, such as
+`<package>/Counter` and `<package>/rt`, and the module as `<package>/<prefix>.wasm`, and
+ships the JavaScript and declarations with the module `cargo build` puts beside them.
+[The release builder](release/README.md) packs it for npm and JSR. `tests/fixtures.rs`
+packs the api fixture's with npm, installs it into a project of its own, type-checks
+`tests/api.ts` against the declarations alone, and runs it on Node, Deno, and Bun.
 
 - **The platform** is the web's: the module's std is `wasm32-wasip1`'s, whose imports are a
   detail between the generated module and its binding, which implements each with the web
@@ -1392,7 +1446,8 @@ target there.
   caller holds; up to 64 it holds a copy, since an engine keeps a typed array that short
   in its own heap, which costs less than a lend. Disposing it, as `using` does, frees Rust's
   buffer once no call reading it in place is running, and a read after throws `Bytes is
-  closed`, whichever it holds. One never disposed waits for the `FinalizationRegistry`,
+  closed`, whichever it holds. Lent bytes wait in the nursery objects do (below), and
+  one never disposed then waits for the `FinalizationRegistry`,
   which runs only once the collector does for its own heap, which no lent buffer grows: so
   past a quarter of memory lent and not yet freed, or once memory has grown by a third
   since none were, a call copies instead, so bytes nobody disposes grow memory by no more
@@ -1404,16 +1459,21 @@ target there.
   `Uint8Array`, since only a caller holding them alone disposes them. No view of Rust's buffer reaches a caller, as a `Uint8Array` over memory
   would: it detaches once memory grows, writes what Rust's other owners of the bytes read,
   and through a `subarray` or its `buffer` outlives the buffer it views. On Node 24, a lent
-  payload costs 0.4 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
+  payload costs 0.2 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
   1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
   has each engine's.
-- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
+- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does; where the engine lacks that symbol, as stable Safari does, `rt` defines it as `Symbol.for("Symbol.dispose")`, which esbuild's `using` falls back to too. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
   disposed and no call holds it, so one disposed while a later argument lowers fails the
   call's check rather than reach Rust freed. A call that meets a disposed handle throws
-  `<Type> is closed`, and a `FinalizationRegistry` frees one never disposed. On Node 24, a returned object disposed
-  costs 0.5 µs, 0.2 µs of it the registry's, against 0.1 µs for the C calls alone.
+  `<Type> is closed`. A returned object waits in a nursery of the last 64 objects and lent
+  bytes returned, where disposing it frees it without a `FinalizationRegistry` entry, which
+  costs more than the rest of a return and its disposal. One never disposed registers once
+  pushed out, by 64 later returns or once a collection finds the nursery's sentinel, which
+  then pushes out all it holds, and the registry frees it once the collector finds it
+  unreachable after. On Node 24, a returned object disposed costs 0.18 µs, against 0.36
+  µs with the registry entry and 0.1 µs for the C calls alone.
 - **Traits** are interfaces JavaScript implements, with an optional `close()` Rust calls
   once it drops an implementation, and **closures** are functions: each is a C function
   the module imports from `rust2`, whose data is a token the binding finds the value by, so
@@ -1441,7 +1501,10 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
-nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
+just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
+just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
@@ -1460,12 +1523,17 @@ at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
 runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
-record they came from, until the GC frees it, and that calls racing `close()` or the GC
-read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
+record they came from, until the GC frees it, that calls racing `close()` or the GC
+read live values, that the GC frees an object never closed left in an idle nursery or
+pushed out of one, and that each object of many threads' returns, closes, and drops is
+freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
+segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
+panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
+x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
+API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
@@ -1499,6 +1567,44 @@ the nightly does. `KNOWN` lists what a binding still gets wrong, each with the q
 fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
 on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
 until the sampler covers it.
+The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
+crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
+building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
+<crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
+its glue, C and C++ programs including its headers (compiled, not linked, since a crate
+may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
+built; a panic, an error, or a binding that does not build fails it, a refusal not.
+Its `KNOWN` lists the crates it fails on today, each with the quest that fixes it or why
+none can, which it skips. The nightly runs it in four shards, `CORPUS_SHARD=i/4`, and each writes a report
+of every crate's refusals and failures.
+The protocol tests run random sequences of borrows, exclusive lends, moves, drops, frees,
+polls, and cancels over the api fixture's checked types, on the thread that made a value
+and another, against `tests/protocol/model.rs`: an executable model of what this README
+says each step returns, the status a check fails with included. A seed makes a script of
+steps and the model's transcript of their outcomes, shaped by what a driver's surface can
+run, and each driver runs the script through its surface and prints the outcomes back, which
+must match line for line, with the counts of the script's waker where it polls with one.
+`tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
+`just ffi sanitize` runs the C driver under ASan and TSan. Each binding runs them through
+its own wrapper too, from `tests/protocol.cpp`, `.swift`, `.py`, `.go`, `.kt`, `.dart`, and
+`.ts`: its `Profile` in the model leaves out what the binding cannot write, such as a free
+where its collector frees or a failed check where it aborts, and adds what the binding does
+its own way, such as a close that refuses before Rust's check, a future made only as it is
+awaited, or one made on a home. `protocol_profiles` checks that each flag keeps its
+scripts to it. The gate runs 500 scripts of 100 steps through the C ABI, failing unless
+they meet every status and make every kind of handle, and 40 to 500 through each binding;
+`just ffi protocol`, run nightly, runs 20,000 of 400 steps through the C ABI and 1,000 to
+5,000 through each binding.
+`tests/borrow.rs` and `tests/hold.rs` model the borrow check and the bindings' hold counts
+under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futures and
+threads, each mounting the runtime's own source over loom's primitives. The futures' model
+races a wake from another thread against a poll, a change of waker, a start, and a free:
+each C waker drops once and is never woken after, a pending poll is always woken, and a
+future that is not `Send` refuses a poll elsewhere and drops on its own thread. The threads'
+model races a free elsewhere against its thread's check, wake, drain, and exit, and lends
+calls to homes that call each other: each value drops once on its own thread, or leaks once
+that thread exited, and each home goes idle once no value or call holds it. Each explores
+every interleaving, or for homes those within a preemption bound, in the gate.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
@@ -1507,7 +1613,8 @@ error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
 and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
 their output to the native transcript; it runs `tests/api.go` under Go's race detector;
-and it drives the C ABI from `tests/miri/api.rs` under Miri with strict provenance.
+and it drives the C ABI from `tests/miri/api.rs` and the protocol scripts from
+`tests/miri/protocol.rs` under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a

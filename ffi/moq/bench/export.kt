@@ -91,22 +91,25 @@ fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
 
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
+// Each group starts at `next()`, the time its frames are written at.
+suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, next: () -> Timestamp, size: Int): Span {
 	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
 	val frame = Bytes(ByteArray(size))
 	val name = "throughput[$size]"
 	var sum = 0
 	val start = begin()
 	repeat(groups) {
-		track.appendGroup().use { group ->
+		val at = next()
+		track.appendGroup(at).use { group ->
 			subscriber.recvGroup()!!.use { reader ->
 				repeat(FRAMES) {
 					group.writeFrame(at, frame)
 					reader.readFrame()!!.use { read -> sum += read.payloadGet[0] }
 				}
 			}
-			group.finish()
+			group.finish().close()
 		}
+		at.close()
 	}
 	sink += sum
 	val ns = end(start, name, groups.toDouble() * FRAMES * size)
@@ -119,15 +122,20 @@ fun round(measured: Boolean): Map<String, Span> {
 	val track = broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	val frame = Bytes(ByteArray(100))
 	var sum = 0
+	// A group's start is its key, so each appended group's must pass the last one's. The
+	// cases that write every frame of a group at one time take the next microsecond per
+	// group, and so convert a timestamp per group, not per frame.
+	var micros = 0uL
+	val next = { Timestamp.fromMicros(micros++) }
 
 	var start = begin()
 	repeat(N) { if (track.isClosed()) sum++ }
 	out["call"] = end(start, "call")
 
-	track.appendGroup().use { group ->
+	next().use { track.appendGroup(it) }.use { group ->
 		group.demand().use { demand ->
 			start = begin()
-			repeat(N) { sum += demand.sequence().toInt() }
+			repeat(N) { sum += demand.start().toInt() }
 			out["getter"] = end(start, "getter")
 
 			// The handle call and the getter from THREADS threads: on one shared handle, then
@@ -135,18 +143,18 @@ fun round(measured: Boolean): Map<String, Span> {
 			// one thread at a time, which contends for nothing, so it skips them.
 			if (!measured) {
 				val isClosed = { t: TrackProducer -> if (t.isClosed()) 1 else 0 }
-				val sequence = { d: GroupDemand -> d.sequence().toInt() }
+				val groupStart = { d: GroupDemand -> d.start().toInt() }
 				val tracks = List(THREADS) { track.clone() }
 				val demands = List(THREADS) { demand.clone() }
 				out["shared:call"] = concurrent(List(THREADS) { track }, isClosed)
 				out["own:call"] = concurrent(tracks, isClosed)
-				out["shared:getter"] = concurrent(List(THREADS) { demand }, sequence)
-				out["own:getter"] = concurrent(demands, sequence)
+				out["shared:getter"] = concurrent(List(THREADS) { demand }, groupStart)
+				out["own:getter"] = concurrent(demands, groupStart)
 				tracks.forEach { it.close() }
 				demands.forEach { it.close() }
 			}
 		}
-		group.finish()
+		group.finish().close()
 	}
 
 	start = begin()
@@ -169,26 +177,27 @@ fun round(measured: Boolean): Map<String, Span> {
 		out["objects"] = per(began)
 	}
 
-	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
-	var micros = 0uL
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must, its
+	// group starting at its first frame's.
 	start = begin()
 	repeat(GROUPS) {
-		track.appendGroup().use { group ->
+		Timestamp.fromMicros(micros).use { track.appendGroup(it) }.use { group ->
 			repeat(FRAMES) {
-				group.writeFrame(Timestamp.fromMicros(micros++), frame)
+				Timestamp.fromMicros(micros++).use { group.writeFrame(it, frame) }
 			}
-			group.finish()
+			group.finish().close()
 		}
 	}
 	out["stamped"] = end(start, "stamped")
 
-	val at = Timestamp.fromMicros(micros)
 	start = begin()
 	repeat(GROUPS) {
-		track.appendGroup().use { group ->
+		val at = next()
+		track.appendGroup(at).use { group ->
 			repeat(FRAMES) { group.writeFrame(at, frame) }
-			group.finish()
+			group.finish().close()
 		}
+		at.close()
 	}
 	out["write"] = end(start, "write")
 
@@ -200,7 +209,8 @@ fun round(measured: Boolean): Map<String, Span> {
 		// first poll, so it never suspends.
 		var t0 = begin()
 		repeat(GROUPS) {
-			track.appendGroup().use { group ->
+			val at = next()
+			track.appendGroup(at).use { group ->
 				subscriber.recvGroup()!!.use { reader ->
 					repeat(FRAMES) {
 						group.writeFrame(at, frame)
@@ -208,8 +218,9 @@ fun round(measured: Boolean): Map<String, Span> {
 						last = reader.readFrame()!!
 					}
 				}
-				group.finish()
+				group.finish().close()
 			}
+			at.close()
 		}
 		out["ready"] = end(t0, "ready")
 
@@ -217,7 +228,8 @@ fun round(measured: Boolean): Map<String, Span> {
 		// resumes it through runBlocking's event loop.
 		t0 = begin()
 		repeat(GROUPS) {
-			track.appendGroup().use { group ->
+			val at = next()
+			track.appendGroup(at).use { group ->
 				subscriber.recvGroup()!!.use { reader ->
 					repeat(FRAMES) {
 						val pending = async(start = CoroutineStart.UNDISPATCHED) { reader.readFrame() }
@@ -225,8 +237,9 @@ fun round(measured: Boolean): Map<String, Span> {
 						pending.await()!!.close()
 					}
 				}
-				group.finish()
+				group.finish().close()
 			}
+			at.close()
 		}
 		out["woken"] = end(t0, "woken")
 
@@ -235,14 +248,16 @@ fun round(measured: Boolean): Map<String, Span> {
 		val permits = Channel<Unit>()
 		val writer = launch {
 			repeat(GROUPS) {
-				track.appendGroup().use { group ->
+				val at = next()
+				track.appendGroup(at).use { group ->
 					repeat(FRAMES) {
 						permits.receive()
 						group.writeFrame(at, frame)
 					}
 					permits.receive()
-					group.finish()
+					group.finish().close()
 				}
+				at.close()
 			}
 		}
 		repeat(GROUPS) {
@@ -258,7 +273,7 @@ fun round(measured: Boolean): Map<String, Span> {
 		permits.close()
 		out["loop"] = end(t0, "loop")
 
-		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, at, size)
+		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, next, size)
 		subscriber.close()
 	}
 

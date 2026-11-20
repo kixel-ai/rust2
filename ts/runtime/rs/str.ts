@@ -46,6 +46,7 @@ import { type Bounds, boundsRange, type Part } from "./collections.ts";
 import { type char, type u8, type u16, type usize, u8Debug, u8UpperHex, u64Debug, u64Of, usizeDebug } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterHeld, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
+import { utf8Decode, utf8Encode } from "./utf8.ts";
 import type { Location } from "./location.ts";
 
 const encoder = /* @__PURE__ */ new TextEncoder();
@@ -1161,7 +1162,7 @@ export function strIsCharBoundary(s: string, i: number): boolean {
 
 /** `str::bytes`: its UTF-8 bytes. */
 export function strBytes(s: string): Iter<u8> {
-	return iterSlice(encoder.encode(s));
+	return iterSlice(utf8Encode(s));
 }
 
 // Lossy and chunked UTF-8. A non-fatal `TextDecoder` writes one U+FFFD for each maximal
@@ -1172,7 +1173,8 @@ const lossy = /* @__PURE__ */ new TextDecoder("utf-8", { ignoreBOM: true });
 
 /** `str::from_utf8_unchecked`: the text, each invalid sequence, which its contract rules out, replaced by U+FFFD. */
 export function strFromUtf8Unchecked(bytes: ByteSlice): string {
-	return lossy.decode(byteSliceView(bytes));
+	const v = byteSliceView(bytes);
+	return utf8Decode(v) ?? lossy.decode(v);
 }
 
 /** `core::str::Utf8Chunk`: valid text, and the invalid bytes after it. */

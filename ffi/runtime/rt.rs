@@ -14,13 +14,23 @@ use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
-use std::task::{Context, Wake};
+use std::task::Context;
 
+#[cfg(target_os = "android")]
+mod android;
 mod borrow;
 use borrow::{Borrow, EXCLUSIVE, RESERVED, TAKEN, Table};
 mod thread;
 pub use thread::Thread;
 use thread::Dropped;
+mod future;
+#[allow(unused_imports, reason = "the runtime serves every API, and an API may poll no future")]
+pub use future::{ERROR, Future, PENDING, READY, Returned, Waker};
+// What thread.rs builds on beside the imports above, which its loom model swaps for
+// loom's: a lock in a static apart, since loom makes one anew each run.
+use std::sync::Mutex as StaticMutex;
+use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::thread as os;
 
 /// `value`'s `Hash`, through std's hasher with its fixed keys, so a value hashes alike on
 /// every call.
@@ -32,6 +42,8 @@ pub fn hash<T: std::hash::Hash + ?Sized>(value: &T) -> u64 {
 #[cold]
 pub fn fail(what: &str, msg: &str) -> ! {
 	eprintln!("{what}: {msg}");
+	#[cfg(target_os = "android")]
+	android::report(&format!("{what}: {msg}"));
 	std::process::abort()
 }
 
@@ -1141,9 +1153,15 @@ trait Lends: Send + Sync {
 impl<T: Send> Lends for Object<T> {
 	fn hold(&self, epoch: usize, local: bool, column: &mut usize, level: u32) -> Result<u64, Status> {
 		let listed = match local {
-			true => self.acquire_local(column, level)?,
-			false => self.acquire(column, level)?,
-		};
+			true => self.acquire_local(column, level),
+			false => self.acquire(column, level),
+		}
+		// A lender moved out or dropped since outlived this handle, whose own value is not
+		// the one gone.
+		.map_err(|status| match status {
+			Status::Moved => Status::Outlived,
+			status => status,
+		})?;
 		if self.epoch.load(Ordering::Acquire) != epoch {
 			self.unhold(local, *column, level, listed);
 			return Err(Status::Outlived);
@@ -2115,90 +2133,6 @@ impl<T> Drop for ExclusiveArc<T> {
 	}
 }
 
-/// A foreign waker: `wake` may be called from any thread, any number of times, until
-/// `drop` releases `data`. Either function may be null.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct Waker {
-	pub wake: Option<unsafe extern "C" fn(*mut c_void)>,
-	pub drop: Option<unsafe extern "C" fn(*mut c_void)>,
-	pub data: *mut c_void,
-}
-
-impl Waker {
-	/// Whether `other` is this waker again, which a poll reuses rather than wrapping anew.
-	fn same(&self, other: &Self) -> bool {
-		self.wake.map(|f| f as usize) == other.wake.map(|f| f as usize) && self.data == other.data
-	}
-
-	/// The Rust waker around it, which calls `drop` once its last clone drops. One Rust
-	/// returned stays wrapped too, so its `data` names it for as long as a future may
-	/// compare it.
-	pub fn lift(self) -> std::task::Waker {
-		match (self.wake, self.drop) {
-			// Nothing to wake or release: a ready future's first poll takes no allocation.
-			(None, None) => std::task::Waker::noop().clone(),
-			_ => std::task::Waker::from(Arc::new(Foreign(self))),
-		}
-	}
-
-	/// Wake it, as C does.
-	///
-	/// # Safety
-	/// It is not yet dropped.
-	pub unsafe fn wake(&self) {
-		if let Some(wake) = self.wake {
-			// SAFETY: the waker's contract.
-			unsafe { wake(self.data) };
-		}
-	}
-
-	/// Drop it, as C does once.
-	///
-	/// # Safety
-	/// It is not yet dropped, and is never used again.
-	pub unsafe fn release(self) {
-		if let Some(drop) = self.drop {
-			// SAFETY: the waker's contract.
-			unsafe { drop(self.data) };
-		}
-	}
-
-	/// Rust's waker, or a context's, as one C owns: `wake` wakes it, and `drop` releases it.
-	pub fn lower(waker: impl Into<Returned>) -> Self {
-		Self {
-			wake: Some(rust_wake),
-			drop: Some(rust_drop),
-			data: Box::into_raw(Box::new(waker.into().0)).cast(),
-		}
-	}
-}
-
-/// A waker a function returns: its own, or a context's.
-pub struct Returned(std::task::Waker);
-
-impl From<std::task::Waker> for Returned {
-	fn from(waker: std::task::Waker) -> Self {
-		Self(waker)
-	}
-}
-
-impl From<Context<'_>> for Returned {
-	fn from(cx: Context<'_>) -> Self {
-		Self(cx.waker().clone())
-	}
-}
-
-unsafe extern "C" fn rust_wake(data: *mut c_void) {
-	// SAFETY: `Waker::lower` made `data`, which C has not dropped.
-	unsafe { &*data.cast::<std::task::Waker>() }.wake_by_ref();
-}
-
-unsafe extern "C" fn rust_drop(data: *mut c_void) {
-	// SAFETY: `Waker::lower` made `data`, which C drops once.
-	drop(unsafe { Box::from_raw(data.cast::<std::task::Waker>()) });
-}
-
 /// A future C implements, of `()`: Rust polls it with a waker of its own each time, from
 /// any thread, until `poll` returns true, and calls `free` once it drops the future, done
 /// or not. `free` may be null.
@@ -2251,35 +2185,6 @@ impl Drop for Polled {
 		if let Some(free) = self.free {
 			// SAFETY: the foreign future's contract; Rust drops it once.
 			unsafe { free(self.data) };
-		}
-	}
-}
-
-struct Foreign(Waker);
-
-// SAFETY: the waker's contract: `wake` and `drop` may be called from any thread.
-unsafe impl Send for Foreign {}
-// SAFETY: as above.
-unsafe impl Sync for Foreign {}
-
-impl Wake for Foreign {
-	fn wake(self: Arc<Self>) {
-		self.wake_by_ref();
-	}
-
-	fn wake_by_ref(self: &Arc<Self>) {
-		if let Some(wake) = self.0.wake {
-			// SAFETY: the waker's contract.
-			unsafe { wake(self.0.data) };
-		}
-	}
-}
-
-impl Drop for Foreign {
-	fn drop(&mut self) {
-		if let Some(drop) = self.0.drop {
-			// SAFETY: the waker's contract; this is the last reference.
-			unsafe { drop(self.0.data) };
 		}
 	}
 }
@@ -2410,239 +2315,6 @@ impl std::io::Seek for Reader {
 			false => Err(self.error(err)),
 		}
 	}
-}
-
-pub const PENDING: i32 = 0;
-pub const READY: i32 = 1;
-pub const ERROR: i32 = 2;
-
-/// A future behind a handle, polled from C: the head of the one allocation holding the
-/// future and the function that lowers its result, which [`Future::new`] makes.
-#[repr(C)]
-pub struct Future {
-	/// Poll the allocation, lowering the result through the poll's out pointers once ready.
-	poll: unsafe fn(*mut Future, Waker, &[*mut c_void], *mut c_void, &str) -> i32,
-	/// Drop the allocation.
-	drop: unsafe fn(*mut Future),
-	/// The last foreign waker, and the Rust waker around it.
-	waker: Option<(Waker, std::task::Waker)>,
-	polling: AtomicBool,
-	/// For a future that is not `Send`, the thread it stays on, which alone polls or drops it.
-	owner: Option<Arc<Thread>>,
-}
-
-/// The allocation behind a handle: its head first, so the handle points at both.
-#[repr(C)]
-struct Typed<F, L> {
-	head: Future,
-	/// The future, pinned here until it finishes and drops in place.
-	future: Option<F>,
-	/// Writes the finished future's result through the poll's out pointers, one per value
-	/// it returns, and its error pointer, returning the poll. The poll that finishes the
-	/// future calls it, so it never crosses threads.
-	lower: L,
-}
-
-impl Future {
-	pub fn new<F, L>(future: F, lower: L) -> *mut Self
-	where
-		F: std::future::Future + Send + 'static,
-		// Send, as any poll may finish the future on another thread.
-		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + Send + 'static,
-	{
-		Self::make(future, lower, None)
-	}
-
-	/// A future that is not `Send`, which stays on this thread: a poll on another fails,
-	/// unless this is a home, which the poll then runs on, and a free there drops it here.
-	pub fn unsent<F, L>(future: F, lower: L) -> *mut Self
-	where
-		F: std::future::Future + 'static,
-		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + 'static,
-	{
-		Self::make(future, lower, Some(Thread::here()))
-	}
-
-	fn make<F, L>(future: F, lower: L, owner: Option<Arc<Thread>>) -> *mut Self
-	where
-		F: std::future::Future + 'static,
-		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + 'static,
-	{
-		let typed = Box::new(Typed {
-			head: Self {
-				poll: poll_typed::<F, L>,
-				drop: drop_typed::<F, L>,
-				waker: None,
-				polling: AtomicBool::new(false),
-				owner,
-			},
-			future: Some(future),
-			lower,
-		});
-		Box::into_raw(typed).cast()
-	}
-
-	/// Poll it once with `waker`, writing the result through `outs` and `err` when ready. A
-	/// future that is not `Send` polled on another thread than its own fails, writing the
-	/// status through `status`, or aborting if that is null; one on a home polls there.
-	///
-	/// # Safety
-	/// `future` is a live future handle, each of `outs` and `err` is null or points where
-	/// the function's result types go, and `status` is null or points where an `int32_t` goes.
-	pub unsafe fn poll(
-		future: *mut Self,
-		waker: Waker,
-		outs: &[*mut c_void],
-		err: *mut c_void,
-		status: *mut i32,
-		what: &str,
-	) -> i32 {
-		if future.is_null() {
-			fail(what, "a future is null");
-		}
-		// SAFETY: the caller's contract; only the flag and the owner are touched before
-		// it is held.
-		let head = unsafe { &*future };
-		if let Some(owner) = &head.owner {
-			if owner.away() {
-				// SAFETY: a home, and this thread waits while it polls.
-				return unsafe { owner.run(|| Self::poll(future, waker, outs, err, status, what)) };
-			}
-			if let Err(refused) = owner.own() {
-				if head.polling.swap(true, Ordering::Acquire) {
-					fail(what, "a future is polled concurrently");
-				}
-				// A waker it never adopted is Rust's to drop, as a poll drops the one it
-				// replaces; the flag keeps the one it holds from changing meanwhile.
-				// SAFETY: the flag makes this the only access.
-				if !unsafe { &(*future).waker }.as_ref().is_some_and(|(last, _)| last.same(&waker)) {
-					// SAFETY: the caller gave it, and nothing else holds it.
-					unsafe { waker.release() };
-				}
-				head.polling.store(false, Ordering::Release);
-				// SAFETY: the caller's contract.
-				return unsafe { failed(status, refused, what) };
-			}
-		}
-		if head.polling.swap(true, Ordering::Acquire) {
-			fail(what, "a future is polled concurrently");
-		}
-		// SAFETY: the flag makes this the only access, and `new` made the allocation.
-		let result = unsafe { (head.poll)(future, waker, outs, err, what) };
-		// SAFETY: as above; the allocation outlives the poll.
-		unsafe { &*future }.polling.store(false, Ordering::Release);
-		result
-	}
-
-	/// Make the future's first poll, with no waker: on `READY` or `ERROR` the result is
-	/// written, the future freed, and null written through `handle`; on `PENDING` its
-	/// handle goes there, for C to poll with a waker and free.
-	///
-	/// # Safety
-	/// `future` is a handle `new` just made, `handle` is null, which aborts, or points
-	/// where a handle goes, and each of `outs` and `err` is null or points where the function's result
-	/// types go.
-	pub unsafe fn start(
-		future: *mut Self,
-		outs: &[*mut c_void],
-		err: *mut c_void,
-		handle: *mut *mut Self,
-		what: &str,
-	) -> i32 {
-		if handle.is_null() {
-			fail(what, "a future's handle pointer is null");
-		}
-		let none = Waker {
-			wake: None,
-			drop: None,
-			data: std::ptr::null_mut(),
-		};
-		// SAFETY: the caller's contract; the future was made on this thread, or one this
-		// call runs on.
-		let result = unsafe { Self::poll(future, none, outs, err, std::ptr::null_mut(), what) };
-		match result {
-			// SAFETY: the caller's contract.
-			PENDING => unsafe { handle.write(future) },
-			// SAFETY: it finished; null tells C there is no handle, and `free` takes it.
-			_ => unsafe {
-				handle.write(std::ptr::null_mut());
-				Self::free(future)
-			},
-		}
-		result
-	}
-
-	/// Drop the future, cancelling it if it has not finished.
-	///
-	/// # Safety
-	/// `future` is null or a live future handle, freed once and not being polled.
-	pub unsafe fn free(future: *mut Self) {
-		if future.is_null() {
-			return;
-		}
-		// SAFETY: the caller's contract.
-		let owner = unsafe { &(*future).owner };
-		// A future that is not `Send` drops on its own thread.
-		if let Some(owner) = owner.as_ref().filter(|owner| !owner.is_here()) {
-			// SAFETY: the future is the owner's.
-			unsafe { Dropped::new(Freed(future), owner.clone(), "a future") }.send();
-			return;
-		}
-		// SAFETY: the caller's contract.
-		unsafe { ((*future).drop)(future) };
-	}
-}
-
-/// A future freed on another thread than its own, which drops it.
-struct Freed(*mut Future);
-
-impl Drop for Freed {
-	fn drop(&mut self) {
-		// SAFETY: `Future::free`'s contract, on the future's own thread.
-		unsafe { ((*self.0).drop)(self.0) };
-	}
-}
-
-/// [`Future`]'s poll of a `Typed<F, L>`.
-///
-/// # Safety
-/// `future` is a live `Typed<F, L>` that only this call accesses, and each of `outs` and
-/// `err` is null or points where the function's result types go.
-unsafe fn poll_typed<F: std::future::Future, L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32>(
-	future: *mut Future,
-	waker: Waker,
-	outs: &[*mut c_void],
-	err: *mut c_void,
-	what: &str,
-) -> i32 {
-	// SAFETY: the caller's contract.
-	let Typed { head, future, lower } = unsafe { &mut *future.cast::<Typed<F, L>>() };
-	let Some(inner) = future.as_mut() else {
-		fail(what, "a future is polled after it finished");
-	};
-	if !head.waker.as_ref().is_some_and(|(last, _)| last.same(&waker)) {
-		head.waker = Some((waker, waker.lift()));
-	}
-	let (_, rust) = head.waker.as_ref().expect("set above");
-	let mut cx = Context::from_waker(rust);
-	// SAFETY: the allocation never moves, and the future drops in place.
-	match unsafe { Pin::new_unchecked(inner) }.poll(&mut cx) {
-		std::task::Poll::Pending => PENDING,
-		std::task::Poll::Ready(value) => {
-			*future = None;
-			head.waker = None;
-			lower(value, outs, err)
-		}
-	}
-}
-
-/// [`Future`]'s drop of a `Typed<F, L>`.
-///
-/// # Safety
-/// `future` is a live `Typed<F, L>`, dropped once.
-unsafe fn drop_typed<F, L>(future: *mut Future) {
-	// SAFETY: the caller's contract; `new` boxed it.
-	drop(unsafe { Box::from_raw(future.cast::<Typed<F, L>>()) });
 }
 
 /// Write `value` through `out` if the caller wants it, or drop it.

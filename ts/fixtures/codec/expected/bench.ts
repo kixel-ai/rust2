@@ -66,6 +66,8 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 22) {
 				keyed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 23) {
+				mixed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -558,11 +560,8 @@ export function encodeStrings(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteV
 	const w: Encoder.Encoder = Encoder.new(out, { tag: "Quic" } as Form.Form);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = rs.u64Low(count);
-	while (true) {
-		const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
-		if (!(iterStart++ < iterEnd)) {
-			break;
-		}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	while (iterStart++ < iterEnd) {
 		const _24: rs.Result<undefined, EncodeError.EncodeError> = Encoder.string(w, _7[_8]);
 		if (!_24.ok) {
 			return _24;
@@ -789,18 +788,31 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 							}
 							c = l;
 						}
-						const _61: [rs.Slice<rs.u64>, rs.Slice<rs.u64>] = rs.sliceSplitAt(rs.sliceFrom(v.items), c);
+						const items2: rs.u64[] = v.items;
+						const length2: number = items2.length;
+						const mid: number = c;
+						if (mid > length2) {
+							rs.panic("mid > len");
+						}
 						const _67: rs.usize = i;
-						rs.idx(_61[0], _67);
-						const _66: rs.u64 = _61[0].data[_61[0].start + _67];
-						rs.idx(_61[1], 0);
-						if (!rs.u64Le(_66, _61[1].data[_61[1].start])) {
+						if (_67 >= mid) {
+							rs.panic("index out of bounds: the len is " + mid + " but the index is " + _67);
+						}
+						const _66: rs.u64 = items2[_67];
+						if (0 >= length2 - mid) {
+							rs.panic("index out of bounds: the len is " + (length2 - mid) + " but the index is " + 0);
+						}
+						if (!rs.u64Le(_66, items2[mid])) {
 							const _78: rs.usize = i;
-							rs.idx(_61[0], _78);
-							rs.idx(_61[1], 0);
-							const swapped = _61[0].data[_61[0].start + _78];
-							_61[0].data[_61[0].start + _78] = _61[1].data[_61[1].start];
-							_61[1].data[_61[1].start] = swapped;
+							if (_78 >= mid) {
+								rs.panic("index out of bounds: the len is " + mid + " but the index is " + _78);
+							}
+							if (0 >= length2 - mid) {
+								rs.panic("index out of bounds: the len is " + (length2 - mid) + " but the index is " + 0);
+							}
+							const swapped = items2[_78];
+							items2[_78] = items2[mid];
+							items2[mid] = swapped;
 							i = c;
 						} else {
 							break;
@@ -818,18 +830,21 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			if (_96 === rs.DONE) {
 				break b0;
 			}
-			const part2 = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
-			const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(v.items), 0, part2);
-			const iterS: rs.u64[] = part.data;
-			let iterI: number = part.start;
-			const iterE: number = part.start + part.length;
+			const to: number = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
+			const items: rs.u64[] = v.items;
+			rs.rangeCheck(items.length, 0, to);
+			const iterS: rs.u64[] = items;
+			let iterI: number = 0;
+			const iterE: number = to;
 			while (iterI < iterE) {
 				const _111: number = iterI++;
 				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
 			}
-			const _120: rs.usize = rs.usizeSub(part.length, 1);
-			rs.idx(part, _120);
-			sum = rs.u64WrappingAdd(sum, part.data[part.start + _120]);
+			const _120: rs.usize = rs.usizeSub(to, 1);
+			if (_120 >= to) {
+				rs.panic("index out of bounds: the len is " + to + " but the index is " + _120);
+			}
+			sum = rs.u64WrappingAdd(sum, items[_120]);
 		}
 	}
 	harness_putU64(out, v.items[rs.idx(v.items, 0)]);
@@ -1057,6 +1072,35 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 }
 
 /**
+ * `count` rounds of 64-bit arithmetic on values that stay past 2^53, as a hash or a
+ * generator makes them: splitmix64's steps, or a multiplicative hash (`selector` 1)
+ * reduced by a divisor and a modulus past 2^32. The xor of the results.
+ */
+export function mixed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _16!: rs.usize;
+	const _6: [rs.u64, rs.ByteSlice] = takeU64(data);
+	const count: rs.u64 = _6[0];
+	const _11: [rs.u64, rs.u64] = [takeU64(_6[1])[0], 0];
+	let h: rs.u64 = _11[0];
+	let sum: rs.u64 = 0;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = rs.u64Low(count);
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rs.usize = _16;
+		if (selector === 0) {
+			h = rs.u64WrappingAdd(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64);
+			let z: rs.u64 = rs.u64WrappingMul(rs.u64Xor(h, rs.u64Shr(h, 30)), { hi: 0xbf58476d, lo: 0x1ce4e5b9 } as rs.u64);
+			z = rs.u64WrappingMul(rs.u64Xor(z, rs.u64Shr(z, 27)), { hi: 0x94d049bb, lo: 0x133111eb } as rs.u64);
+			sum = rs.u64Xor(sum, rs.u64Xor(z, rs.u64Shr(z, 31)));
+		} else {
+			h = rs.u64WrappingAdd(rs.u64WrappingMul(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64), i as rs.u64);
+			sum = rs.u64Xor(sum, rs.u64WrappingAdd(rs.u64Div(h, 4294967297), rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64)));
+		}
+	}
+	harness_putU64(out, sum);
+}
+
+/**
  * Timestamps from one timescale to another, products past 2^53: moq-net's
  * `Timestamp::convert` in `u128`, or the same in `u64` (selector 1), which overflows
  * sooner. How many converted, how many overflowed, and the last converted.
@@ -1137,11 +1181,8 @@ export function stamp(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let stamped: rs.u64 = 0;
 	let overflowed: rs.u64 = 0;
 	const iter: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
-	while (true) {
-		const step2: Timestamp.Timestamp = { value: step, scale };
-		if (iter.next() === rs.DONE) {
-			break;
-		}
+	const step2: Timestamp.Timestamp = { value: step, scale };
+	while (iter.next() !== rs.DONE) {
 		const _25: Timestamp.Timestamp | undefined = Timestamp.checkedAdd(time, step2);
 		if (_25 === undefined) {
 			overflowed = rs.u64Add(overflowed, 1);

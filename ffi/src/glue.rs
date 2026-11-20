@@ -21,13 +21,16 @@ use crate::ir::{
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
+const ANDROID: &str = include_str!("../runtime/rt/android.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 const THREAD: &str = include_str!("../runtime/rt/thread.rs");
+const FUTURE: &str = include_str!("../runtime/rt/future.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
-/// crate which it builds for, as the `cfg` [`CFG`]. On macOS, a CPython extension leaves
-/// Python's symbols for the interpreter that loads it to resolve.
+/// crate which it builds for, as the `cfg` [`CFG`]. On Android, it aligns the library to
+/// 16 KB pages. On macOS, a CPython extension leaves Python's symbols for the interpreter
+/// that loads it to resolve.
 fn build(targets: &[String]) -> String {
 	let list: Vec<String> = targets.iter().map(|t| format!("{t:?}")).collect();
 	let list = list.join(", ");
@@ -44,6 +47,11 @@ fn build(targets: &[String]) -> String {
 		\t\tpanic!(\"exported for {names}, not {{target}}: export again with --target {{target}}\");\n\
 		\t}}\n\
 		\tprintln!(\"cargo::rustc-cfg={CFG}=\\\"{{target}}\\\"\");\n\
+		\t// rustc leaves Android's page size to the NDK, whose r27 and older align to 4 KB, and\n\
+		\t// Google Play rejects a 64-bit library that is not aligned to 16 KB.\n\
+		\tif std::env::var(\"CARGO_CFG_TARGET_OS\").is_ok_and(|os| os == \"android\") {{\n\
+		\t\tprintln!(\"cargo::rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384\");\n\
+		\t}}\n\
 		\t#[cfg(feature = \"python\")]\n\
 		\tpyo3_build_config::add_extension_module_link_args();\n\
 		}}\n",
@@ -76,7 +84,21 @@ fn foreign_path(path: &[String]) -> String {
 		"std" => "std".to_string(),
 		krate => foreign(krate),
 	};
-	format!("::{krate}") + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
+	format!("::{krate}") + &path[1..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
+}
+
+/// A Rust name as the glue writes it: a keyword raw, as socket2's `Socket::type` needs.
+fn ident(name: &str) -> String {
+	const KEYWORDS: &[&str] = &[
+		"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+		"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod",
+		"move", "mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type",
+		"typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+	];
+	match KEYWORDS.contains(&name) {
+		true => format!("r#{name}"),
+		false => name.to_string(),
+	}
 }
 
 /// The Rust path of a collection, without its arguments.
@@ -370,7 +392,7 @@ impl Crate<'_> {
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
-		let web = crate::web::generate(&rest, &self.packages(), contract)?;
+		let web = crate::web::generate(&rest, self.facade, contract)?;
 		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
@@ -413,8 +435,10 @@ impl Crate<'_> {
 		output.file(&out.join("src/lib.rs"), &generator.out);
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("src/rt/android.rs"), ANDROID);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("src/rt/thread.rs"), THREAD);
+		output.file(&out.join("src/rt/future.rs"), FUTURE);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		for (path, header) in &cpp.files {
 			output.file(&out.join("include").join(path), header);
@@ -663,9 +687,13 @@ impl Gen<'_> {
 	fn path(&self, path: &[String]) -> String {
 		match self.abi.api.reached.iter().find(|r| path.get(1) == Some(&r.krate)) {
 			Some(r) => {
-				format!("::{}", reached(&r.krate)) + &path[2..].iter().map(|s| format!("::{s}")).collect::<String>()
+				format!("::{}", reached(&r.krate))
+					+ &path[2..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
 			}
-			None => format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>(),
+			None => {
+				format!("::{}", self.dependency)
+					+ &path[1..].iter().map(|s| format!("::{}", ident(s))).collect::<String>()
+			}
 		}
 	}
 
@@ -888,6 +916,11 @@ impl Gen<'_> {
 				_ => format!("{}<{}>", collection(*c), self.rust(inner)),
 			},
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
+			// A trailing comma keeps a tuple of one element a tuple.
+			Type::Tuple(elements) => format!(
+				"({},)",
+				elements.iter().map(|ty| self.rust(ty)).collect::<Vec<_>>().join(", ")
+			),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
 			Type::Record(i) => match &api.records[*i].opaque {
@@ -1315,7 +1348,10 @@ impl Gen<'_> {
 		self.line("#![allow(unused_unsafe, reason = \"every conversion is in its own block\")]");
 		self.line("#![allow(unused_parens, reason = \"each element is lifted from `(*c)`\")]");
 		self.line("#![allow(clippy::all, reason = \"generated\")]");
-		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]\n");
+		self.line("#![allow(dead_code, reason = \"the runtime serves every API\")]");
+		self.line("#![allow(deprecated, reason = \"a deprecated item is still the API's\")]");
+		self.line("#![allow(unused_mut, reason = \"a borrow is declared alike for every method\")]");
+		self.line("#![allow(unreachable_code, reason = \"a call returning an uninhabited type never returns\")]\n");
 		self.line("mod rt;\n");
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
@@ -1658,7 +1694,7 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.zip(&lifted)
-					.map(|(f, l)| format!("{}: {l}", f.name))
+					.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
 			}
@@ -1685,7 +1721,7 @@ impl Gen<'_> {
 					// the lint would ask for.
 					.map(|(f, b)| match f.name == *b {
 						true => b.clone(),
-						false => format!("{}: {b}", f.name),
+						false => format!("{}: {b}", ident(&f.name)),
 					})
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
@@ -1735,7 +1771,7 @@ impl Gen<'_> {
 				true => format!("{path}({})", lifted.join(", ")),
 				false => {
 					let fields: Vec<String> = (record.fields.iter().zip(&lifted))
-						.map(|(f, l)| format!("{}: {l}", f.name))
+						.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 						.collect();
 					format!("{path} {{ {} }}", fields.join(", "))
 				}
@@ -1803,10 +1839,12 @@ impl Gen<'_> {
 			true => "",
 			false => "\n\t\t_ => unreachable!(\"a variant this export does not know\"),",
 		};
-		// A foreign enum's variants are its type's constants.
+		// A foreign enum's variants are its type's constants. A variant without fields is
+		// named with its braces, which a unit, tuple, or struct one takes alike, as a tuple
+		// one whose fields a `cfg` leaves out needs: icu_collections' `StringListNotSorted()`.
 		let variant = |v: &crate::ir::Variant| match e.foreign {
 			true => abi::snake(&v.name).to_uppercase(),
-			false => v.name.clone(),
+			false => format!("{} {{}}", v.name),
 		};
 		if e.plain() {
 			let lift: Vec<String> = (e.variants.iter())
@@ -1870,7 +1908,7 @@ impl Gen<'_> {
 							.fields
 							.iter()
 							.zip(&bindings)
-							.map(|(f, b)| format!("{}: {b}", f.name))
+							.map(|(f, b)| format!("{}: {b}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -1910,7 +1948,7 @@ impl Gen<'_> {
 							.fields
 							.iter()
 							.zip(&lifted)
-							.map(|(f, l)| format!("{}: {l}", f.name))
+							.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -1989,7 +2027,7 @@ impl Gen<'_> {
 					(false, true) => format!("{path}::{}({})", variant.name, lifted.join(", ")),
 					(false, false) => {
 						let fields: Vec<String> = (variant.fields.iter().zip(lifted))
-							.map(|(f, l)| format!("{}: {l}", f.name))
+							.map(|(f, l)| format!("{}: {l}", ident(&f.name)))
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
@@ -2702,7 +2740,7 @@ impl Gen<'_> {
 			})
 			.collect::<String>();
 		let mut callee = match &owner {
-			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
+			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), ident(function.name())),
 			None => self.path(&function.path),
 		};
 		let mut turbofish = String::new();
@@ -2717,11 +2755,16 @@ impl Gen<'_> {
 			// A method of the type the receiver derefs to, which the glue need not name: its
 			// receiver is that type's already, whose inherent method a call finds first.
 			Access::Call if function.derefs > 0 => {
-				format!("({}).{}{turbofish}({})", args[0], function.name(), args[1..].join(", "))
+				format!(
+					"({}).{}{turbofish}({})",
+					args[0],
+					ident(function.name()),
+					args[1..].join(", ")
+				)
 			}
 			Access::Call => format!("{callee}({})", args.join(", ")),
-			Access::Field { set: false, .. } => format!("&({}).{}", args[0], function.name()),
-			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], function.name(), args[1]),
+			Access::Field { set: false, .. } => format!("&({}).{}", args[0], ident(function.name())),
+			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], ident(function.name()), args[1]),
 			Access::Const => callee,
 			Access::Parse => format!(
 				"<{} as ::std::str::FromStr>::from_str({}).map_err(|e| ::std::string::ToString::to_string(&e))",

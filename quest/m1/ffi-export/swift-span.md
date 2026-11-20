@@ -24,7 +24,3 @@ flags; if it cannot, report what it would take and stop. Measure the lent-bytes 
 
 Public API: breaking for Swift callers of closures that receive lent bytes, and of
 functions taking byte or numeric slices.
-
-## Required
-
-- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API

@@ -1,8 +1,8 @@
 name: Binding packages
 
-# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, and Go
-# module, which
-# a release workflow ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
+# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, C archives,
+# Go module, and web package, which a release workflow ffi/release/package.py's `init` writes
+# calls at a pinned rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
 on:
@@ -32,6 +32,30 @@ on:
         description: Build every host's packages a second time, from a new export, and fail unless the bytes match
         default: false
         type: boolean
+      c-check:
+        description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive
+        default: ''
+        type: string
+      web-manifest-path:
+        description: The Cargo.toml of the package whose wasm32-wasip1 export the npm and JSR package holds, often manifest-path; without it, no web package
+        default: ''
+        type: string
+      scope:
+        description: The npm and JSR scope the web package is named under, @<scope>/<crate>, without its @
+        default: ''
+        type: string
+      web-check:
+        description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export
+        default: ''
+        type: string
+      web-features:
+        description: Cargo features of a web crate apart from manifest-path's, which takes features
+        default: ''
+        type: string
+      web-example:
+        description: The example of a web crate apart from manifest-path's whose stdout web-check must print, which takes example
+        default: ''
+        type: string
       go-module:
         description: The Go module's path; without it, the export's own, which no proxy serves
         default: ''
@@ -50,6 +74,9 @@ on:
       module:
         description: The Swift module, whose XCFramework is <module>FFI.xcframework.zip
         value: ${{ jobs.facts.outputs.module }}
+      web:
+        description: Whether the build made the web package, <name>-web
+        value: ${{ inputs.web-manifest-path != '' }}
 
 permissions:
   contents: read
@@ -69,8 +96,11 @@ jobs:
       tag: ${{ steps.facts.outputs.tag }}
       module: ${{ steps.facts.outputs.module }}
       fixture: ${{ steps.mode.outputs.fixture }}
+      web-fixture: ${{ steps.mode.outputs.web-fixture }}
       rust2: ${{ steps.identity.outputs.workflow_repository }}
       rust2-sha: ${{ steps.identity.outputs.workflow_sha }}
+      previous: ${{ steps.previous.outputs.previous }}
+      baseline: ${{ steps.previous.outputs.baseline }}
     steps:
       # Read new job identity fields through JSON until actionlint knows their types.
       - id: identity
@@ -86,11 +116,17 @@ jobs:
       - id: mode
         env:
           RUST2: ${{ steps.identity.outputs.workflow_repository }}
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
         run: |
           if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/target/moq-ffi/Cargo.toml ]]; then
             echo fixture=true >> "$GITHUB_OUTPUT"
           else
             echo fixture=false >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$WEB_MANIFEST" == ffi/target/moq-ffi-web/Cargo.toml ]]; then
+            echo web-fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo web-fixture=false >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -113,6 +149,19 @@ jobs:
       - id: facts
         working-directory: source
         run: python3 -I ../rust2/ffi/release/package.py facts --manifest-path "$MANIFEST" >> "$GITHUB_OUTPUT"
+      # The APIs of the release the changelog follows and of the newest one Cargo treats as
+      # compatible with this version, which the export must not break.
+      - id: previous
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I ../rust2/ffi/release/package.py previous --manifest-path "$MANIFEST" --repo "$GITHUB_REPOSITORY" --out ../previous >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.previous.outputs.previous != ''
+        with:
+          name: ${{ steps.facts.outputs.name }}-previous
+          path: previous
+          if-no-files-found: error
 
   # Each target's API, checked on the host whose C toolchain its build scripts need, for
   # every build host's export to merge into one binding.
@@ -259,13 +308,22 @@ jobs:
           pattern: ${{ needs.facts.outputs.name }}-api-*
           path: api
           merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.facts.outputs.baseline != ''
+        with:
+          name: ${{ needs.facts.outputs.name }}-previous
+          path: previous
+      # A version must not break the API of the newest release Cargo treats as compatible.
       - name: Export
         env:
           TARGETS: ${{ matrix.targets }}
+          BASELINE: ${{ needs.facts.outputs.baseline }}
           GO_MODULE: ${{ inputs.go-module }}
         run: |
           read -ra targets <<< "$TARGETS"
-          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --go-module "$GO_MODULE" --out export "${targets[@]}"
+          baseline=()
+          if [[ -n "$BASELINE" ]]; then baseline=(--baseline previous/baseline/api.json); fi
+          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api "${baseline[@]}" --go-module "$GO_MODULE" --out export "${targets[@]}"
       - name: Build
         env:
           TARGETS: ${{ matrix.targets }}
@@ -291,11 +349,14 @@ jobs:
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
           SWIFT_CHECK: ${{ inputs.swift-check }}
+          C_CHECK: ${{ inputs.c-check }}
           GO_CHECK: ${{ inputs.go-check }}
         run: |
           mkdir -p dist/checks
           if [[ -n "$PYTHON_CHECK" ]]; then cp "source/$PYTHON_CHECK" dist/checks/check.py; fi
           if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
+          # Its extension says whether it is C or C++.
+          if [[ -n "$C_CHECK" ]]; then mkdir dist/checks/c && cp "source/$C_CHECK" dist/checks/c/; fi
           if [[ -n "$GO_CHECK" ]]; then cp "source/$GO_CHECK" dist/checks/main.go; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -326,6 +387,44 @@ jobs:
             echo '::error::The build hosts listed different dependencies.'
             exit 1
           fi
+
+  # The release's API, which the next release is checked against, and its changelog from
+  # the previous release's: what the caller's release publishes beside the packages.
+  changes:
+    needs: [facts, agree]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-linux-x64
+          path: build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.facts.outputs.previous != ''
+        with:
+          name: ${{ needs.facts.outputs.name }}-previous
+          path: previous
+      - env:
+          PREVIOUS: ${{ needs.facts.outputs.previous }}
+        run: |
+          mkdir release
+          cp build/export/api.json release/api.json
+          old=()
+          if [[ -n "$PREVIOUS" ]]; then old=(--old previous/previous/api.json --since "$PREVIOUS"); fi
+          python3 -I rust2/ffi/release/package.py changes "${old[@]}" --new release/api.json > release/changes.md
+          cat release/changes.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-release
+          path: release
+          if-no-files-found: error
 
   swift:
     needs: [facts, build]
@@ -455,6 +554,157 @@ jobs:
         env:
           MODULE: ${{ needs.facts.outputs.module }}
         run: bash rust2/ffi/release/consume-swift.sh swift apple
+
+  # Each C archive unpacked alone, with no checkout, Rust, or source path: a new CMake project
+  # finding it by its CPS file and by its config package, and on Linux and macOS a pkg-config
+  # build, each linking the static and the shared library.
+  c:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      # The oldest CMake that reads CPS is 4.3; the config package serves older ones too.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Consume
+        run: |
+          python -m pip install cmake==4.4.5
+          if [[ "$RUNNER_OS" == macOS ]] && ! command -v pkg-config > /dev/null; then brew install pkgconf; fi
+          shopt -s nullglob
+          archives=(dist/c/*)
+          [[ ${#archives[@]} == 1 ]] || { echo "::error::expected one C archive, found ${archives[*]}"; exit 1; }
+          args=(--archive "${archives[0]}")
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          checks=(dist/checks/c/*)
+          if [[ ${#checks[@]} == 1 ]]; then args+=(--check "${checks[0]}"); fi
+          python -I rust2/ffi/release/package.py consume-c "${args[@]}"
+
+  # The web binding's npm and JSR packages: web-manifest-path exported for wasm32-wasip1
+  # alone, the binding's only target, and its module built beside it; with native Rust's
+  # output on that target, which the consumers compare with.
+  web:
+    needs: facts
+    if: inputs.web-manifest-path != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.web-fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.web-fixture == 'true'
+        working-directory: source
+        run: just ffi standin "" web && cp ffi/moq/web.toml ffi/target/moq-ffi-web/ffi.toml
+      # npm packs, and Node's WASI runs the native example.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Exporter
+        working-directory: rust2/ffi
+        run: cargo build --locked --release
+      # The crate's own features and example, or a web crate's apart from it.
+      - name: Package
+        env:
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
+          SCOPE: ${{ inputs.scope }}
+          VERSION: ${{ needs.facts.outputs.version }}
+          EXAMPLE: ${{ inputs.example }}
+          WEB_FEATURES: ${{ inputs.web-features }}
+          WEB_EXAMPLE: ${{ inputs.web-example }}
+          WEB_CHECK: ${{ inputs.web-check }}
+          REPRODUCE: ${{ inputs.reproduce }}
+        run: |
+          if [[ "$(realpath -m "source/$WEB_MANIFEST")" == "$(realpath -m "source/$MANIFEST")" ]]; then
+            if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
+              echo "::error::web-features and web-example are for a web crate apart from manifest-path's: set features and example"
+              exit 1
+            fi
+            features=$FEATURES example=$EXAMPLE
+          else
+            features=$WEB_FEATURES example=$WEB_EXAMPLE
+          fi
+          python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
+          if [[ -n "$WEB_CHECK" ]]; then cp "source/$WEB_CHECK" web/check.ts; fi
+          # The build again, from a new export, which must pack the same tarball.
+          if [[ "$REPRODUCE" == true ]]; then
+            python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web-again
+            python3 -I rust2/ffi/release/package.py same web web-again
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+          if-no-files-found: error
+
+  # A new npm project depending on only the packed tarball, as an app's would, run on
+  # Node, Deno, and Bun and bundled by Vite and webpack; and JSR's checks of its package.
+  web-consumer:
+    needs: [facts, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install and run
+        run: |
+          args=()
+          if [[ -f web/check.ts ]]; then args+=(--check web/check.ts); fi
+          if [[ -f web/native.txt ]]; then args+=(--native web/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-web --dist web "${args[@]}"
 
   # The module as a GOPROXY serves it: the export's packages, and each Go target's library
   # beside the runtime that links it.

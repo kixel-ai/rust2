@@ -21,6 +21,7 @@ pub(crate) const RUNTIME: &[(&str, &str)] = &[
 	("rs/bytes.ts", include_str!("../runtime/rs/bytes.ts")),
 	("rs/char.ts", include_str!("../runtime/rs/char.ts")),
 	("rs/collections.ts", include_str!("../runtime/rs/collections.ts")),
+	("rs/dispose.ts", include_str!("../runtime/rs/dispose.ts")),
 	("rs/float.ts", include_str!("../runtime/rs/float.ts")),
 	("rs/hash.ts", include_str!("../runtime/rs/hash.ts")),
 	("rs/hook.ts", include_str!("../runtime/rs/hook.ts")),
@@ -36,6 +37,7 @@ pub(crate) const RUNTIME: &[(&str, &str)] = &[
 	("rs/time.ts", include_str!("../runtime/rs/time.ts")),
 	("rs/tokio.ts", include_str!("../runtime/rs/tokio.ts")),
 	("rs/unicode.ts", include_str!("../runtime/rs/unicode.ts")),
+	("rs/utf8.ts", include_str!("../runtime/rs/utf8.ts")),
 ];
 
 /// The first line of every generated file, which also marks it as safe to replace.

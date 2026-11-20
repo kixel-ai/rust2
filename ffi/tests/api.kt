@@ -988,7 +988,11 @@ fun lossless() {
 	check(stray.toByteArray().contentEquals(byteArrayOf(-1)) && stray == PathBuf(byteArrayOf(-1)), "a path keeps bytes no String holds")
 	check(rejects { stray.toText() } && rejects { stray.toPath() } && stray.toString() == "\ufffd", "a path that is not UTF-8 has no text")
 	check(rejects { PathBuf("\ud800") }, "a lone surrogate has no path")
-	check(PathBuf("a/é").toText() == "a/é" && PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts")
+	check(PathBuf("a/é").toText() == "a/é", "a UTF-8 path converts")
+	// `java.nio.file` is on Android from API 26.
+	if (runCatching { Class.forName("java.nio.file.Paths") }.isSuccess) {
+		check(PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts to a Path")
+	}
 	check(_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())) && !_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte(), 0xed.toByte(), 0xb0.toByte(), 0x80.toByte())), "a lone surrogate is WTF-8, a pair encoded apart is not")
 	check(!_wtf8(byteArrayOf(-1)) && !_wtf8(byteArrayOf(0xc0.toByte(), 0x80.toByte())) && _wtf8("a/é😀".encodeToByteArray()), "WTF-8 is UTF-8 otherwise")
 
@@ -1291,6 +1295,8 @@ fun broken(which: String) {
 			Node.new(2u, tail)
 			tail.sum()
 		}
+		// A Rust panic cannot unwind into the JVM, so it aborts.
+		"panicked" -> Clash.Unit.reading(0u)
 		"outlived" -> Meters.new().let { meters ->
 			val first = meters.first()
 			meters.clear()
@@ -1447,6 +1453,67 @@ fun owned() {
 	raced()
 	compared()
 	forwarded()
+	nursed()
+}
+
+// The nursery of the latest objects a thread was returned, which a close leaves at once
+// and the GC frees only once later returns push one out unclosed, or the GC drops the
+// nursery of a thread returning nothing more: each object is freed once, however its close
+// and the nursery race.
+fun nursed() {
+	// Left in a nursery no later return pushes it out of, which the GC drops.
+	var before = dropped()
+	unclosedToken()
+	collected(before + 1u, "the GC frees what an idle nursery held unclosed")
+
+	// Closed after later returns pushed it out unclosed, which registered it.
+	before = dropped()
+	val kept = Token.new(4u)
+	fill()
+	kept.close()
+	check(dropped() == before + 1u, "closing an object pushed out of its nursery frees it at once")
+	uncollected(before + 1u, "the GC frees nothing a close freed after a push out")
+
+	// Returned on many threads, each closing some of its own and of another's, as others'
+	// returns push them out and the GC drops nurseries, and dropping the rest.
+	before = dropped()
+	val workers = 8
+	val each = 1000
+	val handoff = java.util.concurrent.LinkedBlockingQueue<Token>()
+	val collecting = java.util.concurrent.atomic.AtomicBoolean(true)
+	val collector = thread {
+		while (collecting.get()) {
+			Runtime.getRuntime().gc()
+			Thread.sleep(1)
+		}
+	}
+	List(workers) {
+		thread {
+			for (i in 0 until each) {
+				val t = Token.new(i.toUInt())
+				when (i % 3) {
+					0 -> t.close()
+					1 -> handoff.add(t)
+				}
+				if (i % 3 != 0) handoff.poll()?.close()
+			}
+		}
+	}.forEach { it.join() }
+	collecting.set(false)
+	collector.join()
+	while (true) handoff.poll()?.close() ?: break
+	collected(before + (workers * each).toUInt(), "the GC frees every object a nursery held unclosed")
+}
+
+// A token nothing reaches once this returns, and no return after it.
+@OwnFrame
+fun unclosedToken() {
+	Token.new(5u)
+}
+
+// Return a nursery's worth of objects, each closed, pushing out every earlier one.
+fun fill() {
+	repeat(64) { Tally.new().close() }
 }
 
 // A payload Rust lent passed back to Rust: it crosses as Rust's own, never copied, so the

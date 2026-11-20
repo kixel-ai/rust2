@@ -74,8 +74,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   2026-11-11 nightly census
   ([run 43038758163](https://github.com/kixel-ai/rust2/actions/runs/43038758163)) still
   refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s then 100 excludes, and
-  moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
-  measured. So each construct left has a child again:
+  moq's `main` adds the 36 errors the pin bump measured. So each construct left has a child again:
   `NonZero`, which exports, the rest of the errors at moq's main
   (exported since by rules for another crate's value, a borrowing future of a function
   that is not `async`, and an object field that is not `Clone`), and

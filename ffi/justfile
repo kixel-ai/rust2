@@ -12,7 +12,7 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { car
 
 # The moq revision these recipes export by default. It is the exporter's own pin, apart from
 # the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
-moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
+moq_rev := "1aa86d5e6d091848cb1848c702a911099706b1a4"
 
 # swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
@@ -41,7 +41,19 @@ test *args:
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
 
-# Run the api fixture's web test in headless Chromium and Firefox, in the bench shell, which carries them: nix develop .#bench.
+# Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does, with the exporter optimized, which the time spent exporting repays: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
+corpus:
+    cargo test --locked --release --test fixtures corpus::nightly -- --ignored --exact
+
+# Take corpus/crates.txt afresh from crates.io's top crates by downloads, and resolve corpus/Cargo.lock. It builds them, as `corpus` does.
+corpus-update:
+    cargo test --locked --test fixtures corpus::update -- --ignored --exact
+
+# Run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does; the gate runs fewer.
+protocol:
+    cargo test --locked --test fixtures protocol_nightly -- --ignored
+
+# Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
 
@@ -64,6 +76,27 @@ fix:
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
+# Write surface/, each binding's API as its language renders it, from the api fixture's export and moq's stand-in's at the pinned moq revision: --check fails where a committed file differs instead. The files are x86_64 Linux's exports, whose targets they name.
+surface *flags: (moq-write "") (standin "" "web")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ arch() }}-{{ os() }}" != x86_64-linux ]; then
+        echo "the surface files are x86_64 Linux's exports: run this there" >&2
+        exit 1
+    fi
+    # moq-write's export, of the host alone.
+    if [ "$(jq -c .api.targets target/export/moq/api.json)" != '["x86_64-unknown-linux-gnu"]' ]; then
+        echo "target/export/moq merged the APIs staged in target/moq-api: delete them for the host's export" >&2
+        exit 1
+    fi
+    # The api fixture as its tests export it, with wasm32 for the web binding.
+    cargo run --locked --quiet -- --config fixtures/api/ffi.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
+    python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
+    # Its other bindings are moq's on wasm32, which no one ships.
+    python3 -I surface/surface.py {{ flags }} target/surface/moq-web surface/moq-web web.d.ts
+
 # Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
@@ -71,7 +104,7 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/moq-c.
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/libmoq.
 bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
@@ -89,9 +122,9 @@ bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program cod
     cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     # The hooks' search path goes to the program alone, so moq builds as bench-run's export does.
     cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- -L "native=$hooks"
-    # moq-c's header is written to its build script's output directory.
-    moqc=$(cd "$src" && cargo build --locked --quiet --release --package moq-c --message-format=json \
-        | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("moq-c#"))) | .out_dir')
+    # libmoq's header is written to its build script's output directory.
+    moqc=$(cd "$src" && cargo build --locked --quiet --release --package libmoq --message-format=json \
+        | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("libmoq#"))) | .out_dir')
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.c "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" -I "$hooks" moq/bench/moq-c.c "$src/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-moq-c
     c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-cpp
@@ -194,7 +227,7 @@ bench-run rounds="3":
             run "$lang"
         done
     done
-    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web > target/bench/report.md
+    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
 # Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
@@ -372,7 +405,7 @@ ts-program:
     printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
         '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
         '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
-        '"include": ["export.ts", "web/*.ts"]}' > "$dir/tsconfig.json"
+        '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
@@ -544,8 +577,10 @@ standin checkout="" web="":
         dir=target/moq-ffi-web
         deps=(hang kio moq-mux moq-net moq-pattern)
     fi
-    features=$(cd "$src" && cargo metadata --format-version 1 --no-deps \
-        | jq -c '[.packages[] | select(.name == "moq-ffi") | .dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries')
+    ffi=$(cd "$src" && cargo metadata --format-version 1 --no-deps | jq -c '.packages[] | select(.name == "moq-ffi")')
+    features=$(jq -c '[.dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries' <<< "$ffi")
+    # moq-ffi's license, which a package of the stand-in states as moq-ffi's would.
+    license=$(jq -r '.license // empty' <<< "$ffi")
     mkdir -p "$dir/src"
     # Replace a file only when its content changes, so an unchanged stand-in, and the
     # export over it, stay fresh.
@@ -558,7 +593,9 @@ standin checkout="" web="":
     }
     {
         printf '# Generated by just ffi standin, from %s.\n' "$src"
-        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n'
+        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n'
+        if [ -n "$license" ]; then printf 'license = "%s"\n' "$license"; fi
+        printf '\n'
         # The prefix of every C name.
         printf '[lib]\nname = "moq"\n\n[dependencies]\n'
         for name in "${deps[@]}"; do

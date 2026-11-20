@@ -1,7 +1,8 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
 // native Rust does on wasm32-wasip1, through the generated TypeScript on Node or Deno, from
 // beside the binding's `web` directory, or in a browser, through tests/browser.ts's
-// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature.
+// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature;
+// without it, the script loads the module its package holds, as `load` does by default.
 // tests/fixtures.rs compares the transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what disposing and the
@@ -1349,10 +1350,22 @@ async function owned(): Promise<void> {
 	check(api.dropped() === before + 1, "disposing again frees nothing");
 	closed(() => Token.idGet(token), "Token", "a disposed token refuses a read");
 
+	// Left in the nursery with no return after it to push it out: a collection pushes it
+	// out, and the next frees it.
 	unclosed();
 	await collect(() => api.dropped() >= before + 2, "the garbage collector frees what nobody disposed");
 	await settle();
 	check(api.dropped() === before + 2, "the garbage collector frees each once");
+
+	// Disposed after later returns pushed it out undisposed, which registered it.
+	disposedLate();
+	check(api.dropped() === before + 3, "disposing an object pushed out of the nursery frees it at once");
+	// Pushed out undisposed by later returns, then dropped.
+	unclosed();
+	fill();
+	await collect(() => api.dropped() >= before + 4, "the garbage collector frees what later returns pushed out");
+	await settle();
+	check(api.dropped() === before + 4, "the garbage collector frees nothing disposed after a push out");
 
 	// An implementation an object the garbage collector frees held is closed.
 	const log = new CountLog();
@@ -1369,6 +1382,18 @@ async function owned(): Promise<void> {
 
 function unclosed(): void {
 	Token.new(3);
+}
+
+/** An object disposed once later returns pushed it out, which nothing reaches after. */
+function disposedLate(): void {
+	const kept = Token.new(4);
+	fill();
+	close(kept);
+}
+
+/** Return a nursery's worth of objects, each disposed, pushing out every earlier one. */
+function fill(): void {
+	for (let i = 0; i < 64; i++) close(Tally.new());
 }
 
 function unclosedLogger(log: Log): void {
@@ -1400,6 +1425,16 @@ async function closedObjects(): Promise<void> {
 	const c = Counter.new("c", 1);
 	close(c);
 	closed(() => Counter.get(c), "Counter", "a method of a disposed object");
+	// `using` disposes at the end of its scope, as stable Safari, which lacks `Symbol.dispose`,
+	// needs the runtime's own symbol for, however the bundler lowers it. No garbage collector
+	// is involved, so every browser runs it.
+	let scoped: ReturnType<typeof Counter.new> | undefined;
+	{
+		using inner = Counter.new("u", 3);
+		scoped = inner;
+		check(Counter.get(inner) === 3, "a `using` object is open in its scope");
+	}
+	closed(() => Counter.get(scoped!), "Counter", "a `using` object after its scope");
 	closed(() => Counter.clone(c), "Counter", "clone of a disposed object");
 	closed(() => Counter.debug(c), "Counter", "debug of a disposed object");
 	const url = unwrap(Url.parse("https://example.com"));
@@ -1613,11 +1648,22 @@ async function lent(): Promise<void> {
 	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
 	close(optional);
 	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
-	// The garbage collector frees lent bytes nobody disposed.
+	// The garbage collector frees lent bytes nobody disposed, left in the nursery with no
+	// return after them, or pushed out by later ones.
 	unclosedBytes();
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
 	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
+	unclosedBytes();
+	fill();
+	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes later returns pushed out");
+	await settle();
+	check(api.dropped() === ++before, "the garbage collector frees lent bytes pushed out once");
+	// Disposed after later returns pushed them out undisposed, which registered them.
+	disposedLateBytes();
+	check(api.dropped() === ++before, "disposing lent bytes pushed out of the nursery frees them at once");
+	await settle();
+	check(api.dropped() === before, "the garbage collector frees nothing disposed after a push out");
 	// Past a quarter of memory lent and not yet freed, bytes are copied, so bytes nobody
 	// disposed, which the collector frees only once its own heap prompts it, grow memory by
 	// no more than a third.
@@ -1646,6 +1692,13 @@ async function lent(): Promise<void> {
 	for (const b of slices) close(b);
 	check(api.dropped() === before + slices.length - 1, "disposing frees each slice lent");
 	print("bytes ok");
+}
+
+/** Lent bytes disposed once later returns pushed them out, which nothing reaches after. */
+function disposedLateBytes(): void {
+	const pushed = api.tokenBytes(2, 100);
+	fill();
+	close(pushed);
 }
 
 /** Lent bytes, left for the garbage collector. */
@@ -1917,13 +1970,16 @@ async function broken(which: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+	// Without RUST2_WASM, the module beside the binding, as its package holds it, which
+	// `load` takes by default.
 	const path = process.env["RUST2_WASM"];
-	check(path !== undefined, "RUST2_WASM names the module");
-	const module = await WebAssembly.compile(process.getBuiltinModule("node:fs").readFileSync(path!));
+	const module = path === undefined ? undefined : await WebAssembly.compile(process.getBuiltinModule("node:fs").readFileSync(path));
 	// A load that fails leaves the next free to succeed, and a load while one runs is refused.
 	const glue = { prefix: "api", space: "api_web", file: "stale.ts", contract: 1n, target: 0, imports: g.imports };
 	const message = (p: Promise<void>) => p.then(() => "", (e: unknown) => (e instanceof Error ? e.message : String(e)));
-	check((await message(rt.load(module, glue))) === "stale.ts and the module are from different builds", "a stale load");
+	if (module !== undefined) {
+		check((await message(rt.load(module, glue))) === "stale.ts and the module are from different builds", "a stale load");
+	}
 	const first = api.load(module);
 	check((await message(api.load(module))) === "index.ts: the module is loaded already", "a load meanwhile");
 	await first;
