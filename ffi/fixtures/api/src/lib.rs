@@ -2587,6 +2587,13 @@ impl Hooked {
 	pub fn new(n: u64) -> Self {
 		Self { n, gated: Gated(n) }
 	}
+
+	/// Its count, by a method that runs the hook first: no leaf call, though it returns
+	/// what a leaf would.
+	pub fn count(&self) -> u64 {
+		run_hook();
+		self.n
+	}
 }
 
 /// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
@@ -2671,6 +2678,76 @@ impl Plain {
 			on,
 			pinned: (-1, 'p'),
 		}
+	}
+
+	/// Its count, by a method whose body only reads it: a leaf call.
+	pub fn count(&self) -> u64 {
+		self.n
+	}
+
+	/// Set its count, by a method whose body only writes it: a leaf call.
+	pub fn recount(&mut self, n: u64) {
+		self.n = n;
+	}
+
+	/// Count up to its count: a loop as long as the caller makes it, so no leaf call.
+	pub fn steps(&self) -> u64 {
+		let mut i = 0u64;
+		while i < self.n {
+			i = i.wrapping_add(1);
+		}
+		i
+	}
+
+	/// How many locals have dropped, a static's count: no leaf call.
+	pub fn locals(&self) -> u32 {
+		LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// A [`Plain`] behind a `Deref` and `DerefMut` that only borrow it, so its fields and
+/// methods are leaf calls through it too.
+pub struct Wrapped(Plain);
+
+impl Wrapped {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+impl std::ops::Deref for Wrapped {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		&self.0
+	}
+}
+
+impl std::ops::DerefMut for Wrapped {
+	fn deref_mut(&mut self) -> &mut Plain {
+		&mut self.0
+	}
+}
+
+/// A [`Plain`] behind a `Deref` that runs the hook, so nothing reached through it is a
+/// leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Guarded(Plain);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Guarded {
+	pub fn new(n: u64) -> Self {
+		Self(Plain::new(n, false))
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::ops::Deref for Guarded {
+	type Target = Plain;
+
+	fn deref(&self) -> &Plain {
+		run_hook();
+		&self.0
 	}
 }
 

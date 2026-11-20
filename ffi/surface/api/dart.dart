@@ -1080,6 +1080,17 @@ final class Local extends _Object {
 	U64 threadNumber();
 	bool onOwnThread();
 }
+final class Wrapped extends _Object {
+	factory Wrapped(U64 n);
+	U64 get nGet;
+	void nSet(U64 value);
+	bool get onGet;
+	void onSet(bool value);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
+}
 final class LocalWaiter extends _Object {
 	factory LocalWaiter(void Function() waker);
 	static Cancelable<int> pollReady(int n);
@@ -1356,6 +1367,10 @@ final class Plain extends _Object {
 	bool get onGet;
 	void onSet(bool value);
 	factory Plain(U64 n, bool on);
+	U64 count();
+	void recount(U64 n);
+	U64 steps();
+	int locals();
 }
 final class Labeled extends _Object {
 	String debug();
@@ -1482,6 +1497,14 @@ final class Pinned extends _Object {
 	factory Pinned(U64 value);
 	Part part();
 }
+final class Guarded extends _Object {
+	factory Guarded(U64 n);
+	U64 get nGet;
+	bool get onGet;
+	U64 count();
+	U64 steps();
+	int locals();
+}
 final class Hooked extends _Object {
 	String debug();
 	@override bool operator ==(Object other);
@@ -1489,6 +1512,7 @@ final class Hooked extends _Object {
 	U64 get nGet;
 	void nSet(U64 value);
 	factory Hooked(U64 n);
+	U64 count();
 }
 final class Forged extends _Object {
 	String debug();

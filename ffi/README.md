@@ -771,12 +771,15 @@ free-threaded build (3.13t, 3.14t), which the module refuses at import with an `
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
-so Rust may call Python back from any thread meanwhile. A leaf keeps it: a read or write of
-a primitive `pub` field of a `Send` object reached without a `Deref`, or a `PartialEq` or
-`Hash` derived, or std's, down to primitives, which the export proves runs no code but
-std's and the glue's, waits on no lock, and calls no Python, so it cannot deadlock on the
-GIL (`Abi::leaf` in `src/abi.rs` gives the argument). A field read costs 26 ns that way,
-against 63 releasing it ([the benchmark](../bench/ffi/README.md#leaf-calls)).
+so Rust may call Python back from any thread meanwhile. A leaf keeps it: a `&self` or
+`&mut self` method, or a read or write of a `pub` field, of a `Send` object, taking and
+returning only scalars, whose body and each `Deref`'s on the way the export proves, from
+their MIR, run no code but std's and the glue's in a bounded number of steps, or a
+`PartialEq` or `Hash` derived, or std's, down to primitives. A leaf waits on no lock and
+calls no Python, so it cannot deadlock on the GIL (`Abi::leaf` in `src/abi.rs` gives the
+argument, and `src/leaf.rs` the proof). So `demand.start()`, which returns a field, costs
+27 ns, against 65 releasing the GIL, and 0.1 us on four threads at once, against 1.8
+([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
@@ -1350,7 +1353,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
   on can call into Dart. A leaf, as Python keeps the GIL across, is a leaf call (`isLeaf`)
   to the C function on the isolate's thread, with no hop and no arena: a field read costs
-  13 ns, against 31, and against 2 us while Rust holds a closure. A call that holds only
+  13 ns, against 31, and against 2 us while Rust holds a closure, and `demand.start()` 16,
+  against 27. A call that holds only
   its receiver holds it with no arena either. An isolate may move between threads, so a
   value that is not `Send` is made on a home, a thread Rust owns, which runs each call on
   it.
@@ -1427,9 +1431,10 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   function, and each one a crate's `.init_array` static runs when the module loads,
   through every call, `dyn` implementation, function pointer, static, and drop it can
   reach, std's included, and into C and whatever Rust the C calls back, so a new std needs
-  no change here: every crate builds with `-Zalways-encode-mir`, std's from the dev
-  shell's MIR sysroot or else `-Zbuild-std`, which doubles the export's peak memory, as
-  [measured](../bench/ffi/README.md#the-exports-build-cost); a native export reads no MIR.
+  no change here: every crate builds with `-Zalways-encode-mir`, as every export's does
+  for its [leaves](#python), std's from the dev shell's MIR sysroot or else
+  `-Zbuild-std`, which doubles the export's peak memory, as
+  [measured](../bench/ffi/README.md#the-exports-build-cost).
   A C function or static no linked library defines, which would fail the module's link, is
   refused the same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1`
   compile to stubs that panic. `thread::Builder::spawn` and a socket's `connect` and `bind`

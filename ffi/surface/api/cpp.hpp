@@ -163,6 +163,19 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t thread_number() const;
 		RUST2_FFI_CALLABLE bool on_own_thread() const;
 	};
+	class RUST2_FFI_CONSUMABLE Wrapped {
+		RUST2_FFI_UNCONSUMED Wrapped(Wrapped &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Wrapped &operator=(Wrapped &&other) noexcept = default;
+		static ::api::Wrapped new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE bool on_get() const;
+		RUST2_FFI_CALLABLE void on_set(bool value);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE void recount(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
+	};
 	class RUST2_FFI_CONSUMABLE LocalWaiter {
 		RUST2_FFI_UNCONSUMED LocalWaiter(LocalWaiter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		LocalWaiter &operator=(LocalWaiter &&other) noexcept = default;
@@ -500,6 +513,10 @@ namespace api {
 		RUST2_FFI_CALLABLE bool on_get() const;
 		RUST2_FFI_CALLABLE void on_set(bool value);
 		static ::api::Plain new_(::std::uint64_t n, bool on);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE void recount(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
 	};
 	class RUST2_FFI_CONSUMABLE Labeled {
 		RUST2_FFI_UNCONSUMED Labeled(Labeled &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -626,6 +643,16 @@ namespace api {
 		static ::api::Pinned new_(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::api::Part part() const;
 	};
+	class RUST2_FFI_CONSUMABLE Guarded {
+		RUST2_FFI_UNCONSUMED Guarded(Guarded &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Guarded &operator=(Guarded &&other) noexcept = default;
+		static ::api::Guarded new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE bool on_get() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t steps() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t locals() const;
+	};
 	class RUST2_FFI_CONSUMABLE Hooked {
 		RUST2_FFI_UNCONSUMED Hooked(Hooked &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Hooked &operator=(Hooked &&other) noexcept = default;
@@ -635,6 +662,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
 		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
 		static ::api::Hooked new_(::std::uint64_t n);
+		RUST2_FFI_CALLABLE ::std::uint64_t count() const;
 	};
 	class RUST2_FFI_CONSUMABLE Forged {
 		RUST2_FFI_UNCONSUMED Forged(Forged &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -2050,6 +2078,7 @@ namespace api {
 	class Logger;
 	class Journal;
 	class Local;
+	class Wrapped;
 	class LocalWaiter;
 	class Retry;
 	class Digest;
@@ -2108,6 +2137,7 @@ namespace api {
 	class Spawned;
 	class LogThread;
 	class Pinned;
+	class Guarded;
 	class Hooked;
 	class Forged;
 	class Part;

@@ -1290,9 +1290,14 @@ impl<'a> Abi<'a> {
 	/// Whether a call of `function`, a method of `owner` if it has one, is a leaf: proven to
 	/// run no code but the glue's, its runtime's, and std's, to wait on no lock, and to call
 	/// into no binding. Python then keeps the GIL across it, and Dart makes it a leaf call,
-	/// which runs on the isolate's own thread with no thread hop. It is the read or write of a
-	/// primitive `pub` field of a `Send` object reached without a `Deref`, which no object
-	/// that is not `Send` may lend.
+	/// which runs on the isolate's own thread with no thread hop. It is a `&self` or
+	/// `&mut self` method, or the read or write of a `pub` field, of a `Send` object, which no
+	/// object that is not `Send` may lend, taking only scalars and returning one or nothing, whose Rust
+	/// [`Function::leaf`] proves: each body it runs, the method's and each `Deref`'s on the
+	/// way, calls only bodies proven the same way and core's intrinsics that only compute,
+	/// drops nothing whose drop runs other code, loops nowhere, recurses nowhere, asserts
+	/// nothing, which would run the panic hook on failure, and uses no static. Its MIR proves
+	/// it, which is the code that runs, not how its source looks or what an attribute claims.
 	///
 	/// Why holding the GIL across one cannot deadlock: a deadlock needs the call to wait on
 	/// another thread that waits on the GIL. A leaf's only shared state is the handle's
@@ -1301,28 +1306,26 @@ impl<'a> Abi<'a> {
 	/// Its value is `Send`, so its borrow runs no `Thread::own`, whose drain would drop what
 	/// other threads queued of the thread's values that are not `Send`, by any `Drop`; a
 	/// handle lent from another borrows that one too, so no owner up its chain of lenders
-	/// may be other than `Send` either. A field
-	/// reached through `Deref`, of an enum, or of anything but a primitive would run user
-	/// code to read, clone, or drop. So it ends in a bounded number of steps whoever holds
-	/// the GIL, and since it runs no Python, nothing in it needs the GIL either.
+	/// may be other than `Send` either. A body with no loop, no recursion, and no call but
+	/// to such bodies ends in a bounded number of steps whoever holds the GIL, and since it
+	/// runs no Python, nothing in it needs the GIL either.
 	pub(crate) fn leaf(&self, function: &Function, owner: Option<&Type>) -> bool {
 		let Some(Type::Object(i)) = owner else {
 			return false;
 		};
-		let primitive = |ty: &Type| {
-			matches!(
-				ty,
-				Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
-			)
-		};
-		let field = match function.access {
+		let shape = match function.access {
 			Access::Field { set: false, .. } => {
-				matches!(&function.ok, Type::Ref(_, ty) if primitive(ty)) && function.params.is_empty()
+				matches!(&function.ok, Type::Ref(_, ty) if ty.scalar()) && function.params.is_empty()
 			}
-			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if primitive(&param.ty)),
+			Access::Field { set: true, .. } => matches!(&function.params[..], [param] if param.ty.scalar()),
+			Access::Call => {
+				matches!(function.receiver, Some(Receiver::Ref | Receiver::Mut))
+					&& (function.ok.scalar() || matches!(function.ok, Type::Unit))
+					&& function.params.iter().all(|p| p.ty.scalar())
+			}
 			_ => false,
 		};
-		field && !self.affine[*i] && function.derefs == 0 && function.err.is_none() && !function.future
+		shape && function.leaf && !self.affine[*i] && function.err.is_none() && !function.future
 	}
 
 	/// Whether `ty`'s `<T>_eq`, or with `hash` its `<T>_hash`, is a leaf, as [`Self::leaf`]
