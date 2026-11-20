@@ -1521,7 +1521,9 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   `isize`, and `char` are numbers, each checked as it crosses in. `f32` and `f64` are
   `rt.f32` and `rt.f64`, a number but for a NaN other than Rust's `NAN`, which `NaN`
   stands for: that one is its bits, `{ bits }` or `{ hi, lo }`, since an engine quiets or,
-  once it optimizes, canonicalizes a NaN in any number it converts. A number passed for an
+  once it optimizes, canonicalizes a NaN in any number it converts. A NaN's form follows
+  its bits, which wasm leaves arithmetic to choose by host: Rust's `0.0 / 0.0` is `NaN` on
+  ARM, but on x86 it has its sign set, so it is `{ bits: 0xffc00000 }`. A number passed for an
   `f32` must be one exactly, and `rt.f32Number` or `rt.f64Number` give a plain number,
   dropping a NaN's bits. `u64`, `i64`,
   and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit

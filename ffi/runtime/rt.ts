@@ -555,8 +555,8 @@ export function f32Get(p: number): f32 {
 /** Write the `f32` `v` at `p`: a number a single holds exactly, `NaN` as `f32::NAN`, or a
  * NaN's bits. Any other throws. */
 export function f32Put(p: number, v: f32): void {
-	const d = dv();
 	if (typeof v === "number") {
+		const d = dv();
 		if (v !== v) d.setUint32(p, F32_NAN, true);
 		else if (Math.fround(v) === v) d.setFloat32(p, v, true);
 		else throw new RangeError(`${v} is no f32`);
@@ -566,7 +566,8 @@ export function f32Put(p: number, v: f32): void {
 	if (bits >>> 0 !== bits || (bits & 0x7fffffff) <= 0x7f800000 || bits === F32_NAN) {
 		throw new RangeError(`${JSON.stringify(v)} is no f32 NaN in its one form`);
 	}
-	d.setUint32(p, bits, true);
+	// Taken after the payload's getters, which may run code that grows memory.
+	dv().setUint32(p, bits, true);
 }
 
 /** The `f64` at `p`: a NaN by its bits. */
@@ -581,8 +582,8 @@ export function f64Get(p: number): f64 {
 
 /** Write the `f64` `v` at `p`: a number, `NaN` as `f64::NAN`, or a NaN's bits. */
 export function f64Put(p: number, v: f64): void {
-	const d = dv();
 	if (typeof v === "number") {
+		const d = dv();
 		if (v === v) d.setFloat64(p, v, true);
 		else {
 			d.setUint32(p, 0, true);
@@ -596,6 +597,7 @@ export function f64Put(p: number, v: f64): void {
 	if (hi >>> 0 !== hi || lo >>> 0 !== lo || !nan || (hi === F64_NAN_HI && lo === 0)) {
 		throw new RangeError(`${JSON.stringify(v)} is no f64 NaN in its one form`);
 	}
+	const d = dv();
 	d.setUint32(p, lo, true);
 	d.setUint32(p + 4, hi, true);
 }

@@ -1889,7 +1889,8 @@ impl Gen<'_> {
 		if !shimmed {
 			return name.to_string();
 		}
-		let shim = format!("{name}_m");
+		// In a prefix of its own, which no import's name takes.
+		let shim = format!("{}_shim_{}", self.space, &name[self.space.len() + 1..]);
 		let params: String = (params.iter().enumerate())
 			.map(|(n, ty)| format!(", p{n}: {}", rs(ty)))
 			.collect();
