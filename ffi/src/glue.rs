@@ -180,8 +180,8 @@ fn unwound(call: &str, after: &str) -> String {
 	match after.is_empty() {
 		true => format!("let result = {call};"),
 		false => format!(
-			"#[cfg(not(feature = \"kotlin\"))]\n\tlet result = {call};\n\t#[cfg(feature = \"kotlin\")]\n\tlet result = match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {call})) {{\n\t\tOk(result) => result,\n\t\tErr(unwound) => {{{}\n\t\t\t::std::panic::resume_unwind(unwound)\n\t\t}}\n\t}};",
-			after.replace("\n\t", "\n\t\t\t")
+			"#[cfg(feature = \"kotlin\")]\n\tlet unwinding = rt::Unwinding::new(move || {{{}\n\t}});\n\tlet result = {call};\n\t#[cfg(feature = \"kotlin\")]\n\tunwinding.returned();",
+			after.replace("\n\t", "\n\t\t")
 		),
 	}
 }
@@ -2469,6 +2469,15 @@ impl Gen<'_> {
 				(list @ Type::List(Collection::Slice, _), Mutability::Not, false) if list.block().is_some() => {
 					(format!("let {local} = unsafe {{ {c}.items(w) }};"), local.to_string())
 				}
+				// Written back once the call returns, or as a closure's failed check unwinds out
+				// of it, through the pointer the call borrows it by, reading it out once.
+				(inner, Mutability::Mut, false) => (
+					format!(
+						"let mut {local} = ::std::mem::ManuallyDrop::new({});\n\tlet {local}_at = &raw mut {local};",
+						self.lift(inner, c, "true")
+					),
+					format!("unsafe {{ &mut **{local}_at }}"),
+				),
 				(inner, m, _) => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut {local}")),
@@ -2736,19 +2745,19 @@ impl Gen<'_> {
 					}
 					// Read through a pointer, so the caller keeps it, and for `&mut self`
 					// written back through it once the call returns.
-					let binding = match receiver {
-						Receiver::Mut => "let mut",
-						_ => "let",
+					let lifted = self.lift(value, "unsafe { *this }", "false");
+					let stmt = match receiver {
+						Receiver::Mut if !function.future => format!(
+							"let mut a_self = ::std::mem::ManuallyDrop::new({lifted});\n\tlet a_self_at = &raw mut a_self;"
+						),
+						Receiver::Mut => format!("let mut a_self = {lifted};"),
+						_ => format!("let a_self = {lifted};"),
 					};
-					let made = (
-						String::new(),
-						format!("{binding} a_self = {};", self.lift(value, "unsafe { *this }", "false")),
-						String::new(),
-					);
-					sort(value, &made);
+					sort(value, &(String::new(), stmt, String::new()));
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
 						Receiver::Ref => "&a_self".to_string(),
+						Receiver::Mut if !function.future => "unsafe { &mut **a_self_at }".to_string(),
 						Receiver::Mut => "&mut a_self".to_string(),
 					});
 				}
@@ -2948,7 +2957,10 @@ impl Gen<'_> {
 		// path, errors included, and in a value's `&mut self`, in place.
 		let mut writes: String = match &receiver_ty {
 			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => {
-				format!("\n\tunsafe {{ this.write({}) }};", self.lower(value, "a_self"))
+				format!(
+					"\n\tlet a_self = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a_self_at.read() }});\n\tunsafe {{ this.write({}) }};",
+					self.lower(value, "a_self")
+				)
 			}
 			_ => String::new(),
 		};
@@ -2960,7 +2972,7 @@ impl Gen<'_> {
 				};
 				let out = Abi::written(function, &crate::abi::escape(&param.name));
 				format!(
-					"\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
+					"\n\tlet a{n} = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a{n}_at.read() }});\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
 					rs(&self.abi.ty(inner)),
 					self.lower(inner, &format!("a{n}"))
 				)

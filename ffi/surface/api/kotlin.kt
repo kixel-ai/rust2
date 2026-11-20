@@ -886,6 +886,14 @@ class Holder internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 		@kotlin.jvm.JvmStatic fun new(level: kotlin.ULong): api.Holder
 	}
 }
+class Tag internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	fun tagged(n: api.Mut<kotlin.UInt>, f: () -> kotlin.Int): kotlin.String
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Tag
+		@kotlin.jvm.JvmStatic fun new(): api.Tag
+	}
+}
 class Area internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun debug(): kotlin.String

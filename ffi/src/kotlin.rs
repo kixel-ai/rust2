@@ -2851,7 +2851,11 @@ impl<'a> Gen<'a> {
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
-				Some(h) => h.call(&args),
+				// Through the body a closure's failed check unwinds out of.
+				Some(h) => {
+					h.call(&args)
+						.replacen(&format!("crate::{}(", h.name), &format!("crate::unwind_{}(", h.name), 1)
+				}
 				None => format!("crate::unwind_{made}({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result

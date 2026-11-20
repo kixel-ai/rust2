@@ -1343,7 +1343,7 @@ type PairSizeU8 struct {
 	Left  p_dep.Size
 	Right uint8
 }
-func Tag(size p_dep.Size, tag uint8) PairSizeU8
+func Tag_(size p_dep.Size, tag uint8) PairSizeU8
 func (self PairSizeU8) Equal(other PairSizeU8) bool
 func (self PairSizeU8) GoString() string
 func (self PairSizeU8) Swap() PairU8Size
@@ -1748,6 +1748,13 @@ type Tab struct {
 func (self *Tab) Close() error
 func (self *Tab) LabelGet() (string, error)
 func (self *Tab) LedgerGet() (*Ledger, error)
+type Tag struct {
+	Handle_ *p_rt.Handle_
+}
+func NewTag() *Tag
+func TagDefault() *Tag
+func (self *Tag) Close() error
+func (self *Tag) Tagged(n *uint32, f func() rune) (string, error)
 type Tallies struct {
 	Handle_ *p_rt.Handle_
 }

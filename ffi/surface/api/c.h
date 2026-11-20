@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x39d0fb2e2458cc6fULL)
+#define API_CONTRACT ((uint64_t)0xbe7f6b3acb0a6680ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -133,6 +133,7 @@ typedef struct api_Trail api_Trail;
 typedef struct api_Worker api_Worker;
 typedef struct api_Handle api_Handle;
 typedef struct api_Holder api_Holder;
+typedef struct api_Tag api_Tag;
 typedef struct api_Area api_Area;
 typedef struct api_Counter api_Counter;
 typedef struct api_Meter api_Meter;
@@ -1739,6 +1740,11 @@ void api_Holder_free(api_Holder *self);
 API_MUST_USE api_Holder *api_Holder_new(uint64_t level);
 uint64_t api_Holder_level_get(const api_Holder *self);
 uint64_t api_Holder_doubled(const api_Holder *self);
+void api_Tag_free(api_Tag *self);
+void api_Tag_drop(api_Tag *self, api_status *status);
+API_MUST_USE api_Tag *api_Tag_default(void);
+API_MUST_USE api_Tag *api_Tag_new(void);
+API_MUST_USE api_buf api_Tag_tagged(api_Tag *self, uint32_t n, uint32_t (*f)(void *data), void *f_data, uint32_t *n_out, api_status *status);
 void api_Area_free(api_Area *self);
 bool api_Area_borrowed(const api_Area *self);
 API_MUST_USE api_Area *api_Area_clone(const api_Area *self);

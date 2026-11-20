@@ -5509,6 +5509,29 @@ pub fn bumped(n: &mut u32, f: impl Fn() -> char) -> char {
 	f()
 }
 
+/// Letters a closure appends to, read back borrowed.
+pub struct Tag(String);
+
+impl Tag {
+	/// An empty one.
+	pub fn new() -> Self {
+		Tag(String::new())
+	}
+
+	/// `n` bumped, then the letter `f` returns appended: a borrowed result beside a written argument.
+	pub fn tagged(&mut self, n: &mut u32, f: impl Fn() -> char) -> &str {
+		*n += 1;
+		self.0.push(f());
+		&self.0
+	}
+}
+
+impl Default for Tag {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 /// What has a length, implemented in each binding.
 pub trait Stretch {
 	/// Its length.

@@ -308,6 +308,13 @@ namespace api {
 		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t level_get() const;
 		[[deprecated("use `Dial`, whose 'level' is \"the same\" at $0\nand past it")]] RUST2_FFI_CALLABLE ::std::uint64_t doubled() const;
 	};
+	class RUST2_FFI_CONSUMABLE Tag {
+		RUST2_FFI_UNCONSUMED Tag(Tag &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tag &operator=(Tag &&other) noexcept = default;
+		static Tag default_();
+		static ::api::Tag new_();
+		template <class F0> RUST2_FFI_CALLABLE ::api::buf tagged(::std::uint32_t &n, F0 &&f);
+	};
 	class RUST2_FFI_CONSUMABLE Counter {
 		RUST2_FFI_UNCONSUMED Counter(Counter &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Counter &operator=(Counter &&other) noexcept = default;
@@ -2220,6 +2227,7 @@ namespace api {
 	class Worker;
 	class Handle;
 	class Holder;
+	class Tag;
 	class Area;
 	class Counter;
 	class Meter;

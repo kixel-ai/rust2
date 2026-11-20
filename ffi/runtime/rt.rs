@@ -2001,6 +2001,31 @@ impl<F: FnOnce()> Drop for Unlifted<F> {
 	}
 }
 
+/// What a call runs if a closure's failed check unwinds out of it, once dropped: ending what it
+/// moved and writing back what it changed, as returning would.
+pub struct Unwinding<F: FnOnce()>(::std::mem::ManuallyDrop<F>);
+
+impl<F: FnOnce()> Unwinding<F> {
+	pub fn new(after: F) -> Self {
+		Self(::std::mem::ManuallyDrop::new(after))
+	}
+
+	/// The call returned, which runs what follows it itself.
+	pub fn returned(self) {
+		let mut this = ::std::mem::ManuallyDrop::new(self);
+		// SAFETY: taken once, and `this` never drops.
+		drop(unsafe { ::std::mem::ManuallyDrop::take(&mut this.0) });
+	}
+}
+
+impl<F: FnOnce()> Drop for Unwinding<F> {
+	fn drop(&mut self) {
+		// SAFETY: taken once: `returned` never drops it.
+		let after = unsafe { ::std::mem::ManuallyDrop::take(&mut self.0) };
+		after();
+	}
+}
+
 /// A value [`Object::lending`] lent, which checks once dropped that C gave the handle
 /// back as it was lent.
 struct Lent<'a, T> {

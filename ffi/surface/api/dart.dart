@@ -1251,6 +1251,11 @@ final class Holder extends _Object {
 	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 get levelGet;
 	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 doubled();
 }
+final class Tag extends _Object {
+	factory Tag.default_();
+	factory Tag();
+	String tagged(Mut<int> n, String Function() f);
+}
 final class Area extends _Object {
 	String debug();
 	Area clone();

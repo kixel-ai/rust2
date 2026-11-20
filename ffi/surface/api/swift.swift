@@ -1078,6 +1078,11 @@ public struct Holder: ~Copyable, @unchecked Sendable {
 	@available(*, deprecated, message: "use `Dial`, whose 'level' is \"the same\" at $0\nand past it") @inlinable public var levelGet: Swift.UInt64 { get }
 	@available(*, deprecated, message: "use `Dial`, whose 'level' is \"the same\" at $0\nand past it") @inlinable public func doubled() -> Swift.UInt64
 }
+public struct Tag: ~Copyable, @unchecked Sendable {
+	@inlinable public static func `default`() -> Tag
+	@inlinable public static func new() -> Tag
+	@inlinable public mutating func tagged(_ n: inout Swift.UInt32, _ f: @Sendable () -> Swift.Unicode.Scalar) throws -> Swift.String
+}
 public struct Area: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public func clone() -> Area
