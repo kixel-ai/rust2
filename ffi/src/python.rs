@@ -302,11 +302,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 			"\n# pyright: reportDeprecated=false\n# mypy: disable-error-code=\"deprecated\"\n",
 			1,
 		);
-		body = body.replacen(
-			"_T = _typing.TypeVar(\"_T\")\n",
-			DEPRECATOR,
-			1,
-		);
+		body = body.replacen("_T = _typing.TypeVar(\"_T\")\n", DEPRECATOR, 1);
 	}
 	// Each link once every name is final.
 	let render = |link: &doc::Link<'_>| {
