@@ -43,11 +43,9 @@ jobs:
         if: always()
         run: |
           nix develop .#sanitize --command bash -c '
-            which -a clang | head; clang --version | head -1
             cd /home/runner/work/rust2/rust2/ffi/target/tmp/api/address
-            printf "b __asan_init\nrun\nfinish\nbt\nregister read x30\nimage lookup -a \$x30\nc\nbt\nregister read x30 x0 x1 x2 x8\nimage lookup -a \$x30\nx/8i \$pc-16\nthread backtrace all\nquit\n" | lldb api-c 2>&1 | tail -80
-            ASAN_OPTIONS=verbosity=1 ./api-c 2>&1 | head -5
-            ldd api-c | head -3
+            nm -C api-c | grep -i -E "__aarch64_|have_lse|outline" | head -20
+            nix shell nixpkgs#gdb --command gdb -batch -ex "run" -ex "bt 15" -ex "info registers x30 pc" -ex "x/6i \$pc-12" ./api-c 2>&1 | tail -40
           '
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
