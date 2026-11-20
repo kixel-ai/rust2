@@ -2833,10 +2833,15 @@ impl<'a> Gen<'a> {
 				make,
 			}
 		});
-		// The native call, closing what it moves out once it returns.
+		// The native call, closing what it moves out however it ends, as a closure's failed
+		// check unwinding out of it ends it after Rust took them.
+		let call = format!("_Native.{bare}({})", exprs.join(", "));
 		let call = match after.is_empty() {
-			true => format!("_Native.{bare}({})", exprs.join(", ")),
-			false => format!("_Native.{bare}({}).also {{ {} }}", exprs.join(", "), after.join("; ")),
+			true => call,
+			false => {
+				let moving = self.moving(&call, &after);
+				self.refused_first(&bare, moving)
+			}
 		};
 		// The value the function returns, or, returning nothing, its statement.
 		let value;

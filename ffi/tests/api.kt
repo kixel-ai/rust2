@@ -982,6 +982,13 @@ fun unwinds() {
 	check(lettered { runCatching { lettered { 0xD800 } }.getOrDefault('b'.code) } == 'b'.code, "a closure may catch it")
 	val bumps = Mut(1u)
 	check(rejects { bumped(bumps) { 0xD800 } } && bumps.value == 2u, "what Rust wrote back before the closure failed crosses back: ${bumps.value}")
+	val more = listOf(Counter.new("one", 1u))
+	val failing = object : Log {
+		override fun log(level: UByte, line: String): Boolean = lettered { 0xD800 } == 0
+	}
+	Counter.new("zero", 0u).use { counter -> check(rejects { logCounts(failing, 0u, counter, more) }, "a callback's failed check unwinds a call that moved its arguments") }
+	val gone = runCatching { more[0].get() }.exceptionOrNull()
+	check(gone is IllegalStateException && gone.message == "Counter is closed", "what it moved is closed in Kotlin: $gone")
 	val tag = Tag.new()
 	check(tag.tagged(bumps) { 'a'.code } == "a" && rejects { tag.tagged(bumps) { 0xD800 } } && bumps.value == 4u, "a borrowed result's call writes back too: ${bumps.value}")
 	check(tag.tagged(bumps) { 'b'.code } == "ab", "the receiver is whole after")

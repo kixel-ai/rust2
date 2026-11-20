@@ -2470,12 +2470,10 @@ impl Gen<'_> {
 					(format!("let {local} = unsafe {{ {c}.items(w) }};"), local.to_string())
 				}
 				// Written back once the call returns, or as a closure's failed check unwinds out
-				// of it, through the pointer the call borrows it by, reading it out once.
-				(inner, Mutability::Mut, false) => (
-					format!(
-						"let mut {local} = ::std::mem::ManuallyDrop::new({});\n\tlet {local}_at = &raw mut {local};",
-						self.lift(inner, c, "true")
-					),
+				// of it, through the pointer the call borrows it by once every check passed (see
+				// `pins`), reading it out once.
+				(inner, Mutability::Mut, false) if ty.written() => (
+					format!("let mut {local} = {};", self.lift(inner, c, "true")),
 					format!("unsafe {{ &mut **{local}_at }}"),
 				),
 				(inner, m, _) => {
@@ -2747,9 +2745,6 @@ impl Gen<'_> {
 					// written back through it once the call returns.
 					let lifted = self.lift(value, "unsafe { *this }", "false");
 					let stmt = match receiver {
-						Receiver::Mut if !function.future => format!(
-							"let mut a_self = ::std::mem::ManuallyDrop::new({lifted});\n\tlet a_self_at = &raw mut a_self;"
-						),
 						Receiver::Mut => format!("let mut a_self = {lifted};"),
 						_ => format!("let a_self = {lifted};"),
 					};
@@ -2955,8 +2950,17 @@ impl Gen<'_> {
 		}
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
 		// path, errors included, and in a value's `&mut self`, in place.
+		// Each value written back, taken from drop's reach only once every check passed, so a
+		// refused call drops it as any other argument.
+		let pin = |local: &str| {
+			format!(
+				"\n\tlet mut {local} = ::std::mem::ManuallyDrop::new({local});\n\tlet {local}_at = &raw mut {local};"
+			)
+		};
+		let mut pins = String::new();
 		let mut writes: String = match &receiver_ty {
 			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => {
+				pins += &pin("a_self");
 				format!(
 					"\n\tlet a_self = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a_self_at.read() }});\n\tunsafe {{ this.write({}) }};",
 					self.lower(value, "a_self")
@@ -2971,6 +2975,7 @@ impl Gen<'_> {
 					unreachable!("a written parameter is `&mut`")
 				};
 				let out = Abi::written(function, &crate::abi::escape(&param.name));
+				pins += &pin(&format!("a{n}"));
 				format!(
 					"\n\tlet a{n} = ::std::mem::ManuallyDrop::into_inner(unsafe {{ a{n}_at.read() }});\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
 					rs(&self.abi.ty(inner)),
@@ -3206,7 +3211,7 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 			params.join(", "),
 			away(&name, &params),
-			wrap(status, &ret, &format!("{body}\n\t{}{ended}{pending}{writes}\n\t{finish}", unwound(&call, &format!("{ended}{writes}"))))
+			wrap(status, &ret, &format!("{body}{pins}\n\t{}{ended}{pending}{writes}\n\t{finish}", unwound(&call, &format!("{ended}{writes}"))))
 		));
 		if export.homed {
 			self.export(homed(&name, &params, &ret, &unsent));
