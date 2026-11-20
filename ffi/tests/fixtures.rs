@@ -1485,7 +1485,10 @@ fn api_python_debug() {
 		.args(["-P", "-X", "dev", "-W", "error"])
 		.arg(manifest_dir().join("tests").join("api.py"))
 		.arg("leaks")
-		.env("PYTHONPATH", api().out.join("python")));
+		.env(
+			"PYTHONPATH",
+			std::env::join_paths([api().out.join("python"), python_transcript()]).unwrap(),
+		));
 	assert!(
 		output.stdout.is_empty(),
 		"leaks printed {}",
@@ -1493,10 +1496,16 @@ fn api_python_debug() {
 	);
 }
 
+/// The directory of the Python script generated from the transcript, which `tests/api.py`
+/// imports.
+fn python_transcript() -> PathBuf {
+	generated("python", "transcript.py", &transcript::python::emit(transcript()))
+}
+
 /// `api_python`'s checks, run by `interpreter`.
 fn python_checks(interpreter: &std::ffi::OsStr) {
 	let api = api();
-	let scripts = generated("python", "transcript.py", &transcript::python::emit(transcript()));
+	let scripts = python_transcript();
 	let python = |dir: &Path, args: &[&str]| {
 		let mut cmd = Command::new(interpreter);
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
@@ -1756,8 +1765,7 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
-	let script =
-		generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
+	let script = swift_transcript();
 	// The Clang module the test and the contract program import on Linux.
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
@@ -1915,6 +1923,7 @@ fn api_swift_tsan() {
 		.args(["-sanitize=thread", "-parse-as-library", "-I"])
 		.arg(&dir)
 		.arg(manifest_dir().join("tests").join("api.swift"))
+		.arg(swift_transcript())
 		.arg(&lib)
 		.args(&collections)
 		.arg(&glue)
@@ -1931,9 +1940,14 @@ fn api_swift_tsan() {
 		api.transcript,
 		"the Swift transcript under ThreadSanitizer differs from the native one"
 	);
-	for case in ["futures", "owned", "shared"] {
+	for case in ["checks", "futures", "owned", "shared"] {
 		run(Command::new(&exe).arg(case).envs(env));
 	}
+}
+
+/// The Swift script generated from the transcript, which `tests/api.swift` calls.
+fn swift_transcript() -> PathBuf {
+	generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift")
 }
 
 /// The api fixture's Swift, built as the module `Api` in Swift 6's language mode.
