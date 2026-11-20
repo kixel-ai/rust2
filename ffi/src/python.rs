@@ -198,6 +198,15 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		hasher.write(part.as_bytes());
 	}
 	let contract = Hasher::finish(&hasher);
+	// Every export, which pyright strict counts as used, so a stub of a Rust `pub fn _x` that
+	// only type checkers read passes, and which `from <prefix> import *` reaches, a name
+	// starting with `_` too. The runtime's public classes join them, as annotations name them.
+	let exports: BTreeSet<&str> = (g.names.keys())
+		.map(String::as_str)
+		.filter(|name| !TAKEN.contains(name))
+		.chain(["Duration", "ForeignReader", "Mut", "Waker"])
+		.collect();
+	let all: String = exports.iter().map(|name| format!("\t\"{name}\",\n")).collect();
 	let native = indent_by(NATIVE, 1);
 	let natives: String = g.natives.iter().map(|n| format!("\n{}", indent_by(n, 2))).collect();
 	let head = format!(
@@ -246,6 +255,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import tuple as _tuple\n\
 		from builtins import type as _type\n\
 		from builtins import zip as _zip\n\n\
+		__all__ = [\n{all}]\n\n\
 		if _typing.TYPE_CHECKING:\n\
 		\timport dataclasses as _dataclasses\n\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
@@ -817,6 +827,7 @@ impl<'a> Gen<'a> {
 		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			let bound = abi.rt("bound");
 			self.register(&bound, "Bound".to_string());
+			self.names.insert("Bound".to_string(), "the runtime's range bound".to_string());
 			self.py.push_str(
 				"class Bound(_enum.Enum):\n\t\"\"\"What a range's start or end bound does: nothing, include its value, or exclude it.\"\"\"\n\n\tUNBOUNDED = 0\n\tINCLUDED = 1\n\tEXCLUDED = 2\n\n\n",
 			);
@@ -827,6 +838,7 @@ impl<'a> Gen<'a> {
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
 			self.register(c, name.clone());
+			self.names.insert(name.clone(), format!("the class of `[u8; {n}]`"));
 			let _ = write!(
 				self.py,
 				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
@@ -1068,6 +1080,7 @@ impl<'a> Gen<'a> {
 			other => unreachable!("{other:?} is no range"),
 		};
 		self.register(c, name.clone());
+		self.names.insert(name.clone(), "a range's class".to_string());
 		let fields: Vec<Slot> = (fields.into_iter())
 			.map(|(name, ty)| Slot {
 				name: name.to_string(),

@@ -5375,6 +5375,12 @@ pub fn deprecated(note: u8) -> u8 {
 	note
 }
 
+/// One more than `note`, by a name starting with an underscore, which `pub` still exports,
+/// and which Python's module takes for its own deprecation decorator.
+pub fn _deprecated(note: u8) -> u8 {
+	note + 1
+}
+
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
 /// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
 /// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method
