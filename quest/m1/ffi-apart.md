@@ -26,6 +26,11 @@ Kotlin's `_` parameter. What remains, by generator:
 - C++: a name a system header defines as a macro, such as `WEXITSTATUS`,
   `PTHREAD_COND_INITIALIZER`, or `NULL`'s `__null` (libc, hermit-abi, wasm-bindgen).
 
+Since [no config](https://github.com/kixel-ai/rust2/pull/903), the corpus exports only a
+crate whose census refuses nothing, as a refusal fails the export, so a crate here that
+refuses an item no longer reaches its bindings: prove each fix on its reduction in the api
+fixture, and through the corpus only where the crate's census is clean.
+
 Recommended: give each generator the `taken` set C++'s `kept_apart` uses, holding every
 member the generator itself writes, so the rename happens where the name is made, and add
 each case to the api fixture's `clash` module. For macros, rename every name a C or C++

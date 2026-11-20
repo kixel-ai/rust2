@@ -46,7 +46,7 @@ bench *args:
     cargo run --locked --quiet -- --manifest-path fixtures/codec/Cargo.toml --out "$out/codec" \
         -- --config profile.dev.overflow-checks=false
     printf 'module codec\n\ngo 1.24\n' > "$out/codec/go.mod"
-    cargo run --locked --quiet --manifest-path ../ffi/Cargo.toml -- --config bench/ffi.toml --manifest-path fixtures/codec/Cargo.toml --out "$out/ffi"
+    cargo run --locked --quiet --manifest-path ../ffi/Cargo.toml -- --manifest-path fixtures/codec/Cargo.toml --out "$out/ffi"
     cargo build --quiet --release --manifest-path "$out/ffi/Cargo.toml" --target-dir "$out/ffi/target"
     cd bench
     CGO_CFLAGS="-I$out/ffi/include" CGO_LDFLAGS="$out/ffi/target/release/libcodec.a" go test -count=1 -run Agree -bench . -benchtime 1s {{ args }}

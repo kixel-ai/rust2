@@ -1053,7 +1053,7 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		let mut err = tcx.dcx().struct_span_err(
 			span,
 			format!(
-				"rust2-ffi: {what} {said}; leave it out of {}'s build with a `cfg`, or exclude its export in the config",
+				"rust2-ffi: {what} {said}; leave it out of {}'s build with a `cfg`",
 				host.target
 			),
 		);

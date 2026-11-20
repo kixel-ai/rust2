@@ -706,7 +706,7 @@ and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and th
 
 The web binding runs over its own export of the stand-in, `target/moq-ffi-web`: the same
 crates less moq-tokio, which pulls in rustls-native-certs, with no wasm32-wasip1 platform
-module, and so less the items that name it ([`moq/web.toml`](../../ffi/moq/web.toml)).
+module.
 Nothing builds for wasm32-unknown-unknown, where getrandom 0.4 has no backend without a
 config flag. `export.ts` imports the generated modules as a caller would, and disposes each
 handle and payload it gets. A browser gives no process CPU clock, so its columns are wall

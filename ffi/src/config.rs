@@ -1,39 +1,6 @@
-//! The `ffi.toml` that says what to leave out, and the facade package the CLI resolves.
+//! The facade package the CLI resolves, and the environment it hands the wrapper.
 
-use std::path::{Path, PathBuf};
-
-use serde::Deserialize;
-
-/// What the export leaves out of the facade's API.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-pub(crate) struct Config {
-	/// Paths from the facade's root left out of the export: a module, an item, or one
-	/// method or field (`track::Producer::poll_closed`). Each must name something
-	/// exported, or what a `cfg` leaves out of this build. As in rustdoc, a path a method or constant shares with a field names the method, and
-	/// `field@` before it names the field.
-	#[serde(default)]
-	pub(crate) exclude: Vec<String>,
-}
-
-/// The keys `exclude` names the item at `shown` by, its path with its instances'
-/// arguments, longest first: each prefix of it as is, then without the arguments, which
-/// names the generic item's every instance. Each comes with its length.
-pub(crate) fn keys(shown: &[String]) -> impl Iterator<Item = (usize, String)> + '_ {
-	(1..=shown.len()).rev().flat_map(move |len| {
-		let exact = shown[..len].join("::");
-		let generic: Vec<&str> = shown[..len].iter().map(|s| s.split('<').next().unwrap_or(s)).collect();
-		let generic = Some(generic.join("::")).filter(|generic| *generic != exact);
-		std::iter::once(exact).chain(generic).map(move |key| (len, key))
-	})
-}
-
-impl Config {
-	pub(crate) fn load(path: &Path) -> Result<Self, String> {
-		let text = std::fs::read_to_string(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
-		toml::from_str(&text).map_err(|err| format!("parsing {}: {err}", path.display()))
-	}
-}
+use std::path::PathBuf;
 
 /// The facade: the package whose library's `pub` API is exported, as the CLI resolves it
 /// for the wrapper.
@@ -77,8 +44,6 @@ impl Package {
 
 /// Environment variables the CLI hands the wrapper.
 pub(crate) mod env {
-	/// The `ffi.toml` path, absolute.
-	pub(crate) const CONFIG: &str = "RUST2_FFI_CONFIG";
 	/// The output directory, absolute.
 	pub(crate) const OUT: &str = "RUST2_FFI_OUT";
 	/// The directory to write the census into instead of exporting, absolute.
