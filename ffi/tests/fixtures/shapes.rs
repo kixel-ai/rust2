@@ -2119,13 +2119,13 @@ fn swift(calls: &[Call], source: &str) -> String {
 		let other = call.other();
 		let label = call.label();
 		let make = |seed: u64| format!("{}make{n}({seed})", tr(&[format!("make{n}")]));
-		// `digest_N` of `v`, lent as a span where it borrows a slice.
 		// Whether `function` borrows its last argument, a slice, as a span.
 		let spans = |function: &str| {
 			let at = source.find(&format!("public func {function}(")).unwrap();
 			source[at..].lines().next().unwrap().contains("borrowing Swift.Span<")
 		};
 		let lent = spans(&format!("digest{n}"));
+		// `digest_N` of `v`, lent as a span where it borrows a slice.
 		let digested = |v: &str| match lent {
 			true => format!("lend({v}) {{ {}digest{n}($0) }}", tr(&[format!("digest{n}")])),
 			false => format!("digest{n}({v})"),
