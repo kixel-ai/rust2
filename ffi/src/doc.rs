@@ -167,11 +167,13 @@ fn rewrite(docs: &str, mut link: impl FnMut(&Found<'_>) -> Option<String>) -> St
 				..
 			}) if !matches!(link_type, LinkType::Inline) => {
 				let alt = inner(&mut events, TagEnd::Image).map_or("", |r| &docs[r]);
+				// Escaped again, as the parser read them unescaped.
 				let title = match title.is_empty() {
 					true => String::new(),
-					false => format!(" \"{}\"", title.replace('"', "\\\"")),
+					false => format!(" \"{}\"", title.replace('\\', "\\\\").replace('"', "\\\"")),
 				};
-				edits.push((range, format!("![{alt}](<{dest_url}>{title})")));
+				let dest = dest_url.replace('\\', "\\\\").replace('<', "\\<").replace('>', "\\>");
+				edits.push((range, format!("![{alt}](<{dest}>{title})")));
 			}
 			Event::Start(Tag::Link {
 				link_type, dest_url, ..
@@ -530,6 +532,10 @@ mod tests {
 		assert_eq!(
 			canonical(docs, resolve),
 			"See ![the flow](<https://example.com/flow.png> \"Flow\") and ![`Track`](rust2-not-a-link.png)."
+		);
+		assert_eq!(
+			canonical("![x][x]\n\n[x]: <a\\>b.png> \"a \\\"quote\\\" and a \\\\\"", resolve),
+			"![x](<a\\>b.png> \"a \\\"quote\\\" and a \\\\\")"
 		);
 	}
 
