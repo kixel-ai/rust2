@@ -1324,7 +1324,7 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) if abi.api.enums[*i].plain() => {
 				let e = &abi.api.enums[*i];
 				let cases: Vec<String> = (e.variants.iter())
-					.map(|v| format!("\t\t{} => {dt}.{},", v.discriminant, enum_value(&v.name)))
+					.map(|v| format!("\t\t{} => {dt}.{},", v.discriminant, enum_value(e.traits, &v.name)))
 					.collect();
 				(
 					"int".to_string(),
@@ -1983,7 +1983,7 @@ impl<'a> Gen<'a> {
 			let limited = e.variants.iter().any(|v| !abi.api.everywhere(v.on));
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
-					let value = enum_value(&v.name);
+					let value = enum_value(e.traits, &v.name);
 					members.push(format!("static {value}"));
 					match limited {
 						true => format!(
@@ -2007,6 +2007,8 @@ impl<'a> Gen<'a> {
 				),
 			});
 			self.traits(&ty, &c, e.traits, &mut body, &mut members);
+			// What every Dart enum has, which a method takes a trailing `_` beside.
+			members.extend(["index".to_string(), "static values".to_string()]);
 			let owner = abi.ty(&ty);
 			self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
 			self.distinct(&rust, &members);
@@ -2020,6 +2022,12 @@ impl<'a> Gen<'a> {
 		}
 		body.push(format!("\tconst {name}();\n"));
 		self.traits(&ty, &c, e.traits, &mut body, &mut members);
+		// Each variant's fields, which its class declares beside the methods it inherits, so a
+		// method takes a trailing `_` beside one, as a record's does beside its own.
+		let fields: BTreeSet<String> = (e.variants.iter().flat_map(|v| &v.fields))
+			.map(|f| field_name(&f.name))
+			.collect();
+		members.extend(fields);
 		let owner = abi.ty(&ty);
 		self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -2993,7 +3001,7 @@ impl<'a> Gen<'a> {
 				let e = &abi.api.enums[i];
 				let name = owner(doc::Owner::Enum(i));
 				match e.plain() {
-					true => format!("{name}.{}", enum_value(&e.variants[v].name)),
+					true => format!("{name}.{}", enum_value(e.traits, &e.variants[v].name)),
 					false => self.variant_class(&name, &e.variants[v].name),
 				}
 			}
@@ -3272,8 +3280,8 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	}
 }
 
-/// A field's Dart name, clear of the members every object has and of the comparison methods
-/// any type may gain, so a type that gains `PartialOrd` or `Ord` renames no field.
+/// A field's Dart name, clear of the members every object has and of the methods any trait
+/// may give a type, so a type that gains `Debug`, `PartialOrd`, or `Ord` renames no field.
 fn field_name(name: &str) -> String {
 	member(
 		name,
@@ -3282,6 +3290,7 @@ fn field_name(name: &str) -> String {
 			"noSuchMethod",
 			"runtimeType",
 			"toString",
+			"debug",
 			"compareTo",
 			"partialCompareTo",
 		],
@@ -3293,12 +3302,28 @@ fn param_name(name: &str) -> String {
 	member(name, &[])
 }
 
-/// A plain enum's value: its variant in camel case.
-fn enum_value(variant: &str) -> String {
-	member(
-		&abi::snake(variant),
-		&["values", "index", "name", "compareTo", "partialCompareTo"],
-	)
+/// A plain enum's value: its variant in camel case, with `_` appended while a member every
+/// Dart enum has, or one its traits `t` give it, takes it, since a static member clashes
+/// with either kind.
+fn enum_value(t: crate::ir::Traits, variant: &str) -> String {
+	const ENUM: &[&str] = &[
+		"values",
+		"index",
+		"name",
+		"hashCode",
+		"noSuchMethod",
+		"runtimeType",
+		"toString",
+		"compareTo",
+		"partialCompareTo",
+	];
+	let made = [(t.debug, "debug"), (t.default, "default_")];
+	let taken = |name: &str| ENUM.contains(&name) || made.iter().any(|(has, made)| *has && *made == name);
+	let mut name = member(&abi::snake(variant), &[]);
+	while taken(&name) {
+		name.push('_');
+	}
+	name
 }
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a

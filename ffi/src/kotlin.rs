@@ -2196,7 +2196,16 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		let mut members = Vec::new();
 		for (n, method) in callback.methods.iter().enumerate() {
-			let member = member(&abi::snake(method.name()), &[]);
+			// Apart from what `Any` or `java.lang.Object` declares of its signature, since no
+			// `@JvmName` renames an interface's method, which is open.
+			let types: Vec<String> = method.params.iter().map(|p| self.kt_param(&p.ty)).collect();
+			let types: Vec<&str> = types.iter().map(String::as_str).collect();
+			let mut member = member(&abi::snake(method.name()), &[]);
+			while object_method(&member, &types)
+				|| (types.is_empty() && ["toString", "hashCode"].contains(&member.as_str()))
+			{
+				member.push('_');
+			}
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(format!("fun {member}"));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
@@ -3357,7 +3366,12 @@ impl<'a> Gen<'a> {
 		let target = if getter { "get:" } else { "" };
 		let declared = jvm_name(&format!("{kind} {member}"));
 		let mut jvm = declared.clone();
-		while taken.contains(&format!("jvm {jvm}")) {
+		// A suspending function takes its continuation too, so clashes with none of `Object`'s.
+		let types: Vec<&str> = match export.future {
+			Some(_) => vec!["kotlin.coroutines.Continuation"],
+			None => (kt_params.iter()).filter_map(|p| Some(p.split_once(": ")?.1)).collect(),
+		};
+		while taken.contains(&format!("jvm {jvm}")) || (!getter && object_method(&jvm, &types)) {
 			jvm.push('_');
 		}
 		if jvm != declared {
@@ -4236,6 +4250,17 @@ fn jvm_name(declared: &str) -> String {
 	let mut chars = name.chars();
 	let first: String = chars.next().map(|c| c.to_ascii_uppercase()).into_iter().collect();
 	format!("get{first}{}", chars.as_str())
+}
+
+/// Whether a JVM method `name` of the Kotlin parameter types `params` is one of
+/// `java.lang.Object`'s that Kotlin's `Any` hides: a final one, which no class may declare,
+/// or `finalize`, which one declared becomes the class's finalizer.
+fn object_method(name: &str, params: &[&str]) -> bool {
+	match name {
+		"getClass" | "notify" | "notifyAll" | "finalize" => params.is_empty(),
+		"wait" => matches!(params, [] | ["kotlin.Long"] | ["kotlin.Long", "kotlin.Int"]),
+		_ => false,
+	}
 }
 
 /// What a member keeps apart from: the Kotlin declarations of its own place, as

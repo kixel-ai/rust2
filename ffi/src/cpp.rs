@@ -2357,8 +2357,8 @@ fn cpp_int(int: Int) -> &'static str {
 	}
 }
 
-/// A name C++ would read as a keyword with `_` appended, and one starting with a digit
-/// with `_` prepended, as C's are.
+/// A name C++ would read as a keyword or a header's macro with `_` appended, and one
+/// starting with a digit with `_` prepended, as C's are.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -2458,12 +2458,14 @@ pub(crate) fn escape(name: &str) -> String {
 		"std",
 		"self",
 	];
-	// Macros GNU dialects predefine, as CMake's default `-std=gnu++17` does. Each name of
-	// one and trailing `_`s takes another, so `unix` and `unix_` stay apart.
-	const MACROS: &[&str] = &["i386", "linux", "unix"];
+	// A macro is kept apart from its name with trailing `_`s too, so `unix` and `unix_` stay
+	// apart, unless it ends in `_` itself, as glibc's `__attribute_pure__` does; 32-bit x86's
+	// GNU dialects predefine `i386`, which `macros.txt` lacks.
+	let bare = name.trim_end_matches('_');
+	let defined = abi::defined(name) || abi::defined(bare) || bare == "i386";
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if KEYWORDS.contains(&name) || MACROS.contains(&name.trim_end_matches('_')) => format!("{name}_"),
+		_ if KEYWORDS.contains(&name) || defined => format!("{name}_"),
 		_ => name.to_string(),
 	}
 }
@@ -2494,7 +2496,20 @@ mod tests {
 	}
 
 	#[test]
-	fn predefined_macros_escape_apart() {
+	fn macros_escape_apart() {
+		// What a system header defines, whether a constant, a function, or a field.
+		assert_eq!(escape("WEXITSTATUS"), "WEXITSTATUS_");
+		assert_eq!(escape("NULL"), "NULL_");
+		assert_eq!(escape("EOF__"), "EOF___");
+		assert_eq!(escape("errno"), "errno_");
+		assert_eq!(escape("h_addr"), "h_addr_");
+		// Reserved, but defined by glibc and exported by libc.
+		assert_eq!(escape("__WALL"), "__WALL_");
+		assert_eq!(escape("__attribute_pure__"), "__attribute_pure___");
+		// Only C's `tgmath.h` defines `sin`, and only as a function-like macro.
+		assert_eq!(escape("sin"), "sin");
+		// Predefined by GNU dialects.
+		assert_eq!(escape("i386"), "i386_");
 		assert_eq!(escape("unix"), "unix_");
 		assert_eq!(escape("unix_"), "unix__");
 		assert_eq!(escape("linux__"), "linux___");

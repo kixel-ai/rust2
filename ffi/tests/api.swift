@@ -436,6 +436,7 @@ func checks() {
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
+	check(ClashLevel.default() == .default_ && ClashLevel.debug.index() == 2, "a variant named as Default's member crosses")
 	// Rust's seconds are a u64, past Int64's.
 	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
 	let past = RustDuration.seconds(UInt64(Int64.max) + 1)

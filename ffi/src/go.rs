@@ -503,6 +503,13 @@ impl Method {
 		format!("{}({}){results}", self.name, params.join(", "))
 	}
 
+	/// Whether go vet reports it, as [`vetted`] says, on a type that is an `error` or not.
+	fn vetted(&self, error: bool) -> bool {
+		let params: Vec<&str> = self.params.iter().map(|(_, ty)| ty.as_str()).collect();
+		let results: Vec<&str> = self.results.iter().map(String::as_str).collect();
+		vetted(&self.name, &params, &results, error)
+	}
+
 	fn write(&self) -> String {
 		let receiver = match &self.receiver {
 			Some(r) => format!("({r}) "),
@@ -2204,8 +2211,9 @@ impl<'a> Gen<'a> {
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
 		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
 		let mut named = BTreeMap::new();
+		let error = self.errored(ty);
 		for mut method in methods {
-			while !taken.insert(method.name.clone()) {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
 			if let Some(key) = &method.key {
@@ -2335,7 +2343,22 @@ impl<'a> Gen<'a> {
 		// An interface each variant's struct implements, sealed by a method of its own. Each
 		// method is a function of the interface, which each variant's forwards to.
 		let seal = format!("is_{c}");
-		let (methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		let (mut methods, statics) = self.members(&ty, &c, &rust, e.traits, &e.methods, &Ty::Struct(c.clone()));
+		// Each variant's struct declares its fields beside the methods it forwards, so a method
+		// takes a trailing `_` beside one, as a record's does beside its own.
+		let mut taken: BTreeSet<String> = (e.variants.iter())
+			.flat_map(|variant| self.variant_fields(i, variant))
+			.collect();
+		taken.insert(seal.clone());
+		let error = self.errored(&ty);
+		for method in &mut methods {
+			while method.vetted(error) || !taken.insert(method.name.clone()) {
+				method.name.push('_');
+			}
+			if let Some(key) = &method.key {
+				self.locked.insert(key.clone(), method.name.clone());
+			}
+		}
 		let mut interface = format!("\t{seal}()\n");
 		let mut shared = String::new();
 		for method in &methods {
@@ -2551,16 +2574,29 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
 		for method in &callback.methods {
-			let member = pascal(method.name());
+			let types: Vec<String> = method.params.iter().map(|p| self.go_param(&p.ty)).collect();
+			let ret = match method.ok {
+				Type::Unit => None,
+				_ => Some(self.go(&method.ok)),
+			};
+			// An interface's method is vetted too, though never as an `error`'s.
+			let (ps, rs): (Vec<&str>, Vec<&str>) = (
+				types.iter().map(String::as_str).collect(),
+				ret.iter().map(String::as_str).collect(),
+			);
+			let mut member = pascal(method.name());
+			while vetted(&member, &ps, &rs, false) {
+				member.push('_');
+			}
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
-			let params: Vec<String> = (method.params.iter().zip(&names))
-				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
+			let params: Vec<String> = (names.iter().zip(&types))
+				.map(|(name, ty)| format!("{name} {ty}"))
 				.collect();
-			let ret = match method.ok {
-				Type::Unit => String::new(),
-				_ => format!(" {}", self.go(&method.ok)),
+			let ret = match &ret {
+				None => String::new(),
+				Some(ret) => format!(" {ret}"),
 			};
 			body.push(format!(
 				"{}\t{member}({}){ret}",
@@ -3591,6 +3627,45 @@ fn c_int(int: Int) -> &'static str {
 
 /// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
 /// `name`, with `_` appended until it is clear of `taken`, which then holds it.
+/// Whether go vet's `stdmethods` reports a method `name` of the Go types `params` and
+/// `results`: one named as a standard interface's but of another signature, as its
+/// `canonicalMethods` lists them. `Is`, `As`, and `Unwrap` are checked only on an `error`.
+fn vetted(name: &str, params: &[&str], results: &[&str], error: bool) -> bool {
+	// Each method's parameters and results; a `=` type must match for vet to check the rest.
+	let (want, got): (&[&str], &[&str]) = match name {
+		"As" if error => (&["any"], &["bool"]),
+		"Is" if error => (&["error"], &["bool"]),
+		"Unwrap" if error => {
+			return !(params.is_empty() && matches!(results, ["error"] | ["[]error"]));
+		}
+		"Format" => (&["=fmt.State", "rune"], &[]),
+		"GobDecode" => (&["[]byte"], &["error"]),
+		"GobEncode" => (&[], &["[]byte", "error"]),
+		"MarshalJSON" => (&[], &["[]byte", "error"]),
+		"MarshalXML" => (&["*xml.Encoder", "xml.StartElement"], &["error"]),
+		"ReadByte" => (&[], &["byte", "error"]),
+		"ReadFrom" => (&["=io.Reader"], &["int64", "error"]),
+		"ReadRune" => (&[], &["rune", "int", "error"]),
+		"Scan" => (&["=fmt.ScanState", "rune"], &["error"]),
+		"Seek" => (&["=int64", "int"], &["int64", "error"]),
+		"UnmarshalJSON" => (&["[]byte"], &["error"]),
+		"UnmarshalXML" => (&["*xml.Decoder", "xml.StartElement"], &["error"]),
+		"UnreadByte" | "UnreadRune" => (&[], &["error"]),
+		"WriteByte" => (&["byte"], &["error"]),
+		"WriteTo" if params.len() <= 1 => (&["=io.Writer"], &["int64", "error"]),
+		_ => return false,
+	};
+	let alike = |want: &[&str], have: &[&str], exact: bool| {
+		(want.iter().enumerate())
+			.filter(|(_, w)| !exact || w.starts_with('='))
+			.all(|(k, w)| have.get(k).is_some_and(|h| *h == w.trim_start_matches('=')))
+			&& (exact || have.len() <= want.len())
+	};
+	alike(want, params, true)
+		&& alike(got, results, true)
+		&& !(alike(want, params, false) && alike(got, results, false))
+}
+
 fn unique(taken: &mut BTreeSet<String>, mut name: String) -> String {
 	while !taken.insert(name.clone()) {
 		name.push('_');
@@ -3862,4 +3937,26 @@ fn links_each_target_go_builds_for() {
 			.unwrap_err()
 			.contains("aarch64-apple-darwin")
 	);
+}
+
+#[test]
+fn vet_reads_standard_methods_as_its_check_does() {
+	// untrusted's `Reader::read_byte`: Go's `byte` is spelled `uint8` here, which vet tells apart.
+	assert!(vetted("ReadByte", &[], &["uint8", "error"], false));
+	assert!(!vetted("ReadByte", &[], &["byte", "error"], false));
+	assert!(!vetted("UnreadByte", &[], &["error"], false));
+	// anyhow's `Error::is`, checked only on an `error`.
+	assert!(vetted("Is", &[], &["bool", "error"], true));
+	assert!(!vetted("Is", &[], &["bool", "error"], false));
+	assert!(!vetted("Is", &["error"], &["bool"], true));
+	assert!(vetted("Unwrap", &[], &["uint8"], true));
+	assert!(!vetted("Unwrap", &[], &["[]error"], true));
+	// A `=` type that differs leaves the rest unchecked.
+	assert!(!vetted("Seek", &["uint64"], &[], false));
+	assert!(vetted("Seek", &["int64"], &[], false));
+	assert!(!vetted("Format", &[], &[], false));
+	// `WriteTo` of more than one argument implements nothing.
+	assert!(!vetted("WriteTo", &["uint8", "uint8"], &[], false));
+	assert!(vetted("GobEncode", &["uint8"], &["[]byte", "error"], false));
+	assert!(!vetted("Read", &[], &[], false));
 }

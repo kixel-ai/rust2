@@ -675,6 +675,21 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
 }
+public struct ClashMalformed: Sendable, CustomStringConvertible, CustomDebugStringConvertible, Equatable {
+	public var at: Swift.UInt8
+	@inlinable public init(at: Swift.UInt8)
+	@inlinable public var description: Swift.String { get }
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashMalformed, b: ClashMalformed) -> Swift.Bool
+	@inlinable public func `is`(_ at: Swift.UInt8) -> Swift.Bool
+}
+public struct ClashErrno: Sendable, CustomDebugStringConvertible, Equatable {
+	public var errno: Swift.Int32
+	@inlinable public init(errno: Swift.Int32)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashErrno, b: ClashErrno) -> Swift.Bool
+	@inlinable public static var NULL: ClashErrno { get }
+}
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
 	@inlinable public init(seconds: Swift.UInt32)
@@ -825,6 +840,21 @@ public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
 	case match(Swift.UInt8)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
+}
+public enum ClashLevel: Sendable, CustomDebugStringConvertible, Equatable {
+	case default_
+	case debug
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashLevel, b: ClashLevel) -> Swift.Bool
+	@inlinable public static func `default`() -> ClashLevel
+	@inlinable public func index() -> Swift.UInt8
+}
+public enum ClashTag: Sendable, CustomDebugStringConvertible, Equatable {
+	case application(number: Swift.UInt32)
+	case `private`(number: Swift.UInt32)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashTag, b: ClashTag) -> Swift.Bool
+	@inlinable public func number() -> Swift.UInt32
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable, Comparable {
 	case error
@@ -1366,6 +1396,13 @@ public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ count: Swift.UInt32) -> ClashStore
 	@inlinable public func free() -> Swift.UInt32
 	@inlinable public func close() -> Swift.UInt32
+	@inlinable public func wait()
+	@inlinable public func finalize()
+}
+public struct ClashReader: ~Copyable, @unchecked Sendable {
+	@inlinable public static func new(_ bytes: Bytes) -> ClashReader
+	@inlinable public mutating func readByte() throws -> Swift.UInt8
+	@inlinable public mutating func unreadByte() throws
 }
 public struct TlsSession: ~Copyable, @unchecked Sendable {
 	@inlinable public func alpn() -> Swift.String
@@ -1454,6 +1491,10 @@ public protocol Turner: Sendable {
 	func by() -> Swift.UInt64
 	func once() -> Swift.UInt64
 }
+public protocol ClashSource: Sendable {
+	func wait()
+	func readByte() -> Swift.UInt8
+}
 public struct BoundsU64Error: Swift.Error, CustomStringConvertible {
 	public let error: BoundsU64
 	@inlinable public init(error: BoundsU64)
@@ -1469,11 +1510,13 @@ public struct VecClashToneError: Swift.Error, CustomStringConvertible {
 	@inlinable public init(error: [ClashTone])
 	@inlinable public var description: Swift.String { get }
 }
+extension ClashMalformed: Swift.Error {}
 extension Error: Swift.Error {}
 extension Fault: Swift.Error {}
 extension Refusal: Swift.Error {}
 public let LIMIT: Swift.UInt64
 public let FAR: Swift.Int64
+public let EOF: Swift.Int32
 public let URL: Swift.UInt64
 @available(*, deprecated, message: "pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") public let STEP: Swift.UInt64
 @inlinable public func hasText(_ note: Note) -> Swift.Bool
@@ -1723,6 +1766,7 @@ public let URL: Swift.UInt64
 @inlinable public func describeNonZeros(_ nonZeros: NonZeros) -> Swift.String
 @inlinable public func nextHop(_ hop: NonZero<Swift.UInt64>?) -> NonZero<Swift.UInt64>?
 @inlinable public func fartherHop(_ hops: PairNonZeroU16) -> NonZero<Swift.UInt16>
+@inlinable public func wexitstatus(_ status: Swift.Int32) -> Swift.Int32
 @inlinable public func sameDuration(_ v: RustDuration) -> RustDuration
 @inlinable public func sameU64(_ v: Swift.UInt64) -> Swift.UInt64
 @inlinable public func sameUsize(_ v: Swift.UInt) -> Swift.UInt
@@ -1751,6 +1795,7 @@ public let URL: Swift.UInt64
 @inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
 @inlinable public func clashEmpty() -> ClashEmptyString
+@inlinable public func clashWaited(_ source: any ClashSource) -> Swift.UInt8
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8

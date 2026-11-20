@@ -2044,8 +2044,8 @@ pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 		.collect()
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword with `_`
-/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
+/// A name that C or C++, which includes the header, would read as a keyword or a macro with
+/// `_` appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
 /// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
 /// another, so no two names escape to one.
 pub(crate) fn escape(name: &str) -> String {
@@ -2148,10 +2148,9 @@ pub(crate) fn escape(name: &str) -> String {
 		"wchar_t",
 		"xor",
 		"xor_eq",
-		// Macros GNU dialects predefine, as CMake's default `-std=gnu11` and `-std=gnu++17` do.
+		// A macro 32-bit x86's GNU dialects predefine, which `macros.txt`, of 64-bit hosts,
+		// lacks.
 		"i386",
-		"linux",
-		"unix",
 	];
 	// `out0`, `out1`, ... are a returned tuple's.
 	let out = name
@@ -2159,9 +2158,20 @@ pub(crate) fn escape(name: &str) -> String {
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) => format!("{name}_"),
+		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) || defined(name) => format!("{name}_"),
 		_ => name.to_string(),
 	}
+}
+
+/// Whether a C or C++ header may define `name` as a macro, one `macros.sh` found, which would
+/// expand where the header names it.
+pub(crate) fn defined(name: &str) -> bool {
+	static MACROS: std::sync::LazyLock<Vec<&str>> = std::sync::LazyLock::new(|| {
+		(include_str!("macros.txt").lines())
+			.filter(|line| !line.starts_with('#'))
+			.collect()
+	});
+	MACROS.binary_search(&name).is_ok()
 }
 
 /// What a callback parameter needs, by the form it takes.

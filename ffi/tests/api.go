@@ -420,6 +420,23 @@ func checks() {
 	}
 	// A function named as a type of its package, which `area` names in another's.
 	check(api.Span_(1, 4) == 3, "a function named as a type of its package")
+	// Methods apart from their variants' fields and from what go vet reads as standard,
+	// unless of the standard's signature, each reaching its own Rust.
+	{
+		tag := api.ClashTagPrivate{Number: 3}
+		check(tag.Number == 3 && tag.Number_() == 13, "a method named as its variants' field")
+		check(api.ClashMalformed{At: 2}.Is_(2), "an error's method named as errors.Is")
+		reader := api.NewClashReader(rt.NewBytes([]byte{7}))
+		check(must(reader.ReadByte_()) == 7, "a method named as io.ByteReader's")
+		_, err := reader.ReadByte_()
+		var malformed api.ClashMalformed
+		check(errors.As(err, &malformed) && malformed.At == 1, "a method named as io.ByteReader's fails as Rust's")
+		ok(reader.UnreadByte())
+		var _ interface{ UnreadByte() error } = reader
+		check(must(reader.ReadByte_()) == 7, "a method of io.ByteScanner's signature keeps its name")
+		ok(reader.Close())
+		check(api.ClashWaited(source{}) == 4, "an interface's method named as io.ByteReader's")
+	}
 	// A path that is no UTF-8 is a Go string all the same.
 	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
@@ -1465,6 +1482,15 @@ func broken(which string) {
 }
 
 // cancelLog cancels its context at each line, and counts them.
+// source is a clash.Source, reading 4 at once.
+type source struct{}
+
+func (source) Wait() {}
+
+func (source) ReadByte_() uint8 {
+	return 4
+}
+
 type cancelLog struct {
 	cancel context.CancelFunc
 	lines  atomic.Int32
