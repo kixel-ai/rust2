@@ -1676,6 +1676,57 @@ impl Channel {
 			payload => Ok(payload),
 		}
 	}
+
+	/// What this channel receives from now on, as a stream.
+	pub fn feed(&self) -> Feed {
+		Feed(self.clone())
+	}
+}
+
+/// What a channel receives, as a stream each binding iterates in its language's own
+/// protocol: each payload, ending at an empty one and failing at `!`.
+pub struct Feed(Channel);
+
+impl Feed {
+	/// The next payload, waiting for it: `None` at an empty one, and an error at `!`.
+	/// Dropped while it waits, it loses nothing, since only the poll returning a payload
+	/// takes it.
+	pub async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+		match self.0.recv().await {
+			payload if payload.is_empty() => Ok(None),
+			payload if payload == "!" => Err(Error::Overflow),
+			payload => Ok(Some(payload)),
+		}
+	}
+}
+
+/// Counts down to 1, then ends: a stream each binding iterates in its language's own
+/// protocol, whose every count pends once first.
+pub struct Countdown {
+	left: u32,
+}
+
+impl Countdown {
+	pub fn new(from: u32) -> Self {
+		Self { left: from }
+	}
+
+	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
+	/// adapter waits on a wake between items.
+	pub async fn next(&mut self) -> Option<u32> {
+		let mut pended = false;
+		std::future::poll_fn(|cx| {
+			if !std::mem::replace(&mut pended, true) {
+				cx.waker().wake_by_ref();
+				return Poll::Pending;
+			}
+			Poll::Ready(())
+		})
+		.await;
+		let count = self.left;
+		self.left = count.saturating_sub(1);
+		(count > 0).then_some(count)
+	}
 }
 
 /// `n` halved if even, at once: a future whose output may be `None`.

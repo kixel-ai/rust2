@@ -192,6 +192,17 @@ instantiates, a type parameter bounded by another crate's trait no type C holds 
 and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
 
+An object's method `next` of `&self` or `&mut self`, taking nothing else, whose future
+outputs `Option<T>` or `Result<Option<T>, E>`, such as moq's `announce::Consumer::next`, is
+a stream: beside the method, each binding but C and C++ iterates it in its language's own
+protocol, calling `next` once per item until it yields `None` or an error, which ends the
+iteration with that error. The adapter reads no item ahead, so a loop left early leaves the
+next item to the next call, and cancelling the iteration drops the pending `next`'s
+future, as dropping it in Rust would: it loses an item only where that future does when
+dropped, as one that is not cancel-safe does. C++ keeps the method alone, since it has no
+asynchronous iteration of its own: `std::generator` is synchronous, so a loop
+`co_await`s each `next`.
+
 ## Targets
 
 One binding serves every target its package ships to, such as one Kotlin file for each
