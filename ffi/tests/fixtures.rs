@@ -771,18 +771,33 @@ int main() {}
 	);
 }
 
-/// Clang's ownership checks: the whole script builds clean under them, and each case of
-/// `tests/api_strict.cpp` fails with its diagnostic.
+/// Clang's ownership and must-use checks: the whole script builds clean under them, and
+/// each case of `tests/api_strict.cpp` fails with its diagnostic. The dev shell's Clang 23,
+/// `RUST2_CLANG`, adds `-Wlifetime-safety`; Linux, where the merge gate runs, requires it,
+/// and elsewhere without it, as on the nightly's Apple Clang leg, the platform's `clang++`
+/// runs every check but that one.
 fn cpp_strict(link: &Link) {
 	let include = &link.include;
 	let generated = link
 		.generated
 		.as_deref()
 		.expect("tests/api.cpp includes its transcript");
+	let clang23 = std::env::var_os("RUST2_CLANG");
+	assert!(
+		clang23.is_some() || !cfg!(target_os = "linux"),
+		"RUST2_CLANG names Clang 23's clang++: run this in the dev shell"
+	);
+	let lifetimes = clang23.is_some();
+	let compiler = clang23.unwrap_or_else(|| "clang++".into());
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
-		let mut cmd = Command::new("clang++");
-		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
+		let mut cmd = Command::new(&compiler);
+		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror"]);
+		if lifetimes {
+			cmd.arg("-Wlifetime-safety");
+		}
+		cmd.arg("-c")
+			.arg("-I")
 			.arg(include)
 			.arg("-I")
 			.arg(generated)
@@ -834,7 +849,16 @@ fn cpp_strict(link: &Link) {
 			9,
 			"no viable conversion from 'std::vector<std::tuple<api::buf, api::Counter>>'",
 		),
+		(
+			10,
+			"ignoring return value of type 'task' declared with 'nodiscard' attribute",
+		),
+		(11, "ignoring return value of type 'result<"),
+		(12, "local variable 'bytes' does not live long enough"),
 	] {
+		if case == 12 && !lifetimes {
+			continue;
+		}
 		let output = clang(&tests.join("api_strict.cpp"), case);
 		assert!(!output.status.success(), "case {case} built");
 		let stderr = String::from_utf8_lossy(&output.stderr);
