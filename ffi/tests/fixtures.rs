@@ -14,6 +14,8 @@ mod protocol;
 mod shapes;
 #[path = "fixtures/step.rs"]
 mod step;
+#[path = "fixtures/transcript/mod.rs"]
+mod transcript;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
@@ -160,6 +162,33 @@ impl Api {
 	}
 }
 
+/// The fixture's script as data, typed against the export's API, which each language's
+/// test generates its own differential script from.
+fn transcript() -> &'static transcript::Transcript {
+	static TRANSCRIPT: OnceLock<transcript::Transcript> = OnceLock::new();
+	TRANSCRIPT.get_or_init(|| {
+		transcript::Transcript::load(
+			&api().out.join("api.json"),
+			&manifest_dir().join("fixtures/api/examples/transcript.rs"),
+		)
+	})
+}
+
+/// `contents` written as `file` in a scratch directory of `language`'s, which the
+/// language's test puts on its path.
+fn generated(language: &str, file: &str, contents: &str) -> PathBuf {
+	let dir = scratch().join("api").join(format!("{language}-transcript"));
+	// Written only when it changes, so what builds from it stays fresh.
+	step::write(&dir.join(file), contents);
+	dir
+}
+
+/// The directory of `transcript.hpp`, which `tests/api.cpp` includes: the transcript as
+/// C++.
+fn cpp_transcript() -> PathBuf {
+	generated("cpp", "transcript.hpp", &transcript::cpp::emit(transcript()))
+}
+
 fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
 	API.get_or_init(|| {
@@ -232,6 +261,13 @@ fn api() -> &'static Api {
 /// exclusively.
 const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
 
+/// The directory of the C script generated from the transcript, which `tests/api.c`
+/// includes.
+fn c_transcript() -> PathBuf {
+	let header = std::fs::read_to_string(api().out.join("include").join("api.h")).unwrap();
+	generated("c", "transcript.c", &transcript::c::emit(transcript(), &header))
+}
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -239,15 +275,18 @@ fn api_c() {
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
 	let src = manifest_dir().join("tests").join("api.c");
 	let include = api.out.join("include");
+	let script = c_transcript();
 	Step {
 		stamp: &step::stamp(&exe),
-		reads: &[&src, &include, &api.staticlib()],
+		reads: &[&src, &include, &script, &api.staticlib()],
 		writes: &[&exe],
 	}
 	.run(
 		Command::new(cc)
 			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
 			.arg(&include)
+			.arg("-I")
+			.arg(&script)
 			.arg(&src)
 			.arg(api.staticlib())
 			.args(&api.native)
@@ -417,6 +456,8 @@ fn api_go_race() {
 		&module,
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
+	// The transcript's script, generated beside it in its package.
+	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
 	run(go(&module, &["build", "-race", "-o"]).arg(&exe));
 	// Every report fails the run.
@@ -427,7 +468,7 @@ fn api_go_race() {
 		api.transcript,
 		"the Go transcript under the race detector differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "closures"] {
+	for case in ["futures", "owned", "closed", "bytes", "closures", "checks"] {
 		run(Command::new(&exe).arg(case).envs(env));
 	}
 }
@@ -463,14 +504,26 @@ fn sanitized(sanitizer: &str) {
 		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
 		("TSAN_OPTIONS", "halt_on_error=1"),
 	];
+	// Each language's generated script, which its test includes.
+	let scripts = [c_transcript(), cpp_transcript()];
 	for (compiler, std, src, args) in [
 		("clang", "-std=c11", "api.c", &["threads"][..]),
-		("clang++", "-std=c++17", "api.cpp", &["futures", "lifetimes"][..]),
+		(
+			"clang++",
+			"-std=c++17",
+			"api.cpp",
+			&["futures", "lifetimes", "checks"][..],
+		),
 	] {
 		let exe = dir.join(src.replace('.', "-"));
 		run(Command::new(compiler)
 			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
 			.arg(api.out.join("include"))
+			.args(
+				scripts
+					.iter()
+					.flat_map(|dir| [std::ffi::OsStr::new("-I"), dir.as_os_str()]),
+			)
 			.arg(tests.join(src))
 			.arg(&lib)
 			.args(&native)
@@ -539,10 +592,14 @@ fn api_miri() {
 #[test]
 fn api_cpp() {
 	let api = api();
+	let link = Link {
+		generated: Some(cpp_transcript()),
+		..api.link()
+	};
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		cxx(
-			&api.link(),
+			&link,
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -556,6 +613,7 @@ fn api_cpp() {
 		);
 		run(Command::new(&exe).arg("futures"));
 		run(Command::new(&exe).arg("lifetimes"));
+		run(Command::new(&exe).arg("checks"));
 		let rehomed = run(Command::new(&exe).arg("rehomed"));
 		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
 		for (case, message) in [
@@ -590,7 +648,7 @@ fn api_cpp() {
 	}
 
 	if !cfg!(target_env = "msvc") {
-		cpp_strict(api);
+		cpp_strict(&link);
 	}
 
 	// Each crate's header builds alone, needing only the headers it includes.
@@ -643,13 +701,19 @@ int main() {}
 
 /// Clang's ownership checks: the whole script builds clean under them, and each case of
 /// `tests/api_strict.cpp` fails with its diagnostic.
-fn cpp_strict(api: &Api) {
-	let include = api.out.join("include");
+fn cpp_strict(link: &Link) {
+	let include = &link.include;
+	let generated = link
+		.generated
+		.as_deref()
+		.expect("tests/api.cpp includes its transcript");
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new("clang++");
 		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
-			.arg(&include)
+			.arg(include)
+			.arg("-I")
+			.arg(generated)
 			.arg(format!("-DCASE={case}"))
 			.arg(src)
 			.arg("-o")
@@ -660,7 +724,7 @@ fn cpp_strict(api: &Api) {
 			.join(format!("{}-{case}.stamp", src.file_stem().unwrap().to_string_lossy()));
 		let step = Step {
 			stamp: &stamp,
-			reads: &[src, &include],
+			reads: &[src, include, generated],
 			writes: &[],
 		};
 		// Case 0 must build, so only the failing cases keep a failure.
@@ -712,6 +776,8 @@ struct Link<'a> {
 	include: PathBuf,
 	staticlib: PathBuf,
 	native: &'a [String],
+	/// A directory of headers written for the program, such as its transcript.
+	generated: Option<PathBuf>,
 }
 
 impl Api {
@@ -720,6 +786,7 @@ impl Api {
 			include: self.out.join("include"),
 			staticlib: self.staticlib(),
 			native: &self.native,
+			generated: None,
 		}
 	}
 }
@@ -728,9 +795,11 @@ impl Api {
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
 fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
+	let mut reads = vec![src, &link.include, &link.staticlib];
+	reads.extend(link.generated.as_deref());
 	let step = Step {
 		stamp: &step::stamp(exe),
-		reads: &[src, &link.include, &link.staticlib],
+		reads: &reads,
 		writes: &[exe],
 	};
 	step.run(&mut cxx_command(link, standard, plain, src, exe, true));
@@ -761,7 +830,11 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path, l
 		});
 		let mut obj = OsString::from("-Fo");
 		obj.push(exe.with_extension("obj"));
-		cmd.arg("-I").arg(include).arg(src).arg(obj);
+		cmd.arg("-I").arg(include);
+		if let Some(generated) = &link.generated {
+			cmd.arg("-I").arg(generated);
+		}
+		cmd.arg(src).arg(obj);
 		if !linked {
 			cmd.arg("-c");
 			return cmd;
@@ -788,8 +861,11 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path, l
 		"-Werror",
 		"-I",
 	])
-	.arg(include)
-	.arg(src);
+	.arg(include);
+	if let Some(generated) = &link.generated {
+		cmd.arg("-I").arg(generated);
+	}
+	cmd.arg(src);
 	if linked {
 		cmd.arg(&link.staticlib).args(link.native);
 	} else {
@@ -945,6 +1021,26 @@ fn api_android() {
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
 
+	// Every segment aligns to the 16 KB pages Google Play requires of a 64-bit library from
+	// 2027-02-01, whichever NDK built it: r27 and older align to 4 KB unless told otherwise.
+	let lib = dir.join("lib").join(&abi).join("libapi.so");
+	let segments = run(Command::new("readelf").args(["--wide", "--program-headers"]).arg(&lib));
+	let segments = String::from_utf8_lossy(&segments.stdout);
+	let aligns: Vec<u64> = segments
+		.lines()
+		.filter(|line| line.trim_start().starts_with("LOAD"))
+		.map(|line| {
+			let align = line.split_whitespace().last().unwrap();
+			u64::from_str_radix(align.trim_start_matches("0x"), 16).unwrap()
+		})
+		.collect();
+	assert!(!aligns.is_empty(), "readelf listed no LOAD segment:\n{segments}");
+	assert!(
+		aligns.iter().all(|&align| align >= 16384),
+		"{} is not aligned to 16 KB pages:\n{segments}",
+		lib.display()
+	);
+
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
@@ -952,7 +1048,7 @@ fn api_android() {
 	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
 	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
-	run(kotlinc(&out, &jar).arg("-include-runtime"));
+	run(kotlinc(&out, &kotlin_transcript(), &jar).arg("-include-runtime"));
 	run(Command::new("jar")
 		.arg("xf")
 		.arg(coroutines())
@@ -1008,6 +1104,67 @@ fn api_android() {
 		cmd
 	};
 	kotlin(&api.transcript, &art);
+
+	// An abort or a panic must reach logcat and bionic's abort message, which the tombstone
+	// shows: an app's stderr goes nowhere. The tombstone is logged as the crash dump
+	// finishes, after the process died, and one from an earlier run may still arrive, so the
+	// case prints its process id, and the read takes the abort message that follows the
+	// tombstone of that process.
+	for (case, logged, tombstone) in [
+		(
+			"callback threw",
+			"api::Log::log: a call into Kotlin threw",
+			"Abort message: 'api::Log::log: a call into Kotlin threw'",
+		),
+		(
+			"panicked",
+			"called `Option::unwrap()` on a `None` value",
+			"Abort message: 'panicked at",
+		),
+	] {
+		run(Command::new(&adb).args(["logcat", "-c"]));
+		let mut cmd = Command::new(&adb);
+		cmd.arg("shell").arg(format!(
+			"echo $$; ANDROID_DATA={DEVICE} exec dalvikvm -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt '{case}'"
+		));
+		let output = self::output(&mut cmd);
+		failed(&output, case);
+		let stdout = String::from_utf8_lossy(&output.stdout);
+		let pid = stdout.lines().next().unwrap_or_default().trim().to_string();
+		assert!(
+			pid.parse::<u32>().is_ok(),
+			"{case} printed no process id first: {stdout}"
+		);
+		let ours = format!("pid: {pid},");
+		let log = run(Command::new(&adb).args(["logcat", "-d", "-s", "rust2-ffi:F"]));
+		let log = String::from_utf8_lossy(&log.stdout);
+		assert!(log.contains(logged), "{case} logged {log}");
+		// Read the dump as it arrives, bounded by the device-side timeout.
+		let mut reader = Command::new(&adb)
+			.args(["shell", "timeout", "120", "logcat", "-s", "DEBUG:F"])
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut found = false;
+		let mut dump = String::new();
+		for line in std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap())) {
+			let line = line.unwrap();
+			found |= line.contains(&ours);
+			if found && line.contains("Abort message") {
+				dump = line;
+				break;
+			}
+		}
+		let _ = reader.kill();
+		let _ = reader.wait();
+		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump:?}");
+	}
+}
+
+/// The transcript as Kotlin, written beside the scratch directory's other files, whose
+/// `transcript()` `tests/api.kt`'s script calls.
+fn kotlin_transcript() -> PathBuf {
+	generated("kotlin", "Transcript.kt", &transcript::kotlin::emit(transcript())).join("Transcript.kt")
 }
 
 /// The gate's Kotlin protocol scripts, fewer than C's, as each costs the JVM more.
@@ -1036,32 +1193,36 @@ fn api_kotlin_protocol_nightly() {
 	);
 }
 
-/// The api fixture's Kotlin, `tests/api.kt`, and `tests/protocol.kt`, compiled.
+/// The api fixture's Kotlin, `tests/api.kt`, the transcript's script, and
+/// `tests/protocol.kt`, compiled.
 fn kotlin_classes(api: &Api) -> PathBuf {
 	let classes = scratch().join("api").join("kotlin");
 	let jar = PathBuf::from(coroutines());
+	let script = kotlin_transcript();
 	Step {
 		stamp: &step::stamp(&classes),
 		reads: &[
 			&api.out.join("kotlin").join("api.kt"),
 			&manifest_dir().join("tests").join("api.kt"),
+			&script,
 			&manifest_dir().join("tests").join("protocol.kt"),
 			&jar,
 		],
 		writes: &[&classes],
 	}
-	.run(&mut kotlinc(&api.out, &classes));
+	.run(&mut kotlinc(&api.out, &script, &classes));
 	classes
 }
 
-/// kotlinc compiling the generated Kotlin with `tests/api.kt` and `tests/protocol.kt` into
-/// `dest`.
-fn kotlinc(out: &Path, dest: &Path) -> Command {
+/// kotlinc compiling the generated Kotlin with `tests/api.kt`, the transcript `script`,
+/// and `tests/protocol.kt` into `dest`.
+fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
 		.arg(out.join("kotlin").join("api.kt"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
+		.arg(script)
 		.arg(manifest_dir().join("tests").join("protocol.kt"))
 		.arg("-d")
 		.arg(dest);
@@ -1090,7 +1251,8 @@ fn newest(dir: &Path) -> PathBuf {
 }
 
 /// `tests/api.kt`'s script, run by `vm` with each argument list, prints the native
-/// transcript; then its futures, what the GC frees, and each contract it fails loud on.
+/// transcript; then its futures, what the GC frees, what only its types bound, and each
+/// contract it fails loud on.
 fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	let kt = run(&mut vm(&[]));
 	assert_eq!(
@@ -1101,22 +1263,21 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
 	run(&mut vm(&["clash"]));
+	run(&mut vm(&["checks"]));
 	for (case, message) in [
 		("moved", "IllegalStateException: Counter is closed"),
 		("boxed moved", "IllegalStateException: Node is closed"),
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"Native$__Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
+		("panicked", "called `Option::unwrap()` on a `None` value"),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		(
-			"outlived",
-			"Native$__Refused: api_Meter_count: a handle lent from another outlived it",
-		),
+		("outlived", "api_Meter_count: a handle lent from another outlived it"),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the
 		// status reports a core though none is written.
@@ -1184,6 +1345,7 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 #[test]
 fn api_python() {
 	let api = api();
+	let scripts = generated("python", "transcript.py", &transcript::python::emit(transcript()));
 	let python = |dir: &Path, args: &[&str]| {
 		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
@@ -1191,7 +1353,7 @@ fn api_python() {
 		cmd.args(["-P", "-X", "dev", "-W", "error"])
 			.arg(manifest_dir().join("tests").join("api.py"))
 			.args(args)
-			.env("PYTHONPATH", dir);
+			.env("PYTHONPATH", std::env::join_paths([dir, &scripts]).unwrap());
 		cmd
 	};
 	let dir = api.out.join("python");
@@ -1201,7 +1363,7 @@ fn api_python() {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls", "leaf"] {
+	for case in ["futures", "owned", "values", "calls", "checks", "leaf"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
@@ -1260,6 +1422,79 @@ fn api_python() {
 		stderr.contains("api.py and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// A free-threaded CPython refuses the module with an `ImportError`: the library is for the
+/// GIL's ABI, which it would load through its explicit path and crash in. `PYTHON_FREE_THREADED`
+/// or `python3.14t` is the interpreter, which the dev shell provides.
+#[test]
+fn api_free_threaded() {
+	let python = std::env::var_os("PYTHON_FREE_THREADED").unwrap_or_else(|| "python3.14t".into());
+	let dir = api().out.join("python");
+	let probe = |code: &str| {
+		let mut cmd = Command::new(&python);
+		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
+		// which names the GIL build's packages. `-X gil=0` beats an inherited `PYTHON_GIL=1`,
+		// which would turn the GIL on in a free-threaded build.
+		cmd.args(["-X", "gil=0", "-P", "-c", code]).env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	// A GIL build would pass for the refusal's test, so check the interpreter first.
+	let build = probe("import sys; sys.exit(sys._is_gil_enabled())");
+	assert!(
+		build.status.success(),
+		"{python:?} is not a free-threaded CPython: {}",
+		String::from_utf8_lossy(&build.stderr)
+	);
+	let output = probe("import api");
+	// Exit 1 is an uncaught exception, where a crash has no code.
+	assert_eq!(
+		output.status.code(),
+		Some(1),
+		"importing under a free-threaded CPython: {output:?}"
+	);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"ImportError: api.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use"
+		),
+		"importing under a free-threaded CPython printed {stderr}"
+	);
+
+	// The suffixes of the platforms this host is not, appended on the GIL build, which
+	// loads from beside the module whatever its list holds.
+	let gil = |suffix: &str| {
+		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		cmd.args(["-P", "-c"])
+			.arg(format!(
+				"import importlib.machinery as m; m.EXTENSION_SUFFIXES.append('{suffix}'); import api"
+			))
+			.env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	for suffix in [
+		".cp314t-win_amd64.pyd",
+		"_d.cp314t-win_amd64.pyd",
+		".cpython-313t-darwin.so",
+		".cpython-315t-aarch64-linux-gnu.so",
+		".cpython-314td-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert_eq!(output.status.code(), Some(1), "{suffix} was not refused: {output:?}");
+		assert!(
+			String::from_utf8_lossy(&output.stderr).contains("a free-threaded CPython cannot use"),
+			"{suffix} printed {output:?}"
+		);
+	}
+	for suffix in [
+		".cp314-win_amd64.pyd",
+		"_d.cp314-win_amd64.pyd",
+		".cpython-314-darwin.so",
+		".cpython-314d-x86_64-linux-gnu.so",
+	] {
+		let output = gil(suffix);
+		assert!(output.status.success(), "{suffix} was refused: {output:?}");
+	}
 }
 
 /// Random sequences of the ownership protocol's steps through the Python, by
@@ -1370,12 +1605,15 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
+	let script =
+		generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
 	// The Clang module the test and the contract program import on Linux.
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
 		stamp: &step::stamp(&exe),
 		reads: &[
 			&test,
+			&script,
 			&nodump,
 			&module,
 			&include,
@@ -1391,6 +1629,7 @@ fn api_swift() {
 			.args(["-parse-as-library", "-I"])
 			.arg(&dir)
 			.arg(&test)
+			.arg(&script)
 			.arg(&lib)
 			.args(&collections)
 			.arg(api.staticlib())
@@ -1404,6 +1643,7 @@ fn api_swift() {
 		api.transcript,
 		"the Swift transcript differs from the native one"
 	);
+	run(Command::new(&exe).arg("checks"));
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
 	run(Command::new(&exe).arg("shared"));
@@ -1421,17 +1661,18 @@ fn api_swift() {
 	] {
 		let step = Step {
 			stamp: &dir.join(format!("{case}.stamp")),
-			reads: &[&test, &nodump, &module, &include, &built, &swiftmodule],
+			reads: &[&test, &script, &nodump, &module, &include, &built, &swiftmodule],
 			writes: &[],
 		};
 		let output = step.output(
 			swiftc(&module, 15)
-				.args(["-parse-as-library", "-emit-sil", "-o"])
+				.args(["-parse-as-library", "-wmo", "-emit-sil", "-o"])
 				.arg(dir.join("broken.sil"))
 				.args(["-I"])
 				.arg(&dir)
 				.arg(format!("-D{case}"))
-				.arg(&test),
+				.arg(&test)
+				.arg(&script),
 		);
 		assert!(!output.status.success(), "Swift {case} compiled");
 		let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1666,6 +1907,12 @@ fn web() -> &'static Web {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("web"), &dir.join("web"));
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+		let scripts = generated(
+			"typescript",
+			"transcript.ts",
+			&transcript::typescript::emit(transcript()),
+		);
+		step::copy(&scripts.join("transcript.ts"), &dir.join("transcript.ts"));
 		step::copy(
 			&manifest_dir().join("tests").join("protocol.ts"),
 			&dir.join("protocol.ts"),
@@ -1706,7 +1953,7 @@ impl From<Output> for Ran {
 
 /// The cases of `tests/api.ts` that must pass, after its transcript: `owned` and `bytes`
 /// check what the garbage collector frees, so only a runtime exposing it runs them.
-const WEB_CASES: [&str; 6] = ["futures", "owned", "closed", "bytes", "bounds", "grown"];
+const WEB_CASES: [&str; 7] = ["futures", "owned", "closed", "bytes", "bounds", "grown", "checks"];
 
 /// The cases of `tests/api.ts` that break a contract, each failing with its message.
 const WEB_BROKEN: [(&str, &str); 9] = [
@@ -1868,6 +2115,15 @@ fn api_web() {
 	);
 }
 
+/// Where the engine lacks `Symbol.dispose`, as stable Safari does, the web runtime defines it
+/// as the registry's symbol before its classes key a method on it, which `dispose.ts` checks.
+#[test]
+fn web_without_dispose() {
+	run(Command::new("node")
+		.arg(manifest_dir().join("tests").join("dispose.ts"))
+		.arg(manifest_dir().join("runtime").join("rt.ts")));
+}
+
 /// The web binding as a registry serves it: packed by npm with the module beside it,
 /// installed from that tarball into a project of its own, and `tests/api.ts` importing it by
 /// the package's name type-checks against its declarations alone, with no `skipLibCheck`.
@@ -1914,16 +2170,37 @@ fn api_web_package() {
 		!installed.join("index.ts").exists(),
 		"the npm package ships its TypeScript"
 	);
-	let script = std::fs::read_to_string(manifest_dir().join("tests").join("api.ts")).unwrap();
-	let script = script
-		.replace("\"./web/index.ts\"", &format!("\"{name}\""))
-		.replace("\"./web/", &format!("\"{name}/"))
-		.replace(".ts\";\n", "\";\n");
-	assert!(
-		!script.contains("./web/"),
-		"api.ts imports the binding by a path the rewrite missed"
+	// Each import of the binding is of the package instead; the script's own two files,
+	// `api.ts` and the transcript's, still import each other by path.
+	let imports = |script: String| -> String {
+		let script = script
+			.replace("\"./web/index.ts\"", &format!("\"{name}\""))
+			.replace("\"./web/", &format!("\"{name}/"));
+		let package = format!("from \"{name}/");
+		let script: String = (script.lines())
+			.map(|line| match line.contains(&package) {
+				true => format!("{}\n", line.replace(".ts\";", "\";")),
+				false => format!("{line}\n"),
+			})
+			.collect();
+		assert!(
+			!script.contains("./web/"),
+			"the script imports the binding by a path the rewrite missed"
+		);
+		script
+	};
+	let transcript = generated(
+		"typescript",
+		"transcript.ts",
+		&transcript::typescript::emit(transcript()),
 	);
-	step::write(&consumer.join("api.ts"), script);
+	for file in [
+		manifest_dir().join("tests").join("api.ts"),
+		transcript.join("transcript.ts"),
+	] {
+		let script = std::fs::read_to_string(&file).unwrap();
+		step::write(&consumer.join(file.file_name().unwrap()), imports(script));
+	}
 	step::write(&consumer.join("tsconfig.json"), TSCONFIG_PACKAGE);
 	run(Command::new("tsc").arg("-p").arg(&consumer));
 	let runtime = |runtime: &str, case: Option<&str>| {
@@ -1948,30 +2225,43 @@ fn api_web_package() {
 	}
 }
 
-/// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
-/// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
-/// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
+/// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
+/// carries, WebKit on Linux alone, where nixpkgs builds it: `tests/browser.ts` bundles the
+/// script and runs each case in a frame of its own.
+/// Firefox and WebKit expose no garbage collector to a page, so they run neither `owned` nor
+/// `bytes`. The script's `using` runs in WebKit as the engine has it, and lowered as `tsc` and
+/// esbuild lower it, each of which keys on `Symbol.dispose`. Playwright's WebKit has the symbol,
+/// which stable Safari lacks: `web_without_dispose` covers its absence.
 #[test]
 #[ignore = "the nightly's, in the bench shell: just ffi browsers"]
 fn api_browsers() {
 	let web = web();
-	for browser in ["chromium", "firefox"] {
+	for (browser, lowering) in [
+		("chromium", "bun"),
+		("firefox", "bun"),
+		("webkit", "native"),
+		("webkit", "esbuild"),
+		("webkit", "tsc"),
+	]
+	.into_iter()
+	.filter(|(browser, _)| *browser != "webkit" || cfg!(target_os = "linux"))
+	{
 		let cases: Vec<&str> = match browser {
-			"firefox" => WEB_CASES
+			"chromium" => WEB_CASES.to_vec(),
+			_ => WEB_CASES
 				.into_iter()
 				.filter(|c| !matches!(*c, "owned" | "bytes"))
 				.collect(),
-			_ => WEB_CASES.to_vec(),
 		};
 		let all = std::iter::once("-")
 			.chain(cases.iter().copied())
 			.chain(WEB_BROKEN.iter().map(|(case, _)| *case));
 		let output = run(Command::new("bun")
 			.arg(manifest_dir().join("tests").join("browser.ts"))
-			.arg(browser)
+			.args([browser, lowering])
 			.arg(&web.dir)
 			.arg(&web.wasm)
-			.arg(scratch().join("api").join(browser))
+			.arg(scratch().join("api").join(format!("{browser}-{lowering}")))
 			.args(all));
 		let mut runs: std::collections::HashMap<String, Ran> = String::from_utf8_lossy(&output.stdout)
 			.lines()
@@ -1986,7 +2276,7 @@ fn api_browsers() {
 				(text("case"), ran)
 			})
 			.collect();
-		web_checks(browser, &cases, &mut |case| {
+		web_checks(&format!("{browser} ({lowering})"), &cases, &mut |case| {
 			let case = case.unwrap_or("-");
 			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
 		});
@@ -2000,6 +2290,7 @@ const TSCONFIG: &str = r#"{
 		"strict": true,
 		"noEmit": true,
 		"pretty": false,
+		"noImplicitOverride": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"target": "es2024",
@@ -2012,7 +2303,7 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "protocol.ts", "web/*.ts"],
+	"include": ["api.ts", "transcript.ts", "protocol.ts", "web/*.ts"],
 	"exclude": ["web/*.d.ts"]
 }
 "#;
@@ -2030,11 +2321,12 @@ const TSCONFIG_PACKAGE: &str = r#"{
 		"lib": ["es2024", "esnext.disposable", "dom"],
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
+		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
 		"erasableSyntaxOnly": true,
 		"types": []
 	},
-	"include": ["api.ts"]
+	"include": ["api.ts", "transcript.ts"]
 }
 "#;
 
@@ -2044,6 +2336,7 @@ const TSCONFIG_PACKAGE: &str = r#"{
 #[test]
 fn api_dart() {
 	let api = api();
+	let scripts = generated("dart", "transcript.dart", &transcript::dart::emit(transcript()));
 	let dir = scratch().join("api").join("dart");
 	let generated = api.out.join("dart");
 	let step = Step {
@@ -2086,12 +2379,21 @@ fn api_dart() {
 		"a call reaching user code or walking a caller's length is no leaf call"
 	);
 	let lib = api.lib.join(PYTHON_LIB);
+	// The entry beside the script imports the test as a package, as the script does, so
+	// both name the one library.
+	let main = scripts.join("main.dart");
+	step::write(
+		&main,
+		"import 'package:api_test/api.dart' as test;\n\nFuture<void> main(List<String> args) => test.main(args);\n",
+	);
+	let tests = manifest_dir().join("tests");
 	let exe = dart_compile(
 		"api",
 		&dir,
 		&generated,
 		&lib,
-		&manifest_dir().join("tests").join("api.dart"),
+		&main,
+		&[("api_test", &tests), ("transcript", &scripts)],
 	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
@@ -2099,7 +2401,7 @@ fn api_dart() {
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "bounds", "leaf"] {
+	for case in ["checks", "futures", "owned", "closed", "bytes", "bounds", "leaf"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	// The protocol scripts, through `tests/protocol.dart`.
@@ -2153,7 +2455,7 @@ fn api_dart() {
 		&main,
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	);
-	let exe = dart_compile("api", &contract, &package, &lib, &main);
+	let exe = dart_compile("api", &contract, &package, &lib, &main, &[]);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -2174,6 +2476,7 @@ fn protocol_dart(api: &Api, dir: &Path) -> PathBuf {
 		&api.out.join("dart"),
 		&api.lib.join(PYTHON_LIB),
 		&manifest_dir().join("tests").join("protocol.dart"),
+		&[],
 	)
 }
 
@@ -2193,12 +2496,15 @@ fn api_dart_protocol_nightly() {
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
 /// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
-	let (mut cmd, kernel) = dart_kernel(name, dir, package, lib, main);
+/// Each of `others` is a package of its own, by its name and its directory.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path, others: &[(&str, &Path)]) -> PathBuf {
+	let (mut cmd, kernel) = dart_kernel(name, dir, package, lib, main, others);
 	// The snapshot names the library by path, so a change to it rebuilds nothing.
+	let mut reads: Vec<&Path> = vec![main, package, &kernel.config, &kernel.assets, &kernel.version];
+	reads.extend(others.iter().map(|(_, root)| *root));
 	let step = Step {
 		stamp: &step::stamp(&kernel.dill),
-		reads: &[main, package, &kernel.config, &kernel.assets, &kernel.version],
+		reads: &reads,
 		writes: &[&kernel.dill],
 	};
 	step.run(&mut cmd);
@@ -2215,22 +2521,35 @@ struct Kernel {
 }
 
 /// The compile of `main` to a kernel snapshot in `dir`, against the package `name` at
-/// `package` and its native library `lib`, with the package config and native assets it
-/// reads written.
-fn dart_kernel(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> (Command, Kernel) {
+/// `package` and its native library `lib`, and each of `others`, with the package config
+/// and native assets it reads written.
+fn dart_kernel(
+	name: &str,
+	dir: &Path,
+	package: &Path,
+	lib: &Path,
+	main: &Path,
+	others: &[(&str, &Path)],
+) -> (Command, Kernel) {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
 		.and_then(Path::parent)
 		.expect("dart is in the SDK's bin")
 		.to_path_buf();
-	let config = dir.join("package_config.json");
-	let root = url(package);
+	// Each program's own, as two compiled in one directory at once would race on one.
+	let stem = main.file_stem().unwrap().to_string_lossy();
+	let config = dir.join(format!("{stem}.package_config.json"));
+	let packages: Vec<String> = std::iter::once((name, package))
+		.chain(others.iter().copied())
+		.map(|(name, root)| {
+			let root = url(root);
+			format!("{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}")
+		})
+		.collect();
 	step::write(
 		&config,
-		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
-		),
+		format!("{{\"configVersion\": 2, \"packages\": [{}]}}\n", packages.join(", ")),
 	);
 	let os = match std::env::consts::OS {
 		"macos" => "macos",
@@ -2241,7 +2560,7 @@ fn dart_kernel(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) 
 		"aarch64" => "arm64",
 		_ => "x64",
 	};
-	let assets = dir.join("native_assets.yaml");
+	let assets = dir.join(format!("{stem}.native_assets.yaml"));
 	step::write(
 		&assets,
 		format!(
@@ -2249,7 +2568,7 @@ fn dart_kernel(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) 
 			lib.display().to_string()
 		),
 	);
-	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
+	let dill = dir.join(format!("{stem}.dill"));
 	let mut cmd = Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")));
 	cmd.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
 		.arg("--platform")
@@ -2351,6 +2670,8 @@ fn api_go() {
 		&module,
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
+	// The transcript's script, generated beside it in its package.
+	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let export = module.join("export");
 	for (name, root) in [("vet-export", &export), ("vet", &module)] {
 		let step = Step {
@@ -2373,6 +2694,7 @@ fn api_go() {
 	run(Command::new(&exe).arg("closed"));
 	run(Command::new(&exe).arg("bytes"));
 	run(Command::new(&exe).arg("closures"));
+	run(Command::new(&exe).arg("checks"));
 	for (case, message) in [
 		(
 			"lent moved",
@@ -4525,4 +4847,158 @@ fn profiled() {
 		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
 		"{stderr}"
 	);
+}
+
+/// A loop's element is typed among the locals in scope at the loop, not those its body
+/// binds over them, as Rust evaluates it before the body runs.
+#[test]
+fn transcript_loop_scope() {
+	let lock = api().out.join("api.json");
+	let source = scratch().join("api").join("loop-scope.rs");
+	std::fs::write(
+		&source,
+		"fn main() { let x = 1u8; for n in [x] { match api::divide(7, 2) { \
+		 Ok((x, _)) => println!(\"{n} {x}\"), Err(e) => println!(\"{e}\") } } }",
+	)
+	.unwrap();
+	let t = transcript::Transcript::load(&lock, &source);
+	let Some(transcript::Step::Match { ok, .. }) = t.steps.last() else {
+		panic!("the loop's body matches last")
+	};
+	let Some(transcript::Step::Print(pieces)) = ok.steps.last() else {
+		panic!("the arm prints")
+	};
+	let names: Vec<&str> = (pieces.iter())
+		.filter_map(|p| match p {
+			transcript::Piece::Value(
+				transcript::Expr {
+					kind: transcript::Kind::Var(name),
+					..
+				},
+				_,
+			) => Some(name.as_str()),
+			_ => None,
+		})
+		.collect();
+	assert_eq!(names, ["x", "x2"]);
+
+	// An element naming the loop's own binding, and a constant naming a later one, resolve
+	// as Rust resolves them when an overload is picked.
+	std::fs::write(
+		&source,
+		"const A: u64 = B; const B: u64 = 1; \
+		 fn main() { let x = 1u64; for x in [x] { println!(\"{}\", api::same_u64(x)); } println!(\"{}\", api::same_u64(A)); }",
+	)
+	.unwrap();
+	transcript::Transcript::load(&lock, &source);
+}
+
+/// What no binding's script could say as Rust does fails to parse, naming its line.
+#[test]
+fn transcript_refusals() {
+	let lock = api().out.join("api.json");
+	let source = scratch().join("api").join("refusals.rs");
+	// A function `transcript.rs` defines, as each language's hook.
+	let hooks = "fn set(n: &mut u32) -> u32 { *n = 1; 1 } fn gap(a: u32, b: u32) -> u32 { b - a }";
+	for (body, refusal) in [
+		(
+			"let mut n = 0u32; println!(\"{}\", api::reach(n, (), set(&mut n)));",
+			"one changes n, which another reads",
+		),
+		(
+			"let t = api::Tally::new(); let x: u32 = gap(t.bump(), t.bump()); println!(\"{x}\");",
+			"two have an effect",
+		),
+		(
+			"let n = 7u32; api::each(1, |_| { drop(n); });",
+			"a drop in a closure of n",
+		),
+		(
+			"let t = api::Token::new(7); for item in [t] { println!(\"inside\"); }",
+			"which holds a handle",
+		),
+		(
+			"let mut pair = (api::Score::of(2), 1u8); let n = pair.0.take(); println!(\"{n}\");",
+			"a value's &mut self method on anything but a local",
+		),
+		(
+			"let x: Option<Option<Option<u32>>> = None; println!(\"{}\", x.is_none());",
+			"an option of an option of an option",
+		),
+		(
+			"let x: Option<Box<Option<Option<u32>>>> = None; println!(\"{}\", x.is_some());",
+			"an option of an option of an option",
+		),
+		(
+			"let x: Option<Option<()>> = Some(None); println!(\"{}\", x.is_none());",
+			"an option of an option of an option or of ()",
+		),
+		(
+			"for mut n in [7u32] { set(&mut n); println!(\"{n}\"); }",
+			"a for loop binding a mutable name",
+		),
+		("let n = 7i32; println!(\"{n:x}\");", "hex of Int(I32)"),
+		(
+			"let x: Option<u32> = Some(1); println!(\"{}\", x.map_or(0u32, |_| 7));",
+			"a map_or closure's parameter other than a name",
+		),
+		("{ let x = 1u8; println!(\"{x}\"); }", "a block of its own"),
+		(
+			"for n in [1u8] { let x = n; println!(\"{x}\"); }",
+			"a let in a for loop's body",
+		),
+		("let api_ = 1u8; println!(\"{api_}\");", "a local named other than"),
+		(
+			"let n: usize = usize::MAX - 1; println!(\"{n}\");",
+			"a pointer-sized value past 32 bits",
+		),
+		(
+			"let mut s = api::Score::of(2); println!(\"{} {}\", s.take(), s.count());",
+			"a value's &mut self method",
+		),
+		(
+			"let mut s = api::Score::of(2); println!(\"{} {}\", api::Score::take(&mut s), s.count());",
+			"a value's &mut self method",
+		),
+		(
+			"println!(\"{}\", api::same_u64(usize::MAX as u64));",
+			"a pointer-sized value past 32 bits",
+		),
+		(
+			"match api::divide(7, 2) { Ok(_) if true => println!(\"a\"), Ok(_) => println!(\"b\"), Err(_) => println!(\"c\") }",
+			"an arm other than Ok, Err, Some, or None",
+		),
+		(
+			"match api::divide(7, 2) { Ok(_) => println!(\"a\"), Ok(_) => println!(\"b\"), Err(_) => println!(\"c\") }",
+			"a second Ok arm",
+		),
+		(
+			"let mut s = api::Score::of(2); let t = api::Score::of(3); \
+			 for n in [s, s] { s.add(t); println!(\"{}\", n.count()); }",
+			"an element reading a local its body changes",
+		),
+		(
+			"let t = api::Tally::new(); println!(\"{}\", api::reach(t.bump(), (), t.bump()));",
+			"two have an effect",
+		),
+		(
+			"let mut n = 0u32; println!(\"{}\", api::reach(n, (), api::each(1, |_| { api::Clash::listed(vec![7], &mut n); })));",
+			"one changes n, which another reads",
+		),
+		(
+			"let mut p = api::Packaged { api: 2 }; \
+			 for n in [p, p] { api::Clash::listed(vec![7], &mut p.api); println!(\"{}\", n.api); }",
+			"an element reading a local its body changes",
+		),
+	] {
+		std::fs::write(&source, format!("{hooks} fn main() {{ {body} }}")).unwrap();
+		let panic = std::panic::catch_unwind(|| transcript::Transcript::load(&lock, &source))
+			.err()
+			.unwrap_or_else(|| panic!("{body} parsed"));
+		let message = panic.downcast_ref::<String>().unwrap();
+		assert!(
+			message.starts_with("transcript.rs:1:") && message.contains(refusal),
+			"{body}: {message}"
+		);
+	}
 }

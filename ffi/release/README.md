@@ -1,8 +1,8 @@
 # Binding releases
 
 A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
-a Go module, and a web package on npm and JSR. Two halves, split where Cargo's knowledge
-ends:
+C and C++ archives, a Go module, and a web package on npm and JSR. Two halves, split where
+Cargo's knowledge ends:
 
 - **The builder**, [`bindings.yml`](/.github/workflows/bindings.yml) over `package.py`,
   shared and read-only. It derives everything from Cargo metadata and the export: package
@@ -56,8 +56,9 @@ A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 The builder takes the crate's `Cargo.toml`, the `go-module` path, which without it is the
 export's own `<prefix>` that no proxy serves, and optional inputs the caller's tests own:
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
-`python-check`, `swift-check`, and `go-check` programs that must print it through the
-installed packages. Without a check, a consumer only imports the module. The web package
+`python-check`, `swift-check`, `c-check`, and `go-check` programs that must print it through
+the installed packages. Without a check, a consumer only imports the module, or links a
+function of each C and C++ header. A `c-check` is C or C++ by its extension. The web package
 takes `web-manifest-path`, the package exported for `wasm32-wasip1`, often the crate's own,
 which no Cargo fact says builds for the web, and `scope`; and an optional `web-check`, a
 TypeScript module importing the binding as `./web/<module>.ts` does beside an export,
@@ -97,7 +98,36 @@ crate apart from it takes `web-features` and `web-example` instead.
    revision, since a package resolved by version cannot depend on a revision. Rust's
    native link libraries become linker settings, per platform where they differ; any
    other flag fails the build.
-7. Go: one module for every target, at the module path and `v<version>`, the major
+7. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`
+   on Windows, built like the wheels, Linux's against glibc 2.28 and macOS's at 11.0. It
+   holds `include/` with both headers, the static and shared libraries, and three ways to
+   find them, each naming the native libraries the static library needs, from rustc's
+   `--print native-static-libs`:
+   - `lib/cmake/<lib>/<lib>-config.cmake`, whose `find_package(<lib>)` gives `<lib>::<lib>`,
+     the static library, and `<lib>::<lib>_shared`;
+   - `lib/cps/<lib>.cps`, the [Common Package Specification](https://cps-org.github.io/cps/)
+     of the same two components, which CMake 4.3 and newer prefers;
+   - `lib/pkgconfig/<lib>.pc`, which links the shared library, as the linker prefers it to
+     the static one beside it; `--static` adds the native libraries, for a prefix that holds
+     only the static library. None on Windows, whose MSVC has no pkg-config convention.
+
+   The shared library's SONAME, or `@rpath` install name on macOS, holds the whole version,
+   `lib<lib>.so.0.4.12` or `lib<lib>.0.4.12.dylib`: every binding checks at load that the
+   library's [contract](/ffi/README.md#the-c-abi) is its header's, so no two releases'
+   libraries can stand in for each other. A build-time request is another matter, as header
+   and library come together: the CMake and CPS versions accept one within Cargo's
+   compatible line, 0.4 for 0.4.12, and a prerelease only by a request naming no version.
+   Both targets require C11 and C++17 of what links them, the headers' floor.
+   On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
+
+   The static library is one object prelinked from Rust's archive (`ld -r`, then `objcopy`
+   on ELF and the linker's exported-symbols list on Mach-O) whose only global symbols are
+   the C ABI's, `<lib>_*`. So its std and compiler-builtins, with unmangled symbols such as
+   `__addvdi3`, cannot clash with another Rust static library in the same program, which
+   each build checks by linking one beside it. MSVC's linker has no relocatable link, so the
+   Windows static library keeps every symbol: a program with two Rust static libraries
+   there links the DLL instead.
+8. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
    glibc 2.28), `darwin/arm64` and `ios/arm64` (the Swift package's macOS and iOS device
@@ -112,35 +142,38 @@ crate apart from it takes `web-features` and `web-example` instead.
    limit, each platform's library moves to a module of its own, whose one package's `#cgo`
    line links it and which the runtime imports under that platform's build constraint, so
    `go get` downloads only the platform it builds for.
-8. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
+9. The release's `api.json`, and `changes.md`, the items removed, changed, and added since
    the previous release's, by kind and Rust path; the caller's release publishes the first
    as an asset and the second as its notes.
-9. Consumers, with no checkout, Rust, or source path: each wheel installed with
-   `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
-   from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
-   and the iOS Simulator, then consumed by a new executable package that runs the check;
-   and the Go module, unpacked from its zip into a new module that requires it, vetted,
-   built with the newest Go and no `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and
-   Windows. With an `example`, each must print native Rust's stdout byte for byte.
-8. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
-   TypeScript, its JavaScript and declarations, and a `package.json`
-   ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
-   `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
-   it. The npm package is the JavaScript, declarations, and module, named
-   `@<scope>/<crate>` with Cargo's description, license, and URLs, packed by `npm pack`;
-   the JSR package is the TypeScript and module with a `jsr.json` exporting each module by
-   name, refused past JSR's 20 MiB. The example runs for `wasm32-wasip1` under Node's WASI,
-   native Rust on the binding's target. A new npm project installs the tarball, as an
-   app would, and the `web-check`, or else a `load()`, runs on Node, Deno, and Bun, and
-   bundled by Vite and by webpack into a browser's script that Node runs, each finding the
-   module where `load` looks by default; and `deno publish --dry-run` checks the JSR
-   package, its types against Deno's included.
+10. Consumers, with no checkout, Rust, or source path: each wheel installed with
+    `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
+    from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
+    and the iOS Simulator, then consumed by a new executable package that runs the check;
+    and each C archive unpacked alone, built by a new CMake project through its CPS file and
+    through its config package, and on Linux and macOS by pkg-config, linking each library,
+    where a shared consumer must record the versioned name; and the Go module, unpacked from
+    its zip into a new module that requires it, vetted, built with the newest Go and no
+    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and Windows.
+    With an `example`, each must print native Rust's stdout byte for byte.
+11. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
+    TypeScript, its JavaScript and declarations, and a `package.json`
+    ([TypeScript (web)](/ffi/README.md#typescript-web)), and its module built at
+    `opt-level = "s"` unless the crate's release profile sets a level, as a page downloads
+    it. The npm package is the JavaScript, declarations, and module, named
+    `@<scope>/<crate>` with Cargo's description, license, and URLs, packed by `npm pack`;
+    the JSR package is the TypeScript and module with a `jsr.json` exporting each module by
+    name, refused past JSR's 20 MiB. The example runs for `wasm32-wasip1` under Node's WASI,
+    native Rust on the binding's target. A new npm project installs the tarball, as an
+    app would, and the `web-check`, or else a `load()`, runs on Node, Deno, and Bun, and
+    bundled by Vite and by webpack into a browser's script that Node runs, each finding the
+    module where `load` looks by default; and `deno publish --dry-run` checks the JSR
+    package, its types against Deno's included.
 
 rust2 runs it on every manual Check and nightly through
 [`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
-wheels and web package must print its native transcript, and on moq's stand-in facade at
-the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`, and `moq/moq.go`, with its
-wasm32 stand-in as the web package.
+wheels, C++ consumers, and web package must print its native transcript, and on moq's
+stand-in facade at the exporter's moq pin, through `moq/moq.py`, `moq/moq.swift`,
+`moq/moq.cpp`, and `moq/moq.go`, with its wasm32 stand-in as the web package.
 
 ## Other registries
 
