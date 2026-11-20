@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x63394d403cb27cc7ULL)
+#define API_CONTRACT ((uint64_t)0xdeea008993534300ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -2486,6 +2486,7 @@ void api_unescaped_maybe_future_free(api_unescaped_maybe_future *future);
 API_MUST_USE api_buf api_unzeroed(api_buf bytes);
 uint8_t api_deprecated(uint8_t note);
 uint8_t api__deprecated(uint8_t note);
+uint8_t api___all__(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;
 API_MUST_USE api_level_later_future *api_level_later(api_Dial dial);

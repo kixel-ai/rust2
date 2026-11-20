@@ -2747,6 +2747,7 @@ export declare function unescapedMaybe(text: string | undefined): rt.Call<string
 export declare function unzeroed(bytes: Uint8Array | rt.Bytes): rt.Bytes;
 export declare function deprecated(note: number): number;
 export declare function deprecated_(note: number): number;
+export declare function all(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;

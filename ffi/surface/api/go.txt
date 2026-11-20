@@ -9,6 +9,7 @@ const URL uint64 = 1000
 FUNCTIONS
 func Admit(entry p_rt.Tuple4[*Counter, *Mark, Seat, Choice]) (uint64, error)
 func After(ctx context.Context, first func(context.Context), value uint32) (uint32, error)
+func All(note uint8) uint8
 func Alpn(config *p_tls.Config) (string, error)
 func AlpnLent(config *p_tls.Config) (string, error)
 func ApplyNonZeroU16(pair PairNonZeroU16, f func(uint16) uint32) (uint32, error)

@@ -1761,6 +1761,7 @@ public let URL: Swift.UInt64
 @inlinable public func unzeroed(_ bytes: borrowing Swift.Span<Swift.UInt8>) -> Bytes
 @inlinable public func deprecated(_ note: Swift.UInt8) -> Swift.UInt8
 @inlinable public func deprecated_(_ note: Swift.UInt8) -> Swift.UInt8
+@inlinable public func all(_ note: Swift.UInt8) -> Swift.UInt8
 @available(*, deprecated) @inlinable public func knob(_ dial: Dial) -> Knob
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial

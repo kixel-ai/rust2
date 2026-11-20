@@ -517,9 +517,14 @@ impl<'a> Gen<'a> {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
-	/// The module-level Python name `what` takes, `name` unless that is taken.
+	/// The module-level Python name `what` takes, `name` unless that is taken. Python
+	/// defines `__x__` names, such as the module's own `__all__` and `__getattr__`, which
+	/// one takes a trailing `_` past.
 	fn claim(&mut self, name: &str, what: String) -> String {
-		abi::claim(&mut self.names, |_| false, name, what)
+		let dunder = |name: &str| {
+			name.len() > 4 && name.starts_with("__") && name.ends_with("__") && !name.ends_with("___")
+		};
+		abi::claim(&mut self.names, dunder, name, what)
 	}
 
 	/// Register the class the Python expression `py` names under `key`, returning the
