@@ -8,6 +8,8 @@ generates from `fixtures/api/examples/transcript.rs`, and each prints native Rus
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#909](https://github.com/kixel-ai/rust2/pull/909): ✅ kept, with a `just ffi transcripts <dir>` recipe and check inputs that may name a directory (rejected: committing the generated scripts; dropping the checks to imports; dropping the quest).
+
 Found by [the Python packaging quest's PR](https://github.com/kixel-ai/rust2/pull/909): since
 [#885](https://github.com/kixel-ai/rust2/pull/885), `api.py` imports a generated `transcript`
 module, `api.cpp` includes `transcript.hpp`, and `api.ts` imports `./transcript.ts`, none of
