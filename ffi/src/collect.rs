@@ -4696,22 +4696,32 @@ impl<'tcx> Collector<'tcx> {
 			unreachable!("a generic type argument is a parameter");
 		};
 		// What `param` is in each instance of a generic type the signature holds it in, as
-		// `Foo<T>` offers `X` for `Foo<X>`; an instance of another type, or an argument at
-		// another position, offers nothing, so no choice feeds an unrelated signature.
+		// `Foo<T>` offers `X` for `Foo<X>`, so no choice feeds a signature its type's instances
+		// never name. One with no instance yet takes any instance's argument, so a function can
+		// name its type's first, as nom's `fail` names `Fail`'s; another crate's type, which
+		// has none, offers nothing.
 		let mut offered: Vec<Ty<'tcx>> = Vec::new();
+		let mut offer = |candidate: Ty<'tcx>| {
+			if candidate != param && !offered.contains(&candidate) {
+				offered.push(candidate);
+			}
+		};
 		for holder in spelled(tcx.mk_args(base)) {
 			let Some((adt, args)) = exported(holder) else { continue };
-			if !args.iter().any(|arg| arg.walk().any(|a| a == param.into())) {
+			if !self.generic.contains(&adt) || !args.iter().any(|arg| arg.walk().any(|a| a == param.into())) {
 				continue;
 			}
-			for site in self.instances.iter().filter(|site| site.key.def_id == adt) {
+			let mut sites = self.instances.iter().filter(|site| site.key.def_id == adt).peekable();
+			if sites.peek().is_none() {
+				self.instances
+					.iter()
+					.flat_map(|site| site.args.types())
+					.for_each(&mut offer);
+			}
+			for site in sites {
 				let mut args = base.to_vec();
-				if !matches(tcx, holder, self.site_ty(site), &mut args) {
-					continue;
-				}
-				let candidate = args[p.index as usize].expect_ty();
-				if candidate != param && !offered.contains(&candidate) {
-					offered.push(candidate);
+				if matches(tcx, holder, self.site_ty(site), &mut args) {
+					offer(args[p.index as usize].expect_ty());
 				}
 			}
 		}
@@ -7316,46 +7326,58 @@ fn implements<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, def_id: DefId, item: rustc_
 	infcx.type_implements_trait(tr, [ty], env).must_apply_modulo_regions()
 }
 
-/// Whether `ty` is an instance of an impl's self type `pattern`, binding each of the
-/// impl's type parameters in `args`, which starts as its identity. An instance's
-/// arguments are never references or tuples but `()`, so structure decides it; lifetimes
-/// stay as the impl names them.
+/// Whether `ty` is an instance of `pattern`, an impl's self type or a type a signature
+/// names, binding each of its type and const parameters in `args`, which starts as their
+/// identity: each constructor, such as a type's, a tuple's, or a reference's, must be the
+/// same, and lifetimes stay as `pattern` names them.
 fn matches<'tcx>(tcx: TyCtxt<'tcx>, pattern: Ty<'tcx>, ty: Ty<'tcx>, args: &mut [ty::GenericArg<'tcx>]) -> bool {
-	match (pattern.kind(), ty.kind()) {
-		(ty::Param(param), _) => {
-			let slot = &mut args[param.index as usize];
-			match slot.as_type() == Some(pattern) {
-				true => {
-					*slot = ty.into();
-					true
-				}
-				false => {
-					slot.as_type().map(|bound| tcx.erase_and_anonymize_regions(bound))
-						== Some(tcx.erase_and_anonymize_regions(ty))
+	if let ty::Param(param) = pattern.kind() {
+		let slot = &mut args[param.index as usize];
+		return match slot.as_type() == Some(pattern) {
+			true => {
+				*slot = ty.into();
+				true
+			}
+			false => {
+				slot.as_type().map(|bound| tcx.erase_and_anonymize_regions(bound))
+					== Some(tcx.erase_and_anonymize_regions(ty))
+			}
+		};
+	}
+	if !pattern.has_non_region_param() {
+		return tcx.erase_and_anonymize_regions(pattern) == tcx.erase_and_anonymize_regions(ty);
+	}
+	// The same constructor, each argument matching in turn; any other, such as an associated
+	// type's, binds nothing.
+	let pairs: Vec<(ty::GenericArg<'tcx>, ty::GenericArg<'tcx>)> = match (pattern.kind(), ty.kind()) {
+		(ty::Adt(a, p), ty::Adt(b, t)) if a.did() == b.did() => p.iter().zip(t.iter()).collect(),
+		(ty::Tuple(p), ty::Tuple(t)) if p.len() == t.len() => {
+			(p.iter().zip(t.iter())).map(|(p, t)| (p.into(), t.into())).collect()
+		}
+		(ty::Ref(_, p, a), ty::Ref(_, t, b)) if a == b => vec![((*p).into(), (*t).into())],
+		(ty::RawPtr(p, a), ty::RawPtr(t, b)) if a == b => vec![((*p).into(), (*t).into())],
+		(ty::Slice(p), ty::Slice(t)) => vec![((*p).into(), (*t).into())],
+		(ty::Array(p, n), ty::Array(t, m)) => vec![((*p).into(), (*t).into()), ((*n).into(), (*m).into())],
+		_ => return false,
+	};
+	pairs.into_iter().all(|(p, t)| match (p.kind(), t.kind()) {
+		(GenericArgKind::Type(p), GenericArgKind::Type(t)) => matches(tcx, p, t, args),
+		(GenericArgKind::Const(p), GenericArgKind::Const(t)) => match p.kind() {
+			ty::ConstKind::Param(param) => {
+				let slot = &mut args[param.index as usize];
+				match slot.as_const() == Some(p) {
+					true => {
+						*slot = t.into();
+						true
+					}
+					false => slot.as_const() == Some(t),
 				}
 			}
-		}
-		(ty::Adt(a, pattern_args), ty::Adt(b, ty_args)) if a.did() == b.did() => {
-			(pattern_args.iter().zip(ty_args.iter())).all(|(p, t)| match (p.kind(), t.kind()) {
-				(GenericArgKind::Type(p), GenericArgKind::Type(t)) => matches(tcx, p, t, args),
-				(GenericArgKind::Const(p), GenericArgKind::Const(t)) => match p.kind() {
-					ty::ConstKind::Param(param) => {
-						let slot = &mut args[param.index as usize];
-						match slot.as_const() == Some(p) {
-							true => {
-								*slot = t.into();
-								true
-							}
-							false => slot.as_const() == Some(t),
-						}
-					}
-					_ => p == t,
-				},
-				_ => true,
-			})
-		}
-		_ => tcx.erase_and_anonymize_regions(pattern) == tcx.erase_and_anonymize_regions(ty),
-	}
+			_ => p == t,
+		},
+		(GenericArgKind::Lifetime(_), GenericArgKind::Lifetime(_)) => true,
+		_ => false,
+	})
 }
 
 /// A type's own generic arguments as it is exported: its lifetimes `'static`.
