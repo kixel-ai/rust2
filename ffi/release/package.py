@@ -65,13 +65,13 @@ REQUIRED_REASON_APIS = {
     "OBJC_CLASS_$_NSUserDefaults": "UserDefaults",
     "OBJC_CLASS_$_UITextInputMode": "ActiveKeyboards",
 }
-# The reason a library's own use of a category declares, where one reason holds for every
-# library: std's file metadata reads files of the app's container, the only ones a sandboxed
-# app reaches without the user's grant, and a clock read measures time within the app.
+# The reasons a library's own use of a category declares, where they hold for every library:
+# a sandboxed app, as the App Store requires, reaches only files in its containers (C617.1)
+# or ones the user granted it (3B52.1), and a clock read measures time within the app.
 # Another category's reason only the crate's author knows, so its call fails the build.
 REQUIRED_REASONS = {
-    "FileTimestamp": "C617.1",
-    "SystemBootTime": "35F9.1",
+    "FileTimestamp": ["C617.1", "3B52.1"],
+    "SystemBootTime": ["35F9.1"],
 }
 # Every target a wheel and a C archive are built for, each of 8-byte pointers, as the CMake version file checks.
 WHEEL_TARGETS = [
@@ -483,7 +483,7 @@ def privacy_manifest(lib, found):
                          "help: the App Store refuses an app calling them undeclared; remove the call, or the "
                          "dependency making it, from what the C ABI reaches")
     types = [{"NSPrivacyAccessedAPIType": f"NSPrivacyAccessedAPICategory{category}",
-              "NSPrivacyAccessedAPITypeReasons": [REQUIRED_REASONS[category]]} for category in sorted(found)]
+              "NSPrivacyAccessedAPITypeReasons": REQUIRED_REASONS[category]} for category in sorted(found)]
     return plistlib.dumps({"NSPrivacyAccessedAPITypes": types}, sort_keys=True)
 
 
@@ -1983,11 +1983,13 @@ def web_package(info, web_dir, wasm, scope, out):
 
 
 def apple_profile(manifest):
-    """The Apple slices' build with line tables, from which the app's dSYM symbolicates a crash in
-    Rust, unless the crate's release profile, which the export carries, chooses its own level."""
+    """The Apple slices' build with line tables at least, from which the app's dSYM symbolicates
+    a crash in Rust, keeping a level of the crate's release profile, which the export carries,
+    only when it holds them."""
     with open(manifest, "rb") as f:
-        release = tomllib.load(f).get("profile", {}).get("release", {})
-    return {} if "debug" in release else {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}
+        level = tomllib.load(f).get("profile", {}).get("release", {}).get("debug", False)
+    lines = level is True or level in (1, 2, "limited", "full", "line-tables-only")
+    return {} if lines else {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}
 
 
 def web_profile(manifest):

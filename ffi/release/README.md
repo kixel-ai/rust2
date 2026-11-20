@@ -103,14 +103,14 @@ crate apart from it takes `web-features` and `web-example` instead.
    that link imports, which the App Store's upload scan refuses undeclared (ITMS-91053).
    The package's `PrivacyInfo.xcprivacy` declares them, a resource of its own
    `<Module>Privacy` target, which SwiftPM bundles into the app, since a static library holds
-   none: file metadata (`stat` and its kin) for the
-   app's container, `C617.1`, and the boot clock (`mach_absolute_time`) for elapsed time,
-   `35F9.1`. Disk space, `getattrlist`, user defaults, and active keyboards have no reason
+   none: file metadata (`stat` and its kin) of the app's containers, `C617.1`, and of files
+   the user granted it, `3B52.1`, the only ones a sandboxed app reaches; and the boot clock
+   (`mach_absolute_time`) for elapsed time, `35F9.1`. Disk space, `getattrlist`, user defaults, and active keyboards have no reason
    that fits every library, so a library reaching them fails the build. An Objective-C call
    by selector, or to a class looked up at run time, imports no symbol, and the scan misses it.
 
    The slices carry line tables, `debug = "line-tables-only"` unless the crate's release
-   profile sets `debug`: a static library has no dSYM of its own, and the app's dSYM is made
+   profile sets a level holding them: a static library has no dSYM of its own, and the app's dSYM is made
    from the debug info of what it links, so a crash in Rust symbolicates to its source
    line, which the build checks by `atos` on a dSYM of each slice's link.
 7. C and C++: an archive per wheel target, `<crate>-<version>-<target>.tar.gz`, or `.zip`

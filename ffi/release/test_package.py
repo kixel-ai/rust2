@@ -626,7 +626,7 @@ class Swift(unittest.TestCase):
         plist = plistlib.loads(package.privacy_manifest("moq", found))
         self.assertEqual(plist, {"NSPrivacyAccessedAPITypes": [
             {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-             "NSPrivacyAccessedAPITypeReasons": ["C617.1"]},
+             "NSPrivacyAccessedAPITypeReasons": ["C617.1", "3B52.1"]},
             {"NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
              "NSPrivacyAccessedAPITypeReasons": ["35F9.1"]},
         ]})
@@ -644,8 +644,12 @@ class Swift(unittest.TestCase):
             manifest = Path(raw) / "Cargo.toml"
             manifest.write_text('[package]\nname = "x"\n')
             self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"})
-            manifest.write_text('[package]\nname = "x"\n\n[profile.release]\ndebug = false\n')
-            self.assertEqual(package.apple_profile(manifest), {})
+            for level in ("false", "0", '"none"', '"line-directives-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {"CARGO_PROFILE_RELEASE_DEBUG": "line-tables-only"}, level)
+            for level in ("true", "1", '"full"', '"line-tables-only"'):
+                manifest.write_text(f'[package]\nname = "x"\n\n[profile.release]\ndebug = {level}\n')
+                self.assertEqual(package.apple_profile(manifest), {}, level)
 
     def test_unknown_linker_flags_fail(self):
         with self.assertRaises(SystemExit):
