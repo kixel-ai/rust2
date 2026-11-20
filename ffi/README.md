@@ -433,6 +433,11 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Android**: the build script links the library with 16 KB pages, which Google Play
+  requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
+  panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
+  message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
+  app's stderr goes nowhere.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -485,7 +490,9 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
+  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
+  underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -679,7 +686,7 @@ the rest cross encoded.
   which is never negative or infinite in Rust and drops what is below a millisecond past
   about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
   Windows, made from them or from a `String`, and converted to one or to a
-  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  `java.nio.file.Path` by `toText()` and `toPath()` (Android's `java.nio.file` starts at API 26), which throw where it is not UTF-8;
   its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
   is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
   each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
@@ -747,7 +754,8 @@ the rest cross encoded.
 ## Python
 
 `<prefix>.py` is Python over a CPython extension that `--features python` builds into the
-same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
+same library on the stable ABI, so one build loads in CPython 3.11 and later, but not in a
+free-threaded build (3.13t, 3.14t), which the module refuses at import with an `ImportError`. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs,
@@ -1459,7 +1467,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   payload costs 0.2 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
   1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
   has each engine's.
-- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
+- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does; where the engine lacks that symbol, as stable Safari does, `rt` defines it as `Symbol.for("Symbol.dispose")`, which esbuild's `using` falls back to too. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
   disposed and no call holds it, so one disposed while a later argument lowers fails the
@@ -1501,7 +1509,7 @@ just ffi shapes   # round-trip every sampled type shape in every language but KN
 just ffi corpus   # census, export, and bind each crate of corpus/crates.txt through a facade, as the nightly does; it runs their build scripts
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
-nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
@@ -1511,9 +1519,15 @@ nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts un
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. The fixture's binding serves the host and wasm32, whose
 items the host's library lacks, and each language's test checks that the host's items work
-and that wasm32's fail. `tests/api.c` runs the same script as the
-fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
-then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
+and that wasm32's fail. Each language's script is written at test time by
+`tests/fixtures/transcript` from the fixture's `examples/transcript.rs`, whose `main` is a
+typed subset of Rust checked against the export's `api.json`: an item it cannot resolve, or
+a construct a language's writer cannot spell, fails the test naming it. Each function the
+example defines is a hook each language's test writes by hand under the same name, for what
+tests its idiom, such as futures and readers, or prints a value no two bindings shape alike.
+A new rule's case is a few lines of `main`, which every language then runs.
+`tests/api.c` runs the script through the C, and its transcript must match the native one
+line for line; then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
 `tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
@@ -1526,12 +1540,16 @@ pushed out of one, and that each object of many threads' returns, closes, and dr
 freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
+segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
+panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
+x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
+API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
-abort with its message; the Python with another contract must refuse the library.
+abort with its message; the Python with another contract must refuse the library. `api_free_threaded` imports it under
+nixpkgs' free-threaded CPython, which the dev shell names in `PYTHON_FREE_THREADED`, and checks the `ImportError`.
 `api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's

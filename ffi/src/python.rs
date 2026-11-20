@@ -27,7 +27,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -65,6 +65,7 @@ const TAKEN: &[&str] = &[
 	"_dataclass",
 	"_same",
 	"_all",
+	"_any",
 	"_dict",
 	"_float",
 	"_int",
@@ -210,6 +211,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
+		from builtins import any as _any\n\
 		from builtins import bool as _bool\n\
 		from builtins import bytearray as _bytearray\n\
 		from builtins import bytes as _bytes\n\
@@ -255,7 +257,18 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		def _load() -> _object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
-		\timport os\n\n\
+		\timport os\n\
+		\timport re\n\n\
+		\t# Loading by path skips the filename tag that keeps a GIL build's library out of a\n\
+		\t# free-threaded interpreter, which the stable ABI does not cover and which would crash.\n\
+		\t# Its extension suffixes carry the tag (`314t`, or `314td` on a POSIX debug build, after `_d` on a Windows one),\n\
+		\t# where sysconfig's `Py_GIL_DISABLED` follows an overridden sysconfig data file, as a\n\
+		\t# Nix shell sets.\n\
+		\tif _any(re.match(r\"(?:_d)?\\.(?:cpython-|cp)\\d+td?[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
+		\t\traise _ImportError(\n\
+		\t\t\t\"{p}.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use: \"\n\
+		\t\t\tf\"{{_sys.implementation.name}} {{_sys.version.partition(' ')[0]}}, free-threaded\"\n\
+		\t\t)\n\n\
 		\tname = {{\"win32\": \"{p}.dll\", \"darwin\": \"lib{p}.dylib\"}}.get(_sys.platform, \"lib{p}.so\")\n\
 		\tpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)\n\
 		\tloader = importlib.machinery.ExtensionFileLoader(\"_{p}\", path)\n\
@@ -1378,10 +1391,10 @@ impl<'a> Gen<'a> {
 			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
-					method
-						.params
-						.iter()
-						.map(|p| format!("{}: {}", param_name(&p.name), self.py_lent(&p.ty))),
+					param_names(&method.params)
+						.into_iter()
+						.zip(&method.params)
+						.map(|(name, p)| format!("{name}: {}", self.py_lent(&p.ty))),
 				)
 				.collect();
 			body.push(format!(
@@ -1671,6 +1684,9 @@ impl<'a> Gen<'a> {
 		let member = match (place, constant) {
 			(Place::Top, true) => self.claim(&member.to_uppercase(), format!("const `{}`", function.path.join("::"))),
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
+			// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
+			// and its alias `SP`, so the later is kept apart again.
+			(Place::Static, true) => self::member(&member.to_uppercase(), reserved),
 			_ => member,
 		};
 
@@ -1714,9 +1730,8 @@ impl<'a> Gen<'a> {
 		let mut closures = Vec::new();
 		// Each parameter Rust writes back, by its argument's index, and what it holds.
 		let mut written: Vec<(usize, Type)> = Vec::new();
-		for param in &function.params {
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			let name = param_name(&param.name);
 			let annotation = match &param.ty {
 				Type::Ref(_, inner) if param.ty.written() => format!("Mut[{}]", self.py_ty(inner)),
 				ty => self.py_param(ty),
@@ -1849,8 +1864,7 @@ impl<'a> Gen<'a> {
 				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
 			);
 		}
-		for param in &function.params {
-			let name = param_name(&param.name);
+		for (param, name) in function.params.iter().zip(param_names(&function.params)) {
 			if let Type::Closure(closure_) = &param.ty {
 				let lent = &closure_.params;
 				match closure_.kept {
@@ -1885,7 +1899,7 @@ impl<'a> Gen<'a> {
 		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
 		match direct {
 			true => {
-				let names: Vec<String> = function.params.iter().map(|p| param_name(&p.name)).collect();
+				let names = param_names(&function.params);
 				let d = Direct {
 					member: &member,
 					place,
@@ -1931,9 +1945,7 @@ impl<'a> Gen<'a> {
 				return None;
 			}
 			(Access::Const, Place::Static) if constant => {
-				// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
-				// and its alias `SP`, so the later is kept apart again.
-				let name = self::member(&member.to_uppercase(), reserved);
+				let name = member.clone();
 				self.natives
 					.push(format!("@_staticmethod\ndef {bare}() -> {ret}: ...\n"));
 				// An `Enum` makes a member of any other value, to a type checker as at run time.
@@ -2095,13 +2107,28 @@ fn field_name(name: &str) -> String {
 	}
 }
 
-/// A parameter's Python name, apart from the runtime's names a body reads.
+/// A parameter's Python name, apart from the runtime's names a body reads: not `_any`, which
+/// only `_load` reads, and it has no parameter.
 fn param_name(name: &str) -> String {
 	let name = kw(&abi::snake(name));
-	match TAKEN.contains(&name.as_str()) || name == "self" {
+	match (TAKEN.contains(&name.as_str()) && name != "_any") || name == "self" {
 		true => format!("{name}_"),
 		false => name,
 	}
+}
+
+/// The Python names of `params`, each apart from the others: one that an earlier parameter's
+/// rename took, such as `_all_` after `_all`, gets another `_`.
+fn param_names<'a>(params: impl IntoIterator<Item = &'a Param>) -> Vec<String> {
+	let mut out: Vec<String> = Vec::new();
+	for param in params {
+		let mut name = param_name(&param.name);
+		while out.contains(&name) {
+			name.push('_');
+		}
+		out.push(name);
+	}
+	out
 }
 
 /// The name a member's code declares, for [`Gen::distinct`].
@@ -2180,7 +2207,29 @@ fn ieee_eq(class: &str, fields: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::member;
+	use super::{member, param_name, param_names};
+	use crate::ir::{Param, Type};
+
+	#[test]
+	fn params_keep_apart() {
+		let params = |names: &[&str]| {
+			let params: Vec<Param> = names
+				.iter()
+				.map(|n| Param {
+					name: n.to_string(),
+					ty: Type::Bool,
+					interned: false,
+				})
+				.collect();
+			param_names(&params)
+		};
+		// `_any` is read only by `_load`, which has no parameter, so it keeps its name.
+		assert_eq!(param_name("_any"), "_any");
+		assert_eq!(param_name("_all"), "_all_");
+		assert_eq!(params(&["_all", "_all_"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["_all_", "_all"]), ["_all_", "_all__"]);
+		assert_eq!(params(&["a", "b"]), ["a", "b"]);
+	}
 
 	#[test]
 	fn member_keeps_clear_of_the_runtime_aliases() {

@@ -257,7 +257,8 @@ class __Writer {
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
 		held?.forEachIndexed { i, h -> h.release(slots[i]) }
-		java.lang.ref.Reference.reachabilityFence(kept)
+		// A fence on each, which keeps it reachable up to here.
+		kept?.forEach { if (it != null) __Keep.fence(it) }
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
@@ -839,8 +840,7 @@ fun interface __Close {
 /**
  * Rust's buffer, which [owner] holds, freed once the GC collects this. Each read passes it
  * to the JNI function reading the buffer, as JNI keeps an argument reachable until the call
- * returns: a fence on every JVM and Android level, where `Reference.reachabilityFence`
- * needs API 28.
+ * returns, on every JVM and Android level.
  */
 class __Lent(internal val owner: Long) {
 	init {

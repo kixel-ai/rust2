@@ -1,91 +1,47 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
-// native Rust does on wasm32-wasip1, through the generated TypeScript on Node or Deno, from
-// beside the binding's `web` directory, or in a browser, through tests/browser.ts's
-// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature;
-// without it, the script loads the module its package holds, as `load` does by default.
-// tests/fixtures.rs compares the transcripts.
+// native Rust does on wasm32-wasip1, through the TypeScript tests/fixtures/transcript
+// writes from it, transcript.ts, which calls the functions exported here that
+// transcript.rs defines. It runs on Node or Deno, from beside the binding's `web`
+// directory, or in a browser, through tests/browser.ts's `process`. RUST2_WASM is the path
+// of the module, built with the crate's `web` feature; without it, the script loads the
+// module its package holds, as `load` does by default. tests/fixtures.rs compares the
+// transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what disposing and the
-// garbage collector free, what a closed object refuses, how returned bytes cross, or what
-// a call lent bytes or text reads once memory grows, or breaks a contract, which must fail.
+// garbage collector free, what a closed object refuses, how returned bytes cross, what a
+// call lent bytes or text reads once memory grows, or the binding's own errors the
+// transcript cannot say, or breaks a contract, which must fail.
 
+import * as transcript from "./transcript.ts";
 import * as api from "./web/index.ts";
 import * as rt from "./web/rt.ts";
 import * as g from "./web/glue.ts";
-import * as Area from "./web/Area.ts";
-import * as Atlas from "./web/Atlas.ts";
 import * as Batch from "./web/Batch.ts";
-import * as Batch2 from "./web/Batch2.ts";
-import * as Berth from "./web/Berth.ts";
 import * as Board from "./web/Board.ts";
-import * as Cancelled from "./web/Cancelled.ts";
 import * as Channel from "./web/Channel.ts";
-import * as ClashSpan from "./web/ClashSpan.ts";
-import * as ClashStore from "./web/ClashStore.ts";
-import * as ClashTone from "./web/ClashTone.ts";
-import * as ClashTone_ from "./web/ClashTone_.ts";
-import * as Codecs from "./web/Codecs.ts";
 import * as Counter from "./web/Counter.ts";
-import * as Cursor from "./web/Cursor.ts";
-import * as Der from "./web/Der.ts";
 import * as Digest from "./web/Digest.ts";
-import * as Draft from "./web/Draft.ts";
 import * as Error_ from "./web/Error_.ts";
 import type * as Event from "./web/Event.ts";
-import * as Extent from "./web/Extent.ts";
-import * as Gap from "./web/Gap.ts";
-import * as Hits from "./web/Hits.ts";
-import * as Instant from "./web/Instant.ts";
-import * as Json from "./web/Json.ts";
 import * as Key from "./web/Key.ts";
-import * as Label from "./web/Label.ts";
 import * as Labelled from "./web/Labelled.ts";
-import * as Layered from "./web/Layered.ts";
 import * as Ledger from "./web/Ledger.ts";
 import * as Local from "./web/Local.ts";
 import type { Log } from "./web/Log.ts";
 import * as Logger from "./web/Logger.ts";
-import * as Mark from "./web/Mark.ts";
-import * as Marker from "./web/Marker.ts";
-import * as Measure from "./web/Measure.ts";
-import * as Message from "./web/Message.ts";
 import * as Meter from "./web/Meter.ts";
 import * as Meters from "./web/Meters.ts";
 import * as Moment from "./web/Moment.ts";
-import * as Name from "./web/Name.ts";
 import * as Node from "./web/Node.ts";
 import * as Numbers from "./web/Numbers.ts";
-import * as OuterInnerU8 from "./web/OuterInnerU8.ts";
-import * as PadU16 from "./web/PadU16.ts";
-import * as PadU8 from "./web/PadU8.ts";
-import * as PairSizeU8 from "./web/PairSizeU8.ts";
-import * as PairU32 from "./web/PairU32.ts";
-import * as PairU8Size from "./web/PairU8Size.ts";
-import * as Peer from "./web/Peer.ts";
 import * as Point from "./web/Point.ts";
-import * as Receipt from "./web/Receipt.ts";
 import * as Registry from "./web/Registry.ts";
-import * as Retry from "./web/Retry.ts";
 import * as Score from "./web/Score.ts";
-import * as Seat from "./web/Seat.ts";
 import * as Shape from "./web/Shape.ts";
-import * as Site from "./web/Site.ts";
-import * as SlotU8 from "./web/SlotU8.ts";
-import * as Span from "./web/Span.ts";
-import * as Stack from "./web/Stack.ts";
-import * as Stamp from "./web/Stamp.ts";
-import * as Tallies from "./web/Tallies.ts";
 import * as Tally from "./web/Tally.ts";
-import * as Ticket from "./web/Ticket.ts";
-import * as TlsConfig from "./web/TlsConfig.ts";
-import * as TlsSession from "./web/TlsSession.ts";
 import * as Token from "./web/Token.ts";
-import * as Trail from "./web/Trail.ts";
 import * as Url from "./web/Url.ts";
-import * as Verbosity from "./web/Verbosity.ts";
 import * as Waiter from "./web/Waiter.ts";
-import * as Weighted from "./web/Weighted.ts";
-import * as Window from "./web/Window.ts";
 
 // Node's globals, which the binding's types leave out.
 declare const process: {
@@ -111,11 +67,6 @@ function num(v: rt.u64): number {
 
 const U64_MAX = rt.u64FromBig(0xffffffffffffffffn);
 
-/** A `u128` in hex, as transcript.rs prints it. */
-function hex128(v: rt.u128): string {
-	return rt.u128ToBig(v).toString(16).padStart(32, "0");
-}
-
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const enc = (text: string) => encoder.encode(text);
@@ -127,61 +78,9 @@ function list(values: Iterable<unknown>): string {
 	return `[${[...values].map((v) => `${v}`).join(", ")}]`;
 }
 
-/** Bytes in hex, as transcript.rs prints them. */
-function hex(data: Uint8Array): string {
-	return [...data].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** A socket address as its IP's bytes in hex, its port, flow label, and scope, each IPv6's alone. */
-function socketHex(addr: rt.SocketAddr): string {
-	if (addr.tag === "V4") return `${hex(addr._0.ip.octets)}:${addr._0.port}`;
-	const v6 = addr._0;
-	return `${hex(v6.ip.octets)}:${v6.port}:${v6.flowinfo}:${v6.scopeId}`;
-}
-
-const quoted = (values: string[]) => `[${values.map((v) => `"${v}"`).join(", ")}]`;
-
-/** A path's bytes as Rust's `escape_ascii` prints them. */
-function escaped(path: rt.PathBuf): string {
-	let out = "";
-	for (const b of path.bytes) {
-		if (b === 0x09) out += "\\t";
-		else if (b === 0x0d) out += "\\r";
-		else if (b === 0x0a) out += "\\n";
-		else if (b === 0x5c || b === 0x27 || b === 0x22) out += `\\${String.fromCharCode(b)}`;
-		else if (b >= 0x20 && b < 0x7f) out += String.fromCharCode(b);
-		else out += `\\x${b.toString(16).padStart(2, "0")}`;
-	}
-	return out;
-}
-
-type Bound = ReturnType<typeof api.end>;
-
-function bound(b: Bound): string {
-	return b.tag === "Unbounded" ? "Unbounded" : `${b.tag}(${dec(b._0)})`;
-}
-
 /** Each float's bits, as transcript.rs prints them. */
 const bits32 = (v: Float32Array) => list(new Uint32Array(v.buffer, v.byteOffset, v.length));
 const bits64 = (v: Float64Array) => list(new BigUint64Array(v.buffer, v.byteOffset, v.length));
-
-/** The floats of `bits`, each never a JavaScript number, whose NaN an engine may make its
- * own: Deno's V8 does, storing one in an array literal. */
-const floats64 = (...bits: bigint[]) => new Float64Array(new BigUint64Array(bits).buffer);
-
-/** Print each of `n`'s lists, its floats as their bits, as transcript.rs does. */
-function numbers(what: string, n: Numbers.Numbers): void {
-	print(`${what} u16 ${list(n.u16s)}`);
-	print(`${what} u32 ${list(n.u32s)}`);
-	print(`${what} u64 ${list(n.u64s)}`);
-	print(`${what} i8 ${list(n.i8s)}`);
-	print(`${what} i16 ${list(n.i16s)}`);
-	print(`${what} i32 ${list(n.i32s)}`);
-	print(`${what} i64 ${list(n.i64s)}`);
-	print(`${what} f32 ${bits32(n.f32s)}`);
-	print(`${what} f64 ${bits64(n.f64s)}`);
-	print(`${what} some ${n.some === undefined ? "None" : `Some(${list(n.some)})`}`);
-}
 
 /** The value of a result that must be `Ok`. */
 function unwrap<T, E>(r: rt.Result<T, E>): T {
@@ -189,8 +88,8 @@ function unwrap<T, E>(r: rt.Result<T, E>): T {
 	return r.value;
 }
 
-/** The Log callback: keeps even levels. */
-class PrintLog implements Log {
+/** The Log callback: keeps even levels, as transcript.rs's does. */
+export class Print implements Log {
 	log(level: number, line: string): boolean {
 		print(`log ${level} ${line}`);
 		return level % 2 === 0;
@@ -346,310 +245,14 @@ class Far implements rt.Reader {
 	}
 }
 
+/** The transcript, through the TypeScript tests/fixtures/transcript writes from it, which
+ * calls the functions below that transcript.rs defines. */
 async function script(): Promise<void> {
-	print(`limit ${dec(api.LIMIT)}`);
-	check(`${rt.i64ToBig(api.FAR)}` === "9223372036854775807", "a constant past a safe integer keeps its type");
+	await transcript.script();
+}
 
-	const p = Point.offset({ x: 1, y: 2 }, 2, 3);
-	print(`offset ${p.x} ${p.y}`);
-	print(`debug ${Point.debug(p)}`);
-	print(`eq ${Point.eq(p, { x: 3, y: 5 })}`);
-	const d = Point.default();
-	print(`default ${d.x} ${d.y}`);
-
-	const c = Counter.new("c", 5);
-	print(`get ${dec(Counter.get(c))}`);
-	print(`name ${Counter.name(c)}`);
-	print(`add ok ${dec(unwrap(Counter.add(c, 10)))}`);
-	const over = Counter.add(c, 2000);
-	if (!over.ok) print(`add err ${Error_.toString(over.error)} ${Error_.debug(over.error)}`);
-	const under = Counter.sub(c, 20);
-	if (!under.ok) print(`sub err ${Error_.toString(under.error)} ${Error_.debug(under.error)}`);
-	Counter.rename(c, "d");
-	print(`name ${Counter.name(c)}`);
-	print(`is d ${Counter.is(c, "d")}`);
-	const copy = Counter.clone(c);
-	Counter.add(copy, 1);
-	print(`clone ${dec(Counter.get(copy))} original ${dec(Counter.get(c))}`);
-	close(copy);
-	print(`debug ${Counter.debug(c)}`);
-	const label = Counter.intoLabel(c, p);
-	print(`label ${Label.debug(label)}`);
-	print(`note ${api.hasText({ text: "" })} ${api.hasText({ text: undefined })}`);
-
-	const [below, above] = Counter.split(Counter.new("s", 7), 5);
-	print(`split ${Counter.name(below)} ${dec(Counter.get(below))} ${Counter.name(above)} ${dec(Counter.get(above))}`);
-	const [only] = api.only(Counter.new("o", 3));
-	print(`only ${Counter.name(only)} ${dec(Counter.get(only))}`);
-	const [w8, w16, w32, w64] = api.widths(98305);
-	print(`widths ${w8} ${w16} ${w32} ${dec(w64)}`);
-	for (const b of [2, 0]) {
-		const r = api.divide(7, b);
-		print(r.ok ? `divide ${dec(r.value[0])} ${dec(r.value[1])}` : `divide err ${Error_.toString(r.error)}`);
-	}
-	for (const n of [98305, 0]) {
-		const spread = api.spread(n);
-		print(spread === undefined ? "spread none" : `spread ${spread[0]} ${spread[1]} ${spread[2]} ${dec(spread[3])}`);
-	}
-	for (const needle of ["lo", "x"]) {
-		const found = api.find(enc("hello"), enc(needle));
-		print(found === undefined ? "find none" : `find ${found[0]} ${found[1]}`);
-	}
-	const statRows = api.rows([
-		{ x: 1, y: 2 },
-		{ x: 3, y: 3 },
-	]);
-	print(`rows ${statRows.map(([n, s, at]) => `${n} ${Shape.debug(s)} ${at.x} ${at.y}`).join(", ")}`);
-	// Each handle in a tuple moves in, as one taken by value does, and the counters a board
-	// returns build another, each moved back in.
-	const first = Board.new([
-		["low", Counter.new("l", 1)],
-		["high", Counter.new("h", 9)],
-	]);
-	const board = Board.new(Board.intoCounters(first));
-	const ranked = Board.ranked(board);
-	print(`ranked ${ranked.map(([n, r]) => `${n} ${Counter.name(r)} ${dec(Counter.get(r))}`).join(", ")}`);
-	const best = Board.best(board);
-	print(`best ${Counter.name(best)} ${dec(Counter.get(best))}`);
-	close(best);
-	close(board);
-	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
-	// key once, the last kept.
-	const atlas = Atlas.with(
-		{
-			points: [
-				["b", { x: 1, y: 1 }],
-				["ab", { x: 2, y: 3 }],
-				["b", { x: 4, y: 4 }],
-			],
-			ids: [3, 1, 3],
-		},
-		"c",
-		{ x: 5, y: 6 },
-	);
-	print(`atlas ${atlas.points.map(([n, at]) => `${n} ${at.x} ${at.y}`).join(", ")}; ids ${atlas.ids.join(" ")}`);
-	// Another crate's error crosses as its message.
-	for (const t of ["80", "x"]) {
-		const r = api.port(t);
-		print(r.ok ? `port ${r.value}` : `port err ${r.error}`);
-	}
-	const span: Span.Span = { bounds: [2, 10], named: ["s", "Square"] };
-	const [lowerHalf, upperHalf] = api.halves(span);
-	print(`halves ${lowerHalf[0]} ${lowerHalf[1]} ${upperHalf[0]} ${upperHalf[1]} ${Span.debug(span)}`);
-	const [swappedN, swappedText] = api.swapped(["t", 4]);
-	print(`swapped ${swappedN} ${swappedText}`);
-	for (const value of [undefined, [undefined], [3]] as ([number | undefined] | undefined)[]) {
-		const doubled = api.doubled(value);
-		if (doubled === undefined) print("doubled None");
-		else print(`doubled Some((${doubled[0] === undefined ? "None" : `Some(${doubled[0]})`},))`);
-	}
-	// A borrowed or boxed tuple of one is a tuple, not its element.
-	const [lentOne] = api.lentBack([bytes(1, 2)]);
-	const [boxedOne] = api.boxedTuple(bytes(3));
-	print(`lent back ${list(lentOne)} boxed ${list(boxedOne)}`);
-	// A borrowed string and an owned one share a tuple struct.
-	print(
-		`title Some(("${api.title(true)![0]}",)) ${api.title(false) === undefined ? "None" : "Some"} ` +
-			`named Some(("${api.named("x")![0]}",))`,
-	);
-
-	// Each lent counter is a new handle to a clone.
-	const registry = Registry.new(Counter.new("first", 1));
-	print(`last ${Registry.last(registry) !== undefined}`);
-	Registry.push(registry, Counter.new("last", 2));
-	const lentFirst = Registry.firstGet(registry);
-	Counter.add(lentFirst, 10);
-	print(`first ${dec(Counter.get(Registry.firstGet(registry)))} lent ${dec(Counter.get(lentFirst))}`);
-	const last = Registry.last(registry)!;
-	Counter.add(last, 10);
-	print(`last ${dec(Counter.get(Registry.last(registry)!))} lent ${dec(Counter.get(last))}`);
-	// A closure lent for the call edits the first counter through a handle.
-	const by = 5;
-	const edited = Registry.edit(registry, (counter) => {
-		Counter.add(counter, by);
-		return Counter.edited(counter) && Counter.get(counter) === 6;
-	});
-	print(`edit ${edited} ${dec(Counter.get(Registry.firstGet(registry)))}`);
-	// A setter moves an object in, as assignment does, closing it.
-	Registry.firstSet(registry, Counter.new("second", 3));
-	print(`set first ${dec(Counter.get(Registry.firstGet(registry)))} ${Counter.name(Registry.firstGet(registry))}`);
-	print(`walk ${dec(api.walk(3, (cursor) => num(Cursor.at(cursor)) * 2))}`);
-	print(`each ${api.each(2, (at) => print(`visit ${at}`))}`);
-	print(`offset ${api.offset(() => 7, 3)}`);
-	print(`shift ${api.shift(() => 7, 4)}`);
-
-	const name = Name.owned("a");
-	const joined = Name.join(name, Name.owned("b"));
-	print(`joined ${Name.asStr(joined)} ${Name.debug(joined)} ${Name.eq(joined, name)}`);
-	Name.rename(joined, "c");
-	print(`renamed ${Name.asStr(joined)}`);
-	const long = api.longer(joined, Name.owned("dd"));
-	print(`longer ${Name.asStr(long)}`);
-	print(`unnamed [${Name.asStr(api.unnamed())}]`);
-	const lit = Name.borrowed("lit");
-	print(`borrowed ${Name.asStr(lit)} ${Name.shares(lit, Name.borrowed("lit"))} ${Name.shares(lit, Name.borrowed("other"))}`);
-
-	print(`total ${dec(api.total({ start: 2, end: 5 }))}`);
-	print(`reach ${api.reach(2, 5)}`);
-	const scaled = [
-		api.scaled(rt.u128FromBig((1n << 128n) - 1n), 1),
-		api.scaled(rt.u128FromBig((1n << 64n) + 1n), rt.u64FromBig(1n << 63n)),
-		api.scaled(rt.u128FromBig(1n << 127n), 2),
-	];
-	print(`scaled ${scaled.map((v) => (v === undefined ? "none" : hex128(v))).join(" ")}`);
-	const digest = Digest.new();
-	Digest.sumSet(digest, unwrap(api.fingerprint("deadbeef")));
-	const unparsed = api.fingerprint("zz");
-	print(
-		`digest ${hex(Digest.sumGet(digest))} ${hex(Digest.flipped(digest, bytes(0xff, 0, 0xff, 0)))} ` +
-			`${unparsed.ok ? "" : unparsed.error}`,
-	);
-	close(digest);
-	const batch = Batch.new();
-	const batch2 = api.pair();
-	let accepted = 0;
-	for (let v = 1; v <= 5; v++) if (Batch.push(batch, v)) accepted++;
-	let paired = 0;
-	for (let v = 1; v <= 3; v++) if (Batch2.push(batch2, v)) paired++;
-	const emptied = api.drain4(batch);
-	print(
-		`batch ${Batch.capacity(batch)} ${accepted} ${dec(emptied)} ${dec(api.drain4(batch))} ` +
-			`${Batch2.capacity(batch2)} ${paired} ${dec(api.drain2(batch2))}`,
-	);
-	print(`capacities ${api.capacities42(batch, batch2)} ${api.capacities22(batch2, batch2)}`);
-	close(batch);
-	close(batch2);
-	const wide = api.widen({ start: 2, end: 5 }, 1);
-	print(`widen ${dec(wide.start)} ${dec(wide.end)}`);
-	const counts = (
-		[
-			[{ tag: "Included", _0: 2 }, { tag: "Excluded", _0: 5 }],
-			[{ tag: "Included", _0: 2 }, { tag: "Included", _0: 5 }],
-			[{ tag: "Included", _0: 3 }, { tag: "Unbounded" }],
-			[{ tag: "Unbounded" }, { tag: "Unbounded" }],
-			[{ tag: "Excluded", _0: 2 }, { tag: "Included", _0: 4 }],
-		] as [Bound, Bound][]
-	).map(([start, end]) => api.count({ start, end }));
-	print(`count ${counts.map(dec).join(" ")}`);
-	print(`end ${bound(api.end(3))} ${bound(api.end(0))}`);
-	const [endsStart, endsEnd] = api.ends(3);
-	print(`ends ${bound(endsStart)} ${bound(endsEnd)}`);
-	for (const n of [2, 5]) {
-		const r = api.below(n, 3);
-		print(r.ok ? `below ${dec(r.value)}` : `below err ${bound(r.error.start)} ${bound(r.error.end)}`);
-	}
-	const window: Window.Window = { range: { start: 2, end: 8 }, end: api.end(5) };
-	print(`window ${Window.contains(window, 4)} ${Window.contains(window, 6)} ${Window.debug(window)}`);
-
-	print(api.greet("x", "Square"));
-	print(`len ${api.len(enc("abc"))}`);
-	const binary = bytes(0xff, 0, 0x61);
-	print(`hex ${api.hex(binary)}`);
-	print(`timed hex ${api.timedHex(binary)}`);
-	print(`sample hex ${api.sampleHex(binary)}`);
-	print(`queued hex ${api.queuedHex(binary)}`);
-	print(`tick ${api.tickName({ name: "tick", at: undefined, ttl: undefined })}`);
-	print(`rooted ${api.rootedName({ name: "rooted", at: undefined, ttl: undefined })}`);
-	print(`stored ${api.storedText("stored")}`);
-	print(`layer ${api.layerName({ name: "layer", at: undefined, ttl: undefined })}`);
-	for (const event of [{ tag: "Moved", _0: p }, { tag: "Named", name: "n" }, { tag: "Done" }] as const) {
-		print(api.describe(event));
-	}
-
-	// A `Copy` value passed by value is copied, so it stays usable.
-	const stamp = Stamp.fromMillis(2500);
-	print(`secs ${dec(Stamp.secs(stamp))}`);
-	print(`later ${Stamp.later(Stamp.fromMillis(3000), stamp)}`);
-	print(`secs ${dec(Stamp.secs(stamp))}`);
-	print(`whole ${Stamp.debug(Stamp.whole(stamp))}`);
-	const message = Message.new(stamp, enc("body"));
-	print(`payload ${text(Message.payloadGet(message))}`);
-	print(`stamp ${Stamp.debug(Message.stampGet(message)!)}`);
-	print(`sent ${Message.sent(message)}`);
-	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
-	const reset = Stamp.fromMillis(4000);
-	Message.stampSet(message, reset);
-	Message.payloadSet(message, enc("edited"));
-	print(`payload ${text(Message.payloadGet(message))}`);
-	print(`stamp ${Stamp.debug(Message.stampGet(message)!)}`);
-	print(`secs ${dec(Stamp.secs(reset))}`);
-	Message.stampSet(message, undefined);
-	print(`stamp ${Message.stampGet(message) !== undefined}`);
-
-	// A value past a word, copied across: a closure takes and returns one by value.
-	const moment = Moment.new(1500, 1000)!;
-	const Forged = rt.Opaque as unknown as new (bytes: Uint8Array) => Moment.Moment;
-	throws(() => new Forged(new Uint8Array(16)), TypeError, "a caller's opaque value");
-	throws(() => Moment.millis({ bytes: new Uint8Array(16) } as unknown as Moment.Moment), RangeError, "a lookalike");
-	print(`moment ${dec(Moment.millis(moment))} ${Moment.new(1, 0) === undefined}`);
-	const shifted = api.shifted(moment, (m) => Moment.after(m, 500));
-	print(`shifted ${dec(Moment.millis(shifted))} ${Moment.eq(shifted, Moment.after(moment, 500))}`);
-	print(`wrapped ${dec(Moment.millis(Moment.after(moment, U64_MAX)))} ${Moment.eq(moment, shifted)}`);
-
-	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
-	const gap = Gap.new(7, 3);
-	print(`gap ${dec(Gap.sum(gap))} ${Gap.eq(gap, Gap.new(7, 3))}`);
-	const berth = Berth.new(4);
-	print(`berth Some(${Berth.at(berth)}) ${Berth.at(Berth.new(undefined)) === undefined ? "None" : "Some"}`);
-
-	// A `Copy` type changed in place is a value, which a `&mut self` method returns as the
-	// call left it, Rust's own return beside it: a change reaches only the copy it replaces.
-	let score = Score.of(2);
-	const increment = Score.of(3);
-	score = Score.add(score, increment);
-	score = Score.add(score, increment);
-	print(`score ${dec(Score.count(score))} ${dec(Score.count(Score.doubled(increment)))} ${dec(Score.count(increment))}`);
-	let [scoreCopy, taken] = Score.take(score);
-	print(`taken ${dec(taken)} ${dec(Score.count(scoreCopy))} ${dec(Score.count(score))}`);
-	const otherScore = { v: increment };
-	const [absorbed, before0, before1] = Score.absorb(scoreCopy, otherScore);
-	scoreCopy = absorbed;
-	print(
-		`absorbed ${dec(before0)} ${dec(before1)} ${dec(Score.count(scoreCopy))} ` +
-			`${dec(Score.count(otherScore.v))} ${dec(Score.count(increment))}`,
-	);
-	let hits = Hits.of(1, 2);
-	const keptHits = hits;
-	hits = Hits.add(hits, Hits.of(10, 20));
-	hits = Hits.hitsSet(hits, 7);
-	print(
-		`hits ${dec(Hits.hitsGet(hits))} ${dec(Hits.missesGet(hits))} ${dec(Hits.hitsGet(keptHits))} ` +
-			`${dec(Hits.missesGet(keptHits))} ${Hits.eq(hits, keptHits)}`,
-	);
-	const [counted, countedSame] = Hits.eq_(keptHits, keptHits);
-	print(`counted ${countedSame} ${dec(Hits.hitsGet(counted))}`);
-	let extent = Extent.new(5, 3);
-	const extentStart = extent;
-	const [slid, old] = Extent.slide(extent, 10);
-	extent = slid;
-	extent = Extent.startSet(extent, num(Extent.startGet(extent)) + 1);
-	print(
-		`extent ${dec(old)} ${dec(Extent.startGet(extent))} ${dec(Extent.end(extent))} ` +
-			`${dec(Extent.startGet(extentStart))} ${dec(Extent.end(extentStart))}`,
-	);
-	const weighted = { score: increment, weight: 4 };
-	print(`weighted ${dec(Weighted.total(weighted))} ${num(Score.count(weighted.score)) + num(Score.count(increment))}`);
-	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
-	const mark = Mark.of(1);
-	Mark.add(mark, 2);
-	const parcel = { mark, payload: bytes(97, 98, 99) };
-	print(`heft ${dec(api.heft([mark, bytes(97, 98)], parcel, [Counter.new("w", 1), bytes(97, 98, 99, 100)]))}`);
-	// A value's `&mut self` beside a checked handle.
-	const [noted, notedBefore] = Score.note(Score.of(2), Mark.of(5));
-	print(`noted ${dec(notedBefore)} ${dec(Score.count(noted))}`);
-
-	print(`kept ${api.emit(new PrintLog(), bytes(1, 2, 3, 4))}`);
-	const logger = Logger.new(new PrintLog());
-	print(`write ${Logger.write(logger, "hi")}`);
-	close(logger);
-	print("dropped");
-	const threshold = 2;
-	const filtered = api.filter(bytes(1, 2, 3, 4), (level, line) => {
-		print(`filter ${level} ${line}`);
-		return level > threshold;
-	});
-	print(`filtered ${filtered}`);
-
+/** A channel's futures, as promises: what transcript.rs polls by hand. */
+export async function channel(): Promise<void> {
 	const channel = Channel.new();
 	let wakes = 0;
 	// Polled at the call, it pends, and the wake the send posts resumes it from the event loop.
@@ -710,416 +313,12 @@ async function script(): Promise<void> {
 	throws(() => waker.wake(), Error, "a closed waker throws", (m) => m === "Waker is closed");
 	await until(() => wakes === 5, "a returned waker wakes the waiter");
 	print(`woken ${wakes}`);
+	close(channel);
+}
 
-	const nodes = Node.new(1, undefined);
-	Node.push(nodes, 2);
-	print(`node ${dec(Node.sum(nodes))}`);
-
-	const tally = Tally.new();
-	Tally.bump(tally);
-	print(`tally ${Tally.bump(tally)} ${Tally.eq(tally, tally)}`);
-	print(`both ${api.bumpBoth(tally, tally)}`);
-	print(`peek ${api.peek(tally, (lent) => Tally.bump(lent))}`);
-
-	const area = api.grow(Area.new({ width: 2, height: 3 }), 1);
-	const areaSize = Area.size(area);
-	print(`area ${areaSize.width} ${areaSize.height} ${dec(Area.pixels(area))}`);
-
-	// Generic types, each at the instances it infers, named by their arguments.
-	const pair = { left: 2, right: 5 };
-	const swapped = PairU32.swap(pair);
-	print(`pair ${swapped.left} ${swapped.right} sum ${PairU32.sum(pair)} ${PairU32.debug(pair)} ${PairU32.eq(pair, swapped)}`);
-	print(`even ${PairU32.even(pair)} ${PairU32.even({ left: 7, right: 7 })}`);
-	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	const sized = api.tag({ width: 1, height: 2 }, 3);
-	const flipped = PairSizeU8.swap(sized);
-	print(`sized ${flipped.left} ${flipped.right.width} ${PairU8Size.debug(flipped)}`);
-	const beside = PairU32.besideSize({ left: 258, right: 9 }, sized.left);
-	print(`beside ${beside.left} ${PairU8Size.debug(beside)}`);
-	// At its default, named as the type itself.
-	const stack = Stack.new();
-	["a", "b"].forEach((n, i) => Stack.push(stack, Counter.new(n, i + 1)));
-	const top = dec(Counter.get(Stack.pop(stack)!));
-	print(`stack ${Stack.depth(stack)} Some(${top}) ${Stack.pop(stack) !== undefined} ${Stack.pop(stack) === undefined}`);
-	// Generic functions and methods, at each implementation of the trait bounding them, by
-	// reference, which leaves JavaScript its object.
-	const fromPoint = Counter.seededPoint("p", { x: -3, y: 4 });
-	const fromSize = Counter.seededSize("s", { width: 5, height: 6 });
-	const fromCounter = Counter.seededCounter("c", fromPoint);
-	const fromPolar = Counter.seededPolarPoint("q", { turns: 1, distance: 2 });
-	print(
-		`seeded ${dec(Counter.get(fromPoint))} ${dec(Counter.get(fromSize))} ${dec(Counter.get(fromCounter))} ` +
-			`${dec(Counter.get(fromPolar))} past ${dec(Stack.depthPastPoint(stack, { x: 1, y: 2 }))} ` +
-			`seeds ${dec(api.seedsPointSize({ width: 2, height: 3 }))}`,
-	);
-
-	// A trait implemented for `Point` and `&Point` apart: one instance.
-	print(`weigh ${api.weighPoint({ x: -1, y: 2 })}`);
-	// A function named as the type it returns, and one named as a type it does not.
-	print(
-		`polar ${api.polarPoint(2)!.distance} ${api.polarPoint(0) === undefined} ` +
-			`area ${dec(api.area({ width: 2, height: 3 }))}`,
-	);
-	// Two types whose paths join alike, the second kept apart where its path splits.
-	print(`wind ${api.wind({ whole: 2 }, { part: 3 })}`);
-	// Names that clash in some language, each kept apart there.
-	const clashSpan = { width: 4 };
-	const clashStore = ClashStore.new(7);
-	print(
-		`clash ${ClashTone.debug({ hz: 440 })} ${ClashTone_.debug({ db: 3 })} ${Cancelled.debug({ step: 2 })} ` +
-			`span ${ClashSpan.width(clashSpan)} ${ClashSpan.toString_(clashSpan)} ${ClashSpan.toString(clashSpan)} ` +
-			`store ${ClashStore.free(clashStore)} ${ClashStore.close(clashStore)} ` +
-			`audio ${api.clashAudioEncoderFinish()} ${api.clashAudioEncoderFinish_()} ` +
-			`nested ${api.clashNested([[1, 2], 3], [[1, 2, 3]])}`,
-	);
-	close(clashStore);
-	// Instances that name each other, and one made only by an impl of it.
-	const cross = api.cross({ value: { value: 1 } }, { value: { value: 2 } });
-	print(`cross ${cross} outer ${OuterInnerU8.get(OuterInnerU8.new(4))}`);
-	// A bound that outlives the call takes a value, and an instance only a constant names.
-	print(`kept ${dec(api.keptPoint({ x: 1, y: -2 }))} boxed ${api.BOXED().value}`);
-	print(`keep ${api.keepPoint({ x: 1, y: -2 })}`);
-	const five = { x: 5, y: 2 };
-	print(`kept or ${api.keptOrPoint(five)} ${api.keptOrPoint(undefined)} keeper ${api.keeperPoint(five)}`);
-	// Inferred instances taking a lent closure and a foreign implementation, and one only its
-	// impl of a trait names.
-	const sides = { left: 2, right: 5 };
-	print(`apply ${api.applyU32(sides, (side) => side * 3)}`);
-	print(`report ${api.reportU32(sides, new PrintLog())}`);
-	print(`wrapped ${dec(api.keptWrapU32({ value: 4 }))}`);
-	print(`keeps ${api.keeps(new PrintLog()).value}`);
-
-	// Its Drop runs when JavaScript disposes it, not before.
-	const token = Token.new(7);
-	print(`token ${Token.idGet(token)} dropped ${api.dropped()}`);
-	close(token);
-	print(`dropped ${api.dropped()}`);
-
-	// A field and the method of its name, each its own member.
-	const retry = Retry.new(5);
-	const limit = Retry.limitGet(retry);
-	print(`retry ${limit === undefined ? 0 : 1} ${limit ?? 0} ${Retry.limit(retry)} ${Retry.delay(retry)}`);
-	// The renamed field's setter, named as its getter.
-	Retry.limitSet(retry, undefined);
-	print(`retry ${Retry.limit(retry)}`);
-	print(`slot ${SlotU8.value(SlotU8.new(200))}`);
-
-	// Foreign types: a URL parsed from text, socket addresses, OS paths, and lists.
-	const base = unwrap(Url.parse("https://example.com/a/b"));
-	const host = api.host(base);
-	print(`url ${Url.toString(base)} host ${host === undefined ? "None" : `Some("${host}")`}`);
-	const url = unwrap(api.resolve(Url.clone(base), "c?d"));
-	print(`resolve ${Url.toString(url)} ${Url.eq(url, base)}`);
-	close(url);
-	const unparsedUrl = Url.parse("no scheme");
-	if (!unparsedUrl.ok) print(`parse err ${unparsedUrl.error}`);
-	const v4: rt.SocketAddrV4 = { ip: { octets: bytes(127, 0, 0, 1) }, port: 8080 };
-	const v6: rt.SocketAddrV6 = { ip: { octets: ipv6(1) }, port: 443, flowinfo: 0, scopeId: 3 };
-	print(`ports ${list(api.ports([{ tag: "V4", _0: v4 }, { tag: "V6", _0: v6 }]))}`);
-	const peer = Peer.next({ addr: { tag: "V6", _0: v6 }, names: ["a", "b"] }, "c");
-	print(`peer ${Peer.debug(peer)} ${quoted(Peer.aliases(peer))}`);
-	const file = api.file(rt.pathFrom("dir"), "f\\'\"\t");
-	print(`file ${escaped(file)}`);
-	print(`parents ${api.parents([file, rt.pathFrom("/")]).map((at) => (at === undefined ? "none" : escaped(at))).join(" ")}`);
-	const words = api.words(" one two  three ");
-	print(`words ${words.length} ${quoted(words)}`);
-	print(`sentence ${api.sentence(words)} ${api.sentence(undefined)}`);
-	print(`sentence ${api.sentence([])}|`);
-	print(`either ${api.either("abc")} ${api.either(undefined)}`);
-	print(`prefixed ${text(api.prefixed(enc("cd"), enc("ab")))} ${text(api.prefixed(enc("cd"), undefined))}`);
-	print(`coordinates ${api.coordinates({ x: 2, y: 3 })} ${api.coordinates(undefined)}`);
-	const two = Counter.new("two", 2);
-	const three = Counter.new("three", 3);
-	print(`plus ${dec(Counter.plus(two, three))} ${dec(Counter.plus(two, undefined))}`);
-	print(`add_to ${Counter.addTo(two, three)} ${Counter.addTo(two, undefined)} ${dec(Counter.get(three))}`);
-	close(two);
-	close(three);
-	const encoded = { v: enc("0,") };
-	api.putNumber(1, encoded);
-	api.putNumber(23, encoded);
-	print(`put_number ${text(encoded.v)}`);
-	const entry: rt.Place<[Uint8Array, number]> = { v: [enc("ab"), 1] };
-	const stamps = api.pushCounted(entry, 0x63);
-	print(`push_counted ${stamps} ${text(entry.v[0])} ${entry.v[1]}`);
-	const digits = { v: enc("7x9") };
-	const firstDigit = unwrap(api.digit(digits));
-	const skipped = !api.digit(digits).ok;
-	print(`digit ${firstDigit} ${skipped} ${unwrap(api.digit(digits))} ${digits.v.length}`);
-	const nudged = { v: { x: 1, y: 2 } };
-	api.nudge(nudged, 3);
-	print(`nudge ${nudged.v.x} ${nudged.v.y}`);
-	const config = api.secure("h3");
-	print(`secure ${api.alpnLent(config)} ${api.alpn(TlsConfig.clone(config))}`);
-	const cert = api.certify(enc("der"));
-	const certLen = api.certLen(cert);
-	print(`cert ${certLen} ${text(api.certDer(cert))} ${api.chainLen([api.certify(enc("a")), api.certify(enc("bc"))])}`);
-	close(config);
-	// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
-	print(`resolver ${api.resolved(api.resolver("r1"))}`);
-	const codecs = Codecs.new();
-	print(`codecs ${Codecs.ids(codecs)}`);
-	Codecs.listSet(codecs, Codecs.listGet(codecs).reverse());
-	print(`codecs reversed ${Codecs.ids(codecs)}`);
-	close(codecs);
-	// A standard library value no type maps, in a handle.
-	const failure = api.failure("boom");
-	print(`failure ${api.failureMessage(failure)} ${api.failureKind(failure)}`);
-	// Iterators, passed as the arrays of their items.
-	print(`sum_all ${api.sumAll([1, 2, 3])}`);
-	print(`weigh_all ${dec(api.weighAllCounter([Counter.new("w", 3)]))}`);
-	print(`offered_len ${api.offeredLen([enc("h3"), enc("moq-00")])}`);
-	print(`join_words ${api.joinWords(["a", "b", "c"])}`);
-	// Bytes that must be `'static`, interned.
-	for (const what of ["der", "der again"]) {
-		const der = Der.fromSlice(enc("der"));
-		print(`${what} ${text(Der.bytes(der))}`);
-		close(der);
-	}
-	const session = unwrap(api.resume("h3", 60));
-	print(`resume ${TlsSession.alpn(session)} ${TlsSession.lifetime(session).seconds}`);
-	close(session);
-	const unresumed = api.resume("", 60);
-	if (!unresumed.ok) print(`resume err ${unresumed.error}`);
-	const meters = Meters.new();
-	const lentMeter = Meters.first(meters);
-	Meter.add(lentMeter, 2);
-	print(`lent ${dec(Meter.add(lentMeter, 3))} ${dec(Meter.count(Meters.first(meters)))}`);
-	close(lentMeter);
-	Meters.clear(meters);
-	print(`cleared ${dec(Meter.count(Meters.first(meters)))}`);
-	const lastMeter = Meters.lastGet(meters);
-	Meter.add(lastMeter, 4);
-	print(`field lent ${dec(Meter.add(lastMeter, 1))}`);
-	close(lastMeter);
-	// An optional field that is not Clone, lent as a handle.
-	print(`spare ${Meters.spareGet(meters) !== undefined}`);
-	Meters.spareSet(meters, Meter.default());
-	const spare = Meters.spareGet(meters)!;
-	Meter.add(spare, 5);
-	print(`spare lent ${dec(Meter.add(spare, 1))}`);
-	close(spare);
-	close(meters);
-	const tallies = Tallies.new();
-	Tally.bump(Tallies.first(tallies));
-	print(`tallied ${Tally.bump(Tallies.first(tallies))}`);
-	close(tallies);
-	// A draft the ledger's `edit` lends holds the ledger borrowed exclusively until it closes,
-	// and its sheet's members are reached by Deref and DerefMut: the ledger refuses any other
-	// use meanwhile.
-	const ledger = Ledger.new();
-	const edit = (): Draft.Draft => {
-		const edited = Ledger.edit(ledger);
-		if (!edited.ok) throw new Error("an unsealed ledger lends a draft");
-		return edited.value;
-	};
-	let draft = edit();
-	Draft.titleSet(draft, "minutes");
-	Draft.write(draft, "first");
-	print(`draft ${Draft.titleGet(draft)} ${Draft.lines(draft)} ${Draft.describe(draft)} ${Draft.edited(draft)}`);
-	borrowed(() => Ledger.published(ledger), "api_Ledger_published: a handle is borrowed exclusively", "a lent ledger refuses a read");
-	print(`committed ${Draft.commit(draft)}`);
-	close(draft);
-	print(`ledger ${Ledger.title(ledger)} ${Ledger.published(ledger)}`);
-	draft = edit();
-	print(`read ${Draft.lines(draft)} ${Draft.edited(draft)}`);
-	close(draft);
-	draft = edit();
-	Draft.write(draft, "second");
-	close(draft);
-	print(`dropped ${Ledger.published(ledger)}`);
-	const receipt = Ledger.receipt(ledger);
-	print(`receipt ${Receipt.count(receipt)}`);
-	close(receipt);
-	{
-		const small = PadU8.small();
-		const wide = PadU16.wide();
-		const layered = Layered.new$();
-		const marker = Marker.new$("m", 3, 5);
-		Marker.ySet(marker, 7);
-		print(
-			`forwarded ${PadU16.title(wide)} ${Layered.lines(layered)} ${Marker.xGet(marker)} ${Marker.yGet(marker)} ` +
-				`[${PadU8.describe(small)}] [${PadU16.describe(wide)}]`,
-		);
-		for (const handle of [small, wide, layered, marker]) close(handle);
-	}
-	Ledger.seal(ledger);
-	const sealed = Ledger.edit(ledger);
-	if (!sealed.ok) print(`sealed ${Error_.toString(sealed.error)}`);
-	close(ledger);
-	print(`chunks ${list(api.chunks(enc("abcde"), 2).map(list))}`);
-	const counters = api.counters(["x", "y"]);
-	print(`counters ${counters.map((n) => `${Counter.name(n)} ${dec(Counter.get(n))}`).join(", ")}`);
-	// Each counter moves in, so a later call throws.
-	print(`worth ${dec(api.worth([counters[0]], [counters[1]]))} ${dec(api.worth(undefined, []))}`);
-	for (const counter of counters) closed(() => Counter.get(counter), "Counter", "a counter moved in is closed");
-	const held = [api.heldCount([Counter.new("h", 4)]), api.heldCount(undefined)];
-	print(`held ${held.map((n) => (n === undefined ? "None" : `Some(${dec(n)})`)).join(" ")}`);
-	print(
-		`boxed Some("${api.boxedName(api.boxedCounter("b"))}") ` +
-			`${api.boxedName(undefined) === undefined ? "None" : "Some"} ${api.boxedCounter(undefined) === undefined}`,
-	);
-	print(`less ${api.less(5, 2)}`);
-	print(`sums ${list(api.sums([new Uint32Array([1, 2]), new Uint32Array(0), new Uint32Array([3])]))}`);
-	print(`least ${api.least([[3, 1], [], [2]]).map(list).join(" ")}`);
-	numbers("edges", Numbers.edges());
-	numbers("reversed", Numbers.reversed(Numbers.edges()));
-	const edges = Numbers.edges();
-	const nan = Measure.new(NaN, false);
-	print(
-		`float equal ${Numbers.eq(edges, edges)} ${Numbers.eq(edges, Numbers.edges())} ` +
-			`${Numbers.eq(Numbers.zero(true), Numbers.zero(false))} ${Measure.eq(nan, nan)} ` +
-			`${Measure.eq(Measure.new(-0, true), Measure.new(0, false))}`,
-	);
-	print(`sum u32 ${dec(api.sumU32(new Uint32Array(0)))} ${dec(api.sumU32(new Uint32Array([0xffffffff, 0xffffffff, 2])))}`);
-	print(`doubled i64 ${list(api.doubledI64(new BigInt64Array([-(1n << 63n), -1n, 0n, (1n << 63n) - 1n])))}`);
-	const floats = api.boxedFloats(floats64(1n << 63n, 0x7ff8000000000001n));
-	print(`boxed floats ${bits64(floats)}`);
-	const summed = api.summed([
-		{ x: 1, y: 2 },
-		{ x: -4, y: 6 },
-	]);
-	const noneSummed = api.summed([]);
-	print(`summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}`);
-	print(`longest ${api.longest(["a", "abc"])} ${api.longest([])}`);
-	print(`first of Some("${api.firstOf(["a", "b"])}") ${api.firstOf([]) ?? "None"}`);
-	const limits = api.byteLimits(enc("a"), enc("bc"));
-	const waits = api.breadth({ low: { secs: 0, nanos: 5_000_000 }, high: { secs: 2, nanos: 0 } });
-	print(`limits ${text(limits.low)} ${text(limits.high)} breadth ${num(waits.secs) * 1000 + Math.floor(waits.nanos / 1e6)}`);
-	const parts = text(api.joined([enc("ab"), new Uint8Array(0), enc("c")]));
-	print(`joined ${parts} ${api.joined([]).length} read ${dec(api.readLen(enc("hello")))}`);
-	const doc = unwrap(Json.parse('{"b": [1, 2.5, null], "a": "é"}'));
-	print(`json ${api.encode(doc)}`);
-	print(`timed text ${api.timedText(doc)}`);
-	const tagged = api.tagged(doc, "t");
-	print(`tagged ${Json.toText(tagged)}`);
-	close(tagged);
-	// A JSON object's entries cross as pairs of a key and its document, each moved in.
-	const entries = api.entries(
-		[
-			["b", unwrap(Json.parse("[1]"))],
-			["a", unwrap(Json.parse("2"))],
-		],
-		"t",
-	);
-	print(`entries ${entries.map(([k, v]) => `${k} ${Json.toText(v)}`).join(", ")}`);
-	for (const [, v] of entries) close(v);
-	const unparsedJson = Json.parse('{"a":');
-	if (!unparsedJson.ok) print(`json parse err ${unparsedJson.error}`);
-	const site = Site.new(base);
-	print(`site ${Url.toString(Site.homeGet(site))} ${Url.toString(Site.homeGet(site))}`);
-
-	// Slices, passed in and returned as clones, and the socket address of each family.
-	const shapes = (values: Shape.Shape[]) => list(values.map(Shape.debug));
-	const points = (values: Point.Point[]) => list(values.map(Point.debug));
-	const labels = (values: Label.Label[]) => list(values.map(Label.debug));
-	print(`shapes ${shapes(Shape.ALL())} greetings ${quoted(api.GREETINGS())}`);
-	print(`both ${shapes(Shape.BOTH())} primes ${list(api.PRIMES())}`);
-	const trail = Trail.new(
-		[
-			{ x: 1, y: 2 },
-			{ x: 3, y: 4 },
-		],
-		["a", "b"],
-	);
-	print(`trail ${points(Trail.points(trail))} ${labels(Trail.labels(trail))}`);
-	// Returned iterators, each collected at the call: drained labels are gone after.
-	print(`iterated ${points(Trail.iter(trail))} ${quoted(Trail.names(trail))} ${list(Trail.bytes(trail))}`);
-	print(`drained ${labels(Trail.drain(trail))} then ${labels(Trail.labels(trail))}`);
-	// A filter, collected at the call.
-	print(`beyond ${Trail.beyond(trail, 1).map((at) => `${at.x} ${at.y}`).join(", ")}`);
-	close(trail);
-	const numbered = api.numbered(["p", "q"]);
-	print(`numbered ${numbered.map((n) => `${Counter.name(n)} ${dec(Counter.get(n))}`).join(", ")}`);
-	const [next4, next6] = api.nexts(v4, v6);
-	print(`nexts ${next4.ip.octets.join(".")} ${next4.port} ${next6.port} ${next6.scopeId}`);
-	const [nextIp4, nextIp6] = api.nextIps({ octets: bytes(10, 0, 0, 255) }, { octets: ipv6(0xffff) });
-	const mapped = api.flip({ tag: "V4", _0: { octets: bytes(127, 0, 0, 1) } });
-	const ips = [nextIp4, nextIp6, mapped._0, api.flip(mapped)._0, api.flip({ tag: "V6", _0: { octets: ipv6(1) } })._0];
-	print(`ips ${ips.map((ip) => hex(ip.octets)).join(" ")}`);
-
-	// Lossless round trips: each type's edge values, passed through Rust and back.
-	const durations = (
-		[
-			{ secs: 0, nanos: 0 },
-			{ secs: 0, nanos: 1 },
-			{ secs: 9223372036, nanos: 854775808 },
-			{ secs: U64_MAX, nanos: 999999999 },
-		] as rt.Duration[]
-	).map(api.sameDuration);
-	print(`lossless duration ${durations.map((t) => `${dec(t.secs)}.${`${t.nanos}`.padStart(9, "0")}`).join(" ")}`);
-	const u64s = [0, rt.u64FromBig(1n << 63n), U64_MAX];
-	print(`lossless u64 ${u64s.map((v) => dec(api.sameU64(v))).join(" ")}`);
-	// wasm32's `usize` and `isize` are 32 bits.
-	print(`lossless usize ${[0, 0xffffffff].map(api.sameUsize).join(" ")}`);
-	print(`lossless isize ${api.sameIsize(-0x80000000)} ${api.sameIsize(0x7fffffff)}`);
-	const u128s = [0n, 1n << 64n, (1n << 128n) - 1n].map(rt.u128FromBig);
-	print(`lossless u128 ${u128s.map((v) => hex128(api.sameU128(v))).join(" ")}`);
-	print(`lossless char ${[0, 0xd7ff, 0xe000, 0x10ffff].map((v) => api.sameChar(v).toString(16)).join(" ")}`);
-	// A path no Rust string spells: bytes that are not UTF-8.
-	const paths = [rt.pathFrom("a/é"), { bytes: bytes(0xff) }];
-	print(`lossless path ${paths.map((at) => hex(api.samePath(at).bytes)).join(" ")}`);
-	const sockV4 = api.sameSocketAddrV4({ ip: { octets: bytes(255, 255, 255, 255) }, port: 65535 });
-	const sockV6 = api.sameSocketAddrV6({
-		ip: { octets: bytes(0, 1, ...new Array<number>(13).fill(0), 2) },
-		port: 3,
-		flowinfo: 0xffffffff,
-		scopeId: 0xffffffff,
-	});
-	const socks = [api.sameSocketAddr({ tag: "V4", _0: sockV4 }), api.sameSocketAddr({ tag: "V6", _0: sockV6 })];
-	print(
-		`lossless socket ${socketHex({ tag: "V4", _0: sockV4 })} ${socketHex({ tag: "V6", _0: sockV6 })} ` +
-			`${socks.map(socketHex).join(" ")}`,
-	);
-	// A key hashes by Rust's `Hash`: equal keys alike, and these two apart.
-	const hash = (n: string) => dec(Key.hash(Key.new(n)));
-	print(`key ${hash("a") === hash("a")} ${hash("a") === hash("b")}`);
-	const sameIps = [
-		api.sameIpAddr({ tag: "V4", _0: { octets: bytes(255, 255, 255, 255) } }),
-		api.sameIpAddr({ tag: "V6", _0: { octets: bytes(0xff, 0xff, ...new Array<number>(13).fill(0), 1) } }),
-	];
-	print(`lossless ip ${sameIps.map((ip) => hex(ip._0.octets)).join(" ")}`);
-
-	// serde_json's map iterator, collected as pairs of a key and its document.
-	const sections = api.sections([
-		["b", unwrap(Json.parse("[1]"))],
-		["a", unwrap(Json.parse("2"))],
-	]);
-	print(`sections ${sections.map(([k, v]) => `${k} ${Json.toText(v)}`).join(", ")}`);
-	for (const [, v] of sections) close(v);
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	const began = api.now();
-	const ended = api.later(began, { secs: 1, nanos: 500_000_000 });
-	const same = api.later(began, { secs: 0, nanos: 0 });
-	const millis = (t: rt.Duration) => num(t.secs) * 1000 + Math.floor(t.nanos / 1e6);
-	print(
-		`instants ${millis(api.since(ended, began))} ${millis(api.since(began, ended))} ` +
-			`${Instant.eq(began, same)} ${Instant.eq(began, ended)}`,
-	);
-	print(`has_instant ${api.hasInstant(began)} ${api.hasInstant(undefined)}`);
-	// tracing's level, and its filter as an optional level whose undefined is `OFF`.
-	const verbosity = Verbosity.new("Warn");
-	print(`verbosity ${api.spell(Verbosity.filter(verbosity))} ${api.spell(api.louder(Verbosity.filter(verbosity)))}`);
-	Verbosity.levelSet(verbosity, "Trace");
-	print(
-		`verbosity ${Verbosity.levelGet(verbosity) === "Trace"} ${api.spell(Verbosity.filter(verbosity))} ` +
-			`${api.spell(api.louder(Verbosity.filter(verbosity)))} ${api.spell(api.louder(undefined))}`,
-	);
-	close(verbosity);
-
-	// A closure's string, which Rust takes.
-	print(`made ${api.made(3, (n) => `${n} times`)}`);
-	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
-	const nine = Ticket.new(9);
-	const renewed = Ticket.number(api.reissue(Ticket.new(7), (t) => Ticket.new(Ticket.number(t) + 1)));
-	const copied = Ticket.number(api.reissue(Ticket.new(7), () => nine));
-	print(`reissued ${renewed} ${copied}, cloned ${Ticket.clones()}`);
-	// A record's traits borrow the checked handle it holds.
-	const nines = Mark.of(9);
-	const front = api.seat(nines, 1);
-	const back = api.seat(nines, 2);
-	print(`seat ${Seat.debug(front)} ${Seat.eq(front, api.seat(nines, 1))} ${Seat.eq(front, back)}`);
-	// A kept closure: called again at the instant it asks for, then once its waiter wakes,
-	// failing with Rust's error.
+/** A kept closure: called again at the instant it asks for, then once its waiter wakes,
+ * failing with Rust's error. */
+export async function drive(): Promise<void> {
 	const start = Moment.new(0, 1000)!;
 	let calls = 0;
 	const stopped = await within(
@@ -1138,28 +337,125 @@ async function script(): Promise<void> {
 		"a kept closure wakes its future",
 	);
 	print(`drive ${stopped}`);
-	// A reader the caller implements, then one whose reads fail.
+}
+
+/** Readers JavaScript implements: one over bytes, one whose reads fail, and a seek from the
+ * start past `i64::MAX`, which reaches the reader whole, as `Cursor` takes one. */
+export function readers(): void {
 	for (const reader of [new BytesReader(enc("hello world")), new Broken()]) {
 		const r = api.tail(reader, 5);
 		print(r.ok ? `tail ${text(r.value[0])} ${dec(r.value[1])}` : `tail error ${r.error}`);
 	}
-	// A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
 	const sought = api.seekTo(new Far(), U64_MAX);
 	print(sought.ok ? `sought ${dec(sought.value)}` : `sought error ${sought.error}`);
-	print(`non zeros ${api.describeNonZeros(api.nonZeros())}`);
-	for (const hop of [undefined, 1, U64_MAX]) {
-		const next = api.nextHop(hop);
-		print(next === undefined ? "hop None" : `hop Some(${dec(next)})`);
-	}
-	print(`farther hop ${api.fartherHop({ left: 3, right: 0xffff })}`);
-	const local = Local.new();
-	const shared = api.localOrNew(local);
-	const bumped = Local.bump(local);
-	print(`local ${bumped} ${Local.bump(shared)}`);
-	print(`local fresh ${Local.bump(api.localOrNew(undefined))}`);
-	print(`local either ${api.bumpEither(undefined, shared)}`);
+}
+
+/** Futures of a value that is not `Send`, awaited on JavaScript's one thread. */
+export async function localLater(local: Local.Local): Promise<void> {
 	print(`local later ${Local.bump(await api.localOrNewLater(local))}`);
 	print(`local later fresh ${Local.bump(await api.localOrNewLater(undefined))}`);
+}
+
+/** A path no Rust string spells: on wasm32, as on Unix, bytes that are not UTF-8. */
+export function unspelled(): rt.PathBuf {
+	return api.stray();
+}
+
+/** Lowercase hex of `data`, two digits each. */
+export function hex(data: Uint8Array | rt.Bytes): string {
+	return [...data.slice()].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** A path's bytes as Rust's `escape_ascii` prints them. */
+export function escaped(path: rt.PathBuf): string {
+	let out = "";
+	for (const b of path.bytes) {
+		if (b === 0x09) out += "\\t";
+		else if (b === 0x0d) out += "\\r";
+		else if (b === 0x0a) out += "\\n";
+		else if (b === 0x5c || b === 0x27 || b === 0x22) out += `\\${String.fromCharCode(b)}`;
+		else if (b >= 0x20 && b < 0x7f) out += String.fromCharCode(b);
+		else out += `\\x${b.toString(16).padStart(2, "0")}`;
+	}
+	return out;
+}
+
+/** A path's bytes in hex. */
+export function pathHex(path: rt.PathBuf): string {
+	return hex(path.bytes);
+}
+
+/** A duration as its seconds and nine digits of nanoseconds. */
+export function seconds(d: rt.Duration): string {
+	return `${dec(d.secs)}.${`${d.nanos}`.padStart(9, "0")}`;
+}
+
+/** A duration in whole milliseconds. */
+export function millis(d: rt.Duration): rt.u64 {
+	return rt.u64FromBig(rt.u64ToBig(d.secs) * 1000n + BigInt(Math.floor(d.nanos / 1e6)));
+}
+
+/** A char's code point, which is how the binding holds one. */
+export function code(c: number): number {
+	return c;
+}
+
+/** The list reversed. */
+export function reversed<T>(list: T[]): T[] {
+	return [...list].reverse();
+}
+
+/** Each float's bits. */
+export function f64Bits(floats: Float64Array): BigUint64Array {
+	return new BigUint64Array(floats.buffer, floats.byteOffset, floats.length);
+}
+
+/** A socket address as its IP's bytes in hex, its port, flow label, and scope, each IPv6's
+ * alone, apart by colons. */
+export function socketHex(addr: rt.SocketAddr | rt.SocketAddrV4 | rt.SocketAddrV6): string {
+	const one: rt.SocketAddrV4 | rt.SocketAddrV6 = "tag" in addr ? addr._0 : addr;
+	if (one.ip.octets.length === 4) return `${hex(one.ip.octets)}:${one.port}`;
+	const v6 = one as rt.SocketAddrV6;
+	return `${hex(v6.ip.octets)}:${v6.port}:${v6.flowinfo}:${v6.scopeId}`;
+}
+
+/** An address's bytes in hex, so the length shows its family. */
+export function ipHex(ip: rt.IpAddr | rt.Ipv4Addr | rt.Ipv6Addr): string {
+	return hex("tag" in ip ? ip._0.octets : ip.octets);
+}
+
+/** Print each of `n`'s lists, its floats as their bits, as transcript.rs does. */
+export function numbers(what: string, n: Numbers.Numbers): void {
+	print(`${what} u16 ${list(n.u16s)}`);
+	print(`${what} u32 ${list(n.u32s)}`);
+	print(`${what} u64 ${list(n.u64s)}`);
+	print(`${what} i8 ${list(n.i8s)}`);
+	print(`${what} i16 ${list(n.i16s)}`);
+	print(`${what} i32 ${list(n.i32s)}`);
+	print(`${what} i64 ${list(n.i64s)}`);
+	print(`${what} f32 ${bits32(n.f32s)}`);
+	print(`${what} f64 ${bits64(n.f64s)}`);
+	print(`${what} some ${n.some === undefined ? "None" : `Some(${list(n.some)})`}`);
+}
+
+/** What the transcript's script says only in Rust: the binding's own errors. */
+function checks(): void {
+	check(`${rt.i64ToBig(api.FAR)}` === "9223372036854775807", "a constant past a safe integer keeps its type");
+	// Only Rust makes an opaque value: a caller's throws, and so does a lookalike passed in.
+	const Forged = rt.Opaque as unknown as new (bytes: Uint8Array) => Moment.Moment;
+	throws(() => new Forged(new Uint8Array(16)), TypeError, "a caller's opaque value");
+	throws(() => Moment.millis({ bytes: new Uint8Array(16) } as unknown as Moment.Moment), RangeError, "a lookalike");
+	// A draft borrows its ledger exclusively: the ledger refuses any other use meanwhile.
+	const ledger = Ledger.new();
+	const draft = unwrap(Ledger.edit(ledger));
+	borrowed(() => Ledger.published(ledger), "api_Ledger_published: a handle is borrowed exclusively", "a lent ledger refuses a read");
+	close(draft);
+	close(ledger);
+	// Each counter moves in, so a later call throws.
+	const counters = api.counters(["x", "y"]);
+	api.worth([counters[0]!], [counters[1]!]);
+	for (const counter of counters) closed(() => Counter.get(counter), "Counter", "a counter moved in is closed");
+	print("checks ok");
 }
 
 /** The IPv6 address whose last 16 bits are `last`. */
@@ -1425,6 +721,16 @@ async function closedObjects(): Promise<void> {
 	const c = Counter.new("c", 1);
 	close(c);
 	closed(() => Counter.get(c), "Counter", "a method of a disposed object");
+	// `using` disposes at the end of its scope, as stable Safari, which lacks `Symbol.dispose`,
+	// needs the runtime's own symbol for, however the bundler lowers it. No garbage collector
+	// is involved, so every browser runs it.
+	let scoped: ReturnType<typeof Counter.new> | undefined;
+	{
+		using inner = Counter.new("u", 3);
+		scoped = inner;
+		check(Counter.get(inner) === 3, "a `using` object is open in its scope");
+	}
+	closed(() => Counter.get(scoped!), "Counter", "a `using` object after its scope");
 	closed(() => Counter.clone(c), "Counter", "clone of a disposed object");
 	closed(() => Counter.debug(c), "Counter", "debug of a disposed object");
 	const url = unwrap(Url.parse("https://example.com"));
@@ -1989,6 +1295,8 @@ async function main(): Promise<void> {
 			return bounds();
 		case "grown":
 			return grown();
+		case "checks":
+			return checks();
 		default:
 			return broken(which);
 	}

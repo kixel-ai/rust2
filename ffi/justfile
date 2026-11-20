@@ -53,7 +53,7 @@ corpus-update:
 protocol:
     cargo test --locked --test fixtures protocol_nightly -- --ignored
 
-# Run the api fixture's web test in headless Chromium and Firefox, in the bench shell, which carries them: nix develop .#bench.
+# Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers
 
