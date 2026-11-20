@@ -1225,7 +1225,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   (`Position.group`). A type's other functions are static members. Two types whose
   names would match are kept apart by a number (`Cancelled2`), as a type's name holds no
   `_`, which Dart's lints refuse. A reserved word takes a trailing `_` (`Point.default_()`),
-  and any other member that clashes a number then a `_` (`default2_`); names that clash,
+  and any other member that clashes takes a trailing `_` (`foo_`) when that is free, else a number then a `_` (`default2_`); names that clash,
   such as one the runtime declares or a data enum's variant class, are kept apart the same
   way. The glue's C names are `<prefix>_dart_`, with a `_` more for each C name of the
   export already there. The generated file passes `dart analyze --fatal-infos` with
