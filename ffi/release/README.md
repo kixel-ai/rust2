@@ -103,8 +103,9 @@ crate apart from it takes `web-features` and `web-example` instead.
    lists it, at the places they hold relative to each other, so their relative paths still
    resolve and their absolute ones are rewritten; a workspace root they inherit from keeps
    its `[workspace]` table alone. A `rust-toolchain.toml` pins the channel rustup resolves
-   from the crate's directory, without its components. The backend refuses a target the
-   export lacks, and one whose architecture differs from the Python's, as an emulated x86_64
+   from the crate's directory, without its components. The backend builds for
+   `CARGO_BUILD_TARGET`, or else rustc's host, passed as `--target` over a cargo config's
+   `build.target`; refuses a target the export lacks, and one whose architecture differs from the Python's, as an emulated x86_64
    Python on arm64 would build; tags the wheel as pip names its platform, macOS's at the
    deployment target it builds for, by default the target's oldest; and builds musl's
    library against a dynamic C runtime, as CPython links one, adding the flag to cargo's

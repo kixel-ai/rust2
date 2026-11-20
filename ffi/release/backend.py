@@ -128,15 +128,21 @@ def check_arch(target):
 
 def platform_tag(target, env):
     """The platform tag pip installs this build's wheel under. On macOS, the deployment target
-    it claims, set in `env` for cargo, so the library's minimum OS is the tag's."""
+    it claims, set in `env` for cargo, so the library's minimum OS is the tag's: the one asked
+    for, or the target's oldest, which rustc raises an older request to."""
     if sys.platform == "darwin":
         arch = target.split("-")[0]
         if arch not in MACOS_FLOORS:
             raise SystemExit(f"no wheel tag spells {target}")
-        major, _, minor = env.setdefault("MACOSX_DEPLOYMENT_TARGET", MACOS_FLOORS[arch]).partition(".")
+        floor = [int(part) for part in MACOS_FLOORS[arch].split(".")]
+        asked = env.get("MACOSX_DEPLOYMENT_TARGET") or MACOS_FLOORS[arch]
+        try:
+            major, minor = max([int(part) for part in (asked.split(".") + ["0"])[:2]], floor)
+        except ValueError:
+            raise SystemExit(f"MACOSX_DEPLOYMENT_TARGET {asked!r} is no macOS version") from None
+        env["MACOSX_DEPLOYMENT_TARGET"] = f"{major}.{minor}"
         # From macOS 11, pip's tags name each major version's .0 alone.
-        minor = minor.split(".")[0] if int(major) < 11 and minor else "0"
-        return f"macosx_{major}_{minor}_{'arm64' if arch == 'aarch64' else arch}"
+        return f"macosx_{major}_{minor if major < 11 else 0}_{'arm64' if arch == 'aarch64' else arch}"
     tag = sysconfig.get_platform()
     # As pip's tags name a 32-bit Python on a 64-bit Linux kernel.
     if struct.calcsize("P") == 4:
@@ -179,7 +185,8 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     tag = f"cp3{python_floor(manifest)}-abi3-{platform_tag(target, env)}"
     built = subprocess.run(["cargo", "rustc", "--locked", "--release", "--lib", "--crate-type", "cdylib",
                             "--features", "python", "--message-format", "json-render-diagnostics",
-                            *dynamic_crt(target, env)],
+                            # The target checked above, whatever a cargo config's build.target says.
+                            "--target", target, *dynamic_crt(target, env)],
                            cwd=crate, env=env, stdout=subprocess.PIPE, text=True)
     if built.returncode:
         raise SystemExit(f"cargo failed with status {built.returncode}")
@@ -197,12 +204,15 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
 
 
 def build_sdist(sdist_directory, config_settings=None):
-    """PEP 517: this sdist again, without what building it wrote."""
+    """PEP 517: this sdist again, of the files an sdist holds and nothing a build wrote beside them."""
     root = Path.cwd()
     meta = email.parser.HeaderParser().parsestr((root / "PKG-INFO").read_text(encoding="utf-8"))
+    names = ["PKG-INFO", "pyproject.toml", "rust-toolchain.toml", *meta.get_all("License-File", [])]
+    paths = [root / name for name in names if (root / name).is_file()]
+    paths += [p for top in ("rust2", "binding", "sources") for p in sorted((root / top).rglob("*")) if p.is_file()]
     files = {}
-    for path in sorted(root.rglob("*")):
+    for path in paths:
         rel = path.relative_to(root)
-        if path.is_file() and "__pycache__" not in rel.parts and rel.parts[:2] != ("binding", "target"):
+        if "__pycache__" not in rel.parts and rel.parts[:2] != ("binding", "target"):
             files[rel.as_posix()] = (path.read_bytes(), os.access(path, os.X_OK))
     return write_sdist(sdist_directory, meta["Name"], meta["Version"], files).name

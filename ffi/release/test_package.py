@@ -523,10 +523,11 @@ class Sdist(unittest.TestCase):
             (tree / "binding" / "target" / "release" / "libmoq.so").write_bytes(b"\x7fELF")
             (tree / "rust2" / "__pycache__").mkdir(parents=True)
             (tree / "rust2" / "__pycache__" / "backend.pyc").write_bytes(b"")
-            out = root / "again"
-            out.mkdir()
+            (tree / "dist").mkdir()
+            (tree / "dist" / "moq_ffi-0.4.12rc1.tar.gz").write_bytes(path.read_bytes())
             with mock.patch.object(Path, "cwd", return_value=tree):
-                name = backend.build_sdist(out)
+                name = backend.build_sdist(tree / "dist")
+            out = tree / "dist"
             with tarfile.open(out / name) as tar:
                 self.assertEqual(sorted(m.name.split("/", 1)[1] for m in tar.getmembers()), sorted(files))
 
@@ -534,14 +535,19 @@ class Sdist(unittest.TestCase):
 class Backend(unittest.TestCase):
     def test_macos_tags_as_pip_reads_them(self):
         with mock.patch.object(backend.sys, "platform", "darwin"):
-            for target, deployment, tag in [("aarch64-apple-darwin", None, "macosx_11_0_arm64"),
-                                            ("x86_64-apple-darwin", None, "macosx_10_12_x86_64"),
-                                            ("x86_64-apple-darwin", "10.15", "macosx_10_15_x86_64"),
-                                            ("aarch64-apple-darwin", "14.2", "macosx_14_0_arm64")]:
-                env = {} if deployment is None else {"MACOSX_DEPLOYMENT_TARGET": deployment}
+            for target, asked, built, tag in [("aarch64-apple-darwin", None, "11.0", "macosx_11_0_arm64"),
+                                              ("x86_64-apple-darwin", None, "10.12", "macosx_10_12_x86_64"),
+                                              ("x86_64-apple-darwin", "10.15", "10.15", "macosx_10_15_x86_64"),
+                                              ("aarch64-apple-darwin", "14.2", "14.2", "macosx_14_0_arm64"),
+                                              # Older than the target's oldest, which rustc builds for instead.
+                                              ("x86_64-apple-darwin", "10.9", "10.12", "macosx_10_12_x86_64"),
+                                              ("aarch64-apple-darwin", "10.15", "11.0", "macosx_11_0_arm64")]:
+                env = {} if asked is None else {"MACOSX_DEPLOYMENT_TARGET": asked}
                 self.assertEqual(backend.platform_tag(target, env), tag)
                 # cargo builds for the floor the tag claims.
-                self.assertIn("MACOSX_DEPLOYMENT_TARGET", env)
+                self.assertEqual(env["MACOSX_DEPLOYMENT_TARGET"], built)
+            with self.assertRaises(SystemExit):
+                backend.platform_tag("aarch64-apple-darwin", {"MACOSX_DEPLOYMENT_TARGET": "sonoma"})
 
     def test_musl_links_its_c_runtime_dynamically(self):
         flag = "-Ctarget-feature=-crt-static"
