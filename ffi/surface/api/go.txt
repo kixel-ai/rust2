@@ -757,6 +757,7 @@ func (self *Cursor) Close() error
 type Deprecated struct {
 	On bool
 	Lower uint32
+	Deprecated bool
 }
 func DeprecatedDefault() Deprecated
 func (self Deprecated) Equal(other Deprecated) bool

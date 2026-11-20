@@ -381,7 +381,6 @@ const TAKEN: &[&str] = &[
 	"bool",
 	"convert",
 	"dasync",
-	"deprecated",
 	"double",
 	"ffi",
 	"identical",
@@ -2989,14 +2988,9 @@ fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
 			false => format!("{indent}/// {line}\n"),
 		})
 		.collect();
-	match deprecated {
-		Some("") => {
-			let _ = writeln!(out, "{indent}@deprecated");
-		}
-		Some(note) => {
-			let _ = writeln!(out, "{indent}@Deprecated({})", dart_string(note));
-		}
-		None => {}
+	// Never `@deprecated`, which says "next release" and a member named `deprecated` hides.
+	if let Some(note) = deprecated {
+		let _ = writeln!(out, "{indent}@Deprecated({})", dart_string(note));
 	}
 	out
 }

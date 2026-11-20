@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x941e46994a9ff035ULL)
+#define API_CONTRACT ((uint64_t)0x25dd7515c3a56852ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -814,6 +814,7 @@ typedef struct api_Qualifiers {
 typedef struct api_Deprecated {
 	bool on;
 	uint32_t lower;
+	bool deprecated;
 } api_Deprecated;
 typedef struct api_Dial {
 	uint64_t level;

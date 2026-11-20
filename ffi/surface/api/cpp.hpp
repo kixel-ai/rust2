@@ -1063,6 +1063,7 @@ namespace api {
 	struct Deprecated {
 		bool on;
 		[[deprecated]] ::std::uint32_t lower;
+		bool deprecated;
 		friend bool operator==(const Deprecated &a__, const Deprecated &b_);
 		friend bool operator!=(const Deprecated &a__, const Deprecated &b_);
 		::api::buf debug() const;

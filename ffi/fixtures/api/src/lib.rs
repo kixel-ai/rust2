@@ -5096,6 +5096,8 @@ pub struct Deprecated {
 	/// Named as the Swift record's own conversion, which its stored field must not be.
 	#[deprecated]
 	pub lower: u32,
+	/// Named as Dart's annotation, which its sibling's must not resolve to.
+	pub deprecated: bool,
 }
 
 /// A function named as Dart's deprecation annotation, which the deprecated items after it

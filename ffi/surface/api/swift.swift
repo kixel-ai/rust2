@@ -575,7 +575,8 @@ public struct Qualifiers: Sendable, Equatable {
 public struct Deprecated: Sendable, CustomDebugStringConvertible, Equatable {
 	public var on: Swift.Bool
 	@available(*, deprecated) @inlinable public var lower: Swift.UInt32 { get set }
-	@inlinable public init(on: Swift.Bool, lower: Swift.UInt32)
+	public var deprecated: Swift.Bool
+	@inlinable public init(on: Swift.Bool, lower: Swift.UInt32, deprecated: Swift.Bool)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Deprecated, b: Deprecated) -> Swift.Bool
 	@inlinable public static func `default`() -> Deprecated
