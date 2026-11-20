@@ -1693,6 +1693,86 @@ impl Channel {
 			payload => Ok(payload),
 		}
 	}
+
+	/// What this channel receives from now on, as a stream.
+	pub fn feed(&self) -> Feed {
+		Feed(self.clone())
+	}
+}
+
+/// What a channel receives, as a stream each binding iterates in its language's own
+/// protocol: each payload, ending at an empty one and failing at `!`.
+pub struct Feed(Channel);
+
+impl Feed {
+	/// The next payload, waiting for it: `None` at an empty one, and an error at `!`.
+	/// Dropped while it waits, it loses nothing, since only the poll returning a payload
+	/// takes it.
+	pub async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+		match self.0.recv().await {
+			payload if payload.is_empty() => Ok(None),
+			payload if payload == "!" => Err(Error::Overflow),
+			payload => Ok(Some(payload)),
+		}
+	}
+}
+
+/// Counts down to 1, then ends: a stream each binding iterates in its language's own
+/// protocol, whose every count pends once first.
+pub struct Countdown {
+	left: u32,
+	told: Option<Box<dyn Log>>,
+}
+
+impl Countdown {
+	pub fn new(from: u32) -> Self {
+		Self { left: from, told: None }
+	}
+
+	/// A countdown telling `log` each count in the poll that returns it, so a binding's
+	/// adapter sees a callback in the poll that finishes its call.
+	pub fn told(from: u32, log: Box<dyn Log>) -> Self {
+		Self {
+			left: from,
+			told: Some(log),
+		}
+	}
+
+	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
+	/// adapter waits on a wake between items.
+	pub async fn next(&mut self) -> Option<u32> {
+		let mut pended = false;
+		std::future::poll_fn(|cx| {
+			if !std::mem::replace(&mut pended, true) {
+				cx.waker().wake_by_ref();
+				return Poll::Pending;
+			}
+			Poll::Ready(())
+		})
+		.await;
+		let count = self.left;
+		self.left = count.saturating_sub(1);
+		if let Some(log) = &self.told {
+			log.log(0, &format!("count {count}"));
+		}
+		(count > 0).then_some(count)
+	}
+}
+
+/// A countdown whose `next` is deprecated, as is each binding's adapter calling it, so a
+/// binding that refuses a use of what is deprecated still builds.
+pub struct Retired(Countdown);
+
+impl Retired {
+	pub fn new(from: u32) -> Self {
+		Self(Countdown::new(from))
+	}
+
+	/// The next count, or `None` past 1.
+	#[deprecated(note = "count with [`Countdown`]")]
+	pub async fn next(&mut self) -> Option<u32> {
+		self.0.next().await
+	}
 }
 
 /// `n` halved if even, at once: a future whose output may be `None`.

@@ -94,6 +94,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		on: On::ALL,
 		space: abi.space("dart"),
 		handed: BTreeMap::new(),
+		streams: Vec::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
@@ -509,6 +510,9 @@ struct Gen<'a> {
 	/// A value's `&mut self` methods by their C names, which a call makes in place on a
 	/// copy it hands back.
 	handed: BTreeMap<String, abi::Handed>,
+	/// The streams among the methods just written, each by its `next`'s member, item type,
+	/// name-table key, and deprecation, whose `asStream` its type adds after every method.
+	streams: Vec<(String, String, String, Option<String>)>,
 }
 
 impl<'a> Gen<'a> {
@@ -1834,6 +1838,22 @@ impl<'a> Gen<'a> {
 				body.push(indent(&code));
 			}
 		}
+		// After every method, so a Rust method of its name keeps it.
+		for (next, item, key, deprecated) in std::mem::take(&mut self.streams) {
+			let mut name = "asStream".to_string();
+			while members.iter().any(|other| collides(other, &name)) {
+				name.push('_');
+			}
+			self.locked.insert(format!("{key} / stream"), name.clone());
+			members.push(name.clone());
+			let text = format!(
+				"Each item [{next}] yields, as a stream, which calls [{next}] only while its listener listens and is not paused, one call at a time.\n\nIt reads nothing ahead, so a loop left early leaves the next item to the next call. A pause or cancel drops the pending call's future in Rust, as dropping it there would, so it loses an item only where [{next}] does when dropped. `None` ends it, and an error is its last event before it ends."
+			);
+			body.push(indent(&format!(
+				"{}dasync.Stream<{item}> {name}() => _stream(_{next}Pull);\n",
+				docs(&text, deprecated.as_deref(), "")
+			)));
+		}
 	}
 
 	fn record(&mut self, i: usize) {
@@ -2538,6 +2558,7 @@ impl<'a> Gen<'a> {
 
 		let mut body = Vec::new();
 		let ret_type;
+		let mut pull = None;
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			ret_type = format!("Cancelable<{ok_dt}>");
 			// The poll, which completes the future.
@@ -2620,6 +2641,27 @@ impl<'a> Gen<'a> {
 			}
 			if status {
 				inner.push(check.clone());
+			}
+			// A stream's `next` has a twin its `asStream` calls, which hands what a start
+			// that finished returns to the stream in place, and returns its call that pended.
+			if function.stream().is_some() && receiver.is_some() && matches!(owner_ty, Some(Type::Object(_))) {
+				let mut cases = vec![format!("case 1:\n\tp_._ready({ready});\n\treturn null;")];
+				if let (Some(err), Some(thrown)) = (&err, &thrown) {
+					let lifted = self.lift(err, &self.out_value("err", poll_outs.last().map(|(_, t)| t)));
+					let error = thrown_value(thrown, &lifted);
+					cases.push(format!("case 2:\n\tp_._error({error});\n\treturn null;"));
+				}
+				cases.push("default:\n\tf_ = o$f_.value;".to_string());
+				let mut twin = inner.clone();
+				twin.push(format!("switch (started_) {{\n{}\n}}", indent(&cases.join("\n"))));
+				let item = ok_dt.strip_suffix('?').expect("a stream's `next` returns an `Option`");
+				pull = Some((
+					item.to_string(),
+					format!(
+						"final ffi.Pointer<ffi.Void> f_;\nfinal a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}\nreturn _Call<{ok_dt}>._({free_fn}, {poll_name}, f_);",
+						indent(&twin.join("\n"))
+					),
+				));
 			}
 			inner.push(format!("switch (started_) {{\n{started}\n}}"));
 			body.push("final ffi.Pointer<ffi.Void> f_;".to_string());
@@ -2797,10 +2839,22 @@ impl<'a> Gen<'a> {
 		crate::lock::function(&mut self.locked, function, &member);
 
 		let text = self.function_docs(function, text);
-		let code = format!(
+		let mut code = format!(
 			"{}{head} {{\n{code_body}\n}}\n",
 			docs(&text, function.deprecated.as_deref(), "")
 		);
+		if let Some((item, twin)) = pull {
+			let ok = ret_type.strip_prefix("Cancelable<").and_then(|r| r.strip_suffix('>'));
+			let _ = write!(
+				code,
+				"\n/// [{member}]'s start, for its stream: `p_` takes what finishes at once, and a call that pends is returned.\n_Call<{}>? _{member}Pull(_Pull<{item}> p_) {{\n{}\n}}\n",
+				ok.expect("a stream's `next` is a future"),
+				indent(&twin),
+			);
+			let key = crate::lock::function_key(function);
+			self.streams
+				.push((member.clone(), item, key, function.deprecated.clone()));
+		}
 		Some((code, member))
 	}
 

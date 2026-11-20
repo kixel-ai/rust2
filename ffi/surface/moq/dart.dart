@@ -2592,6 +2592,7 @@ final class AuthWatch extends _Object {
 }
 final class AuthRequests extends _Object {
 	Cancelable<AuthRequest?> next();
+	dasync.Stream<AuthRequest> asStream();
 }
 final class AuthRequest extends _Object {
 	typed.Uint8List token();
@@ -3063,6 +3064,7 @@ final class BroadcastLister extends _Object {
 final class BroadcastTracks extends _Object {
 	Cancelable<BroadcastTracksEvent?> next();
 	BroadcastConsumer broadcast();
+	dasync.Stream<BroadcastTracksEvent> asStream();
 }
 final class BroadcastTracksEvent extends _Object {
 	String debug();
@@ -3508,6 +3510,7 @@ final class OriginRoutes extends _Object {
 	Cancelable<void> pollSynced();
 	Path root();
 	Path absolute(String prefix);
+	dasync.Stream<OriginRouteEvent> asStream();
 }
 final class AnnounceConsumer extends _Object {
 	Cancelable<AnnounceEvent?> next();
@@ -3516,6 +3519,7 @@ final class AnnounceConsumer extends _Object {
 	Cancelable<void> pollSynced();
 	Path root();
 	Path absolute(String prefix);
+	dasync.Stream<AnnounceEvent> asStream();
 }
 final class AnnounceEvent extends _Object {
 	String debug();
@@ -5847,6 +5851,7 @@ final class MuxContainerProducerLocWire extends _Object implements Exception {
 }
 final class MuxFollowInstances extends _Object {
 	Cancelable<BroadcastConsumer?> next();
+	dasync.Stream<BroadcastConsumer> asStream();
 }
 final class MuxImportContainer extends _Object {
 	factory MuxImportContainer(BroadcastProducer broadcast, MuxCatalogReserved reserved, MuxImportContainerInit init);
@@ -5974,6 +5979,7 @@ final class MuxJsonConsumerJson extends _Object {
 	HangCatalogMode mode();
 	Cancelable<MoqJsonTimedJson?> next();
 	Cancelable<MoqJsonTimedJson?> latest();
+	dasync.Stream<MoqJsonTimedJson> asStream();
 }
 final class MuxJsonConfig extends _Object {
 	String debug();
@@ -6367,14 +6373,17 @@ final class TransportMemoryCloser extends _Object {
 final class MuxCatalogHangConsumer extends _Object {
 	factory MuxCatalogHangConsumer(TrackConsumer track);
 	Cancelable<HangCatalog?> next();
+	dasync.Stream<HangCatalog> asStream();
 }
 final class MuxCatalogHangConsumerExtra extends _Object {
 	factory MuxCatalogHangConsumerExtra(TrackConsumer track);
 	Cancelable<HangCatalogExtra?> next();
+	dasync.Stream<HangCatalogExtra> asStream();
 }
 final class MuxCatalogHangConsumerExt extends _Object {
 	factory MuxCatalogHangConsumerExt(TrackConsumer track);
 	Cancelable<HangCatalogExt?> next();
+	dasync.Stream<HangCatalogExt> asStream();
 }
 final class MuxCatalogHangContainer extends _Object {
 	factory MuxCatalogHangContainer(HangCatalogContainer container, MuxContainerKind kind);
@@ -6395,14 +6404,17 @@ final class MuxCatalogHangExtra extends _Object {
 final class MuxCatalogMsfConsumer extends _Object {
 	factory MuxCatalogMsfConsumer(TrackSubscriber track);
 	Cancelable<HangCatalog?> next();
+	dasync.Stream<HangCatalog> asStream();
 }
 final class MuxCatalogMsfConsumerExtra extends _Object {
 	factory MuxCatalogMsfConsumerExtra(TrackSubscriber track);
 	Cancelable<HangCatalogExtra?> next();
+	dasync.Stream<HangCatalogExtra> asStream();
 }
 final class MuxCatalogMsfConsumerExt extends _Object {
 	factory MuxCatalogMsfConsumerExt(TrackSubscriber track);
 	Cancelable<HangCatalogExt?> next();
+	dasync.Stream<HangCatalogExt> asStream();
 }
 final class MuxCodecAacConfig extends _Object {
 	int get profileGet;
@@ -6924,6 +6936,7 @@ final class MuxContainerTsExportConsumerExtra extends _Object {
 	MuxContainerTsStatsExport stats();
 	U64 discontinuity();
 	MuxContainerTsExportConsumerExtra follow(BroadcastConsumer broadcast, MuxCatalogConsumerExtra catalog);
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsExportConsumerExt extends _Object {
 	factory MuxContainerTsExportConsumerExt(MuxSource source, MuxCatalogConsumerExt catalog, RustDuration delay);
@@ -6932,6 +6945,7 @@ final class MuxContainerTsExportConsumerExt extends _Object {
 	MuxContainerTsStatsExport stats();
 	U64 discontinuity();
 	MuxContainerTsExportConsumerExt follow(BroadcastConsumer broadcast, MuxCatalogConsumerExt catalog);
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsExportConsumer extends _Object {
 	factory MuxContainerTsExportConsumer(MuxSource source, MuxCatalogConsumer catalog, RustDuration delay);
@@ -6940,6 +6954,7 @@ final class MuxContainerTsExportConsumer extends _Object {
 	MuxContainerTsStatsExport stats();
 	U64 discontinuity();
 	MuxContainerTsExportConsumer follow(BroadcastConsumer broadcast, MuxCatalogConsumer catalog);
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsFollower extends _Object {
 	factory MuxContainerTsFollower(MuxContainerTsExportConsumer export);
@@ -6947,6 +6962,7 @@ final class MuxContainerTsFollower extends _Object {
 	MuxContainerTsFollower withStitch(bool stitch);
 	MuxContainerTsExportConsumer export();
 	Cancelable<MuxContainerFrame?> next();
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsFollowerExtra extends _Object {
 	factory MuxContainerTsFollowerExtra(MuxContainerTsExportConsumerExtra export);
@@ -6954,6 +6970,7 @@ final class MuxContainerTsFollowerExtra extends _Object {
 	MuxContainerTsFollowerExtra withStitch(bool stitch);
 	MuxContainerTsExportConsumerExtra export();
 	Cancelable<MuxContainerFrame?> next();
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsFollowerExt extends _Object {
 	factory MuxContainerTsFollowerExt(MuxContainerTsExportConsumerExt export);
@@ -6961,6 +6978,7 @@ final class MuxContainerTsFollowerExt extends _Object {
 	MuxContainerTsFollowerExt withStitch(bool stitch);
 	MuxContainerTsExportConsumerExt export();
 	Cancelable<MuxContainerFrame?> next();
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsPassthrough extends _Object {
 	factory MuxContainerTsPassthrough(BroadcastProducer broadcast, MuxCatalogReservedExt reserved);
@@ -7000,6 +7018,7 @@ final class MuxContainerTsRelease extends _Object {
 	U64 outOfTolerance();
 	MuxContainerTsStatsRelease stats();
 	Cancelable<MuxContainerFrame?> next();
+	dasync.Stream<MuxContainerFrame> asStream();
 }
 final class MuxContainerTsRepublish extends _Object {
 	factory MuxContainerTsRepublish(OriginProducer origin, Path name, Instance instance, MuxCatalogConfig config);

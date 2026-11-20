@@ -53,6 +53,7 @@ const STD: &[(&str, &str)] = &[
 	("context", "context"),
 	("cgo", "runtime/cgo"),
 	("io", "io"),
+	("iter", "iter"),
 	("runtime", "runtime"),
 	("unsafe", "unsafe"),
 ];
@@ -1501,6 +1502,7 @@ impl<'a> Gen<'a> {
 			if home.krate == pkg {
 				continue;
 			}
+			let mut streams = Vec::new();
 			for function in methods.iter().filter(|f| f.home.krate == pkg) {
 				let mut method = self.function(function, Some(&owner), Some(&ty));
 				if let Some(receiver) = method.receiver.take() {
@@ -1514,7 +1516,69 @@ impl<'a> Gen<'a> {
 				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
+				if let (Some(item), Type::Object(_), Some((_, go))) = (function.stream(), &ty, method.params.first()) {
+					streams.push((function, item, method.name.clone(), go.clone()));
+				}
 			}
+			// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+			for (function, item, next, go) in streams {
+				let mut adapter = self.stream(function, item, &next, &format!("{next}(self, "));
+				adapter.params.insert(0, ("self".to_string(), go));
+				adapter.name = format!("{}{}", self.named(&ty).1, adapter.name);
+				adapter.name = self.claim(&adapter.name, format!("`{}`'s stream", function.path.join("::")));
+				let key = format!("{} / stream", crate::lock::function_key(function));
+				self.locked.insert(key, adapter.name.clone());
+				self.top.push_str(&adapter.write());
+			}
+		}
+	}
+
+	/// The adapter ranging over the stream `function`'s items of type `item`, calling `next`,
+	/// its Go name, as `call` begins, with ctx: an `iter.Seq2` named `All`, deprecated as
+	/// `function` is.
+	fn stream(&mut self, function: &Function, item: &Type, next: &str, call: &str) -> Method {
+		let item = strip_refs(item);
+		let go = self.go(&item);
+		// An object is already a pointer, nil for none; any other item is one's target.
+		let value = match item.base() {
+			Type::Object(_) => "item_",
+			_ => "*item_",
+		};
+		let call = match call.ends_with(", ") {
+			true => format!("{call}ctx)"),
+			false => format!("{call}(ctx)"),
+		};
+		Method {
+			key: None,
+			docs: deprecation(
+				&format!(
+					"All ranges over the items {next} returns, calling it once for each, until it returns none\n\
+				 or an error, which All yields last. It reads no item ahead, so a loop that breaks\n\
+				 leaves the next item to the next call. Once ctx is done, the pending {next} cancels its\n\
+				 future in Rust, as dropping it there would, and All yields ctx's error: an item is lost\n\
+				 only where Rust's future loses one when dropped, and the stream stays usable."
+				),
+				function.deprecated.as_deref(),
+			),
+			receiver: None,
+			name: "All".to_string(),
+			params: vec![("ctx".to_string(), "context.Context".to_string())],
+			results: vec![format!("iter.Seq2[{go}, error]")],
+			body: format!(
+				"return func(yield_ func({go}, error) bool) {{\n\
+				 \tfor {{\n\
+				 \t\titem_, err_ := {call}\n\
+				 \t\tif err_ != nil {{\n\
+				 \t\t\tvar zero_ {go}\n\
+				 \t\t\tyield_(zero_, err_)\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t\tif item_ == nil || !yield_({value}, nil) {{\n\
+				 \t\t\treturn\n\
+				 \t\t}}\n\
+				 \t}}\n\
+				 }}"
+			),
 		}
 	}
 
@@ -2055,15 +2119,36 @@ impl<'a> Gen<'a> {
 		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
+		// Each method's final name and receiver, by its lock key, which a stream's adapter calls.
+		let mut named = BTreeMap::new();
 		for mut method in methods {
 			while !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
 			if let Some(key) = &method.key {
 				self.locked.insert(key.clone(), method.name.clone());
+				named.insert(key.clone(), (method.name.clone(), method.receiver.clone()));
 			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
+		}
+		// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+		let pkg = self.pkg;
+		let streams = (functions.iter()).filter(|f| f.home.krate == pkg && matches!(ty, Type::Object(_)));
+		for function in streams {
+			let Some(item) = function.stream() else { continue };
+			let key = crate::lock::function_key(function);
+			let Some((next, receiver)) = named.get(&key).cloned() else {
+				continue;
+			};
+			let mut adapter = self.stream(function, item, &next, &format!("self.{next}"));
+			adapter.receiver = receiver;
+			while !taken.insert(adapter.name.clone()) {
+				adapter.name.push('_');
+			}
+			self.locked.insert(format!("{key} / stream"), adapter.name.clone());
+			members.push(adapter.name.clone());
+			self.types.push_str(&adapter.write());
 		}
 		for function in statics {
 			self.types.push_str(&function.write());
@@ -3501,6 +3586,7 @@ fn local(name: &str) -> String {
 		"context",
 		"errors",
 		"io",
+		"iter",
 		"ctx",
 		"cgo",
 		"math",

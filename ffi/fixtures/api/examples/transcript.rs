@@ -1057,6 +1057,7 @@ fn main() {
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
 	drive();
 	readers();
+	streams();
 	println!("non zeros {}", api::describe_non_zeros(api::non_zeros()));
 	println!(
 		"hop {:?} {:?} {:?}",
@@ -1210,6 +1211,52 @@ fn readers() {
 	match api::seek_to(&mut std::io::Cursor::new(Vec::<u8>::new()), u64::MAX) {
 		Ok(at) => println!("sought {at}"),
 		Err(err) => println!("sought error {err}"),
+	}
+}
+
+/// Streams, each iterated in its language's own protocol: to its end, left early, and to
+/// an error, past which the stream goes on.
+fn streams() {
+	let mut counts = Vec::new();
+	let mut countdown = api::Countdown::new(3);
+	while let Some(count) = finish(countdown.next()) {
+		counts.push(count.to_string());
+	}
+	println!("countdown {}", counts.join(" "));
+	// A loop left early takes nothing past the item it stopped at.
+	let mut countdown = api::Countdown::new(5);
+	while let Some(count) = finish(countdown.next()) {
+		if count == 4 {
+			break;
+		}
+	}
+	println!("countdown after break {}", finish(countdown.next()).unwrap());
+	// Each payload sends the next, which `!` fails and an empty one ends.
+	let channel = Channel::new();
+	let mut feed = channel.feed();
+	for first in ["a", "c"] {
+		channel.send(Bytes::from_static(first.as_bytes()));
+		loop {
+			match finish(feed.next()) {
+				Ok(Some(payload)) => {
+					println!("feed {}", String::from_utf8_lossy(&payload));
+					let reply: &'static str = match &payload[..] {
+						b"a" => "b",
+						b"b" => "!",
+						_ => "",
+					};
+					channel.send(Bytes::from_static(reply.as_bytes()));
+				}
+				Ok(None) => {
+					println!("feed end");
+					break;
+				}
+				Err(err) => {
+					println!("feed error {err}");
+					break;
+				}
+			}
+		}
 	}
 }
 
