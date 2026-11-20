@@ -234,26 +234,40 @@ class _Const:
 		return self.get()
 
 
-class _Fields:
-	"""A record class's `__dataclass_fields__`, which `dataclasses` makes on the first read,
-	so `dataclasses.fields`, `replace`, and `asdict` take a record as a dataclass while no
-	record pays for `dataclasses` processing it at import."""
+class _Dataclass:
+	"""A record class's `__dataclass_fields__` or `__dataclass_params__`, which `dataclasses`
+	makes on the first read of either, so `dataclasses` takes a record, or a subclass of
+	one, as the dataclass it was, while no record pays for `dataclasses` at import."""
 
-	__slots__ = ()
+	__slots__ = ("name",)
 
-	def __get__(self, obj: _object, cls: _type[_Record]) -> _dict[_str, _typing.Any]:
+	def __init__(self, name: _str) -> None:
+		self.name = name
+
+	def __get__(self, obj: _object, cls: _type[_Record]) -> _object:
 		import dataclasses
 
-		hints = cls.__annotations__
-		shape: _typing.Any = _type(cls.__name__, (), {"__annotations__": {name: hints[name] for name in cls.__match_args__}})
-		fields: _dict[_str, _typing.Any] = dataclasses.dataclass(shape).__dataclass_fields__
-		_typing.cast(_typing.Any, cls).__dataclass_fields__ = fields
-		return fields
+		# The record that declares the fields, which a subclass of it inherits.
+		owner: _typing.Any = _Record
+		for c in cls.__mro__:
+			if "__match_args__" in c.__dict__:
+				owner = c
+				break
+		hints = owner.__annotations__
+		shape: _typing.Any = _type(owner.__name__, (), {"__annotations__": {name: hints[name] for name in owner.__match_args__}})
+		shape = dataclasses.dataclass(shape, slots=True, weakref_slot=True)
+		made = {name: _getattr(shape, name) for name in ("__dataclass_fields__", "__dataclass_params__")}
+		# `_Record`'s own stay, as each record reads them.
+		if owner is not _Record:
+			for name, value in made.items():
+				_type.__setattr__(owner, name, value)
+		return made[self.name]
 
 
 class _Record:
 	"""What each record shares besides the `__init__` and `__eq__` it writes out as a
-	dataclass would: a dataclass's `repr`, and its `__dataclass_fields__` and `__replace__`."""
+	dataclass would: a dataclass's `repr`, `__dataclass_fields__`, `__dataclass_params__`,
+	and `__replace__`."""
 
 	__slots__ = ()
 
@@ -261,7 +275,8 @@ class _Record:
 	if _typing.TYPE_CHECKING:
 		__dataclass_fields__: _typing.ClassVar[_dict[_str, _dataclasses.Field[_typing.Any]]]
 	else:
-		__dataclass_fields__ = _Fields()
+		__dataclass_fields__ = _Dataclass("__dataclass_fields__")
+		__dataclass_params__ = _Dataclass("__dataclass_params__")
 
 	def __repr__(self) -> _str:
 		fields = ", ".join(f"{name}={_getattr(self, name)!r}" for name in self.__match_args__)

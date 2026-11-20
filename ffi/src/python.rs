@@ -64,7 +64,7 @@ const TAKEN: &[&str] = &[
 	"_asyncio",
 	"_dataclasses",
 	"_Record",
-	"_Fields",
+	"_Dataclass",
 	"_NotImplemented",
 	"_RuntimeError",
 	"_getattr",
@@ -877,7 +877,7 @@ impl<'a> Gen<'a> {
 				return;
 			}
 		};
-		let vnames: Vec<String> = variants.iter().map(|v| kw(&pascal(v))).collect();
+		let vnames = variant_classes(variants.iter().copied());
 		let aliases: String = (vnames.iter())
 			.map(|v| format!("\t\t{v}: _typing.TypeAlias = \"_{name}_{v}\"\n"))
 			.collect();
@@ -1370,7 +1370,8 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
-		let mut data: Vec<String> = e.variants.iter().map(|v| kw(&pascal(&v.name))).collect();
+		let vnames = variant_classes(e.variants.iter().map(|v| v.name.as_str()));
+		let mut data = vnames.clone();
 		let fields: BTreeSet<String> = e
 			.variants
 			.iter()
@@ -1380,8 +1381,7 @@ impl<'a> Gen<'a> {
 		data.extend(fields);
 		self.methods(&e.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		// Each variant's class is bound on the enum's once made, after the enum's own.
-		for variant in &e.variants {
-			let vname = kw(&pascal(&abi::snake(&variant.name)));
+		for vname in &vnames {
 			body.native
 				.push(format!("\t{vname}: _typing.TypeAlias = \"_{name}_{vname}\"\n"));
 		}
@@ -1393,8 +1393,7 @@ impl<'a> Gen<'a> {
 		);
 		let mut reads = Vec::new();
 		let mut writes = Vec::new();
-		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = kw(&pascal(&variant.name));
+		for (n, (variant, vname)) in e.variants.iter().zip(&vnames).enumerate() {
 			let class = format!("_{name}_{vname}");
 			let key = abi::payload(&c, &variant.name);
 			let tv = self.register(&key, class.clone());
@@ -2216,6 +2215,20 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	name
 }
 
+/// The class names of variants `names`, as Python spells them: `FooBar` for Rust's
+/// `FooBar` and `Foo_Bar` alike, so a later one an earlier one took takes a trailing `_`.
+fn variant_classes<'n>(names: impl Iterator<Item = &'n str>) -> Vec<String> {
+	let mut classes: Vec<String> = Vec::new();
+	for name in names {
+		let mut class = kw(&pascal(name));
+		while classes.contains(&class) {
+			class.push('_');
+		}
+		classes.push(class);
+	}
+	classes
+}
+
 /// A field's Python name: a positional one's is `_0`, `_1`, ...
 fn field_name(name: &str) -> String {
 	match name.starts_with(|c: char| c.is_ascii_digit()) {
@@ -2371,7 +2384,16 @@ fn record_class(name: &str, bases: &str, docs: &str, fields: &[Slot], members: &
 
 #[cfg(test)]
 mod tests {
-	use super::member;
+	use super::{member, variant_classes};
+
+	#[test]
+	fn variant_classes_keep_apart() {
+		let names = ["FooBar", "Foo_Bar", "None", "Late"];
+		assert_eq!(
+			variant_classes(names.into_iter()),
+			["FooBar", "FooBar_", "None_", "Late"]
+		);
+	}
 
 	#[test]
 	fn member_keeps_clear_of_the_runtime_aliases() {
