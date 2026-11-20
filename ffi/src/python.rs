@@ -827,7 +827,8 @@ impl<'a> Gen<'a> {
 		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			let bound = abi.rt("bound");
 			self.register(&bound, "Bound".to_string());
-			self.names.insert("Bound".to_string(), "the runtime's range bound".to_string());
+			self.names
+				.insert("Bound".to_string(), "the runtime's range bound".to_string());
 			self.py.push_str(
 				"class Bound(_enum.Enum):\n\t\"\"\"What a range's start or end bound does: nothing, include its value, or exclude it.\"\"\"\n\n\tUNBOUNDED = 0\n\tINCLUDED = 1\n\tEXCLUDED = 2\n\n\n",
 			);
