@@ -68,20 +68,28 @@ pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		})
 		.collect();
 	h.locked = crate::lock::types(abi, &classes);
-	// A plain enum's values, which one escaping alike renames, as reordering them may.
-	let values: BTreeMap<(String, String), String> = (0..api.enums.len())
-		.filter(|&i| api.enums[i].plain())
-		.flat_map(|i| {
-			let c = abi.enumeration(i);
-			let names = api.enums[i].variants.iter().map(|v| v.name.clone());
-			names.zip(h.values(i)).map(move |(v, value)| ((c.clone(), v), value))
-		})
-		.collect();
-	let mut locked = std::mem::take(&mut h.locked);
-	crate::lock::variants(abi, &mut locked, |c, v| {
-		values.get(&(c.to_string(), v.to_string())).cloned()
-	});
-	h.locked = locked;
+	// Each name a trait or a name escaping alike can move, so a change that moves one, such
+	// as a reorder or a derived `Debug` beside a field `debug`, breaks the lock.
+	for (i, record) in api.records.iter().enumerate() {
+		let owner = crate::lock::type_key(&record.shown);
+		for (field, name) in record.fields.iter().zip(h.fields(i).0) {
+			h.locked.insert(format!("{owner} / field {}", field.name), name);
+		}
+	}
+	for (i, e) in api.enums.iter().enumerate() {
+		let owner = crate::lock::type_key(&e.shown);
+		if e.plain() {
+			for (v, value) in e.variants.iter().zip(h.values(i)) {
+				h.locked.insert(format!("{owner} / variant {}", v.name), value);
+			}
+		}
+		for v in &e.variants {
+			for (field, name) in v.fields.iter().zip(field_names(&v.fields)) {
+				h.locked
+					.insert(format!("{owner} / variant {} / field {}", v.name, field.name), name);
+			}
+		}
+	}
 	let mut headers = vec![(format!("{p}/rt.hpp"), h.shared(packages))];
 	let guard = format!("{}_HPP", p.to_uppercase());
 	let mut umbrella = format!(
@@ -2109,23 +2117,22 @@ fn kept_apart(mut name: String, taken: &[String]) -> String {
 
 /// The C++ names of `rust`, the names of one scope, each kept apart from `taken` and the
 /// rest: a name escaping leaves as it is keeps it while `taken` lacks it, and every other,
-/// escaped, takes `_` while a name before it holds it. So a field `new_` stays `new_`
-/// beside `new`, which becomes `new__`, whatever their order.
+/// escaped, takes `_` while a name before it in Rust's order holds it. So a field `new_`
+/// stays `new_` beside `new`, which becomes `new__`, and no order of the source moves one.
 fn named(rust: &[String], taken: &[String]) -> Vec<String> {
-	let escaped: Vec<String> = rust.iter().map(|name| escape(name)).collect();
-	let kept = |k: usize| escaped[k] == rust[k] && !taken.contains(&escaped[k]);
+	let mut names: Vec<String> = rust.iter().map(|name| escape(name)).collect();
+	let kept: Vec<bool> = (0..rust.len())
+		.map(|k| names[k] == rust[k] && !taken.contains(&names[k]))
+		.collect();
 	let mut held: Vec<String> = taken.to_vec();
-	held.extend((0..rust.len()).filter(|&k| kept(k)).map(|k| escaped[k].clone()));
-	(0..rust.len())
-		.map(|k| match kept(k) {
-			true => escaped[k].clone(),
-			false => {
-				let name = kept_apart(escaped[k].clone(), &held);
-				held.push(name.clone());
-				name
-			}
-		})
-		.collect()
+	held.extend((0..rust.len()).filter(|&k| kept[k]).map(|k| names[k].clone()));
+	let mut moved: Vec<usize> = (0..rust.len()).filter(|&k| !kept[k]).collect();
+	moved.sort_by(|&a, &b| rust[a].cmp(&rust[b]));
+	for k in moved {
+		names[k] = kept_apart(std::mem::take(&mut names[k]), &held);
+		held.push(names[k].clone());
+	}
+	names
 }
 
 /// The C++ names of `fields`, a struct's with no other members: a data enum's payload's.
@@ -2479,6 +2486,15 @@ mod tests {
 		// Unless something else holds it, such as a trait's member.
 		assert_eq!(names(&["debug", "debug_"], &["debug"]), ["debug__", "debug_"]);
 		assert_eq!(names(&["default", "seed"], &["default_"]), ["default__", "seed"]);
+		// And two that neither keeps move by Rust's order, not the source's.
+		assert_eq!(
+			names(&["default", "default_"], &["default_"]),
+			["default__", "default___"]
+		);
+		assert_eq!(
+			names(&["default_", "default"], &["default_"]),
+			["default___", "default__"]
+		);
 		// The macros' family escapes apart already.
 		assert_eq!(names(&["unix", "unix_"], &[]), ["unix_", "unix__"]);
 	}
