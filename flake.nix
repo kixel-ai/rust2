@@ -344,10 +344,9 @@
           # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang,
           # runs it under the nightly's Miri and Valgrind, and runs the Python on a debug build of
           # the newest CPython, which nothing caches. llvm-symbolizer names a report's frames.
-          devShells.sanitize = self.devShells.${system}.default.overrideAttrs (old: {
+          devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
-              pkgs.llvmPackages_23.clang
-              pkgs.llvmPackages_23.llvm
+              pkgs.llvm
               pkgs.valgrind
             ];
             RUST2_PYTHON_DEBUG = "${pkgs.python315.override { enableDebug = true; }}/bin/python3";

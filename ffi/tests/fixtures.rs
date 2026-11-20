@@ -528,6 +528,15 @@ fn api_valgrind() {
 fn sanitized_glue(sanitizer: &str) -> (PathBuf, Vec<String>) {
 	let api = api();
 	let dir = scratch().join("api").join(sanitizer);
+	// On aarch64, the runtime's atomics call `__aarch64_*` helpers, which the instrumented
+	// compiler_builtins would define and answer by reading a flag through a shadow check, before
+	// the runtime has mapped its shadow: every run would crash in `__asan_init` or `__tsan_init`.
+	// Without them the link takes the toolchain's own, which are not instrumented.
+	let outline = if cfg!(target_arch = "aarch64") {
+		" -Ctarget-feature=-outline-atomics"
+	} else {
+		""
+	};
 	let built = run(cargo()
 		.args(["build", "--quiet", "--locked", "-Zbuild-std", "--target", host()])
 		.arg("--manifest-path")
@@ -536,7 +545,7 @@ fn sanitized_glue(sanitizer: &str) -> (PathBuf, Vec<String>) {
 		.arg(dir.join("glue"))
 		.env(
 			"RUSTFLAGS",
-			format!("-D warnings -Zsanitizer={sanitizer} --print=native-static-libs"),
+			format!("-D warnings -Zsanitizer={sanitizer} --print=native-static-libs{outline}"),
 		));
 	let native: Vec<String> = String::from_utf8_lossy(&built.stderr)
 		.lines()
