@@ -114,8 +114,8 @@ impl Link {
 ```
 
 A wrapper replaces the type it wraps: replace the `pub use url::*;` glob with explicit
-re-exports of the items that map, such as `pub use url::ParseError;`, and drop `Url` from
-them. A kept `pub use url::Url;` exports the original type beside `Link`, and the census
+re-exports of the items that map, and drop `Url` from them. This example re-exports none, so
+`ParseError` stays a message; re-export it to hand callers the enum instead. A kept `pub use url::Url;` exports the original type beside `Link`, and the census
 goes on reporting its refused methods.
 
 This exports with no refusals: `Link` is an object, `parse` fails with `ParseError`'s message,
