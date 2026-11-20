@@ -63,6 +63,7 @@ sealed interface IpAddr {
 
 	companion object {
 		/** [address] exactly, throwing `IllegalArgumentException` for an IPv6 one with a scope, which Rust's `IpAddr` has no room for. */
+		@kotlin.jvm.JvmStatic
 		fun of(address: java.net.InetAddress): IpAddr = when (address) {
 			is java.net.Inet6Address -> Ipv6Addr(address)
 			else -> Ipv4Addr(address.address)
@@ -137,6 +138,7 @@ sealed interface SocketAddr {
 
 	companion object {
 		/** [address], throwing `IllegalArgumentException` for an unresolved one, which Rust's `SocketAddr` has no form of. */
+		@kotlin.jvm.JvmStatic
 		fun of(address: java.net.InetSocketAddress): SocketAddr = when (_resolved(address)) {
 			is java.net.Inet6Address -> SocketAddrV6(address)
 			else -> SocketAddrV4(address)
@@ -223,7 +225,7 @@ class PathBuf private constructor(bytes: ByteArray, given: Boolean) {
 		throw kotlin.IllegalArgumentException("$this is not UTF-8", e)
 	}
 
-	/** This as a `java.nio.file.Path`, throwing `IllegalArgumentException` where its bytes are not UTF-8. */
+	/** This as a `java.nio.file.Path`, throwing `IllegalArgumentException` where its bytes are not UTF-8. Android has `java.nio.file` from API 26. */
 	fun toPath(): java.nio.file.Path = java.nio.file.Paths.get(toText())
 
 	override fun equals(other: Any?): Boolean = other is PathBuf && bytes.contentEquals(other.bytes)

@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import tarfile
 import tempfile
 import unittest
 import zipfile
@@ -332,6 +333,106 @@ class Swift(unittest.TestCase):
         self.assertIn('platforms: [.macOS("13.0"), .iOS("16.0")]', text)
         self.assertIn('exact: "1.7.5"', text)
         self.assertIn('dependencies: ["MoqFFI", .product(name: "BasicContainers", package: "swift-collections")]', text)
+
+
+class CArchive(unittest.TestCase):
+    def test_versions_compat_and_soname(self):
+        self.assertEqual(package.compat_version("1.4.2"), "1.0.0")
+        self.assertEqual(package.compat_version("0.4.12"), "0.4.0")
+        self.assertEqual(package.compat_version("0.0.3"), "0.0.3")
+        self.assertEqual(package.compat_version("2.0.0-rc.1"), "2.0.0-rc.1")
+        self.assertEqual(package.soname_version("1.2.3+build.5"), "1.2.3")
+        self.assertEqual(package.soname_version("2.0.0-rc.1"), "2.0.0-rc.1")
+        for version in ("1.0", "01.2.3", "v1.2.3"):
+            with self.assertRaises(SystemExit, msg=version):
+                package.soname_version(version)
+
+    def test_files_per_platform(self):
+        self.assertEqual(package.c_files("moq", "x86_64-unknown-linux-gnu", "0.4.12")["shared"], "lib/libmoq.so.0.4.12")
+        self.assertEqual(package.c_files("moq", "aarch64-apple-darwin", "1.0.0")["shared"], "lib/libmoq.1.0.0.dylib")
+        windows = package.c_files("moq", "x86_64-pc-windows-msvc", "1.0.0")
+        self.assertEqual((windows["static"], windows["shared"], windows["implib"]),
+                         ("lib/moq.lib", "bin/moq.dll", "lib/moq.dll.lib"))
+
+    def test_native_libraries_by_platform(self):
+        self.assertEqual(package.native_libs("-lgcc_s -lutil -lc", "x86_64-unknown-linux-gnu"),
+                         [("lib", "gcc_s"), ("lib", "util"), ("lib", "c")])
+        self.assertEqual(package.native_libs("-framework Security -liconv", "aarch64-apple-darwin"),
+                         [("framework", "Security"), ("lib", "iconv")])
+        self.assertEqual(package.native_libs("kernel32.lib ntdll.lib /defaultlib:msvcrt", "x86_64-pc-windows-msvc"),
+                         [("lib", "kernel32"), ("lib", "ntdll"), ("flag", "/defaultlib:msvcrt")])
+        for flags, target in (("-Wl,-dead_strip", "aarch64-apple-darwin"), ("-framework Security", "x86_64-unknown-linux-gnu"),
+                              ("-lkernel32", "x86_64-pc-windows-msvc")):
+            with self.assertRaises(SystemExit, msg=flags):
+                package.native_libs(flags, target)
+
+    def test_descriptions(self):
+        natives = [("framework", "Security"), ("lib", "iconv")]
+        files = package.c_files("moq", "aarch64-apple-darwin", "0.4.12")
+        pc = package.pkg_config(info("/src"), natives)
+        self.assertIn("Libs: -L${libdir} -lmoq\nLibs.private: -framework Security -liconv\n", pc)
+        self.assertIn("Description: Media over QUIC, bindings\n", pc)
+        config = package.cmake_config(info("/src"), "aarch64-apple-darwin", files, natives)
+        self.assertIn("add_library(moq::moq STATIC IMPORTED)", config)
+        self.assertIn("add_library(moq::moq_shared SHARED IMPORTED)", config)
+        self.assertIn('IMPORTED_LOCATION "${_moq_prefix}/lib/libmoq.0.4.12.dylib"', config)
+        self.assertIn("INTERFACE_LINK_LIBRARIES [==[-framework Security;iconv]==]", config)
+        self.assertEqual(config.count('INTERFACE_COMPILE_FEATURES "c_std_11;cxx_std_17"'), 2)
+        self.assertIn('VERSION_LESS "0.4.0"', package.cmake_version(info("/src")))
+        cps = json.loads(package.cps(info("/src"), files, natives))
+        self.assertEqual((cps["name"], cps["version"], cps["compat_version"]), ("moq", "0.4.12", "0.4.0"))
+        self.assertEqual(cps["default_components"], ["moq"])
+        self.assertEqual(cps["components"]["moq"]["link_libraries"], ["-framework Security", "iconv"])
+        self.assertEqual(cps["components"]["moq_shared"]["location"], "@prefix@/lib/libmoq.0.4.12.dylib")
+        self.assertEqual(cps["website"], "https://github.com/moq-dev/moq")
+        self.assertEqual(cps["version_schema"], "simple")
+        prerelease = info("/src", version="2.0.0-rc.1")
+        self.assertEqual(json.loads(package.cps(prerelease, files, natives))["version_schema"], "custom")
+        self.assertIn("set(PACKAGE_VERSION_COMPATIBLE FALSE)\n", package.cmake_version(prerelease))
+        self.assertNotIn("VERSION_LESS", package.cmake_version(prerelease))
+        windows = package.cps(info("/src"), package.c_files("moq", "x86_64-pc-windows-msvc", "0.4.12"),
+                              [("lib", "ntdll"), ("flag", "/defaultlib:msvcrt")])
+        windows = json.loads(windows)["components"]
+        self.assertEqual(windows["moq_shared"]["link_location"], "@prefix@/lib/moq.dll.lib")
+        self.assertEqual(windows["moq"]["link_flags"], ["/defaultlib:msvcrt"])
+
+    def test_commons_are_defined_unless_a_member_defines_them(self):
+        nm = """
+libmoq.a(ui.o):
+0000000000000008 (common) (alignment 2^3) external _tty_in
+0000000000000004 (common) (alignment 2^2) external _is_a_tty
+0000000000000010 (common) (alignment 2^4) external _shared
+                 (undefined) external _tty_out
+
+libmoq.a(other.o):
+0000000000000008 (common) (alignment 2^3) external _tty_out
+0000000000000020 (common) external _shared
+0000000000000000 (__DATA,__bss) external _is_a_tty
+0000000000000008 (common) (alignment 2^3) external _state
+0000000000000010 (__DATA,__data) private external _state
+"""
+        self.assertEqual(package.commons_source(nm),
+                         '__attribute__((aligned(16))) char common0[32] __asm__("_shared");\n'
+                         '__attribute__((aligned(8))) char common1[8] __asm__("_tty_in");\n'
+                         '__attribute__((aligned(8))) char common2[8] __asm__("_tty_out");\n')
+        self.assertEqual(package.commons_source("0000 (__TEXT,__text) external _moq_x\n"), "typedef int empty;\n")
+
+    def test_archive_is_owned_by_no_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "moq-ffi-0.4.12-x86_64-unknown-linux-gnu"
+            (root / "lib").mkdir(parents=True)
+            (root / "lib/libmoq.so.0.4.12").write_bytes(b"\x7fELF")
+            (root / "lib/libmoq.so.0.4.12").chmod(0o700)
+            (root / "lib/libmoq.so").symlink_to("libmoq.so.0.4.12")
+            (root / "lib/libmoq.a").write_bytes(b"!<arch>\n")
+            (root / "lib/libmoq.a").chmod(0o600)
+            path = package.pack(root, Path(tmp) / "out.tar.gz")
+            with tarfile.open(path) as archive:
+                members = {m.name.split("/", 1)[-1]: m for m in archive.getmembers()}
+            self.assertEqual(members["lib/libmoq.so.0.4.12"].mode, 0o755)
+            self.assertEqual(members["lib/libmoq.a"].mode, 0o644)
+            self.assertEqual(members["lib/libmoq.so"].linkname, "libmoq.so.0.4.12")
+            self.assertEqual({(m.uid, m.uname) for m in members.values()}, {(0, "")})
 
 
 class Template(unittest.TestCase):

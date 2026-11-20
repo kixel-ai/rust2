@@ -34,6 +34,12 @@ impl Point {
 			y: self.y + dy,
 		}
 	}
+
+	/// The origin's `x`: a static whose Kotlin name, `getX`, is also the JVM name of `x`'s
+	/// getter, which a companion's `@JvmStatic` function would clash with.
+	pub fn get_x() -> i32 {
+		0
+	}
 }
 
 /// A record that owns memory: its `free` releases the name.
@@ -2866,6 +2872,9 @@ pub struct Retry {
 	/// Its field exports, but the method of its name is refused, so the config excludes
 	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
 	pub jitter: u32,
+	/// Its field exports, but Swift refuses the method of its name, so the config excludes
+	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
+	pub spread: u64,
 }
 
 impl Retry {
@@ -2874,6 +2883,7 @@ impl Retry {
 			limit,
 			delay: None,
 			jitter: 0,
+			spread: 0,
 		}
 	}
 
@@ -2887,6 +2897,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The spread plus three optional borrowed counters, past what Swift takes.
+	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+		self.spread + among(first, second, third)
 	}
 
 	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
@@ -4308,6 +4323,16 @@ impl Site {
 }
 
 impl Shape {
+	/// The shape `name` names, if any: a static whose Kotlin name, `valueOf`, a Kotlin enum
+	/// also declares on the JVM, which a companion's `@JvmStatic` function would clash with.
+	pub fn value_of(name: &str) -> Option<Shape> {
+		match name {
+			"circle" => Some(Shape::Circle),
+			"square" => Some(Shape::Square),
+			_ => None,
+		}
+	}
+
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
 

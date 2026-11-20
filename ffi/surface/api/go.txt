@@ -145,6 +145,7 @@ func Parents(paths []string) ([]*string, error)
 func ParseCert(text string) (uint32, error)
 func ParseLater(ctx context.Context, text string) (uint32, error)
 func Peek(tally *Tally, peek func(*Tally) uint32) (uint32, error)
+func PointGetX() int32
 func PointerBits(platform Platform) uint32
 func PollTripled(ctx context.Context, n uint32) (uint32, error)
 func Port(text string) (uint16, error)
@@ -1472,6 +1473,7 @@ const (
 )
 func ShapeALL() []Shape
 func ShapeBOTH() []Shape
+func ShapeValueOf(name string) (*Shape, error)
 func (self Shape) Equal(other Shape) bool
 func (self Shape) GoString() string
 type Sheet struct {

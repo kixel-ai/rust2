@@ -8804,7 +8804,7 @@ namespace moq {
 		quic = 0,
 		web_socket = 1,
 		tcp = 2,
-		unix = 3,
+		unix_ = 3,
 		web_transport = 4,
 		tls = 5,
 	};
