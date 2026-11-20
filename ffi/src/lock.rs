@@ -1034,25 +1034,26 @@ mod tests {
 		let mut now = base.clone();
 		now.enums[0].traits.default = true;
 		now.enums[0].traits.debug = true;
-		assert!(breaks(&base, &now, "lock").is_empty(), "an added trait passes structurally");
-		let abi = Abi::new(&now, "lock");
-		let old = |language: &str| match language {
-			"Swift" => crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap().names,
-			_ => crate::dart::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap().names,
-		};
-		let new = |language: &str| match language {
-			"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
-			_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added trait passes structurally"
+		);
+		let names = |api: &Api, language: &str| {
+			let abi = Abi::new(api, "lock");
+			match language {
+				"Swift" => crate::swift::generate(&abi, "lock", 0).unwrap().names,
+				_ => crate::dart::generate(&abi, "lock", 0).unwrap().names,
+			}
 		};
 		for (language, renamed) in [
 			("Swift", "`Mode.default` is now `Mode.default_`"),
 			("Dart", "`Mode.debug` is now `Mode.debug_`"),
 		] {
 			let changes = name_breaks(
-				&BTreeMap::from([(language.into(), old(language))]),
-				&BTreeMap::from([(language.into(), new(language))]),
+				&BTreeMap::from([(language.into(), names(&base, language))]),
+				&BTreeMap::from([(language.into(), names(&now, language))]),
 				&base,
-				&abi,
+				&Abi::new(&now, "lock"),
 			);
 			assert!(
 				changes.iter().any(|c| c.what.contains(renamed)),
