@@ -59,12 +59,16 @@ const minting: unique symbol = Symbol("minting");
 let made: (bytes: Uint8Array) => Opaque;
 let bytesOf: (v: Opaque) => Uint8Array | undefined;
 
+// Its brand, which a class field keyed by a symbol would not declare without a type checker.
+export interface Opaque<T extends string = string> {
+	readonly [brand]: T;
+}
+
 /**
  * A `Copy` type whose fields are private: its bytes, which only Rust makes or reads, so
  * JavaScript copies one but never makes one.
  */
 export class Opaque<T extends string = string> {
-	declare readonly [brand]: T;
 	// Private, so no caller makes or changes one: the bytes may hold what Rust forbids, such
 	// as a zero `NonZero`.
 	readonly #bytes: Uint8Array;
@@ -183,8 +187,10 @@ let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
 /** A view of the module's memory, made again once memory grows, which detaches the last. */
 export function dv(): DataView {
 	if (view.buffer !== memory.buffer) {
-		view = new DataView(memory.buffer);
-		bytes = new Uint8Array(memory.buffer);
+		// Never shared: the module is built without threads. Deno's types say it may be.
+		const buffer = memory.buffer as ArrayBuffer;
+		view = new DataView(buffer);
+		bytes = new Uint8Array(buffer);
 	}
 	return view;
 }
@@ -324,13 +330,76 @@ export type Kind = {
 	readonly drop?: string;
 };
 
-/** The handles' frees the garbage collector makes, of each that was never disposed. */
+/** The handles' frees the garbage collector makes, of each that left the nursery undisposed. */
 const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
 	if (!live()) return;
 	s.d++;
 	w[free](p);
 	s.d--;
 });
+
+// Its brand, which a class field keyed by a symbol would not declare without a type checker.
+export interface Handle<T extends string = string> {
+	readonly [brand]: T;
+}
+
+/**
+ * How many of the latest owned handles and lent bytes returned the nursery holds: one
+ * disposed while there is freed without the garbage collector's registry, which costs a
+ * return more than the rest of it and its disposal together. One that leaves it open,
+ * pushed out by later returns or by [flush], registers then, so this bounds what a
+ * dropped one keeps of Rust's.
+ */
+const NURSERY = 64;
+
+/** The nursery, oldest at [next] once full. Each knows its slot, so disposing clears it. */
+const nursery: (Handle | Bytes | undefined)[] = new Array(NURSERY).fill(undefined);
+let next = 0;
+
+/** A slot of what is in the nursery is its index; of what left it, one of these. */
+const REGISTERED = -1;
+const UNREGISTERED = -2;
+
+/** Put `x` in the nursery, pushing out the oldest: its slot. */
+function nurse(x: Handle | Bytes): number {
+	const i = next;
+	next = (i + 1) & (NURSERY - 1);
+	const old = nursery[i];
+	if (old !== undefined) evict(old);
+	nursery[i] = x;
+	return i;
+}
+
+/** Push `x` out of the nursery, registering it unless disposed. */
+function evict(x: Handle | Bytes): void {
+	if (x instanceof Handle) x.evict();
+	else bytesEvict(x);
+}
+
+/**
+ * Push out all the nursery holds, once a collection ran: so an idle nursery keeps what it
+ * holds for two collections, the one that ran this and the one that finds them, not
+ * forever. A collected sentinel runs it, as a `WeakRef` to the nursery would only lose it.
+ */
+function flush(): void {
+	for (let i = 0; i < NURSERY; i++) {
+		const x = nursery[i];
+		if (x !== undefined) evict(x);
+		nursery[i] = undefined;
+	}
+}
+
+const collections = new FinalizationRegistry<undefined>(() => {
+	flush();
+	watch();
+});
+
+/** Register a sentinel, which nothing reaches, so the next collection runs [flush]. */
+function watch(): void {
+	collections.register({}, undefined);
+}
+
+watch();
 
 /**
  * A handle to a Rust object, which counts the calls holding it. An owned one of a value
@@ -341,7 +410,6 @@ const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
  * it unreachable, if it was never disposed.
  */
 export class Handle<T extends string = string> {
-	declare readonly [brand]: T;
 	/** The handle's pointer. */
 	readonly p: number;
 	readonly k: Kind;
@@ -351,13 +419,25 @@ export class Handle<T extends string = string> {
 	readonly owned: boolean;
 	/** Whether disposing it drops its value through Rust's `_drop`. */
 	readonly checked: boolean;
+	/** An owned one's slot in the nursery, or whether it registered once it left. */
+	n: number;
 
 	constructor(p: number, k: Kind, owned: boolean) {
 		this.p = p;
 		this.k = k;
 		this.owned = owned;
 		this.checked = owned && k.drop !== undefined;
-		if (owned) collected.register(this, [p, k.free], this);
+		this.n = owned ? nurse(this) : UNREGISTERED;
+	}
+
+	/** Leave the nursery, registering unless disposed, as its last hold then frees it. */
+	evict(): void {
+		if (this.closed) {
+			this.n = UNREGISTERED;
+			return;
+		}
+		collected.register(this, [this.p, this.k.free], this);
+		this.n = REGISTERED;
 	}
 
 	hold(): number {
@@ -371,7 +451,8 @@ export class Handle<T extends string = string> {
 	}
 
 	free(): void {
-		collected.unregister(this);
+		if (this.n >= 0) nursery[this.n] = undefined;
+		else if (this.n === REGISTERED) collected.unregister(this);
 		const m = enter();
 		s.d++;
 		w[this.k.free](this.p);
@@ -755,6 +836,7 @@ function ownerFree(owner: number, length: number): void {
 let bytesMade: (ptr: number, length: number, owner: number, copy: Uint8Array | undefined) => Bytes;
 let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number, length: number];
 let bytesRelease: (b: Bytes) => void;
+let bytesEvict: (b: Bytes) => void;
 
 /**
  * Bytes a call returns. `slice()` copies them into a `Uint8Array`, `at(i)` reads one, and
@@ -775,6 +857,8 @@ export class Bytes {
 	/** The owner's hold until disposed, and one for each call viewing Rust's buffer. */
 	#h = 1;
 	#closed = false;
+	/** A lent one's slot in the nursery, or whether it registered once it left. */
+	#n = UNREGISTERED;
 
 	private constructor(key: symbol, ptr: number, length: number, owner: number, copy: Uint8Array | undefined) {
 		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
@@ -784,7 +868,7 @@ export class Bytes {
 		this.#copy = copy;
 		if (owner !== 0) {
 			lentLength += length;
-			unlent.register(this, [owner, length], this);
+			this.#n = nurse(this);
 		}
 	}
 
@@ -823,7 +907,8 @@ export class Bytes {
 
 	#release(): void {
 		if (--this.#h === 0 && this.#owner !== 0) {
-			unlent.unregister(this);
+			if (this.#n >= 0) nursery[this.#n] = undefined;
+			else if (this.#n === REGISTERED) unlent.unregister(this);
 			ownerFree(this.#owner, this.#length);
 		}
 	}
@@ -842,6 +927,14 @@ export class Bytes {
 			return [b.#ptr, b.#owner, b.#length];
 		};
 		bytesRelease = (b) => b.#release();
+		bytesEvict = (b) => {
+			if (b.#closed) {
+				b.#n = UNREGISTERED;
+				return;
+			}
+			unlent.register(b, [b.#owner, b.#length], b);
+			b.#n = REGISTERED;
+		};
 	}
 }
 
@@ -1436,8 +1529,25 @@ const wasi = {
 	},
 };
 
-/** What `load` takes the module from. */
-export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response>;
+/**
+ * What `load` takes the module from: a compiled module, its bytes, a `Response` such as
+ * `fetch` gives, or its URL, which a `file:` URL reads through Node's file system where the
+ * runtime has one, as Node's `fetch` refuses that scheme, and any other fetches.
+ */
+export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
+
+/** Node's file system, where the runtime has one: Node, Bun, and Deno, but no browser. */
+type Files = { readFile(path: URL): Promise<Uint8Array<ArrayBuffer>> };
+
+/**
+ * The bytes or the response at `url`. Node's file system is found by
+ * `process.getBuiltinModule`, a call no bundler follows, so a browser's bundle imports none.
+ */
+function fetchUrl(url: URL): Promise<BufferSource | Response> {
+	const node = (globalThis as { process?: { getBuiltinModule?(id: string): unknown } }).process;
+	const files = url.protocol === "file:" ? (node?.getBuiltinModule?.("node:fs/promises") as Files | undefined) : undefined;
+	return files ? files.readFile(url) : fetch(url);
+}
 
 /** What a binding's `load` passes: its C prefix and glue's namespace, its contract and target, and its imports. */
 export type Glue = {
@@ -1477,9 +1587,11 @@ let loaded = false;
 
 async function instantiate(source: Source, glue: Glue): Promise<void> {
 	let module: WebAssembly.Module;
+	if (source instanceof URL) source = await fetchUrl(source);
 	if (source instanceof WebAssembly.Module) module = source;
 	else if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) module = await WebAssembly.compile(source);
-	else module = await WebAssembly.compileStreaming(source as Response | PromiseLike<Response>);
+	// A promise of its own, as Deno's types take no other thenable.
+	else module = await WebAssembly.compileStreaming(Promise.resolve(source as Response | PromiseLike<Response>));
 	const rust = rust2(glue.imports as Record<string, (...args: number[]) => unknown>);
 	for (const i of WebAssembly.Module.imports(module)) {
 		// Its own, not what every object inherits, such as `toString`.

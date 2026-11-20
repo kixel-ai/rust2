@@ -23,7 +23,7 @@ use rustc_middle::ty::{
 	self, CallerBoundsIterator as _, GenericArgKind, Ty, TyCtxt, TypeSuperVisitable, TypeVisitable, TypeVisitableExt,
 	TypeVisitor, TypingEnv,
 };
-use rustc_span::{DUMMY_SP, Span, sym};
+use rustc_span::{DUMMY_SP, Ident, Span, kw, sym};
 use rustc_trait_selection::infer::InferCtxtExt;
 use rustc_trait_selection::traits::ObligationCtxt;
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _;
@@ -1325,7 +1325,8 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let def_id = adt.did();
 		let (_, path) = self.items.iter().find(|(item, _)| *item == def_id)?.clone();
-		if !matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum)
+		// A union's instance is admitted to be refused as any union is.
+		if !matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum | DefKind::Union)
 			|| !self.typed(def_id)
 			|| args.has_non_region_param()
 		{
@@ -1820,6 +1821,7 @@ impl<'tcx> Collector<'tcx> {
 					display: true,
 					debug: false,
 					default: false,
+					..Traits::default()
 				},
 				foreign: true,
 			});
@@ -1953,6 +1955,7 @@ impl<'tcx> Collector<'tcx> {
 					display: true,
 					debug: true,
 					default: false,
+					..Traits::default()
 				},
 			),
 			// Its contents are the caller's JSON library's to read, from its text.
@@ -2029,8 +2032,15 @@ impl<'tcx> Collector<'tcx> {
 		let lifetimes = params
 			.iter()
 			.any(|p| matches!(p.kind, ty::GenericParamDefKind::Lifetime));
+		// A struct ending in a slice, as zerovec's `ZeroSlice<T>` is, is only ever behind a
+		// pointer, which no handle holds.
+		let unsized_ = || {
+			let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
+			!ty.has_non_region_param() && !ty.is_sized(tcx, TypingEnv::fully_monomorphized())
+		};
 		match tcx.def_kind(def_id) {
 			DefKind::Union => Decl::Refused(why("union", "")),
+			DefKind::Struct if unsized_() => Decl::Refused(why("unsized type", "")),
 			// Held by a handle that outlives any call, it is the form that borrows nothing.
 			DefKind::Struct | DefKind::Enum if lifetimes && (instance || !self.typed(def_id)) => self.object(site),
 			DefKind::Struct | DefKind::Enum if generic && !instance => {
@@ -2629,8 +2639,7 @@ impl<'tcx> Collector<'tcx> {
 				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
 				|| (api.enums.iter()).any(|e| {
 					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				})
-				|| (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
+				}) || (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if !used {
 				self.api.enums.pop();
@@ -2657,12 +2666,10 @@ impl<'tcx> Collector<'tcx> {
 			let used = api.functions.iter().any(signature)
 				|| (api.records.iter().enumerate()).any(|(i, r)| {
 					(!value || i != gone) && (args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
-				})
-				|| (api.enums.iter()).any(|e| {
-					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				})
-				|| (api.objects.iter().enumerate())
-					.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
+				}) || (api.enums.iter()).any(|e| {
+				args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
+			}) || (api.objects.iter().enumerate())
+				.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
@@ -2928,8 +2935,9 @@ impl<'tcx> Collector<'tcx> {
 			name.strip_prefix("poll_")
 				.is_some_and(|x| futures.iter().any(|f| f == x))
 		};
-		let (twins, kept): (Vec<Function>, Vec<Function>) =
-			(methods.into_iter()).partition(|m| m.future && m.task.is_some() && m.instance.is_none() && twin(m.name()));
+		let (twins, kept): (Vec<Function>, Vec<Function>) = (methods.into_iter()).partition(|m| {
+			m.future && m.task.is_some() && m.instance.as_ref().is_none_or(|i| i.named.is_empty()) && twin(m.name())
+		});
 		methods = kept;
 		for function in twins {
 			let (report, rest) = self.report(&function.shown);
@@ -2967,10 +2975,120 @@ impl<'tcx> Collector<'tcx> {
 			display: implements(sym::Display),
 			debug: implements(sym::Debug),
 			default: implements(sym::Default),
+			..Traits::default()
 		};
 		// A hash is only of use beside the equality it agrees with.
 		traits.hash &= traits.eq;
+		let mut sized = true;
+		let mut leaf =
+			|tr: Option<DefId>| tr.is_some_and(|tr| self.leaf_impl(self_ty, tr, &mut Default::default(), &mut sized));
+		traits.leaf_eq = traits.eq && leaf(tcx.lang_items().eq_trait());
+		traits.leaf_hash = traits.hash && leaf(tcx.get_diagnostic_item(sym::Hash));
+		traits.leaf_sized = sized;
 		(methods, traits)
+	}
+
+	/// Whether `ty`'s impl of `tr`, `PartialEq` with itself or `Hash`, runs only derived
+	/// impls and std's down to primitives: no code of any crate but std's, so a call of it
+	/// is a leaf. A derived impl calls each field's, which may be written by hand, so a
+	/// derived one alone proves nothing: each field must be a leaf too. Clears `sized` when
+	/// the walk's length is the value's: a string, slice, `Vec`, or type holding itself.
+	/// `seen` maps each type met to whether its walk is still open, as only a type holding
+	/// itself meets it.
+	fn leaf_impl(
+		&self,
+		ty: Ty<'tcx>,
+		tr: DefId,
+		seen: &mut rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
+		sized: &mut bool,
+	) -> bool {
+		let tcx = self.tcx;
+		let env = TypingEnv::fully_monomorphized();
+		if ty.has_param() {
+			return false;
+		}
+		let ty = tcx.erase_and_anonymize_regions(ty);
+		let Ok(ty) = tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty)) else {
+			return false;
+		};
+		match ty.kind() {
+			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) => true,
+			ty::Str => {
+				*sized = false;
+				true
+			}
+			ty::Slice(inner) => {
+				*sized = false;
+				self.leaf_impl(*inner, tr, seen, sized)
+			}
+			ty::Pat(inner, _) | ty::Array(inner, _) | ty::Ref(_, inner, _) => self.leaf_impl(*inner, tr, seen, sized),
+			ty::Tuple(elements) => elements.iter().all(|e| self.leaf_impl(e, tr, seen, sized)),
+			// Met again: what else it holds decides, and a type holding itself is as deep as
+			// its value.
+			ty::Adt(..) if let Some(&open) = seen.get(&ty) => {
+				*sized &= !open;
+				true
+			}
+			// std's own impls compare nothing and hash nothing.
+			ty::Adt(adt, _) if adt.is_phantom_data() => true,
+			ty::Adt(adt, args) => {
+				seen.insert(ty, true);
+				let did = adt.did();
+				let mut trait_args = vec![ty::GenericArg::from(ty)];
+				if tcx.lang_items().eq_trait() == Some(tr) {
+					trait_args.push(ty.into());
+				}
+				let trait_ref = ty::TraitRef::new(tcx, tr, trait_args);
+				let Ok(rustc_middle::traits::ImplSource::UserDefined(imp)) =
+					tcx.codegen_select_candidate(env.as_query_input(trait_ref))
+				else {
+					return false;
+				};
+				// std's own impls of these, written by hand, run their elements' alone, never
+				// their allocator's: unlike a map's, which hashes through its hasher parameter.
+				let std = |name: &str| tcx.is_diagnostic_item(rustc_span::Symbol::intern(name), did);
+				let leaf = if self.builtin_derived(imp.impl_def_id) {
+					adt.all_fields()
+						.all(|field| self.leaf_impl(field.ty(tcx, *args).skip_norm_wip(), tr, seen, sized))
+				} else if !self.sysroot.contains(&imp.impl_def_id.krate) {
+					false
+				} else if tcx.lang_items().string() == Some(did) {
+					*sized = false;
+					true
+				} else if std("Result") {
+					args.types().all(|arg| self.leaf_impl(arg, tr, seen, sized))
+				} else if std("Vec") {
+					*sized = false;
+					self.leaf_impl(args.type_at(0), tr, seen, sized)
+				} else if adt.is_box() || ["Option", "Arc", "Rc"].into_iter().any(std) {
+					self.leaf_impl(args.type_at(0), tr, seen, sized)
+				} else {
+					false
+				};
+				seen.insert(ty, false);
+				leaf
+			}
+			_ => false,
+		}
+	}
+
+	/// Whether `imp` is the expansion of one of core's built-in derives. The
+	/// `#[automatically_derived]` it carries proves nothing alone: a procedural macro or a
+	/// hand-written impl may carry it too. So its expansion must be a derive whose macro is
+	/// built in and of the sysroot this compiles against, as rustc's own check has it, which
+	/// answers for a local impl alone; a span of another crate's keeps its expansion all the
+	/// same.
+	fn builtin_derived(&self, imp: DefId) -> bool {
+		use rustc_span::hygiene::{ExpnKind, MacroKind};
+		let tcx = self.tcx;
+		if !tcx.is_automatically_derived(imp) {
+			return false;
+		}
+		let outer = tcx.def_span(imp).ctxt().outer_expn_data();
+		matches!(outer.kind, ExpnKind::Macro(MacroKind::Derive, _))
+			&& outer.macro_def_id.is_some_and(|m| {
+				self.sysroot.contains(&m.krate) && rustc_attr_ir::find_attr!(tcx, m, RustcBuiltinMacro { .. })
+			})
 	}
 
 	/// A type's inherent `pub` methods and constants the config does not exclude, each with
@@ -3172,8 +3290,8 @@ impl<'tcx> Collector<'tcx> {
 		*self.impls.borrow_mut() = impls;
 		// What the glue names a declared type parameter as, which a call cannot always
 		// infer; an `impl Trait` one cannot be named, and is inferred from its argument.
-		let mut arg = |arg: ty::GenericArg<'tcx>| {
-			let mapped = match arg.kind() {
+		let map_arg = |arg: ty::GenericArg<'tcx>| -> Result<Type, Why> {
+			match arg.kind() {
 				GenericArgKind::Const(ct) => self.const_arg(ct).map(Type::Const),
 				GenericArgKind::Type(ty) => match *ty.kind() {
 					ty::Ref(_, inner, ty::Mutability::Not) => {
@@ -3184,20 +3302,39 @@ impl<'tcx> Collector<'tcx> {
 					_ => self.arg(ty),
 				},
 				GenericArgKind::Lifetime(_) => unreachable!("no lifetime names an instance"),
-			};
-			mapped.map_err(|why| errs.push(why)).ok()
+			}
+		};
+		let mut arg = |a: ty::GenericArg<'tcx>| map_arg(a).map_err(|why| errs.push(why)).ok();
+		let declared: Vec<_> = (tcx.generics_of(def_id).own_params.iter())
+			.filter(|p| {
+				matches!(
+					p.kind,
+					ty::GenericParamDefKind::Type { synthetic: false, .. } | ty::GenericParamDefKind::Const { .. }
+				)
+			})
+			.collect();
+		// One instance alone names nothing, but the call still names each argument that
+		// maps, as futures-util's `stream::empty::<T>()` takes none that infers `T`; Rust
+		// infers the rest, as it does every one where none maps.
+		let lone: Vec<Option<Type>> = match instance.named.is_empty() {
+			true => (declared.iter())
+				.map(|p| args[p.index as usize])
+				.map(|a| match a.as_type().is_some_and(|ty| instance.kept.contains(&ty)) {
+					true => None,
+					false => self.probe(|| map_arg(a)).ok(),
+				})
+				.collect(),
+			false => Vec::new(),
 		};
 		let instance = match instance.named.is_empty() {
-			true => None,
+			true if lone.iter().all(Option::is_none) => None,
+			true => Some(crate::ir::Instance {
+				args: lone,
+				named: Vec::new(),
+			}),
 			false => {
-				let declared = (tcx.generics_of(def_id).own_params.iter()).filter(|p| {
-					matches!(
-						p.kind,
-						ty::GenericParamDefKind::Type { synthetic: false, .. } | ty::GenericParamDefKind::Const { .. }
-					)
-				});
 				// A kept parameter is left for Rust to infer from its argument.
-				let args = declared
+				let args = (declared.iter())
 					.map(|p| args[p.index as usize])
 					.filter_map(|a| match a.as_type().is_some_and(|ty| instance.kept.contains(&ty)) {
 						true => Some(None),
@@ -3358,8 +3495,7 @@ impl<'tcx> Collector<'tcx> {
 					// is, takes it from the future, as it would a parameter.
 					ty::Ref(_, inner, _)
 						if Some(*inner) == self_ty
-							&& polled.is_some()
-							&& let Some(kind) = self.task(ty, true) =>
+							&& polled.is_some() && let Some(kind) = self.task(ty, true) =>
 					{
 						made = Some(*inner);
 						tasks.push(Task { at: 0, kind });
@@ -3404,11 +3540,19 @@ impl<'tcx> Collector<'tcx> {
 				units.push(i - first);
 				continue;
 			}
-			let name = names
-				.get(i)
-				.copied()
-				.flatten()
-				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
+			// A parameter Rust leaves unnamed, `_`, is named by its place, as no language
+			// can pass a value to `_`, and apart from every name the others take.
+			let named = |ident: Option<Ident>| ident.filter(|ident| ident.name != kw::Underscore);
+			let name = match named(names.get(i).copied().flatten()) {
+				Some(ident) => ident.to_string(),
+				None => {
+					let mut name = format!("arg{i}");
+					while (names.iter()).any(|&other| named(other).is_some_and(|other| other.as_str() == name)) {
+						name.push('_');
+					}
+					name
+				}
+			};
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
 				if matches!(kind, TaskKind::Made { .. }) {
 					holds_send &= self.is_send(ty.peel_refs(), env);
@@ -3618,9 +3762,16 @@ impl<'tcx> Collector<'tcx> {
 				// its message, as an exported error's `Display` already reads, even where a
 				// signature reaches its crate. One a handle holds by value is its message too,
 				// held or not.
-				self.erring.set(true);
-				let err = self.ty(error, Pos::Return);
-				self.erring.set(false);
+				// A `()` error has no value for a language to raise or return.
+				let err = match error.is_unit() {
+					true => Err(why("unit error", output.to_string())),
+					false => {
+						self.erring.set(true);
+						let err = self.ty(error, Pos::Return);
+						self.erring.set(false);
+						err
+					}
+				};
 				let foreign = |mapped: &Result<Type, Why>| {
 					self.opaque_value(error).is_some()
 						|| matches!(mapped, Err(why) if why.construct == "foreign type" || why.construct == BOTH)
@@ -4522,8 +4673,7 @@ impl<'tcx> Collector<'tcx> {
 			.inputs()
 			.iter()
 			.filter(|&&input| input == param)
-			.count()
-			> 1
+			.count() > 1
 		{
 			return Some(Err(why("closure type taken twice", param.to_string())));
 		}
@@ -4877,16 +5027,11 @@ impl<'tcx> Collector<'tcx> {
 				let plain = matches!(
 					ty.kind(),
 					ty::Adt(..)
-						| ty::Bool
-						| ty::Char
-						| ty::Int(_)
-						| ty::Uint(_)
-						| ty::Float(_)
-						| ty::Str
-						| ty::Array(..)
-						| ty::Slice(_)
-						| ty::Ref(..)
-						| ty::Tuple(_)
+						| ty::Bool | ty::Char
+						| ty::Int(_) | ty::Uint(_)
+						| ty::Float(_) | ty::Str
+						| ty::Array(..) | ty::Slice(_)
+						| ty::Ref(..) | ty::Tuple(_)
 				);
 				let (method, driven) = match (implements(iterator, ty), implements(into_iterator, ty)) {
 					(true, _) => (next, item),
@@ -6038,6 +6183,14 @@ impl<'tcx> Collector<'tcx> {
 							}
 							if args.has_non_region_param() {
 								return Err(why("type parameter", name));
+							}
+							// Inference names no instance holding a future C implements, which
+							// crosses only as a parameter, as futures-util's `select` returns.
+							if ty
+								.walk()
+								.any(|arg| arg.as_type().is_some_and(|ty| self.is_foreign_future(ty)))
+							{
+								return Err(why("instance holding a foreign future", name));
 							}
 							// Inference admits or rejects each instance a signature names, so one
 							// it did not is a gap in inference, which even a census fails on.

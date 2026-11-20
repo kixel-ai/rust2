@@ -954,7 +954,16 @@ impl<'a> Gen<'a> {
 			true => format!("\n\t\ts.status(status, \"{c}_{suffix}\")?;"),
 			false => String::new(),
 		};
+		// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
+		let called = |leaf: bool, call: String| match leaf {
+			true => call,
+			false => format!("rt::call(|| {call})"),
+		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
+			let call = called(
+				suffix == "hash" && g.abi.leaf_trait(ty, true),
+				format!("crate::{c}_{suffix}({pass}{arg})"),
+			);
 			let d = Direct {
 				member,
 				place: Place::Member,
@@ -967,7 +976,7 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_{suffix}"),
 				d,
 				&format!(
-					"let this = {this}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_{suffix}({pass}{arg}));{}\n\t\ts.done();\n\t\t{lower}",
+					"let this = {this}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\t{lower}",
 					check(suffix)
 				),
 			);
@@ -1003,11 +1012,12 @@ impl<'a> Gen<'a> {
 				true => ("this", "other"),
 				false => ("&this", "&other"),
 			};
+			let call = called(self.abi.leaf_trait(ty, false), format!("crate::{c}_eq({a}, {b}{arg})"));
 			self.native(
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_eq({a}, {b}{arg}));{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
 					check("eq")
 				),
 			);
@@ -1223,7 +1233,7 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
-		let mut data: Vec<String> = e.variants.iter().map(|v| pascal(&v.name)).collect();
+		let mut data: Vec<String> = e.variants.iter().map(|v| kw(&pascal(&v.name))).collect();
 		let fields: BTreeSet<String> = e
 			.variants
 			.iter()
@@ -1234,7 +1244,7 @@ impl<'a> Gen<'a> {
 		self.methods(&e.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		// Each variant's class is bound on the enum's once made, after the enum's own.
 		for variant in &e.variants {
-			let vname = pascal(&abi::snake(&variant.name));
+			let vname = kw(&pascal(&abi::snake(&variant.name)));
 			body.native
 				.push(format!("\t{vname}: _typing.TypeAlias = \"_{name}_{vname}\"\n"));
 		}
@@ -1251,7 +1261,7 @@ impl<'a> Gen<'a> {
 		let mut reads = Vec::new();
 		let mut writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = pascal(&variant.name);
+			let vname = kw(&pascal(&variant.name));
 			let class = format!("_{name}_{vname}");
 			let key = abi::payload(&c, &variant.name);
 			let tv = self.register(&key, class.clone());
@@ -1823,8 +1833,13 @@ impl<'a> Gen<'a> {
 				Some(h) => h.call(&args),
 				None => format!("crate::{c_name}({})", args.join(", ")),
 			};
+			// A leaf keeps the GIL, which no part of it can wait on: see `Abi::leaf`.
+			let call = match abi.leaf(function, owner_ty.map(|(ty, _)| ty)) {
+				true => call,
+				false => format!("rt::call(|| {call})"),
+			};
 			stmts.push(format!(
-				"{decl}\n\t\t{status}let ret = rt::call(|| {call});{check}\n\t\ts.done();\n\t\t{value}"
+				"{decl}\n\t\t{status}let ret = {call};{check}\n\t\ts.done();\n\t\t{value}"
 			));
 		}
 		// The Python.
@@ -1916,7 +1931,9 @@ impl<'a> Gen<'a> {
 				return None;
 			}
 			(Access::Const, Place::Static) if constant => {
-				let name = member.to_uppercase();
+				// Upper case can join two Rust names, as icu_properties' `SentenceBreak::Sp`
+				// and its alias `SP`, so the later is kept apart again.
+				let name = self::member(&member.to_uppercase(), reserved);
 				self.natives
 					.push(format!("@_staticmethod\ndef {bare}() -> {ret}: ...\n"));
 				// An `Enum` makes a member of any other value, to a type checker as at run time.

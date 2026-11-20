@@ -24,7 +24,3 @@ Decided with the maintainer on 2026-11-18: ✅ breaking changes land in this epi
 moq pins, as soon as possible (rejected: after the pin).
 
 Public API: breaking for code that catches a variant's exception by its old class.
-
-## Required
-
-- [API surface lock](/quest/m1/ffi-export/api-surface.md) - its CI check shows this PR's break in every language's rendered API

@@ -1471,14 +1471,13 @@ fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 		.collect();
 	// A value dropped or closed but not freed, or a future awaited, counts for nothing:
 	// where nothing frees it, it would otherwise fill the slots for good.
-	let making = live
-		.iter()
-		.filter(|&&h| {
-			let slot = &model.slots[h];
-			!slot.gone && !slot.closed && !slot.awaited
-		})
-		.count()
-		< LIVE;
+	let making =
+		live.iter()
+			.filter(|&&h| {
+				let slot = &model.slots[h];
+				!slot.gone && !slot.closed && !slot.awaited
+			})
+			.count() < LIVE;
 	// A future is made only while fewer than the profile allows pend, one where it awaits
 	// each at once.
 	let future = making && futures.len() < profile.pending.max(1);

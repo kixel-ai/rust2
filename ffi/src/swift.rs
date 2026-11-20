@@ -294,7 +294,7 @@ impl<'a> Gen<'a> {
 
 	/// The Swift name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
+		kw(&self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c))))
 	}
 
 	/// The top-level Swift name `what` takes with `labels`: `name`, with a trailing `_`

@@ -225,21 +225,21 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const iter: rs.Iter<rs.char> = rs.iterFilterMap(new rs.Range((block << 12) >>> 0, (rs.u32Add(block, 1) << 12) >>> 0), (a07: rs.u32): rs.char | undefined => {
 		return rs.charFromU32(a07);
 	});
+	const classes: Array<(a0: rs.char) => boolean> = [(a0: rs.char): boolean => {
+		return rs.charIsAlphabetic(a0);
+	}, (a02: rs.char): boolean => {
+		return rs.charIsLowercase(a02);
+	}, (a03: rs.char): boolean => {
+		return rs.charIsUppercase(a03);
+	}, (a04: rs.char): boolean => {
+		return rs.charIsAlphanumeric(a04);
+	}, (a05: rs.char): boolean => {
+		return rs.charIsControl(a05);
+	}, (a06: rs.char): boolean => {
+		return rs.charIsNumeric(a06);
+	}];
 	while (true) {
 		const _34: rs.char | rs.Done = iter.next();
-		const classes: Array<(a0: rs.char) => boolean> = [(a0: rs.char): boolean => {
-			return rs.charIsAlphabetic(a0);
-		}, (a02: rs.char): boolean => {
-			return rs.charIsLowercase(a02);
-		}, (a03: rs.char): boolean => {
-			return rs.charIsUppercase(a03);
-		}, (a04: rs.char): boolean => {
-			return rs.charIsAlphanumeric(a04);
-		}, (a05: rs.char): boolean => {
-			return rs.charIsControl(a05);
-		}, (a06: rs.char): boolean => {
-			return rs.charIsNumeric(a06);
-		}];
 		if (_34 === rs.DONE) {
 			break;
 		}

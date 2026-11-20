@@ -201,7 +201,8 @@ impl Callbacks for Export {
 			let report = &mut collected.report;
 			report.refusals.extend(swift.into_iter().map(|r| r.refusal));
 			let exporting = exporting(&collected.api, &report.audited, &refused);
-			let text = census::render(&api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
+			let config = census_config(tcx, &facade, &self.facade.lib, report);
+			let text = census::render(&api, report, &config, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -318,6 +319,58 @@ fn configured(f: &ir::Function) -> ir::Path {
 		path[1].insert_str(0, "field@");
 	}
 	path
+}
+
+/// The `exclude` that exports what maps: each item `report` refuses, Swift's included,
+/// checked by collecting again with it. One naming only an instance a refused item alone
+/// named names nothing once that item is left out, and the export would fail on it, so it
+/// is dropped; what that collection or Swift refuses besides is added, until the config
+/// holds.
+fn census_config(tcx: TyCtxt<'_>, facade: &collect::Facade, lib: &str, report: &collect::Report) -> Vec<String> {
+	let mut config: Vec<String> = report.refusals.iter().map(|r| r.path.clone()).collect();
+	let mut seen = Vec::new();
+	loop {
+		config.sort();
+		config.dedup();
+		// A config the last round checked and left as it was holds.
+		if config.is_empty() || seen.last() == Some(&config) {
+			return config;
+		}
+		// A round drops a dead exclude as well as adding a refusal, so rounds may cycle,
+		// which no config ends: a bug of the collector's, as a refusal must not come and go.
+		if let Some(earlier) = seen.iter().find(|earlier| **earlier == config) {
+			let last = seen.last().expect("a repeat follows a round");
+			let moving: Vec<&String> = (earlier.iter().filter(|p| !last.contains(p)))
+				.chain(last.iter().filter(|p| !earlier.contains(p)))
+				.collect();
+			tcx.dcx().err(format!(
+				"rust2-ffi: the census's exclude never settles, as rounds of it cycle on {}",
+				moving.iter().map(|p| format!("`{p}`")).collect::<Vec<_>>().join(", ")
+			));
+			return config;
+		}
+		seen.push(config.clone());
+		let checked = collect::collect(
+			tcx,
+			&collect::Facade {
+				root: facade.root.clone(),
+				package: facade.package,
+				exclude: &config,
+				crates: facade.crates,
+				audit: &[],
+			},
+		);
+		let (_, swift) = swift_refused(&checked.api, lib);
+		let more = (checked.report.refusals.iter().map(|r| r.path.clone()))
+			.chain(swift.into_iter().map(|r| r.refusal.path))
+			.collect::<Vec<_>>();
+		let dead: Vec<&String> = (checked.report.excluded.iter())
+			.filter(|(path, count)| *count == 0 && !configured_out(tcx, path))
+			.map(|(path, _)| path)
+			.collect();
+		config.retain(|path| !dead.contains(&path));
+		config.extend(more);
+	}
 }
 
 /// Each exclude whose item would export without it, and that item's paths: what an
@@ -768,14 +821,23 @@ fn parse_item(tcx: TyCtxt<'_>, source: &str) -> Option<Box<ast::Item>> {
 	}
 }
 
-/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build,
-/// or a field or variant of one: the config names it for the builds that have it. Its first
-/// segment no module has is stripped from that module or from one the module
-/// glob-re-exports.
+/// Whether `path` names an item a `cfg` leaves out of this build, or a field or variant of
+/// one: the config names it for the builds that have it. The path runs from the facade's
+/// root, or from a crate's by its name, as the walk names a type no facade module
+/// re-exports.
 fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 	let path = path.strip_prefix("field@").unwrap_or(path);
 	let segments: Vec<&str> = path.split("::").collect();
-	let mut module = LOCAL_CRATE.as_def_id();
+	// Any crate of the name, since a build may link several of its versions.
+	let mut krates = (tcx.crates(()).iter()).filter(|&&k| tcx.crate_name(k).as_str() == segments[0]);
+	stripped_under(tcx, LOCAL_CRATE.as_def_id(), &segments)
+		|| krates.any(|&k| stripped_under(tcx, k.as_def_id(), &segments[1..]))
+}
+
+/// Whether `segments`, from `module`, name an item a `cfg` strips, or a field or variant of
+/// one. Its first segment no module has is stripped from that module or from one the module
+/// glob-re-exports.
+fn stripped_under(tcx: TyCtxt<'_>, mut module: DefId, segments: &[&str]) -> bool {
 	for (i, segment) in segments.iter().enumerate() {
 		let name = segment.split('<').next().unwrap_or(segment);
 		let children = match module.as_local() {

@@ -41,6 +41,14 @@ test *args:
 shapes:
     cargo test --locked --test fixtures shapes::nightly -- --ignored
 
+# Census and export each crate of corpus/crates.txt through a facade, and build every language's binding of it, as the nightly does, with the exporter optimized, which the time spent exporting repays: CORPUS_SHARD=i/n runs a slice, CORPUS_CRATES=a,b those crates. It runs their build scripts, so run it where that is safe. The report goes to target/tmp/corpus/report.md, or a shard's directory.
+corpus:
+    cargo test --locked --release --test fixtures corpus::nightly -- --ignored --exact
+
+# Take corpus/crates.txt afresh from crates.io's top crates by downloads, and resolve corpus/Cargo.lock. It builds them, as `corpus` does.
+corpus-update:
+    cargo test --locked --test fixtures corpus::update -- --ignored --exact
+
 # Run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does; the gate runs fewer.
 protocol:
     cargo test --locked --test fixtures protocol_nightly -- --ignored
@@ -67,6 +75,27 @@ fix:
 # Run the exporter: `just ffi run --config <ffi.toml> --out <dir>`.
 run *args:
     cargo run --locked --quiet -- {{ args }}
+
+# Write surface/, each binding's API as its language renders it, from the api fixture's export and moq's stand-in's at the pinned moq revision: --check fails where a committed file differs instead. The files are x86_64 Linux's exports, whose targets they name.
+surface *flags: (moq-write "") (standin "" "web")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ arch() }}-{{ os() }}" != x86_64-linux ]; then
+        echo "the surface files are x86_64 Linux's exports: run this there" >&2
+        exit 1
+    fi
+    # moq-write's export, of the host alone.
+    if [ "$(jq -c .api.targets target/export/moq/api.json)" != '["x86_64-unknown-linux-gnu"]' ]; then
+        echo "target/export/moq merged the APIs staged in target/moq-api: delete them for the host's export" >&2
+        exit 1
+    fi
+    # The api fixture as its tests export it, with wasm32 for the web binding.
+    cargo run --locked --quiet -- --config fixtures/api/ffi.toml --out target/surface/api --target x86_64-unknown-linux-gnu --target wasm32-wasip1 -- --features doubled
+    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/surface/moq-web
+    python3 -I surface/surface.py {{ flags }} target/surface/api surface/api
+    python3 -I surface/surface.py {{ flags }} target/export/moq surface/moq
+    # Its other bindings are moq's on wasm32, which no one ships.
+    python3 -I surface/surface.py {{ flags }} target/surface/moq-web surface/moq-web web.d.ts
 
 # Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
@@ -198,7 +227,7 @@ bench-run rounds="3":
             run "$lang"
         done
     done
-    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web > target/bench/report.md
+    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
 # Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
@@ -376,7 +405,7 @@ ts-program:
     printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
         '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
         '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
-        '"include": ["export.ts", "web/*.ts"]}' > "$dir/tsconfig.json"
+        '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
@@ -548,8 +577,10 @@ standin checkout="" web="":
         dir=target/moq-ffi-web
         deps=(hang kio moq-mux moq-net moq-pattern)
     fi
-    features=$(cd "$src" && cargo metadata --format-version 1 --no-deps \
-        | jq -c '[.packages[] | select(.name == "moq-ffi") | .dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries')
+    ffi=$(cd "$src" && cargo metadata --format-version 1 --no-deps | jq -c '.packages[] | select(.name == "moq-ffi")')
+    features=$(jq -c '[.dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries' <<< "$ffi")
+    # moq-ffi's license, which a package of the stand-in states as moq-ffi's would.
+    license=$(jq -r '.license // empty' <<< "$ffi")
     mkdir -p "$dir/src"
     # Replace a file only when its content changes, so an unchanged stand-in, and the
     # export over it, stay fresh.
@@ -562,7 +593,9 @@ standin checkout="" web="":
     }
     {
         printf '# Generated by just ffi standin, from %s.\n' "$src"
-        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n'
+        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n'
+        if [ -n "$license" ]; then printf 'license = "%s"\n' "$license"; fi
+        printf '\n'
         # The prefix of every C name.
         printf '[lib]\nname = "moq"\n\n[dependencies]\n'
         for name in "${deps[@]}"; do

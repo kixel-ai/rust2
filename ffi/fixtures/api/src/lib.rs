@@ -2476,6 +2476,172 @@ pub fn locals_dropped() -> u32 {
 	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// What [`Hooked`]'s and [`Forged`]'s `PartialEq` and [`Pinned`]'s drop run, on another thread they wait
+/// for: a call reaching either deadlocks if its binding kept its lock or its thread across
+/// it, as one taken for a leaf call would.
+#[cfg(not(target_arch = "wasm32"))]
+static HOOK: std::sync::Mutex<Option<Box<dyn Fn() + Send>>> = std::sync::Mutex::new(None);
+
+/// Have each [`Hooked`] or [`Forged`] compared and each [`Pinned`] dropped call `f` from another thread.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn hook(f: impl Fn() + Send + 'static) {
+	let old = HOOK.lock().unwrap().replace(Box::new(f));
+	drop(old);
+}
+
+/// Let go of the hook [`hook`] set.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn unhook() {
+	let old = HOOK.lock().unwrap().take();
+	drop(old);
+}
+
+/// Call the hook, if set, from another thread, failing loud rather than deadlocking if the
+/// call it runs in kept what that thread waits on.
+#[cfg(not(target_arch = "wasm32"))]
+fn run_hook() {
+	let Some(f) = HOOK.lock().unwrap().take() else {
+		return;
+	};
+	let (done, ran) = std::sync::mpsc::channel();
+	std::thread::spawn(move || {
+		f();
+		let _ = done.send(f);
+	});
+	let f = ran
+		.recv_timeout(std::time::Duration::from_secs(60))
+		.expect("the hook ran: a binding that kept its lock or thread across the call deadlocked");
+	*HOOK.lock().unwrap() = Some(f);
+}
+
+/// A count whose `PartialEq`, written by hand, runs the hook.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+struct Gated(u64);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl PartialEq for Gated {
+	fn eq(&self, other: &Self) -> bool {
+		run_hook();
+		self.0 == other.0
+	}
+}
+
+/// A value whose `PartialEq` is derived over a field whose own is written by hand, so a
+/// comparison runs user code though it looks derived.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq)]
+pub struct Hooked {
+	pub n: u64,
+	gated: Gated,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Hooked {
+	pub fn new(n: u64) -> Self {
+		Self { n, gated: Gated(n) }
+	}
+}
+
+/// A value whose `PartialEq`, written by hand, claims to be derived, as a procedural
+/// macro's may: what claims it proves nothing, so a comparison is no leaf call.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+pub struct Forged {
+	pub n: u64,
+	pinned: u8,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[automatically_derived]
+impl PartialEq for Forged {
+	fn eq(&self, other: &Self) -> bool {
+		run_hook();
+		self.n == other.n && self.pinned == other.pinned
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Forged {
+	pub fn new(n: u64) -> Self {
+		Self { n, pinned: 0 }
+	}
+}
+
+/// A value kept on its thread, whose drop runs the hook: a getter of its field runs the
+/// drops other threads queued of its thread's values first.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Pinned {
+	pub value: u64,
+	part: Part,
+	_here: std::rc::Rc<()>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Pinned {
+	pub fn new(value: u64) -> Self {
+		Self {
+			value,
+			part: Part { value, kept: 0 },
+			_here: std::rc::Rc::new(()),
+		}
+	}
+
+	/// Its part, lent: a use of the handle borrows the [`Pinned`] on its thread too.
+	pub fn part(&self) -> &Part {
+		&self.part
+	}
+}
+
+/// A `Send` value a [`Pinned`] lends, whose field and derived traits would be leaves but
+/// for its lender.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, PartialEq, Hash)]
+pub struct Part {
+	pub value: u64,
+	kept: u8,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for Pinned {
+	fn drop(&mut self) {
+		run_hook();
+	}
+}
+
+/// A value whose `PartialEq` and `Hash` are derived over primitives alone, so comparing or
+/// hashing one is a leaf call, as is reading or writing its field.
+#[derive(Debug, PartialEq, Hash)]
+pub struct Plain {
+	pub n: u64,
+	pub on: bool,
+	pinned: (i8, char),
+}
+
+impl Plain {
+	pub fn new(n: u64, on: bool) -> Self {
+		Self {
+			n,
+			on,
+			pinned: (-1, 'p'),
+		}
+	}
+}
+
+/// A value whose derived `PartialEq` and `Hash` reach no user code but walk a string as
+/// long as the caller makes it: a leaf in Python, but no Dart leaf call, which would stall
+/// the isolate group's garbage collector that long.
+#[derive(Debug, PartialEq, Hash)]
+pub struct Labeled {
+	label: String,
+}
+
+impl Labeled {
+	pub fn new(label: String) -> Self {
+		Self { label }
+	}
+}
+
 /// A handle to `local`'s count if there is one, else a new local: made where `local`
 /// stays, or, with none, wherever a local made from nothing would be.
 pub fn local_or_new(local: Option<&Local>) -> Local {
@@ -4505,6 +4671,95 @@ pub mod clash {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			write!(f, "{}", self.width)
 		}
+	}
+
+	/// A message of any type, named as prost-types' is, which Swift reads as a keyword.
+	#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+	pub struct Any {
+		pub type_url: String,
+	}
+
+	/// An `Any` of `type_url`.
+	pub fn any(type_url: String) -> Any {
+		Any { type_url }
+	}
+
+	/// A candidate, whose variant `None` Python reads as a keyword, as aho-corasick's has.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub enum Candidate {
+		None,
+		Match(u8),
+	}
+
+	/// The candidate of `at`, none for zero.
+	pub fn candidate(at: u8) -> Candidate {
+		match at {
+			0 => Candidate::None,
+			at => Candidate::Match(at),
+		}
+	}
+
+	/// `arg1`, beside a parameter named `_`, which no language can pass a value to, as
+	/// utf8parse's has; the `_` is named apart from `arg1`.
+	pub fn ignore(_: u8, arg1: u8, _: u8) -> u8 {
+		arg1
+	}
+
+	/// A seed, whose own `default` C names apart from `Default`'s, as rustc-hash's `FxHasher`
+	/// has, while C++ escapes both to `default_`.
+	pub struct Seed {
+		value: u32,
+	}
+
+	impl Seed {
+		/// One.
+		#[allow(clippy::should_implement_trait, reason = "the clash under test")]
+		pub const fn default() -> Seed {
+			Seed { value: 1 }
+		}
+
+		pub fn value(&self) -> u32 {
+			self.value
+		}
+
+		/// Whether it is not zero, by a name Dart's type of the result takes, as fastrand's
+		/// `bool` is.
+		pub fn bool(&self) -> bool {
+			self.value != 0
+		}
+	}
+
+	impl Default for Seed {
+		/// Two.
+		fn default() -> Self {
+			Seed { value: 2 }
+		}
+	}
+
+	/// A break, with an alias named as a constant but for case, as icu_properties'
+	/// `SentenceBreak::SP` is `Sp`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Break(pub u8);
+
+	#[allow(non_upper_case_globals, reason = "the clash under test")]
+	impl Break {
+		pub const Sp: Break = Break(8);
+		pub const SP: Break = Break::Sp;
+	}
+
+	/// Nothing of `T`, as futures-util's `stream::Empty` is.
+	pub struct Empty<T>(std::marker::PhantomData<T>);
+
+	impl<T> Empty<T> {
+		pub fn is_empty(&self) -> bool {
+			true
+		}
+	}
+
+	/// An `Empty` of a `T` no argument infers, which the call names, as futures-util's
+	/// `stream::empty` takes.
+	pub fn empty<T>() -> Empty<T> {
+		Empty(std::marker::PhantomData)
 	}
 
 	/// A count, whose methods are named as what C and some languages give every handle.
