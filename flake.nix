@@ -278,6 +278,9 @@
             nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
+            # rust2-ffi's strict C++ build needs Clang 23's `-Wlifetime-safety`, which no
+            # compiler on PATH has.
+            RUST2_CLANG = "${pkgs.llvmPackages_23.clang}/bin/clang++";
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
             # The pinned toolchain goes on PATH ahead of everything the host had, which
             # shadows the Cargo shim `mbx setup` installs. Put it back in front, as moq's dev

@@ -210,6 +210,11 @@ impl<'a> Header<'a> {
 		}
 		match ty {
 			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::input>", self.ns),
+			// Numbers lent in place, which Rust copies if it keeps them.
+			Type::Option(inner) if inner.base().block().is_some() => {
+				format!("::std::optional<{}>", self.slice(inner.base()))
+			}
+			Type::List(..) if ty.block().is_some() => self.slice(ty),
 			// Moved out of, each handle as a handle taken by value is.
 			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
@@ -265,6 +270,12 @@ impl<'a> Header<'a> {
 			(false, true) => format!("::{}::taken<{held}>", self.ns),
 			(false, false) => format!("::{}::items<{held}>", self.ns),
 		}
+	}
+
+	/// The `slice` a parameter of the block `ty` takes.
+	fn slice(&self, ty: &Type) -> String {
+		let elem = ty.block().expect("a block");
+		format!("::{}::slice<{}>", self.ns, self.owned(elem))
 	}
 
 	/// The C++ type a parameter's `Vec`, `Option`, or tuple holds a `ty` as: bytes as a view.
@@ -1920,7 +1931,9 @@ fn runtime_names() -> impl Iterator<Item = &'static str> {
 		let rest = ["class ", "struct ", "using "]
 			.iter()
 			.find_map(|kw| line.strip_prefix(kw))?;
-		rest.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next()
+		// Past the class's attributes, such as `[[nodiscard]]` and `RUST2_FFI_OWNER(T)`.
+		let name = (rest.split(' ')).find(|word| !word.starts_with("[[") && !word.starts_with("RUST2_FFI_"))?;
+		name.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next()
 	});
 	std::iter::once("detail").chain(names)
 }

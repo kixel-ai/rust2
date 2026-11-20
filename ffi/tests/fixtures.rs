@@ -641,14 +641,23 @@ int main() {}
 	);
 }
 
-/// Clang's ownership checks: the whole script builds clean under them, and each case of
-/// `tests/api_strict.cpp` fails with its diagnostic.
+/// Clang's ownership and must-use checks: the whole script builds clean under them, and
+/// each case of `tests/api_strict.cpp` fails with its diagnostic.
 fn cpp_strict(api: &Api) {
 	let include = api.out.join("include");
+	let clang = std::env::var_os("RUST2_CLANG").expect("RUST2_CLANG names Clang 23's clang++: run this in the dev shell");
 	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
-		let mut cmd = Command::new("clang++");
-		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
+		let mut cmd = Command::new(&clang);
+		cmd.args([
+			"-std=c++17",
+			"-Wconsumed",
+			"-Wdangling",
+			"-Wlifetime-safety",
+			"-Werror",
+			"-c",
+			"-I",
+		])
 			.arg(&include)
 			.arg(format!("-DCASE={case}"))
 			.arg(src)
@@ -698,6 +707,9 @@ fn cpp_strict(api: &Api) {
 			9,
 			"no viable conversion from 'std::vector<std::tuple<api::buf, api::Counter>>'",
 		),
+		(10, "ignoring return value of type 'task' declared with 'nodiscard' attribute"),
+		(11, "ignoring return value of type 'result<"),
+		(12, "local variable 'bytes' does not live long enough"),
 	] {
 		let output = clang(&tests.join("api_strict.cpp"), case);
 		assert!(!output.status.success(), "case {case} built");
