@@ -1,6 +1,6 @@
 //! The C header: the declarations of everything [`crate::glue`] defines.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::hash::Hasher;
 
 use rustc_data_structures::stable_hash::StableHasher;
@@ -8,15 +8,17 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, Sig, Ty};
 use crate::ir::{Function, Int, Literal, Receiver, Traits, Type};
 
-/// The header for `abi`, as `<prefix>.h`, and its contract: a hash of what it declares,
-/// which the library returns from `<prefix>_contract`.
-pub(crate) fn header(abi: &Abi<'_>, packages: &str) -> (String, u64) {
+/// The header for `abi`, as `<prefix>.h`, its contract: a hash of what it declares, which
+/// the library returns from `<prefix>_contract`, and the C names it gives each item.
+pub(crate) fn header(abi: &Abi<'_>, packages: &str) -> (String, u64, BTreeMap<String, String>) {
 	let mut h = Header {
 		abi,
 		out: String::new(),
 		defined: BTreeSet::new(),
+		names: BTreeMap::new(),
 	};
 	h.write();
+	h.name_items();
 	// Platform independent, so a header names the same contract wherever it is generated.
 	let mut hasher = StableHasher::new();
 	hasher.write(h.out.as_bytes());
@@ -37,7 +39,7 @@ pub(crate) fn header(abi: &Abi<'_>, packages: &str) -> (String, u64) {
 		#endif /* {guard} */\n",
 		body = h.out,
 	);
-	(header, contract)
+	(header, contract, h.names)
 }
 
 struct Header<'a> {
@@ -45,9 +47,59 @@ struct Header<'a> {
 	out: String,
 	/// The value structs written so far, so each is written after what it holds.
 	defined: BTreeSet<String>,
+	/// The C name of each item, by its key, as every binding's names are kept.
+	names: BTreeMap<String, String>,
 }
 
 impl Header<'_> {
+	/// Record the C name of each type, its fields and variants, constant, and tuple; each
+	/// function's is recorded as it is declared. `prefix` keys the prefix itself, which the
+	/// structs of options, lists, and ranges are named after.
+	fn name_items(&mut self) {
+		let abi = self.abi;
+		let api = abi.api;
+		let identity: HashMap<String, String> = (0..api.records.len())
+			.map(|i| abi.record(i))
+			.chain((0..api.enums.len()).map(|i| abi.enumeration(i)))
+			.chain((0..api.objects.len()).map(|i| abi.object(i)))
+			.chain((0..api.callbacks.len()).map(|i| abi.callback(i)))
+			.map(|name| (name.clone(), name))
+			.collect();
+		self.names.extend(crate::lock::types(abi, &identity));
+		self.names.insert("prefix".to_string(), abi.prefix.clone());
+		for record in &api.records {
+			for field in &record.fields {
+				let key = format!("{} / field {}", crate::lock::type_key(&record.shown), field.name);
+				self.names.insert(key, abi::escape(&field.name));
+			}
+		}
+		for (i, e) in api.enums.iter().enumerate() {
+			let upper = abi.enumeration(i).to_uppercase();
+			for v in &e.variants {
+				let owner = crate::lock::type_key(&e.shown);
+				let snake = abi::snake(&v.name);
+				let constant = format!("{upper}_{}", snake.to_uppercase());
+				self.names.insert(format!("{owner} / variant {}", v.name), constant);
+				if !v.fields.is_empty() {
+					self.names
+						.insert(format!("{owner} / member {}", v.name), abi::escape(&snake));
+				}
+				for field in &v.fields {
+					let key = format!("{owner} / variant {} / field {}", v.name, field.name);
+					self.names.insert(key, abi::escape(&field.name));
+				}
+			}
+		}
+		for constant in &api.constants {
+			let key = format!("const {}", constant.path.join("::"));
+			self.names.insert(key, abi.constant(&constant.path));
+		}
+		for (name, elements) in &abi.tuples {
+			let key = format!("tuple {}", abi.spell(&Type::Tuple(elements.clone())));
+			self.names.insert(key, name.clone());
+		}
+	}
+
 	fn line(&mut self, line: impl AsRef<str>) {
 		self.out.push_str(line.as_ref());
 		self.out.push('\n');
@@ -464,6 +516,7 @@ impl Header<'_> {
 
 	fn function(&mut self, function: &Function, owner: Option<&Ty>) {
 		let export = self.abi.export(function, owner);
+		crate::lock::function(&mut self.names, function, &export.call.name);
 		let mut docs = function.docs.clone();
 		// What the call moves out of the caller's handles, which are then only freed.
 		// A handle taken by value: one taken `&mut` is not `const` either, but stays.
