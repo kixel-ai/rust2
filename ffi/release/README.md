@@ -1,6 +1,6 @@
 # Binding releases
 
-A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels, a Swift package,
+A crate's [rust2-ffi](/ffi/README.md) export, released as Python wheels and an sdist, a Swift package,
 C and C++ archives, a Go module, and a web package on npm and JSR. Two halves, split where
 Cargo's knowledge ends:
 
@@ -74,7 +74,10 @@ crate apart from it takes `web-features` and `web-example` instead.
    breaks its API without a breaking version fails
    ([The API lock](/ffi/README.md#the-api-lock)). A release without the asset fails the
    build.
-2. Stages each target's API on the host whose C toolchain its build scripts need.
+2. Stages each target's API on the host whose C toolchain its build scripts need: each
+   package's below, and those the sdist builds on, `x86_64-unknown-linux-musl`,
+   `aarch64-unknown-linux-musl`, `x86_64-apple-darwin`, and `aarch64-pc-windows-msvc`, since
+   the generated crate builds for no target it was not exported for.
 3. On each build host, exports the binding of every target, merging the others' staged
    APIs, so an item only some targets have fails there at run time instead of being
    missing ([Targets](/ffi/README.md#targets)). A job checks that every host generated the
@@ -82,12 +85,30 @@ crate apart from it takes `web-features` and `web-example` instead.
 4. Builds each target with the crate's own toolchain, as rustup resolves it from the
    crate's directory; only the export runs on rust2's nightly.
 5. Python: a `cp311-abi3` wheel per target, the oldest CPython the generated extension's
-   stable ABI loads in, holding the module as `<lib>/__init__.py` beside its library, with
-   PEP 639 license metadata and a complete hashed RECORD. Each is repaired by its platform's
+   stable ABI loads in, holding the module as `<lib>/__init__.py` beside its library and
+   PEP 561's `py.typed`, so mypy and pyright check a caller against it, with PEP 639 license
+   metadata and a complete hashed RECORD. Each is repaired by its platform's
    standard tool, which claims the portable tag or fails: auditwheel for
    `manylinux_2_28` on x86_64 and aarch64 (built by cargo-zigbuild against glibc 2.28, as
    [crabx](/crabx/README.md) builds), delocate for `macosx_11_0_arm64`, and delvewheel for
    `win_amd64`.
+
+   And an sdist, `<name>-<version>.tar.gz`, from which pip builds the same wheel on any
+   target the export names, such as musllinux, Intel macOS, and Windows on arm64, with Rust
+   and no Python package: its `pyproject.toml` names `rust2/backend.py`
+   ([`backend.py`](backend.py), which writes the prebuilt wheels too) as its PEP 517
+   backend, which runs `cargo rustc --locked --release` on the generated crate in
+   `binding/`. The crate's own path dependencies lie in `sources/`, each as `cargo package`
+   lists it, at the places they hold relative to each other, so their relative paths still
+   resolve and their absolute ones are rewritten; a workspace root they inherit from keeps
+   its `[workspace]` table alone. A `rust-toolchain.toml` pins the channel rustup resolves
+   from the crate's directory, without its components. The backend builds for
+   `CARGO_BUILD_TARGET`, or else rustc's host, passed as `--target` over a cargo config's
+   `build.target`; refuses a target the export lacks, and one whose architecture differs from the Python's, as an emulated x86_64
+   Python on arm64 would build; tags the wheel as pip names its platform, macOS's at the
+   deployment target it builds for, by default the target's oldest; and builds musl's
+   library against a dynamic C runtime, as CPython links one, adding the flag to cargo's
+   target rustflags, which cargo then reads in place of a config's `build.rustflags`.
 6. Swift: static libraries for macOS arm64 at macOS 13, and iOS arm64 and its simulator
    at iOS 16, the floors of the generated Swift's `Swift.Duration`, each checked against
    every object's declared minimum OS; one XCFramework of the three, zipped by the builder itself,
@@ -129,8 +150,8 @@ crate apart from it takes `web-features` and `web-example` instead.
 8. Go: one module for every target, at the module path and `v<version>`, the major
    version's `/vN` suffix checked: the export's `go/`, whose runtime's `#cgo` lines link
    `rt/lib<prefix>_<goos>_<goarch>.a` for `linux/amd64` and `linux/arm64` (built against
-   glibc 2.28), `darwin/arm64` and `ios/arm64` (the Swift package's macOS and iOS device
-   libraries; no consumer here runs iOS), and `windows/amd64` (an
+   glibc 2.28), `darwin/amd64`, `darwin/arm64` and `ios/arm64` (the latter two the Swift
+   package's macOS and iOS device libraries; no consumer here runs iOS), and `windows/amd64` (an
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
    them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's
@@ -146,13 +167,15 @@ crate apart from it takes `web-features` and `web-example` instead.
    as an asset and the second as its notes.
 10. Consumers, with no checkout, Rust, or source path: each wheel installed with
     `--no-index --no-deps` into a fresh environment on its oldest CPython, run with `-I`
-    from an empty directory; and the Swift package built by its own scheme for macOS, iOS,
+    from an empty directory, and on Linux x64 checked by `mypy --strict` as installed; the
+    sdist installed the same way, built by pip with rustup's Rust, in Alpine's musllinux, on
+    Windows on arm64, and on Intel macOS; and the Swift package built by its own scheme for macOS, iOS,
     and the iOS Simulator, then consumed by a new executable package that runs the check;
     and each C archive unpacked alone, built by a new CMake project through its CPS file and
     through its config package, and on Linux and macOS by pkg-config, linking each library,
     where a shared consumer must record the versioned name; and the Go module, unpacked from
     its zip into a new module that requires it, vetted, built with the newest Go and no
-    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS, and Windows.
+    `CGO_LDFLAGS`, and run on Linux x64 and arm64, macOS on arm64 and x86_64, and Windows.
     With an `example`, each must print native Rust's stdout byte for byte.
 11. Web: `web-manifest-path` exported for `wasm32-wasip1` alone, whose `web/` holds the
     TypeScript, its JavaScript and declarations, and a `package.json`
