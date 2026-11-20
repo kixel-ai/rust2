@@ -865,7 +865,9 @@ static void checks(void) {
 /* A counter a closure was lent, which it fails to move out, then reads as it was. */
 static bool move_lent_status(void *data, api_Counter *counter) {
 	api_status *status = data;
-	api_Counter_into_label(counter, (api_option_Point){0}, status);
+	/* The refused call returns a zeroed label, which holds nothing to free. */
+	api_Label refused = api_Counter_into_label(counter, (api_option_Point){0}, status);
+	(void)refused;
 	return *status == API_STATUS_LENT && api_Counter_get(counter, NULL) == 0;
 }
 
