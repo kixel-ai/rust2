@@ -5,21 +5,15 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use rustc_ast as ast;
-use rustc_data_structures::fx::FxHashSet;
 use rustc_driver::{Callbacks, Compilation};
-use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
-use rustc_lexer::{FrontmatterAllowed, TokenKind};
-use rustc_middle::middle::resolve::Reexport;
 use rustc_middle::ty::TyCtxt;
 use rustc_parse::lexer::StripTokens;
 use rustc_parse::parser::{AllowConstBlockItems, ForceCollect};
-use rustc_span::{FileName, Span, sym};
+use rustc_span::{FileName, Span};
 
 use crate::abi::Abi;
-use crate::config::{self, Config};
-use crate::ir::{self, Api};
+use crate::config;
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
@@ -53,7 +47,6 @@ pub(crate) const API_FILE: &str = "api.json";
 struct Export {
 	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
 	crates: std::collections::BTreeMap<String, String>,
-	config: Config,
 	output: Output,
 	/// The facade's package, with the features rustc compiles it with.
 	facade: config::Package,
@@ -81,15 +74,14 @@ enum Output {
 impl Export {
 	/// The job for this rustc invocation, if it compiles the facade's library.
 	fn for_args(args: &[String]) -> Result<Option<Self>, String> {
-		let Some(path) = std::env::var_os(config::env::CONFIG) else {
+		let Some(line) = std::env::var_os(config::env::PACKAGE) else {
 			return Ok(None);
 		};
-		let line = std::env::var(config::env::PACKAGE).map_err(|_| format!("{} is unset", config::env::PACKAGE))?;
-		let mut facade = config::Package::parse(&line)?;
+		let line = (line.to_str()).ok_or_else(|| format!("{} is not UTF-8", config::env::PACKAGE))?;
+		let mut facade = config::Package::parse(line)?;
 		if !rust2_driver::rustc::compiles_lib(args, &facade.name) {
 			return Ok(None);
 		}
-		let config = Config::load(path.as_ref())?;
 		let output = match (
 			std::env::var_os(config::env::OUT),
 			std::env::var_os(config::env::CENSUS),
@@ -138,7 +130,6 @@ impl Export {
 			.map(PathBuf::from);
 		Ok(Some(Self {
 			crates,
-			config,
 			output,
 			facade,
 			patch,
@@ -179,61 +170,30 @@ impl Callbacks for Export {
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,
-			// A census counts the whole API, whatever the config leaves out.
 			crates: &self.crates,
-			exclude: match self.output {
-				Output::Census(_) => &[],
-				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
-			},
-			// It lists instead each item one names that exports.
-			audit: match self.output {
-				Output::Census(_) => &self.config.exclude,
-				Output::Dir(_) | Output::Api(_) => &[],
-			},
 		};
 		let collected = collect::collect(tcx, &facade);
 		let report = &collected.report;
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
+			// What Swift refuses fails the export too, so the census lists it with the rest.
 			// Swift exports the API without what takes a JNI value, as the export does.
 			let rest = collected.api.without_jni();
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
-				.into_iter()
-				.map(|(f, _)| f.shown.clone())
-				.collect();
-			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let config = census_config(tcx, &facade, &self.facade.lib, report, &swift);
-			let text = census::render(&collected.api, report, &config, &exporting, &abi.clashes, &|span| {
-				at(tcx, span)
-			});
+			let swift = crate::swift::refusals(&abi.without_jni(&rest));
+			let text = census::render(&collected.api, report, &swift, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
-					refuse(tcx, refusal, "inference missed an instance, a bug in rust2-ffi");
+					refuse(tcx, refusal, Some("inference missed an instance, a bug in rust2-ffi"));
 				}
 			}
 			if let Err(err) = write(&dir.join(format!("{}.md", report.package)), &text) {
 				tcx.dcx().err(format!("rust2-ffi: {err}"));
 			}
-			// An exclude that leaves out what would export hides that much of the API.
-			for (exclude, exported) in &exporting {
-				tcx.dcx().err(format!(
-					"rust2-ffi: exclude `{exclude}` in the config leaves out `{}`, which exports",
-					exported.join("`, `")
-				));
-			}
 			return stop_on_errors(tcx);
 		}
 		for refusal in &report.refusals {
-			refuse(tcx, refusal, "exclude it in the config to leave it out");
-		}
-		for (path, count) in &report.excluded {
-			if *count == 0 && !configured_out(tcx, path) {
-				tcx.dcx().err(format!(
-					"rust2-ffi: exclude `{path}` in the config names nothing exported"
-				));
-			}
+			refuse(tcx, refusal, None);
 		}
 		// Refusals still let the export go on to report each clash, but write nothing. Those
 		// of the CLI's later steps, the lockfile's and the web target's walk, come once the
@@ -242,7 +202,6 @@ impl Callbacks for Export {
 			names: None,
 			package: self.facade.name.clone(),
 			features: self.facade.features.clone(),
-			exclude: self.config.exclude.clone(),
 			api: collected.api,
 		};
 		let written = match &self.output {
@@ -259,132 +218,6 @@ impl Callbacks for Export {
 		}
 		stop_on_errors(tcx)
 	}
-}
-
-/// The `exclude` that exports what maps: each item collection or Swift refuses, checked by
-/// collecting again with it. One naming only an instance a refused item alone named names
-/// nothing once that item is left out, and the export would fail on it, so it is dropped;
-/// what that collection refuses besides is added, until the config holds.
-fn census_config(
-	tcx: TyCtxt<'_>,
-	facade: &collect::Facade,
-	lib: &str,
-	report: &collect::Report,
-	swift: &FxHashSet<ir::Path>,
-) -> Vec<String> {
-	let refused = |report: &collect::Report, swift: &FxHashSet<ir::Path>| -> Vec<String> {
-		(report.refusals.iter().map(|r| r.path.clone()))
-			.chain(swift.iter().map(|path| path[1..].join("::")))
-			.collect()
-	};
-	let mut config = refused(report, swift);
-	let mut seen = Vec::new();
-	loop {
-		config.sort();
-		config.dedup();
-		// A config the last round checked and left as it was holds.
-		if config.is_empty() || seen.last() == Some(&config) {
-			return config;
-		}
-		// A round drops a dead exclude as well as adding a refusal, so rounds may cycle,
-		// which no config ends: a bug of the collector's, as a refusal must not come and go.
-		if let Some(earlier) = seen.iter().find(|earlier| **earlier == config) {
-			let last = seen.last().expect("a repeat follows a round");
-			let moving: Vec<&String> = (earlier.iter().filter(|p| !last.contains(p)))
-				.chain(last.iter().filter(|p| !earlier.contains(p)))
-				.collect();
-			tcx.dcx().err(format!(
-				"rust2-ffi: the census's exclude never settles, as rounds of it cycle on {}",
-				moving.iter().map(|p| format!("`{p}`")).collect::<Vec<_>>().join(", ")
-			));
-			return config;
-		}
-		seen.push(config.clone());
-		let checked = collect::collect(
-			tcx,
-			&collect::Facade {
-				root: facade.root.clone(),
-				package: facade.package,
-				exclude: &config,
-				crates: facade.crates,
-				audit: &[],
-			},
-		);
-		let abi = Abi::new(&checked.api, lib);
-		let rest = checked.api.without_jni();
-		let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
-			.into_iter()
-			.map(|(f, _)| f.shown.clone())
-			.collect();
-		let more = refused(&checked.report, &swift);
-		let dead: Vec<&String> = (checked.report.excluded.iter())
-			.filter(|(path, count)| *count == 0 && !configured_out(tcx, path))
-			.map(|(path, _)| path)
-			.collect();
-		config.retain(|path| !dead.contains(&path));
-		config.extend(more);
-	}
-}
-
-/// Each exclude whose item would export without it, and that item's paths: what an
-/// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path, except a function `refused` names by its shown path, since a generic's
-/// instances share a span but Swift may refuse only some.
-fn exporting(
-	api: &Api,
-	audited: &[(String, Vec<String>)],
-	refused: &FxHashSet<ir::Path>,
-) -> Vec<(String, Vec<String>)> {
-	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
-	let mut paths = FxHashSet::default();
-	let mut add = |path: &[String]| {
-		paths.insert(path[1..].join("::"));
-	};
-	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
-			match f.access {
-				// A field is checked by `field@` and, unless a method or constant takes its
-				// name, by its path, which then names that method or constant instead.
-				ir::Access::Field { shared, .. } => {
-					let mut key = f.shown.clone();
-					key[1].insert_str(0, "field@");
-					add(&key);
-					if !shared {
-						add(&f.shown);
-					}
-				}
-				_ => add(&f.shown),
-			}
-		}
-	};
-	for r in &api.records {
-		add(&r.shown);
-		methods(&r.methods, &mut add);
-	}
-	for e in &api.enums {
-		add(&e.shown);
-		methods(&e.methods, &mut add);
-	}
-	for o in &api.objects {
-		add(&o.shown);
-		methods(&o.methods, &mut add);
-	}
-	for c in &api.callbacks {
-		add(&c.path);
-		methods(&c.methods, &mut add);
-	}
-	methods(&api.functions, &mut add);
-	for c in &api.constants {
-		add(&c.path);
-	}
-	(audited.iter())
-		.filter_map(|(exclude, named)| {
-			let mut exported: Vec<String> = named.iter().filter(|path| paths.contains(*path)).cloned().collect();
-			exported.sort();
-			exported.dedup();
-			(!exported.is_empty()).then(|| (exclude.clone(), exported))
-		})
-		.collect()
 }
 
 impl Export {
@@ -418,7 +251,6 @@ impl Export {
 			let differs = [
 				("package", theirs.package != ours.package),
 				("features", theirs.features != ours.features),
-				("config's exclude", theirs.exclude != ours.exclude),
 			];
 			for (what, _) in differs.iter().filter(|(_, differs)| *differs) {
 				unmergeable = true;
@@ -553,10 +385,7 @@ impl Export {
 		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
 		let rest = api.without_jni();
 		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
-			tcx.dcx().span_err(
-				function.span,
-				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
-			);
+			tcx.dcx().span_err(function.span, format!("rust2-ffi: {why}"));
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
 		let baseline = match self.baseline(tcx, &target) {
@@ -600,8 +429,8 @@ fn stop_on_errors(tcx: TyCtxt<'_>) -> Compilation {
 	}
 }
 
-/// Emits `refusal` as an error at its span, with every reason and its notes, then `advice`.
-fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: &str) {
+/// Emits `refusal` as an error at its span, with every reason, any `advice`, and its notes.
+fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: Option<&str>) {
 	let reasons: Vec<String> = refusal
 		.why
 		.iter()
@@ -613,10 +442,11 @@ fn refuse(tcx: TyCtxt<'_>, refusal: &collect::Refusal, advice: &str) {
 	let mut err = tcx.dcx().struct_span_err(
 		refusal.span,
 		format!(
-			"rust2-ffi: cannot export {} `{}`: {}; {advice}",
+			"rust2-ffi: cannot export {} `{}`: {}{}",
 			refusal.kind,
 			refusal.path,
-			reasons.join("; ")
+			reasons.join("; "),
+			advice.map_or_else(String::new, |advice| format!("; {advice}"))
 		),
 	);
 	for (span, note) in refusal.why.iter().filter_map(|why| why.note.as_ref()) {
@@ -677,155 +507,4 @@ pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
 		let _ = std::fs::remove_file(&temp);
 		format!("writing {}: {err}", path.display())
 	})
-}
-
-/// Whether the struct, enum, or union `adt` declares a field or variant `name` under a
-/// `cfg` this build left it out by. rustc records only the items a `cfg` strips, not their
-/// members, so this reads the declaration from its source.
-fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
-	if tcx.adt_def(adt).all_fields().any(|f| f.name.as_str() == name)
-		|| tcx.adt_def(adt).variants().iter().any(|v| v.name.as_str() == name)
-	{
-		return false;
-	}
-	// The item from its name on, up to the `;` or closing brace that ends it: past it the
-	// file may close a module the item is in, which the parser would refuse unmatched. Each
-	// place nesting returns to the item's own level may end it, such as a const generic's
-	// block before its fields, so the first that parses as an item does.
-	let source_map = tcx.sess.source_map();
-	let head = tcx.def_span(adt);
-	let source_file = source_map.lookup_source_file(head.lo());
-	let Ok(source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
-		return false;
-	};
-	let (mut depth, mut at) = (0usize, 0usize);
-	let mut item = None;
-	for token in rustc_lexer::tokenize(&source, FrontmatterAllowed::No) {
-		at += token.len as usize;
-		let end = match token.kind {
-			TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::OpenBracket => {
-				depth += 1;
-				false
-			}
-			TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
-				// A delimiter the item never opened closes the module it is in.
-				let Some(inner) = depth.checked_sub(1) else { break };
-				depth = inner;
-				depth == 0 && token.kind == TokenKind::CloseBrace
-			}
-			TokenKind::Semi => depth == 0,
-			_ => false,
-		};
-		if end && let Some(parsed) = parse_item(tcx, &source[..at]) {
-			item = Some(parsed);
-			break;
-		}
-	}
-	let Some(item) = item else { return false };
-	// A `cfg`, or one a `cfg_attr` adds, at any depth: the attributes past its predicate.
-	fn adds_cfg(items: &[ast::MetaItemInner]) -> bool {
-		items.iter().skip(1).any(|item| {
-			item.has_name(sym::cfg) || (item.has_name(sym::cfg_attr) && item.meta_item_list().is_some_and(adds_cfg))
-		})
-	}
-	let configured = |attrs: &[ast::Attribute]| {
-		attrs.iter().any(|attr| {
-			attr.has_name(sym::cfg)
-				|| (attr.has_name(sym::cfg_attr) && attr.meta_item_list().is_some_and(|items| adds_cfg(&items)))
-		})
-	};
-	match &item.kind {
-		ast::ItemKind::Struct(_, _, data) | ast::ItemKind::Union(_, _, data) => {
-			(data.fields().iter()).any(|f| f.ident.is_some_and(|ident| ident.as_str() == name) && configured(&f.attrs))
-		}
-		ast::ItemKind::Enum(_, _, def) => {
-			(def.variants.iter()).any(|v| v.ident.as_str() == name && configured(&v.attrs))
-		}
-		_ => false,
-	}
-}
-
-/// `source` parsed as one item, or none if it is not one.
-fn parse_item(tcx: TyCtxt<'_>, source: &str) -> Option<Box<ast::Item>> {
-	let file = FileName::anon_source_code(source);
-	let mut parser = match rustc_parse::new_parser_from_source_str(
-		&tcx.sess.psess,
-		file,
-		source.to_string(),
-		StripTokens::Nothing,
-	) {
-		Ok(parser) => parser,
-		Err(errors) => {
-			errors.into_iter().for_each(|e| e.cancel());
-			return None;
-		}
-	};
-	match parser.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter) {
-		Ok(item) => item,
-		Err(e) => {
-			e.cancel();
-			None
-		}
-	}
-}
-
-/// Whether `path` names an item a `cfg` leaves out of this build, or a field or variant of
-/// one: the config names it for the builds that have it. The path runs from the facade's
-/// root, or from a crate's by its name, as the walk names a type no facade module
-/// re-exports.
-fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
-	let path = path.strip_prefix("field@").unwrap_or(path);
-	let segments: Vec<&str> = path.split("::").collect();
-	// Any crate of the name, since a build may link several of its versions.
-	let mut krates = (tcx.crates(()).iter()).filter(|&&k| tcx.crate_name(k).as_str() == segments[0]);
-	stripped_under(tcx, LOCAL_CRATE.as_def_id(), &segments)
-		|| krates.any(|&k| stripped_under(tcx, k.as_def_id(), &segments[1..]))
-}
-
-/// Whether `segments`, from `module`, name an item a `cfg` strips, or a field or variant of
-/// one. Its first segment no module has is stripped from that module or from one the module
-/// glob-re-exports.
-fn stripped_under(tcx: TyCtxt<'_>, mut module: DefId, segments: &[&str]) -> bool {
-	for (i, segment) in segments.iter().enumerate() {
-		let name = segment.split('<').next().unwrap_or(segment);
-		let children = match module.as_local() {
-			Some(local) => tcx.module_children_local(local),
-			None => tcx.module_children(module),
-		};
-		if let Some(child) = children.iter().find(|child| child.ident.as_str() == name) {
-			match child.res {
-				Res::Def(DefKind::Mod, def_id) => {
-					module = def_id;
-					continue;
-				}
-				Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, def_id) if i + 2 == segments.len() => {
-					return stripped_member(tcx, def_id, segments[i + 1]);
-				}
-				// A method, or a member past one, which no `cfg` this checks strips.
-				_ => return false,
-			}
-		}
-		// Each source of a glob the item came through, while its imports are globs: the
-		// module of the next import, or else the item's own. A single re-export brings in no
-		// other name of its module.
-		let sources = children
-			.iter()
-			.flat_map(|child| {
-				let chain = &child.reexport_chain;
-				let globs = chain
-					.iter()
-					.take_while(|reexport| matches!(reexport, Reexport::Glob(_)));
-				(globs.enumerate()).filter_map(move |(i, _)| match chain.get(i + 1).and_then(|next| next.id()) {
-					Some(import) => tcx.opt_parent(import),
-					None => child.res.opt_def_id().and_then(|def_id| tcx.opt_parent(def_id)),
-				})
-			})
-			.chain([module]);
-		let stripped = |source: DefId| {
-			(tcx.stripped_cfg_items(source.krate).iter())
-				.any(|item| item.parent_scope == source && item.ident.as_str() == name)
-		};
-		return sources.collect::<FxHashSet<_>>().into_iter().any(stripped);
-	}
-	false
 }

@@ -515,10 +515,8 @@ pub(crate) struct Instance {
 pub(crate) enum Access {
 	/// It calls the function.
 	Call,
-	/// It reads a `pub` field of its receiver, or with `set` assigns it. `shared` when a
-	/// method or constant of its type takes its name, which its path then names, so the
-	/// config names the field `field@<path>`, as rustdoc does.
-	Field { shared: bool, set: bool },
+	/// It reads a `pub` field of its receiver, or with `set` assigns it.
+	Field { set: bool },
 	/// It reads a constant that is not a `bool` or integer.
 	Const,
 	/// It parses its receiver's type from text, with `FromStr`, failing with the parse

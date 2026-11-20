@@ -10,14 +10,12 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown, with `config`, the `exclude` that exports what
-/// maps, and listing `exporting`, each exclude whose item would export and its paths; `at`
-/// locates a span.
+/// The census of the facade as Markdown, with `swift`, each function Swift alone refuses
+/// and why; `at` locates a span.
 pub(crate) fn render(
 	api: &Api,
 	collected: &Report,
-	config: &[String],
-	exporting: &[(String, Vec<String>)],
+	swift: &[(&Function, String)],
 	clashes: &[Clash],
 	at: &dyn Fn(Span) -> String,
 ) -> String {
@@ -28,6 +26,9 @@ pub(crate) fn render(
 	let callbacks = api.callbacks.len();
 	let constants = api.constants.len();
 	let refused = |kinds: &[&str]| collected.refusals.iter().filter(|r| kinds.contains(&r.kind)).count();
+	let swift_functions = (swift.iter())
+		.filter(|(f, _)| api.functions.iter().any(|g| std::ptr::eq(*f, g)))
+		.count();
 	// A field counts once, by its getter, though it exports a setter too.
 	let items = |methods: &[Function]| {
 		(methods.iter())
@@ -54,11 +55,16 @@ pub(crate) fn render(
 		let _ = writeln!(out, "| {name} | {exported} | {refused} | {share} |");
 	};
 	row("Types", types, refused(&["struct", "enum", "union", "instance"]));
-	row("Functions", functions, refused(&["fn"]));
+	// Swift's refusals are in the API, so they leave its counts.
+	row(
+		"Functions",
+		functions.saturating_sub(swift_functions),
+		refused(&["fn"]) + swift_functions,
+	);
 	row(
 		"Methods and fields of exported types",
-		methods,
-		refused(&["method", "field"]),
+		methods.saturating_sub(swift.len() - swift_functions),
+		refused(&["method", "field"]) + swift.len() - swift_functions,
 	);
 	row("Traits", callbacks, 0);
 	row("Constants", constants, refused(&["const"]));
@@ -146,13 +152,11 @@ pub(crate) fn render(
 		);
 	}
 
-	if !config.is_empty() {
-		let _ = writeln!(out, "\n## The config that exports what maps\n");
-		let _ = writeln!(out, "```toml\nexclude = [");
-		for path in config {
-			let _ = writeln!(out, "    \"{path}\",");
+	if !swift.is_empty() {
+		let _ = writeln!(out, "\n## Refused by Swift\n");
+		for (function, why) in swift {
+			let _ = writeln!(out, "- {why}, at {}", at(function.span));
 		}
-		let _ = writeln!(out, "]\n```");
 	}
 	if !clashes.is_empty() {
 		let _ = writeln!(out, "\n## C names claimed twice\n");
@@ -182,18 +186,6 @@ pub(crate) fn render(
 		);
 		for path in &collected.twins {
 			let _ = writeln!(out, "- `{path}`");
-		}
-	}
-	if !collected.excluded.is_empty() {
-		let _ = writeln!(out, "\n## Excluded by the config\n");
-		for (path, count) in &collected.excluded {
-			let _ = writeln!(out, "- `{path}`: {count} items");
-		}
-	}
-	if !exporting.is_empty() {
-		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n");
-		for (exclude, exported) in exporting {
-			let _ = writeln!(out, "- `{exclude}`: `{}`", exported.join("`, `"));
 		}
 	}
 	if !collected.hidden.is_empty() {

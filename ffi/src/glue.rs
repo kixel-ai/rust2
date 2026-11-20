@@ -1191,9 +1191,10 @@ impl Gen<'_> {
 			Type::NonZero(_) => format!("({e}).get()"),
 			Type::Char => format!("{e} as u32"),
 			Type::Str => format!("rt::Buf::string({e}.to_owned())"),
-			Type::String => format!("rt::Buf::string({e})"),
+			// From a `Cow` too, which a return of either may be.
+			Type::String => format!("rt::Buf::string(::std::string::String::from({e}))"),
 			Type::Slice => format!("rt::Buf::vec({e}.to_vec())"),
-			Type::Vec => format!("rt::Buf::vec({e})"),
+			Type::Vec => format!("rt::Buf::vec(::std::vec::Vec::from({e}))"),
 			Type::Bytes => format!("rt::Buf::owned({e})"),
 			Type::Path => format!("rt::Buf::path_buf({e}.to_path_buf())"),
 			Type::PathBuf => format!("rt::Buf::path_buf({e})"),

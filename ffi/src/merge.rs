@@ -27,8 +27,6 @@ pub(crate) struct Target {
 	/// The features the facade compiled with, which every target's must share, since the
 	/// crate enables one set.
 	pub(crate) features: Vec<String>,
-	/// The config's `exclude`, which every target's must share.
-	pub(crate) exclude: Vec<String>,
 	pub(crate) api: Api,
 }
 
