@@ -153,7 +153,7 @@ Future<void> until(bool Function() done, String what) async {
 }
 
 Future<void> script() async {
-  print('limit ${api.LIMIT}');
+  print('limit ${api.limit}');
 
   final p = const api.Point(x: 1, y: 2).offset(2, 3);
   print('offset ${p.x} ${p.y}');
@@ -553,12 +553,12 @@ Future<void> script() async {
   print('polar ${api.polarPoint(2)!.distance} ${api.polarPoint(0) == null} '
       'area ${api.area(const api.Size(width: 2, height: 3))}');
   // Two types whose paths join alike, the second kept apart where its path splits.
-  print('wind ${api.wind(const api.PolarTurn(whole: 2), const api.Polar_Turn(part: 3))}');
+  print('wind ${api.wind(const api.PolarTurn(whole: 2), const api.PolarTurn2(part: 3))}');
   // Names that clash in some language, each kept apart there.
   const clashSpan = api.ClashSpan(width: 4);
   final clashStore = api.ClashStore(7);
-  print('clash ${const api.ClashTone(hz: 440).debug()} ${const api.ClashTone_(db: 3).debug()} '
-      '${const api.Cancelled_(step: 2).debug()} span ${clashSpan.width_()} ${clashSpan.toString_()} $clashSpan '
+  print('clash ${const api.ClashTone(hz: 440).debug()} ${const api.ClashTone2(db: 3).debug()} '
+      '${const api.Cancelled2(step: 2).debug()} span ${clashSpan.width_()} ${clashSpan.toString_()} $clashSpan '
       'store ${clashStore.free()} ${clashStore.close_()} '
       'audio ${api.clashAudioEncoderFinish()} ${api.clashAudioEncoderFinish_()} '
       'nested ${api.clashNested(((1, 2), 3), ((1, 2, 3),))}');
@@ -570,7 +570,7 @@ Future<void> script() async {
   );
   print('cross $cross outer ${api.OuterInnerU8(4).get()}');
   // A bound that outlives the call takes a value, and an instance only a constant names.
-  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.BOXED.value}');
+  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.boxed.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
   const five = api.Point(x: 5, y: 2);
   print('kept or ${api.keptOrPoint(five)} ${api.keptOrPoint(null)} keeper ${api.keeperPoint(five)}');
@@ -823,8 +823,8 @@ Future<void> script() async {
         api.Label l => l.debug(),
         _ => throw ArgumentError(v),
       }).join(', ')}]';
-  print('shapes ${debugs(api.Shape.ALL)} greetings ${quoted(api.GREETINGS)}');
-  print('both ${debugs(api.Shape.BOTH)} primes ${api.PRIMES}');
+  print('shapes ${debugs(api.Shape.all)} greetings ${quoted(api.greetings)}');
+  print('both ${debugs(api.Shape.both)} primes ${api.primes}');
   final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.

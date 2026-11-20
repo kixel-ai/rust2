@@ -260,6 +260,7 @@ final class Window {
 	bool contains(U64 n);
 }
 final class Ticket {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -277,6 +278,7 @@ final class Seat {
 	U64 count();
 }
 final class Stamp {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -286,6 +288,8 @@ final class Stamp {
 	bool later(Stamp other);
 }
 final class Moment {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -294,6 +298,8 @@ final class Moment {
 	Moment after(U64 ticks);
 }
 final class LongArray {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -323,6 +329,134 @@ final class OptIn {
 	@override int get hashCode;
 }
 final class Wide {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
+	final int $u7;
+	final int $u8;
+	final int $u9;
+	final int $u10;
+	final int $u11;
+	final int $u12;
+	final int $u13;
+	final int $u14;
+	final int $u15;
+	final int $u16;
+	final int $u17;
+	final int $u18;
+	final int $u19;
+	final int $u20;
+	final int $u21;
+	final int $u22;
+	final int $u23;
+	final int $u24;
+	final int $u25;
+	final int $u26;
+	final int $u27;
+	final int $u28;
+	final int $u29;
+	final int $u30;
+	final int $u31;
+	final int $u32;
+	final int $u33;
+	final int $u34;
+	final int $u35;
+	final int $u36;
+	final int $u37;
+	final int $u38;
+	final int $u39;
+	final int $u40;
+	final int $u41;
+	final int $u42;
+	final int $u43;
+	final int $u44;
+	final int $u45;
+	final int $u46;
+	final int $u47;
+	final int $u48;
+	final int $u49;
+	final int $u50;
+	final int $u51;
+	final int $u52;
+	final int $u53;
+	final int $u54;
+	final int $u55;
+	final int $u56;
+	final int $u57;
+	final int $u58;
+	final int $u59;
+	final int $u60;
+	final int $u61;
+	final int $u62;
+	final int $u63;
+	final int $u64;
+	final int $u65;
+	final int $u66;
+	final int $u67;
+	final int $u68;
+	final int $u69;
+	final int $u70;
+	final int $u71;
+	final int $u72;
+	final int $u73;
+	final int $u74;
+	final int $u75;
+	final int $u76;
+	final int $u77;
+	final int $u78;
+	final int $u79;
+	final int $u80;
+	final int $u81;
+	final int $u82;
+	final int $u83;
+	final int $u84;
+	final int $u85;
+	final int $u86;
+	final int $u87;
+	final int $u88;
+	final int $u89;
+	final int $u90;
+	final int $u91;
+	final int $u92;
+	final int $u93;
+	final int $u94;
+	final int $u95;
+	final int $u96;
+	final int $u97;
+	final int $u98;
+	final int $u99;
+	final int $u100;
+	final int $u101;
+	final int $u102;
+	final int $u103;
+	final int $u104;
+	final int $u105;
+	final int $u106;
+	final int $u107;
+	final int $u108;
+	final int $u109;
+	final int $u110;
+	final int $u111;
+	final int $u112;
+	final int $u113;
+	final int $u114;
+	final int $u115;
+	final int $u116;
+	final int $u117;
+	final int $u118;
+	final int $u119;
+	final int $u120;
+	final int $u121;
+	final int $u122;
+	final int $u123;
+	final int $u124;
+	final int $u125;
+	final int $u126;
+	final int $u127;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -338,6 +472,7 @@ final class Clocked {
 	@override int get hashCode;
 }
 final class Score {
+	final int $u0;
 	String debug();
 	factory Score.of(U64 count);
 	U64 count();
@@ -348,6 +483,8 @@ final class Score {
 	(Score, U64, U64) absorb(Mut<Score> other);
 }
 final class Hits {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -361,6 +498,8 @@ final class Hits {
 	(Hits, bool) eq(Hits other);
 }
 final class Extent {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -557,9 +696,9 @@ final class Booth {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Cancelled_ {
+final class Cancelled2 {
 	final int step;
-	const Cancelled_({required this.step});
+	const Cancelled2({required this.step});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -614,9 +753,9 @@ final class PolarPoint {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class Polar_Turn {
+final class PolarTurn2 {
 	final int part;
-	const Polar_Turn({required this.part});
+	const PolarTurn2({required this.part});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -628,9 +767,9 @@ final class ClashTone {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
-final class ClashTone_ {
+final class ClashTone2 {
 	final int db;
-	const ClashTone_({required this.db});
+	const ClashTone2({required this.db});
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -658,8 +797,8 @@ final class ClashBreak {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClashBreak get SP;
-	static ClashBreak get SP_;
+	static ClashBreak get sp;
+	static ClashBreak get sp_;
 }
 final class TlsPolicyLifetime {
 	final int seconds;
@@ -687,9 +826,9 @@ final class ChoicePicked extends Choice {
 sealed class Array {
 	const Array();
 }
-final class ArrayU8x4_ extends Array {
+final class ArrayU8x42 extends Array {
 	final int $0;
-	const ArrayU8x4_(this.$0);
+	const ArrayU8x42(this.$0);
 }
 sealed class Platform {
 	const Platform();
@@ -719,8 +858,8 @@ enum Shape {
 	square(4),
 	const Shape(this._c);
 	String debug();
-	static List<Shape> get ALL;
-	static List<Shape> get BOTH;
+	static List<Shape> get all;
+	static List<Shape> get both;
 }
 sealed class Event {
 	const Event();
@@ -797,8 +936,8 @@ final class ClashBytes extends Clash {
 	final typed.Uint8List $0;
 	const ClashBytes(this.$0);
 }
-final class ClashAny_ extends Clash {
-	const ClashAny_();
+final class ClashAny2 extends Clash {
+	const ClashAny2();
 }
 final class ClashUnit extends Clash {
 	const ClashUnit();
@@ -1056,8 +1195,8 @@ final class SlotU8 extends _Object {
 	int value();
 }
 final class Resolving extends _Object {
-	TlsResolver get $0_get;
-	void $0_set(TlsResolver value);
+	TlsResolver get $0Get;
+	void $0Set(TlsResolver value);
 	factory Resolving(String name);
 }
 final class Codecs extends _Object {
@@ -1346,7 +1485,7 @@ final class Key extends _Object {
 }
 final class ClashSeed extends _Object {
 	factory ClashSeed.default_();
-	factory ClashSeed.default__();
+	factory ClashSeed.default2_();
 	int value();
 	bool bool_();
 }
@@ -1452,8 +1591,8 @@ final class VecClashToneException implements Exception {
 	const VecClashToneException(this.error);
 	@override String toString();
 }
-const LIMIT = U64.fromBits(1000);
-const FAR = 9223372036854775807;
+const limit = U64.fromBits(1000);
+const far = 9223372036854775807;
 bool hasText(Note note);
 U64 marked(Mark apiMarked);
 Reading? reading(int n);
@@ -1572,7 +1711,7 @@ U64 keptPolarPoint(PolarPoint from);
 int keepPoint(Point kept);
 int keptOrPoint(Point? kept);
 int keeperPoint(Point keeper);
-BoxedU16 get BOXED;
+BoxedU16 get boxed;
 BoxedU8 keeps(Log log);
 int weighPoint(Point from);
 int applyNonZeroU16(PairNonZeroU16 pair, int Function(int) f);
@@ -1580,7 +1719,7 @@ int applyU32(PairU32 pair, int Function(int) f);
 int reportNonZeroU16(PairNonZeroU16 pair, Log log);
 int reportU32(PairU32 pair, Log log);
 int tallyLogCount(Log log);
-int wind(PolarTurn whole, Polar_Turn part);
+int wind(PolarTurn whole, PolarTurn2 part);
 U64 area(Size size);
 U64 seedsPointPoint(Point from);
 U64 seedsPointCounter(Counter from);
@@ -1668,8 +1807,8 @@ RustDuration since(Instant later, Instant earlier);
 bool hasInstant(Instant? at);
 Level? louder(Level? filter);
 String spell(Level? filter);
-List<String> get GREETINGS;
-typed.Uint32List get PRIMES;
+List<String> get greetings;
+typed.Uint32List get primes;
 List<Counter> numbered(List<String> names);
 (SocketAddrV4, SocketAddrV6) nexts(SocketAddrV4 v4, SocketAddrV6 v6);
 (Ipv4Addr, Ipv6Addr) nextIps(Ipv4Addr v4, Ipv6Addr v6);

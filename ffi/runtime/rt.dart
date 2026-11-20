@@ -387,10 +387,10 @@ final class SocketAddrV6 extends SocketAddr {
     ip._put(c.ip);
     c.port = port;
     c.flowinfo = flowinfo;
-    c.scope_id = scopeId;
+    c.scopeId = scopeId;
   }
 
-  static SocketAddrV6 _of(_SocketAddrV6 c) => SocketAddrV6._(Ipv6Addr._of(c.ip), c.port, c.flowinfo, c.scope_id);
+  static SocketAddrV6 _of(_SocketAddrV6 c) => SocketAddrV6._(Ipv6Addr._of(c.ip), c.port, c.flowinfo, c.scopeId);
 }
 
 /// A copy of `bytes`, throwing an [ArgumentError] where one is not a byte or, on Windows,
@@ -618,7 +618,7 @@ final class _SocketAddrV6 extends ffi.Struct {
   @ffi.Uint32()
   external int flowinfo;
   @ffi.Uint32()
-  external int scope_id;
+  external int scopeId;
 }
 
 final class _Socket extends ffi.Union {

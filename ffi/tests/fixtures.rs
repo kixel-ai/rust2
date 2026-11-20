@@ -2045,12 +2045,19 @@ fn api_dart() {
 	let api = api();
 	let dir = scratch().join("api").join("dart");
 	let generated = api.out.join("dart");
+	// The analyzer reads its options from the analyzed directory, so analyze a copy with them.
+	let lint = dir.join("lint");
+	step::write(
+		&lint.join("analysis_options.yaml"),
+		std::fs::read_to_string(manifest_dir().join("tests/dart_lints.yaml")).unwrap(),
+	);
+	step::write(&lint.join("api.dart"), std::fs::read_to_string(generated.join("api.dart")).unwrap());
 	let step = Step {
 		stamp: &dir.join("analyze.stamp"),
-		reads: &[&generated],
+		reads: &[&lint],
 		writes: &[],
 	};
-	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&lint));
 	// What looks like a leaf but reaches user code is no leaf call. The script catches a
 	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
 	// queued for it at once, apart from any call. Nor is one walking a length the caller
@@ -2139,7 +2146,7 @@ fn api_dart() {
 	// The same Dart, with another contract than the library's in place of its own, refuses
 	// it at the first call.
 	let source = std::fs::read_to_string(generated.join("api.dart")).unwrap();
-	let at = source.find("_contract() == 0x").expect("the Dart checks its contract") + "_contract() == 0x".len();
+	let at = source.find("contract() == 0x").expect("the Dart checks its contract") + "contract() == 0x".len();
 	let mut mismatched = source.clone();
 	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);

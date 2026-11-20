@@ -174,28 +174,31 @@ final class ArrayU8x6 {
 	@override String toString();
 }
 final class TimeOverflow implements Exception {
+	final int $u0;
 	@override String toString();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
 final class Timescale {
+	final int $u0;
 	@override String toString();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static Timescale get SECOND;
-	static Timescale get MILLI;
-	static Timescale get MICRO;
-	static Timescale get NANO;
+	static Timescale get second;
+	static Timescale get milli;
+	static Timescale get micro;
+	static Timescale get nano;
 	factory Timescale(U64 unitsPerSecond);
 	U64 asU64();
 }
 final class ClockInstant {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClockInstant get ZERO;
+	static ClockInstant get zero;
 	factory ClockInstant.now();
 	RustDuration elapsed();
 	RustDuration durationSince(ClockInstant earlier);
@@ -209,17 +212,19 @@ final class ClockInstant {
 	factory ClockInstant.fromStd(Instant at);
 }
 final class ClockElapsed implements Exception {
+	final int $u0;
 	@override String toString();
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
 final class ClockWall {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static ClockWall get UNIX_EPOCH;
-	static ClockWall get MOQ_EPOCH;
+	static ClockWall get unixEpoch;
+	static ClockWall get moqEpoch;
 	factory ClockWall.now();
 	RustDuration? checkedDurationSince(ClockWall earlier);
 	RustDuration saturatingDurationSince(ClockWall earlier);
@@ -236,6 +241,7 @@ final class SetupToken {
 	@override int get hashCode;
 }
 final class SessionLimits {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -244,6 +250,9 @@ final class SessionLimits {
 	SessionLimits announcesSet(U64 value);
 }
 final class StatsContent {
+	final int $u0;
+	final int $u1;
+	final int $u2;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -256,6 +265,22 @@ final class StatsContent {
 	StatsContent groupsSet(U64 value);
 }
 final class StatsTraffic {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
+	final int $u7;
+	final int $u8;
+	final int $u9;
+	final int $u10;
+	final int $u11;
+	final int $u12;
+	final int $u13;
+	final int $u14;
+	final int $u15;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -294,6 +319,42 @@ final class StatsTraffic {
 	bool isIdle();
 }
 final class StatsPresence {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
+	final int $u7;
+	final int $u8;
+	final int $u9;
+	final int $u10;
+	final int $u11;
+	final int $u12;
+	final int $u13;
+	final int $u14;
+	final int $u15;
+	final int $u16;
+	final int $u17;
+	final int $u18;
+	final int $u19;
+	final int $u20;
+	final int $u21;
+	final int $u22;
+	final int $u23;
+	final int $u24;
+	final int $u25;
+	final int $u26;
+	final int $u27;
+	final int $u28;
+	final int $u29;
+	final int $u30;
+	final int $u31;
+	final int $u32;
+	final int $u33;
+	final int $u34;
+	final int $u35;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -328,6 +389,8 @@ final class StatsPresence {
 	U64 active();
 }
 final class StatsActivity {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -338,6 +401,10 @@ final class StatsActivity {
 	StatsActivity activeSet(U64 value);
 }
 final class StatsTotals {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -352,6 +419,10 @@ final class StatsTotals {
 	StatsTotals rxMessagesSet(U64 value);
 }
 final class StatsFailures {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -369,6 +440,12 @@ final class StatsFailures {
 	bool regressed(StatsFailures previous);
 }
 final class StatsRefusals {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -390,6 +467,13 @@ final class StatsRefusals {
 	bool regressed(StatsRefusals previous);
 }
 final class StatsRouteCloses {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -414,6 +498,9 @@ final class StatsRouteCloses {
 	bool regressed(StatsRouteCloses previous);
 }
 final class StatsRouteRefusals {
+	final int $u0;
+	final int $u1;
+	final int $u2;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -430,6 +517,22 @@ final class StatsRouteRefusals {
 	bool regressed(StatsRouteRefusals previous);
 }
 final class StatsRoutes {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
+	final int $u7;
+	final int $u8;
+	final int $u9;
+	final int $u10;
+	final int $u11;
+	final int $u12;
+	final int $u13;
+	final int $u14;
+	final int $u15;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -450,6 +553,8 @@ final class StatsRoutes {
 	bool regressed(StatsRoutes previous);
 }
 final class StatsWithdrawals {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -464,11 +569,12 @@ final class StatsWithdrawals {
 	bool regressed(StatsWithdrawals previous);
 }
 final class BandwidthRate {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory BandwidthRate.default_();
-	static BandwidthRate get ZERO;
+	static BandwidthRate get zero;
 	factory BandwidthRate.fromBps(U64 bps);
 	factory BandwidthRate.fromKbps(U64 kbps);
 	factory BandwidthRate.fromMbps(U64 mbps);
@@ -510,6 +616,8 @@ final class TrackDelay {
 	TrackDelay withMax(RustDuration? max);
 }
 final class TrackPosition {
+	final int $u0;
+	final int $u1;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -532,6 +640,7 @@ final class TrackRange {
 	factory TrackRange.oldest();
 }
 final class OriginCost {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -540,6 +649,7 @@ final class OriginCost {
 	U64 value();
 }
 final class OriginPriority {
+	final int $u0;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -556,6 +666,10 @@ final class HangCatalogAac {
 	@override int get hashCode;
 }
 final class HangCatalogPriorities {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -587,7 +701,7 @@ final class HangCatalogAv1 {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory HangCatalogAv1.default_();
-	static String get PREFIX;
+	static String get prefix;
 }
 final class HangCatalogMastering {
 	final HangCatalogChromaticity red;
@@ -753,6 +867,265 @@ final class MuxCodecMp3Config {
 	factory MuxCodecMp3Config.parse(typed.Uint8List data);
 }
 final class MuxCodecOpusMapping {
+	final int $u0;
+	final int $u1;
+	final int $u2;
+	final int $u3;
+	final int $u4;
+	final int $u5;
+	final int $u6;
+	final int $u7;
+	final int $u8;
+	final int $u9;
+	final int $u10;
+	final int $u11;
+	final int $u12;
+	final int $u13;
+	final int $u14;
+	final int $u15;
+	final int $u16;
+	final int $u17;
+	final int $u18;
+	final int $u19;
+	final int $u20;
+	final int $u21;
+	final int $u22;
+	final int $u23;
+	final int $u24;
+	final int $u25;
+	final int $u26;
+	final int $u27;
+	final int $u28;
+	final int $u29;
+	final int $u30;
+	final int $u31;
+	final int $u32;
+	final int $u33;
+	final int $u34;
+	final int $u35;
+	final int $u36;
+	final int $u37;
+	final int $u38;
+	final int $u39;
+	final int $u40;
+	final int $u41;
+	final int $u42;
+	final int $u43;
+	final int $u44;
+	final int $u45;
+	final int $u46;
+	final int $u47;
+	final int $u48;
+	final int $u49;
+	final int $u50;
+	final int $u51;
+	final int $u52;
+	final int $u53;
+	final int $u54;
+	final int $u55;
+	final int $u56;
+	final int $u57;
+	final int $u58;
+	final int $u59;
+	final int $u60;
+	final int $u61;
+	final int $u62;
+	final int $u63;
+	final int $u64;
+	final int $u65;
+	final int $u66;
+	final int $u67;
+	final int $u68;
+	final int $u69;
+	final int $u70;
+	final int $u71;
+	final int $u72;
+	final int $u73;
+	final int $u74;
+	final int $u75;
+	final int $u76;
+	final int $u77;
+	final int $u78;
+	final int $u79;
+	final int $u80;
+	final int $u81;
+	final int $u82;
+	final int $u83;
+	final int $u84;
+	final int $u85;
+	final int $u86;
+	final int $u87;
+	final int $u88;
+	final int $u89;
+	final int $u90;
+	final int $u91;
+	final int $u92;
+	final int $u93;
+	final int $u94;
+	final int $u95;
+	final int $u96;
+	final int $u97;
+	final int $u98;
+	final int $u99;
+	final int $u100;
+	final int $u101;
+	final int $u102;
+	final int $u103;
+	final int $u104;
+	final int $u105;
+	final int $u106;
+	final int $u107;
+	final int $u108;
+	final int $u109;
+	final int $u110;
+	final int $u111;
+	final int $u112;
+	final int $u113;
+	final int $u114;
+	final int $u115;
+	final int $u116;
+	final int $u117;
+	final int $u118;
+	final int $u119;
+	final int $u120;
+	final int $u121;
+	final int $u122;
+	final int $u123;
+	final int $u124;
+	final int $u125;
+	final int $u126;
+	final int $u127;
+	final int $u128;
+	final int $u129;
+	final int $u130;
+	final int $u131;
+	final int $u132;
+	final int $u133;
+	final int $u134;
+	final int $u135;
+	final int $u136;
+	final int $u137;
+	final int $u138;
+	final int $u139;
+	final int $u140;
+	final int $u141;
+	final int $u142;
+	final int $u143;
+	final int $u144;
+	final int $u145;
+	final int $u146;
+	final int $u147;
+	final int $u148;
+	final int $u149;
+	final int $u150;
+	final int $u151;
+	final int $u152;
+	final int $u153;
+	final int $u154;
+	final int $u155;
+	final int $u156;
+	final int $u157;
+	final int $u158;
+	final int $u159;
+	final int $u160;
+	final int $u161;
+	final int $u162;
+	final int $u163;
+	final int $u164;
+	final int $u165;
+	final int $u166;
+	final int $u167;
+	final int $u168;
+	final int $u169;
+	final int $u170;
+	final int $u171;
+	final int $u172;
+	final int $u173;
+	final int $u174;
+	final int $u175;
+	final int $u176;
+	final int $u177;
+	final int $u178;
+	final int $u179;
+	final int $u180;
+	final int $u181;
+	final int $u182;
+	final int $u183;
+	final int $u184;
+	final int $u185;
+	final int $u186;
+	final int $u187;
+	final int $u188;
+	final int $u189;
+	final int $u190;
+	final int $u191;
+	final int $u192;
+	final int $u193;
+	final int $u194;
+	final int $u195;
+	final int $u196;
+	final int $u197;
+	final int $u198;
+	final int $u199;
+	final int $u200;
+	final int $u201;
+	final int $u202;
+	final int $u203;
+	final int $u204;
+	final int $u205;
+	final int $u206;
+	final int $u207;
+	final int $u208;
+	final int $u209;
+	final int $u210;
+	final int $u211;
+	final int $u212;
+	final int $u213;
+	final int $u214;
+	final int $u215;
+	final int $u216;
+	final int $u217;
+	final int $u218;
+	final int $u219;
+	final int $u220;
+	final int $u221;
+	final int $u222;
+	final int $u223;
+	final int $u224;
+	final int $u225;
+	final int $u226;
+	final int $u227;
+	final int $u228;
+	final int $u229;
+	final int $u230;
+	final int $u231;
+	final int $u232;
+	final int $u233;
+	final int $u234;
+	final int $u235;
+	final int $u236;
+	final int $u237;
+	final int $u238;
+	final int $u239;
+	final int $u240;
+	final int $u241;
+	final int $u242;
+	final int $u243;
+	final int $u244;
+	final int $u245;
+	final int $u246;
+	final int $u247;
+	final int $u248;
+	final int $u249;
+	final int $u250;
+	final int $u251;
+	final int $u252;
+	final int $u253;
+	final int $u254;
+	final int $u255;
+	final int $u256;
+	final int $u257;
+	final int $u258;
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
@@ -1091,7 +1464,7 @@ enum StatsFailure {
 	expired(3),
 	const StatsFailure(this._c);
 	String debug();
-	static List<StatsFailure> get ALL;
+	static List<StatsFailure> get all;
 	String asStr();
 }
 enum StatsRefusalKind {
@@ -1103,7 +1476,7 @@ enum StatsRefusalKind {
 	expired(5),
 	const StatsRefusalKind(this._c);
 	String debug();
-	static List<StatsRefusalKind> get ALL;
+	static List<StatsRefusalKind> get all;
 	String asStr();
 }
 enum StatsRouteClose {
@@ -1116,7 +1489,7 @@ enum StatsRouteClose {
 	other(6),
 	const StatsRouteClose(this._c);
 	String debug();
-	static List<StatsRouteClose> get ALL;
+	static List<StatsRouteClose> get all;
 	String asStr();
 }
 enum StatsRouteRefusal {
@@ -1125,7 +1498,7 @@ enum StatsRouteRefusal {
 	looped(2),
 	const StatsRouteRefusal(this._c);
 	String debug();
-	static List<StatsRouteRefusal> get ALL;
+	static List<StatsRouteRefusal> get all;
 	String asStr();
 }
 enum StatsWithdrawal {
@@ -1133,7 +1506,7 @@ enum StatsWithdrawal {
 	drain(1),
 	const StatsWithdrawal(this._c);
 	String debug();
-	static List<StatsWithdrawal> get ALL;
+	static List<StatsWithdrawal> get all;
 	String asStr();
 }
 enum TransportAddress {
@@ -1411,7 +1784,7 @@ enum MuxCatalogCatalogFormat {
 	const MuxCatalogCatalogFormat(this._c);
 	String debug();
 	factory MuxCatalogCatalogFormat.default_();
-	static MuxCatalogCatalogFormat get DEFAULT;
+	static MuxCatalogCatalogFormat get default2_;
 	String extension();
 	static MuxCatalogCatalogFormat? detect(String name);
 }
@@ -1863,7 +2236,7 @@ enum MoqTokioAcceptFailure {
 	const MoqTokioAcceptFailure(this._c);
 	@override String toString();
 	String debug();
-	static List<MoqTokioAcceptFailure> get ALL;
+	static List<MoqTokioAcceptFailure> get all;
 	String asStr();
 }
 enum MoqTokioRedirect {
@@ -1918,26 +2291,26 @@ final class RustlsProtocolVersionSSLv2 extends RustlsProtocolVersion {
 final class RustlsProtocolVersionSSLv3 extends RustlsProtocolVersion {
 	const RustlsProtocolVersionSSLv3();
 }
-final class RustlsProtocolVersionTLSv1_0 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_0();
+final class RustlsProtocolVersionTLSv10 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv10();
 }
-final class RustlsProtocolVersionTLSv1_1 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_1();
+final class RustlsProtocolVersionTLSv11 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv11();
 }
-final class RustlsProtocolVersionTLSv1_2 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_2();
+final class RustlsProtocolVersionTLSv12 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv12();
 }
-final class RustlsProtocolVersionTLSv1_3 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionTLSv1_3();
+final class RustlsProtocolVersionTLSv13 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionTLSv13();
 }
-final class RustlsProtocolVersionDTLSv1_0 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_0();
+final class RustlsProtocolVersionDTLSv10 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv10();
 }
-final class RustlsProtocolVersionDTLSv1_2 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_2();
+final class RustlsProtocolVersionDTLSv12 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv12();
 }
-final class RustlsProtocolVersionDTLSv1_3 extends RustlsProtocolVersion {
-	const RustlsProtocolVersionDTLSv1_3();
+final class RustlsProtocolVersionDTLSv13 extends RustlsProtocolVersion {
+	const RustlsProtocolVersionDTLSv13();
 }
 final class RustlsProtocolVersionUnknown extends RustlsProtocolVersion {
 	final int $0;
@@ -1956,7 +2329,7 @@ enum MoqQuicConnectionMuxVersion {
 	qMux02(2),
 	const MoqQuicConnectionMuxVersion(this._c);
 	String debug();
-	static List<MoqQuicConnectionMuxVersion> get ALL;
+	static List<MoqQuicConnectionMuxVersion> get all;
 	bool usesRecords();
 	String alpn();
 	String prefix();
@@ -1968,7 +2341,7 @@ enum MoqSockDemuxDiscard {
 	overflow(3),
 	const MoqSockDemuxDiscard(this._c);
 	String debug();
-	static List<MoqSockDemuxDiscard> get ALL;
+	static List<MoqSockDemuxDiscard> get all;
 	String asStr();
 }
 enum MoqSockUdpEcnCodepoint {
@@ -2175,7 +2548,7 @@ final class Timestamp extends _Object {
 	Timestamp clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static Timestamp get ZERO;
+	static Timestamp get zero;
 	factory Timestamp(U64 value, Timescale scale);
 	factory Timestamp.unscaled(U64 key);
 	factory Timestamp.fromScale(U64 value, U64 unitsPerSecond);
@@ -2201,7 +2574,7 @@ final class Version extends _Object {
 	Version clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static List<Version> get ALL;
+	static List<Version> get all;
 	bool hasRequestPath();
 	String asStr();
 	String alpn();
@@ -2257,7 +2630,7 @@ final class ClockManual extends _Object {
 	String debug();
 	ClockManual clone();
 	factory ClockManual.default_();
-	static ClockWall get WALL_START;
+	static ClockWall get wallStart;
 	factory ClockManual();
 	ClockInstant now();
 	ClockWall wall();
@@ -2275,7 +2648,7 @@ final class ClockWallMap extends _Object {
 	String debug();
 	ClockWallMap clone();
 	factory ClockWallMap.default_();
-	static RustDuration get TOLERANCE;
+	static RustDuration get tolerance;
 	void sample(ClockInstant now, ClockWall wall);
 	ClockInstant? map(ClockWall at);
 }
@@ -2311,7 +2684,7 @@ final class HangCatalog extends _Object {
 	void includeSet(List<(String, HangCatalogInclude)> value);
 	HangCatalogSkipped get skippedGet;
 	void skippedSet(HangCatalogSkipped value);
-	static String get DEFAULT_NAME;
+	static String get defaultName;
 	static TrackInfo defaultTrackInfo();
 	static TrackSubscription defaultSubscription();
 	void checkRenditions();
@@ -2405,12 +2778,12 @@ final class MuxClock extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory MuxClock.default_();
-	static Timescale get TIMESCALE;
+	static Timescale get timescale;
 	factory MuxClock();
 	factory MuxClock.at(ClockInstant epoch, ClockWall wall);
 	Timestamp now();
 	Timestamp capture(ClockInstant at);
-	Timescale timescale();
+	Timescale timescale_();
 	HangCatalogClock? wall();
 	ClockWall wallClock(Timestamp pts);
 }
@@ -2429,7 +2802,7 @@ final class MuxIngest extends _Object {
 	MuxCatalogConfig catalog();
 }
 final class MuxLingerUnit extends _Object {
-	static RustDuration get DEFAULT;
+	static RustDuration get default_;
 	factory MuxLingerUnit(List<BroadcastProducer> broadcasts, RustDuration duration);
 	Cancelable<void> wait();
 }
@@ -2940,7 +3313,7 @@ final class BandwidthCap extends _Object {
 	void rateSet(BandwidthRate value);
 	RustDuration get burstGet;
 	void burstSet(RustDuration value);
-	static RustDuration get DEFAULT_BURST;
+	static RustDuration get defaultBurst;
 	factory BandwidthCap(BandwidthRate rate);
 	BandwidthCap withBurst(RustDuration burst);
 }
@@ -2970,7 +3343,7 @@ final class BandwidthViewers extends _Object {
 	String debug();
 	BandwidthViewers clone();
 	factory BandwidthViewers.default_();
-	static BandwidthRate get MAX_TARGET;
+	static BandwidthRate get maxTarget;
 	factory BandwidthViewers(BandwidthWeak estimate);
 	BandwidthViewer watch(BandwidthRate max);
 	void setTarget(BandwidthRate? target);
@@ -7220,7 +7593,7 @@ final class MuxContainerTsStatsRelease extends _Object {
 }
 final class MuxContainerTsStatsLog extends _Object {
 	factory MuxContainerTsStatsLog.default_();
-	static RustDuration get INTERVAL;
+	static RustDuration get interval;
 	void sample(MuxContainerTsStatsSnapshot latest);
 	void finish(MuxContainerTsStatsSnapshot latest);
 }
@@ -7252,7 +7625,7 @@ final class MoqTokioCliBound extends _Object {
 	MoqTokioCliBound clone();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
-	static MoqTokioCliBound get NONE;
+	static MoqTokioCliBound get none;
 }
 final class MoqTokioTcpTlsAcceptor extends _Object {
 	MoqTokioTcpTlsAcceptor clone();
@@ -7699,16 +8072,16 @@ final class StringException implements Exception {
 	const StringException(this.error);
 	@override String toString();
 }
-const PATH_MAX_PARTS = U64.fromBits(32);
-const PATH_MAX_BYTES = U64.fromBits(4096);
-const PATTERN_MAX_SEGMENTS = U64.fromBits(32);
-const PATTERN_MAX_INTERSECTIONS = U64.fromBits(1024);
-const SETUP_TOKEN_OUT_OF_BAND = U64.fromBits(0);
-const TRANSPORT_MIN_RECEIVE_WINDOW = U64.fromBits(1048576);
-const TRANSPORT_SETUP_RECEIVE_WINDOW = U64.fromBits(131102);
-const HANG_CATALOG_MAX_SAFE_INTEGER = U64.fromBits(9007199254740991);
-String get IMPLEMENTATION;
-List<String> get ALPNS;
+const pathMaxParts = U64.fromBits(32);
+const pathMaxBytes = U64.fromBits(4096);
+const patternMaxSegments = U64.fromBits(32);
+const patternMaxIntersections = U64.fromBits(1024);
+const setupTokenOutOfBand = U64.fromBits(0);
+const transportMinReceiveWindow = U64.fromBits(1048576);
+const transportSetupReceiveWindow = U64.fromBits(131102);
+const hangCatalogMaxSafeInteger = U64.fromBits(9007199254740991);
+String get implementation;
+List<String> get alpns;
 ClockInstant clockNow();
 ClockWall clockWall();
 (ClockInstant, ClockWall) clockOrigin();
@@ -7722,26 +8095,26 @@ Cancelable<void> clockSleep(RustDuration duration);
 Cancelable<void> clockSleepUntil(ClockInstant at);
 Cancelable<void> clockTimeout(RustDuration duration, Future<void> future);
 Cancelable<void> clockTimeoutAt(ClockInstant deadline, Future<void> future);
-RustDuration get SERVER_DEFAULT_TIMEOUT;
+RustDuration get serverDefaultTimeout;
 Cancelable<Error> timeRunDriver(Driver driver);
 Cancelable<Error> timeRunOriginDriver(OriginDriver driver);
 U64 varintDecodeQuic(Mut<typed.Uint8List> r);
 void varintEncodeQuic(U64 value, Mut<typed.Uint8List> w);
-RustDuration get CACHE_DEFAULT_EXPIRY;
-String get HANG_ECHO_SUFFIX;
-String get HANG_ECHO_TRACK;
+RustDuration get cacheDefaultExpiry;
+String get hangEchoSuffix;
+String get hangEchoTrack;
 bool hangEchoIsEcho(Path path);
-HangCatalogPriorities get HANG_CATALOG_PRIORITY;
-RustDuration get HANG_CONTAINER_MAX_AGE;
-Timescale get HANG_CONTAINER_TIMESCALE;
+HangCatalogPriorities get hangCatalogPriority;
+RustDuration get hangContainerMaxAge;
+Timescale get hangContainerTimescale;
 TrackInfo hangContainerTrackInfo(int priority);
-RustDuration get MUX_CONTAINER_DELAY_MAX;
-RustDuration get MUX_RATE_RETRY;
+RustDuration get muxContainerDelayMax;
+RustDuration get muxRateRetry;
 ArrayU8x32 tokioTlsParseFingerprint(String value);
 OriginProducer tokioOriginSpawn();
 (TransportMemorySession, TransportMemorySession) transportMemoryPair(TransportMemoryConfig config);
 HangCatalogAudioConfig muxCodecAacConfig(typed.Uint8List init);
-typed.Uint8List get MUX_CODEC_ANNEXB_START_CODE;
+typed.Uint8List get muxCodecAnnexbStartCode;
 typed.Uint8List muxCodecAnnexbFromLengthPrefixed(typed.Uint8List payload, U64 lengthSize, typed.Uint8List? prefix);
 typed.Uint8List muxCodecAnnexbBuildPrefix(List<typed.Uint8List> nals);
 void muxCodecAnnexbLengthPrefixedToAnnexb(typed.Uint8List data, U64 lengthSize, Mut<typed.Uint8List> out);
@@ -7751,7 +8124,7 @@ HangCatalogAudioConfig muxCodecFlacConfig(typed.Uint8List init);
 HangCatalogVideoConfig muxCodecH264Config(typed.Uint8List buf);
 HangCatalogVideoConfig muxCodecH265Config(typed.Uint8List buf);
 HangCatalogAudioConfig muxCodecMp3Config(typed.Uint8List init);
-RustDuration get MUX_CODEC_OPUS_WARMUP;
+RustDuration get muxCodecOpusWarmup;
 int? muxCodecOpusPacketSamples(typed.Uint8List packet);
 HangCatalogAudioConfig muxCodecOpusConfig(typed.Uint8List init);
 MuxContainerMp4Finish? muxContainerMp4Repair(SeekableReader file);
