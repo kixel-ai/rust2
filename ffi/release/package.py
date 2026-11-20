@@ -1964,13 +1964,15 @@ def local_package(package, dest, url):
 
 
 def dart_main(lib, check):
-    """The consumer's program: the caller's check, or else one that resolves the library's contract."""
+    """The consumer's program: the caller's check, or else one that calls the library's contract.
+    It calls rather than takes the address: Dart 3.14's AOT resolves no `Native.addressOf` of a
+    function naming its `assetId`, as this one must from outside the package."""
     if check:
         return Path(check).read_text(encoding="utf-8")
     return (f"import 'dart:ffi';\n\n"
-            f"@Native<Void Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart')\n"
-            f"external void _contract();\n\n"
-            f"void main() {{\n  if (Native.addressOf<NativeFunction<Void Function()>>(_contract) == nullptr) throw StateError('no {lib}');\n}}\n")
+            f"@Native<Uint64 Function()>(symbol: '{lib}_contract', assetId: 'package:{lib}/{lib}.dart', isLeaf: true)\n"
+            f"external int _contract();\n\n"
+            f"void main() {{\n  _contract();\n}}\n")
 
 
 def dart_app(work, name, package, lib):
