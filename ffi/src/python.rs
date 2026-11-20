@@ -1763,9 +1763,14 @@ impl<'a> Gen<'a> {
 						"attr",
 						format!("{}.{}", owner(doc::Owner::Enum(i)), abi::snake(name).to_uppercase()),
 					),
+					// As its class is named, apart from its siblings'.
 					false => (
 						"class",
-						format!("{}.{}", owner(doc::Owner::Enum(i)), kw(&pascal(&abi::snake(name)))),
+						format!(
+							"{}.{}",
+							owner(doc::Owner::Enum(i)),
+							variant_classes(e.variants.iter().map(|v| v.name.as_str())).swap_remove(v)
+						),
 					),
 				}
 			}
