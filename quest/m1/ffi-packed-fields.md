@@ -7,6 +7,8 @@ getters do, builds, so redox_syscall's `FloatRegisters` binds in every language.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#919](https://github.com/kixel-ai/rust2/pull/919): ✅ kept as planned (rejected: dropping it).
+
 Found by the corpus on 2026-11-20, binding redox_syscall without the items its census
 refuses: the Python glue's getter of `FloatRegisters::fcw` is `&(&a_self).fcw`, which rustc
 refuses as a reference to a packed struct's field (E0793).
