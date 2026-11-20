@@ -514,13 +514,13 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword, or a macro of a short list that GNU dialects predefine or the
-  C library's headers define (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`,
-  and `errno`, `assert`, `offsetof`, `stdin`, `stdout`, and `stderr`, and each of them
-  followed by underscores, so `unix_` becomes `unix__`; any other macro, such as `EOF` or
-  `va_start`, is not escaped yet, see [ffi-apart](../quest/m1/ffi-apart.md)), takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro that a C or C++ system header
+  defines or a GNU dialect predefines, as `src/macros.txt` lists them (`unix`, `EOF`,
+  `errno`, as in moq-tokio's `tokio::unix_`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class, one of its fields, or a member a trait gives it,
   and a parameter named as a member or as anything in the namespace, which it would hide.
+  A name already ending in `_` takes as many more as keep it apart and off every macro:
+  `unix_` becomes `unix__`.
   A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
   until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
