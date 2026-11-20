@@ -1191,7 +1191,12 @@ function negateWords() {
 
 /**
  * `a / b` or `a % b` of limbs by a number below 2^32 in magnitude: a long division of
- * their magnitudes in 16-bit digits, each step exact, then signed as Rust's truncation is.
+ * their magnitudes, each step exact, then signed as Rust's truncation is.
+ *
+ * A non-negative dividend and a positive divisor divide in locals. A divisor of at most 2^21
+ * takes a whole 32-bit word a step, since the remainder times 2^32 plus a word stays below
+ * 2^53; a larger one takes 16-bit digits. A negative operand takes the `words` path in 16-bit
+ * digits.
  */
 function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remainder: boolean, at?: Location): Wide {
 	const negative = a.hi < 0;
