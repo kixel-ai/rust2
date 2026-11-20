@@ -141,8 +141,10 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					put(out, d.len());
 					rs.drop(d);
 				} else if (_59 === 15) {
+					const _129: rs.Vec<Noted.Noted> = v;
+					const _131: rs.Range<rs.u8> = new rs.Range(0, rs.u8Rem(arg, 6));
 					const _135: rs.u8 = next;
-					rs.smallVecExtend(v, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 6)), (i3: rs.u8): Noted.Noted => {
+					rs.smallVecExtend(_129, rs.iterMap(_131, (i3: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_135, i3), log);
 					}), 4, 8, "next");
 				} else if (_59 === 16) {
@@ -160,14 +162,17 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					rs.smallVecResize(v, rs.u8Rem(arg, 10) as rs.usize, new Noted.Noted(next, log), 4, 8, Noted.clone$Clone, rs.drop);
 				} else if (_59 === 19) {
 					f = 0;
+					const _161: rs.Vec<Noted.Noted> = v;
+					const _162: rs.usize = rs.u8Rem(arg, 10) as rs.usize;
 					const _167: rs.u8 = next;
-					rs.smallVecResizeWith(v, rs.u8Rem(arg, 10) as rs.usize, (): Noted.Noted => {
+					rs.smallVecResizeWith(_161, _162, (): Noted.Noted => {
 						f = rs.u8Add(f, 1);
 						return new Noted.Noted(rs.u8Add(_167, f), log);
 					}, 4, 8, rs.drop);
 				} else if (_59 === 20) {
+					const _171: rs.Range<rs.u8> = new rs.Range(0, rs.u8Rem(arg, 4));
 					const _175: rs.u8 = next;
-					const _170: rs.Iter<Noted.Noted> = rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 4)), (i2: rs.u8): Noted.Noted => {
+					const _170: rs.Iter<Noted.Noted> = rs.iterMap(_171, (i2: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_175, i2), log);
 					});
 					const other: rs.Vec<Noted.Noted> = rs.smallVecExtend(new rs.Vec(), _170, 2, 8, "next");

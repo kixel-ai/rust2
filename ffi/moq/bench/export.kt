@@ -109,7 +109,6 @@ suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, next: 
 			}
 			group.finish().close()
 		}
-		at.close()
 	}
 	sink += sum
 	val ns = end(start, name, groups.toDouble() * FRAMES * size)
@@ -132,7 +131,7 @@ fun round(measured: Boolean): Map<String, Span> {
 	repeat(N) { if (track.isClosed()) sum++ }
 	out["call"] = end(start, "call")
 
-	next().use { track.appendGroup(it) }.use { group ->
+	track.appendGroup(next()).use { group ->
 		group.demand().use { demand ->
 			start = begin()
 			repeat(N) { sum += demand.start().toInt() }
@@ -181,9 +180,9 @@ fun round(measured: Boolean): Map<String, Span> {
 	// group starting at its first frame's.
 	start = begin()
 	repeat(GROUPS) {
-		Timestamp.fromMicros(micros).use { track.appendGroup(it) }.use { group ->
+		track.appendGroup(Timestamp.fromMicros(micros)).use { group ->
 			repeat(FRAMES) {
-				Timestamp.fromMicros(micros++).use { group.writeFrame(it, frame) }
+				group.writeFrame(Timestamp.fromMicros(micros++), frame)
 			}
 			group.finish().close()
 		}
@@ -197,7 +196,6 @@ fun round(measured: Boolean): Map<String, Span> {
 			repeat(FRAMES) { group.writeFrame(at, frame) }
 			group.finish().close()
 		}
-		at.close()
 	}
 	out["write"] = end(start, "write")
 
@@ -220,7 +218,6 @@ fun round(measured: Boolean): Map<String, Span> {
 				}
 				group.finish().close()
 			}
-			at.close()
 		}
 		out["ready"] = end(t0, "ready")
 
@@ -239,7 +236,6 @@ fun round(measured: Boolean): Map<String, Span> {
 				}
 				group.finish().close()
 			}
-			at.close()
 		}
 		out["woken"] = end(t0, "woken")
 
@@ -257,7 +253,6 @@ fun round(measured: Boolean): Map<String, Span> {
 					permits.receive()
 					group.finish().close()
 				}
-				at.close()
 			}
 		}
 		repeat(GROUPS) {

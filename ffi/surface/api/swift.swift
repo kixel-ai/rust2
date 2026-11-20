@@ -333,6 +333,12 @@ public struct Clocked: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Clocked, b: Clocked) -> Swift.Bool
 }
+public struct Rated: Sendable, CustomDebugStringConvertible, Equatable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Rated, b: Rated) -> Swift.Bool
+	@inlinable public static func new(_ count: Swift.UInt64, _ scale: Swift.UInt64) -> Rated
+	@inlinable public func scale() -> Swift.UInt64
+}
 public struct Score: Sendable, CustomDebugStringConvertible {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func of(_ count: Swift.UInt64) -> Score

@@ -812,6 +812,13 @@ namespace api {
 		friend bool operator!=(const Clocked &a__, const Clocked &b_);
 		::api::buf debug() const;
 	};
+	class Rated {
+		friend bool operator==(const Rated &a__, const Rated &b_);
+		friend bool operator!=(const Rated &a__, const Rated &b_);
+		::api::buf debug() const;
+		static ::api::Rated new_(::std::uint64_t count, ::std::uint64_t scale);
+		::std::uint64_t scale() const;
+	};
 	class Hits {
 		friend bool operator==(const Hits &a__, const Hits &b_);
 		friend bool operator!=(const Hits &a__, const Hits &b_);
@@ -1224,6 +1231,7 @@ namespace api {
 	inline bool operator==(const OptIn &a__, const OptIn &b_);
 	inline bool operator==(const Wide &a__, const Wide &b_);
 	inline bool operator==(const Clocked &a__, const Clocked &b_);
+	inline bool operator==(const Rated &a__, const Rated &b_);
 	inline bool operator==(const Hits &a__, const Hits &b_);
 	inline bool operator==(const Extent &a__, const Extent &b_);
 	inline bool operator==(const Pair_Size_u8 &a__, const Pair_Size_u8 &b_);
@@ -1858,6 +1866,7 @@ namespace api {
 	struct OptIn;
 	class Wide;
 	struct Clocked;
+	class Rated;
 	class Score;
 	class Hits;
 	class Extent;

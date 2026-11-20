@@ -4,27 +4,34 @@ import * as rs from "../rs.ts";
 import { min$10dxkeu, max$10jofma } from "../core/cmp.ts";
 
 export function overlaps$rangemap_std_ext_RangeExt_u64_ops_Range_u64(self: rs.Range<rs.u64>, other: rs.Range<rs.u64>): boolean {
-	return rs.u64Lt(max$10jofma(self.start, other.start), min$10dxkeu(self.end, other.end));
+	const _4: rs.u64 = max$10jofma(self.start, other.start);
+	const _9: rs.u64 = min$10dxkeu(self.end, other.end);
+	return typeof _4 === "number" && typeof _9 === "number" ? _4 < _9 : rs.u64Lt(_4, _9);
 }
 
 export function touches$rangemap_std_ext_RangeExt_u64_ops_Range_u64(self: rs.Range<rs.u64>, other: rs.Range<rs.u64>): boolean {
-	return rs.u64Le(max$10jofma(self.start, other.start), min$10dxkeu(self.end, other.end));
+	const _4: rs.u64 = max$10jofma(self.start, other.start);
+	const _9: rs.u64 = min$10dxkeu(self.end, other.end);
+	return typeof _4 === "number" && typeof _9 === "number" ? _4 <= _9 : rs.u64Le(_4, _9);
 }
 
 export function overlaps$rangemap_std_ext_RangeInclusiveExt_u64_ops_RangeInclusive_u64(self: rs.RangeInclusive<rs.u64>, other: rs.RangeInclusive<rs.u64>): boolean {
-	return rs.u64Le(max$10jofma(rs.rangeInclusiveStart(self), rs.rangeInclusiveStart(other)), min$10dxkeu(rs.rangeInclusiveEnd(self), rs.rangeInclusiveEnd(other)));
+	const _4: rs.u64 = max$10jofma(rs.rangeInclusiveStart(self), rs.rangeInclusiveStart(other));
+	const _9: rs.u64 = min$10dxkeu(rs.rangeInclusiveEnd(self), rs.rangeInclusiveEnd(other));
+	return typeof _4 === "number" && typeof _9 === "number" ? _4 <= _9 : rs.u64Le(_4, _9);
 }
 
 export function touches$rangemap_std_ext_RangeInclusiveExt_u64_ops_RangeInclusive_u64_u64(self: rs.RangeInclusive<rs.u64>, other: rs.RangeInclusive<rs.u64>): boolean {
 	let minRangeEndExtended!: rs.u64;
 	const maxStart: rs.u64 = max$10jofma(rs.rangeInclusiveStart(self), rs.rangeInclusiveStart(other));
 	const minRangeEnd: rs.u64 = min$10dxkeu(rs.rangeInclusiveEnd(self), rs.rangeInclusiveEnd(other));
-	if (!rs.u64Lt(minRangeEnd, maxStart)) {
+	if (!(typeof minRangeEnd === "number" && typeof maxStart === "number" ? minRangeEnd < maxStart : rs.u64Lt(minRangeEnd, maxStart))) {
 		minRangeEndExtended = minRangeEnd;
 	} else {
 		minRangeEndExtended = addOne$rangemap_StepFns_u64_u64(minRangeEnd);
 	}
-	return rs.u64Le(maxStart, minRangeEndExtended);
+	const _14: rs.u64 = minRangeEndExtended;
+	return typeof maxStart === "number" && typeof _14 === "number" ? maxStart <= _14 : rs.u64Le(maxStart, _14);
 }
 
 /**
@@ -36,7 +43,8 @@ export function touches$rangemap_std_ext_RangeInclusiveExt_u64_ops_RangeInclusiv
  * and to wrap or saturate otherwise.
  */
 export function addOne$rangemap_StepLite_u64(self: rs.u64): rs.u64 {
-	return rs.u64Add(self, 1);
+	const _2: rs.u64 = self;
+	return (typeof _2 === "number" && _2 + 1 <= 9007199254740991 ? _2 + 1 : rs.u64Add(_2, 1)) as rs.u64;
 }
 
 /**
@@ -48,7 +56,8 @@ export function addOne$rangemap_StepLite_u64(self: rs.u64): rs.u64 {
  * and to wrap or saturate otherwise.
  */
 export function subOne$rangemap_StepLite_u64(self: rs.u64): rs.u64 {
-	return rs.u64Sub(self, 1);
+	const _2: rs.u64 = self;
+	return (typeof _2 === "number" && _2 - 1 >= 0 ? _2 - 1 : rs.u64Sub(_2, 1)) as rs.u64;
 }
 
 /**

@@ -32,7 +32,9 @@ export function next$iter_Iterator_u64_u32_u64(self: Gaps<rs.u64, rs.u32, rs.u64
 			break;
 		}
 		const overlap: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] = _6;
-		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+		const _47: rs.u64 = self.queryEnd as rs.u64;
+		const _12: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
+		if (!(typeof _47 === "number" && typeof _12 === "number" ? _47 < _12 : rs.u64Lt(_47, _12))) {
 			const old = self.candidateNeedsPlusOne;
 			self.candidateNeedsPlusOne = true;
 			const candidateNeedsPlusOne: boolean = old;
@@ -45,7 +47,9 @@ export function next$iter_Iterator_u64_u32_u64(self: Gaps<rs.u64, rs.u32, rs.u64
 			} else {
 				curCandidateStart2 = addOne$rangemap_StepFns_u64_u64(curCandidateStart);
 			}
-			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+			const _24: rs.u64 = curCandidateStart2;
+			const _25: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
+			if (typeof _24 === "number" && typeof _25 === "number" ? _24 < _25 : rs.u64Lt(_24, _25)) {
 				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])))), rs.u64Step);
 			}
 		} else {
@@ -59,11 +63,15 @@ export function next$iter_Iterator_u64_u32_u64(self: Gaps<rs.u64, rs.u32, rs.u64
 	(self.candidateStart as rs.u64) = self.queryEnd as rs.u64;
 	const curCandidateStart3: rs.u64 = old4;
 	if (!candidateNeedsPlusOne2) {
-		if (rs.u64Le(curCandidateStart3, self.queryEnd as rs.u64)) {
+		const _50: rs.u64 = self.queryEnd as rs.u64;
+		if (typeof curCandidateStart3 === "number" && typeof _50 === "number" ? curCandidateStart3 <= _50 : rs.u64Le(curCandidateStart3, _50)) {
 			return new rs.RangeInclusive(curCandidateStart3, self.queryEnd as rs.u64, rs.u64Step);
 		}
-	} else if (rs.u64Lt(curCandidateStart3, self.queryEnd as rs.u64)) {
-		return new rs.RangeInclusive(addOne$rangemap_StepFns_u64_u64(curCandidateStart3), self.queryEnd as rs.u64, rs.u64Step);
+	} else {
+		const _48: rs.u64 = self.queryEnd as rs.u64;
+		if (typeof curCandidateStart3 === "number" && typeof _48 === "number" ? curCandidateStart3 < _48 : rs.u64Lt(curCandidateStart3, _48)) {
+			return new rs.RangeInclusive(addOne$rangemap_StepFns_u64_u64(curCandidateStart3), self.queryEnd as rs.u64, rs.u64Step);
+		}
 	}
 	return rs.DONE;
 }
@@ -77,7 +85,9 @@ export function next$iter_Iterator_u64_unit_u64(self: Gaps<rs.u64, undefined, rs
 			break;
 		}
 		const overlap: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] = _6;
-		if (!rs.u64Lt(self.queryEnd as rs.u64, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+		const _47: rs.u64 = self.queryEnd as rs.u64;
+		const _12: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
+		if (!(typeof _47 === "number" && typeof _12 === "number" ? _47 < _12 : rs.u64Lt(_47, _12))) {
 			const old = self.candidateNeedsPlusOne;
 			self.candidateNeedsPlusOne = true;
 			const candidateNeedsPlusOne: boolean = old;
@@ -90,7 +100,9 @@ export function next$iter_Iterator_u64_unit_u64(self: Gaps<rs.u64, undefined, rs
 			} else {
 				curCandidateStart2 = addOne$rangemap_StepFns_u64_u64(curCandidateStart);
 			}
-			if (rs.u64Lt(curCandidateStart2, rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0]))))) {
+			const _24: rs.u64 = curCandidateStart2;
+			const _25: rs.u64 = rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])));
+			if (typeof _24 === "number" && typeof _25 === "number" ? _24 < _25 : rs.u64Lt(_24, _25)) {
 				return new rs.RangeInclusive(curCandidateStart2, subOne$rangemap_StepFns_u64_u64(rs.rangeInclusiveStart(RangeInclusiveEndWrapper.deref$ops_Deref_u64(RangeInclusiveStartWrapper.deref$ops_Deref_u64(overlap[0])))), rs.u64Step);
 			}
 		} else {
@@ -104,11 +116,15 @@ export function next$iter_Iterator_u64_unit_u64(self: Gaps<rs.u64, undefined, rs
 	(self.candidateStart as rs.u64) = self.queryEnd as rs.u64;
 	const curCandidateStart3: rs.u64 = old4;
 	if (!candidateNeedsPlusOne2) {
-		if (rs.u64Le(curCandidateStart3, self.queryEnd as rs.u64)) {
+		const _50: rs.u64 = self.queryEnd as rs.u64;
+		if (typeof curCandidateStart3 === "number" && typeof _50 === "number" ? curCandidateStart3 <= _50 : rs.u64Le(curCandidateStart3, _50)) {
 			return new rs.RangeInclusive(curCandidateStart3, self.queryEnd as rs.u64, rs.u64Step);
 		}
-	} else if (rs.u64Lt(curCandidateStart3, self.queryEnd as rs.u64)) {
-		return new rs.RangeInclusive(addOne$rangemap_StepFns_u64_u64(curCandidateStart3), self.queryEnd as rs.u64, rs.u64Step);
+	} else {
+		const _48: rs.u64 = self.queryEnd as rs.u64;
+		if (typeof curCandidateStart3 === "number" && typeof _48 === "number" ? curCandidateStart3 < _48 : rs.u64Lt(curCandidateStart3, _48)) {
+			return new rs.RangeInclusive(addOne$rangemap_StepFns_u64_u64(curCandidateStart3), self.queryEnd as rs.u64, rs.u64Step);
+		}
 	}
 	return rs.DONE;
 }

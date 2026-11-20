@@ -294,7 +294,9 @@ export function tallies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, rs.listContains(l, { n: 120 }, Tally.eq$cmp_PartialEq) ? 1 : 0);
 	rs.byteVecPush(out, rs.cmpList(Tally.cmp$cmp_Ord)(l, copy) & 0xff);
-	rs.byteVecPush(out, rs.u64Eq(hashOf$collections_LinkedList_lists_Tally(taken), hashOf$collections_LinkedList_lists_Tally(rest)) ? 1 : 0);
+	const _76: rs.u64 = hashOf$collections_LinkedList_lists_Tally(taken);
+	const _78: rs.u64 = hashOf$collections_LinkedList_lists_Tally(rest);
+	rs.byteVecPush(out, (typeof _76 === "number" && typeof _78 === "number" ? _76 === _78 : rs.u64Eq(_76, _78)) ? 1 : 0);
 	const text: rs.String = rs.stringNew();
 	const part = rs.iterToVec(rs.iterTake(rs.iterRev(rs.listIter(rest)), 2), undefined, 4, true);
 	const args5 = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];

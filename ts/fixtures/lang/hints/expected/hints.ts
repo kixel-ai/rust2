@@ -1752,7 +1752,7 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_56 === 0) {
 			walk$ops_Range_u64(new rs.Range(0, n, rs.u64Step), steps, out);
 		} else if (_56 === 1) {
-			walk$ops_Range_u64(new rs.Range({ hi: 0x80000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x80000000, lo: 0 } as rs.u64, n), rs.u64Step), steps, out);
+			walk$ops_Range_u64(new rs.Range({ hi: 0x80000000, lo: 0 } as rs.u64, rs.u64Add({ hi: 0x80000000, lo: 0 } as rs.u64, n) as rs.u64, rs.u64Step), steps, out);
 		} else if (_56 === 2) {
 			walk$ops_Range_i64(new rs.Range(rs.i64Neg(rs.i64Cast(n)), rs.i64Cast(m), rs.i64Step), steps, out);
 		} else {
@@ -1843,11 +1843,13 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}), steps, out);
 		} else if (_190 === 2) {
 			walkFront$iter_SkipWhile_ops_Range_u64_hints_hints_closure3(rs.iterSkipWhile(new rs.Range(0, n, rs.u64Step), (_253: rs.u64): boolean => {
-				return rs.u64Lt(_253, 2);
+				const i19: rs.u64 = _253;
+				return typeof i19 === "number" ? i19 < 2 : rs.u64Lt(i19, 2);
 			}), steps, out);
 		} else if (_190 === 3) {
 			walkFront$iter_TakeWhile_ops_Range_u64_hints_hints_closure4(rs.iterTakeWhile(new rs.Range(0, n, rs.u64Step), (_252: rs.u64): boolean => {
-				return rs.u64Lt(_252, 1);
+				const i18: rs.u64 = _252;
+				return typeof i18 === "number" ? i18 < 1 : rs.u64Lt(i18, 1);
 			}), steps, out);
 		} else if (_190 === 4) {
 			walkFront$iter_MapWhile_ops_Range_u64_hints_hints_closure5(rs.iterMapWhile(new rs.Range(0, n, rs.u64Step), (i17: rs.u64): rs.u64 | undefined => {
@@ -1862,7 +1864,7 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _204: rs.u8 = rs.u8Rem(arm, 6);
 		if (_204 === 0) {
 			walk$iter_Map_ops_Range_u64_hints_hints_closure7(rs.iterMap(new rs.Range(0, n, rs.u64Step), (i16: rs.u64): rs.u64 => {
-				return rs.u64Add(i16, 1);
+				return (typeof i16 === "number" && i16 + 1 <= 9007199254740991 ? i16 + 1 : rs.u64Add(i16, 1)) as rs.u64;
 			}), steps, out);
 		} else if (_204 === 1) {
 			walk$iter_Inspect_ops_Range_u64_hints_hints_closure8(rs.iterInspect(new rs.Range(0, n, rs.u64Step), (_248: rs.u64): undefined => {}), steps, out);
@@ -2235,22 +2237,27 @@ export function typed$array275_u32_hints_reserves_closure5(kind: rs.u8, data: rs
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: rs.u32[] = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u32[] = (i2: rs.u32): rs.u32[] => {
@@ -2307,22 +2314,27 @@ export function typed$hints_Unit_hints_reserves_closure4(kind: rs.u8, data: rs.B
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: Unit.Unit = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => Unit.Unit = (i2: rs.u32): Unit.Unit => {
@@ -2379,22 +2391,27 @@ export function typed$tuple2_u64_u8_hints_reserves_closure3(kind: rs.u8, data: r
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: [rs.u64, rs.u8] = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => [rs.u64, rs.u8] = (i2: rs.u32): [rs.u64, rs.u8] => {
@@ -2451,22 +2468,27 @@ export function typed$tuple3_u8_u8_u8_hints_reserves_closure2(kind: rs.u8, data:
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: [rs.u8, rs.u8, rs.u8] = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => [rs.u8, rs.u8, rs.u8] = (i2: rs.u32): [rs.u8, rs.u8, rs.u8] => {
@@ -2523,22 +2545,27 @@ export function typed$u32_hints_reserves_closure1(kind: rs.u8, data: rs.ByteSlic
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: rs.u32 = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u32 = (i2: rs.u32): rs.u32 => {
@@ -2595,22 +2622,27 @@ export function typed$u8_hints_reserves_closure0(kind: rs.u8, data: rs.ByteSlice
 	const held: rs.u64 = _20[0];
 	const most2: rs.u64 = _20[1];
 	if (coll === 9) {
-		past = rs.u64Add(rs.u64Mul(2, rs.u64Sub(most2, held)), 1);
+		const _28: rs.u64 = rs.u64Mul(2, (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64);
+		past = (typeof _28 === "number" && _28 + 1 <= 9007199254740991 ? _28 + 1 : rs.u64Add(_28, 1)) as rs.u64;
 	} else {
-		past = rs.u64Add(rs.u64Sub(most2, held), 1);
+		const _33: rs.u64 = (typeof most2 === "number" && typeof held === "number" && most2 - held >= 0 ? most2 - held : rs.u64Sub(most2, held)) as rs.u64;
+		past = (typeof _33 === "number" && _33 + 1 <= 9007199254740991 ? _33 + 1 : rs.u64Add(_33, 1)) as rs.u64;
 	}
 	const shape: rs.u8 = rs.u8Rem(at(0), 5);
 	const _42: rs.u8 = rs.u8Rem(at(1), 4);
 	if (_42 === 0) {
 		count = 3;
 	} else if (_42 === 1) {
-		count = rs.u64Add(past, shape === 1 ? 1 : 0);
+		const _47: rs.u64 = past;
+		const _48: rs.u64 = shape === 1 ? 1 : 0;
+		count = (typeof _47 === "number" && typeof _48 === "number" && _47 + _48 <= 9007199254740991 ? _47 + _48 : rs.u64Add(_47, _48)) as rs.u64;
 	} else if (_42 === 2) {
 		count = 4294967295 as rs.u64;
 	} else {
 		count = 4294967296;
 	}
-	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom(rs.u64Sub(rs.u64Min(count, 4294967296), 1)), rs.fmtTryFromIntErrorDebug);
+	const _56: rs.u64 = rs.u64Min(count, 4294967296);
+	const last: rs.u32 = rs.resultUnwrap(rs.u32TryFrom((typeof _56 === "number" && _56 - 1 >= 0 ? _56 - 1 : rs.u64Sub(_56, 1)) as rs.u64), rs.fmtTryFromIntErrorDebug);
 	const seed: rs.u8 = make(7);
 	const calls: rs.Cell<rs.u8> = new rs.Cell(0);
 	const f: (a0: rs.u32) => rs.u8 = (i2: rs.u32): rs.u8 => {

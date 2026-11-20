@@ -1640,7 +1640,7 @@ export function two$mut_u64_ref_u16_unit_ops_ShrAssign_shr_assign_u64_ref_u16(_:
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$mut_u64_ref_u64_unit_ops_AddAssign_add_assign_u64_ref_u64(_: (a0: rs.Place<rs.u64>, a1: rs.u64) => undefined, a: rs.Place<rs.u64>, b: rs.u64): void {
 	((a0: rs.Place<rs.u64>, a1: rs.u64): undefined => {
-		a0.v = rs.u64Add(a0.v, a1);
+		a0.v = (typeof a0.v === "number" && typeof a1 === "number" && a0.v + a1 <= 9007199254740991 ? a0.v + a1 : rs.u64Add(a0.v, a1)) as rs.u64;
 	})(a, b);
 }
 
@@ -1661,7 +1661,7 @@ export function two$mut_u64_u32_unit_ops_ShlAssign_shl_assign_u64_u32(_: (a0: rs
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$mut_u64_u64_unit_ops_AddAssign_add_assign_u64_u64(_: (a0: rs.Place<rs.u64>, a1: rs.u64) => undefined, a: rs.Place<rs.u64>, b: rs.u64): void {
 	((a0: rs.Place<rs.u64>, a1: rs.u64): undefined => {
-		a0.v = rs.u64Add(a0.v, a1);
+		a0.v = (typeof a0.v === "number" && typeof a1 === "number" && a0.v + a1 <= 9007199254740991 ? a0.v + a1 : rs.u64Add(a0.v, a1)) as rs.u64;
 	})(a, b);
 }
 
@@ -1710,7 +1710,7 @@ export function two$mut_u64_u64_unit_ops_RemAssign_rem_assign_u64_u64(_: (a0: rs
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$mut_u64_u64_unit_ops_SubAssign_sub_assign_u64_u64(_: (a0: rs.Place<rs.u64>, a1: rs.u64) => undefined, a: rs.Place<rs.u64>, b: rs.u64): void {
 	((a0: rs.Place<rs.u64>, a1: rs.u64): undefined => {
-		a0.v = rs.u64Sub(a0.v, a1);
+		a0.v = (typeof a0.v === "number" && typeof a1 === "number" && a0.v - a1 >= 0 ? a0.v - a1 : rs.u64Sub(a0.v, a1)) as rs.u64;
 	})(a, b);
 }
 
@@ -2058,7 +2058,7 @@ export function two$ref_u64_ref_u8_u64_ops_Shl_shl_ref_u64_ref_u8(_: (a0: rs.u64
 
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$ref_u64_u64_u64_ops_Sub_sub_ref_u64_u64(_: (a0: rs.u64, a1: rs.u64) => rs.u64, a: rs.u64, b: rs.u64): rs.u64 {
-	return rs.u64Sub(a, b);
+	return (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64;
 }
 
 /** `f(a, b)`, as a generic body calls a function value. */
@@ -2293,7 +2293,7 @@ export function two$u64_i16_u64_ops_Shl_shl_u64_i16(_: (a0: rs.u64, a1: rs.i16) 
 
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$u64_ref_u64_u64_ops_Add_add_u64_ref_u64(_: (a0: rs.u64, a1: rs.u64) => rs.u64, a: rs.u64, b: rs.u64): rs.u64 {
-	return rs.u64Add(a, b);
+	return (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64;
 }
 
 /** `f(a, b)`, as a generic body calls a function value. */
@@ -2313,7 +2313,7 @@ export function two$u64_u32_u64_ops_Shr_shr_u64_u32(_: (a0: rs.u64, a1: rs.u32) 
 
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$u64_u64_u64_ops_Add_add_u64_u64(_: (a0: rs.u64, a1: rs.u64) => rs.u64, a: rs.u64, b: rs.u64): rs.u64 {
-	return rs.u64Add(a, b);
+	return (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64;
 }
 
 /** `f(a, b)`, as a generic body calls a function value. */
@@ -2348,7 +2348,7 @@ export function two$u64_u64_u64_ops_Rem_rem_u64_u64(_: (a0: rs.u64, a1: rs.u64) 
 
 /** `f(a, b)`, as a generic body calls a function value. */
 export function two$u64_u64_u64_ops_Sub_sub_u64_u64(_: (a0: rs.u64, a1: rs.u64) => rs.u64, a: rs.u64, b: rs.u64): rs.u64 {
-	return rs.u64Sub(a, b);
+	return (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64;
 }
 
 /** `f(a, b)`, as a generic body calls a function value. */
@@ -4027,27 +4027,27 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_30 === 0) {
 			const _32: rs.u8 = rs.u8Rem(form, 3);
 			if (_32 === 0) {
-				v = rs.u64Add(a, b);
+				v = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64;
 			} else if (_32 === 1) {
 				v = two$u64_u64_u64_ops_Add_add_u64_u64((a062: rs.u64, a158: rs.u64): rs.u64 => {
-					return rs.u64Add(a062, a158);
+					return (typeof a062 === "number" && typeof a158 === "number" && a062 + a158 <= 9007199254740991 ? a062 + a158 : rs.u64Add(a062, a158)) as rs.u64;
 				}, a, b);
 			} else {
 				v = ((a061: rs.u64, a157: rs.u64): rs.u64 => {
-					return rs.u64Add(a061, a157);
+					return (typeof a061 === "number" && typeof a157 === "number" && a061 + a157 <= 9007199254740991 ? a061 + a157 : rs.u64Add(a061, a157)) as rs.u64;
 				})(a, b);
 			}
 		} else if (_30 === 1) {
 			const _35: rs.u8 = rs.u8Rem(form, 3);
 			if (_35 === 0) {
-				v = rs.u64Sub(a, b);
+				v = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64;
 			} else if (_35 === 1) {
 				v = two$u64_u64_u64_ops_Sub_sub_u64_u64((a060: rs.u64, a156: rs.u64): rs.u64 => {
-					return rs.u64Sub(a060, a156);
+					return (typeof a060 === "number" && typeof a156 === "number" && a060 - a156 >= 0 ? a060 - a156 : rs.u64Sub(a060, a156)) as rs.u64;
 				}, a, b);
 			} else {
 				v = ((a059: rs.u64, a155: rs.u64): rs.u64 => {
-					return rs.u64Sub(a059, a155);
+					return (typeof a059 === "number" && typeof a155 === "number" && a059 - a155 >= 0 ? a059 - a155 : rs.u64Sub(a059, a155)) as rs.u64;
 				})(a, b);
 			}
 		} else if (_30 === 2) {
@@ -4204,14 +4204,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			let x: rs.u64 = a;
 			const _91: rs.u8 = rs.u8Rem(form, 3);
 			if (_91 === 0) {
-				x = rs.u64Add(x, b);
+				x = (typeof x === "number" && typeof b === "number" && x + b <= 9007199254740991 ? x + b : rs.u64Add(x, b)) as rs.u64;
 			} else if (_91 === 1) {
 				two$mut_u64_u64_unit_ops_AddAssign_add_assign_u64_u64((a036: rs.Place<rs.u64>, a134: rs.u64): undefined => {
-					a036.v = rs.u64Add(a036.v, a134);
+					a036.v = (typeof a036.v === "number" && typeof a134 === "number" && a036.v + a134 <= 9007199254740991 ? a036.v + a134 : rs.u64Add(a036.v, a134)) as rs.u64;
 				}, rs.place(() => x, (value26) => x = value26), b);
 			} else {
 				((a035: rs.Place<rs.u64>, a133: rs.u64): undefined => {
-					a035.v = rs.u64Add(a035.v, a133);
+					a035.v = (typeof a035.v === "number" && typeof a133 === "number" && a035.v + a133 <= 9007199254740991 ? a035.v + a133 : rs.u64Add(a035.v, a133)) as rs.u64;
 				})(rs.place(() => x, (value25) => x = value25), b);
 			}
 			v = x;
@@ -4219,14 +4219,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			let x2: rs.u64 = a;
 			const _99: rs.u8 = rs.u8Rem(form, 3);
 			if (_99 === 0) {
-				x2 = rs.u64Sub(x2, b);
+				x2 = (typeof x2 === "number" && typeof b === "number" && x2 - b >= 0 ? x2 - b : rs.u64Sub(x2, b)) as rs.u64;
 			} else if (_99 === 1) {
 				two$mut_u64_u64_unit_ops_SubAssign_sub_assign_u64_u64((a034: rs.Place<rs.u64>, a132: rs.u64): undefined => {
-					a034.v = rs.u64Sub(a034.v, a132);
+					a034.v = (typeof a034.v === "number" && typeof a132 === "number" && a034.v - a132 >= 0 ? a034.v - a132 : rs.u64Sub(a034.v, a132)) as rs.u64;
 				}, rs.place(() => x2, (value24) => x2 = value24), b);
 			} else {
 				((a033: rs.Place<rs.u64>, a131: rs.u64): undefined => {
-					a033.v = rs.u64Sub(a033.v, a131);
+					a033.v = (typeof a033.v === "number" && typeof a131 === "number" && a033.v - a131 >= 0 ? a033.v - a131 : rs.u64Sub(a033.v, a131)) as rs.u64;
 				})(rs.place(() => x2, (value23) => x2 = value23), b);
 			}
 			v = x2;
@@ -4353,27 +4353,27 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_30 === 24) {
 			const _175: rs.u8 = rs.u8Rem(form, 3);
 			if (_175 === 0) {
-				v = rs.u64Add(a, b);
+				v = (typeof a === "number" && typeof b === "number" && a + b <= 9007199254740991 ? a + b : rs.u64Add(a, b)) as rs.u64;
 			} else if (_175 === 1) {
 				v = two$u64_ref_u64_u64_ops_Add_add_u64_ref_u64((a016: rs.u64, a114: rs.u64): rs.u64 => {
-					return rs.u64Add(a016, a114);
+					return (typeof a016 === "number" && typeof a114 === "number" && a016 + a114 <= 9007199254740991 ? a016 + a114 : rs.u64Add(a016, a114)) as rs.u64;
 				}, a, b);
 			} else {
 				v = ((a015: rs.u64, a113: rs.u64): rs.u64 => {
-					return rs.u64Add(a015, a113);
+					return (typeof a015 === "number" && typeof a113 === "number" && a015 + a113 <= 9007199254740991 ? a015 + a113 : rs.u64Add(a015, a113)) as rs.u64;
 				})(a, b);
 			}
 		} else if (_30 === 25) {
 			const _181: rs.u8 = rs.u8Rem(form, 3);
 			if (_181 === 0) {
-				v = rs.u64Sub(a, b);
+				v = (typeof a === "number" && typeof b === "number" && a - b >= 0 ? a - b : rs.u64Sub(a, b)) as rs.u64;
 			} else if (_181 === 1) {
 				v = two$ref_u64_u64_u64_ops_Sub_sub_ref_u64_u64((a014: rs.u64, a112: rs.u64): rs.u64 => {
-					return rs.u64Sub(a014, a112);
+					return (typeof a014 === "number" && typeof a112 === "number" && a014 - a112 >= 0 ? a014 - a112 : rs.u64Sub(a014, a112)) as rs.u64;
 				}, a, b);
 			} else {
 				v = ((a013: rs.u64, a111: rs.u64): rs.u64 => {
-					return rs.u64Sub(a013, a111);
+					return (typeof a013 === "number" && typeof a111 === "number" && a013 - a111 >= 0 ? a013 - a111 : rs.u64Sub(a013, a111)) as rs.u64;
 				})(a, b);
 			}
 		} else if (_30 === 26) {
@@ -4419,14 +4419,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			let x11: rs.u64 = a;
 			const _216: rs.u8 = rs.u8Rem(form, 3);
 			if (_216 === 0) {
-				x11 = rs.u64Add(x11, b);
+				x11 = (typeof x11 === "number" && typeof b === "number" && x11 + b <= 9007199254740991 ? x11 + b : rs.u64Add(x11, b)) as rs.u64;
 			} else if (_216 === 1) {
 				two$mut_u64_ref_u64_unit_ops_AddAssign_add_assign_u64_ref_u64((a06: rs.Place<rs.u64>, a16: rs.u64): undefined => {
-					a06.v = rs.u64Add(a06.v, a16);
+					a06.v = (typeof a06.v === "number" && typeof a16 === "number" && a06.v + a16 <= 9007199254740991 ? a06.v + a16 : rs.u64Add(a06.v, a16)) as rs.u64;
 				}, rs.place(() => x11, (value6) => x11 = value6), b);
 			} else {
 				((a05: rs.Place<rs.u64>, a15: rs.u64): undefined => {
-					a05.v = rs.u64Add(a05.v, a15);
+					a05.v = (typeof a05.v === "number" && typeof a15 === "number" && a05.v + a15 <= 9007199254740991 ? a05.v + a15 : rs.u64Add(a05.v, a15)) as rs.u64;
 				})(rs.place(() => x11, (value5) => x11 = value5), b);
 			}
 			v = x11;

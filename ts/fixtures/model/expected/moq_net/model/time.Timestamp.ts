@@ -6,7 +6,9 @@ import type * as TimeOverflow from "../../moq_net/model/time.TimeOverflow.ts";
 import * as Timescale from "../../moq_net/model/time.Timescale.ts";
 
 export function eq$cmp_PartialEq(self: Timestamp, other: Timestamp): boolean {
-	if (!rs.u64Eq(self.value, other.value)) {
+	const _4: rs.u64 = self.value;
+	const _5: rs.u64 = other.value;
+	if (!(typeof _4 === "number" && typeof _5 === "number" ? _4 === _5 : rs.u64Eq(_4, _5))) {
 		return false;
 	}
 	return Timescale.eq$cmp_PartialEq(self.scale, other.scale);
@@ -115,7 +117,9 @@ export function isZero(self: Timestamp): boolean {
  * value would exceed `2^61 - 1`.
  */
 export function convert(self: Timestamp, newScale: Timescale.Timescale): rs.Result<Timestamp, TimeOverflow.TimeOverflow> {
-	if (!rs.u64Eq(self.scale._0, newScale._0)) {
+	const _4: rs.u64 = self.scale._0;
+	const _6: rs.u64 = newScale._0;
+	if (!(typeof _4 === "number" && typeof _6 === "number" ? _4 === _6 : rs.u64Eq(_4, _6))) {
 		const _8: rs.u128 | undefined = rs.u128CheckedMul(rs.u128Cast(self.value), rs.u128Cast(newScale._0));
 		if (_8 === undefined) {
 			return rs.Err({});
@@ -159,7 +163,9 @@ export function asNanos(self: Timestamp): rs.u128 {
  * if the scales differ.
  */
 export function checkedAdd(self: Timestamp, rhs: Timestamp): rs.Result<Timestamp, TimeOverflow.TimeOverflow> {
-	if (!rs.u64Ne(self.scale._0, rhs.scale._0)) {
+	const _4: rs.u64 = self.scale._0;
+	const _6: rs.u64 = rhs.scale._0;
+	if (!(typeof _4 === "number" && typeof _6 === "number" ? _4 !== _6 : rs.u64Ne(_4, _6))) {
 		const _8: rs.u64 | undefined = rs.u64CheckedAdd(self.value, rhs.value);
 		if (_8 === undefined) {
 			return rs.Err({});
@@ -174,7 +180,9 @@ export function checkedAdd(self: Timestamp, rhs: Timestamp): rs.Result<Timestamp
  * scales differ.
  */
 export function checkedSub(self: Timestamp, rhs: Timestamp): rs.Result<Timestamp, TimeOverflow.TimeOverflow> {
-	if (!rs.u64Ne(self.scale._0, rhs.scale._0)) {
+	const _4: rs.u64 = self.scale._0;
+	const _6: rs.u64 = rhs.scale._0;
+	if (!(typeof _4 === "number" && typeof _6 === "number" ? _4 !== _6 : rs.u64Ne(_4, _6))) {
 		const _8: rs.u64 | undefined = rs.u64CheckedSub(self.value, rhs.value);
 		if (_8 === undefined) {
 			return rs.Err({});
@@ -224,7 +232,9 @@ export function partialCmp$cmp_PartialOrd(self: Timestamp, other: Timestamp): rs
  *   `(scale, value)`, keeping `Ord` consistent with the field-wise `Eq`/`Hash`.
  */
 export function cmp$cmp_Ord(self: Timestamp, other: Timestamp): rs.Ordering {
-	if (!rs.u64Eq(self.scale._0, other.scale._0)) {
+	const _4: rs.u64 = self.scale._0;
+	const _6: rs.u64 = other.scale._0;
+	if (!(typeof _4 === "number" && typeof _6 === "number" ? _4 === _6 : rs.u64Eq(_4, _6))) {
 		return rs.orderingThen(rs.orderingThen(rs.cmp(rs.u128Mul(rs.u128Cast(self.value), rs.u128Cast(other.scale._0)), rs.u128Mul(rs.u128Cast(other.value), rs.u128Cast(self.scale._0))), (): rs.Ordering => {
 			return rs.cmp(self.scale._0, other.scale._0);
 		}, true), (): rs.Ordering => {

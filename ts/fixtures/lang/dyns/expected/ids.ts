@@ -430,13 +430,14 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtStr), " "]).v);
 		}
 		const keys: WithId.WithId[] = [{ id: x2, n: a }, { id: y, n: b }, { id: x2, n: b }];
+		const _632: rs.Iter<WithId.WithId> = rs.iterSlice(keys);
 		const _636: rs.Slice<WithId.WithId> = rs.sliceFrom(keys);
 		const _628: (a0: WithId.WithId, a1: WithId.WithId) => rs.Ordering = (k: WithId.WithId, l: WithId.WithId): rs.Ordering => {
 			const _616: rs.Vec<rs.u128> = words(k.id);
 			const _95: rs.Vec<rs.u128> = words(l.id);
 			return rs.orderingThen(rs.cmpSlice(rs.cmp)(_616, _95), rs.cmp(k.n, l.n));
 		};
-		const part6 = rs.iterToVec(rs.iterMap(rs.iterFlatMap(rs.iterSlice(keys), (k2: WithId.WithId): rs.Iter<[WithId.WithId, WithId.WithId]> => {
+		const part6 = rs.iterToVec(rs.iterMap(rs.iterFlatMap(_632, (k2: WithId.WithId): rs.Iter<[WithId.WithId, WithId.WithId]> => {
 			return rs.iterMap(rs.iterSlice(rs.sliceItems(_636)), (l2: WithId.WithId): [WithId.WithId, WithId.WithId] => {
 				return [k2, l2] as [WithId.WithId, WithId.WithId];
 			});

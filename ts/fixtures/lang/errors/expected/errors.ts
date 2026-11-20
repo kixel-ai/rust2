@@ -9,7 +9,7 @@ import { fromStr$1t58fis as num_fromStr$1t58fis } from "./core/num.ts";
 import { eq$1uroq6x as num_error_eq$1uroq6x } from "./core/num/error.ts";
 import { map$1hw1osb as option_map$1hw1osb, map$0jqf1o0 as option_map$0jqf1o0, map$0p4jgzx as option_map$0p4jgzx } from "./core/option.ts";
 import { eq$0ypn0py as result_eq$0ypn0py, eq$1amzj8d as result_eq$1amzj8d, eq$1h622n4 as result_eq$1h622n4, eq$0q0qbov as result_eq$0q0qbov, eq$1w4olsu as result_eq$1w4olsu, eq$1nt6phd as result_eq$1nt6phd, eq$0y6o605 as result_eq$0y6o605, eq$1ow2tmy as result_eq$1ow2tmy, eq$17fo3dq as result_eq$17fo3dq, eq$0trkzzw as result_eq$0trkzzw, eq$1fss0tv as result_eq$1fss0tv, eq$0rz6big as result_eq$0rz6big, eq$06v73px as result_eq$06v73px, eq$096f56j as result_eq$096f56j, eq$031vf96 as result_eq$031vf96, eq$1qyqhny as result_eq$1qyqhny, eq$0hvarbg as result_eq$0hvarbg, eq$03c8d7v as result_eq$03c8d7v, err$11tr79p, err$0bvotqj, err$1tv7qwu, err$069ojhs, map$1w6ihbb as result_map$1w6ihbb, map$18dk705 as result_map$18dk705, map$07r5pce as result_map$07r5pce, mapErr$1102tun as result_mapErr$1102tun, mapErr$0ka0di9 as result_mapErr$0ka0di9, mapErr$1lqaapp as result_mapErr$1lqaapp, mapErr$09oysgi as result_mapErr$09oysgi, mapErr$1xpyw31 as result_mapErr$1xpyw31, clone$0688qis as result_clone$0688qis } from "./core/result.ts";
-import { parse$1yfzdza, parse$1kyj9pm, parse$02m1946, parse$04z9euf, parse$092epd5, parse$1brosjp } from "./core/str.ts";
+import { parse$1yfzdza, parse$1kyj9pm, parse$02m1946, parse$04z9euf, parse$1p8sskw, parse$1brosjp } from "./core/str.ts";
 import { eq$1lr55px as str_error_eq$1lr55px } from "./core/str/error.ts";
 import type * as Coded from "./errors.Coded.ts";
 import * as Failure from "./errors.Failure.ts";
@@ -496,7 +496,7 @@ export function parsed$u64(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u64, rs.P
 	let back = s2.length;
 	const v: rs.Vec<rs.Result<rs.u64, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 16);
 	while (!(front >= back)) {
-		const y: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(s2[front++]);
+		const y: rs.Result<rs.u64, rs.ParseIntError> = parse$1p8sskw(s2[front++]);
 		v.items.push(y);
 	}
 	return v;
@@ -616,8 +616,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front6 = 0;
 		let back6 = s13.length;
 		const f6 = (s12: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
+			const _314: rs.Result<boolean, rs.ParseBoolError> = parse$1yfzdza(s12);
 			const _610: string = s12;
-			return result_map$1w6ihbb(parse$1yfzdza(s12), (_210: boolean): rs.Result<rs.char, rs.ParseCharError> => {
+			return result_map$1w6ihbb(_314, (_210: boolean): rs.Result<rs.char, rs.ParseCharError> => {
 				return rs.charFromStr(_610);
 			});
 		};
@@ -687,8 +688,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front = 0;
 		let back = s2.length;
 		const f = (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
+			const _3: boolean = !(s.length === 0);
 			const _73: string = s;
-			return then$11t2u23(!(s.length === 0), (): rs.Result<rs.u8, rs.ParseIntError> => {
+			return then$11t2u23(_3, (): rs.Result<rs.u8, rs.ParseIntError> => {
 				return parse$1brosjp(_73);
 			});
 		};

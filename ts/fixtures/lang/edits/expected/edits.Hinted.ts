@@ -15,8 +15,9 @@ export interface Hinted {
 }
 
 export function next$iter_Iterator(self: Hinted): Tracked.Tracked | rs.Done {
+	const _2: boolean = self.i < self.n;
 	const _7: rs.RefCell<rs.ByteVec> = self.log;
-	return rs.iterFromOption(then$0p4vbxd(self.i < self.n, (): Tracked.Tracked => {
+	return rs.iterFromOption(then$0p4vbxd(_2, (): Tracked.Tracked => {
 		self.i = rs.u8Add(self.i, 1);
 		return new Tracked.Tracked(rs.u8Add(208, self.i), 0, _7);
 	}));
