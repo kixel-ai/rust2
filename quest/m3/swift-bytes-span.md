@@ -8,6 +8,8 @@ compiler feature asked of a consumer's build.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#902](https://github.com/kixel-ai/rust2/pull/902): ✅ kept, waiting on Swift stabilizing `Lifetimes` and `AddressableTypes` (rejected: adopting the experimental flags now, which puts config in every consumer's build; dropping it).
+
 Found by [Swift spans](https://github.com/kixel-ai/rust2/pull/902), which takes slices as
 `Span` and gave `Bytes` the scoped `withSpan`. A property returning a `Span` needs
 `@_lifetime(borrow self)`, which Swift 6.4 builds only under
