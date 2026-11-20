@@ -380,6 +380,7 @@ static api_Log Print(void);
 static void channel(void);
 static void drive(void);
 static void readers(void);
+static void streams(void);
 static void local_later(const api_Local *local);
 static api_buf hex(api_buf bytes);
 static api_buf escaped(api_buf path);
@@ -585,6 +586,64 @@ static void readers(void) {
 	} else {
 		print("sought error ", landed_err, "\n");
 	}
+}
+
+/* A countdown's next count, polled until ready: false once it ends. */
+static bool countdown_next(api_Countdown *countdown, uint32_t *count) {
+	api_Countdown_next_future *next = api_Countdown_next(countdown, NULL);
+	api_option_u32 out;
+	while (api_Countdown_next_poll(next, (api_waker){0}, &out) == API_POLL_PENDING) {
+	}
+	api_Countdown_next_future_free(next);
+	*count = out.value;
+	return out.some;
+}
+
+/* Streams, each next polled in turn, as C has no iteration of its own. */
+static void streams(void) {
+	uint32_t count;
+	api_Countdown *countdown = api_Countdown_new(3);
+	printf("countdown");
+	while (countdown_next(countdown, &count)) {
+		printf(" %u", (unsigned)count);
+	}
+	printf("\n");
+	api_Countdown_free(countdown);
+	countdown = api_Countdown_new(5);
+	while (countdown_next(countdown, &count) && count != 4) {
+	}
+	countdown_next(countdown, &count);
+	printf("countdown after break %u\n", (unsigned)count);
+	api_Countdown_free(countdown);
+	api_Channel *channel = api_Channel_new();
+	api_Feed *feed = api_Channel_feed(channel, NULL);
+	const char *firsts[2] = {"a", "c"};
+	for (int i = 0; i < 2; i++) {
+		api_Channel_send(channel, str(firsts[i]), NULL);
+		for (;;) {
+			api_Feed_next_future *next = api_Feed_next(feed, NULL);
+			api_buf payload;
+			api_Error err;
+			api_poll poll;
+			while ((poll = api_Feed_next_poll(next, (api_waker){0}, &payload, &err)) == API_POLL_PENDING) {
+			}
+			api_Feed_next_future_free(next);
+			if (poll == API_POLL_ERROR) {
+				print("feed error ", api_Error_to_string(&err), "\n");
+				api_Error_free(&err);
+				break;
+			}
+			if (payload.ptr == NULL) {
+				printf("feed end\n");
+				break;
+			}
+			char first = payload.len == 1 ? (char)payload.ptr[0] : 0;
+			print("feed ", payload, "\n");
+			api_Channel_send(channel, str(first == 'a' ? "b" : first == 'b' ? "!" : ""), NULL);
+		}
+	}
+	api_Feed_free(feed);
+	api_Channel_free(channel);
 }
 
 /* Futures of a value that is not Send, polled on this thread until each is ready. */
