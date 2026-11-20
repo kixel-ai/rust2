@@ -137,6 +137,32 @@ class ArrayU8x6(bytes: ByteArray) {
 		fun new(unitsPerSecond: kotlin.ULong): moq.Timescale
 	}
 }
+class Timestamp internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun value(): kotlin.ULong
+	fun scale(): moq.Timescale?
+	fun isZero(): kotlin.Boolean
+	fun convert(newScale: moq.Timescale): moq.Timestamp
+	fun asScale(target: moq.Timescale): java.math.BigInteger
+	fun asSecs(): kotlin.ULong
+	fun asMillis(): java.math.BigInteger
+	fun asMicros(): java.math.BigInteger
+	fun asNanos(): java.math.BigInteger
+	fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
+	fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
+	companion object {
+		val ZERO: moq.Timestamp
+		fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
+		fun unscaled(key: kotlin.ULong): moq.Timestamp
+		fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
+		fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
+		fun fromMillis(millis: kotlin.ULong): moq.Timestamp
+		fun fromMicros(micros: kotlin.ULong): moq.Timestamp
+		fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
+	}
+}
 @kotlin.jvm.JvmInline value class ClockInstant internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun elapsed(): moq.Duration
@@ -424,6 +450,28 @@ class StatsWithdrawals internal constructor() {
 		fun default(): moq.StatsWithdrawals
 	}
 }
+class TransportReceiveWindow internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val connectionGet: kotlin.ULong?
+	fun connectionSet(value: kotlin.ULong?): moq.TransportReceiveWindow
+	val streamGet: kotlin.ULong
+	fun streamSet(value: kotlin.ULong): moq.TransportReceiveWindow
+	companion object {
+		fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
+	}
+}
+class TransportLimits internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val receiveWindowGet: kotlin.ULong?
+	fun receiveWindowSet(value: kotlin.ULong?): moq.TransportLimits
+	companion object {
+		fun default(): moq.TransportLimits
+	}
+}
 @kotlin.jvm.JvmInline value class BandwidthRate internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun asBps(): kotlin.ULong
@@ -494,6 +542,17 @@ data class TrackRange(val start: moq.TrackAnchor, val end: moq.TrackAnchor?) {
 data class HangCatalogAac(val profile: kotlin.UByte) {
 	final override fun toString(): kotlin.String
 	fun debug(): kotlin.String
+}
+class HangCatalogClock internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	val wallGet: moq.Timestamp
+	fun wallSet(value: moq.Timestamp): moq.HangCatalogClock
+	fun wallClock(pts: moq.Timestamp): moq.ClockWall
+	companion object {
+		fun new(wall: moq.Timestamp): moq.HangCatalogClock
+	}
 }
 @kotlin.jvm.JvmInline value class HangCatalogPriorities internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
@@ -1574,34 +1633,6 @@ class Error internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 		fun fromTransportMemoryError(err: moq.TransportMemoryError): moq.Error
 	}
 }
-class Timestamp internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.Timestamp
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	fun value(): kotlin.ULong
-	fun scale(): moq.Timescale?
-	fun isZero(): kotlin.Boolean
-	fun convert(newScale: moq.Timescale): moq.Timestamp
-	fun asScale(target: moq.Timescale): java.math.BigInteger
-	fun asSecs(): kotlin.ULong
-	fun asMillis(): java.math.BigInteger
-	fun asMicros(): java.math.BigInteger
-	fun asNanos(): java.math.BigInteger
-	fun checkedAdd(rhs: moq.Timestamp): moq.Timestamp
-	fun checkedSub(rhs: moq.Timestamp): moq.Timestamp
-	companion object {
-		val ZERO: moq.Timestamp
-		fun new(value: kotlin.ULong, scale: moq.Timescale): moq.Timestamp
-		fun unscaled(key: kotlin.ULong): moq.Timestamp
-		fun fromScale(value: kotlin.ULong, unitsPerSecond: kotlin.ULong): moq.Timestamp
-		fun fromSecs(seconds: kotlin.ULong): moq.Timestamp
-		fun fromMillis(millis: kotlin.ULong): moq.Timestamp
-		fun fromMicros(micros: kotlin.ULong): moq.Timestamp
-		fun fromNanos(nanos: kotlin.ULong): moq.Timestamp
-	}
-}
 class Version internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	final override fun toString(): kotlin.String
@@ -2446,32 +2477,6 @@ class TransportProbe internal constructor(raw: Long, lent: Boolean = false) : Au
 	companion object {
 		fun default(): moq.TransportProbe
 		fun new(): moq.TransportProbe
-	}
-}
-class TransportReceiveWindow internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TransportReceiveWindow
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val connectionGet: kotlin.ULong?
-	fun connectionSet(value: kotlin.ULong?)
-	val streamGet: kotlin.ULong
-	fun streamSet(value: kotlin.ULong)
-	companion object {
-		fun new(connection: kotlin.ULong?, stream: kotlin.ULong): moq.TransportReceiveWindow
-	}
-}
-class TransportLimits internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.TransportLimits
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val receiveWindowGet: kotlin.ULong?
-	fun receiveWindowSet(value: kotlin.ULong?)
-	companion object {
-		fun default(): moq.TransportLimits
 	}
 }
 class BandwidthLimit internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -3430,19 +3435,6 @@ class HangCatalogBinaryConfig internal constructor(raw: Long, lent: Boolean = fa
 	fun extraSet(value: kotlin.collections.List<kotlin.Pair<kotlin.String, moq.Json>>)
 	companion object {
 		fun new(mode: moq.HangCatalogMode): moq.HangCatalogBinaryConfig
-	}
-}
-class HangCatalogClock internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	fun debug(): kotlin.String
-	fun clone(): moq.HangCatalogClock
-	override fun equals(other: kotlin.Any?): kotlin.Boolean
-	override fun hashCode(): kotlin.Int
-	val wallGet: moq.Timestamp
-	fun wallSet(value: moq.Timestamp)
-	fun wallClock(pts: moq.Timestamp): moq.ClockWall
-	companion object {
-		fun new(wall: moq.Timestamp): moq.HangCatalogClock
 	}
 }
 class HangCatalogContainer internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
