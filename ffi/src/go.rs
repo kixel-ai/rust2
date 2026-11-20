@@ -2582,7 +2582,10 @@ impl<'a> Gen<'a> {
 				_ => format!("\treturn {}\n", self.lower_scalar(&method.ok, &call)),
 			};
 			self.export(&export, &c_params, &ret_ty, &call);
-			table.push(format!("\tv.{} = (*[0]byte)(C.{export})\n", cgo_field(method.name())));
+			table.push(format!(
+				"\tv.{} = (*[0]byte)(C.{export})\n",
+				cgo_field(&abi::member(method))
+			));
 		}
 		self.distinct(&rust, &members);
 		let text = format!(

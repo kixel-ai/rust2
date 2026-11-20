@@ -2052,10 +2052,10 @@ pub(crate) const MACROS: &[&str] = &[
 	"assert", "errno", "i386", "linux", "offsetof", "stderr", "stdin", "stdout", "unix",
 ];
 
-/// A name that C or C++, which includes the header, would read as a keyword with `_`
-/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
-/// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
-/// another, so no two names escape to one.
+/// A name that C or C++, which includes the header, would read as a keyword or macro or
+/// reserve for itself with `_` appended, and one starting with a digit with `_` prepended.
+/// Appended, since MSVC reads `_inline`, `_asm`, and `_try` as keywords too; a name
+/// already ending in `_` takes another, so no two names escape to one.
 pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -2163,8 +2163,36 @@ pub(crate) fn escape(name: &str) -> String {
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) || MACROS.contains(&name) => format!("{name}_"),
+		_ if out || name.ends_with('_') || reserved(name) || KEYWORDS.contains(&name) || MACROS.contains(&name) => {
+			format!("{name}_")
+		}
 		_ => name.to_string(),
+	}
+}
+
+/// Whether C and C++ reserve a name for the implementation, as `_Bool` and `__cplusplus`:
+/// one starting with `__` or `_` and an uppercase letter. Appending keeps it reserved, so
+/// escaping one by appending never meets a name the escape leaves alone.
+pub(crate) fn reserved(name: &str) -> bool {
+	let mut chars = name.chars();
+	chars.next() == Some('_') && chars.next().is_some_and(|c| c == '_' || c.is_ascii_uppercase())
+}
+
+/// The keywords a Rust name takes raw, `r#type`.
+pub(crate) const RUST_KEYWORDS: &[&str] = &[
+	"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
+	"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod", "move",
+	"mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type", "typeof",
+	"unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+];
+
+/// A callback method's member of its `<callback>_vtable`, which C and each binding's Rust
+/// glue name alike: its [`escape`]d name, with `_` appended to a Rust keyword too and to
+/// `free`, the table's own. Escaping stays injective, so no two members share a name.
+pub(crate) fn member(method: &Function) -> String {
+	match method.name() {
+		name if name == "free" || RUST_KEYWORDS.contains(&name) => format!("{name}_"),
+		name => escape(name),
 	}
 }
 
@@ -2179,7 +2207,16 @@ pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest, unique};
+	use super::{apart, escape, shortest, unique};
+
+	#[test]
+	fn reserved_names_escape_apart() {
+		assert_eq!(escape("_Bool"), "_Bool_");
+		assert_eq!(escape("__cplusplus"), "__cplusplus_");
+		assert_eq!(escape("__cplusplus_"), "__cplusplus__");
+		assert_eq!(escape("_bool"), "_bool");
+		assert_eq!(escape("_1"), "_1");
+	}
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {
