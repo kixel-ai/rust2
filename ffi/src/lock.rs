@@ -55,10 +55,44 @@ pub(crate) fn variants(
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
 			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
-				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
+				self::variant(names, &e.shown, &v.name, &name);
 			}
 		}
 	}
+}
+
+/// Record the name a binding gives the field `field` of the record at `owner`.
+pub(crate) fn field(names: &mut BTreeMap<String, String>, owner: &[String], field: &str, name: &str) {
+	names.insert(format!("{} / field {field}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the variant `variant` of the enum at `owner`.
+pub(crate) fn variant(names: &mut BTreeMap<String, String>, owner: &[String], variant: &str, name: &str) {
+	names.insert(format!("{} / variant {variant}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the field `field` of the data variant `variant`.
+pub(crate) fn variant_field(
+	names: &mut BTreeMap<String, String>,
+	owner: &[String],
+	variant: &str,
+	field: &str,
+	name: &str,
+) {
+	let key = format!("{} / variant {variant} / field {field}", type_key(owner));
+	names.insert(key, name.to_string());
+}
+
+/// Record the name a binding gives the member of the std trait `t`, such as `Clone`, on the
+/// type at `owner`, keyed by the trait, since each exports one member a binding names.
+pub(crate) fn trait_member(names: &mut BTreeMap<String, String>, owner: &[String], t: &str, name: &str) {
+	names.insert(format!("{} / {t}", type_key(owner)), name.to_string());
+}
+
+/// Record the name a binding gives the tuple of `elements`, keyed by its Rust spelling.
+pub(crate) fn tuple(names: &mut BTreeMap<String, String>, abi: &Abi<'_>, elements: &[Type], name: &str) {
+	let key = format!("tuple {}", abi.spell(&Type::Tuple(elements.to_vec())));
+	names.insert(key, name.to_string());
 }
 
 /// Record the final public name of a function or field accessor.

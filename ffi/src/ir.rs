@@ -39,6 +39,16 @@ pub(crate) struct Reached {
 }
 
 impl Api {
+	/// The path an exported record, enum, or object is shown at, which keys its names.
+	pub(crate) fn shown(&self, ty: &Type) -> &Path {
+		match ty {
+			Type::Record(i) => &self.records[*i].shown,
+			Type::Enum(i) => &self.enums[*i].shown,
+			Type::Object(i) => &self.objects[*i].shown,
+			ty => unreachable!("only an exported type is shown: {ty:?}"),
+		}
+	}
+
 	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
 	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
 	/// enums already walked, as `(is_enum, index)`.

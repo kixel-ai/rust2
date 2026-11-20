@@ -399,17 +399,7 @@ impl Emitter<'_> {
 
 	/// The exception a call failing with `err` raises.
 	fn exception(&self, err: &Type) -> String {
-		format!("{}Exception", self.error_name(err))
-	}
-
-	fn error_name(&self, ty: &Type) -> String {
-		match unref(ty).base() {
-			Type::String | Type::Str => "String".to_string(),
-			Type::Bounds(int) => format!("Bounds{}", int_name(*int)),
-			Type::List(_, item) => format!("List{}", self.error_name(item)),
-			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => self.t.type_name(LANGUAGE, ty).to_string(),
-			ty => panic!("an error of {ty:?}"),
-		}
+		self.t.error(LANGUAGE, err).to_string()
 	}
 
 	/// The Python of a format's pieces: a string expression.
@@ -544,20 +534,20 @@ impl Emitter<'_> {
 				format!("api.{name}({})", args.join(", "))
 			}
 			Kind::Variant(en, v, fields) => {
-				let name = self.t.type_name(LANGUAGE, &Type::Enum(*en)).to_string();
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
+				let variant_name = self.t.variant(LANGUAGE, &Type::Enum(*en), &variant.name).to_string();
+				// A plain enum's variant is a member of a Python `Enum`, not a class to call.
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
-					return format!("api.{name}.{}", upper(&variant.name));
+					return format!("api.{variant_name}");
 				}
 				let field_types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
-				let variant_name = variant.name.clone();
 				let args: Vec<String> = fields
 					.iter()
 					.zip(&field_types)
 					.map(|(f, ty)| self.value(f, ty, out))
 					.collect();
-				format!("api.{name}.{variant_name}({})", args.join(", "))
+				format!("api.{variant_name}({})", args.join(", "))
 			}
 			Kind::Bound(kind, value) => {
 				let Type::Bound(int) = unref(&e.ty) else {
@@ -572,8 +562,9 @@ impl Emitter<'_> {
 				format!("api.Bound{}(api.Bound.{kind}, {v})", int_name(*int))
 			}
 			Kind::Default => {
-				let name = self.t.type_name(LANGUAGE, unref(&e.ty).base()).to_string();
-				format!("api.{name}.default()")
+				let ty = unref(&e.ty).base();
+				let name = self.t.type_name(LANGUAGE, ty);
+				format!("api.{name}.{}()", self.t.member(LANGUAGE, ty, "Default"))
 			}
 			Kind::Var(name) => match self.mutated.contains(name) {
 				// Passed `&mut`, the wrapper itself; read, its value.
@@ -592,7 +583,11 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				format!("{b}.{}", self.t.api.records[*r].fields[*i].name)
+				format!(
+					"{b}.{}",
+					self.t
+						.field(LANGUAGE, &base.ty, &self.t.api.records[*r].fields[*i].name)
+				)
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base, out);
@@ -604,7 +599,7 @@ impl Emitter<'_> {
 			Kind::Clone(inner) => {
 				let v = self.expr(inner, out);
 				match unref(&inner.ty).base() {
-					Type::Object(_) => format!("{v}.clone()"),
+					ty @ Type::Object(_) => format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Clone")),
 					Type::List(..) => format!("list({v})"),
 					_ => format!("copy.copy({v})"),
 				}
@@ -772,17 +767,6 @@ impl Emitter<'_> {
 			_ => format!("{target}.{name}({})", args.join(", ")),
 		}
 	}
-}
-
-fn upper(name: &str) -> String {
-	let mut out = String::new();
-	for (i, c) in name.chars().enumerate() {
-		if c.is_uppercase() && i > 0 {
-			out.push('_');
-		}
-		out.push(c.to_ascii_uppercase());
-	}
-	out
 }
 
 fn int_name(int: Int) -> String {

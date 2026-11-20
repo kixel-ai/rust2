@@ -268,8 +268,8 @@ fn ident(name: &str) -> String {
 	}
 }
 
-/// A Rust name in camel case, as the binding names a field or a function: `into_label` is
-/// `intoLabel`, and `0` is `_0`.
+/// A function `transcript.rs` defines in camel case, as its hand-written `hook` names it:
+/// `into_label` is `intoLabel`.
 fn camel(name: &str) -> String {
 	if name.starts_with(|c: char| c.is_ascii_digit()) {
 		return format!("_{name}");
@@ -285,24 +285,6 @@ fn camel(name: &str) -> String {
 		out.push_str(chars.as_str());
 	}
 	out
-}
-
-/// Names each distinct, as the binding keeps a record's fields apart: `foo` and `foo_`,
-/// both `foo` in camel case, are `foo` and `foo2`.
-fn distinct(names: Vec<String>) -> Vec<String> {
-	let mut taken = BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
 }
 
 /// A list of `ty` held as a typed array: its item, if so.
@@ -781,7 +763,7 @@ impl Emitter<'_> {
 		if !traits.display {
 			panic!("Display of {}, which has none", self.t.rust(ty));
 		}
-		format!("{module}.toString({v})")
+		format!("{module}.{}({v})", self.t.member(LANGUAGE, ty, "Display"))
 	}
 
 	/// `v` as Rust's `Debug` prints a value of `ty`.
@@ -843,7 +825,7 @@ impl Emitter<'_> {
 					panic!("Debug of {}, which has none", self.t.rust(&ty));
 				}
 				let module = self.module(&ty);
-				format!("{module}.debug({v})")
+				format!("{module}.{}({v})", self.t.member(LANGUAGE, &ty, "Debug"))
 			}
 			ty => panic!("Debug of {ty:?}"),
 		}
@@ -929,31 +911,24 @@ impl Emitter<'_> {
 			Kind::List(items) => self.list(items, want),
 			Kind::Record(r, fields) => {
 				let record = &self.t.api.records[*r];
-				let names = distinct(record.fields.iter().map(|f| camel(&f.name)).collect());
-				let types: Vec<Type> = record.fields.iter().map(|f| f.ty.clone()).collect();
-				let parts: Vec<String> = (fields.iter().zip(&types).zip(&names))
-					.map(|((f, ty), name)| format!("{name}: {}", self.value(f, ty)))
+				let ty = Type::Record(*r);
+				let parts: Vec<String> = (fields.iter().zip(&record.fields))
+					.map(|(v, f)| format!("{}: {}", self.t.field(LANGUAGE, &ty, &f.name), self.value(v, &f.ty)))
 					.collect();
 				format!("{{ {} }}", parts.join(", "))
 			}
 			Kind::Variant(en, v, fields) => {
 				let enumeration = &self.t.api.enums[*en];
 				let variant = &enumeration.variants[*v];
+				let ty = Type::Enum(*en);
+				let tag = string(self.t.variant(LANGUAGE, &ty, &variant.name));
 				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
-					return string(&variant.name);
+					return tag;
 				}
-				let names = distinct(
-					(variant.fields.iter())
-						.map(|f| match camel(&f.name) {
-							name if name == "tag" => "tag$".to_string(),
-							name => name,
-						})
-						.collect(),
-				);
-				let types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
-				let mut parts = vec![format!("tag: {}", string(&variant.name))];
-				for ((f, ty), name) in fields.iter().zip(&types).zip(&names) {
-					parts.push(format!("{name}: {}", self.value(f, ty)));
+				let mut parts = vec![format!("tag: {tag}")];
+				for (v, f) in fields.iter().zip(&variant.fields) {
+					let name = self.t.variant_field(LANGUAGE, &ty, &variant.name, &f.name);
+					parts.push(format!("{name}: {}", self.value(v, &f.ty)));
 				}
 				format!("{{ {} }}", parts.join(", "))
 			}
@@ -965,7 +940,7 @@ impl Emitter<'_> {
 			},
 			Kind::Default => {
 				let module = self.module(&e.ty);
-				format!("{module}.default()")
+				format!("{module}.{}()", self.t.member(LANGUAGE, &e.ty, "Default"))
 			}
 			Kind::Var(name) => match self.mutated.contains(name) {
 				// Passed `&mut`, the place itself; read, its value.
@@ -990,8 +965,8 @@ impl Emitter<'_> {
 				let Type::Record(r) = unref(&base.ty).base() else {
 					panic!("a field of {:?}", base.ty)
 				};
-				let names = distinct(self.t.api.records[*r].fields.iter().map(|f| camel(&f.name)).collect());
-				format!("{b}.{}", names[*i])
+				let field = &self.t.api.records[*r].fields[*i];
+				format!("{b}.{}", self.t.field(LANGUAGE, &Type::Record(*r), &field.name))
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base);
@@ -1005,7 +980,7 @@ impl Emitter<'_> {
 				match unref(&inner.ty).base() {
 					ty @ Type::Object(_) => {
 						let module = self.module(ty);
-						format!("{module}.clone({v})")
+						format!("{module}.{}({v})", self.t.member(LANGUAGE, ty, "Clone"))
 					}
 					ty @ Type::List(..) if block(ty).is_some() => format!("{v}.slice()"),
 					Type::List(..) => format!("[...{v}]"),
@@ -1113,13 +1088,13 @@ impl Emitter<'_> {
 				if matches!(ty, Type::Record(_) | Type::Enum(_) | Type::Object(_)) =>
 			{
 				let module = self.module(&ty);
-				let partial = format!("{module}.partialCmp({x}, {y})");
+				let partial = format!("{module}.{}({x}, {y})", self.t.member(LANGUAGE, &ty, "PartialOrd"));
 				match op {
 					Op::Lt => format!("({partial} === -1)"),
 					Op::Le => format!("(({partial} ?? 1) <= 0)"),
 					Op::Gt => format!("({partial} === 1)"),
 					Op::Ge => format!("(({partial} ?? -1) >= 0)"),
-					_ => format!("{module}.cmp({x}, {y})"),
+					_ => format!("{module}.{}({x}, {y})", self.t.member(LANGUAGE, &ty, "Ord")),
 				}
 			}
 			Op::Cmp => unreachable!("`cmp` of a value of the API"),
@@ -1163,7 +1138,7 @@ impl Emitter<'_> {
 			}
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => {
 				let module = self.module(ty);
-				format!("{module}.eq({x}, {y})")
+				format!("{module}.{}({x}, {y})", self.t.member(LANGUAGE, ty, "PartialEq"))
 			}
 			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::Char | Type::String | Type::Str => {
 				format!("({x} === {y})")

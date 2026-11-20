@@ -4073,6 +4073,20 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	// Kotlin throws `samples` and `samples_set` apart under one error key, which the
+	// transcript, knowing no Kotlin type, refuses to resolve rather than name either class.
+	let source = dir.join("added-transcript.rs");
+	std::fs::write(&source, "fn main() {}").unwrap();
+	let t = transcript::Transcript::load(&dir.join("added").join("api.json"), &source);
+	for name in ["samples", "samples_set"] {
+		let f = t.api.functions.iter().find(|f| f.path == ["lock", name]).unwrap();
+		let err = f.err.as_ref().unwrap();
+		let panic = std::panic::catch_unwind(|| t.error("Kotlin", err))
+			.err()
+			.unwrap_or_else(|| panic!("Kotlin's exception of {name} resolved"));
+		let message = panic.downcast_ref::<String>().unwrap();
+		assert!(message.contains("cannot tell apart"), "{message}");
+	}
 	// A baseline from before an exception was known by its native type too, whose key alone
 	// names one class of those an addition gives it.
 	let original: serde_json::Value = serde_json::from_slice(&before).unwrap();

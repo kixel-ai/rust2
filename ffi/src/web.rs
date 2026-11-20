@@ -2310,6 +2310,7 @@ impl Gen<'_> {
 			None => {
 				let fields: Vec<String> = (record.fields.iter().zip(field_names(&record.fields)))
 					.map(|(f, name)| {
+						crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
 						format!(
 							"{}\t{name}: {};\n",
 							docs(&f.docs, f.deprecated.as_deref(), "\t"),
@@ -2342,17 +2343,19 @@ impl Gen<'_> {
 		let rust = abi.api.rust(&e.path, &e.args);
 		let ty = Type::Enum(i);
 		self.module = name.clone();
+		let here: Vec<_> = e.variants.iter().filter(|v| self.here(v.on)).collect();
+		// Each variant is its tag, the string of its Rust name.
+		for variant in &here {
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &variant.name);
+		}
 		let variants: Vec<String> = match e.plain() {
-			true => (e.variants.iter())
-				.filter(|v| self.here(v.on))
-				.map(|v| format!("\"{}\"", v.name))
-				.collect(),
+			true => here.iter().map(|v| format!("\"{}\"", v.name)).collect(),
 			false => {
 				let mut cases = Vec::new();
-				let here: Vec<_> = e.variants.iter().filter(|v| self.here(v.on)).collect();
 				for variant in here {
 					let mut fields = vec![format!("tag: \"{}\"", variant.name)];
 					for (field, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
+						crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &field.name, &name);
 						fields.push(format!("{name}: {}", self.tt(&field.ty)));
 					}
 					cases.push(format!("{{ {} }}", fields.join("; ")));
@@ -2578,22 +2581,25 @@ impl Gen<'_> {
 				}
 			}
 		};
-		let mut emit = |g: &mut Self, member: &str, doc: &str, params: &str, ret_t: &str, body: Vec<String>| {
-			taken.insert(member.to_string());
-			let (local, rename) = match RESERVED.contains(&member) {
-				true => (format!("{member}$"), true),
-				false => (member.to_string(), false),
+		// Each function emitted for the trait `t` as `member`, recorded as the trait's.
+		let mut emit =
+			|g: &mut Self, t: &str, member: &str, doc: &str, params: &str, ret_t: &str, body: Vec<String>| {
+				crate::lock::trait_member(&mut g.locked, abi.api.shown(ty), t, member);
+				taken.insert(member.to_string());
+				let (local, rename) = match RESERVED.contains(&member) {
+					true => (format!("{member}$"), true),
+					false => (member.to_string(), false),
+				};
+				let code = format!(
+					"/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{}\n}}\n\n",
+					indent(&wrap(&body))
+				);
+				let module = g.out();
+				module.body.push_str(&code);
+				if rename {
+					module.renames.insert(local, member.to_string());
+				}
 			};
-			let code = format!(
-				"/** {doc} */\nexport function {local}({params}): {ret_t} {{\n{}\n}}\n\n",
-				indent(&wrap(&body))
-			);
-			let module = g.out();
-			module.body.push_str(&code);
-			if rename {
-				module.renames.insert(local, member.to_string());
-			}
-		};
 		let text = |g: &mut Self, what: &str| -> Vec<String> {
 			let mut lines = vec![this(g, "self", "a$")];
 			let ret = g.invoke(
@@ -2609,6 +2615,7 @@ impl Gen<'_> {
 			let body = text(self, "to_string");
 			emit(
 				self,
+				"Display",
 				"toString",
 				"Rust's `Display` form.",
 				&format!("self: {name}"),
@@ -2620,6 +2627,7 @@ impl Gen<'_> {
 			let body = text(self, "debug");
 			emit(
 				self,
+				"Debug",
 				"debug",
 				"Rust's `Debug` form.",
 				&format!("self: {name}"),
@@ -2638,6 +2646,7 @@ impl Gen<'_> {
 			lines.push(format!("return {value};"));
 			emit(
 				self,
+				"Clone",
 				"clone",
 				"A new handle to a clone.",
 				&format!("self: {name}"),
@@ -2654,6 +2663,7 @@ impl Gen<'_> {
 			lines.push(format!("return {value};"));
 			emit(
 				self,
+				"PartialEq",
 				"eq",
 				"Rust's `PartialEq`.",
 				&format!("a: {name}, b: {name}"),
@@ -2668,6 +2678,7 @@ impl Gen<'_> {
 				lines.push(format!("return {value};"));
 				emit(
 					self,
+					"Hash",
 					"hash",
 					"Rust's `Hash`, which values Rust calls equal share.",
 					&format!("self: {name}"),
@@ -2679,16 +2690,17 @@ impl Gen<'_> {
 		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `partialCmp`, undefined when
 		// unordered, and with `Ord` its `cmp`, the shape `Array.prototype.sort` takes. A plain
 		// enum's too: its numbers order as its discriminants, which only a derived order follows.
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
 			let args = vec!["a$".to_string(), "b$".to_string()];
 			let i8 = Ty::Int(Int::I8);
 			let ret = self.invoke(&sig(suffix, &[&recv, &recv], i8, status), args, &mut lines);
 			let value = self.result(&Type::Int(Int::I8), &ret);
-			let (member, doc, ret_t) = match suffix {
+			let (t, member, doc, ret_t) = match suffix {
 				"cmp" => {
 					lines.push(format!("return {value};"));
 					(
+						"Ord",
 						"cmp",
 						"Rust's `Ord`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`.",
 						"number",
@@ -2698,13 +2710,14 @@ impl Gen<'_> {
 					lines.push(format!("const c$ = {value};"));
 					lines.push("return c$ === 2 ? undefined : c$;".to_string());
 					(
+						"PartialOrd",
 						"partialCmp",
 						"Rust's `PartialOrd`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or undefined when the two are unordered.",
 						"number | undefined",
 					)
 				}
 			};
-			emit(self, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines);
+			emit(self, t, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines);
 		}
 		if t.default {
 			let ret_c = match object {
@@ -2718,7 +2731,7 @@ impl Gen<'_> {
 			let ret = self.invoke(&sig("default", &[], ret_c, false), Vec::new(), &mut lines);
 			let value = self.result(ty, &ret);
 			lines.push(format!("return {value};"));
-			emit(self, "default", "Rust's `Default`.", "", &name, lines);
+			emit(self, "Default", "default", "Rust's `Default`.", "", &name, lines);
 		}
 	}
 }

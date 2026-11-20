@@ -1571,6 +1571,21 @@ impl<'a> Gen<'a> {
 				"\t/** Rust's `Hash`, as `Long.hashCode` folds it. */\n\toverride fun hashCode(): kotlin.Int = {open}\n\t\t_Native.{bare}_hash({arg}).hashCode()\n\t}}\n"
 			)
 		};
+		let shown = self.abi.api.shown(ty);
+		let members = [
+			(t.display, "Display", "toString"),
+			(t.debug, "Debug", "debug"),
+			(object && t.clone, "Clone", "clone"),
+			(t.eq, "PartialEq", "equals"),
+			(t.eq && t.hash, "Hash", "hashCode"),
+			(t.ord != Order::None, "PartialOrd", "partialCompareTo"),
+			(t.ord == Order::Total, "Ord", "compareTo"),
+			(t.default, "Default", "default"),
+			(object, "Drop", "close"),
+		];
+		for (_, t, member) in members.into_iter().filter(|(has, ..)| *has) {
+			crate::lock::trait_member(&mut self.locked, shown, t, member);
+		}
 		if t.display {
 			// Final, so a data class variant of a sealed class keeps it rather than making
 			// its own.
@@ -1652,7 +1667,7 @@ impl<'a> Gen<'a> {
 		// `cmp` as `Comparable`'s `compareTo`, except an enum class's, which Kotlin makes
 		// final by ordinal: of both handles, or of both values encoded.
 		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
-		for &suffix in crate::c::comparisons(t.ord) {
+		for &(_, suffix) in crate::c::comparisons(t.ord) {
 			let member = suffix == "cmp";
 			if member && plain {
 				continue;
@@ -1733,7 +1748,11 @@ impl<'a> Gen<'a> {
 		let fields: Vec<(String, String)> = record
 			.fields
 			.iter()
-			.map(|f| (field_name(&f.name), self.kt(&f.ty)))
+			.map(|f| {
+				let field = field_name(&f.name);
+				crate::lock::field(&mut self.locked, &record.shown, &f.name, &field);
+				(field, self.kt(&f.ty))
+			})
 			.collect();
 		let mut body = Vec::new();
 		let mut statics = Vec::new();
@@ -1965,6 +1984,7 @@ impl<'a> Gen<'a> {
 			let entries: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let entry = abi::snake(&v.name).to_uppercase();
+					crate::lock::variant(&mut self.locked, &e.shown, &v.name, &format!("{name}.{entry}"));
 					match abi.api.everywhere(v.on) {
 						true => format!("\t{entry}({}),", v.discriminant),
 						false => format!(
@@ -2007,11 +2027,16 @@ impl<'a> Gen<'a> {
 		let mut glue_writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
 			let vname = pascal(&variant.name);
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 			members.push(format!("class {vname}"));
 			let fields: Vec<String> = variant
 				.fields
 				.iter()
-				.map(|f| format!("val {}: {}", field_name(&f.name), self.kt(&f.ty)))
+				.map(|f| {
+					let field = field_name(&f.name);
+					crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &field);
+					format!("val {field}: {}", self.kt(&f.ty))
+				})
 				.collect();
 			let mut write = vec![format!("w.i32({n})")];
 			// A value of a variant the library's target lacks is refused as it crosses.
