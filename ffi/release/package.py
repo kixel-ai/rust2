@@ -291,6 +291,11 @@ def check_wheel(path):
                 raise SystemExit(f"{path.name}: RECORD's row for {name} is wrong")
 
 
+def toml_key(key):
+    """A TOML key, bare where TOML allows, so `relocate` finds each `path = ...` it writes."""
+    return key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else json.dumps(key, ensure_ascii=False)
+
+
 def toml_value(value):
     """A TOML value as one line, which `workspace_manifest` reads back to check."""
     if isinstance(value, bool):
@@ -300,7 +305,7 @@ def toml_value(value):
     if isinstance(value, list):
         return "[" + ", ".join(map(toml_value, value)) + "]"
     if isinstance(value, dict):
-        return "{ " + ", ".join(f"{json.dumps(k, ensure_ascii=False)} = {toml_value(v)}" for k, v in value.items()) + " }"
+        return "{ " + ", ".join(f"{toml_key(k)} = {toml_value(v)}" for k, v in value.items()) + " }"
     if isinstance(value, (int, float)):
         return repr(value)
     return value.isoformat()
@@ -313,7 +318,7 @@ def workspace_manifest(path):
     kept = {key: root[key] for key in ("cargo-features", "workspace") if key in root}
     lines = [f"cargo-features = {toml_value(kept['cargo-features'])}"] if "cargo-features" in kept else []
     lines.append("[workspace]")
-    lines += [f"{json.dumps(k, ensure_ascii=False)} = {toml_value(v)}" for k, v in kept["workspace"].items()]
+    lines += [f"{toml_key(k)} = {toml_value(v)}" for k, v in kept["workspace"].items()]
     text = "# The workspace root's [workspace] table, which its members inherit from.\n" + "\n".join(lines) + "\n"
     if tomllib.loads(text) != kept:
         raise SystemExit(f"{path}'s [workspace] table does not survive rewriting")

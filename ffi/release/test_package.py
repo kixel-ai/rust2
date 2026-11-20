@@ -774,6 +774,14 @@ class Sdist(unittest.TestCase):
         self.assertEqual(reduced["workspace"]["lints"]["clippy"]["all"], {"level": "warn", "priority": -1})
         self.assertEqual(reduced["workspace"]["lints"]["clippy"]["quoted"], 'a "b" \u00e9')
 
+    def test_moves_a_reduced_roots_absolute_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cargo.toml"
+            root.write_text('[workspace]\nmembers = ["rs/*"]\n[workspace.dependencies]\n'
+                            'kio = { path = "/src/kio", "odd key" = 1 }\n')
+            moved = package.relocate(package.workspace_manifest(root), {"/src/kio": "kio"})
+        self.assertEqual(tomllib.loads(moved)["workspace"]["dependencies"]["kio"], {"path": "kio", "odd key": 1})
+
     def test_pins_the_channel_alone(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
