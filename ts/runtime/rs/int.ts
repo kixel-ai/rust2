@@ -916,6 +916,10 @@ function high(h: number, signed: boolean): number {
 	return signed ? h | 0 : h >>> 0;
 }
 
+function wide4(hi: number, w2: number, w1: number, lo: number): Limbs {
+	return { hi, w2, w1, lo } as Limbs;
+}
+
 function halves(hi: number, lo: number): Limbs {
 	return { hi, lo } as Limbs;
 }
@@ -1196,6 +1200,57 @@ function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remaind
 	const negative = a.hi < 0;
 	if (b === -1 && a.hi === -0x80000000 && a.lo === 0 && (!("w1" in a) || (a.w2 === 0 && a.w1 === 0))) {
 		panic(remainder ? "attempt to calculate the remainder with overflow" : "attempt to divide with overflow", at);
+	}
+	if (!negative && b > 0) {
+		// The common case divides in locals, two words a stage, not through `words`: that typed
+		// array, read and written as doubles, costs SpiderMonkey more than the divisions.
+		const wide = "w1" in a;
+		// A 128-bit dividend under 2^64 divides in its low stage alone.
+		const top = wide && (a.hi !== 0 || a.w2 !== 0);
+		let x = top ? a.hi : wide ? a.w1 : a.hi;
+		let y = top ? a.w2 : a.lo;
+		let r = 0;
+		let q0 = 0;
+		let q1 = 0;
+		let q2 = 0;
+		let q3 = 0;
+		// Under 2^21, a remainder and a word make a double, and divide a word a step.
+		const small = b <= 2097152;
+		for (let stage = top ? 0 : 1; stage < 2; stage++) {
+			q0 = q2;
+			q1 = q3;
+			if (small) {
+				let t = r * 4294967296 + x;
+				const xq = Math.floor(t / b);
+				t = (t - xq * b) * 4294967296 + y;
+				const yq = Math.floor(t / b);
+				r = t - yq * b;
+				q2 = xq;
+				q3 = yq;
+			} else {
+				let t = r * 65536 + (x >>> 16);
+				const xh = Math.floor(t / b);
+				t = (t - xh * b) * 65536 + (x & 0xffff);
+				const xl = Math.floor(t / b);
+				t = (t - xl * b) * 65536 + (y >>> 16);
+				const yh = Math.floor(t / b);
+				t = (t - yh * b) * 65536 + (y & 0xffff);
+				const yl = Math.floor(t / b);
+				r = t - yl * b;
+				q2 = xh * 65536 + xl;
+				q3 = yh * 65536 + yl;
+			}
+			if (top) {
+				x = a.w1;
+				y = a.lo;
+			}
+		}
+		if (remainder) return r;
+		if (wide) {
+			const n = ((q0 * 4294967296 + q1) * 4294967296 + q2) * 4294967296 + q3;
+			return safe(n) ? n : wide4(high(q0, signed), q1, q2, q3);
+		}
+		return join(high(q2, signed), q3);
 	}
 	if ("w1" in a) {
 		words[0] = a.hi;
