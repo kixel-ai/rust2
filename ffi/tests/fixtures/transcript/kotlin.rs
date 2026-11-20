@@ -101,8 +101,7 @@ fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>, vars: &mut Vec
 				let f = t.function(*id);
 				for (arg, param) in args.iter().zip(params(t, *id)) {
 					if let Kind::Var(name) = &arg.kind
-						&& written(&param)
-						&& !out.contains(name)
+						&& written(&param) && !out.contains(name)
 					{
 						out.push(name.clone());
 					}
@@ -413,18 +412,7 @@ impl Emitter<'_> {
 
 	/// The exception a call failing with `err` throws.
 	fn exception(&self, err: &Type) -> String {
-		let name = match unref(err).base() {
-			Type::String | Type::Str => self.t.named(LANGUAGE, "error string").to_string(),
-			Type::Bounds(int) => self
-				.t
-				.named(LANGUAGE, &format!("error bounds_{}", int.rust()))
-				.to_string(),
-			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
-				format!("{}Exception", self.t.type_name(LANGUAGE, ty))
-			}
-			ty => panic!("an error of {ty:?}"),
-		};
-		format!("api.{name}")
+		format!("api.{}", self.t.error(LANGUAGE, err))
 	}
 
 	/// The Kotlin of a format's pieces: a string template.
@@ -522,7 +510,9 @@ impl Emitter<'_> {
 				format!("{v}.let {{ {x} -> \"({}{tail}\" }}", parts.join(", "))
 			}
 			Type::Bound(_) => format!("{v}.let {{ _bound(it.kind, it.value) }}"),
-			Type::Record(_) | Type::Enum(_) | Type::Object(_) => format!("{v}.debug()"),
+			ty @ (Type::Record(_) | Type::Enum(_) | Type::Object(_)) => {
+				format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Debug"))
+			}
 			ty => panic!("Debug of {ty:?}"),
 		}
 	}
@@ -594,23 +584,18 @@ impl Emitter<'_> {
 				format!("api.{name}({})", args.join(", "))
 			}
 			Kind::Variant(en, v, fields) => {
-				let name = self.t.type_name(LANGUAGE, &Type::Enum(*en)).to_string();
-				let enumeration = &self.t.api.enums[*en];
-				let variant = &enumeration.variants[*v];
-				if enumeration.variants.iter().all(|v| v.fields.is_empty()) {
-					return format!("api.{name}.{}", upper(&variant.name));
-				}
+				let variant = &self.t.api.enums[*en].variants[*v];
+				let name = self.t.variant(LANGUAGE, &Type::Enum(*en), &variant.name);
 				if variant.fields.is_empty() {
-					return format!("api.{name}.{}", variant.name);
+					return format!("api.{name}");
 				}
 				let field_types: Vec<Type> = variant.fields.iter().map(|f| f.ty.clone()).collect();
-				let variant_name = variant.name.clone();
 				let args: Vec<String> = fields
 					.iter()
 					.zip(&field_types)
 					.map(|(f, ty)| self.value(f, ty, out))
 					.collect();
-				format!("api.{name}.{variant_name}({})", args.join(", "))
+				format!("api.{name}({})", args.join(", "))
 			}
 			Kind::Bound(kind, value) => {
 				let Type::Bound(int_ty) = unref(&e.ty) else {
@@ -625,8 +610,9 @@ impl Emitter<'_> {
 				format!("api.Bound{}(api.Bound.{kind}, {v})", int_name(*int_ty))
 			}
 			Kind::Default => {
-				let name = self.t.type_name(LANGUAGE, unref(&e.ty).base()).to_string();
-				format!("api.{name}.default()")
+				let ty = unref(&e.ty).base();
+				let name = self.t.type_name(LANGUAGE, ty);
+				format!("api.{name}.{}()", self.t.member(LANGUAGE, ty, "Default"))
 			}
 			Kind::Var(name) => match self.mutated.contains(name) {
 				// Passed `&mut`, the `Mut` itself; read, its value.
@@ -642,10 +628,14 @@ impl Emitter<'_> {
 			Kind::Call(id, receiver, args) => self.call(*id, receiver.as_deref(), args, out),
 			Kind::Field(base, i) => {
 				let b = self.expr(base, out);
-				let Type::Record(r) = unref(&base.ty).base() else {
+				let ty = unref(&base.ty).base();
+				let Type::Record(r) = ty else {
 					panic!("a field of {:?}", base.ty)
 				};
-				format!("{b}.{}", field_name(&self.t.api.records[*r].fields[*i].name))
+				format!(
+					"{b}.{}",
+					self.t.field(LANGUAGE, ty, &self.t.api.records[*r].fields[*i].name)
+				)
 			}
 			Kind::Element(base, i) => {
 				let b = self.expr(base, out);
@@ -658,7 +648,7 @@ impl Emitter<'_> {
 			Kind::Clone(inner) => {
 				let v = self.expr(inner, out);
 				match unref(&inner.ty).base() {
-					Type::Object(_) => format!("{v}.clone()"),
+					ty @ Type::Object(_) => format!("{v}.{}()", self.t.member(LANGUAGE, ty, "Clone")),
 					Type::List(..) if block(unref(&inner.ty).base()).is_none() => format!("{v}.toList()"),
 					// Records, bytes, and the rest are immutable, so the value is its clone.
 					Type::Record(_) | Type::Enum(_) | Type::Bytes | Type::String | Type::Int(_) | Type::Bool => v,
@@ -702,10 +692,17 @@ impl Emitter<'_> {
 						Op::Ge => Some("it >= 0"),
 						_ => None,
 					} {
-					return format!("({a}.partialCompareTo({b})?.let {{ {test} }} ?: false)");
+					let partial = self.t.member(LANGUAGE, &ty, "PartialOrd");
+					return format!("({a}.{partial}({b})?.let {{ {test} }} ?: false)");
 				}
 				let sym = match op {
-					Op::Cmp => return format!("Integer.signum({a}.compareTo({b})).toByte()"),
+					Op::Cmp => {
+						let cmp = match ty {
+							Type::Record(_) | Type::Enum(_) | Type::Object(_) => self.t.member(LANGUAGE, &ty, "Ord"),
+							_ => "compareTo",
+						};
+						return format!("Integer.signum({a}.{cmp}({b})).toByte()");
+					}
 					Op::Eq => "==",
 					Op::Ne => "!=",
 					Op::Lt => "<",
@@ -807,40 +804,15 @@ impl Emitter<'_> {
 		}
 	}
 
-	/// The Kotlin class of a tuple of `elements`: `Pair` and `Triple`, unless an element
-	/// compares by its contents, which theirs cannot, else the binding's `TupleN`.
+	/// The Kotlin class of a tuple of `elements`: the binding's name for it, qualified, such
+	/// as `kotlin.Pair`, or its own; or Kotlin's, of a tuple only the script makes.
 	fn tuple_class(&self, elements: &[Type]) -> String {
-		let contents = elements.iter().any(|e| holds_block(e) || self.holds_float(e));
-		match elements.len() {
-			2 | 3 if contents => format!("api.Tuple{}", elements.len()),
-			2 => "Pair".to_string(),
-			3 => "Triple".to_string(),
-			n => format!("api.Tuple{n}"),
-		}
-	}
-
-	fn holds_float(&self, ty: &Type) -> bool {
-		self.floats(ty, &mut Vec::new())
-	}
-
-	fn floats(&self, ty: &Type, seen: &mut Vec<(bool, usize)>) -> bool {
-		match ty {
-			Type::F32 | Type::F64 => true,
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
-				self.floats(inner, seen)
-			}
-			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
-			Type::Record(i) if !seen.contains(&(false, *i)) => {
-				seen.push((false, *i));
-				self.t.api.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen))
-			}
-			Type::Enum(i) if !seen.contains(&(true, *i)) => {
-				seen.push((true, *i));
-				(self.t.api.enums[*i].variants.iter())
-					.flat_map(|v| &v.fields)
-					.any(|f| self.floats(&f.ty, seen))
-			}
-			_ => false,
+		match (self.t.find_tuple(LANGUAGE, elements), elements.len()) {
+			(Some(name), _) if name.contains('.') => name.to_string(),
+			(Some(name), _) => format!("api.{name}"),
+			(None, 2) => "Pair".to_string(),
+			(None, 3) => "Triple".to_string(),
+			(None, n) => panic!("Kotlin has no tuple of {n} the binding does not name"),
 		}
 	}
 
@@ -929,17 +901,6 @@ fn temporary(e: &Expr) -> bool {
 		_ => false,
 	};
 	called && matches!(unref(&e.ty).base(), Type::Object(_))
-}
-
-/// Whether `ty` holds a list Kotlin keeps as a primitive array anywhere but in a record or
-/// an enum, which compare their own.
-fn holds_block(ty: &Type) -> bool {
-	match ty {
-		_ if block(ty).is_some() => true,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_block(inner),
-		Type::Tuple(elements) => elements.iter().any(holds_block),
-		_ => false,
-	}
 }
 
 /// The element of a list Kotlin holds as a primitive array: a `Vec`, slice, boxed slice,
@@ -1033,15 +994,6 @@ fn ipv6(ip: &std::net::Ipv6Addr) -> String {
 	format!("api.Ipv6Addr({})", byte_array(&ip.octets()))
 }
 
-/// A field's Kotlin name: in camel case, quoted if a keyword.
-fn field_name(name: &str) -> String {
-	let name = camel(name);
-	match KEYWORDS.contains(&name.as_str()) {
-		true => format!("`{name}`"),
-		false => name,
-	}
-}
-
 /// A snake-case name in camel case: `into_label` is `intoLabel`, and `0` is `_0`.
 fn camel(name: &str) -> String {
 	if name.starts_with(|c: char| c.is_ascii_digit()) {
@@ -1071,18 +1023,6 @@ fn ordinal(k: usize) -> String {
 	ORDINALS
 		.get(k)
 		.map_or_else(|| format!("item{}", k + 1), |o| o.to_string())
-}
-
-/// A plain enum's entry: its variant's name in upper snake case.
-fn upper(name: &str) -> String {
-	let mut out = String::new();
-	for (i, c) in name.chars().enumerate() {
-		if c.is_uppercase() && i > 0 {
-			out.push('_');
-		}
-		out.push(c.to_ascii_uppercase());
-	}
-	out
 }
 
 fn int_name(int: Int) -> String {
