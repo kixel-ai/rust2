@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xcadf3d448a865171ULL)
+#define API_CONTRACT ((uint64_t)0x4ef55d1d8a723c39ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -90,6 +90,7 @@ typedef enum api_poll {
 	API_POLL_ERROR = 2,
 } api_poll;
 typedef struct api_Board api_Board;
+typedef struct api_Tab api_Tab;
 typedef struct api_Receipt api_Receipt;
 typedef struct api_Draft api_Draft;
 typedef struct api_Filed_Receipt api_Filed_Receipt;
@@ -118,6 +119,7 @@ typedef struct api_Site api_Site;
 typedef struct api_Trail api_Trail;
 typedef struct api_Worker api_Worker;
 typedef struct api_Handle api_Handle;
+typedef struct api_Holder api_Holder;
 typedef struct api_Area api_Area;
 typedef struct api_Counter api_Counter;
 typedef struct api_Meter api_Meter;
@@ -691,6 +693,9 @@ typedef struct api_Clocked {
 	api_Moment at;
 	uint32_t count;
 } api_Clocked;
+typedef struct api_Rated {
+	uint64_t opaque[2];
+} api_Rated;
 typedef struct api_Hits {
 	uint64_t opaque[2];
 } api_Hits;
@@ -810,6 +815,22 @@ typedef struct api_Qualifiers {
 	double api;
 	double kotlin;
 } api_Qualifiers;
+typedef struct api_Spot {
+	uint32_t x;
+	uint32_t y;
+} api_Spot;
+typedef struct api_Deprecated {
+	bool on;
+	uint32_t lower;
+	bool deprecated;
+} api_Deprecated;
+typedef struct api_Dial {
+	uint64_t level;
+	uint64_t before;
+} api_Dial;
+typedef struct api_Knob {
+	uint64_t level;
+} api_Knob;
 typedef struct api_polar_Turn {
 	uint8_t part;
 } api_polar_Turn;
@@ -1068,6 +1089,14 @@ typedef struct api_Log {
 	const api_Log_vtable *vtable;
 	void *data;
 } api_Log;
+typedef struct api_Scan_vtable {
+	void (*free)(void *data);
+	uint64_t (*scan)(void *data, api_buf payload, api_buf rest);
+} api_Scan_vtable;
+typedef struct api_Scan {
+	const api_Scan_vtable *vtable;
+	void *data;
+} api_Scan;
 typedef struct api_Beat_vtable {
 	void (*free)(void *data);
 	uint32_t (*beat)(void *data);
@@ -1076,8 +1105,19 @@ typedef struct api_Beat {
 	const api_Beat_vtable *vtable;
 	void *data;
 } api_Beat;
+typedef struct api_Turner_vtable {
+	void (*free)(void *data);
+	uint64_t (*by)(void *data);
+	uint64_t (*once)(void *data);
+} api_Turner_vtable;
+typedef struct api_Turner {
+	const api_Turner_vtable *vtable;
+	void *data;
+} api_Turner;
 #define API_LIMIT ((uint64_t)1000ULL)
 #define API_FAR ((int64_t)9223372036854775807LL)
+#define API_URL ((uint64_t)1000ULL)
+#define API_STEP ((uint64_t)1ULL)
 void api_Parcel_free(api_Parcel *self);
 void api_Weighted_free(api_Weighted *self);
 uint64_t api_Weighted_total(const api_Weighted *self);
@@ -1163,6 +1203,10 @@ uint64_t api_Wide_sum(const api_Wide *self);
 void api_Clocked_free(api_Clocked *self);
 bool api_Clocked_eq(const api_Clocked *a, const api_Clocked *b);
 api_buf api_Clocked_debug(const api_Clocked *self);
+bool api_Rated_eq(const api_Rated *a, const api_Rated *b);
+api_buf api_Rated_debug(const api_Rated *self);
+api_Rated api_Rated_new(uint64_t count, uint64_t scale);
+uint64_t api_Rated_scale(const api_Rated *self);
 api_buf api_Score_debug(const api_Score *self);
 api_Score api_Score_of(uint64_t count);
 uint64_t api_Score_count(const api_Score *self);
@@ -1207,6 +1251,7 @@ api_Pair_u8_Size api_Pair_u32_beside_Size(const api_Pair_u32 *self, api_Size rig
 void api_Pair_u8_Size_free(api_Pair_u8_Size *self);
 bool api_Pair_u8_Size_eq(const api_Pair_u8_Size *a, const api_Pair_u8_Size *b);
 api_buf api_Pair_u8_Size_debug(const api_Pair_u8_Size *self);
+api_Pair_Size_u8 api_Pair_u8_Size_swap(const api_Pair_u8_Size *self);
 void api_Left_Right_u8_free(api_Left_Right_u8 *self);
 bool api_Left_Right_u8_eq(const api_Left_Right_u8 *a, const api_Left_Right_u8 *b);
 api_buf api_Left_Right_u8_debug(const api_Left_Right_u8 *self);
@@ -1284,6 +1329,25 @@ bool api_a_eq(const api_a *a, const api_a *b);
 api_buf api_a_debug(const api_a *self);
 void api_Qualifiers_free(api_Qualifiers *self);
 bool api_Qualifiers_eq(const api_Qualifiers *a, const api_Qualifiers *b);
+void api_Spot_free(api_Spot *self);
+bool api_Spot_eq(const api_Spot *a, const api_Spot *b);
+api_buf api_Spot_debug(const api_Spot *self);
+bool api_Spot_deserialize(api_Json *deserializer, api_Spot *out, api_buf *err, api_status *status);
+void api_Deprecated_free(api_Deprecated *self);
+bool api_Deprecated_eq(const api_Deprecated *a, const api_Deprecated *b);
+api_buf api_Deprecated_debug(const api_Deprecated *self);
+api_Deprecated api_Deprecated_default(void);
+void api_Dial_free(api_Dial *self);
+bool api_Dial_eq(const api_Dial *a, const api_Dial *b);
+api_buf api_Dial_debug(const api_Dial *self);
+api_Dial api_Dial_default(void);
+bool api_Dial_turn(const api_Dial *self, uint64_t by, api_Dial *out, api_Error *err);
+api_Dial api_Dial_max(const api_Dial *self);
+void api_Knob_free(api_Knob *self);
+bool api_Knob_eq(const api_Knob *a, const api_Knob *b);
+api_buf api_Knob_debug(const api_Knob *self);
+api_Knob api_Knob_default(void);
+uint64_t api_Knob_doubled(const api_Knob *self);
 void api_polar_Point_free(api_polar_Point *self);
 bool api_polar_Point_eq(const api_polar_Point *a, const api_polar_Point *b);
 api_buf api_polar_Point_debug(const api_polar_Point *self);
@@ -1383,6 +1447,10 @@ api_Board *api_Board_new(api_vec_tuple_string_Counter counters, api_status *stat
 api_vec_tuple_string_Counter api_Board_into_counters(api_Board *self, api_status *status);
 api_vec_tuple_string_Counter api_Board_ranked(const api_Board *self, api_status *status);
 api_Counter *api_Board_best(const api_Board *self, api_status *status);
+void api_Tab_free(api_Tab *self);
+void api_Tab_drop(api_Tab *self, api_status *status);
+api_Ledger *api_Tab_ledger_get(const api_Tab *self, api_status *status);
+api_buf api_Tab_label_get(const api_Tab *self, api_status *status);
 void api_Receipt_free(api_Receipt *self);
 void api_Receipt_drop(api_Receipt *self, api_status *status);
 api_Receipt *api_Receipt_clone(const api_Receipt *self, api_status *status);
@@ -1404,6 +1472,8 @@ void api_Pad_u16_free(api_Pad_u16 *self);
 api_Pad_u16 *api_Pad_u16_wide(void);
 uint16_t api_Pad_u16_tag(const api_Pad_u16 *self);
 uint16_t api_Pad_u16_title(const api_Pad_u16 *self);
+api_buf api_Pad_u16_title_get(const api_Pad_u16 *self);
+uint32_t api_Pad_u16_lines(const api_Pad_u16 *self);
 api_buf api_Pad_u16_describe(const api_Pad_u16 *self);
 void api_Pad_u8_free(api_Pad_u8 *self);
 api_Pad_u8 *api_Pad_u8_small(void);
@@ -1418,6 +1488,8 @@ void api_Marker_free(api_Marker *self);
 void api_Marker_drop(api_Marker *self, api_status *status);
 api_Marker *api_Marker_new(api_buf label, int32_t x, int32_t y);
 api_buf api_Marker_label(const api_Marker *self, api_status *status);
+int32_t api_Marker_x(const api_Marker *self, api_status *status);
+int32_t api_Marker_y(void);
 int32_t api_Marker_x_get(const api_Marker *self, api_status *status);
 void api_Marker_x_set(api_Marker *self, int32_t value, api_status *status);
 int32_t api_Marker_y_get(const api_Marker *self, api_status *status);
@@ -1490,6 +1562,8 @@ void api_Retry_free(api_Retry *self);
 void api_Retry_drop(api_Retry *self, api_status *status);
 api_option_u32 api_Retry_limit_get(const api_Retry *self, api_status *status);
 void api_Retry_limit_set(api_Retry *self, api_option_u32 value, api_status *status);
+api_option_u32 api_Retry_delay_get(const api_Retry *self, api_status *status);
+void api_Retry_delay_set(api_Retry *self, api_option_u32 value, api_status *status);
 api_Retry *api_Retry_new(api_option_u32 limit);
 uint32_t api_Retry_limit(const api_Retry *self, api_status *status);
 uint32_t api_Retry_delay(const api_Retry *self, api_status *status);
@@ -1507,10 +1581,16 @@ void api_Outer_Inner_u8_free(api_Outer_Inner_u8 *self);
 api_Outer_Inner_u8 *api_Outer_Inner_u8_new(uint8_t value);
 uint8_t api_Outer_Inner_u8_get(const api_Outer_Inner_u8 *self);
 void api_Slot_u32_free(api_Slot_u32 *self);
+void api_Slot_u32_drop(api_Slot_u32 *self, api_status *status);
+uint32_t api_Slot_u32_value_get(const api_Slot_u32 *self, api_status *status);
+void api_Slot_u32_value_set(api_Slot_u32 *self, uint32_t value, api_status *status);
 api_Slot_u32 *api_Slot_u32_new(uint32_t value);
 void api_Slot_u8_free(api_Slot_u8 *self);
+void api_Slot_u8_drop(api_Slot_u8 *self, api_status *status);
+uint8_t api_Slot_u8_value_get(const api_Slot_u8 *self, api_status *status);
+void api_Slot_u8_value_set(api_Slot_u8 *self, uint8_t value, api_status *status);
 api_Slot_u8 *api_Slot_u8_new(uint8_t value);
-uint16_t api_Slot_u8_value(const api_Slot_u8 *self);
+uint16_t api_Slot_u8_value(const api_Slot_u8 *self, api_status *status);
 void api_Resolving_free(api_Resolving *self);
 void api_Resolving_drop(api_Resolving *self, api_status *status);
 api_tls_Resolver *api_Resolving_0_get(const api_Resolving *self, api_status *status);
@@ -1558,6 +1638,10 @@ api_Handle_later_future *api_Handle_later(uint32_t count);
 api_poll api_Handle_later_start(uint32_t count, api_Handle **out, api_Handle_later_future **future);
 api_poll api_Handle_later_poll(api_Handle_later_future *future, api_waker waker, api_Handle **out);
 void api_Handle_later_future_free(api_Handle_later_future *future);
+void api_Holder_free(api_Holder *self);
+api_Holder *api_Holder_new(uint64_t level);
+uint64_t api_Holder_level_get(const api_Holder *self);
+uint64_t api_Holder_doubled(const api_Holder *self);
 void api_Area_free(api_Area *self);
 bool api_Area_borrowed(const api_Area *self);
 api_Area *api_Area_clone(const api_Area *self);
@@ -1633,6 +1717,7 @@ void api_Ledger_seal(api_Ledger *self, api_status *status);
 api_Receipt *api_Ledger_receipt(api_Ledger *self, api_status *status);
 api_Receipt *api_Ledger_noted(api_Ledger *self, api_status *status);
 api_Filed_Receipt *api_Ledger_file_Receipt(api_Ledger *self, api_Receipt *item, api_status *status);
+api_Tab *api_Ledger_tab(api_Ledger *self, api_status *status);
 api_Slip *api_Ledger_slip(api_Ledger *self, api_status *status);
 api_Slip *api_Ledger_slip_homed(api_Ledger *self, api_status *status);
 void api_Slip_free(api_Slip *self);
@@ -1751,6 +1836,8 @@ void api_Node_drop(api_Node *self, api_status *status);
 api_buf api_Node_debug(const api_Node *self, api_status *status);
 uint64_t api_Node_value_get(const api_Node *self, api_status *status);
 void api_Node_value_set(api_Node *self, uint64_t value, api_status *status);
+api_Node *api_Node_next_get(const api_Node *self, api_status *status);
+void api_Node_next_set(api_Node *self, api_Node *value, api_status *status);
 api_Node *api_Node_new(uint64_t value, api_Node *next, api_status *status);
 void api_Node_push(api_Node *self, uint64_t value, api_status *status);
 uint64_t api_Node_sum(const api_Node *self, api_status *status);
@@ -1830,6 +1917,7 @@ uint64_t api_Stack_depth_past_Point(const api_Stack *self, api_Point from, api_s
 uint64_t api_Stack_depth_past_Counter(const api_Stack *self, const api_Counter *from, api_status *status);
 uint64_t api_Stack_depth_past_Size(const api_Stack *self, api_Size from, api_status *status);
 uint64_t api_Stack_depth_past_Wrap_u32(const api_Stack *self, api_Wrap_u32 from, api_status *status);
+uint64_t api_Stack_depth_past_polar_Point(const api_Stack *self, api_polar_Point from, api_status *status);
 void api_Refusal_free(api_Refusal *self);
 void api_Refusal_drop(api_Refusal *self, api_status *status);
 api_buf api_Refusal_to_string(const api_Refusal *self, api_status *status);
@@ -2096,7 +2184,6 @@ uint32_t api_peek(const api_Tally *tally, uint32_t (*peek)(void *data, const api
 size_t api_len(api_buf payload);
 api_buf api_hex(api_buf payload);
 api_buf api_timed_hex(api_buf payload);
-api_buf api_timed_text(const api_Json *value, api_status *status);
 api_buf api_sample_hex(api_buf sample);
 api_buf api_queued_hex(api_buf queued);
 api_buf api_tick_name(api_Label tick);
@@ -2205,6 +2292,8 @@ api_vec_vec_u32 api_least(api_vec_vec_u32 sets);
 void api_split_last(api_vec_i32 items, api_vec_i32 *out0, uint32_t *out1);
 uint64_t api_sum_u32(api_vec_u32 items);
 api_vec_i64 api_doubled_i64(api_vec_i64 items);
+api_vec_u64 api_visit_chunks(api_buf payload, size_t size, uint64_t (*visit)(void *data, api_buf), void *visit_data);
+uint64_t api_scanned(api_Scan scan, api_buf payload);
 api_vec_f64 api_boxed_floats(api_vec_f64 items);
 api_Point api_summed(api_vec_Point points);
 api_duration api_breadth(api_Limits_duration limits);
@@ -2264,6 +2353,26 @@ api_socket_addr api_same_socket_addr(api_socket_addr v);
 api_socket_addr_v4 api_same_socket_addr_v4(api_socket_addr_v4 v);
 api_socket_addr_v6 api_same_socket_addr_v6(api_socket_addr_v6 v);
 api_ip_addr api_same_ip_addr(api_ip_addr v);
+api_buf api_unescaped(api_buf text);
+typedef struct api_unescaped_later_future api_unescaped_later_future;
+api_unescaped_later_future *api_unescaped_later(api_buf text);
+api_poll api_unescaped_later_start(api_buf text, api_buf *out, api_unescaped_later_future **future);
+api_poll api_unescaped_later_poll(api_unescaped_later_future *future, api_waker waker, api_buf *out);
+void api_unescaped_later_future_free(api_unescaped_later_future *future);
+typedef struct api_unescaped_maybe_future api_unescaped_maybe_future;
+api_unescaped_maybe_future *api_unescaped_maybe(api_buf text);
+api_poll api_unescaped_maybe_start(api_buf text, api_buf *out, api_unescaped_maybe_future **future);
+api_poll api_unescaped_maybe_poll(api_unescaped_maybe_future *future, api_waker waker, api_buf *out);
+void api_unescaped_maybe_future_free(api_unescaped_maybe_future *future);
+api_buf api_unzeroed(api_buf bytes);
+uint8_t api_deprecated(uint8_t note);
+api_Knob api_knob(api_Dial dial);
+typedef struct api_level_later_future api_level_later_future;
+api_level_later_future *api_level_later(api_Dial dial);
+api_poll api_level_later_start(api_Dial dial, uint64_t *out, api_level_later_future **future);
+api_poll api_level_later_poll(api_level_later_future *future, api_waker waker, uint64_t *out);
+void api_level_later_future_free(api_level_later_future *future);
+bool api_turned(api_Dial dial, api_Turner turner, api_Dial *out, api_Error *err);
 uint64_t api_crowded(api_Reading reading, api_Stamp a, api_Stamp b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118);
 uint64_t api_crammed(api_Moment a, api_Moment b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118, uint64_t n119, uint64_t n120, uint64_t n121, uint64_t n122, uint64_t n123);
 uint32_t api_jni_one(void);

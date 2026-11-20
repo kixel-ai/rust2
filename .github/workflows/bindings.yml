@@ -28,6 +28,10 @@ on:
         description: The main.swift of an executable run on the installed Swift package
         default: ''
         type: string
+      reproduce:
+        description: Build every host's packages a second time, from a new export, and fail unless the bytes match
+        default: false
+        type: boolean
       c-check:
         description: A C or C++ program built by clean CMake and pkg-config consumers of each C archive
         default: ''
@@ -141,7 +145,7 @@ jobs:
       - name: Stand-in
         if: steps.mode.outputs.fixture == 'true'
         working-directory: source
-        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+        run: just ffi standin
       - id: facts
         working-directory: source
         run: python3 -I ../rust2/ffi/release/package.py facts --manifest-path "$MANIFEST" >> "$GITHUB_OUTPUT"
@@ -208,7 +212,7 @@ jobs:
       - name: Stand-in
         if: needs.facts.outputs.fixture == 'true'
         working-directory: source
-        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+        run: just ffi standin
       # musl-gcc, which a build script's cc compiles musl's C with.
       - if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -yq musl-tools
@@ -289,7 +293,7 @@ jobs:
       - name: Stand-in
         if: needs.facts.outputs.fixture == 'true'
         working-directory: source
-        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+        run: just ffi standin
       # The tools that build and repair, apart from the CPython the consumers test on.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -341,6 +345,24 @@ jobs:
       - name: Source distribution
         if: matrix.host == 'linux-x64'
         run: python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out dist
+      # The build again, as a rerun makes it: the same packages byte for byte, from a new
+      # export at the same path, since dlltool names the Windows GNU library's import symbols
+      # after the target directory. It doubles the job's time.
+      - name: Rebuild
+        if: inputs.reproduce
+        env:
+          TARGETS: ${{ matrix.targets }}
+          GO_MODULE: ${{ inputs.go-module }}
+          HOST: ${{ matrix.host }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          mv export first-export
+          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --go-module "$GO_MODULE" --out export "${targets[@]}"
+          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out again/dist "${targets[@]}"
+          if [[ "$HOST" == linux-x64 ]]; then
+            python3 -I rust2/ffi/release/package.py sdist --manifest-path "source/$MANIFEST" --export export --out again/dist
+          fi
+          python3 -I rust2/ffi/release/package.py same dist again/dist
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
@@ -361,7 +383,8 @@ jobs:
           if-no-files-found: error
 
   # The hosts' exports must be one binding: a module and a library from different builds
-  # refuse to load, but two wheels of different bindings would each load.
+  # refuse to load, but two wheels of different bindings would each load. Their SBOMs, of
+  # the one dependency graph, must match as well.
   agree:
     needs: [facts, build]
     runs-on: ubuntu-24.04
@@ -376,6 +399,10 @@ jobs:
           cat builds/*/digest.txt
           if [[ $(wc -l < digests) != 1 ]]; then
             echo '::error::The build hosts exported different bindings.'
+            exit 1
+          fi
+          if [[ $(sha256sum builds/*/sbom.cdx.json | cut -d' ' -f1 | sort -u | wc -l) != 1 ]]; then
+            echo '::error::The build hosts listed different dependencies.'
             exit 1
           fi
 
@@ -439,7 +466,7 @@ jobs:
       - name: Stand-in
         if: needs.facts.outputs.fixture == 'true'
         working-directory: source
-        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+        run: just ffi standin
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ needs.facts.outputs.name }}-build-apple-*
@@ -725,7 +752,7 @@ jobs:
       - name: Stand-in
         if: needs.facts.outputs.web-fixture == 'true'
         working-directory: source
-        run: just ffi standin "" web && cp ffi/moq/web.toml ffi/target/moq-ffi-web/ffi.toml
+        run: just ffi standin "" web
       # npm packs, and Node's WASI runs the native example.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -743,6 +770,7 @@ jobs:
           WEB_FEATURES: ${{ inputs.web-features }}
           WEB_EXAMPLE: ${{ inputs.web-example }}
           WEB_CHECK: ${{ inputs.web-check }}
+          REPRODUCE: ${{ inputs.reproduce }}
         run: |
           if [[ "$(realpath -m "source/$WEB_MANIFEST")" == "$(realpath -m "source/$MANIFEST")" ]]; then
             if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
@@ -755,6 +783,11 @@ jobs:
           fi
           python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
           if [[ -n "$WEB_CHECK" ]]; then cp "source/$WEB_CHECK" web/check.ts; fi
+          # The build again, from a new export, which must pack the same tarball.
+          if [[ "$REPRODUCE" == true ]]; then
+            python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "" --out web-again
+            python3 -I rust2/ffi/release/package.py same web web-again
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.facts.outputs.name }}-web
@@ -817,7 +850,7 @@ jobs:
       - name: Stand-in
         if: needs.facts.outputs.fixture == 'true'
         working-directory: source
-        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+        run: just ffi standin
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ needs.facts.outputs.name }}-build-*

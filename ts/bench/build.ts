@@ -99,7 +99,7 @@ export async function build(name: string, translated: string, tools: Tools): Pro
 
 	const facade = join(root, "fixtures", name, "web");
 	await rm(built.export, { recursive: true, force: true });
-	await step("rust2-ffi", [tools.ffi, "--config", join(facade, "ffi.toml"), "--target", "wasm32-wasip1", "--out", built.export]);
+	await step("rust2-ffi", [tools.ffi, "--manifest-path", join(facade, "Cargo.toml"), "--target", "wasm32-wasip1", "--out", built.export]);
 	await step("export's build", [
 		"cargo",
 		"build",

@@ -83,7 +83,8 @@ fn output(cmd: &mut Command) -> Output {
 fn check(cmd: &Command, output: &Output) {
 	assert!(
 		output.status.success(),
-		"{cmd:?} failed:\n{}{}",
+		"{cmd:?} failed with {}:\n{}{}",
+		output.status,
 		String::from_utf8_lossy(&output.stdout),
 		String::from_utf8_lossy(&output.stderr)
 	);
@@ -102,8 +103,8 @@ fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr],
 	let fixture = manifest_dir().join("fixtures").join(name);
 	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
 	command
-		.arg("--config")
-		.arg(fixture.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(fixture.join("Cargo.toml"))
 		.arg("--out")
 		.arg(out)
 		.args(targets.iter().flat_map(|target| ["--target", target]))
@@ -115,30 +116,28 @@ fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr],
 }
 
 /// What `Deref` forwards: a member the object or a nearer target has hides one past it, even
-/// a target that does not export, a method only a method and a field only a field, and the
-/// config leaves out a forwarded member by the object's path, a field sharing a method's by
-/// `field@`. An exclude naming nothing fails the export, so each one here was forwarded.
+/// a target that does not export, a method only a method and a field only a field, and a
+/// forwarded field sharing a method's name exports beside it.
 #[test]
 fn deref_shadowing() {
 	let header = std::fs::read_to_string(api().out.join("include").join("api.h")).unwrap();
 	for present in [
 		"api_Layered_lines(",
+		"api_Pad_u16_lines(",
 		"api_Pad_u16_title(",
+		"api_Pad_u16_title_get(",
+		"api_Marker_x(",
 		"api_Marker_x_get(",
 		"api_Marker_x_set(",
+		"api_Marker_y(",
 		"api_Marker_y_get(",
 	] {
 		assert!(header.contains(present), "{present} is not exported");
 	}
-	for absent in [
-		"api_Layered_describe(",
-		"api_Pad_u16_lines(",
-		"api_Pad_u16_title_get(",
-		"api_Marker_x(",
-		"api_Marker_y(",
-	] {
-		assert!(!header.contains(absent), "{absent} is exported");
-	}
+	assert!(
+		!header.contains("api_Layered_describe("),
+		"api_Layered_describe( is exported"
+	);
 }
 
 /// The api fixture, exported and built once for each language's test.
@@ -268,9 +267,8 @@ fn c_transcript() -> PathBuf {
 	generated("c", "transcript.c", &transcript::c::emit(transcript(), &header))
 }
 
-#[test]
-fn api_c() {
-	let api = api();
+/// `tests/api.c` built by `CC` against the api fixture's static library.
+fn api_c_exe(api: &Api) -> PathBuf {
 	let exe = scratch().join("api").join("api-test");
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
 	let src = manifest_dir().join("tests").join("api.c");
@@ -283,7 +281,7 @@ fn api_c() {
 	}
 	.run(
 		Command::new(cc)
-			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
+			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-g", "-I"])
 			.arg(&include)
 			.arg("-I")
 			.arg(&script)
@@ -293,6 +291,13 @@ fn api_c() {
 			.arg("-o")
 			.arg(&exe),
 	);
+	exe
+}
+
+#[test]
+fn api_c() {
+	let api = api();
+	let exe = api_c_exe(api);
 	let c = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&c.stdout),
@@ -444,12 +449,13 @@ fn api_tsan() {
 }
 
 /// The Go script under Go's race detector, which catches a race between an object's
-/// `Close` and the nursery that pushes it out on another goroutine.
+/// `Close` and the nursery that pushes it out on another goroutine, and with cgocheck2,
+/// which catches a Go pointer stored in memory Rust owns.
 #[test]
 #[ignore = "slow: just ffi sanitize"]
-fn api_go_race() {
+fn api_go_checked() {
 	let api = api();
-	let dir = scratch().join("api").join("go-race");
+	let dir = scratch().join("api").join("go-checked");
 	let module = dir.join("module");
 	go_layout(
 		api,
@@ -459,24 +465,67 @@ fn api_go_race() {
 	// The transcript's script, generated beside it in its package.
 	step::write(&module.join("transcript.go"), transcript::go::emit(transcript()));
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	run(go(&module, &["build", "-race", "-o"]).arg(&exe));
+	run(go(&module, &["build", "-race", "-o"])
+		.arg(&exe)
+		.env("GOEXPERIMENT", "cgocheck2"));
 	// Every report fails the run.
 	let env = [("GORACE", "halt_on_error=1")];
 	let output = run(Command::new(&exe).envs(env));
 	assert_eq!(
 		String::from_utf8_lossy(&output.stdout),
 		api.transcript,
-		"the Go transcript under the race detector differs from the native one"
+		"the Go transcript under the race detector and cgocheck2 differs from the native one"
 	);
 	for case in ["futures", "owned", "closed", "bytes", "closures", "checks"] {
 		run(Command::new(&exe).arg(case).envs(env));
 	}
 }
 
-/// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
-/// C++ scripts and the protocol scripts' C driver against it, built by clang under the
-/// same one.
-fn sanitized(sanitizer: &str) {
+/// The C and C++ scripts under Valgrind's memcheck, against the library as the gate builds
+/// it: uninstrumented, so it also sees what a sanitizer's own build of std would hide, such
+/// as a read of memory nothing wrote. A definite or indirect leak fails the run too.
+#[test]
+#[ignore = "needs Valgrind: just ffi sanitize"]
+fn api_valgrind() {
+	let api = api();
+	let c = api_c_exe(api);
+	let cpp = scratch().join("api").join(format!("api-c++17{EXE_SUFFIX}"));
+	let link = Link {
+		generated: Some(cpp_transcript()),
+		..api.link()
+	};
+	cxx(&link, 17, true, &manifest_dir().join("tests").join("api.cpp"), &cpp);
+	for (exe, cases) in [
+		(&c, &["statuses", "threads"][..]),
+		(&cpp, &["futures", "lifetimes", "checks"]),
+	] {
+		for case in std::iter::once(None).chain(cases.iter().copied().map(Some)) {
+			let output = run(Command::new("valgrind")
+				.args([
+					"--quiet",
+					"--error-exitcode=99",
+					"--exit-on-first-error=yes",
+					"--track-origins=yes",
+					"--leak-check=full",
+					"--errors-for-leak-kinds=definite,indirect",
+				])
+				.arg(exe)
+				.args(case));
+			if case.is_none() {
+				assert_eq!(
+					String::from_utf8_lossy(&output.stdout),
+					api.transcript,
+					"{} under Valgrind differs from the native transcript",
+					exe.display()
+				);
+			}
+		}
+	}
+}
+
+/// The api fixture's glue built, std included, under the `sanitizer`: its static library,
+/// and what a program linking it links besides.
+fn sanitized_glue(sanitizer: &str) -> (PathBuf, Vec<String>) {
 	let api = api();
 	let dir = scratch().join("api").join(sanitizer);
 	let built = run(cargo()
@@ -496,14 +545,35 @@ fn sanitized(sanitizer: &str) {
 		.split_whitespace()
 		.map(str::to_string)
 		.collect();
-	let lib = dir.join("glue").join(host()).join("debug").join("libapi.a");
+	(dir.join("glue").join(host()).join("debug").join("libapi.a"), native)
+}
+
+/// Every report fails the run, rather than only those the sanitizer deems fatal.
+const SANITIZER_ENV: [(&str, &str); 3] = [
+	("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
+	("TSAN_OPTIONS", "halt_on_error=1"),
+	("UBSAN_OPTIONS", "halt_on_error=1:print_stacktrace=1"),
+];
+
+/// Build the api fixture's glue under the `sanitizer`, and run the C and C++ scripts and
+/// the protocol scripts' C driver against it, built by clang under the same one.
+fn sanitized(sanitizer: &str) {
+	let api = api();
+	let dir = scratch().join("api").join(sanitizer);
+	let (lib, native) = sanitized_glue(sanitizer);
 	let tests = manifest_dir().join("tests");
-	let sanitize = format!("-fsanitize={sanitizer}");
-	// Every report fails the run, rather than only those the sanitizer deems fatal.
-	let env = [
-		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
-		("TSAN_OPTIONS", "halt_on_error=1"),
-	];
+	// UndefinedBehaviorSanitizer rides with AddressSanitizer on the C and C++ side, whose
+	// undefined behavior Rust's checks cannot see. `-fno-wrapv` overrides a hardened
+	// compiler's, such as Nix's, which would define signed overflow and so hide it.
+	let sanitize: &[&str] = match sanitizer {
+		"address" => &[
+			"-fsanitize=address,undefined",
+			"-fno-sanitize-recover=all",
+			"-fno-wrapv",
+		],
+		"thread" => &["-fsanitize=thread"],
+		other => panic!("no C flags for the {other} sanitizer"),
+	};
 	// Each language's generated script, which its test includes.
 	let scripts = [c_transcript(), cpp_transcript()];
 	for (compiler, std, src, args) in [
@@ -517,7 +587,9 @@ fn sanitized(sanitizer: &str) {
 	] {
 		let exe = dir.join(src.replace('.', "-"));
 		run(Command::new(compiler)
-			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
+			.args([std, "-g", "-Wall", "-Wextra", "-Werror"])
+			.args(sanitize)
+			.arg("-I")
 			.arg(api.out.join("include"))
 			.args(
 				scripts
@@ -529,24 +601,24 @@ fn sanitized(sanitizer: &str) {
 			.args(&native)
 			.arg("-o")
 			.arg(&exe));
-		let output = run(Command::new(&exe).envs(env));
+		let output = run(Command::new(&exe).envs(SANITIZER_ENV));
 		assert_eq!(
 			String::from_utf8_lossy(&output.stdout),
 			api.transcript,
 			"{src} under {sanitizer} differs from the native transcript"
 		);
 		for arg in args {
-			run(Command::new(&exe).arg(arg).envs(env));
+			run(Command::new(&exe).arg(arg).envs(SANITIZER_ENV));
 		}
 	}
 	// The protocol scripts, whose steps on two threads free and drop what the other made.
-	let exe = protocol_c(api, &dir.join("protocol"), &[&sanitize], &lib, &native);
+	let exe = protocol_c(api, &dir.join("protocol"), sanitize, &lib, &native);
 	protocol::check(
 		&dir.join("protocol").join("scripts"),
 		&protocol::scripts(0, PROTOCOL_SEEDS, 200, protocol::Profile::C),
 		|_| {
 			let mut cmd = Command::new(&exe);
-			cmd.envs(env);
+			cmd.envs(SANITIZER_ENV);
 			cmd
 		},
 	);
@@ -919,7 +991,8 @@ fn api_kotlin() {
 	let jar = PathBuf::from(coroutines());
 	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
-		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
+		cmd.arg("-J-Xcheck:jni")
+			.arg(format!("-Djava.library.path={}", api.lib.display()))
 			.arg("-cp")
 			.arg(std::env::join_paths(classpath.iter().copied().chain([jar.as_path()])).unwrap())
 			.arg("ApiKt")
@@ -1010,14 +1083,13 @@ fn api_kotlin() {
 }
 
 /// The same script on Android: the classes, shrunk by R8 into an app's dex with only the
-/// generated rules keeping what JNI looks up, run on ART on the device adb reaches against
-/// the library the NDK builds for its ABI, both for API 24, the oldest moq's Android library
-/// supports.
+/// generated rules keeping what JNI looks up, run on ART under CheckJNI on the device adb
+/// reaches against the library the NDK builds for its ABI, both for API 24, the oldest moq's
+/// Android library supports, and matched to the script run natively there.
 #[test]
 #[ignore = "needs the Android SDK and NDK, cargo-ndk, and a device: just ffi android"]
 fn api_android() {
 	const DEVICE: &str = "/data/local/tmp/rust2-ffi";
-	let api = api();
 	let sdk = PathBuf::from(std::env::var_os("ANDROID_HOME").expect("ANDROID_HOME names the Android SDK"));
 	let adb = sdk.join("platform-tools").join("adb");
 	let dir = scratch().join("api").join("android");
@@ -1030,6 +1102,7 @@ fn api_android() {
 	let target = match abi.as_str() {
 		"arm64-v8a" => "aarch64-linux-android",
 		"x86_64" => "x86_64-linux-android",
+		"x86" => "i686-linux-android",
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
@@ -1049,6 +1122,32 @@ fn api_android() {
 		.arg(dir.join("glue"))
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
+
+	// The fixture's script, built for the device as the library is, whose run there is what
+	// the Kotlin must print: a 32-bit ABI's `usize` differs from the host's.
+	let transcript = dir.join("transcript");
+	run(cargo()
+		.args([
+			"ndk",
+			"--target",
+			&abi,
+			"--platform",
+			"24",
+			"build",
+			"--quiet",
+			"--locked",
+		])
+		.args([
+			"--package",
+			"api-fixture",
+			"--example",
+			"transcript",
+			"--features",
+			"doubled",
+		])
+		.arg("--target-dir")
+		.arg(&transcript)
+		.current_dir(manifest_dir()));
 
 	// Every segment aligns to the 16 KB pages Google Play requires of a 64-bit library from
 	// 2027-02-01, whichever NDK built it: r27 and older align to 4 KB unless told otherwise.
@@ -1123,16 +1222,25 @@ fn api_android() {
 		.arg("push")
 		.arg(dex.join("classes.dex"))
 		.arg(dir.join("lib").join(&abi).join("libapi.so"))
+		.arg(
+			transcript
+				.join(target)
+				.join("debug")
+				.join("examples")
+				.join("transcript"),
+		)
 		.arg(DEVICE));
+	let native = run(Command::new(&adb).args(["shell", &format!("{DEVICE}/transcript")]));
+	let native = String::from_utf8_lossy(&native.stdout);
 	let art = |args: &[&str]| {
 		let args: String = args.iter().map(|arg| format!(" '{arg}'")).collect();
 		let mut cmd = Command::new(&adb);
 		cmd.arg("shell").arg(format!(
-			"ANDROID_DATA={DEVICE} dalvikvm -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt{args}"
+			"ANDROID_DATA={DEVICE} dalvikvm -Xcheck:jni -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt{args}"
 		));
 		cmd
 	};
-	kotlin(&api.transcript, &art);
+	kotlin(&native, &art);
 
 	// An abort or a panic must reach logcat and bionic's abort message, which the tombstone
 	// shows: an app's stderr goes nowhere. The tombstone is logged as the crash dump
@@ -1304,15 +1412,15 @@ fn newest(dir: &Path) -> PathBuf {
 /// contract it fails loud on.
 fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	let kt = run(&mut vm(&[]));
+	jni_checked(&kt, "the Kotlin transcript");
 	assert_eq!(
 		String::from_utf8_lossy(&kt.stdout),
 		native,
 		"the Kotlin transcript differs from the native one"
 	);
-	run(&mut vm(&["futures"]));
-	run(&mut vm(&["owned"]));
-	run(&mut vm(&["clash"]));
-	run(&mut vm(&["checks"]));
+	for case in ["futures", "owned", "clash", "checks"] {
+		jni_checked(&run(&mut vm(&[case])), case);
+	}
 	for (case, message) in [
 		("moved", "IllegalStateException: Counter is closed"),
 		("boxed moved", "IllegalStateException: Node is closed"),
@@ -1332,8 +1440,23 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		// status reports a core though none is written.
 		let output = no_core(&mut vm(&[case])).output().unwrap();
 		assert!(!output.status.success(), "Kotlin {case} did not fail");
+		// A throwing closure is where a JNI call may follow a pending exception.
+		jni_checked(&output, case);
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Kotlin {case} printed {stderr}");
+	}
+}
+
+/// Asserts the run of `what` drew no warning from HotSpot's CheckJNI, which only warns of
+/// a JNI call while an exception may be pending or of a local reference past its frame's
+/// capacity, and on stdout. ART's CheckJNI aborts instead.
+fn jni_checked(output: &Output, what: &str) {
+	for printed in [&output.stdout, &output.stderr] {
+		let printed = String::from_utf8_lossy(printed);
+		assert!(
+			!printed.contains("WARNING in native method") && !printed.contains("WARNING: JNI"),
+			"CheckJNI warned in {what}:\n{printed}"
+		);
 	}
 }
 
@@ -1393,10 +1516,45 @@ const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
 /// contract it fails loud on.
 #[test]
 fn api_python() {
+	python_checks(&std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+}
+
+/// `api_python`'s checks on a debug build of the newest CPython, which asserts what a
+/// release build trusts of the runtime's reference counting, then each of them looped,
+/// leaving the interpreter's references and memory blocks as they were.
+#[test]
+#[ignore = "needs a debug CPython, which builds from source: just ffi sanitize"]
+fn api_python_debug() {
+	let interpreter = std::env::var_os("RUST2_PYTHON_DEBUG")
+		.expect("RUST2_PYTHON_DEBUG names a debug CPython: run this in the sanitize shell");
+	python_checks(&interpreter);
+	let output = run(Command::new(&interpreter)
+		.args(["-P", "-X", "dev", "-W", "error"])
+		.arg(manifest_dir().join("tests").join("api.py"))
+		.arg("leaks")
+		.env(
+			"PYTHONPATH",
+			std::env::join_paths([api().out.join("python"), python_transcript()]).unwrap(),
+		));
+	assert!(
+		output.stdout.is_empty(),
+		"leaks printed {}",
+		String::from_utf8_lossy(&output.stdout)
+	);
+}
+
+/// The directory of the Python script generated from the transcript, which `tests/api.py`
+/// imports.
+fn python_transcript() -> PathBuf {
+	generated("python", "transcript.py", &transcript::python::emit(transcript()))
+}
+
+/// `api_python`'s checks, run by `interpreter`.
+fn python_checks(interpreter: &std::ffi::OsStr) {
 	let api = api();
-	let scripts = generated("python", "transcript.py", &transcript::python::emit(transcript()));
+	let scripts = python_transcript();
 	let python = |dir: &Path, args: &[&str]| {
-		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		let mut cmd = Command::new(interpreter);
 		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
 		// warnings as errors fail on what the runtime only warns of.
 		cmd.args(["-P", "-X", "dev", "-W", "error"])
@@ -1654,8 +1812,7 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
-	let script =
-		generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift");
+	let script = swift_transcript();
 	// The Clang module the test and the contract program import on Linux.
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
@@ -1706,6 +1863,7 @@ fn api_swift() {
 			"missing reinitialization of inout parameter 'counter' after consume",
 		),
 		("LENT_KEPT", "implicit conversion to 'Tally?' is consuming"),
+		("SPAN_KEPT", "lifetime-dependent variable 'kept' escapes its scope"),
 	] {
 		let step = Step {
 			stamp: &dir.join(format!("{case}.stamp")),
@@ -1779,6 +1937,65 @@ fn api_swift() {
 		stderr.contains("api.swift and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// `tests/api.swift`'s script, its futures, and what releasing frees, under
+/// ThreadSanitizer, against the glue built under it: it catches a race between a wake on
+/// Rust's thread and the task it resumes, or an executor's job and a release.
+#[test]
+#[ignore = "needs the nightly's rust-src and Swift's ThreadSanitizer: just ffi sanitize"]
+fn api_swift_tsan() {
+	let api = api();
+	let (glue, native) = sanitized_glue("thread");
+	let dir = scratch().join("api").join("swift-thread");
+	let module = api.out.join("swift");
+	let collections = swift_collections();
+	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
+	std::fs::create_dir_all(&dir).unwrap();
+	run(swiftc(&module, 13)
+		.args([
+			"-sanitize=thread",
+			"-swift-version",
+			"6",
+			"-parse-as-library",
+			"-module-name",
+			"Api",
+		])
+		.args(["-emit-module", "-emit-module-path"])
+		.arg(&swiftmodule)
+		.args(["-emit-library", "-static", "-o"])
+		.arg(&lib)
+		.arg(module.join("api.swift")));
+	let exe = dir.join("api-test");
+	run(swiftc(&module, 15)
+		.args(["-sanitize=thread", "-parse-as-library", "-I"])
+		.arg(&dir)
+		.arg(manifest_dir().join("tests").join("api.swift"))
+		.arg(swift_transcript())
+		.arg(&lib)
+		.args(&collections)
+		.arg(&glue)
+		.args(&native)
+		.arg("-o")
+		.arg(&exe));
+	// What Swift's own runtime and Dispatch do goes unchecked, as Darwin's default has it:
+	// they are uninstrumented, so TSan would miss the atomics that order a task's frame
+	// before its runtime frees it, and report that free as a race.
+	let env = [("TSAN_OPTIONS", "halt_on_error=1:ignore_noninstrumented_modules=1")];
+	let output = run(Command::new(&exe).envs(env));
+	assert_eq!(
+		String::from_utf8_lossy(&output.stdout),
+		api.transcript,
+		"the Swift transcript under ThreadSanitizer differs from the native one"
+	);
+	for case in ["checks", "futures", "owned", "shared"] {
+		run(Command::new(&exe).arg(case).envs(env));
+	}
+}
+
+/// The Swift script generated from the transcript, which `tests/api.swift` calls.
+fn swift_transcript() -> PathBuf {
+	generated("swift", "transcript.swift", &transcript::swift::emit(transcript())).join("transcript.swift")
 }
 
 /// The api fixture's Swift, built as the module `Api` in Swift 6's language mode.
@@ -2061,7 +2278,8 @@ fn web_checks(runtime: &str, cases: &[&str], ran: &mut dyn FnMut(Option<&str>) -
 	}
 }
 
-/// `tests/api.ts`'s script on `runtime`, Node or Deno, with `case`, from beside the binding.
+/// `tests/api.ts`'s script on `runtime`, Node, Deno, or Bun, with `case`, from beside the
+/// binding.
 fn web_script(runtime: &str, case: Option<&str>) -> Command {
 	let web = web();
 	let mut cmd = Command::new(runtime);
@@ -2120,15 +2338,15 @@ fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize)
 	protocol::check_all(&dir, &scripts, driver);
 }
 
-/// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
-/// the crate's `web` feature builds for wasm32-wasip1: it prints what native Rust prints on
-/// that target, then checks its futures, what disposing and the garbage collector free, what
-/// a closed object refuses, how bytes cross, and what a call lent bytes reads once memory
-/// grows, and fails loud on each contract it breaks; a binding of another contract refuses
-/// the module.
+/// The generated TypeScript runs `tests/api.ts`'s script on Node, Deno, and Bun, over the
+/// module the crate's `web` feature builds for wasm32-wasip1: it prints what native Rust
+/// prints on that target, then checks its futures, what disposing and the garbage collector
+/// free, what a closed object refuses, how bytes cross, and what a call lent bytes reads once
+/// memory grows, and fails loud on each contract it breaks; a binding of another contract
+/// refuses the module.
 #[test]
 fn api_web() {
-	for runtime in ["node", "deno"] {
+	for runtime in ["node", "deno", "bun"] {
 		web_checks(runtime, &WEB_CASES, &mut |case| {
 			output(&mut web_script(runtime, case)).into()
 		});
@@ -2899,8 +3117,8 @@ fn go_reserved_packages() {
 		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
 		let out = package.join("out");
 		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-			.arg("--config")
-			.arg(package.join("ffi.toml"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
 			.arg("--out")
 			.arg(&out)
 			.env("CARGO_TARGET_DIR", package.join("build"))
@@ -2956,8 +3174,8 @@ fn go_package_names() {
 	);
 	let out = package.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build"))
@@ -2989,13 +3207,9 @@ fn unreached_types() {
 		"unreached_types",
 		&[
 			(
-				"ffi.toml",
-				"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
-			),
-			(
 				"Cargo.toml",
 				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
-				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
+				[features]\nrefused = []\n\n[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
 				net = { package = \"unreached-net\", path = \"net\" }\n\
 				conv = { package = \"unreached-conv\", path = \"conv\" }\n\n[workspace]\nexclude = [\"kio\", \"net\", \"conv\"]\n",
 			),
@@ -3003,11 +3217,11 @@ fn unreached_types() {
 				"src/lib.rs",
 				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
 				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
-				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
+				#[cfg(feature = \"refused\")] pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
 				pub fn connect() -> Result<net::Link, net::Fault> {\n\tnet::connect()\n}\n\n\
 				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
-				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
-				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
+				#[cfg(feature = \"refused\")] pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
+				#[cfg(feature = \"refused\")] pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
 				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
 				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
 				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
@@ -3015,7 +3229,7 @@ fn unreached_types() {
 				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
 				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
 				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
-				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
+				#[cfg(feature = \"refused\")] impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
 				pub struct Counter(u32);\n\nimpl Counter {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\n\
 				impl Buffer {\n\tfn counter(&self) -> impl Into<Counter> + '_ {\n\t\tCounter(self.0[0])\n\t}\n\n\
 				\tpub fn best(&self) -> impl Into<Counter> + '_ {\n\t\tself.counter()\n\t}\n}\n\n\
@@ -3063,8 +3277,8 @@ fn unreached_types() {
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build")));
@@ -3095,8 +3309,8 @@ fn unreached_types() {
 	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
 	let staged = package.join("wasm.json");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.args(["--api", staged.to_str().unwrap(), "--target", WASM])
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let moved = scratch().join("unreached_types-moved");
@@ -3104,16 +3318,14 @@ fn unreached_types() {
 	for dir in ["src", "kio", "net", "conv"] {
 		step::mirror(&package.join(dir), &moved.join(dir));
 	}
-	for file in ["Cargo.toml", "ffi.toml"] {
-		std::fs::copy(package.join(file), moved.join(file)).unwrap();
-	}
+	std::fs::copy(package.join("Cargo.toml"), moved.join("Cargo.toml")).unwrap();
 	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
 	let (head, rest) = lib.split_once("pub fn pending").unwrap();
-	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	let rest = &rest[rest.find("#[cfg(feature = \"refused\")] pub fn seal").unwrap()..];
 	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(moved.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(moved.join("Cargo.toml"))
 		.arg("--out")
 		.arg(moved.join("out"))
 		.arg("--with")
@@ -3125,13 +3337,14 @@ fn unreached_types() {
 			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
 		"{manifest}"
 	);
-	std::fs::write(package.join("ffi.toml"), "").unwrap();
+	// The census, with the items that fail the export.
 	let census = package.join("census");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--census")
 		.arg(&census)
+		.args(["--", "--features", "refused"])
 		.env("CARGO_TARGET_DIR", package.join("build"))
 		.output()
 		.unwrap();
@@ -3152,8 +3365,8 @@ fn unreached_types() {
 	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
 	// foreign; one no public path names is held by value instead.
 	for refused in [
-		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
-		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+		"fn `bare` at src/lib.rs:23:29: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:29: foreign type `net::Opaque`",
 	] {
 		assert!(report.contains(refused), "{report}");
 	}
@@ -3176,7 +3389,7 @@ fn unreached_types() {
 	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
 	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
 	assert!(
-		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		report.contains("fn `seal` at src/lib.rs:11:29: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
 	);
 	assert_eq!(report.matches("not reachable").count(), 3, "{report}");
@@ -3255,8 +3468,8 @@ fn reexport() {
 	let out = package.join("out");
 	let export = || {
 		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-			.arg("--config")
-			.arg(package.join("ffi.toml"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
 			.arg("--out")
 			.arg(&out)
 			.env("CARGO_TARGET_DIR", package.join("build")))
@@ -3355,47 +3568,22 @@ fn relative_target() {
 	std::fs::create_dir_all(&dir).unwrap();
 	let census = dir.join("census");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(manifest_dir().join("fixtures/api/ffi.toml"))
+		.arg("--manifest-path")
+		.arg(manifest_dir().join("fixtures/api/Cargo.toml"))
 		.arg("--census")
 		.arg(&census)
 		.current_dir(&dir)
 		.env("CARGO_TARGET_DIR", "build")
 		.output()
 		.expect("running rust2-ffi");
-	// The fixture's config leaves out items that export, which the census fails on, after
-	// writing itself: only on those, and on a field whose method of its name is refused,
-	// not on that method.
 	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(!output.status.success(), "the census passed:\n{stderr}");
-	let errors: Vec<&str> = stderr
-		.lines()
-		.filter(|line| line.starts_with("error: rust2-ffi:"))
-		.collect();
-	assert!(
-		errors.iter().all(|error| error.ends_with(", which exports")),
-		"the census failed otherwise:\n{stderr}"
-	);
-	// Nor on a method Swift alone refuses, though not its field, which Swift keeps.
-	for exclude in ["jitter", "spread"] {
-		assert!(
-			errors.contains(&format!(
-				"error: rust2-ffi: exclude `field@Retry::{exclude}` in the config leaves out `field@Retry::{exclude}`, which exports"
-			).as_str()),
-			"the census does not fail on `field@Retry::{exclude}`:\n{stderr}"
-		);
-		assert!(
-			!errors
-				.iter()
-				.any(|error| error.contains(&format!("exclude `Retry::{exclude}`"))),
-			"the census fails on `Retry::{exclude}`:\n{stderr}"
-		);
-	}
-	assert!(
-		!errors.iter().any(|error| error.contains("exclude `among`")),
-		"the census fails on `among`, which Swift refuses:\n{stderr}"
-	);
+	assert!(output.status.success(), "the census failed:\n{stderr}");
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
+	// The fixture exports whole: every row counts no refusal.
+	let refused = (text.lines())
+		.take_while(|line| !line.starts_with("Exported types:"))
+		.filter_map(|line| line.split(" | ").nth(2)?.parse::<usize>().ok());
+	assert_eq!(refused.sum::<usize>(), 0, "the census refuses some:\n{text}");
 	for line in [
 		"- `Lease`: object no export returns",
 		"- `Void`: object no export returns",
@@ -3405,36 +3593,8 @@ fn relative_target() {
 		"- `blame`: type C never holds `tls::held::Invalid`",
 		// A type parameter only another crate's trait bounds, which no export implements.
 		"- `pump`: bound no type C holds meets `tls::held::Stream`",
-		// An exclude that names what exports, by its generic or instance path or as a field,
-		// even where a method of the field's name is refused.
-		"## Excluded by the config, though it exports",
-		"- `Timed`: `Timed<bytes::Bytes>`",
-		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
-		"- `Slot<u32>::value`: `Slot<u32>::value`",
-		"- `field@Retry::jitter`: `field@Retry::jitter`",
-		"- `field@Retry::spread`: `field@Retry::spread`",
-		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
-	}
-	let exporting = text
-		.split("## Excluded by the config, though it exports")
-		.nth(1)
-		.unwrap();
-	let exporting = exporting.split("\n## ").next().unwrap();
-	// Not one that names only what is refused or no export returns.
-	for refused in [
-		"- `Copied`",
-		"- `Sample`",
-		"- `Queued`",
-		"- `Layer`",
-		"- `Retry::jitter`",
-		"- `Retry::spread`",
-	] {
-		assert!(
-			!exporting.contains(refused),
-			"the census lists `{refused}` as exporting:\n{exporting}"
-		);
 	}
 	// Its error a handle C never holds, `verify` still exports, the error as its message.
 	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
@@ -3448,7 +3608,11 @@ fn reject() {
 	let out = scratch().join("reject").join("out");
 	let output = export("reject", &out, &[], &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
-	let errors = errors(&output);
+	let errors = refusals(&output);
+	// Every refusal says how to change the facade.
+	for error in &errors {
+		assert!(error.contains("\n\thelp: "), "no help for {error}");
+	}
 	let expected = std::fs::read_to_string(manifest_dir().join("fixtures/reject/expected.txt")).unwrap();
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
 		std::fs::write(
@@ -3558,6 +3722,16 @@ fn lacks() {
 /// Each of rust2-ffi's errors the export printed, sorted: at its span, then each of its
 /// notes at its own.
 fn errors(output: &Output) -> Vec<String> {
+	diagnostics(output, false)
+}
+
+/// [`errors`], each with its `help:` notes after its span notes, which a refusal carries
+/// for how to change the facade. A baseline break's names a path, so [`errors`] leaves it out.
+fn refusals(output: &Output) -> Vec<String> {
+	diagnostics(output, true)
+}
+
+fn diagnostics(output: &Output, helps: bool) -> Vec<String> {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let lines: Vec<&str> = stderr.lines().collect();
 	let at = |i: usize| {
@@ -3580,6 +3754,12 @@ fn errors(output: &Output) -> Vec<String> {
 		{
 			let error = errors.last_mut().expect("a note follows its error");
 			*error += &format!("\n\t{}: note: {note}", at(i));
+		} else if helps
+			&& ours
+			&& let Some(help) = line.trim_start().strip_prefix("= help: ")
+		{
+			let error = errors.last_mut().expect("a help follows its error");
+			*error += &format!("\n\thelp: {help}");
 		}
 	}
 	errors.sort();
@@ -3940,7 +4120,6 @@ fn package(name: &str, files: &[(&str, &str)]) -> PathBuf {
 	let defaults = [
 		("Cargo.toml", manifest.as_str()),
 		("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
-		("ffi.toml", ""),
 	];
 	let defaults = defaults
 		.into_iter()
@@ -3964,8 +4143,6 @@ fn no_std_links() {
 	);
 	let out = package.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
 		.arg("--out")
@@ -3998,7 +4175,7 @@ fn argfile() {
 			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
 		)],
 	);
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(
 		output.status.success(),
 		"the census failed:\n{}",
@@ -4006,12 +4183,12 @@ fn argfile() {
 	);
 }
 
-/// A census of the package whose config is `config` with these cargo args, to run.
-fn census(config: &Path, cargo: &[&str]) -> Command {
-	let dir = config.parent().unwrap();
+/// A census of the package whose manifest is `manifest` with these cargo args, to run.
+fn census(manifest: &Path, cargo: &[&str]) -> Command {
+	let dir = manifest.parent().unwrap();
 	let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
-	cmd.arg("--config")
-		.arg(config)
+	cmd.arg("--manifest-path")
+		.arg(manifest)
 		.arg("--census")
 		.arg(dir.join("census"))
 		.arg("--")
@@ -4020,13 +4197,69 @@ fn census(config: &Path, cargo: &[&str]) -> Command {
 	cmd
 }
 
+/// A flag given twice is an error, not the last one silently winning.
+#[test]
+fn flag_twice() {
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.args(["--census", "census", "--manifest-path", "a/Cargo.toml"])
+		.args(["--manifest-path", "b/Cargo.toml"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("--manifest-path is given twice"), "{stderr}");
+}
+
+/// A refused trait counts in the census's table, so a census whose rows sum to no refusal
+/// refuses nothing.
+#[test]
+fn census_counts_traits() {
+	let package = package(
+		"census_counts_traits",
+		&[("src/lib.rs", "pub unsafe trait Trusted {\n\tfn id(&self) -> u32;\n}\n")],
+	);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_counts_traits.md")).unwrap();
+	assert!(report.contains("| Traits | 0 | 1 | 0% |"), "{report}");
+}
+
+/// A method Swift refuses leaves out only itself, not the accessors of a field of its name.
+#[test]
+fn census_swift_field() {
+	let lib = "pub struct Token(u8);\n\n\
+		pub struct Gate {\n\tpub open: u8,\n\tshut: u8,\n}\n\n\
+		pub fn gate() -> Gate {\n\tGate { open: 0, shut: 0 }\n}\n\n\
+		impl Gate {\n\tpub fn open(&self, among: Option<&Token>, and: Option<&Token>, also: Option<&Token>) -> u8 {\n\t\t\
+		[among, and, also].into_iter().flatten().map(|t| t.0).sum::<u8>() + self.shut\n\t}\n}\n\n\
+		pub fn token() -> Token {\n\tToken(1)\n}\n";
+	let package = package("census_swift_field", &[("src/lib.rs", lib)]);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_swift_field.md")).unwrap();
+	// The field, by its getter, exports; the method alone is refused.
+	assert!(
+		report.contains("| Methods and fields of exported types | 1 | 1 |"),
+		"{report}"
+	);
+	assert!(report.contains("- method `Gate::open`"), "{report}");
+}
+
 /// Finding the exports keeps to the check's `--locked`: it neither writes a lockfile the
 /// check then accepts, nor passes.
 #[test]
 fn locked() {
 	let package = package("locked", &[]);
 	let _ = std::fs::remove_file(package.join("Cargo.lock"));
-	let output = census(&package.join("ffi.toml"), &["--locked"]).output().unwrap();
+	let output = census(&package.join("Cargo.toml"), &["--locked"]).output().unwrap();
 	assert!(!output.status.success(), "a census without a lockfile passed --locked");
 	assert!(!package.join("Cargo.lock").exists(), "the lockfile was written");
 }
@@ -4041,7 +4274,7 @@ fn symlinked() {
 	if !link.exists() {
 		std::os::unix::fs::symlink(&package, &link).unwrap();
 	}
-	let output = census(&link.join("ffi.toml"), &[]).output().unwrap();
+	let output = census(&link.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(
 		output.status.success(),
 		"the census failed:\n{}",
@@ -4090,8 +4323,8 @@ fn lookalike() {
 	let out = package.join("out");
 	let remap = format!("--remap-path-prefix={}=/src", package.display());
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build"))
@@ -4124,8 +4357,8 @@ fn standard_names() {
 		let lib = "pub struct SocketAddrV4 {\n\tpub port: u16,\n}\n\npub fn port(addr: SocketAddrV4) -> u16 {\n\taddr.port\n}\n";
 		std::fs::write(package.join("src/lib.rs"), lib).unwrap();
 		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-			.arg("--config")
-			.arg(package.join("ffi.toml"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
 			.arg("--out")
 			.arg(package.join("out"))
 			.args(["--", "--offline"])
@@ -4165,12 +4398,19 @@ fn opaque_values() {
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Mixed(u32, u64, u32);\n\npub fn mixed() -> Mixed {\n\tMixed(1, 2, 3)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct MixedWord(usize, u64);\n\npub fn mixed_word() -> MixedWord {\n\tMixedWord(1, 2)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Words(u64, usize, usize);\n\npub fn words() -> Words {\n\tWords(1, 2, 3)\n}\n\n\
-		#[derive(Clone, Copy)]\n#[repr(u8)]\nenum Kind {\n\tA,\n\tB,\n}\n\n#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Ordered(u64, u32, u16, u8, Kind);\n\npub fn ordered() -> Ordered {\n\tOrdered(1, 2, 3, 4, Kind::B)\n}\n";
+		#[derive(Clone, Copy)]\n#[repr(u8)]\nenum Kind {\n\tA,\n\tB,\n}\n\n#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Ordered(u64, u32, u16, u8, Kind);\n\npub fn ordered() -> Ordered {\n\tOrdered(1, 2, 3, 4, Kind::B)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Scaled {\n\tvalue: u64,\n\tscale: Option<std::num::NonZero<u64>>,\n}\n\npub fn scaled() -> Scaled {\n\tScaled { value: 1, scale: None }\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Lent(Option<&'static u32>);\n\npub fn lent() -> Lent {\n\tLent(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Nested(Option<Option<bool>>);\n\npub fn nested() -> Nested {\n\tNested(Some(None))\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Chars(Option<char>);\n\npub fn chars() -> Chars {\n\tChars(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Unset(Option<u32>);\n\npub fn unset() -> Unset {\n\tUnset(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Narrow(Option<(u32, std::num::NonZero<u32>)>);\n\npub fn narrow() -> Narrow {\n\tNarrow(None)\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Sliced(Option<&'static [u8]>);\n\npub fn sliced() -> Sliced {\n\tSliced(None)\n}\n";
 	let package = package("opaque_values", &[("src/lib.rs", lib)]);
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.args(["--target", WASM, "--target", host(), "--", "--offline"])
@@ -4183,8 +4423,12 @@ fn opaque_values() {
 	);
 	// A `bool` beside integers that fill the struct; a tag byte beside each variant's byte;
 	// fields in an order `repr(C)` keeps that leaves no gap, a `repr(u8)` tag among them;
-	// two `usize`s after a `u64`, which fill it at either pointer width.
-	for value in ["Flag", "Tagged", "Ordered", "Words"] {
+	// two `usize`s after a `u64`, which fill it at either pointer width; a `None` that writes
+	// its niche's whole scalar, a `u64`'s, a pointer's at either width, a `bool`'s an outer
+	// `None` shares with an inner one, or a `char`'s.
+	for value in [
+		"Flag", "Tagged", "Ordered", "Words", "Scaled", "Lent", "Nested", "Chars",
+	] {
 		assert!(
 			header.contains(&format!("}} opaque_values_{value};")),
 			"{value} is no opaque value:\n{header}"
@@ -4193,8 +4437,20 @@ fn opaque_values() {
 	// Padding after each `u8`; a tag and a `u16` short of a `u32`'s room; a niche the tag
 	// may hide in, leaving `B` a byte short; padding after the `u32` on a 64-bit target,
 	// though none on wasm32, so a handle on both; a `u64` that `repr(C)` keeps after a `u32`,
-	// or after a `usize`, which is a gap on wasm32 alone.
-	for handle in ["Pairs", "Wide", "Niched", "Word", "Mixed", "MixedWord"] {
+	// or after a `usize`, which is a gap on wasm32 alone; a `None` with no niche, writing
+	// only its tag, or with a niche narrower than its payload, a `NonZero<u32>`'s beside a
+	// `u32`, or a slice's pointer beside its length.
+	for handle in [
+		"Pairs",
+		"Wide",
+		"Niched",
+		"Word",
+		"Mixed",
+		"MixedWord",
+		"Unset",
+		"Narrow",
+		"Sliced",
+	] {
 		assert!(
 			header.contains(&format!("void opaque_values_{handle}_free(")),
 			"{handle} is no handle:\n{header}"
@@ -4249,62 +4505,6 @@ fn foreign_role_names() {
 	export_and_build(&package, &[]);
 }
 
-/// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
-/// module or another crate's that the facade re-exports through a glob, or a chain of them,
-/// or a field or variant of the facade's or another crate's type, under a `cfg` or one a
-/// `cfg_attr` adds, an inline module's type and a const-generic one's included, and by the
-/// defining crate's path as well as the facade's, but not what no build has, nor what a
-/// module only some of whose items the facade re-exports leaves out.
-#[test]
-fn configured_out() {
-	let package = package("configured_out", &[]);
-	let dep = manifest_dir().join("fixtures/dep");
-	let manifest = format!(
-		"[package]\nname = \"configured_out\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-		[dependencies]\ndep = {{ package = \"dep-fixture\", path = {:?} }}\n\n[workspace]\n",
-		dep.display().to_string()
-	);
-	write_all(
-		&package,
-		&[
-			("Cargo.toml", &manifest),
-			(
-				"src/lib.rs",
-				"pub use ::dep::Size;\n\npub mod glob {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
-				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
-				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n\n\
-				pub struct Shape<const N: usize = { 1 }> {\n\tpub n: u32,\n\t#[cfg(any())]\n\tpub gone: u32,\n\t#[cfg_attr(all(), cfg_attr(all(), cfg(any())))]\n\tpub gated: u32,\n}\n\n\
-				pub enum Kind {\n\tKept,\n\t#[cfg(any())]\n\tGone,\n}\n\n\
-				pub mod nested {\n\tpub struct Inner {\n\t\tpub n: u32,\n\t\t#[cfg(any())]\n\t\tpub gone: u32,\n\t}\n}\n",
-			),
-			(
-				"ffi.toml",
-				"exclude = [\"Gone\", \"Kind::Gone\", \"dep::Size::depth\", \"dep::Size::missing\", \"glob::Area::scaled\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"glob::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
-			),
-		],
-	);
-	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
-		.arg("--out")
-		.arg(package.join("out"))
-		.env("CARGO_TARGET_DIR", package.join("build"))
-		.output()
-		.unwrap();
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	let errors: Vec<&str> = stderr.lines().filter(|l| l.starts_with("error: rust2-ffi:")).collect();
-	assert_eq!(
-		errors,
-		[
-			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
-			"error: rust2-ffi: exclude `dep::Size::missing` in the config names nothing exported",
-			"error: rust2-ffi: exclude `Shape::missing` in the config names nothing exported",
-			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
-		],
-		"{stderr}"
-	);
-}
-
 /// The glue declares the facade's `rust-version`, raised to the 1.85 its edition needs.
 #[test]
 fn rust_version() {
@@ -4317,8 +4517,8 @@ fn rust_version() {
 	);
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build")));
@@ -4393,8 +4593,8 @@ fn channel() {
 	);
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("RUSTC", stable_rustc())
@@ -4454,8 +4654,8 @@ fn target() {
 	let package = package("targeted", &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
 	let exporter = |args: &[&str]| {
 		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
-		cmd.arg("--config")
-			.arg(package.join("ffi.toml"))
+		cmd.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
 			.args(args)
 			.env("CARGO_TARGET_DIR", package.join("build"));
 		cmd
@@ -4537,13 +4737,13 @@ fn target() {
 	let staged = package.join("differing.json");
 	run(&mut exporter(&["--api", staged.to_str().unwrap(), "--target", WASM]));
 	let moved = scratch().join("targeted-moved");
-	for file in ["Cargo.toml", "ffi.toml", "src/lib.rs"] {
+	for file in ["Cargo.toml", "src/lib.rs"] {
 		std::fs::create_dir_all(moved.join(file).parent().unwrap()).unwrap();
 		std::fs::copy(package.join(file), moved.join(file)).unwrap();
 	}
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(moved.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(moved.join("Cargo.toml"))
 		.arg("--out")
 		.arg(moved.join("out"))
 		.arg("--with")
@@ -4601,8 +4801,8 @@ fn write_all(dir: &Path, files: &[(&str, &str)]) {
 fn export_and_build(dir: &Path, args: &[&str]) {
 	let out = dir.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(dir.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(dir.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.arg("--")
@@ -4796,14 +4996,13 @@ fn replaced() {
 					"src/lib.rs",
 					"pub use rust2_ffi_replaced_dep::Size;\n\npub fn width(size: Size) -> u32 {\n\tsize.width\n}\n",
 				),
-				("ffi.toml", ""),
 			],
 		);
 	};
 	files("{ path = \"dep\" }");
 	export_and_build(&package, &[]);
 	files(&format!("{{ git = \"{url}\", branch = \"fixed\" }}"));
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(!output.status.success(), "a replacement from its own source passed");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
@@ -4869,11 +5068,10 @@ fn config_patched() {
 		"pub use rust2_ffi_config_cli::Margin;\npub use rust2_ffi_config_dep::Size;\n\n\
 		pub fn width(size: Size, cli: Margin) -> u32 {\n\tsize.width + cli.width\n}\n",
 	);
-	write("pkg/ffi.toml", "");
 	let out = root.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(root.join("pkg/ffi.toml"))
+		.arg("--manifest-path")
+		.arg(root.join("pkg/Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.args(["--", "--offline", "--config", "include = [\".cargo/cli.toml\"]"])
@@ -4921,7 +5119,6 @@ fn profiled() {
 					"[package]\nname = \"rust2-ffi-profiled-dev\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
 				),
 				("dev/src/lib.rs", ""),
-				("ffi.toml", ""),
 			],
 		);
 	};
@@ -4941,7 +5138,7 @@ fn profiled() {
 	);
 	assert!(!manifest.contains("rust2-ffi-profiled-dev"), "{manifest}");
 	files("missing");
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(!output.status.success(), "an override of no package passed");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
@@ -4949,7 +5146,7 @@ fn profiled() {
 		"{stderr}"
 	);
 	files("*");
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
 	assert!(!output.status.success(), "a wildcard override passed");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(

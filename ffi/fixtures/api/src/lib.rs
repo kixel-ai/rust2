@@ -816,6 +816,15 @@ impl Ledger {
 		}
 	}
 
+	/// A tab on this ledger, holding its exclusive borrow in a field, as rustls's
+	/// `ClientConfig::dangerous` does.
+	pub fn tab(&mut self) -> Tab<'_> {
+		Tab {
+			ledger: self,
+			label: "ledger",
+		}
+	}
+
 	pub fn slip(&mut self) -> Slip<'_> {
 		Slip {
 			receipt: Receipt(&self.published),
@@ -823,6 +832,14 @@ impl Ledger {
 			here: std::marker::PhantomData,
 		}
 	}
+}
+
+/// What [`Ledger::tab`] lends: fields holding borrows, which C reads through and never
+/// assigns, lent where what they borrow is not `Clone`, and copied where it is.
+#[non_exhaustive]
+pub struct Tab<'a> {
+	pub ledger: &'a mut Ledger,
+	pub label: &'a str,
 }
 
 mod noted {
@@ -1940,6 +1957,29 @@ impl Berth {
 	}
 }
 
+/// A count at a scale that may be absent: `Copy` with private fields, whose `None` writes
+/// its niche's whole `u64`, so a value whatever it holds.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rated {
+	count: u64,
+	scale: Option<NonZero<u64>>,
+}
+
+impl Rated {
+	/// `count` at `scale` a second, or unscaled at a scale of zero.
+	pub fn new(count: u64, scale: u64) -> Self {
+		Self {
+			count,
+			scale: NonZero::new(scale),
+		}
+	}
+
+	/// Its scale, or zero when unscaled.
+	pub fn scale(&self) -> u64 {
+		self.scale.map_or(0, NonZero::get)
+	}
+}
+
 /// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
 /// through `&mut self`, so a value whose every copy changes alone.
 #[derive(Clone, Copy, Debug)]
@@ -2846,22 +2886,11 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
-	/// Its field exports, but the method of its name is refused, so the config excludes
-	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
-	pub jitter: u32,
-	/// Its field exports, but Swift refuses the method of its name, so the config excludes
-	/// both, and the census lists only `field@Retry::spread` as excluding what exports.
-	pub spread: u64,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self {
-			limit,
-			delay: None,
-			jitter: 0,
-			spread: 0,
-		}
+		Self { limit, delay: None }
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -2874,16 +2903,6 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
-	}
-
-	/// The spread plus three optional borrowed counters, past what Swift takes.
-	pub fn spread(&self, first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-		self.spread + among(first, second, third)
-	}
-
-	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
-	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
-		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -3043,7 +3062,9 @@ pub fn hex(payload: impl Payload) -> String {
 	payload.into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into.
+/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into. Hidden,
+/// so a parameter that converts into one takes what converts instead.
+#[doc(hidden)]
 pub struct Timed<P> {
 	pub value: P,
 	pub at: Option<Stamp>,
@@ -3061,18 +3082,6 @@ impl<B: AsRef<[u8]>> From<B> for Timed<Bytes> {
 /// A timed payload's bytes in hex, which need not be UTF-8, owned as it is `'static`.
 pub fn timed_hex(payload: impl Into<Timed<Bytes>> + 'static) -> String {
 	hex(payload.into().value)
-}
-
-/// A reference stamped with no time, as moq's `Timed` converts one.
-impl<'a, V> From<&'a V> for Timed<&'a V> {
-	fn from(value: &'a V) -> Self {
-		Self { value, at: None }
-	}
-}
-
-/// A timed value's compact JSON text, taken as moq's JSON tracks take theirs.
-pub fn timed_text<'a, T: serde::Serialize + 'a>(value: impl Into<Timed<&'a T>>) -> String {
-	serde_json::to_string(value.into().value).expect("a JSON document serializes")
 }
 
 /// A timed payload on a track, which what converts into one converts into.
@@ -4156,6 +4165,26 @@ pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
 	items.iter().map(|v| v.wrapping_mul(2)).collect()
 }
 
+/// What `visit` returns for each chunk of `payload` of up to `size` bytes, which is not 0,
+/// each lent in place, then for none.
+pub fn visit_chunks(payload: &[u8], size: usize, mut visit: impl FnMut(Option<&[u8]>) -> u64) -> Vec<u64> {
+	let mut seen: Vec<u64> = payload.chunks(size).map(|chunk| visit(Some(chunk))).collect();
+	seen.push(visit(None));
+	seen
+}
+
+/// A reader of lent bytes: a callback interface, implemented in C.
+pub trait Scan {
+	/// A digest of `payload` and `rest`, if any, each lent for the call.
+	fn scan(&self, payload: &[u8], rest: Option<&[u8]>) -> u64;
+}
+
+/// What `scan` returns for each half of `payload`, each lent in place, then for none.
+pub fn scanned(scan: impl Scan, payload: Vec<u8>) -> u64 {
+	let (head, tail) = payload.split_at(payload.len() / 2);
+	scan.scan(head, Some(tail)) + scan.scan(&[], None)
+}
+
 /// `items` back as Rust took them, boxed.
 pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
 	items
@@ -4931,11 +4960,6 @@ pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
 
-/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
-pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
-	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
-}
-
 /// A record named as C++'s `==` names its first argument, which must not hide it.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
@@ -5087,3 +5111,191 @@ impl Key {
 		)
 	}
 }
+
+/// `text` without its backslashes, borrowed where it has none, as moq-pattern's `unescape` is.
+pub fn unescaped(text: &str) -> Cow<'_, str> {
+	match text.contains('\\') {
+		true => Cow::Owned(text.replace('\\', "")),
+		false => Cow::Borrowed(text),
+	}
+}
+
+/// [`unescaped`], later: the future owns the text it borrows, so what it returns is
+/// owned before the future ends.
+pub async fn unescaped_later(text: &str) -> Cow<'_, str> {
+	unescaped(text)
+}
+
+/// [`unescaped`] of `text` if any, later.
+pub async fn unescaped_maybe(text: Option<&str>) -> Option<Cow<'_, str>> {
+	text.map(unescaped)
+}
+
+/// `bytes` without their zeros, borrowed where they have none.
+pub fn unzeroed(bytes: &[u8]) -> Cow<'_, [u8]> {
+	match bytes.contains(&0) {
+		true => Cow::Owned(bytes.iter().copied().filter(|b| *b != 0).collect()),
+		false => Cow::Borrowed(bytes),
+	}
+}
+
+/// A spot that reads itself from any serde deserializer, as `#[serde(remote = "Self")]`
+/// derives an inherent `deserialize`, which moq-mux's `Mpegts` has.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+	pub x: u32,
+	pub y: u32,
+}
+
+impl Spot {
+	pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let (x, y) = <(u32, u32) as serde::Deserialize>::deserialize(deserializer)?;
+		Ok(Self { x, y })
+	}
+}
+/// A type named as Kotlin's and Dart's deprecation annotation, which the bindings' own
+/// annotations must not resolve to.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Deprecated {
+	pub on: bool,
+	/// Named as the Swift record's own conversion, which its stored field must not be.
+	#[deprecated]
+	pub lower: u32,
+	/// Named as Dart's annotation, which its sibling's must not resolve to.
+	pub deprecated: bool,
+}
+
+/// A function named as Dart's deprecation annotation, which the deprecated items after it
+/// must not resolve to.
+pub fn deprecated(note: u8) -> u8 {
+	note
+}
+
+/// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
+/// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
+/// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method
+/// [`Log::log`], [`Spawned`], which the web lacks, a method [`clash::Span::width`] and the
+/// [field](field@clash::Span::width) of its name, [`Vec`], which no binding has, and
+/// [a link with its own text](Self::turn).
+///
+/// # Examples
+///
+/// ```
+/// let dial = api::Dial::default();
+/// assert_eq!(dial.level, 0);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Dial {
+	/// How far it is turned, below [`LIMIT`].
+	pub level: u64,
+	/// What [`Self::level`] was before the last turn.
+	#[deprecated(note = "keep the [`Dial`] from before the turn")]
+	pub before: u64,
+}
+
+impl Dial {
+	/// The dial turned `by` more.
+	///
+	/// # Errors
+	///
+	/// [`Error::Overflow`] past [`LIMIT`].
+	///
+	/// # Panics
+	///
+	/// When `by` is zero.
+	#[allow(deprecated, reason = "it keeps the field it deprecates")]
+	pub fn turn(self, by: u64) -> Result<Dial, Error> {
+		assert!(by != 0, "a turn by nothing");
+		match self.level.checked_add(by) {
+			Some(level) if level <= LIMIT => Ok(Dial {
+				level,
+				before: self.level,
+			}),
+			_ => Err(Error::Overflow),
+		}
+	}
+
+	/// The dial turned all the way: use [`Self::turn`].
+	#[deprecated(since = "0.2.0", note = "turn it by [`LIMIT`] with [`Dial::turn`]")]
+	pub fn max(self) -> Dial {
+		#[allow(deprecated, reason = "it keeps the field it deprecates")]
+		Dial {
+			level: LIMIT,
+			before: self.level,
+		}
+	}
+}
+
+/// A knob, deprecated as a whole: [`Dial`] replaces it.
+#[deprecated(note = "use [`Dial`], whose 'level' is \"the same\" at $0\nand past it")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Knob {
+	pub level: u64,
+}
+
+#[allow(deprecated, reason = "it is the type it deprecates")]
+impl Knob {
+	/// Its level, twice.
+	pub fn doubled(&self) -> u64 {
+		self.level * 2
+	}
+}
+
+/// A knob behind a handle, which reaches its deprecated type's methods, deprecated too.
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+pub struct Holder {
+	knob: Knob,
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl Holder {
+	/// A knob at `level`.
+	pub fn new(level: u64) -> Self {
+		Self { knob: Knob { level } }
+	}
+}
+
+#[allow(deprecated, reason = "it holds the type it deprecates")]
+impl std::ops::Deref for Holder {
+	type Target = Knob;
+
+	fn deref(&self) -> &Knob {
+		&self.knob
+	}
+}
+
+/// The knob of `dial`.
+#[deprecated]
+#[allow(deprecated, reason = "it returns the type it deprecates")]
+pub fn knob(dial: Dial) -> Knob {
+	Knob { level: dial.level }
+}
+
+/// The level of `dial`, from a future.
+#[deprecated(note = "read its `level`")]
+pub async fn level_later(dial: Dial) -> u64 {
+	dial.level
+}
+
+/// What turns a [`Dial`], implemented in each binding.
+pub trait Turner {
+	/// How far to turn.
+	fn by(&self) -> u64;
+
+	/// How far to turn once.
+	#[deprecated(note = "turn [`Turner::by`] instead")]
+	fn once(&self) -> u64;
+}
+
+/// `dial` turned as `turner` says, and once more.
+#[allow(deprecated, reason = "it calls the method it deprecates")]
+pub fn turned(dial: Dial, turner: impl Turner) -> Result<Dial, Error> {
+	dial.turn(turner.by())?.turn(turner.once())
+}
+
+/// The most a [`Dial`] turns, a name the web's globals take too: [`URL`] links its own.
+pub const URL: u64 = LIMIT;
+
+/// The step a [`Dial`] turned by before [`Dial::turn`] took any, at most [`URL`].
+#[deprecated(note = "pass a step to [`Dial::turn`], whose `}` or `{` alone stays in the note")]
+pub const STEP: u64 = 1;

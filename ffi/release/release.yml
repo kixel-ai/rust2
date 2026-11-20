@@ -3,8 +3,11 @@ name: Release @NAME@ bindings
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
 # below, exports @NAME@'s pub API, builds its Python wheels and sdist, Swift package, C
 # archives, and web package, and checks them in clean consumers, all read-only. The jobs
-# after it publish only a tag's build:
+# after it publish only a tag's build, once `attest` has signed it:
 #
+# - Attestations: a build provenance attestation and an SBOM attestation for every wheel, the
+#   sdist, the XCFramework, the Go module's .zip and .mod, each C archive, and the npm
+#   tarball, from this repository's GitHub, checked with `gh attestation verify`.
 # - PyPI: the project @NAME@'s wheels and sdist, through the trusted publisher this
 #   repository registers there for this workflow and the `pypi` environment.
 # - SwiftPM: @MODULE@FFI.xcframework.zip on this repository's @NAME@-v<version> release, which
@@ -25,7 +28,7 @@ name: Release @NAME@ bindings
 # To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
 # from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
 # "Re-run failed jobs": it reuses this run's build, and the publishing jobs upload only what
-# is missing. A rebuild's files differ, so "Re-run all jobs" stops at any already published.
+# is missing. A rebuild makes the same files, so "Re-run all jobs" works too.
 on:
   push:
     tags:
@@ -83,8 +86,63 @@ jobs:
             exit 1
           fi
 
-  pypi:
+  # Signs what the jobs below publish, before any of it is public, as this workflow's own
+  # build of this commit. The permissions are this job's alone.
+  attest:
     needs: [build, tag]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: @NAME@-build-*
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-swift
+          path: artifacts/swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: @NAME@-go
+          path: artifacts/go
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          name: @NAME@-web
+          path: artifacts/web
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/sdist/*.tar.gz
+            artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
+            artifacts/c/*
+            artifacts/web/*.tgz
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/wheels/*.whl
+            artifacts/sdist/*.tar.gz
+            artifacts/swift/*FFI.xcframework.zip
+            artifacts/go/**/@v/*.zip
+            artifacts/go/**/@v/*.mod
+            artifacts/c/*
+          sbom-path: artifacts/sbom.cdx.json
+      # The npm tarball's own, from the web export's dependencies.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          subject-path: artifacts/web/*.tgz
+          sbom-path: artifacts/web/sbom.cdx.json
+
+  pypi:
+    needs: [build, tag, attest]
     runs-on: ubuntu-24.04
     environment:
       name: pypi
@@ -136,7 +194,7 @@ jobs:
   # published. The release's API, api.json, is an asset too: the next release's build checks
   # its own against it, and its notes list what changed since the previous release's.
   github-release:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -249,7 +307,7 @@ jobs:
 
   # A rerun publishes only a version npm lacks, and fails on one it hosts with other bytes.
   npm:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     if: needs.build.outputs.web == 'true'
     runs-on: ubuntu-24.04
     environment: npm
@@ -282,7 +340,7 @@ jobs:
 
   # JSR skips a version it already hosts.
   jsr:
-    needs: [build, tag]
+    needs: [build, tag, attest]
     if: needs.build.outputs.web == 'true'
     runs-on: ubuntu-24.04
     environment: jsr

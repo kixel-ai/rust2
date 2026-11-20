@@ -825,12 +825,9 @@ fn fields(what: &str, ours: &[crate::ir::Field], theirs: &[crate::ir::Field]) ->
 /// What of the function `ours` changed in `theirs`, both bare and of one key.
 fn signature(ours: &Function, theirs: &Function) -> Vec<String> {
 	let (mut ours, mut theirs) = (ours.clone(), theirs.clone());
-	// Which name the config gives a field: no binding names it otherwise. Nor whether a held
-	// handle fails it, which only a newer export lends and a baseline written before it lacks.
+	// Not whether a held handle fails it, which only a newer export lends and a baseline
+	// written before it lacks.
 	for f in [&mut ours, &mut theirs] {
-		if let Access::Field { shared, .. } = &mut f.access {
-			*shared = false;
-		}
 		f.ties = false;
 	}
 	let mut changes = Vec::new();
@@ -884,6 +881,7 @@ mod tests {
 				span: DUMMY_SP,
 				on: On::ALL,
 				docs: String::new(),
+				deprecated: None,
 				receiver: None,
 				params: vec![],
 				units: vec![],
@@ -926,6 +924,7 @@ mod tests {
 			span: DUMMY_SP,
 			on: On::ALL,
 			docs: String::new(),
+			deprecated: None,
 			fields: vec![],
 			tuple: false,
 			methods: vec![],
@@ -1011,6 +1010,7 @@ mod tests {
 			span: DUMMY_SP,
 			on: On::ALL,
 			docs: String::new(),
+			deprecated: None,
 			sync: true,
 			send: true,
 			copy: false,

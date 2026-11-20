@@ -9,12 +9,14 @@ import argparse
 import base64
 import csv
 import difflib
+import gzip
 import hashlib
 import io
 import json
 import os
 from pathlib import Path
 import posixpath
+import plistlib
 import re
 import shlex
 import shutil
@@ -22,7 +24,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import tomllib
+import urllib.parse
+import uuid
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -30,6 +35,7 @@ ROOT = HERE.parents[1]
 # The sdist's PEP 517 backend, which writes both distributions' wheels.
 sys.path.insert(0, str(HERE))
 import backend  # noqa: E402
+from backend import seal, write_zip  # noqa: E402,F401
 # The wheel's Linux floor: glibc 2.28 (RHEL 8, Debian 10), crabx's, and moq's manylinux_2_28.
 GLIBC = "2.28"
 # The macOS a wheel loads on: the oldest Rust's aarch64-apple-darwin target supports.
@@ -76,7 +82,10 @@ GO_MOD_MAX = 16 << 20
 LTO_SECTIONS = [".llvmbc", ".llvmcmd", "__LLVM,__bitcode", "__LLVM,__cmdline"]
 # Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
 LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 COLLECTIONS = "https://github.com/apple/swift-collections"
+# The first date a ZIP entry can hold, and so the earliest SOURCE_DATE_EPOCH a build takes.
+ZIP_EPOCH = backend.ZIP_EPOCH
 # The target the web binding serves, whose module the npm and JSR packages hold.
 WEB_TARGET = "wasm32-wasip1"
 # JSR's cap on a version's files, unpacked.
@@ -123,6 +132,14 @@ def library(package):
     return libs[0]["name"].replace("-", "_")
 
 
+def epoch(directory):
+    """The build time every file of this release carries: SOURCE_DATE_EPOCH, else the commit's."""
+    raw = os.environ.get("SOURCE_DATE_EPOCH") or output("git", "-C", directory, "log", "-1", "--format=%ct").strip()
+    if not raw.isdigit() or int(raw) < ZIP_EPOCH:
+        raise SystemExit(f"SOURCE_DATE_EPOCH {raw!r} is no time since 1980: set it, or build from a commit")
+    return int(raw)
+
+
 def facts(manifest):
     """The package at `manifest`, as Cargo metadata describes it."""
     meta = json.loads(output("cargo", "metadata", "--format-version", "1", "--no-deps",
@@ -142,6 +159,7 @@ def facts(manifest):
         "lib": library(package),
         "dir": str(path.parent),
         "workspace": meta["workspace_root"],
+        "epoch": epoch(path.parent),
         "examples": sorted(t["name"] for t in package["targets"] if "example" in t["kind"]),
     }
 
@@ -195,6 +213,18 @@ def metadata(info, floor):
     return "\n".join(lines) + "\n\n"
 
 
+def normalize_wheel(path, stamp):
+    """Rewrite a repaired wheel as `seal` writes one, whatever order, times, and modes its tool left."""
+    with zipfile.ZipFile(path) as archive:
+        files = {
+            entry.filename: (archive.read(entry), 0o755 if entry.external_attr >> 16 & 0o111 else 0o644)
+            for entry in archive.infolist()
+            # Repair tools add directory entries, which RECORD never lists, and rewrite RECORD itself.
+            if not entry.is_dir() and not entry.filename.endswith(".dist-info/RECORD")
+        }
+    seal(path, files, stamp)
+
+
 def wheel_platform(target):
     """The tag a wheel for `target` starts with, before repair narrows it."""
     tags = {
@@ -216,10 +246,11 @@ def write_wheel(info, export, library, target, out):
     lib, floor = info["lib"], python_floor(export)
     return backend.write_wheel(out, metadata(info, floor), f"cp3{floor}-abi3-{wheel_platform(target)}", lib,
                                (Path(export) / "python" / f"{lib}.py").read_bytes(), Path(library).read_bytes(),
-                               target, {path.name: path.read_bytes() for path in licenses(info)})
+                               target, {path.name: path.read_bytes() for path in licenses(info)}, info["epoch"],
+                               info["sbom"])
 
 
-def repair(wheel, target, out):
+def repair(wheel, target, out, stamp):
     """Hand the wheel to its platform's repair tool, which claims the portable tag or fails."""
     Path(out).mkdir(parents=True, exist_ok=True)
     if "linux" in target:
@@ -234,6 +265,7 @@ def repair(wheel, target, out):
     repaired = list(Path(out).glob("*.whl"))
     if len(repaired) != 1:
         raise SystemExit(f"repair wrote {len(repaired)} wheels into {out}")
+    normalize_wheel(repaired[0], stamp)
     check_wheel(repaired[0])
     return repaired[0]
 
@@ -391,12 +423,14 @@ def sdist(info, manifest, export, out):
     files["PKG-INFO"] = (metadata(info, floor).encode(), False)
     files["pyproject.toml"] = (pyproject(targets).encode(), False)
     files["rust2/backend.py"] = ((HERE / "backend.py").read_bytes(), False)
+    # What the prebuilt wheels embed, which a wheel built from the sdist embeds too: the same lockfile's crates.
+    files["rust2/sbom.cdx.json"] = (sbom(info, export / "Cargo.toml"), False)
     for path in licenses(info):
         files[path.name] = (path.read_bytes(), False)
     if pin := toolchain(info["dir"]):
         files["rust-toolchain.toml"] = (pin.encode(), False)
     (Path(out) / "sdist").mkdir(parents=True, exist_ok=True)
-    return backend.write_sdist(Path(out) / "sdist", info["name"], pep440(info["version"]), files)
+    return backend.write_sdist(Path(out) / "sdist", info["name"], pep440(info["version"]), files, info["epoch"])
 
 
 def digest(export, lib):
@@ -492,6 +526,29 @@ def min_os(archive):
     return max(versions)
 
 
+def sort_plist(path):
+    """Rewrite an XCFramework's Info.plist with its libraries in name order, which xcodebuild lists in a random one."""
+    with open(path, "rb") as source:
+        plist = plistlib.load(source)
+    plist["AvailableLibraries"].sort(key=lambda library: library["LibraryIdentifier"])
+    with open(path, "wb") as sink:
+        plistlib.dump(plist, sink, sort_keys=True)
+
+
+def zip_tree(root, path, stamp):
+    """The directory `root` as a ZIP holding it as its top-level directory, as `ditto --keepParent` does."""
+    entries = [(f"{root.name}/", b"", 0o755)]
+    for found in sorted(root.rglob("*"), key=lambda p: p.relative_to(root).as_posix()):
+        name = f"{root.name}/{found.relative_to(root).as_posix()}"
+        if found.is_symlink():
+            raise SystemExit(f"{found} is a symlink: the XCFramework ZIP holds only files")
+        if found.is_dir():
+            entries.append((f"{name}/", b"", 0o755))
+        else:
+            entries.append((name, found.read_bytes(), 0o755 if found.stat().st_mode & 0o111 else 0o644))
+    write_zip(path, entries, stamp)
+
+
 def swift(info, export, libs, natives, out):
     """The XCFramework of every Apple slice, its checksummed ZIP, and the package around it."""
     if sys.platform != "darwin":
@@ -515,13 +572,23 @@ def swift(info, export, libs, natives, out):
         raise SystemExit("the module map no longer names ../include: update the packager")
     (headers / "module.modulemap").write_text(modulemap.replace(f"../include/{lib}.h", f"{lib}.h"), encoding="utf-8")
     framework = out / f"{module}FFI.xcframework"
-    args = ["xcodebuild", "-create-xcframework"]
-    for target in APPLE_TARGETS:
-        args += ["-library", libs[target], "-headers", headers]
-    run(*args, "-output", framework)
-    shutil.rmtree(headers)
     archive = out / f"{module}FFI.xcframework.zip"
-    run("/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", framework, archive)
+    again = out / "again"
+    # The XCFramework twice, which must zip to the same bytes: the checksum a consumer
+    # resolves is of this ZIP, and a rebuild must make it again.
+    for tree, zipped in ((framework, archive), (again / framework.name, again / archive.name)):
+        args = ["xcodebuild", "-create-xcframework"]
+        for target in APPLE_TARGETS:
+            args += ["-library", libs[target], "-headers", headers]
+        # libtool, which xcodebuild runs on each library, stamps the time unless told not to.
+        run(*args, "-output", tree, env={**os.environ, "ZERO_AR_DATE": "1"})
+        sort_plist(tree / "Info.plist")
+        zip_tree(tree, zipped, info["epoch"])
+    if archive.read_bytes() != (again / archive.name).read_bytes():
+        raise SystemExit("xcodebuild made different XCFrameworks from the same libraries:\n"
+                         + "\n".join(zip_diff(archive, again / archive.name)))
+    shutil.rmtree(headers)
+    shutil.rmtree(again)
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
     # SwiftPM's own computation, as a consumer resolving the URL runs it.
     swift_sum = output("swift", "package", "compute-checksum", archive).strip()
@@ -850,7 +917,8 @@ def hide(static, shared, lib, target, work):
         arch = ["-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}"]
         run("cc", "-r", "-nostdlib", *arch, *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}",
             define_commons(static, arch, work), static, "-o", hidden)
-        run("libtool", "-static", "-o", archive, hidden)
+        # Which stamps the member with the time unless told not to.
+        run("libtool", "-static", "-o", archive, hidden, env={**os.environ, "ZERO_AR_DATE": "1"})
         # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
         found = output("nm", "--no-llvm-bc", "-gUj", hidden).split()
     else:
@@ -934,7 +1002,7 @@ def c_archive(info, manifest, export_dir, target, out):
     elif apple:
         # The last -install_name rustc's linker sees wins over its own unversioned one.
         link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
-    env = {"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {}
+    env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
     # a C program cannot resolve. Its own target directory, since its link arguments differ.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
@@ -983,26 +1051,32 @@ def c_archive(info, manifest, export_dir, target, out):
         (root / "lib/cps").mkdir(parents=True)
         (root / f"lib/cps/{lib}.cps").write_text(cps(info, files, natives), newline="\n", encoding="utf-8")
         (out / "c").mkdir(parents=True, exist_ok=True)
-        return pack(root, out / "c" / (name + (".zip" if "windows" in target else ".tar.gz")))
+        return pack(root, out / "c" / (name + (".zip" if "windows" in target else ".tar.gz")), info["epoch"])
 
 
-def pack(root, path):
-    """`root` as a ZIP or gzipped tarball under its own name, owned by no one, readable by all."""
+def pack(root, path, stamp):
+    """`root` as a ZIP or gzipped tarball under its own name, owned by no one, readable by all, stamped `stamp`, and the same bytes whoever packs it."""
+    found = sorted(root.rglob("*"), key=lambda p: p.relative_to(root.parent).as_posix())
     if path.suffix == ".zip":
-        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
-            for file in sorted(p for p in root.rglob("*") if p.is_file()):
-                archive.write(file, file.relative_to(root.parent).as_posix())
+        write_zip(path, [(f"{root.name}/", b"", 0o755)] + [
+            (p.relative_to(root.parent).as_posix() + ("/" if p.is_dir() else ""), b"" if p.is_dir() else p.read_bytes(),
+             0o755 if p.is_dir() or p.stat().st_mode & 0o111 else 0o644) for p in found], stamp)
         return path
 
     def owned(member):
         member.uid = member.gid = 0
         member.uname = member.gname = ""
+        member.mtime = stamp
         if not member.issym():
             member.mode = 0o755 if member.isdir() or member.mode & 0o100 else 0o644
         return member
 
-    with tarfile.open(path, "w:gz") as archive:
-        archive.add(root, root.name, filter=owned)
+    # No name or time in gzip's header, and the members in order rather than the file system's.
+    with open(path, "wb") as raw, gzip.GzipFile("", "wb", 9, raw, mtime=0) as zipped, \
+            tarfile.open(fileobj=zipped, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        archive.add(root, root.name, recursive=False, filter=owned)
+        for member in found:
+            archive.add(member, member.relative_to(root.parent).as_posix(), recursive=False, filter=owned)
     return path
 
 
@@ -1144,15 +1218,10 @@ def consume_python(check, native, module):
 
 
 def exporter(manifest, features, *args):
-    """Run rust2-ffi from this checkout on the package, with its ffi.toml if it keeps one."""
+    """Run rust2-ffi from this checkout on the package."""
     manifest = Path(manifest).resolve()
-    config = manifest.parent / "ffi.toml"
-    if not config.exists():
-        # The exporter still requires a config file; an empty one leaves nothing out.
-        config = Path(tempfile.mkdtemp()) / "ffi.toml"
-        config.write_text("", encoding="utf-8")
     cargo = ["--", "--features", features] if features.strip() else []
-    run("cargo", "run", "--locked", "--release", "--quiet", "--", "--config", config, "--manifest-path", manifest,
+    run("cargo", "run", "--locked", "--release", "--quiet", "--", "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi")
 
 
@@ -1322,6 +1391,246 @@ def export(args):
     exporter(args.manifest_path, args.features, *targets, *withs, *baseline, "--out", out)
 
 
+def rustflags_config(directory, target):
+    """What sets rustflags for cargo where a RUSTFLAGS override would silently replace it."""
+    here = Path(directory).resolve()
+    home = Path(os.environ.get("CARGO_HOME") or Path.home() / ".cargo")
+    for root in [home, *(r / ".cargo" for r in [here, *here.parents])]:
+        for name in ("config.toml", "config"):
+            found = root / name
+            if not found.is_file():
+                continue
+            config = tomllib.loads(found.read_text(encoding="utf-8"))
+            tables = {key: table for key, table in config.get("target", {}).items() if key == target or key.startswith("cfg(")}
+            if "rustflags" in config.get("build", {}) or any("rustflags" in table for table in tables.values()):
+                yield str(found)
+    for key in os.environ:
+        if key == "CARGO_BUILD_RUSTFLAGS" or re.fullmatch(r"CARGO_TARGET_.*_RUSTFLAGS", key):
+            yield key
+
+
+def reproducible(info, export_dir, target, install=None):
+    """The environment that makes a build's bytes the same on any host, at any path.
+
+    Release time is the commit's, and each directory the build reads from, which rustc and
+    C compilers write into panic messages and debug info, is spelled the same. A dylib is
+    named `install`, else by its library's own name.
+    """
+    pairs = {
+        info["workspace"]: "/source",
+        str(export_dir): "/export",
+        os.environ.get("CARGO_HOME") or str(Path.home() / ".cargo"): "/cargo",
+    }
+    # The deepest last, which rustc prefers where one directory holds another.
+    pairs = sorted(pairs.items(), key=lambda pair: len(pair[0]))
+    for found in rustflags_config(info["dir"], target):
+        raise SystemExit(f"{found} sets rustflags, which the reproducible build's RUSTFLAGS would replace: export RUSTFLAGS instead")
+    encoded = os.environ.get("CARGO_ENCODED_RUSTFLAGS")
+    if encoded is None:
+        flags = os.environ.get("RUSTFLAGS", "").split()
+    else:
+        # Cargo reads an empty value as no flags, not as one empty flag.
+        flags = encoded.split("\x1f") if encoded else []
+    flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
+    env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
+    if "msvc" in target:
+        # link.exe stamps the build time into the DLL unless told to hash its content.
+        flags += ["-C", "link-arg=/Brepro"]
+    else:
+        # cc splits CFLAGS on whitespace, and quoting them would change how a caller's own flags read.
+        for old, _ in pairs:
+            if any(c.isspace() for c in old):
+                raise SystemExit(f"{old} holds whitespace, which would split its -ffile-prefix-map in CFLAGS: build from a path without it")
+        # cc reads CXXFLAGS, not CFLAGS, for C++.
+        for var in ("CFLAGS", "CXXFLAGS"):
+            env[var] = " ".join(filter(None, [os.environ.get(var), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
+    if "apple" in target:
+        # Apple's ar and libtool stamp archive members with the time unless told not to, and
+        # the linker names a dylib after the path it wrote it to, in the export's build directory.
+        env["ZERO_AR_DATE"] = "1"
+        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{install or library_name(info['lib'], target)}"]
+    env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
+    return env
+
+
+def purl(package):
+    """The crate's package URL, qualified by its source unless that is crates.io, so two sources of one version stay two components."""
+    base = f"pkg:cargo/{package['name']}@{package['version']}"
+    source = package.get("source") or ""
+    # An alternate registry may speak the git or the sparse protocol; crates.io reports the former either way.
+    if source.startswith(("registry+", "sparse+")) and source != CRATES_IO:
+        return f"{base}?repository_url={urllib.parse.quote(source.split('+', 1)[1], safe='')}"
+    if source.startswith("git+"):
+        return f"{base}?vcs_url={urllib.parse.quote(source, safe='')}"
+    return base
+
+
+def sbom(info, crate, feature="python"):
+    """A CycloneDX SBOM of the crates the binding is built from with `feature`, the same for every host and target."""
+    meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", "--features", feature,
+                             "--manifest-path", crate))
+    lock = tomllib.loads((Path(crate).parent / "Cargo.lock").read_text(encoding="utf-8"))
+    checksums = {(p["name"], p["version"], p.get("source")): p["checksum"] for p in lock["package"] if "checksum" in p}
+    packages = {p["id"]: p for p in meta["packages"]}
+    nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
+    root = f"pkg:cargo/{info['name']}@{info['version']}"
+    # The generated crate is the package it exports: its dependencies are the package's.
+    ref = lambda i: root if i == meta["resolve"]["root"] or purl(packages[i]) == root else purl(packages[i])  # noqa: E731
+    seen, queue, depends = set(), [meta["resolve"]["root"]], {}
+    while queue:
+        node = queue.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        # What the library links is its normal dependencies; a proc-macro or build script only runs at build time.
+        shipped = [d["pkg"] for d in nodes[node]["deps"]
+                   if any(k["kind"] is None for k in d["dep_kinds"])
+                   and not any("proc-macro" in t["kind"] for t in packages[d["pkg"]]["targets"])]
+        depends.setdefault(ref(node), set()).update(ref(i) for i in shipped)
+        queue += shipped
+    components = {ref(i): packages[i] for i in sorted(seen) if ref(i) != root}
+    def component(name, package):
+        out = {"type": "library", "bom-ref": name, "name": package["name"], "version": package["version"], "purl": name}
+        if package.get("license"):
+            # Cargo still takes the legacy MIT/Apache-2.0, which is no SPDX expression.
+            out["licenses"] = [{"license": {"name": package["license"]}} if "/" in package["license"]
+                               else {"expression": package["license"]}]
+        if package.get("repository"):
+            out["externalReferences"] = [{"type": "vcs", "url": package["repository"]}]
+        checksum = checksums.get((package["name"], package["version"], package.get("source")))
+        if checksum:
+            out["hashes"] = [{"alg": "SHA-256", "content": checksum}]
+        return out
+    document = {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.6",
+        "version": 1,
+        "serialNumber": "",
+        "metadata": {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(info["epoch"])),
+            "component": {"type": "library", "bom-ref": root, "name": info["name"], "version": info["version"], "purl": root},
+        },
+        "components": [component(name, components[name]) for name in sorted(components)],
+        "dependencies": [{"ref": name, "dependsOn": sorted(depends[name] - {name})} for name in sorted(depends)],
+    }
+    # actions/attest takes a CycloneDX file only with a serial number: derived from the content, so every host writes the same.
+    document["serialNumber"] = f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, json.dumps(document, sort_keys=True))}"
+    return (json.dumps(document, indent=2) + "\n").encode()
+
+
+def zip_diff(one, two):
+    """The entries two ZIPs hold differently, each with its content hash, time, and attributes."""
+    with zipfile.ZipFile(one) as a, zipfile.ZipFile(two) as b:
+        entries = lambda z: {i.filename: (hashlib.sha256(z.read(i)).hexdigest(), i.date_time, i.external_attr) for i in z.infolist()}  # noqa: E731
+        left, right = entries(a), entries(b)
+    return [f"  {name}: {left.get(name)} against {right.get(name)}"
+            for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
+
+
+def ar_entries(data, label="the archive"):
+    """An archive's `(name, header fields, start, end)` per member, its symbol table and names table by their own."""
+    if data[:8] != b"!<arch>\n":
+        raise SystemExit(f"{label} is no archive")
+    entries, long_names, offset = [], b"", 8
+    while offset + 60 <= len(data):
+        name, date, uid, gid, mode, size = (data[offset + a:offset + b].decode("ascii", "replace").strip()
+                                            for a, b in ((0, 16), (16, 28), (28, 34), (34, 40), (40, 48), (48, 58)))
+        start, end = offset + 60, offset + 60 + int(size)
+        offset = end + int(size) % 2
+        if name == "//":
+            long_names = data[start:end]
+        elif name.startswith("#1/") and name[3:].isdigit():
+            # BSD's extended name, in the first bytes of the member's own data.
+            length = int(name[3:])
+            name = data[start:start + length].rstrip(b"\0").decode("utf-8", "replace")
+            start += length
+        elif name.startswith("/") and name[1:].isdigit():
+            first = int(name[1:])
+            name = long_names[first:long_names.index(b"\n", first)].decode("utf-8", "replace").rstrip("/")
+        else:
+            name = name.rstrip("/") or "/"
+        entries.append((name, (date, uid, gid, mode), start, end))
+    return entries
+
+
+def ar_members(path):
+    """An archive's members as `{name: (content, time, owner, group, mode)}`."""
+    data = Path(path).read_bytes()
+    members = {}
+    for name, fields, start, end in ar_entries(data, path):
+        # A name twice, as an archive may hold, is told apart by its place.
+        while name in members:
+            name += "'"
+        members[name] = (data[start:end], *fields)
+    return members
+
+
+def ar_diff(one, two):
+    """The members two archives hold differently, each with where its content first differs."""
+    left, right = ar_members(one), ar_members(two)
+    lines = []
+    for name in sorted(left.keys() | right.keys()):
+        a, b = left.get(name), right.get(name)
+        if a == b:
+            continue
+        if a is None or b is None:
+            lines.append(f"  {name}: only in the {'first' if b is None else 'second'}")
+            continue
+        at = next((i for i, (x, y) in enumerate(zip(a[0], b[0])) if x != y), min(len(a[0]), len(b[0])))
+        lines.append(f"  {name}: {len(a[0])} against {len(b[0])} bytes, {a[1:]} against {b[1:]}; first differing byte {at}: "
+                     f"{a[0][max(at - 24, 0):at + 40]!r} against {b[0][max(at - 24, 0):at + 40]!r}")
+    return lines
+
+
+def tar_diff(one, two):
+    """The members two gzipped tarballs hold differently, each with its content hash and attributes, and where a static library's own members differ."""
+    def members(path):
+        with tarfile.open(path) as archive:
+            return {m.name: (archive.extractfile(m).read() if m.isfile() else m.linkname, m.mtime, m.mode, m.uid, m.gid, m.uname, m.gname)
+                    for m in archive.getmembers()}
+    left, right = members(one), members(two)
+    lines = []
+    for name in sorted(left.keys() | right.keys()):
+        a, b = left.get(name), right.get(name)
+        if a == b:
+            continue
+        digest = lambda m: (hashlib.sha256(m[0]).hexdigest(), *m[1:]) if m and isinstance(m[0], bytes) else m  # noqa: E731
+        lines.append(f"  {name}: {digest(a)} against {digest(b)}")
+        if name.endswith(".a") and a and b:
+            with tempfile.TemporaryDirectory() as tmp:
+                for index, content in enumerate((a[0], b[0])):
+                    (Path(tmp) / f"{index}.a").write_bytes(content)
+                lines += ["  " + line for line in ar_diff(Path(tmp) / "0.a", Path(tmp) / "1.a")]
+    return lines
+
+
+def same(first, second):
+    """Fail unless two builds' wheels, sdist, static libraries, C archives, and npm tarball, the Go module's included, are the same bytes, naming what differs."""
+    found = {}
+    for root in (Path(first), Path(second)):
+        found[root] = {p.relative_to(root).as_posix(): p for pattern in ("wheels/*.whl", "sdist/*.tar.gz", "static/*/*.a", "go/*.a", "c/*.tar.gz", "c/*.zip", "*.tgz") for p in root.glob(pattern)}
+    names = sorted(found[Path(first)])
+    if not names or names != sorted(found[Path(second)]):
+        raise SystemExit(f"the builds hold different packages: {names} against {sorted(found[Path(second)])}")
+    problems = []
+    for name in names:
+        one, two = (found[Path(root)][name] for root in (first, second))
+        if one.read_bytes() == two.read_bytes():
+            continue
+        problems.append(name)
+        if name.endswith(".whl"):
+            problems += zip_diff(one, two)
+        elif name.endswith(".a"):
+            problems += ar_diff(one, two)
+        elif name.endswith((".tar.gz", ".tgz")):
+            problems += tar_diff(one, two)
+        elif name.endswith(".zip"):
+            problems += zip_diff(one, two)
+    if problems:
+        raise SystemExit("a rebuild made other bytes:\n" + "\n".join(problems))
+    print(f"{len(names)} files rebuilt byte for byte")
+
+
 def cargo(manifest, *args, env=None):
     """Cargo with the package's own toolchain, as rustup finds it from the package's directory."""
     return run("cargo", *args, cwd=Path(manifest).resolve().parent, env={**os.environ, **(env or {})},
@@ -1368,6 +1677,21 @@ def llvm_tool(manifest, name):
     return Path(sysroot) / "lib" / "rustlib" / host / "bin" / f"{name}{exe}"
 
 
+# The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
+# dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_dll_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.dll(h|t|s[0-9]+)\.o")
+
+
+def fix_import_names(path):
+    """Replace that random part, at the same length, in the import library's members and the archive's symbol table alone, so the archive is the same on every build and no other byte changes."""
+    data = bytearray(Path(path).read_bytes())
+    for name, _, start, end in ar_entries(bytes(data)):
+        if name == "/" or IMPORT_MEMBER.fullmatch(name):
+            data[start:end] = RUSTC_TEMP.sub(b"000000", bytes(data[start:end]))
+    Path(path).write_bytes(bytes(data))
+
+
 def go_library(args, export_dir, lib, target, library, native, out):
     """The Go module's copy of `target`'s library: checked against the export's #cgo line,
     without debug info, which only bloats the module, or the bitcode the go command refuses."""
@@ -1378,6 +1702,8 @@ def go_library(args, export_dir, lib, target, library, native, out):
     dest = out / "go" / f"lib{lib}_{GO_TARGETS[target]}.a"
     dest.parent.mkdir(parents=True, exist_ok=True)
     run(objcopy, "--strip-debug", *(f"--remove-section={s}" for s in LTO_SECTIONS), library, dest)
+    if "windows-gnu" in target:
+        fix_import_names(dest)
 
 
 def build(args):
@@ -1386,12 +1712,16 @@ def build(args):
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
     crate = export_dir / "Cargo.toml"
     out.mkdir(parents=True, exist_ok=True)
+    info["sbom"] = sbom(info, crate)
+    (out / "sbom.cdx.json").write_bytes(info["sbom"])
     for target in args.targets:
         if target not in WHEEL_TARGETS and target not in APPLE_TARGETS and target not in GO_TARGETS:
             raise SystemExit(f"no package ships {target}")
         run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
         if target in WHEEL_TARGETS:
-            env = {"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if "apple" in target else {}
+            env = reproducible(info, export_dir, target)
+            if "apple" in target:
+                env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_WHEEL
             linux = "linux" in target
             # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
             built = cargo(args.manifest_path, *(["zigbuild"] if linux else ["build"]), "--locked", "--release",
@@ -1400,12 +1730,13 @@ def build(args):
             sys.stderr.write(built.stderr)
             library = export_dir / "target-python" / target / "release" / library_name(lib, target)
             with tempfile.TemporaryDirectory() as raw:
-                repair(write_wheel(info, export_dir, library, target, raw), target, out / "wheels")
+                repair(write_wheel(info, export_dir, library, target, raw), target, out / "wheels", info["epoch"])
             c_archive(info, args.manifest_path, export_dir, target, out)
         if target in APPLE_TARGETS:
             apple = APPLE_TARGETS[target]
             name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
-            library, native = staticlib(args.manifest_path, crate, lib, target, env={name: SWIFT_PLATFORMS[apple]})
+            library, native = staticlib(args.manifest_path, crate, lib, target,
+                                        env={**reproducible(info, export_dir, target), name: SWIFT_PLATFORMS[apple]})
             static = out / "static" / target
             static.mkdir(parents=True)
             shutil.copy(library, static)
@@ -1414,7 +1745,7 @@ def build(args):
             if target in GO_TARGETS:
                 go_library(args, export_dir, lib, target, library, native, out)
         elif target in GO_TARGETS:
-            library, native = staticlib(args.manifest_path, crate, lib, target)
+            library, native = staticlib(args.manifest_path, crate, lib, target, env=reproducible(info, export_dir, target))
             go_library(args, export_dir, lib, target, library, native, out)
     # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
@@ -1511,13 +1842,8 @@ def go_module(info, export, libs, out):
     # serving earlier ones appends to its own list.
     (versions / "list").write_text(version + "\n", encoding="utf-8")
     archive = versions / f"{version}.zip"
-    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, data in files.items():
-            # A fixed time, so the zip is a function of its files.
-            entry = zipfile.ZipInfo(f"{module}@{version}/{name}", date_time=(1980, 1, 1, 0, 0, 0))
-            entry.compress_type = zipfile.ZIP_DEFLATED
-            entry.external_attr = 0o644 << 16
-            z.writestr(entry, data)
+    # Stamped as every other ZIP here, so the zip is a function of its files and the commit.
+    write_zip(archive, [(f"{module}@{version}/{name}", data, 0o644) for name, data in files.items()], info["epoch"])
     if archive.stat().st_size > GO_ZIP_MAX:
         raise SystemExit(f"the Go module's zip is {archive.stat().st_size >> 20} MiB, over Go's {GO_ZIP_MAX >> 20} MiB")
     rows = [f"| `{name}` | {len(data) / (1 << 20):.1f} MiB |" for name, data in files.items() if name.endswith(".a")]
@@ -1659,10 +1985,12 @@ def web(args):
     run("rustup", "target", "add", WEB_TARGET, cwd=manifest.parent)
     built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
                   "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web",
-                  env=web_profile(export_dir / "Cargo.toml"))
+                  env={**reproducible(info, export_dir, WEB_TARGET), **web_profile(export_dir / "Cargo.toml")})
     sys.stderr.write(built.stderr)
     wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
     npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)
+    # Its own, as the web crate's dependencies are not the native export's.
+    (out / "sbom.cdx.json").write_bytes(sbom(info, export_dir / "Cargo.toml", "web"))
     packed = output("npm", "pack", "--silent", "--pack-destination", out, cwd=npm).strip()
     if not (out / packed).is_file():
         raise SystemExit(f"npm pack wrote no {packed}")
@@ -1832,6 +2160,9 @@ def main():
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
     p.add_argument("--out", required=True)
+    p = sub.add_parser("same", help="fail unless two builds made the same wheels and libraries")
+    p.add_argument("first")
+    p.add_argument("second")
     p = sub.add_parser("previous", help="fetch the API of the release this version follows")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--repo", required=True, metavar="OWNER/REPO", help="the repository whose releases to read")
@@ -1914,6 +2245,8 @@ def main():
         build(args)
     elif args.command == "sdist":
         print(sdist(facts(args.manifest_path), args.manifest_path, args.export, args.out))
+    elif args.command == "same":
+        same(args.first, args.second)
     elif args.command == "previous":
         previous(args)
     elif args.command == "changes":

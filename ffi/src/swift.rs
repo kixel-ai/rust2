@@ -20,13 +20,17 @@
 //! Bytes are the runtime's `Bytes`: those Rust returned lend its buffer, and pass back to
 //! Rust as a second owner of it, so neither way copies them. Swift's own bytes and text
 //! pass as views of Swift's memory at a call's top level, which Rust copies once where it
-//! keeps them; nested in another value, they are copied once into a buffer Rust takes.
+//! keeps them; nested in another value, they are copied once into a buffer Rust takes. A
+//! slice Rust borrows, of bytes or a block's numbers, is a `Span` either way: a parameter
+//! Rust reads in place, and bytes Rust lends a closure or callback, which Swift's compiler
+//! keeps from escaping the call.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::doc;
+use crate::ir::{Access, Closure, Collection, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -62,6 +66,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		structs: structs(abi),
 		fresh: 0,
 		on: On::ALL,
+		docc: HashMap::new(),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -71,6 +76,16 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
 	}
+	// Each link once every name is final; DocC's show only the symbol's own name.
+	let render = |link: &doc::Link<'_>| match link.text {
+		Some(_) => None,
+		None => g.link(link.target),
+	};
+	let (types, top) = (
+		doc::links(&g.types, abi.api, render),
+		doc::links(&g.top, abi.api, render),
+	);
+	(g.types, g.top) = (types, top);
 	let p = &abi.prefix;
 	let upper = p.to_uppercase();
 	let module = module(p);
@@ -242,6 +257,8 @@ struct Arg {
 
 struct Gen<'a> {
 	locked: BTreeMap<String, String>,
+	/// Each function's name as DocC links it, by its [`crate::lock::function_key`].
+	docc: HashMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -328,6 +345,29 @@ impl<'a> Gen<'a> {
 		unique(&self.structs, ty)
 	}
 
+	/// The element of the span Swift borrows a shared slice of bytes or of a block's numbers
+	/// as, in place, which the compiler keeps from escaping the call.
+	fn spanned(&self, ty: &Type) -> Option<String> {
+		match ty {
+			Type::Ref(Mutability::Not, inner) => match &**inner {
+				Type::Slice => Some("Swift.UInt8".to_string()),
+				list @ Type::List(Collection::Slice, elem) if list.block().is_some() => Some(self.sw(elem)),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	/// The Swift type of a parameter of type `ty`, which Rust takes or lends: a slice it
+	/// borrows is a span, and any other type as [`Self::sw`] has it.
+	fn param(&self, ty: &Type) -> String {
+		match (ty, self.spanned(unoption(ty))) {
+			(Type::Option(_), Some(elem)) => format!("Swift.Span<{elem}>?"),
+			(_, Some(elem)) => format!("Swift.Span<{elem}>"),
+			(_, None) => self.sw(ty),
+		}
+	}
+
 	/// The ownership a parameter of type `ty` declares, which Swift requires of a
 	/// noncopyable one: `&T` borrows it, `&mut T` is `inout`, and a value moves in.
 	fn ownership(&self, ty: &Type) -> &'static str {
@@ -400,7 +440,7 @@ impl<'a> Gen<'a> {
 			Type::Closure(closure_) => {
 				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = (params.iter())
-					.map(|p| format!("{}{}", self.ownership(p), self.sw(p)))
+					.map(|p| format!("{}{}", self.ownership(p), self.param(p)))
 					.collect();
 				let throws = match closure_.err {
 					Some(_) => " throws",
@@ -680,9 +720,14 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Swift value of the C value `e` of type `ty`, which C lends a callback or closure
-	/// for its call: bytes and text copied, and a scalar as it is.
+	/// for its call: a slice as a span of it in place, other bytes and text copied, and a
+	/// scalar as it is.
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
+		let span =
+			|e: &str| format!("Swift.Span(_unsafeElements: Swift.UnsafeBufferPointer(start: {e}.ptr, count: {e}.len))");
 		match ty {
+			_ if self.spanned(ty).is_some() => span(e),
+			Type::Option(inner) if self.spanned(inner).is_some() => format!("({e}.ptr == nil ? nil : {})", span(e)),
 			Type::Str | Type::String => format!("Native.string(lent: {e})"),
 			Type::Path | Type::PathBuf => format!("Native.path(lent: {e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lent: {e})"),
@@ -756,7 +801,7 @@ impl<'a> Gen<'a> {
 			let _ = write!(
 				self.top,
 				"{}public let {name}: {ty} = {value}\n\n",
-				docs(&constant.docs, "")
+				docs(&constant.docs, constant.deprecated.as_deref(), "")
 			);
 		}
 		for i in 0..api.records.len() {
@@ -1066,8 +1111,33 @@ impl<'a> Gen<'a> {
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| unquote(f)).collect();
-		let mut body: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, sw))| format!("{}\tpublic var {name}: {sw}\n", docs(&f.docs, "\t")))
+		// A deprecated field is stored apart, under `_` and its name, so its own code's uses
+		// do not warn as a caller's do: Swift has no way to silence one.
+		// Apart from the fields and the record's own `_lift` and `_lower` too.
+		let mut stored: Vec<String> = Vec::new();
+		for (f, (name, _)) in record.fields.iter().zip(&fields) {
+			let mut name = match f.deprecated {
+				Some(_) => format!("_{}", unquote(name)),
+				None => name.clone(),
+			};
+			while f.deprecated.is_some()
+				&& (["_lift", "_lower"].contains(&name.as_str()) || members.contains(&name) || stored.contains(&name))
+			{
+				name.push('_');
+			}
+			stored.push(name);
+		}
+		members.extend(stored.iter().filter(|s| !fields.iter().any(|(f, _)| f == *s)).cloned());
+		let mut body: Vec<String> = (record.fields.iter().zip(&fields).zip(&stored))
+			.map(|((f, (name, sw)), stored)| {
+				let docs = docs(&f.docs, f.deprecated.as_deref(), "\t");
+				match f.deprecated {
+					Some(_) => format!(
+						"\tvar {stored}: {sw}\n\n{docs}\tpublic var {name}: {sw} {{\n\t\tget {{ {stored} }}\n\t\tset {{ {stored} = newValue }}\n\t}}\n"
+					),
+					None => format!("{docs}\tpublic var {name}: {sw}\n"),
+				}
+			})
 			.collect();
 		let params: Vec<String> = fields
 			.iter()
@@ -1076,7 +1146,9 @@ impl<'a> Gen<'a> {
 				false => format!("{f}: {sw}"),
 			})
 			.collect();
-		let assigns: String = fields.iter().map(|(f, _)| format!("\t\tself.{f} = {f}\n")).collect();
+		let assigns: String = (fields.iter().zip(&stored))
+			.map(|((f, _), stored)| format!("\t\tself.{stored} = {f}\n"))
+			.collect();
 		body.push(format!("\tpublic init({}) {{\n{assigns}\t}}\n", params.join(", ")));
 		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
@@ -1093,9 +1165,9 @@ impl<'a> Gen<'a> {
 				}
 			})
 			.collect();
-		let lowered: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, _))| {
-				let value = self.lower(&f.ty, &format!("self.{name}"));
+		let lowered: Vec<String> = (record.fields.iter().zip(&stored))
+			.map(|(f, stored)| {
+				let value = self.lower(&f.ty, &format!("self.{stored}"));
 				format!("{}: {value}", abi::escape(&f.name))
 			})
 			.collect();
@@ -1119,7 +1191,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}public struct {name}{} {{\n{}}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), record.deprecated.as_deref(), ""),
 			conform(&protocols),
 			body.join("\n")
 		);
@@ -1150,7 +1222,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}public struct {name}{} {{\n{}}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), record.deprecated.as_deref(), ""),
 			conform(&protocols),
 			body.join("\n")
 		);
@@ -1261,7 +1333,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}public enum {name}{} {{\n{}}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), e.deprecated.as_deref(), ""),
 			conform(&protocols),
 			body.join("\n")
 		);
@@ -1320,7 +1392,7 @@ impl<'a> Gen<'a> {
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
-		let docs = docs(text.trim(), "");
+		let docs = docs(text.trim(), object.deprecated.as_deref(), "");
 		let body = body.join("\n");
 		if !unique {
 			let _ = write!(
@@ -1361,17 +1433,30 @@ impl<'a> Gen<'a> {
 		for method in &callback.methods {
 			let member = member(&abi::snake(method.name()), &[]);
 			crate::lock::function(&mut self.locked, method, &member);
+			self.docc.insert(
+				crate::lock::function_key(method),
+				docc_call(&member, method.params.iter().map(|_| "_")),
+			);
 			members.push(full(false, &member, method.params.iter().map(|_| "_".to_string())));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
-				.map(|(p, name)| format!("_ {name}: {}", self.sw(&p.ty)))
+				.map(|(p, name)| format!("_ {name}: {}", self.param(&p.ty)))
 				.collect();
 			let ret = match method.ok {
 				Type::Unit => String::new(),
 				_ => format!(" -> {}", self.sw(&method.ok)),
 			};
+			// The trampoline calls the requirement, which an `@available` deprecation would warn
+			// of, and Swift has no way to silence one: its docs say it instead, to the
+			// implementation Rust calls.
+			let mut text = self.function_docs(method, doc::sections(&method.docs).body);
+			match method.deprecated.as_deref() {
+				Some("") => text.push_str("\n\nDeprecated."),
+				Some(note) => text.push_str(&format!("\n\nDeprecated: {note}")),
+				None => {}
+			}
 			body.push(format!(
 				"{}\tfunc {member}({}){ret}",
-				docs(&method.docs, "\t"),
+				docs(text.trim(), None, "\t"),
 				params.join(", ")
 			));
 			let ps: Vec<String> = (0..method.params.len()).map(|k| format!("p{k}_")).collect();
@@ -1399,7 +1484,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(
 			self.types,
 			"{}public protocol {name}: Sendable {{\n{}\n}}\n\n",
-			docs(text.trim(), ""),
+			docs(text.trim(), callback.deprecated.as_deref(), ""),
 			body.join("\n\n")
 		);
 		let _ = write!(
@@ -1496,6 +1581,18 @@ impl<'a> Gen<'a> {
 			(Type::Future, _) => {
 				arg.exprs.push(format!("Native.future({e})"));
 				arg.gives = true;
+			}
+			// A span is a view of Swift's memory, which Rust borrows in place.
+			(ty, _) if self.spanned(unoption(ty)).is_some() => {
+				let b = format!("b{k}_");
+				let make = match unoption(ty) {
+					Type::Ref(_, list) if let Type::List(_, elem) = &**list => {
+						format!(", {}.init(ptr:len:owner:)", abi.list(elem))
+					}
+					_ => String::new(),
+				};
+				arg.open = Some((format!("{tr}Native.view({e}{make}) {{ {b} in"), "}".to_string()));
+				arg.exprs.push(b);
 			}
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
@@ -1797,9 +1894,10 @@ impl<'a> Gen<'a> {
 				(false, Type::Closure(closure_)) if closure_.kept => "@escaping ",
 				// Rust reads and seeks the reader in place.
 				(false, Type::Ref(_, inner)) if **inner == Type::Reader => "inout ",
+				(false, ty) if self.spanned(unoption(ty)).is_some() => "borrowing ",
 				(false, _) => self.ownership(&param.ty),
 			};
-			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
+			params.push(format!("_ {name}: {ownership}{}", self.param(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr, &what);
 			arena |= needs;
 			args.push(arg);
@@ -2084,7 +2182,7 @@ impl<'a> Gen<'a> {
 			None => body.push(code),
 		}
 
-		let mut text = function.docs.clone();
+		let mut text = doc::sections(&function.docs).body;
 		for k in left {
 			text.push_str(&format!("\n\nWithout `{}`, as Rust's `None`.", unquote(&names[*k])));
 		}
@@ -2181,7 +2279,19 @@ impl<'a> Gen<'a> {
 			true => format!("get throws {{\n{}\n}}", indent(&body)),
 			false => body,
 		};
-		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
+		self.docc.insert(
+			crate::lock::function_key(function),
+			match var {
+				true => unquote(&member),
+				false => docc_call(&member, labels.iter().map(String::as_str)),
+			},
+		);
+		let text = self.function_docs(function, text);
+		let code = format!(
+			"{}{head} {{\n{}\n}}\n",
+			docs(&text, function.deprecated.as_deref(), ""),
+			indent(&body)
+		);
 		(code, full(is_static, &member, labels))
 	}
 
@@ -2208,6 +2318,66 @@ impl<'a> Gen<'a> {
 			}
 			_ => self.lift(ok, "c_out_"),
 		}
+	}
+
+	/// `text`, a function's docs without its sections, then its `# Errors` as what it throws,
+	/// and its `# Panics` as when it aborts.
+	fn function_docs(&mut self, function: &Function, text: String) -> String {
+		let sections = doc::sections(&function.docs);
+		let mut text = text.trim().to_string();
+		if let Some(panics) = &sections.panics {
+			let _ = write!(text, "\n\n# Aborts\n\n{panics}");
+		}
+		match (&sections.errors, &function.err) {
+			(Some(errors), Some(err)) => {
+				let thrown = match self.thrown(err) {
+					Thrown::Itself => self.sw(err),
+					Thrown::Wrapped(name) => name,
+				};
+				let _ = write!(text, "\n\n- Throws: ``{thrown}``: {errors}");
+			}
+			(Some(errors), None) => {
+				let _ = write!(text, "\n\n# Errors\n\n{errors}");
+			}
+			(None, _) => {}
+		}
+		text.trim().to_string()
+	}
+
+	/// The DocC symbol link for `target`, if Swift has it.
+	fn link(&self, target: doc::Target<'_>) -> Option<String> {
+		let abi = self.abi;
+		let owner = |owner: doc::Owner| match owner {
+			doc::Owner::Record(i) => self.class(&abi.record(i)),
+			doc::Owner::Enum(i) => self.class(&abi.enumeration(i)),
+			doc::Owner::Object(i) => self.class(&abi.object(i)),
+			doc::Owner::Callback(i) => self.class(&abi.callback(i)),
+		};
+		let path = match target {
+			doc::Target::Record(i) => owner(doc::Owner::Record(i)),
+			doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
+			doc::Target::Object(i) => owner(doc::Owner::Object(i)),
+			doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
+			doc::Target::Variant(i, v) => format!(
+				"{}/{}",
+				owner(doc::Owner::Enum(i)),
+				unquote(&member(&abi::snake(&abi.api.enums[i].variants[v].name), &["init"]))
+			),
+			doc::Target::Field(i, n) => format!(
+				"{}/{}",
+				owner(doc::Owner::Record(i)),
+				unquote(&field_name(&abi.api.records[i].fields[n].name))
+			),
+			doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
+			doc::Target::Function(of, f) => {
+				let member = self.docc.get(&crate::lock::function_key(f))?;
+				match of {
+					Some(of) => format!("{}/{member}", owner(of)),
+					None => member.clone(),
+				}
+			}
+		};
+		Some(format!("``{path}``"))
 	}
 
 	/// How an error of type `err` is thrown: as itself if an exported type, which then
@@ -2313,6 +2483,14 @@ fn unique(structs: &BTreeSet<usize>, ty: &Type) -> bool {
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => unique(structs, inner),
 		Type::Tuple(elements) => elements.iter().any(|e| unique(structs, e)),
 		_ => false,
+	}
+}
+
+/// `ty`, or what it holds if an `Option`.
+fn unoption(ty: &Type) -> &Type {
+	match ty {
+		Type::Option(inner) => inner,
+		ty => ty,
 	}
 }
 
@@ -2440,6 +2618,12 @@ fn full(is_static: bool, name: &str, labels: impl IntoIterator<Item = String>) -
 		true => format!("{stat}{}", unquote(name)),
 		false => format!("{stat}{}({labels})", unquote(name)),
 	}
+}
+
+/// A function's name as DocC links it: with its argument labels.
+fn docc_call<'l>(name: &str, labels: impl IntoIterator<Item = &'l str>) -> String {
+	let labels: String = labels.into_iter().map(|l| format!("{l}:")).collect();
+	format!("{}({labels})", unquote(name))
 }
 
 /// A name without the backticks quoting a keyword.
@@ -2599,8 +2783,7 @@ fn inlinable(swift: &str) -> String {
 				written = Some(format!("{tabs}{attributes}{attribute}{modifiers}{rest}"));
 			}
 		}
-		let opens = line.matches('{').count();
-		let closes = line.matches('}').count();
+		let (opens, closes) = braces(line);
 		if !code.starts_with("//") {
 			match opens.cmp(&closes) {
 				std::cmp::Ordering::Greater => {
@@ -2622,14 +2805,42 @@ fn inlinable(swift: &str) -> String {
 	out
 }
 
-/// Swift doc comments holding `docs`, each line indented by `indent`, or nothing for none.
-fn docs(docs: &str, indent: &str) -> String {
-	docs.lines()
+/// The braces `line` opens and closes outside its string literals, such as a deprecation's
+/// message, whose escapes, `\u{301}` among them, stay inside the literal.
+fn braces(line: &str) -> (usize, usize) {
+	let (mut opens, mut closes) = (0, 0);
+	let mut chars = line.chars();
+	let mut quoted = false;
+	while let Some(c) = chars.next() {
+		match (quoted, c) {
+			(true, '\\') => {
+				chars.next();
+			}
+			(_, '"') => quoted = !quoted,
+			(false, '{') => opens += 1,
+			(false, '}') => closes += 1,
+			_ => {}
+		}
+	}
+	(opens, closes)
+}
+
+/// Swift doc comments holding `docs`, each line indented by `indent`, or nothing for none,
+/// and `@available(*, deprecated)` with its note where `deprecated` has one.
+fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
+	let mut out: String = docs
+		.lines()
 		.map(|line| match line.is_empty() {
 			true => format!("{indent}///\n"),
 			false => format!("{indent}/// {line}\n"),
 		})
-		.collect()
+		.collect();
+	match deprecated {
+		Some("") => out.push_str(&format!("{indent}@available(*, deprecated)\n")),
+		Some(note) => out.push_str(&format!("{indent}@available(*, deprecated, message: {note:?})\n")),
+		None => {}
+	}
+	out
 }
 
 /// Code indented by one tab more, but for blank lines.

@@ -77,7 +77,7 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
-  requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
+  required the refusals epic, since finished. Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
   epic's `Required` holds back every child, so none could start until moq's pin bump, which
   then waited on a rind release the maintainer held.
@@ -97,9 +97,9 @@ Decided with the maintainer on 2026-11-18, in the per-language audit:
 - ✅ Breaking changes to a generated API that the audit found are children here, and land
   as soon as possible: "You're allowed to break the API absolutely. Do it sooner." They
   are the API surface lock (`ffi/surface/`), which landed first,
-  [C and C++](/quest/m1/ffi-export/cpp-idioms.md), [Swift](/quest/m1/ffi-export/swift-span.md),
+  [C and C++](/quest/m1/ffi-export/cpp-idioms.md), Swift (landed),
   Kotlin (landed), Python (landed),
-  [Dart](/quest/m1/ffi-export/dart-analyze.md), and [docs](/quest/m1/ffi-export/docs.md).
+  [Dart](/quest/m1/ffi-export/dart-analyze.md), and docs.
   Rejected: only the surface lock holding the pin; all of them after the pin.
 - ✅ Work that changes no generated API, or only adds to it, stays out of this epic, as
   decided on 2026-11-12: [proofs](/quest/m1/ffi-proofs/README.md),

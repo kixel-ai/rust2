@@ -338,6 +338,13 @@ final class Clocked {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Rated {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Rated(U64 count, U64 scale);
+	U64 scale();
+}
 final class Score {
 	String debug();
 	factory Score.of(U64 count);
@@ -409,6 +416,7 @@ final class PairU8Size {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+	PairSizeU8 swap();
 }
 final class LeftRightU8 {
 	final RightU8 value;
@@ -606,6 +614,45 @@ final class Qualifiers {
 	const Qualifiers({required this.api, required this.kotlin});
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+}
+final class Spot {
+	final int x;
+	final int y;
+	const Spot({required this.x, required this.y});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Spot.deserialize(Json deserializer);
+}
+final class Deprecated_ {
+	final bool on;
+	@Deprecated('') final int lower;
+	final bool deprecated;
+	const Deprecated_({required this.on, required this.lower, required this.deprecated});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Deprecated_.default_();
+}
+final class Dial {
+	final U64 level;
+	@Deprecated('keep the `Dial` from before the turn') final U64 before;
+	const Dial({required this.level, required this.before});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Dial.default_();
+	Dial turn(U64 by);
+	@Deprecated('turn it by `LIMIT` with `Dial::turn`') Dial max();
+}
+@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') final class Knob {
+	final U64 level;
+	const Knob({required this.level});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Knob.default_();
+	U64 doubled();
 }
 final class PolarPoint {
 	final int turns;
@@ -943,6 +990,10 @@ final class Board extends _Object {
 	List<(String, Counter)> ranked();
 	Counter best();
 }
+final class Tab extends _Object {
+	Ledger get ledgerGet;
+	String get labelGet;
+}
 final class Receipt extends _Object {
 	Receipt clone();
 	int count();
@@ -964,6 +1015,8 @@ final class PadU16 extends _Object {
 	factory PadU16.wide();
 	int tag();
 	int title();
+	String get titleGet;
+	int lines();
 	String describe();
 }
 final class PadU8 extends _Object {
@@ -980,6 +1033,8 @@ final class Layered extends _Object {
 final class Marker extends _Object {
 	factory Marker(String label, int x, int y);
 	String label();
+	int x();
+	static int y();
 	int get xGet;
 	void xSet(int value);
 	int get yGet;
@@ -1032,6 +1087,8 @@ final class LocalWaiter extends _Object {
 final class Retry extends _Object {
 	int? get limitGet;
 	void limitSet(int? value);
+	int? get delayGet;
+	void delaySet(int? value);
 	factory Retry(int? limit);
 	int limit();
 	int delay();
@@ -1051,9 +1108,13 @@ final class OuterInnerU8 extends _Object {
 	int get();
 }
 final class SlotU32 extends _Object {
+	int get valueGet;
+	void valueSet(int value);
 	factory SlotU32(int value);
 }
 final class SlotU8 extends _Object {
+	int get valueGet;
+	void valueSet(int value);
 	factory SlotU8(int value);
 	int value();
 }
@@ -1102,6 +1163,11 @@ final class Handle extends _Object {
 	factory Handle(int count);
 	int count();
 	static Cancelable<Handle> later(int count);
+}
+final class Holder extends _Object {
+	factory Holder(U64 level);
+	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 get levelGet;
+	@Deprecated('use `Dial`, whose \'level\' is "the same" at \$0\nand past it') U64 doubled();
 }
 final class Area extends _Object {
 	String debug();
@@ -1172,6 +1238,7 @@ final class Ledger extends _Object {
 	Receipt receipt();
 	Receipt noted();
 	FiledReceipt fileReceipt(Receipt item);
+	Tab tab();
 	Slip slip();
 }
 final class Slip extends _Object {
@@ -1260,6 +1327,8 @@ final class Node extends _Object {
 	String debug();
 	U64 get valueGet;
 	void valueSet(U64 value);
+	Node? get nextGet;
+	void nextSet(Node? value);
 	factory Node(U64 value, Node? next);
 	void push(U64 value);
 	U64 sum();
@@ -1327,6 +1396,7 @@ final class Stack extends _Object {
 	U64 depthPastCounter(Counter from);
 	U64 depthPastSize(Size from);
 	U64 depthPastWrapU32(WrapU32 from);
+	U64 depthPastPolarPoint(PolarPoint from);
 }
 final class Refusal extends _Object implements Exception {
 	@override String toString();
@@ -1439,8 +1509,17 @@ abstract class Log {
 	bool log(int level, String line);
 	void close();
 }
+abstract class Scan {
+	U64 scan(typed.Uint8List payload, typed.Uint8List? rest);
+	void close();
+}
 abstract class Beat {
 	int beat();
+	void close();
+}
+abstract class Turner {
+	U64 by();
+	@Deprecated('turn `Turner::by` instead') U64 once();
 	void close();
 }
 final class BoundsU64Exception implements Exception {
@@ -1460,6 +1539,8 @@ final class VecClashToneException implements Exception {
 }
 const LIMIT = U64.fromBits(1000);
 const FAR = 9223372036854775807;
+const URL = U64.fromBits(1000);
+@Deprecated('pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note') const STEP = U64.fromBits(1);
 bool hasText(Note note);
 U64 marked(Mark apiMarked);
 Reading? reading(int n);
@@ -1559,7 +1640,6 @@ int peek(Tally tally, int Function(Tally) peek);
 U64 len(typed.Uint8List payload);
 String hex(typed.Uint8List payload);
 String timedHex(typed.Uint8List payload);
-String timedText(Json value);
 String sampleHex(typed.Uint8List sample);
 String queuedHex(typed.Uint8List queued);
 String tickName(Label tick);
@@ -1656,6 +1736,8 @@ List<List<int>> least(List<List<int>> sets);
 (typed.Int32List, int) splitLast(typed.Int32List items);
 U64 sumU32(typed.Uint32List items);
 typed.Int64List doubledI64(typed.Int64List items);
+List<U64> visitChunks(typed.Uint8List payload, U64 size, U64 Function(typed.Uint8List?) visit);
+U64 scanned(Scan scan, typed.Uint8List payload);
 typed.Float64List boxedFloats(typed.Float64List items);
 Point summed(List<Point> points);
 RustDuration breadth(LimitsDuration limits);
@@ -1715,6 +1797,14 @@ SocketAddr sameSocketAddr(SocketAddr v);
 SocketAddrV4 sameSocketAddrV4(SocketAddrV4 v);
 SocketAddrV6 sameSocketAddrV6(SocketAddrV6 v);
 IpAddr sameIpAddr(IpAddr v);
+String unescaped(String text);
+Cancelable<String> unescapedLater(String text);
+Cancelable<String?> unescapedMaybe(String? text);
+typed.Uint8List unzeroed(typed.Uint8List bytes);
+int deprecated(int note);
+@Deprecated('') Knob knob(Dial dial);
+@Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
+Dial turned(Dial dial, Turner turner);
 U64 crowded(Reading reading, Stamp a, Stamp b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118);
 U64 crammed(Moment a, Moment b, U64 n0, U64 n1, U64 n2, U64 n3, U64 n4, U64 n5, U64 n6, U64 n7, U64 n8, U64 n9, U64 n10, U64 n11, U64 n12, U64 n13, U64 n14, U64 n15, U64 n16, U64 n17, U64 n18, U64 n19, U64 n20, U64 n21, U64 n22, U64 n23, U64 n24, U64 n25, U64 n26, U64 n27, U64 n28, U64 n29, U64 n30, U64 n31, U64 n32, U64 n33, U64 n34, U64 n35, U64 n36, U64 n37, U64 n38, U64 n39, U64 n40, U64 n41, U64 n42, U64 n43, U64 n44, U64 n45, U64 n46, U64 n47, U64 n48, U64 n49, U64 n50, U64 n51, U64 n52, U64 n53, U64 n54, U64 n55, U64 n56, U64 n57, U64 n58, U64 n59, U64 n60, U64 n61, U64 n62, U64 n63, U64 n64, U64 n65, U64 n66, U64 n67, U64 n68, U64 n69, U64 n70, U64 n71, U64 n72, U64 n73, U64 n74, U64 n75, U64 n76, U64 n77, U64 n78, U64 n79, U64 n80, U64 n81, U64 n82, U64 n83, U64 n84, U64 n85, U64 n86, U64 n87, U64 n88, U64 n89, U64 n90, U64 n91, U64 n92, U64 n93, U64 n94, U64 n95, U64 n96, U64 n97, U64 n98, U64 n99, U64 n100, U64 n101, U64 n102, U64 n103, U64 n104, U64 n105, U64 n106, U64 n107, U64 n108, U64 n109, U64 n110, U64 n111, U64 n112, U64 n113, U64 n114, U64 n115, U64 n116, U64 n117, U64 n118, U64 n119, U64 n120, U64 n121, U64 n122, U64 n123);
 int jniOne();

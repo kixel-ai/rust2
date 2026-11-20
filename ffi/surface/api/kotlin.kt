@@ -209,6 +209,15 @@ class Wide internal constructor() {
 data class Clocked(val at: api.Moment, val count: kotlin.UInt) {
 	fun debug(): kotlin.String
 }
+class Rated internal constructor() {
+	fun debug(): kotlin.String
+	override fun equals(other: kotlin.Any?): kotlin.Boolean
+	override fun hashCode(): kotlin.Int
+	fun scale(): kotlin.ULong
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(count: kotlin.ULong, scale: kotlin.ULong): api.Rated
+	}
+}
 @kotlin.jvm.JvmInline value class Score internal constructor(internal val bits: Long) {
 	fun debug(): kotlin.String
 	fun count(): kotlin.ULong
@@ -266,6 +275,7 @@ data class PairU32(val left: kotlin.UInt, val right: kotlin.UInt) {
 }
 data class PairU8Size(val left: kotlin.UByte, val right: api.Size) {
 	fun debug(): kotlin.String
+	fun swap(): api.PairSizeU8
 }
 data class LeftRightU8(val value: api.RightU8) {
 	fun debug(): kotlin.String
@@ -358,6 +368,33 @@ data class A(val b: kotlin.UByte) {
 data class Qualifiers(val api: kotlin.Double, val kotlin: kotlin.Double) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+}
+data class Spot(val x: kotlin.UInt, val y: kotlin.UInt) {
+	fun debug(): kotlin.String
+	companion object {
+		@kotlin.jvm.JvmStatic @kotlin.jvm.Throws(StringException::class) fun deserialize(deserializer: api.Json): api.Spot
+	}
+}
+data class Deprecated(val on: kotlin.Boolean, @kotlin.Deprecated("") val lower: kotlin.UInt, val deprecated: kotlin.Boolean) {
+	fun debug(): kotlin.String
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Deprecated
+	}
+}
+data class Dial(val level: kotlin.ULong, @kotlin.Deprecated("keep the `Dial` from before the turn") val before: kotlin.ULong) {
+	fun debug(): kotlin.String
+	@kotlin.jvm.Throws(ErrorException::class) fun turn(by: kotlin.ULong): api.Dial
+	@kotlin.Deprecated("turn it by `LIMIT` with `Dial::turn`") fun max(): api.Dial
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Dial
+	}
+}
+@kotlin.Deprecated("use `Dial`, whose 'level' is \"the same\" at \$0\nand past it") data class Knob(val level: kotlin.ULong) {
+	fun debug(): kotlin.String
+	fun doubled(): kotlin.ULong
+	companion object {
+		@kotlin.jvm.JvmStatic fun default(): api.Knob
+	}
 }
 data class PolarPoint(val turns: kotlin.UByte, val distance: kotlin.UInt) {
 	fun debug(): kotlin.String
@@ -541,6 +578,11 @@ class Board internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 		@kotlin.jvm.JvmStatic fun new(counters: kotlin.collections.List<kotlin.Pair<kotlin.String, api.Counter>>): api.Board
 	}
 }
+class Tab internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	val ledgerGet: api.Ledger
+	val labelGet: kotlin.String
+}
 class Receipt internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun clone(): api.Receipt
@@ -565,6 +607,8 @@ class PadU16 internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	override fun close()
 	fun tag(): kotlin.UShort
 	fun title(): kotlin.UShort
+	val titleGet: kotlin.String
+	fun lines(): kotlin.UInt
 	fun describe(): kotlin.String
 	companion object {
 		@kotlin.jvm.JvmStatic fun wide(): api.PadU16
@@ -590,6 +634,7 @@ class Layered internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
 	fun label(): kotlin.String
+	fun x(): kotlin.Int
 	val xGet: kotlin.Int
 	fun xSet(value: kotlin.Int)
 	val yGet: kotlin.Int
@@ -597,6 +642,7 @@ class Marker internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun offset(dx: kotlin.Int, dy: kotlin.Int): api.Point
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(label: kotlin.String, x: kotlin.Int, y: kotlin.Int): api.Marker
+		@kotlin.jvm.JvmStatic fun y(): kotlin.Int
 	}
 }
 class Batch internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -667,6 +713,8 @@ class Retry internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	override fun close()
 	val limitGet: kotlin.UInt?
 	fun limitSet(value: kotlin.UInt?)
+	val delayGet: kotlin.UInt?
+	fun delaySet(value: kotlin.UInt?)
 	fun limit(): kotlin.UInt
 	fun delay(): kotlin.UInt
 	fun setLimit(limit: kotlin.UInt)
@@ -696,12 +744,16 @@ class OuterInnerU8 internal constructor(raw: Long, lent: Boolean = false) : Auto
 }
 class SlotU32 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	val valueGet: kotlin.UInt
+	fun valueSet(value: kotlin.UInt)
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UInt): api.SlotU32
 	}
 }
 class SlotU8 internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
 	override fun close()
+	val valueGet: kotlin.UByte
+	fun valueSet(value: kotlin.UByte)
 	fun value(): kotlin.UShort
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(value: kotlin.UByte): api.SlotU8
@@ -775,6 +827,14 @@ class Handle internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.Handle
 		@kotlin.jvm.JvmStatic suspend fun later(count: kotlin.UInt): api.Handle
+	}
+}
+class Holder internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
+	override fun close()
+	@kotlin.Deprecated("use `Dial`, whose 'level' is \"the same\" at \$0\nand past it") val levelGet: kotlin.ULong
+	@kotlin.Deprecated("use `Dial`, whose 'level' is \"the same\" at \$0\nand past it") fun doubled(): kotlin.ULong
+	companion object {
+		@kotlin.jvm.JvmStatic fun new(level: kotlin.ULong): api.Holder
 	}
 }
 class Area internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -861,6 +921,7 @@ class Ledger internal constructor(raw: Long, lent: Boolean = false) : AutoClosea
 	fun receipt(): api.Receipt
 	fun noted(): api.Receipt
 	fun fileReceipt(item: api.Receipt): api.FiledReceipt
+	fun tab(): api.Tab
 	fun slip(): api.Slip
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Ledger
@@ -976,6 +1037,8 @@ class Node internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 	fun debug(): kotlin.String
 	val valueGet: kotlin.ULong
 	fun valueSet(value: kotlin.ULong)
+	val nextGet: api.Node?
+	fun nextSet(value: api.Node?)
 	fun push(value: kotlin.ULong)
 	fun sum(): kotlin.ULong
 	companion object {
@@ -1065,6 +1128,7 @@ class Stack internal constructor(raw: Long, lent: Boolean = false) : AutoCloseab
 	fun depthPastCounter(from: api.Counter): kotlin.ULong
 	fun depthPastSize(from: api.Size): kotlin.ULong
 	fun depthPastWrapU32(from: api.WrapU32): kotlin.ULong
+	fun depthPastPolarPoint(from: api.PolarPoint): kotlin.ULong
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Stack
 		@kotlin.jvm.JvmStatic fun new(): api.Stack
@@ -1224,8 +1288,15 @@ class Part internal constructor(raw: Long, lent: Boolean = false) : AutoCloseabl
 interface Log {
 	fun log(level: kotlin.UByte, line: kotlin.String): kotlin.Boolean
 }
+interface Scan {
+	fun scan(payload: api.Bytes, rest: api.Bytes?): kotlin.ULong
+}
 interface Beat {
 	fun beat(): kotlin.UInt
+}
+interface Turner {
+	fun by(): kotlin.ULong
+	@kotlin.Deprecated("turn `Turner::by` instead") fun once(): kotlin.ULong
 }
 data class Tuple1<T1>(val first: T1) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
@@ -1259,6 +1330,8 @@ class kotlincollectionsListClashToneException(val error: kotlin.collections.List
 }
 const val LIMIT: ULong
 const val FAR: Long
+const val URL: ULong
+@kotlin.Deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") const val STEP: ULong
 fun hasText(note: api.Note): kotlin.Boolean
 fun marked(apiMarked: api.Mark): kotlin.ULong
 fun reading(n: kotlin.UInt): api.Reading?
@@ -1361,7 +1434,6 @@ fun peek(tally: api.Tally, peek: (api.Tally) -> kotlin.UInt): kotlin.UInt
 fun len(payload: api.Bytes): kotlin.ULong
 fun hex(payload: api.Bytes): kotlin.String
 fun timedHex(payload: api.Bytes): kotlin.String
-fun timedText(value: api.Json): kotlin.String
 fun sampleHex(sample: api.Bytes): kotlin.String
 fun queuedHex(queued: api.Bytes): kotlin.String
 fun tickName(tick: api.Label): kotlin.String
@@ -1458,6 +1530,8 @@ fun least(sets: kotlin.collections.List<kotlin.collections.List<kotlin.UInt>>): 
 fun splitLast(items: kotlin.IntArray): api.Tuple2<kotlin.IntArray, kotlin.UInt>
 fun sumU32(items: kotlin.UIntArray): kotlin.ULong
 fun doubledI64(items: kotlin.LongArray): kotlin.LongArray
+fun visitChunks(payload: api.Bytes, size: kotlin.ULong, visit: (api.Bytes?) -> kotlin.ULong): kotlin.ULongArray
+fun scanned(scan: api.Scan, payload: api.Bytes): kotlin.ULong
 fun boxedFloats(items: kotlin.DoubleArray): kotlin.DoubleArray
 fun summed(points: kotlin.collections.List<api.Point>): api.Point
 fun breadth(limits: api.LimitsDuration): api.Duration
@@ -1517,6 +1591,14 @@ fun sameSocketAddr(v: api.SocketAddr): api.SocketAddr
 fun sameSocketAddrV4(v: api.SocketAddrV4): api.SocketAddrV4
 fun sameSocketAddrV6(v: api.SocketAddrV6): api.SocketAddrV6
 fun sameIpAddr(v: api.IpAddr): api.IpAddr
+fun unescaped(text: kotlin.String): kotlin.String
+suspend fun unescapedLater(text: kotlin.String): kotlin.String
+suspend fun unescapedMaybe(text: kotlin.String?): kotlin.String?
+fun unzeroed(bytes: api.Bytes): api.Bytes
+fun deprecated(note: kotlin.UByte): kotlin.UByte
+@kotlin.Deprecated("") fun knob(dial: api.Dial): api.Knob
+@kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong
+@kotlin.jvm.Throws(ErrorException::class) fun turned(dial: api.Dial, turner: api.Turner): api.Dial
 fun crowded(reading: api.Reading, a: api.Stamp, b: api.Stamp, n0: kotlin.ULong, n1: kotlin.ULong, n2: kotlin.ULong, n3: kotlin.ULong, n4: kotlin.ULong, n5: kotlin.ULong, n6: kotlin.ULong, n7: kotlin.ULong, n8: kotlin.ULong, n9: kotlin.ULong, n10: kotlin.ULong, n11: kotlin.ULong, n12: kotlin.ULong, n13: kotlin.ULong, n14: kotlin.ULong, n15: kotlin.ULong, n16: kotlin.ULong, n17: kotlin.ULong, n18: kotlin.ULong, n19: kotlin.ULong, n20: kotlin.ULong, n21: kotlin.ULong, n22: kotlin.ULong, n23: kotlin.ULong, n24: kotlin.ULong, n25: kotlin.ULong, n26: kotlin.ULong, n27: kotlin.ULong, n28: kotlin.ULong, n29: kotlin.ULong, n30: kotlin.ULong, n31: kotlin.ULong, n32: kotlin.ULong, n33: kotlin.ULong, n34: kotlin.ULong, n35: kotlin.ULong, n36: kotlin.ULong, n37: kotlin.ULong, n38: kotlin.ULong, n39: kotlin.ULong, n40: kotlin.ULong, n41: kotlin.ULong, n42: kotlin.ULong, n43: kotlin.ULong, n44: kotlin.ULong, n45: kotlin.ULong, n46: kotlin.ULong, n47: kotlin.ULong, n48: kotlin.ULong, n49: kotlin.ULong, n50: kotlin.ULong, n51: kotlin.ULong, n52: kotlin.ULong, n53: kotlin.ULong, n54: kotlin.ULong, n55: kotlin.ULong, n56: kotlin.ULong, n57: kotlin.ULong, n58: kotlin.ULong, n59: kotlin.ULong, n60: kotlin.ULong, n61: kotlin.ULong, n62: kotlin.ULong, n63: kotlin.ULong, n64: kotlin.ULong, n65: kotlin.ULong, n66: kotlin.ULong, n67: kotlin.ULong, n68: kotlin.ULong, n69: kotlin.ULong, n70: kotlin.ULong, n71: kotlin.ULong, n72: kotlin.ULong, n73: kotlin.ULong, n74: kotlin.ULong, n75: kotlin.ULong, n76: kotlin.ULong, n77: kotlin.ULong, n78: kotlin.ULong, n79: kotlin.ULong, n80: kotlin.ULong, n81: kotlin.ULong, n82: kotlin.ULong, n83: kotlin.ULong, n84: kotlin.ULong, n85: kotlin.ULong, n86: kotlin.ULong, n87: kotlin.ULong, n88: kotlin.ULong, n89: kotlin.ULong, n90: kotlin.ULong, n91: kotlin.ULong, n92: kotlin.ULong, n93: kotlin.ULong, n94: kotlin.ULong, n95: kotlin.ULong, n96: kotlin.ULong, n97: kotlin.ULong, n98: kotlin.ULong, n99: kotlin.ULong, n100: kotlin.ULong, n101: kotlin.ULong, n102: kotlin.ULong, n103: kotlin.ULong, n104: kotlin.ULong, n105: kotlin.ULong, n106: kotlin.ULong, n107: kotlin.ULong, n108: kotlin.ULong, n109: kotlin.ULong, n110: kotlin.ULong, n111: kotlin.ULong, n112: kotlin.ULong, n113: kotlin.ULong, n114: kotlin.ULong, n115: kotlin.ULong, n116: kotlin.ULong, n117: kotlin.ULong, n118: kotlin.ULong): kotlin.ULong
 fun crammed(a: api.Moment, b: api.Moment, n0: kotlin.ULong, n1: kotlin.ULong, n2: kotlin.ULong, n3: kotlin.ULong, n4: kotlin.ULong, n5: kotlin.ULong, n6: kotlin.ULong, n7: kotlin.ULong, n8: kotlin.ULong, n9: kotlin.ULong, n10: kotlin.ULong, n11: kotlin.ULong, n12: kotlin.ULong, n13: kotlin.ULong, n14: kotlin.ULong, n15: kotlin.ULong, n16: kotlin.ULong, n17: kotlin.ULong, n18: kotlin.ULong, n19: kotlin.ULong, n20: kotlin.ULong, n21: kotlin.ULong, n22: kotlin.ULong, n23: kotlin.ULong, n24: kotlin.ULong, n25: kotlin.ULong, n26: kotlin.ULong, n27: kotlin.ULong, n28: kotlin.ULong, n29: kotlin.ULong, n30: kotlin.ULong, n31: kotlin.ULong, n32: kotlin.ULong, n33: kotlin.ULong, n34: kotlin.ULong, n35: kotlin.ULong, n36: kotlin.ULong, n37: kotlin.ULong, n38: kotlin.ULong, n39: kotlin.ULong, n40: kotlin.ULong, n41: kotlin.ULong, n42: kotlin.ULong, n43: kotlin.ULong, n44: kotlin.ULong, n45: kotlin.ULong, n46: kotlin.ULong, n47: kotlin.ULong, n48: kotlin.ULong, n49: kotlin.ULong, n50: kotlin.ULong, n51: kotlin.ULong, n52: kotlin.ULong, n53: kotlin.ULong, n54: kotlin.ULong, n55: kotlin.ULong, n56: kotlin.ULong, n57: kotlin.ULong, n58: kotlin.ULong, n59: kotlin.ULong, n60: kotlin.ULong, n61: kotlin.ULong, n62: kotlin.ULong, n63: kotlin.ULong, n64: kotlin.ULong, n65: kotlin.ULong, n66: kotlin.ULong, n67: kotlin.ULong, n68: kotlin.ULong, n69: kotlin.ULong, n70: kotlin.ULong, n71: kotlin.ULong, n72: kotlin.ULong, n73: kotlin.ULong, n74: kotlin.ULong, n75: kotlin.ULong, n76: kotlin.ULong, n77: kotlin.ULong, n78: kotlin.ULong, n79: kotlin.ULong, n80: kotlin.ULong, n81: kotlin.ULong, n82: kotlin.ULong, n83: kotlin.ULong, n84: kotlin.ULong, n85: kotlin.ULong, n86: kotlin.ULong, n87: kotlin.ULong, n88: kotlin.ULong, n89: kotlin.ULong, n90: kotlin.ULong, n91: kotlin.ULong, n92: kotlin.ULong, n93: kotlin.ULong, n94: kotlin.ULong, n95: kotlin.ULong, n96: kotlin.ULong, n97: kotlin.ULong, n98: kotlin.ULong, n99: kotlin.ULong, n100: kotlin.ULong, n101: kotlin.ULong, n102: kotlin.ULong, n103: kotlin.ULong, n104: kotlin.ULong, n105: kotlin.ULong, n106: kotlin.ULong, n107: kotlin.ULong, n108: kotlin.ULong, n109: kotlin.ULong, n110: kotlin.ULong, n111: kotlin.ULong, n112: kotlin.ULong, n113: kotlin.ULong, n114: kotlin.ULong, n115: kotlin.ULong, n116: kotlin.ULong, n117: kotlin.ULong, n118: kotlin.ULong, n119: kotlin.ULong, n120: kotlin.ULong, n121: kotlin.ULong, n122: kotlin.ULong, n123: kotlin.ULong): kotlin.ULong
 fun jniOne(): kotlin.UInt

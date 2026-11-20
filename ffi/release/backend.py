@@ -29,6 +29,8 @@ import zipfile
 # The oldest macOS each architecture's Rust target supports, which a wheel built here claims
 # unless MACOSX_DEPLOYMENT_TARGET asks for a newer one.
 MACOS_FLOORS = {"aarch64": "11.0", "x86_64": "10.12"}
+# 1980-01-01, the first time a ZIP entry can hold.
+ZIP_EPOCH = 315532800
 
 
 def dist_name(name):
@@ -51,55 +53,87 @@ def python_floor(manifest):
     return int(found.pop())
 
 
-def record(files):
-    """RECORD: every file's hash and size, and RECORD's own row unhashed."""
-    out = io.StringIO(newline="")
-    writer = csv.writer(out, lineterminator="\n")
-    for name, data in files.items():
-        digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
-        writer.writerow([name, f"sha256={digest}", len(data)])
-    return out
+def write_zip(path, entries, stamp):
+    """A ZIP of `(name, data, permissions)` entries in the order given, the same bytes whoever writes it and whenever.
+
+    Every entry takes `stamp`, a name ending in `/` is a directory, and nothing else of the
+    writer, such as its host or umask, is recorded.
+    """
+    date = time.gmtime(stamp)[:6]
+    with zipfile.ZipFile(path, "w") as archive:
+        for name, data, mode in entries:
+            entry = zipfile.ZipInfo(name, date)
+            entry.create_system = 3
+            if name.endswith("/"):
+                entry.external_attr = (0o040000 | mode) << 16 | 0x10
+            else:
+                entry.external_attr = (0o100000 | mode) << 16
+                entry.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(entry, data, compresslevel=9)
 
 
-def write_wheel(out, metadata, tag, lib, module, library, target, licenses):
-    """A wheel holding the generated module as the typed package `lib` beside its library."""
+def seal(path, files, stamp):
+    """Write `files`, `{name: (data, permissions)}`, as a wheel: sorted with the dist-info last, and its RECORD hashing the rest."""
+    meta = {name.split("/")[0] for name in files if name.split("/")[0].endswith(".dist-info")}
+    if len(meta) != 1:
+        raise SystemExit(f"{path} needs one .dist-info directory, has {sorted(meta)}")
+    record = f"{meta.pop()}/RECORD"
+    entries = sorted(files, key=lambda name: (name.split("/")[0].endswith(".dist-info"), name))
+    rows = io.StringIO(newline="")
+    writer = csv.writer(rows, lineterminator="\n")
+    for name in entries:
+        digest = base64.urlsafe_b64encode(hashlib.sha256(files[name][0]).digest()).rstrip(b"=").decode()
+        writer.writerow([name, f"sha256={digest}", len(files[name][0])])
+    writer.writerow([record, "", ""])
+    write_zip(path, [(name, *files[name]) for name in entries] + [(record, rows.getvalue().encode(), 0o644)], stamp)
+
+
+
+def write_wheel(out, metadata, tag, lib, module, library, target, licenses, stamp, sbom=None):
+    """A wheel holding the generated module as the typed package `lib` beside its library,
+    and the SBOM of what the library was built from, if given, stamped `stamp`."""
     meta = email.parser.HeaderParser().parsestr(metadata)
-    info = f"{dist_name(meta['Name'])}-{meta['Version']}.dist-info"
+    base = f"{dist_name(meta['Name'])}-{meta['Version']}"
+    info = f"{base}.dist-info"
     files = {
-        f"{lib}/__init__.py": module,
+        f"{lib}/__init__.py": (module, 0o644),
         # PEP 561's marker, without which mypy and pyright skip an installed package.
-        f"{lib}/py.typed": b"",
-        f"{lib}/{library_name(lib, target)}": library,
+        f"{lib}/py.typed": (b"", 0o644),
+        f"{lib}/{library_name(lib, target)}": (library, 0o755),
     }
     for name, data in licenses.items():
-        files[f"{info}/licenses/{name}"] = data
-    files[f"{info}/METADATA"] = metadata.encode()
+        files[f"{info}/licenses/{name}"] = (data, 0o644)
+    if sbom is not None:
+        # PEP 770: the dependencies the library was built from, where a scanner looks.
+        files[f"{info}/sboms/{meta['Name']}.cdx.json"] = (sbom, 0o644)
+    files[f"{info}/METADATA"] = (metadata.encode(), 0o644)
     files[f"{info}/WHEEL"] = (
-        f"Wheel-Version: 1.0\nGenerator: rust2-ffi\nRoot-Is-Purelib: false\nTag: {tag}\n"
-    ).encode()
-    rows = record(files)
-    csv.writer(rows, lineterminator="\n").writerow([f"{info}/RECORD", "", ""])
-    files[f"{info}/RECORD"] = rows.getvalue().encode()
-    path = Path(out) / f"{dist_name(meta['Name'])}-{meta['Version']}-{tag}.whl"
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name, data in files.items():
-            archive.writestr(name, data)
+        f"Wheel-Version: 1.0\nGenerator: rust2-ffi\nRoot-Is-Purelib: false\nTag: {tag}\n".encode(), 0o644)
+    path = Path(out) / f"{base}-{tag}.whl"
+    seal(path, files, stamp)
     return path
 
 
-def write_sdist(out, name, version, files):
-    """An sdist of `files`, each path's bytes and whether it is executable, in sorted order."""
+def write_sdist(out, name, version, files, stamp):
+    """An sdist of `files`, each path's bytes and whether it is executable, in sorted order,
+    every entry and the gzip header stamped `stamp`."""
     base = f"{dist_name(name)}-{version}"
-    mtime = int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
     path = Path(out) / f"{base}.tar.gz"
-    with open(path, "wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=mtime) as zipped, \
+    with open(path, "wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=stamp) as zipped, \
             tarfile.open(fileobj=zipped, mode="w", format=tarfile.PAX_FORMAT) as tar:
         for name in sorted(files):
             data, executable = files[name]
             entry = tarfile.TarInfo(f"{base}/{name}")
-            entry.size, entry.mtime, entry.mode = len(data), mtime, 0o755 if executable else 0o644
+            entry.size, entry.mtime, entry.mode = len(data), stamp, 0o755 if executable else 0o644
             tar.addfile(entry, io.BytesIO(data))
     return path
+
+
+def stamp(root):
+    """The time a build from the sdist at `root` stamps: SOURCE_DATE_EPOCH, else the sdist's own,
+    which its files carry, no earlier than a ZIP entry can hold."""
+    raw = os.environ.get("SOURCE_DATE_EPOCH")
+    return max(int(raw) if raw else int((root / "PKG-INFO").stat().st_mtime), ZIP_EPOCH)
 
 
 def host(crate):
@@ -199,7 +233,9 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None):
     meta = email.parser.HeaderParser().parsestr(metadata)
     licenses = {name: (root / name).read_bytes() for name in meta.get_all("License-File", [])}
     module = (crate / "python" / f"{lib}.py").read_bytes()
-    path = write_wheel(wheel_directory, metadata, tag, lib, module, Path(found[0]).read_bytes(), target, licenses)
+    sbom = root / "rust2" / "sbom.cdx.json"
+    path = write_wheel(wheel_directory, metadata, tag, lib, module, Path(found[0]).read_bytes(), target, licenses,
+                       stamp(root), sbom.read_bytes() if sbom.is_file() else None)
     return path.name
 
 
@@ -215,4 +251,4 @@ def build_sdist(sdist_directory, config_settings=None):
         rel = path.relative_to(root)
         if "__pycache__" not in rel.parts and rel.parts[:2] != ("binding", "target"):
             files[rel.as_posix()] = (path.read_bytes(), os.access(path, os.X_OK))
-    return write_sdist(sdist_directory, meta["Name"], meta["Version"], files).name
+    return write_sdist(sdist_directory, meta["Name"], meta["Version"], files, stamp(root)).name

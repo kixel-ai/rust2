@@ -4,10 +4,12 @@
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
 # closed, the values only Python's types bound, how Python calls into the extension, or
-# what Python code expects of a package, or breaks a contract, which must fail.
+# what Python code expects of a package, under a debug CPython that all of those leak
+# nothing, or breaks a contract, which must fail.
 
 import array
 import asyncio
+import contextlib
 import copy
 import dataclasses
 import datetime
@@ -426,6 +428,11 @@ def futures():
 		check(False, "a future's borrowing error raises")
 	except api.StringException as e:
 		check(e.error == "malformed: ", "a future's borrowing error is its message")
+	# A future returning a `Cow` that borrows its text owns it before the future ends.
+	check(loop.run_until_complete(api.unescaped_later("a\\b")) == "ab", "a future's owned Cow crosses")
+	check(loop.run_until_complete(api.unescaped_later("plain")) == "plain", "a future's borrowed Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe("c\\d")) == "cd", "a future's optional Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe(None)) is None, "a future's absent Cow crosses")
 
 	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
 	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.
@@ -1130,6 +1137,34 @@ def calls():
 	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
 	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
 	check(api.Registry.first_get.__doc__ is None, "a property without docs has no docstring")
+
+	# A deprecated function warns at each call, as Python's own do, and still runs.
+	import warnings
+
+	with warnings.catch_warnings(record=True) as caught:
+		warnings.simplefilter("always")
+		knob = api.knob(api.Dial(level=3, before=0))
+		dial = api.Dial(level=3, before=0).max()
+		turned = api.Dial(level=3, before=0).turn(2)
+		# An `async def`'s warns at its await.
+
+		async def awaits():
+			return await api.level_later(api.Dial(level=4, before=0))
+
+		later = asyncio.run(awaits())
+	warned = [(w.category, str(w.message), w.filename == __file__) for w in caught]
+	check(
+		warned
+		== [
+			(DeprecationWarning, "knob() is deprecated", True),
+			(DeprecationWarning, "Dial.max() is deprecated: turn it by `LIMIT` with `Dial::turn`", True),
+			(DeprecationWarning, "level_later() is deprecated: read its `level`", True),
+		],
+		f"deprecated calls warn at the caller: {warned}",
+	)
+	check(knob.level == 3 and dial == api.Dial(level=api.LIMIT, before=3), "a deprecated call runs")
+	check(turned == api.Dial(level=5, before=3), "a turn")
+	check(later == 4, "a deprecated future runs")
 	print("calls ok")
 
 
@@ -1378,9 +1413,41 @@ def broken(which):
 			raise ValueError(f"no case {which}")
 
 
+def leaks():
+	"""The other runs' checks, looped under a debug CPython: once two rounds warm the
+	interpreter, five more leave its references and memory blocks exactly as they were."""
+	check(hasattr(sys, "gettotalrefcount"), "leaks runs under a debug CPython")
+
+	def counts():
+		# Printed lines wait in the stream's buffer, and attribute lookups in the
+		# interpreter's caches, until they fill.
+		sys.stdout.flush()
+		sys._clear_internal_caches()
+		gc.collect()
+		return sys.gettotalrefcount(), sys.getallocatedblocks()
+
+	def rounds(n):
+		for _ in range(n):
+			for run in (script, checks, futures, owned, values, calls, idioms):
+				run()
+
+	with open(os.devnull, "w") as null, contextlib.redirect_stdout(null):
+		rounds(2)
+		first = counts()
+		# Each measurement held is counted by the next one.
+		before = counts()
+		rounds(5)
+		after = counts()
+	held = [b - f for b, f in zip(before, first)]
+	grown = [a - b for a, b in zip(after, before)]
+	check(grown == held, f"five rounds left the references and blocks {before} as {after}")
+
+
 match sys.argv[1:]:
 	case []:
 		script()
+	case ["leaks"]:
+		leaks()
 	case ["futures"]:
 		futures()
 	case ["owned"]:

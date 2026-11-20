@@ -522,13 +522,13 @@ From the CPU tables of 2026-11-10, measured at rust2 `7383790d` at a load averag
 29 and since replaced by the tables above, read against the code each call runs. In order of what it costs moq's
 frame path:
 
-1. **A call per frame timestamp.** At moq `ffcb7cd9`, `Timestamp` was `Copy` with private
-   fields, so it crossed as its 16 bytes, and a stamped frame allocated and freed nothing in
-   Rust; at `1aa86d5e6` it is a handle again until
-   [niche values](/quest/m1/ffi-export/niche-values.md) lands. As a handle, it cost 21 ns
-   in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go, and 245 in Dart (stamped
-   write minus write, in the tables above); as a value, see [Copy values](#copy-values):
-   what remains is each language's call and, in Kotlin and Python, an object of its own.
+1. **A call per frame timestamp.** `Timestamp` is `Copy` with private fields, so it
+   crosses as its 16 bytes, and a stamped frame allocates and frees nothing in Rust. As a
+   handle, at moq `1aa86d5e6` before its `Option<Timescale>` field crossed by value, it
+   cost 21 ns in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go, and 245 in Dart
+   (stamped write minus write, in the tables above); as a value, see
+   [Copy values](#copy-values): what remains is each language's call and, in Kotlin and
+   Python, an object of its own.
 2. **Ownership of a returned object.** An object return costs C 25 ns, but Go 263 and
    Dart 242, ten times C, and most of the difference is each runtime's per-object
    registration with its collector. Profiled 2026-11-14 on **nixos** with `perf`, for an
@@ -655,9 +655,9 @@ measure them at the load beside them.
 ### Copy values
 
 A `Copy` type with private fields whose every value fills its bytes crosses by value, as
-`Timestamp` did at moq `ffcb7cd9`: a struct of its bytes in C, C++, Swift, Go, and Dart, a
-class of a `Long` per word in Kotlin (a word value class when it fits one), and a class of
-the runtime's `Value` holding its bytes in Python.
+`Timestamp` does, its `None` scale written as its niche's whole `u64`: a struct of its bytes
+in C, C++, Swift, Go, and Dart, a class of a `Long` per word in Kotlin (a word value class
+when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
 Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
 Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
 
@@ -681,6 +681,19 @@ in the tables above came from another load, so Python's was also measured agains
 build on the same host, interleaved over 5 rounds at a load of 10 to 12: stamped minus write
 fell from 205 ns to 166, and the stamped write from 441 to 391.
 
+At moq `1aa86d5e6`, `Timestamp` gained an `Option<Timescale>` and crossed as a handle until
+the exporter counted a `None` as the niche it writes. Measured 2026-11-19 on **fedora**, the
+same CPU, at a load average of 17 to 24, the median of 3 rounds of `just ffi bench` each, in
+CPU time, stamped minus write:
+
+| | C | C++ | Swift | Go | Dart | Kotlin | Python | TS (Node) |
+|---|---|---|---|---|---|---|---|---|
+| handle, main at `2f63f110` | 40 | 30 | 56 | 149 | 111 | 210 | 218 | 283 |
+| value | 20 | 10 | 7 | 58 | 36 | 220 | 138 | 138 |
+
+Rust's own `from_micros` takes 8 to 9 ns of each, against none at `ffcb7cd9`. Kotlin's CPU
+time, which counts its JIT and collector, moved within its noise.
+
 ### Against the targets
 
 Where the cases match, on wall time: Kotlin's getter costs 24 ns against BoltFFI's 5.8,
@@ -693,7 +706,7 @@ and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and th
 
 The web binding runs over its own export of the stand-in, `target/moq-ffi-web`: the same
 crates less moq-tokio, which pulls in rustls-native-certs, with no wasm32-wasip1 platform
-module, and so less the items that name it ([`moq/web.toml`](../../ffi/moq/web.toml)).
+module.
 Nothing builds for wasm32-unknown-unknown, where getrandom 0.4 has no backend without a
 config flag. `export.ts` imports the generated modules as a caller would, and disposes each
 handle and payload it gets. A browser gives no process CPU clock, so its columns are wall

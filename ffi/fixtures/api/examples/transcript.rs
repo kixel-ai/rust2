@@ -442,6 +442,10 @@ fn main() {
 	let mut list = Node::new(1, None);
 	list.push(2);
 	println!("node {}", list.sum());
+	match list.next.as_deref() {
+		Some(next) => println!("node next {}", next.value),
+		None => println!("node next none"),
+	}
 
 	let tally = Tally::new();
 	tally.bump();
@@ -716,6 +720,10 @@ fn main() {
 	drop(draft);
 	println!("dropped {}", ledger.published());
 	println!("receipt {}", ledger.receipt().count());
+	let tab = ledger.tab();
+	println!("tab {}", tab.ledger.published());
+	println!("tab label {}", tab.label);
+	drop(tab);
 	// Members a `Deref` reaches: past an unexported target, beside a method of the same
 	// name, and a field a method's path shares.
 	let mut marker = api::Marker::new("m", 3, 5);
@@ -732,6 +740,18 @@ fn main() {
 	ledger.seal();
 	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
+	println!(
+		"chunk lens {} {} {} {}",
+		api::chunks(b"abcde", 2)
+			.iter()
+			.map(|c| format!("{}", api::len(c)))
+			.collect::<Vec<_>>()
+			.join(" "),
+		api::held_count(Some((Counter::new("h", 4),)))
+			.map_or("none".to_string(), |v| format!("{v} {}", api::len(b"ab"))),
+		api::fingerprint(&format!("{}", api::len(b"abc"))).is_err(),
+		api::sum_u32(&[ledger.published(), 1])
+	);
 	let counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	println!(
 		"counters {}",
@@ -824,7 +844,21 @@ fn main() {
 	);
 	let doc: serde_json::Value = r#"{"b": [1, 2.5, null], "a": "\u00e9"}"#.parse().unwrap();
 	println!("json {}", api::encode(&doc));
-	println!("timed text {}", api::timed_text(&doc));
+	println!(
+		"cow {} {} {} {}",
+		api::unescaped(r"a\b"),
+		api::unescaped("plain"),
+		api::unzeroed(&[1, 0, 2]).len(),
+		api::unzeroed(&[3]).len()
+	);
+	let pair: serde_json::Value = "[1, 2]".parse().unwrap();
+	let spot = api::Spot::deserialize(pair).unwrap();
+	println!("spot {} {}", spot.x, spot.y);
+	let text: serde_json::Value = "\"x\"".parse().unwrap();
+	match api::Spot::deserialize(text) {
+		Ok(spot) => println!("spot {} {}", spot.x, spot.y),
+		Err(err) => println!("spot err {err}"),
+	}
 	println!("tagged {}", api::tagged(doc, "t"));
 	println!(
 		"entries {}",

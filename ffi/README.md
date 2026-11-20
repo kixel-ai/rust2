@@ -7,9 +7,11 @@ Every language's generator but Python's builds on the C ABI.
 It targets facades written for the exporter's mapping rules. A stock crate's
 whole public API is not generally exportable: generic and borrow signatures can
 be refused, and the census also lists API items left out by those rules.
+[Writing a facade](FACADE.md) goes from a crate to a facade with no refusals, and says
+what each refusal asks you to change.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
+rust2-ffi (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -56,18 +58,9 @@ An export again rewrites only the files whose content changed, and removes from
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
-```toml
-# ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. A type
-# no facade module re-exports goes by its crate's name and its public path there. Each
-# must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
-# `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
-# method or constant shares with a field names the method, and `field@` the field.
-# A `cfg`-stripped item is found through a glob re-export only while its source module
-# keeps an exported item; under a glob of a module a `cfg` empties, the exclude fails as
-# naming nothing exported.
-exclude = ["track::Producer::poll_closed"]
-```
+It reads no config: the package is in the current directory unless `--manifest-path` says
+where, and an item the rules cannot export fails the export at its span. Nothing leaves an
+item out but the source itself: `#[doc(hidden)]`, or a `cfg` that leaves it out of a build.
 
 ## Rules
 
@@ -105,7 +98,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
 | a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
-| an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the config names each by the object's path |
+| an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the census names each by the object's path |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message; a `()` error, as once_cell's `race::OnceBool::set` returns, is refused, having no value to raise |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
@@ -149,7 +142,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read`, not bounded by `Seek` | `&[u8]` |
 | `impl Iterator<Item = X>` taken | `Vec<X>`, whose items Rust iterates; for `X` of `&str` or `&[u8]`, an array of buffers C lends for the call; an iterator of other references, or one a future or a callback takes, is refused |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| another type parameter | `serde_json::Value` for a serde `Serialize`, `Deserialize`, or `Deserializer` bound, as a derived `deserialize` takes, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
@@ -164,11 +157,21 @@ maps, which may name more. Inference finishes before any type is mapped, so mapp
 never adds an instance. An instance that holds an instance of a type inside it, such as
 `Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
+A field holding a reference, as `&'a mut ClientConfig` in rustls's
+`DangerousClientConfig` is, is read through it, lent where it is not `Clone`, and has no
+setter, since no borrow C holds outlives a call. A returned `Cow<'_, str>` or
+`Cow<'_, [u8]>` crosses as the string or bytes it owns, a copy C would make of a borrow
+anyway; a `Cow` anywhere else is refused, as C would hand Rust its form. A future owns
+its output before it ends, so it may return a `Cow` only on its own, in an `Option`, or
+as a tuple's element, and an error's only as `Cow<str>`, whose message crosses. Another crate's
+type that only refused items name, as `std::net::TcpListener` in moq-tokio's
+`server::Streams` is, is one no export returns, so those items are left out with it.
+
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
-alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`, through a `Box` too: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
@@ -229,7 +232,7 @@ A target's check may need its own C toolchain, as moq's `aws-lc-sys` and `ring` 
 for a check, which only its own host may have. `--api file` writes one target's API, with
 the spans of its items, instead of exporting; an export elsewhere adds it with
 `--with file`, as though it had checked that target too. Both must check the same
-package, features, and `exclude`, from the same sources: a staged span's file is relative
+package and features, from the same sources: a staged span's file is relative
 to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
 dropped for the other target's span where the file differs.
 
@@ -258,7 +261,7 @@ API breaks the one in `file`, with an error at each item that names how:
   A tuple's struct, known by its Rust spelling, is renamed the same way when another
   tuple's elements run together into its name.
 
-An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
+An item is known by its kind and Rust path. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
@@ -348,13 +351,15 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   included, as a `<T> *` Rust writes what the call left back through, so only that copy
   changes; it never makes or reads one itself, and frees none. Its fields fill it under
   any order a `rustc` may give them, with a byte for an enum's tag where no field has a
-  niche to hold it, so it has no padding whichever `rustc` builds the glue, which asserts
-  each target's size. They must also fill a model layout at both 4- and 8-byte pointers,
-  each primitive aligned to its size and a `repr`'s field order kept, so every target
-  decides alike. Any other `Copy` type, such as std's `Instant`, padded on a 64-bit
-  target, or an `Option<u32>`, whose bytes depend on its value, is an object instead, so
-  no byte Rust leaves uninitialized reaches a language, which may serialize what it
-  holds. Its size and alignment are the largest of the export's targets, so one
+  niche to hold it, and a variant without data in another's niche counted as that niche's
+  whole scalar, which it writes, so it has no padding whichever `rustc` builds the glue,
+  which asserts each target's size: `None` of an `Option<NonZero<u64>>` fills its 8 bytes.
+  They must also fill a model layout at both 4- and 8-byte pointers, each primitive
+  aligned to its size and a `repr`'s field order kept, so every target decides alike. Any
+  other `Copy` type, such as std's `Instant`, padded on a 64-bit target, or an
+  `Option<u32>` or `Option<&[u8]>`, whose `None` leaves bytes uninitialized, is an object
+  instead, so no byte Rust leaves uninitialized reaches a language, which may serialize
+  what it holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
@@ -469,10 +474,7 @@ Linux's exports, as the merge queue runs on, since a header names its targets.
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows and a const's by its value: the
-  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
-  `exclude` of a type or method by the generic type's path leaves it out of every
-  instance, and by the instance's path
-  (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`.
 
 ## C++
 
@@ -957,7 +959,16 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   as an array's items or behind a pointer, which Rust only reads and so copies. Swift's
   own, made with `Bytes(data)` or from any sequence of bytes, Rust copies once where it
   keeps them. `bytes.data` is a `Data`: Swift's as they are, and Rust's copied, so nothing
-  writes into a buffer Rust shares.
+  writes into a buffer Rust shares, and `bytes.withSpan` lends them in place as a
+  `Span<UInt8>`.
+- **Slices** a call borrows, `&[u8]` and `&[T]` of a fixed-width integer or float, are
+  `borrowing Swift.Span<T>`, which Rust reads in place: an array's `span`, or before
+  Apple's 26 releases its slice's (`array[...]`), or `Bytes` lent by `withSpan`, whose
+  closure is synchronous. An `async` call takes `Bytes` copied to a slice that lives
+  across the `await`, as `let s = Array(bytes)[...]` and then `try await f(s.span)`.
+  Bytes Rust lends a closure or trait method are a `Span<UInt8>` of Rust's own memory,
+  which the compiler keeps from outliving the call. A `span` property on `Bytes` waits on Swift's lifetime dependencies, still
+  experimental, and on `Data` keeping short bytes inline.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration` the
@@ -1371,13 +1382,9 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, a binding's own refusals such as Swift's included,
-then the `exclude` list that exports the rest, and
-what else it left out, such as what C can never hold and the traits C cannot implement, and why.
-That list is checked by collecting again with it: it holds what Swift alone refuses, and
-not an instance only refused items named, which nothing names once they are left out.
-It ignores the config's `exclude`, but lists each exclude that leaves out an item that
-would export, and fails on it, so the list holds only what the export refuses. It also
-fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+each of which fails the export, and what else it left out, such as what C can never hold
+and the traits C cannot implement, and why. It fails on an `instance not inferred` refusal,
+which is a bug in the exporter's inference
 rather than in the crate.
 
 ## TypeScript (web)
@@ -1517,7 +1524,7 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node and Deno
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node, Deno, and Bun
 just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
@@ -1529,10 +1536,10 @@ just ffi corpus   # census, export, and bind each crate of corpus/crates.txt thr
 just ffi corpus-update  # take corpus/crates.txt afresh from crates.io's top crates, and resolve corpus/Cargo.lock
 just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium, Firefox, and on Linux WebKit, lowering `using` three ways for WebKit, as the nightly runs it
-nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
+nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, under CheckJNI on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
-nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, its Go under the race detector, and its C ABI under Miri
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan with UBSan, TSan, and Valgrind, its Swift under TSan, its Go under the race detector and cgocheck2, its Python looped on a debug CPython, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -1551,7 +1558,7 @@ runs the script through the C++ header at C++17, 20, and 23, with exceptions and
 at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
 `tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
-runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
+runs the script through the Kotlin on the JVM under CheckJNI, where a warning fails it, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
 record they came from, until the GC frees it, that calls racing `close()` or the GC
 read live values, that the GC frees an object never closed left in an idle nursery or
@@ -1559,11 +1566,12 @@ pushed out of one, and that each object of many threads' returns, closes, and dr
 freed once, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
-segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
-panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
-API 35 on an image whose kernel pages by 16 KB.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate, under ART's CheckJNI. It also
+reads the library's segment alignment with `readelf`, which must be 16 KB, and checks that a
+failed check and a panic reach logcat and bionic's abort message, which the tombstone shows.
+Nightly runs it on an x86_64 emulator at API 24, the oldest moq's Android library supports, at
+API 35, and at API 35 on an image whose kernel pages by 16 KB, and on a 32-bit x86 one at API
+24, as moq's armv7 build is 32-bit.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
@@ -1576,7 +1584,8 @@ language mode and type-checked in Swift 5's, checks its futures the same way and
 releasing frees, and breaks each runtime check, which must trap or abort with its message,
 and each move or borrow the compiler checks, which must fail to compile.
 It runs with nixpkgs' Swift on Linux, and nightly with Apple's on macOS.
-`tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
+`tests/api.go` runs the script through the Go after `go vet`, failing any run that leaves a
+goroutine Go's `goroutineleak` profile finds, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
 or a reader reaches it and that the GC frees it once none does, that the GC frees an object
@@ -1606,7 +1615,7 @@ entry, and the nightly fails on an entry that matches no call of the fixed set. 
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
-<crate>::*;`. Each is censused, then exported with the `exclude` its census writes, and
+<crate>::*;`. Each is censused, then, where the census refuses nothing, exported, and
 its glue, C and C++ programs including its headers (compiled, not linked, since a crate
 may call a platform library the host lacks), its Kotlin, Python, Swift, Go, and Dart
 built; a panic, an error, or a binding that does not build fails it, a refusal not.
@@ -1647,10 +1656,15 @@ against that export's `api.json`: its `added` feature only adds and must pass, a
 feature breaks the API twice for each kind of break, once in an item only wasm32 has, each
 error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
-and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
-their output to the native transcript; it runs `tests/api.go` under Go's race detector;
-and it drives the C ABI from `tests/miri/api.rs` and the protocol scripts from
-`tests/miri/protocol.rs` under Miri with strict provenance.
+and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, the first time
+with UndefinedBehaviorSanitizer too, and `tests/api.swift` against the second, and matches
+their output to the native transcript; it runs `tests/api.c` and `tests/api.cpp` against the
+uninstrumented library under Valgrind's memcheck, `tests/api.go` under Go's race detector
+and cgocheck2, and `tests/api.py`'s checks on a debug build of the newest CPython, then its
+`leaks` case, which loops them and fails unless the interpreter's references and memory
+blocks end where they began; and it drives the C ABI from `tests/miri/api.rs` and the
+protocol scripts from `tests/miri/protocol.rs` under Miri with strict provenance. The
+protocol scripts' C driver runs under each sanitizer too.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
