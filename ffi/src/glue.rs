@@ -422,6 +422,7 @@ impl Crate<'_> {
 			checking: Cell::new(false),
 			reserved: Cell::new(false),
 			web: web.is_some(),
+			variants: String::new(),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
@@ -628,6 +629,8 @@ struct Gen<'a> {
 	reserved: Cell<bool>,
 	/// Whether the API serves the web, whose glue the crate's `web` feature builds.
 	web: bool,
+	/// The Python glue's functions telling which variant an object that is an enum holds.
+	variants: String,
 }
 
 impl Gen<'_> {
@@ -1489,6 +1492,12 @@ impl Gen<'_> {
 		for function in &api.functions {
 			self.function(function, None);
 		}
+		if !self.variants.is_empty() {
+			let variants = crate::kotlin::indent_by(&std::mem::take(&mut self.variants), 1);
+			self.line(format!(
+				"/// Which variant each object that is an enum holds, for the Python glue, which raises an\n/// error's own subclass by it.\n#[cfg(feature = \"python\")]\npub(crate) mod variant {{\n\tuse super::*;\n\n{variants}}}\n"
+			));
+		}
 	}
 
 	/// The functions object `i`'s std traits export, borrowing its handles `this`, `a`,
@@ -1565,6 +1574,31 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{away}{body}\n}}\n"
 			));
+		}
+		let variants = &self.abi.api.objects[i].variants;
+		if !variants.is_empty() {
+			// Each variant by its index plus one, or `0` for one the export knows no name of,
+			// as a `#[non_exhaustive]` enum's own crate may add.
+			let arms: String = (variants.iter().enumerate())
+				.map(|(n, v)| format!("{}\n\t\tT::{} {{ .. }} => {},", self.arm(v.on), ident(&v.name), n + 1))
+				.collect();
+			let body = wrap(
+				status,
+				"u32",
+				&format!("let this = {this};\n\tmatch {deref}this {{{arms}\n\t\t_ => 0,\n\t}}"),
+			);
+			let away = away(&name, &["this"]);
+			let function = format!(
+				"#[allow(unreachable_patterns, reason = \"an exhaustive enum's wildcard\")]\npub(crate) unsafe fn {name}(this: {handle}{param}) -> u32 {{\n\ttype T = {path};\n\tlet w = \"{name}_variant\";\n\t{away}{body}\n}}\n"
+			);
+			let function = match self.cfg(self.on) {
+				None => function,
+				Some(cfg) => format!(
+					"#[cfg({cfg})]\n{function}#[cfg(not({cfg}))]\n#[allow(unused_variables, reason = \"a call fails before reading any\")]\npub(crate) unsafe fn {name}(this: {handle}{param}) -> u32 {{\n\trt::fail(\"{name}_variant\", \"it is not on this library's target\")\n}}\n"
+				),
+			};
+			self.variants.push_str(&function);
+			self.variants.push('\n');
 		}
 		if traits.debug {
 			let body = wrap(

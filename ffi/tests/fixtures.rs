@@ -1201,7 +1201,7 @@ fn api_python() {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls", "leaf"] {
+	for case in ["futures", "owned", "values", "calls", "leaf", "idioms"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [

@@ -1,7 +1,8 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
 # is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
-# polls, `Mut`, `ForeignReader`, and `Duration`. Its names start with `_` but `Waker`,
-# `Mut`, `ForeignReader`, and `Duration`, so no exported name clashes with them.
+# polls, `Mut`, `ForeignReader`, `Duration`, and what each record shares. Its names start
+# with `_` but `Waker`, `Mut`, `ForeignReader`, and `Duration`, so no exported name clashes
+# with them.
 
 
 class _Future(_n.Future, _typing.Generic[_T]):
@@ -231,3 +232,42 @@ class _Const:
 
 	def __get__(self, obj: _object, cls: _object = None) -> _object:
 		return self.get()
+
+
+class _Fields:
+	"""A record class's `__dataclass_fields__`, which `dataclasses` makes on the first read,
+	so `dataclasses.fields`, `replace`, and `asdict` take a record as a dataclass while no
+	record pays for `dataclasses` processing it at import."""
+
+	__slots__ = ()
+
+	def __get__(self, obj: _object, cls: _type[_Record]) -> _dict[_str, _typing.Any]:
+		import dataclasses
+
+		hints = cls.__annotations__
+		shape: _typing.Any = _type(cls.__name__, (), {"__annotations__": {name: hints[name] for name in cls.__match_args__}})
+		fields: _dict[_str, _typing.Any] = dataclasses.dataclass(shape).__dataclass_fields__
+		_typing.cast(_typing.Any, cls).__dataclass_fields__ = fields
+		return fields
+
+
+class _Record:
+	"""What each record shares besides the `__init__` and `__eq__` it writes out as a
+	dataclass would: a dataclass's `repr`, and its `__dataclass_fields__` and `__replace__`."""
+
+	__slots__ = ()
+
+	__match_args__: _typing.ClassVar[_tuple[_str, ...]] = ()
+	if _typing.TYPE_CHECKING:
+		__dataclass_fields__: _typing.ClassVar[_dict[_str, _dataclasses.Field[_typing.Any]]]
+	else:
+		__dataclass_fields__ = _Fields()
+
+	def __repr__(self) -> _str:
+		fields = ", ".join(f"{name}={_getattr(self, name)!r}" for name in self.__match_args__)
+		return f"{_type(self).__qualname__}({fields})"
+
+	def __replace__(self, /, **changes: _object) -> _typing.Self:
+		import dataclasses
+
+		return dataclasses.replace(self, **changes)

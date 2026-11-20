@@ -914,6 +914,7 @@ mod tests {
 			lifetimes: 0,
 			methods: vec![],
 			traits: Traits::default(),
+			variants: vec![],
 			foreign: false,
 			opaque: None,
 		});
