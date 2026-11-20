@@ -2676,6 +2676,36 @@ impl Gen<'_> {
 				);
 			}
 		}
+		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, as `partialCmp`, undefined when
+		// unordered, and with `Ord` its `cmp`, the shape `Array.prototype.sort` takes. A plain
+		// enum's too: its numbers order as its discriminants, which only a derived order follows.
+		for &suffix in crate::c::comparisons(t.ord) {
+			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
+			let args = vec!["a$".to_string(), "b$".to_string()];
+			let i8 = Ty::Int(Int::I8);
+			let ret = self.invoke(&format!("{c}_{suffix}"), args, &i8, status, &mut lines);
+			let value = self.result(&Type::Int(Int::I8), &ret);
+			let (member, doc, ret_t) = match suffix {
+				"cmp" => {
+					lines.push(format!("return {value};"));
+					(
+						"cmp",
+						"Rust's `Ord`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`.",
+						"number",
+					)
+				}
+				_ => {
+					lines.push(format!("const c$ = {value};"));
+					lines.push("return c$ === 2 ? undefined : c$;".to_string());
+					(
+						"partialCmp",
+						"Rust's `PartialOrd`: -1, 0, or 1 as `a` is less than, equal to, or greater than `b`, or undefined when the two are unordered.",
+						"number | undefined",
+					)
+				}
+			};
+			emit(self, member, doc, &format!("a: {name}, b: {name}"), ret_t, lines);
+		}
 		if t.default {
 			let ret_c = match object {
 				true => Ty::Handle {

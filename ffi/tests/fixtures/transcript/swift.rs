@@ -107,6 +107,14 @@ func _fails<T: ~Copyable, E: Swift.Error>(_: E.Type, _ body: () throws -> T) -> 
 		fatalError("\(error)")
 	}
 }
+
+/// Rust's `Ord` of two values, through their `<`, which agrees with it and throws where a
+/// check of a handle can fail, so a type without `Comparable` orders too.
+func _cmp<T: ~Copyable>(
+	_ a: borrowing T, _ b: borrowing T, _ lt: (borrowing T, borrowing T) throws -> Swift.Bool
+) rethrows -> Swift.Int8 {
+	try lt(a, b) ? -1 : try lt(b, a) ? 1 : 0
+}
 "#;
 
 /// The Swift file of `t`'s script.
@@ -1190,7 +1198,7 @@ impl Emitter<'_> {
 			Kind::IsSome(inner) => format!("({} != nil)", self.expr(inner, out)),
 			Kind::IsNone(inner) => format!("({} == nil)", self.expr(inner, out)),
 			Kind::Binary(op, a, b) => {
-				if matches!(op, Op::Eq | Op::Ne) {
+				if matches!(op, Op::Eq | Op::Ne | Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::Cmp) {
 					let ty = unref(&a.ty).base();
 					if matches!(ty, Type::Record(_) | Type::Enum(_) | Type::Object(_)) {
 						self.threw |= self.model.traits_throw(&self.t.api, ty);
@@ -1198,10 +1206,13 @@ impl Emitter<'_> {
 				}
 				let (a, b) = (self.expr(a, out), self.expr(b, out));
 				let op = match op {
+					Op::Cmp => return format!("_cmp({a}, {b}, <)"),
 					Op::Eq => "==",
 					Op::Ne => "!=",
 					Op::Lt => "<",
+					Op::Le => "<=",
 					Op::Gt => ">",
+					Op::Ge => ">=",
 					Op::Add => "+",
 					Op::Sub => "-",
 					Op::Mul => "*",

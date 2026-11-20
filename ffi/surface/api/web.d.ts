@@ -584,6 +584,8 @@ export declare function debug(self: Instant): string;
 export declare function clone(self: Instant): Instant;
 export declare function eq(a: Instant, b: Instant): boolean;
 export declare function hash(self: Instant): rt.u64;
+export declare function partialCmp(a: Instant, b: Instant): number | undefined;
+export declare function cmp(a: Instant, b: Instant): number;
 
 // Journal.ts
 import * as rt from "./rt.ts";
@@ -721,8 +723,10 @@ export declare function debug(self: LeftU8): string;
 export declare function eq(a: LeftU8, b: LeftU8): boolean;
 
 // Level.ts
-export type Level = "Trace" | "Debug" | "Info" | "Warn" | "Error";
+export type Level = "Error" | "Warn" | "Info" | "Debug" | "Trace";
 export declare function toString(self: Level): string;
+export declare function partialCmp(a: Level, b: Level): number | undefined;
+export declare function cmp(a: Level, b: Level): number;
 
 // LimitsBytes.ts
 export type LimitsBytes = {
@@ -1060,6 +1064,17 @@ export type Parcel = {
     payload: Uint8Array;
 };
 
+// Pass.ts
+import * as rt from "./rt.ts";
+export type Pass = rt.Handle<"Pass">;
+export declare function debug(self: Pass): string;
+export declare function eq(a: Pass, b: Pass): boolean;
+export declare function partialCmp(a: Pass, b: Pass): number | undefined;
+export declare function cmp(a: Pass, b: Pass): number;
+export declare function new$(number: number): Pass;
+export declare function redeem(self: Pass): number;
+export { new$ as new };
+
 // Peer.ts
 import * as rt from "./rt.ts";
 export type Peer = {
@@ -1139,6 +1154,30 @@ export type Qualifiers = {
     kotlin: rt.f64;
 };
 export declare function eq(a: Qualifiers, b: Qualifiers): boolean;
+
+// Quantity.ts
+import * as rt from "./rt.ts";
+export type Quantity = rt.Handle<"Quantity">;
+export declare function debug(self: Quantity): string;
+export declare function eq(a: Quantity, b: Quantity): boolean;
+export declare function partialCmp(a: Quantity, b: Quantity): number | undefined;
+export declare function new$(value: rt.i64, unit: number): Quantity;
+export { new$ as new };
+
+// Rank.ts
+export type Rank = {
+    tag: "Unranked";
+} | {
+    tag: "Ranked";
+    compare: number;
+    partialCompare: number;
+    compareTo: number;
+    partialCompareTo: number;
+};
+export declare function debug(self: Rank): string;
+export declare function eq(a: Rank, b: Rank): boolean;
+export declare function partialCmp(a: Rank, b: Rank): number | undefined;
+export declare function cmp(a: Rank, b: Rank): number;
 
 // Rated.ts
 import * as rt from "./rt.ts";
@@ -1469,6 +1508,12 @@ export declare function number(self: Ticket): number;
 export declare function clones(): number;
 export { new$ as new };
 
+// Tier.ts
+export type Tier = "Low" | "High" | "CompareTo" | "PartialCompareTo";
+export declare function debug(self: Tier): string;
+export declare function partialCmp(a: Tier, b: Tier): number | undefined;
+export declare function cmp(a: Tier, b: Tier): number;
+
 // TlsCert.ts
 import * as rt from "./rt.ts";
 export type TlsCert = rt.Handle<"TlsCert">;
@@ -1542,6 +1587,8 @@ export declare function debug(self: Url): string;
 export declare function clone(self: Url): Url;
 export declare function eq(a: Url, b: Url): boolean;
 export declare function hash(self: Url): rt.u64;
+export declare function partialCmp(a: Url, b: Url): number | undefined;
+export declare function cmp(a: Url, b: Url): number;
 export declare function parse(input: string): rt.Result<Url, string>;
 
 // VecClashTone.ts
@@ -1557,6 +1604,16 @@ export declare function levelSet(self: Verbosity, value: Level): void;
 export declare function new$(level: Level): Verbosity;
 export declare function filter(self: Verbosity): Level | undefined;
 export { new$ as new };
+
+// Version.ts
+export type Version = {
+    major: number;
+    minor: number;
+};
+export declare function debug(self: Version): string;
+export declare function eq(a: Version, b: Version): boolean;
+export declare function partialCmp(a: Version, b: Version): number | undefined;
+export declare function cmp(a: Version, b: Version): number;
 
 // Waiter.ts
 import * as rt from "./rt.ts";
@@ -1689,6 +1746,7 @@ import type { PolarPoint } from "./PolarPoint.ts";
 import type { PolarTurn } from "./PolarTurn.ts";
 import type { Polar_Turn } from "./Polar_Turn.ts";
 import type { Qualifiers } from "./Qualifiers.ts";
+import type { Rank } from "./Rank.ts";
 import type { Rated } from "./Rated.ts";
 import type { Reading } from "./Reading.ts";
 import type { Refusal } from "./Refusal.ts";
@@ -1708,11 +1766,13 @@ import type { StartSeekable } from "./StartSeekable.ts";
 import type { Status } from "./Status.ts";
 import type { Tally } from "./Tally.ts";
 import type { Ticket } from "./Ticket.ts";
+import type { Tier } from "./Tier.ts";
 import type { TlsCert } from "./TlsCert.ts";
 import type { TlsCodec } from "./TlsCodec.ts";
 import type { TlsPolicyLifetime } from "./TlsPolicyLifetime.ts";
 import type { Token } from "./Token.ts";
 import type { VecClashTone } from "./VecClashTone.ts";
+import type { Version } from "./Version.ts";
 import type { Waiter } from "./Waiter.ts";
 import type { Weighted } from "./Weighted.ts";
 import type { Wide } from "./Wide.ts";
@@ -1722,6 +1782,7 @@ export declare function e_Family(v: Family): number;
 export declare function e_Level(v: Level): number;
 export declare function e_Shape(v: Shape): number;
 export declare function e_Status_(v: Status): number;
+export declare function e_Tier(v: Tier): number;
 export declare function e_VecClashTone(v: VecClashTone): number;
 export declare function f0(): number;
 export declare function f1(): number;
@@ -1783,7 +1844,9 @@ export declare const k_Node: rt.Kind;
 export declare const k_Outer_Inner_u8: rt.Kind;
 export declare const k_Pad_u16: rt.Kind;
 export declare const k_Pad_u8: rt.Kind;
+export declare const k_Pass: rt.Kind;
 export declare const k_Plain: rt.Kind;
+export declare const k_Quantity: rt.Kind;
 export declare const k_Receipt: rt.Kind;
 export declare const k_Refusal: rt.Kind;
 export declare const k_Registry: rt.Kind;
@@ -2079,6 +2142,7 @@ export declare function w_Platform(p: number, v: Platform): void;
 export declare function w_Point(p: number, v: Point): void;
 export declare function w_PolarTurn(p: number, v: PolarTurn): void;
 export declare function w_Qualifiers(p: number, v: Qualifiers): void;
+export declare function w_Rank(p: number, v: Rank): void;
 export declare function w_Rated(p: number, v: Rated): void;
 export declare function w_Reading(p: number, v: Reading): void;
 export declare function w_Right_Left_u8(p: number, v: RightLeftU8): void;
@@ -2094,6 +2158,7 @@ export declare function w_Stamp(p: number, v: Stamp): void;
 export declare function w_Stamped(p: number, v: Stamped): void;
 export declare function w_StartSeekable(p: number, v: StartSeekable): void;
 export declare function w_Ticket(p: number, v: Ticket): void;
+export declare function w_Version(p: number, v: Version): void;
 export declare function w_Weighted(p: number, v: Weighted): void;
 export declare function w_Wide(p: number, v: Wide): void;
 export declare function w_Window(p: number, v: Window): void;

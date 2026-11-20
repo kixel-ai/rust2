@@ -17,7 +17,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x797d794629bfbf19ULL)
+#define MOQ_CONTRACT ((uint64_t)0x2ef7e7855318264aULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -821,11 +821,11 @@ typedef enum moq_moq_sock_udp_EcnCodepoint {
 	MOQ_MOQ_SOCK_UDP_ECNCODEPOINT_CE = 3,
 } moq_moq_sock_udp_EcnCodepoint;
 typedef enum moq_Level {
-	MOQ_LEVEL_TRACE = 0,
-	MOQ_LEVEL_DEBUG = 1,
+	MOQ_LEVEL_ERROR = 0,
+	MOQ_LEVEL_WARN = 1,
 	MOQ_LEVEL_INFO = 2,
-	MOQ_LEVEL_WARN = 3,
-	MOQ_LEVEL_ERROR = 4,
+	MOQ_LEVEL_DEBUG = 3,
+	MOQ_LEVEL_TRACE = 4,
 } moq_Level;
 typedef enum moq_bound {
 	MOQ_BOUND_UNBOUNDED = 0,
@@ -2350,6 +2350,8 @@ MOQ_MUST_USE moq_buf moq_TimeOverflow_to_string(const moq_TimeOverflow *self);
 MOQ_MUST_USE moq_buf moq_TimeOverflow_debug(const moq_TimeOverflow *self);
 bool moq_Timescale_eq(const moq_Timescale *a, const moq_Timescale *b);
 uint64_t moq_Timescale_hash(const moq_Timescale *self);
+int8_t moq_Timescale_partial_cmp(const moq_Timescale *a, const moq_Timescale *b);
+int8_t moq_Timescale_cmp(const moq_Timescale *a, const moq_Timescale *b);
 MOQ_MUST_USE moq_buf moq_Timescale_to_string(const moq_Timescale *self);
 MOQ_MUST_USE moq_buf moq_Timescale_debug(const moq_Timescale *self);
 moq_Timescale moq_Timescale_SECOND(void);
@@ -2360,6 +2362,7 @@ MOQ_MUST_USE bool moq_Timescale_new(uint64_t units_per_second, moq_Timescale *ou
 uint64_t moq_Timescale_as_u64(const moq_Timescale *self);
 bool moq_Timestamp_eq(const moq_Timestamp *a, const moq_Timestamp *b);
 uint64_t moq_Timestamp_hash(const moq_Timestamp *self);
+int8_t moq_Timestamp_partial_cmp(const moq_Timestamp *a, const moq_Timestamp *b);
 MOQ_MUST_USE moq_buf moq_Timestamp_debug(const moq_Timestamp *self);
 moq_Timestamp moq_Timestamp_ZERO(void);
 MOQ_MUST_USE bool moq_Timestamp_new(uint64_t value, moq_Timescale scale, moq_Timestamp *out, moq_TimeOverflow *err);
@@ -2382,6 +2385,8 @@ MOQ_MUST_USE bool moq_Timestamp_checked_add(const moq_Timestamp *self, moq_Times
 MOQ_MUST_USE bool moq_Timestamp_checked_sub(const moq_Timestamp *self, moq_Timestamp rhs, moq_Timestamp *out, moq_TimeOverflow *err);
 bool moq_clock_Instant_eq(const moq_clock_Instant *a, const moq_clock_Instant *b);
 uint64_t moq_clock_Instant_hash(const moq_clock_Instant *self);
+int8_t moq_clock_Instant_partial_cmp(const moq_clock_Instant *a, const moq_clock_Instant *b);
+int8_t moq_clock_Instant_cmp(const moq_clock_Instant *a, const moq_clock_Instant *b);
 MOQ_MUST_USE moq_buf moq_clock_Instant_debug(const moq_clock_Instant *self);
 moq_clock_Instant moq_clock_Instant_ZERO(void);
 moq_clock_Instant moq_clock_Instant_now(void);
@@ -2400,6 +2405,8 @@ MOQ_MUST_USE moq_buf moq_clock_Elapsed_to_string(const moq_clock_Elapsed *self);
 MOQ_MUST_USE moq_buf moq_clock_Elapsed_debug(const moq_clock_Elapsed *self);
 bool moq_clock_Wall_eq(const moq_clock_Wall *a, const moq_clock_Wall *b);
 uint64_t moq_clock_Wall_hash(const moq_clock_Wall *self);
+int8_t moq_clock_Wall_partial_cmp(const moq_clock_Wall *a, const moq_clock_Wall *b);
+int8_t moq_clock_Wall_cmp(const moq_clock_Wall *a, const moq_clock_Wall *b);
 MOQ_MUST_USE moq_buf moq_clock_Wall_debug(const moq_clock_Wall *self);
 moq_clock_Wall moq_clock_Wall_UNIX_EPOCH(void);
 moq_clock_Wall moq_clock_Wall_MOQ_EPOCH(void);
@@ -2618,6 +2625,8 @@ moq_option_non_zero_u64 moq_transport_Limits_receive_window_get(const moq_transp
 void moq_transport_Limits_receive_window_set(moq_transport_Limits *self, moq_option_non_zero_u64 value);
 bool moq_bandwidth_Rate_eq(const moq_bandwidth_Rate *a, const moq_bandwidth_Rate *b);
 uint64_t moq_bandwidth_Rate_hash(const moq_bandwidth_Rate *self);
+int8_t moq_bandwidth_Rate_partial_cmp(const moq_bandwidth_Rate *a, const moq_bandwidth_Rate *b);
+int8_t moq_bandwidth_Rate_cmp(const moq_bandwidth_Rate *a, const moq_bandwidth_Rate *b);
 MOQ_MUST_USE moq_buf moq_bandwidth_Rate_debug(const moq_bandwidth_Rate *self);
 moq_bandwidth_Rate moq_bandwidth_Rate_default(void);
 moq_bandwidth_Rate moq_bandwidth_Rate_ZERO(void);
@@ -2635,6 +2644,8 @@ MOQ_MUST_USE moq_buf moq_frame_Info_debug(const moq_frame_Info *self);
 void moq_group_Info_free(moq_group_Info *self);
 bool moq_group_Info_eq(const moq_group_Info *a, const moq_group_Info *b);
 uint64_t moq_group_Info_hash(const moq_group_Info *self);
+int8_t moq_group_Info_partial_cmp(const moq_group_Info *a, const moq_group_Info *b);
+int8_t moq_group_Info_cmp(const moq_group_Info *a, const moq_group_Info *b);
 MOQ_MUST_USE moq_buf moq_group_Info_debug(const moq_group_Info *self);
 void moq_track_Delay_free(moq_track_Delay *self);
 bool moq_track_Delay_eq(const moq_track_Delay *a, const moq_track_Delay *b);
@@ -2644,6 +2655,8 @@ moq_track_Delay moq_track_Delay_with_min(const moq_track_Delay *self, moq_option
 moq_track_Delay moq_track_Delay_with_max(const moq_track_Delay *self, moq_option_duration max);
 bool moq_track_Position_eq(const moq_track_Position *a, const moq_track_Position *b);
 uint64_t moq_track_Position_hash(const moq_track_Position *self);
+int8_t moq_track_Position_partial_cmp(const moq_track_Position *a, const moq_track_Position *b);
+int8_t moq_track_Position_cmp(const moq_track_Position *a, const moq_track_Position *b);
 MOQ_MUST_USE moq_buf moq_track_Position_debug(const moq_track_Position *self);
 moq_track_Position moq_track_Position_default(void);
 uint64_t moq_track_Position_group_get(const moq_track_Position *self);
@@ -2655,16 +2668,22 @@ moq_track_Position moq_track_Position_group(uint64_t group);
 void moq_track_Range_free(moq_track_Range *self);
 bool moq_track_Range_eq(const moq_track_Range *a, const moq_track_Range *b);
 uint64_t moq_track_Range_hash(const moq_track_Range *self);
+int8_t moq_track_Range_partial_cmp(const moq_track_Range *a, const moq_track_Range *b);
+int8_t moq_track_Range_cmp(const moq_track_Range *a, const moq_track_Range *b);
 MOQ_MUST_USE moq_buf moq_track_Range_debug(const moq_track_Range *self);
 moq_track_Range moq_track_Range_live(void);
 moq_track_Range moq_track_Range_oldest(void);
 bool moq_origin_Cost_eq(const moq_origin_Cost *a, const moq_origin_Cost *b);
+int8_t moq_origin_Cost_partial_cmp(const moq_origin_Cost *a, const moq_origin_Cost *b);
+int8_t moq_origin_Cost_cmp(const moq_origin_Cost *a, const moq_origin_Cost *b);
 MOQ_MUST_USE moq_buf moq_origin_Cost_debug(const moq_origin_Cost *self);
 moq_origin_Cost moq_origin_Cost_default(void);
 moq_origin_Cost moq_origin_Cost_new(uint64_t cost);
 uint64_t moq_origin_Cost_value(const moq_origin_Cost *self);
 bool moq_origin_Priority_eq(const moq_origin_Priority *a, const moq_origin_Priority *b);
 uint64_t moq_origin_Priority_hash(const moq_origin_Priority *self);
+int8_t moq_origin_Priority_partial_cmp(const moq_origin_Priority *a, const moq_origin_Priority *b);
+int8_t moq_origin_Priority_cmp(const moq_origin_Priority *a, const moq_origin_Priority *b);
 MOQ_MUST_USE moq_buf moq_origin_Priority_debug(const moq_origin_Priority *self);
 moq_origin_Priority moq_origin_Priority_default(void);
 moq_origin_Priority moq_origin_Priority_new(int8_t priority);
@@ -2880,6 +2899,8 @@ moq_track_Compression moq_track_Compression_default(void);
 void moq_track_Anchor_free(moq_track_Anchor *self);
 bool moq_track_Anchor_eq(const moq_track_Anchor *a, const moq_track_Anchor *b);
 uint64_t moq_track_Anchor_hash(const moq_track_Anchor *self);
+int8_t moq_track_Anchor_partial_cmp(const moq_track_Anchor *a, const moq_track_Anchor *b);
+int8_t moq_track_Anchor_cmp(const moq_track_Anchor *a, const moq_track_Anchor *b);
 MOQ_MUST_USE moq_buf moq_track_Anchor_debug(const moq_track_Anchor *self);
 bool moq_track_Order_eq(const moq_track_Order *a, const moq_track_Order *b);
 uint64_t moq_track_Order_hash(const moq_track_Order *self);
@@ -3059,6 +3080,8 @@ MOQ_MUST_USE moq_buf moq_moq_sock_udp_EcnCodepoint_debug(const moq_moq_sock_udp_
 moq_option_moq_sock_udp_EcnCodepoint moq_moq_sock_udp_EcnCodepoint_from_bits(uint8_t x);
 bool moq_Level_eq(const moq_Level *a, const moq_Level *b);
 uint64_t moq_Level_hash(const moq_Level *self);
+int8_t moq_Level_partial_cmp(const moq_Level *a, const moq_Level *b);
+int8_t moq_Level_cmp(const moq_Level *a, const moq_Level *b);
 MOQ_MUST_USE moq_buf moq_Level_to_string(const moq_Level *self);
 void moq_Park_free(moq_Park *self);
 void moq_Park_drop(moq_Park *self, moq_status *status);
@@ -3105,6 +3128,8 @@ bool moq_Instance_borrowed(const moq_Instance *self);
 MOQ_MUST_USE moq_Instance *moq_Instance_clone(const moq_Instance *self, moq_status *status);
 bool moq_Instance_eq(const moq_Instance *a, const moq_Instance *b, moq_status *status);
 uint64_t moq_Instance_hash(const moq_Instance *self, moq_status *status);
+int8_t moq_Instance_partial_cmp(const moq_Instance *a, const moq_Instance *b, moq_status *status);
+int8_t moq_Instance_cmp(const moq_Instance *a, const moq_Instance *b, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Instance_to_string(const moq_Instance *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Instance_debug(const moq_Instance *self, moq_status *status);
 MOQ_MUST_USE moq_Instance *moq_Instance_random(void);
@@ -3116,6 +3141,8 @@ bool moq_Path_borrowed(const moq_Path *self);
 MOQ_MUST_USE moq_Path *moq_Path_clone(const moq_Path *self, moq_status *status);
 bool moq_Path_eq(const moq_Path *a, const moq_Path *b, moq_status *status);
 uint64_t moq_Path_hash(const moq_Path *self, moq_status *status);
+int8_t moq_Path_partial_cmp(const moq_Path *a, const moq_Path *b, moq_status *status);
+int8_t moq_Path_cmp(const moq_Path *a, const moq_Path *b, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Path_to_string(const moq_Path *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Path_debug(const moq_Path *self, moq_status *status);
 MOQ_MUST_USE moq_Path *moq_Path_default(void);
@@ -3138,6 +3165,8 @@ bool moq_Pattern_borrowed(const moq_Pattern *self);
 MOQ_MUST_USE moq_Pattern *moq_Pattern_clone(const moq_Pattern *self, moq_status *status);
 bool moq_Pattern_eq(const moq_Pattern *a, const moq_Pattern *b, moq_status *status);
 uint64_t moq_Pattern_hash(const moq_Pattern *self, moq_status *status);
+int8_t moq_Pattern_partial_cmp(const moq_Pattern *a, const moq_Pattern *b, moq_status *status);
+int8_t moq_Pattern_cmp(const moq_Pattern *a, const moq_Pattern *b, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Pattern_to_string(const moq_Pattern *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Pattern_debug(const moq_Pattern *self, moq_status *status);
 MOQ_MUST_USE moq_Pattern *moq_Pattern_default(void);
@@ -3314,6 +3343,8 @@ bool moq_Specificity_borrowed(const moq_Specificity *self);
 MOQ_MUST_USE moq_Specificity *moq_Specificity_clone(const moq_Specificity *self);
 bool moq_Specificity_eq(const moq_Specificity *a, const moq_Specificity *b);
 uint64_t moq_Specificity_hash(const moq_Specificity *self);
+int8_t moq_Specificity_partial_cmp(const moq_Specificity *a, const moq_Specificity *b);
+int8_t moq_Specificity_cmp(const moq_Specificity *a, const moq_Specificity *b);
 MOQ_MUST_USE moq_buf moq_Specificity_debug(const moq_Specificity *self);
 void moq_clock_Clock_free(moq_clock_Clock *self);
 bool moq_clock_Clock_borrowed(const moq_clock_Clock *self);
@@ -3597,6 +3628,8 @@ bool moq_tokio_Duration_borrowed(const moq_tokio_Duration *self);
 MOQ_MUST_USE moq_tokio_Duration *moq_tokio_Duration_clone(const moq_tokio_Duration *self);
 bool moq_tokio_Duration_eq(const moq_tokio_Duration *a, const moq_tokio_Duration *b);
 uint64_t moq_tokio_Duration_hash(const moq_tokio_Duration *self);
+int8_t moq_tokio_Duration_partial_cmp(const moq_tokio_Duration *a, const moq_tokio_Duration *b);
+int8_t moq_tokio_Duration_cmp(const moq_tokio_Duration *a, const moq_tokio_Duration *b);
 MOQ_MUST_USE moq_buf moq_tokio_Duration_to_string(const moq_tokio_Duration *self);
 MOQ_MUST_USE moq_buf moq_tokio_Duration_debug(const moq_tokio_Duration *self);
 MOQ_MUST_USE moq_tokio_Duration *moq_tokio_Duration_default(void);
@@ -9264,6 +9297,8 @@ bool moq_Url_borrowed(const moq_Url *self);
 MOQ_MUST_USE moq_Url *moq_Url_clone(const moq_Url *self, moq_status *status);
 bool moq_Url_eq(const moq_Url *a, const moq_Url *b, moq_status *status);
 uint64_t moq_Url_hash(const moq_Url *self, moq_status *status);
+int8_t moq_Url_partial_cmp(const moq_Url *a, const moq_Url *b, moq_status *status);
+int8_t moq_Url_cmp(const moq_Url *a, const moq_Url *b, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Url_to_string(const moq_Url *self, moq_status *status);
 MOQ_MUST_USE moq_buf moq_Url_debug(const moq_Url *self, moq_status *status);
 MOQ_MUST_USE bool moq_Url_parse(moq_buf input, moq_Url **out, moq_buf *err);
@@ -9276,6 +9311,8 @@ bool moq_Instant_borrowed(const moq_Instant *self);
 MOQ_MUST_USE moq_Instant *moq_Instant_clone(const moq_Instant *self);
 bool moq_Instant_eq(const moq_Instant *a, const moq_Instant *b);
 uint64_t moq_Instant_hash(const moq_Instant *self);
+int8_t moq_Instant_partial_cmp(const moq_Instant *a, const moq_Instant *b);
+int8_t moq_Instant_cmp(const moq_Instant *a, const moq_Instant *b);
 MOQ_MUST_USE moq_buf moq_Instant_debug(const moq_Instant *self);
 void moq_rustls_ServerConfig_free(moq_rustls_ServerConfig *self);
 bool moq_rustls_ServerConfig_borrowed(const moq_rustls_ServerConfig *self);

@@ -86,6 +86,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		errors: Vec::new(),
 		thrown: BTreeMap::new(),
 		conforms: BTreeSet::new(),
+		comparables: BTreeSet::new(),
 		relays: Vec::new(),
 		trampolines: Vec::new(),
 		constructors: BTreeMap::new(),
@@ -496,6 +497,8 @@ struct Gen<'a> {
 	thrown: BTreeMap<String, Type>,
 	/// The exported types thrown as errors, which implement `Exception`.
 	conforms: BTreeSet<String>,
+	/// The exported types ordered by `Ord`, which implement `Comparable`.
+	comparables: BTreeSet<String>,
 	/// Each C signature of a lent function, whose relay is `<space>_fn_<n>`.
 	relays: Vec<Ty>,
 	/// Each closure type, whose trampoline is `_t<n>`.
@@ -1729,15 +1732,24 @@ impl<'a> Gen<'a> {
 				"/// A `{dt}` Rust returned as an error.\nfinal class {name} implements Exception {{\n\tfinal {dt} error;\n\n\tconst {name}(this.error);\n\n\t@override\n\tString toString() => '$error';\n}}\n\n"
 			);
 		}
-		// Each exported type thrown as an error implements `Exception`, which its
-		// declaration names once all are known.
-		for name in &self.conforms.clone() {
+		// Each exported type thrown as an error implements `Exception`, and each ordered by
+		// `Ord` `Comparable`, which its declaration names once all are known.
+		let names: BTreeSet<String> = self.conforms.union(&self.comparables).cloned().collect();
+		for name in &names {
+			let interfaces: Vec<String> = [
+				self.conforms.contains(name).then(|| "Exception".to_string()),
+				self.comparables.contains(name).then(|| format!("Comparable<{name}>")),
+			]
+			.into_iter()
+			.flatten()
+			.collect();
 			for marker in [format!("class {name} "), format!("enum {name} ")] {
 				let at = self.types.find(&format!("{marker}{{"));
 				let at = at.or_else(|| self.types.find(&format!("{marker}extends _Object {{")));
 				if let Some(at) = at {
 					let open = at + self.types[at..].find('{').expect("a body");
-					self.types.insert_str(open, "implements Exception ");
+					self.types
+						.insert_str(open, &format!("implements {} ", interfaces.join(", ")));
 					break;
 				}
 			}
@@ -1940,6 +1952,37 @@ impl<'a> Gen<'a> {
 				body.push(format!(
 					"\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
 				));
+			}
+		}
+		// Rust's `partial_cmp`, -1, 0, 1, or 2 when unordered, behind `partialCompareTo` and
+		// `<` and its kin, as Rust's are; with `Ord`, its `cmp` as `Comparable`'s `compareTo`.
+		for &suffix in crate::c::comparisons(t.ord) {
+			let what = format!("{c}_{suffix}");
+			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Int(Int::I8));
+			let (pa, a) = this(self, "this");
+			let (pb, b) = this(self, "other");
+			let compare = arena(
+				false,
+				format!(
+					"{pa}{pb}{}",
+					call(&f, &format!("_n.home, {a}, {b}"), &what, &|r| r.to_string())
+				),
+			);
+			match suffix {
+				"cmp" => {
+					members.push("compareTo".to_string());
+					self.comparables.insert(name.clone());
+					body.push(format!(
+						"\t/// Rust's `Ord`: -1, 0, or 1 as this is less than, equal to, or greater than [other].\n\t@override\n\tint compareTo({name} other) {{\n\t\t{compare}\n\t}}\n"
+					));
+				}
+				_ => {
+					members.push("partialCompareTo".to_string());
+					members.push("_partialCmp".to_string());
+					body.push(format!(
+						"\t/// Rust's `partial_cmp`: -1, 0, 1, or 2 when unordered.\n\tint _partialCmp({name} other) {{\n\t\t{compare}\n\t}}\n\n\t/// Rust's `PartialOrd`: -1, 0, or 1 as this is less than, equal to, or greater than [other], or null when the two are unordered.\n\tint? partialCompareTo({name} other) {{\n\t\tfinal c_ = _partialCmp(other);\n\t\treturn c_ == 2 ? null : c_;\n\t}}\n\n\tbool operator <({name} other) => _partialCmp(other) == -1;\n\n\tbool operator <=({name} other) {{\n\t\tfinal c_ = _partialCmp(other);\n\t\treturn c_ == -1 || c_ == 0;\n\t}}\n\n\tbool operator >({name} other) => _partialCmp(other) == 1;\n\n\tbool operator >=({name} other) {{\n\t\tfinal c_ = _partialCmp(other);\n\t\treturn c_ == 0 || c_ == 1;\n\t}}\n"
+					));
+				}
 			}
 		}
 		if t.default {
@@ -3415,9 +3458,20 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	}
 }
 
-/// A field's Dart name.
+/// A field's Dart name, clear of the members every object has and of the comparison methods
+/// any type may gain, so a type that gains `PartialOrd` or `Ord` renames no field.
 fn field_name(name: &str) -> String {
-	member(name, OBJECT)
+	member(
+		name,
+		&[
+			"hashCode",
+			"noSuchMethod",
+			"runtimeType",
+			"toString",
+			"compareTo",
+			"partialCompareTo",
+		],
+	)
 }
 
 /// A parameter's Dart name. The call's own locals end in `_`, which no camel-case name does.
@@ -3427,7 +3481,10 @@ fn param_name(name: &str) -> String {
 
 /// A plain enum's value: its variant in camel case.
 fn enum_value(variant: &str) -> String {
-	member(&abi::snake(variant), &["values", "index", "name"])
+	member(
+		&abi::snake(variant),
+		&["values", "index", "name", "compareTo", "partialCompareTo"],
+	)
 }
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a
