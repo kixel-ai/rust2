@@ -92,6 +92,11 @@ def _fails(call, exception):
 	return False
 
 
+def _cmp(a, b):
+	"""Rust's `Ord` of two values, through the comparisons Python has."""
+	return (a > b) - (a < b)
+
+
 def _f64(bits):
 	return struct.unpack("<d", bits.to_bytes(8, "little"))[0]
 
@@ -632,10 +637,13 @@ impl Emitter<'_> {
 			Kind::Binary(op, a, b) => {
 				let (a, b) = (self.expr(a, out), self.expr(b, out));
 				let op = match op {
+					Op::Cmp => return format!("_cmp({a}, {b})"),
 					Op::Eq => "==",
 					Op::Ne => "!=",
 					Op::Lt => "<",
+					Op::Le => "<=",
 					Op::Gt => ">",
+					Op::Ge => ">=",
 					Op::Add => "+",
 					Op::Sub => "-",
 					Op::Mul => "*",

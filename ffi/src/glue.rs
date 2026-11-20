@@ -1558,6 +1558,18 @@ impl Gen<'_> {
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{away}{body}\n}}\n"
 			));
 		}
+		// Each comparison is the runtime's of the same name, which encodes Rust's `Ordering`.
+		for suffix in crate::c::comparisons(traits.ord) {
+			let body = wrap(
+				status,
+				"i8",
+				&format!("let a = {a};\n\tlet b = {b};\n\trt::{suffix}::<{path}>({deref}a, {deref}b)"),
+			);
+			let away = away(&format!("{name}_{suffix}"), &["a", "b"]);
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_{suffix}(a: {handle}, b: {handle}{param}) -> i8 {{\n\tlet w = \"{name}_{suffix}\";\n\t{away}{body}\n}}\n"
+			));
+		}
 		if traits.display {
 			let body = wrap(
 				status,
@@ -1642,6 +1654,12 @@ impl Gen<'_> {
 			let body = wrap(status, "u64", &format!("rt::hash::<{path}>(&{lift})"));
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: *const {c}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{body}\n}}\n"
+			));
+		}
+		for suffix in crate::c::comparisons(traits.ord) {
+			let body = wrap(status, "i8", &format!("rt::{suffix}::<{path}>(&{lift_a}, &{lift_b})"));
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_{suffix}(a: *const {c}, b: *const {c}{param}) -> i8 {{\n\tlet w = \"{name}_{suffix}\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {

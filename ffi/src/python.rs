@@ -28,7 +28,7 @@ use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::doc;
-use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Order, Param, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -1229,6 +1229,44 @@ impl<'a> Gen<'a> {
 			));
 			self.natives.push(format!(
 				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> _bool: ...\n"
+			));
+		}
+		// Every type orders through Rust's `partial_cmp`, as Rust's own `<` and its kin do:
+		// -1, 0, 1, or 2 when unordered, which none of them is.
+		if t.ord != Order::None {
+			let other = match object {
+				true => self.lift(
+					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+					"a[1]",
+					"false",
+				),
+				false => self.lift(ty, "a[1]", "false"),
+			};
+			let (a, b) = match object {
+				true => ("this", "other"),
+				false => ("&this", "&other"),
+			};
+			let call = called(false, format!("crate::{c}_partial_cmp({a}, {b}{arg})"));
+			self.native(
+				&format!("{bare}_partial_cmp"),
+				2,
+				&format!(
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = {call};{}\n\t\ts.done();\n\t\trt::int_out(ret.into())",
+					check("partial_cmp")
+				),
+			);
+			for (dunder, test) in [
+				("__lt__", "== -1"),
+				("__le__", "in (-1, 0)"),
+				("__gt__", "== 1"),
+				("__ge__", "in (0, 1)"),
+			] {
+				body.python.push(format!(
+					"\tdef {dunder}(self, other: _object) -> _bool:\n\t\tif not _isinstance(other, {class}):\n\t\t\treturn _NotImplemented\n\t\treturn _n.{bare}_partial_cmp(self, other) {test}\n"
+				));
+			}
+			self.natives.push(format!(
+				"@_staticmethod\ndef {bare}_partial_cmp(this: {class}, other: {class}, /) -> _int: ...\n"
 			));
 		}
 		// Rust's `Hash` makes it hashable again, agreeing with its `__eq__`.

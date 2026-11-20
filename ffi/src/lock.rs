@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
-use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Traits, Type};
+use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Order, Traits, Type};
 use crate::merge::{self, Maps};
 
 /// Each language's public names, keyed by the item's kind and Rust path.
@@ -596,6 +596,8 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			("Clone", ours.clone && !theirs.clone),
 			("PartialEq", ours.eq && !theirs.eq),
 			("Hash", ours.hash && !theirs.hash),
+			("PartialOrd", ours.ord != Order::None && theirs.ord == Order::None),
+			("Ord", ours.ord == Order::Total && theirs.ord != Order::Total),
 			("Display", ours.display && !theirs.display),
 			("Debug", ours.debug && !theirs.debug),
 			("Default", ours.default && !theirs.default),

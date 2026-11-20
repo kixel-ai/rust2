@@ -1107,10 +1107,28 @@ impl Emitter<'_> {
 			Op::Eq => self.equal(&x, &y, &ty),
 			Op::Ne => format!("!{}", self.equal(&x, &y, &ty)),
 			Op::And => format!("({x} && {y})"),
-			Op::Lt | Op::Gt | Op::Add | Op::Sub | Op::Mul | Op::Rem => {
+			// A value of the API orders through its module's `partialCmp`, undefined when
+			// unordered, and with `Ord` its `cmp`.
+			Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::Cmp
+				if matches!(ty, Type::Record(_) | Type::Enum(_) | Type::Object(_)) =>
+			{
+				let module = self.module(&ty);
+				let partial = format!("{module}.partialCmp({x}, {y})");
+				match op {
+					Op::Lt => format!("({partial} === -1)"),
+					Op::Le => format!("(({partial} ?? 1) <= 0)"),
+					Op::Gt => format!("({partial} === 1)"),
+					Op::Ge => format!("(({partial} ?? -1) >= 0)"),
+					_ => format!("{module}.cmp({x}, {y})"),
+				}
+			}
+			Op::Cmp => unreachable!("`cmp` of a value of the API"),
+			Op::Lt | Op::Le | Op::Gt | Op::Ge | Op::Add | Op::Sub | Op::Mul | Op::Rem => {
 				let symbol = match op {
 					Op::Lt => "<",
+					Op::Le => "<=",
 					Op::Gt => ">",
+					Op::Ge => ">=",
 					Op::Add => "+",
 					Op::Sub => "-",
 					Op::Mul => "*",
@@ -1121,7 +1139,7 @@ impl Emitter<'_> {
 					Some(_) => {
 						let joined = format!("{} {symbol} {}", big(&x, &ty), big(&y, &ty));
 						match op {
-							Op::Lt | Op::Gt => format!("({joined})"),
+							Op::Lt | Op::Le | Op::Gt | Op::Ge => format!("({joined})"),
 							_ => format!("rt.{}FromBig({joined})", wide(&ty).unwrap()),
 						}
 					}
