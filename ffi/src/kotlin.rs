@@ -771,15 +771,12 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// [`Gen::tuple_name`], declaring the `TupleN` it names, and recording it as a caller
-	/// names it: `kotlin.Pair` and `kotlin.Triple` qualified, a `TupleN` as the binding's own.
+	/// [`Gen::tuple_name`], declaring the `TupleN` it names.
 	fn tuple_class(&mut self, elements: &[Type]) -> String {
 		let name = self.tuple_name(elements);
-		let own = match name.starts_with("kotlin.") {
-			true => name.clone(),
-			false => self.tuple(elements.len()),
-		};
-		crate::lock::tuple(&mut self.locked, self.abi, elements, &own);
+		if !name.starts_with("kotlin.") {
+			self.tuple(elements.len());
+		}
 		name
 	}
 

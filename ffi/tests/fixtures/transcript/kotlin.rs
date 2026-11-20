@@ -805,15 +805,40 @@ impl Emitter<'_> {
 		}
 	}
 
-	/// The Kotlin class of a tuple of `elements`: the binding's name for it, qualified, such
-	/// as `kotlin.Pair`, or its own; or Kotlin's, of a tuple only the script makes.
+	/// The Kotlin class of a tuple of `elements`: `Pair` and `Triple`, unless an element
+	/// compares by its contents, which theirs cannot, else the binding's `TupleN`.
 	fn tuple_class(&self, elements: &[Type]) -> String {
-		match (self.t.find_tuple(LANGUAGE, elements), elements.len()) {
-			(Some(name), _) if name.contains('.') => name.to_string(),
-			(Some(name), _) => format!("api.{name}"),
-			(None, 2) => "Pair".to_string(),
-			(None, 3) => "Triple".to_string(),
-			(None, n) => panic!("Kotlin has no tuple of {n} the binding does not name"),
+		let contents = elements.iter().any(|e| holds_block(e) || self.holds_float(e));
+		match elements.len() {
+			2 | 3 if contents => format!("api.Tuple{}", elements.len()),
+			2 => "Pair".to_string(),
+			3 => "Triple".to_string(),
+			n => format!("api.Tuple{n}"),
+		}
+	}
+
+	fn holds_float(&self, ty: &Type) -> bool {
+		self.floats(ty, &mut Vec::new())
+	}
+
+	fn floats(&self, ty: &Type, seen: &mut Vec<(bool, usize)>) -> bool {
+		match ty {
+			Type::F32 | Type::F64 => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.floats(inner, seen)
+			}
+			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				self.t.api.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen))
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(self.t.api.enums[*i].variants.iter())
+					.flat_map(|v| &v.fields)
+					.any(|f| self.floats(&f.ty, seen))
+			}
+			_ => false,
 		}
 	}
 
@@ -902,6 +927,17 @@ fn temporary(e: &Expr) -> bool {
 		_ => false,
 	};
 	called && matches!(unref(&e.ty).base(), Type::Object(_))
+}
+
+/// Whether `ty` holds a list Kotlin keeps as a primitive array anywhere but in a record or
+/// an enum, which compare their own.
+fn holds_block(ty: &Type) -> bool {
+	match ty {
+		_ if block(ty).is_some() => true,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_block(inner),
+		Type::Tuple(elements) => elements.iter().any(holds_block),
+		_ => false,
+	}
 }
 
 /// The element of a list Kotlin holds as a primitive array: a `Vec`, slice, boxed slice,
