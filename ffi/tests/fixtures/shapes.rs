@@ -1424,26 +1424,12 @@ struct Known {
 /// it gets wrong, the calls it skips for it, and the quest. The nightly fails on an entry
 /// matching no call of its fixed set, but its calls stay skipped after a fix, so the quest
 /// that fixes one deletes its entry.
-const KNOWN: &[Known] = &[
-	Known {
-		language: "python",
-		what: "a signaling NaN of an f32, which a float holds quieted",
-		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-	Known {
-		language: "dart",
-		what: "a signaling NaN of an f32, which a double holds quieted",
-		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-	Known {
-		language: "web",
-		what: "a NaN's bits, which a number loses: quieted, and canonicalized once V8 optimizes",
-		skips: |shape, _, nans| !nans.is_empty() && crosses(shape, &|s| matches!(s, Shape::F32 | Shape::F64)),
-		quest: "quest/m1/ffi-export/signaling-nan.md",
-	},
-];
+const KNOWN: &[Known] = &[Known {
+	language: "dart",
+	what: "a signaling NaN of an f32, which a double holds quieted",
+	skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
+	quest: "quest/m1/ffi-export/signaling-nan.md",
+}];
 
 /// Whether a value of `shape` holds a `leaf` the binding converts, which one inside an
 /// object does not: the object crosses as a handle, and only Rust reads its field.
