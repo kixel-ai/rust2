@@ -1164,7 +1164,7 @@ impl<'a> Gen<'a> {
 		let body = match ty {
 			Type::Record(i) if abi.api.records[*i].opaque.is_some() => {
 				let units = abi.api.records[*i].opaque.as_ref().map_or(0, |o| o.units());
-				let lines: Vec<String> = (0..units).map(|k| format!("c.$opaque[{k}] = v.$u{k};")).collect();
+				let lines: Vec<String> = (0..units).map(|k| format!("c.$opaque[{k}] = v._u{k};")).collect();
 				lines.join("\n\t")
 			}
 			Type::Record(i) => {
@@ -1835,7 +1835,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		if let Some(opaque) = &record.opaque {
 			// Its bytes, in the units of its C struct, each an `int` of the same bits.
-			let units: Vec<String> = (0..opaque.units()).map(|k| format!("$u{k}")).collect();
+			let units: Vec<String> = (0..opaque.units()).map(|k| format!("_u{k}")).collect();
 			let mut members = Vec::new();
 			let mut body = vec![format!(
 				"\tconst {name}._({});\n\n{}",
@@ -2845,18 +2845,24 @@ impl<'a> Gen<'a> {
 				Thrown::Itself
 			}
 			_ => {
+				// One exception for each C type and Dart type: a `Vec<NonZero<u16>>` shares
+				// `Vec<u16>`'s C type, but Dart holds it as a `List<int>`, not a `Uint16List`.
 				let key = self.abi.key(err);
-				let seen = self.thrown.iter().find(|(_, seen)| self.abi.key(seen) == key);
+				let dt = self.dt(err);
+				let thrown: Vec<(String, Type)> = (self.thrown.iter())
+					.filter(|(_, seen)| self.abi.key(seen) == key)
+					.map(|(name, seen)| (name.clone(), seen.clone()))
+					.collect();
+				let seen = thrown.into_iter().find(|(_, seen)| self.dt(seen) == dt);
 				let name = match seen {
-					Some((name, _)) => name.clone(),
+					Some((name, _)) => name,
 					None => {
-						let dt = self.dt(err);
 						let name = self.claim(&format!("{}Exception", pascal(&key)), format!("the error type `{dt}`"));
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}
 				};
-				self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
+				crate::lock::exception(&mut self.locked, self.abi, err, &dt, &name);
 				Thrown::Wrapped(name)
 			}
 		}

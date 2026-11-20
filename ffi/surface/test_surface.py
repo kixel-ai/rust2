@@ -222,6 +222,22 @@ class Dart(unittest.TestCase):
     def outline(self, text):
         return lines(surface.braced(text, "dart"))
 
+    def test_constructor_initializer_list_ends_at_its_body(self):
+        self.assertEqual(self.outline("""
+final class A {
+\tA(List<int> b) : _b = b {
+\t\tx();
+\t}
+
+\tint operator [](int index) => _b[index];
+}
+"""), [
+            "final class A {",
+            "\tA(List<int> b);",
+            "\tint operator [](int index);",
+            "}",
+        ])
+
     def test_private_names_and_bodies(self):
         source = """
 import 'dart:ffi' as ffi;

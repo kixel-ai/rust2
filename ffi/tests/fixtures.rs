@@ -943,6 +943,35 @@ fn api_kotlin() {
 		.arg("--example")
 		.arg("returns")
 		.current_dir(manifest_dir()));
+	// Plain Java calls the same classes: javac refuses a `catch` of an exception no function
+	// declares, and a companion's function called on its class.
+	let callers = scratch().join("api").join("java");
+	let stdlib = kotlin_stdlib();
+	let classpath = std::env::join_paths([classes.as_path(), stdlib.as_path()]).unwrap();
+	Step {
+		stamp: &step::stamp(&callers),
+		reads: &[&classes, &manifest_dir().join("tests").join("Caller.java"), &stdlib],
+		writes: &[&callers],
+	}
+	.run(
+		Command::new("javac")
+			.args(["-Werror", "-Xlint:all", "-cp"])
+			.arg(&classpath)
+			.arg("-d")
+			.arg(&callers)
+			.arg(manifest_dir().join("tests").join("Caller.java")),
+	);
+	let caller = run(Command::new("java")
+		.arg(format!("-Djava.library.path={}", api.lib.display()))
+		.arg("-cp")
+		.arg(std::env::join_paths([callers.as_path(), classes.as_path(), stdlib.as_path()]).unwrap())
+		.arg("Caller"));
+	assert_eq!(
+		String::from_utf8_lossy(&caller.stdout),
+		"java\n",
+		"plain Java calls the binding"
+	);
+
 	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
 		kotlin_returns.stdout, native_returns.stdout,
@@ -1227,6 +1256,26 @@ fn kotlinc(out: &Path, script: &Path, dest: &Path) -> Command {
 		.arg("-d")
 		.arg(dest);
 	cmd
+}
+
+/// The Kotlin standard library's jar, beside the `kotlinc` on `PATH`, which plain Java
+/// compiles and runs against.
+fn kotlin_stdlib() -> PathBuf {
+	let path = std::env::var_os("PATH").expect("PATH is set");
+	let kotlinc = std::env::split_paths(&path)
+		.map(|dir| dir.join("kotlinc"))
+		.find(|bin| bin.is_file())
+		.expect("kotlinc is on PATH: run this in the dev shell");
+	let home = kotlinc.canonicalize().unwrap();
+	let jar = home
+		.parent()
+		.unwrap()
+		.parent()
+		.unwrap()
+		.join("lib")
+		.join("kotlin-stdlib.jar");
+	assert!(jar.is_file(), "{} is missing", jar.display());
+	jar
 }
 
 /// kotlinx-coroutines' jar.
@@ -1842,6 +1891,13 @@ fn swift_protocol(scripts: &[protocol::Script]) {
 	protocol::check(&dir.join("scripts"), scripts, |_| Command::new(&exe));
 }
 
+/// Node's script running the WASI program its first argument names.
+const WASI_MAIN: &str = "import { WASI } from 'node:wasi';\n\
+	import { readFileSync } from 'node:fs';\n\
+	const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: false });\n\
+	const module = await WebAssembly.compile(readFileSync(process.argv[1]));\n\
+	wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));\n";
+
 /// The fixture's script compiled for wasm32-wasip1 and run under Node's WASI: native Rust on
 /// the target the web binding serves, whose `usize` is 32 bits.
 fn wasm_transcript() -> String {
@@ -1870,13 +1926,8 @@ fn wasm_transcript() -> String {
 		.join("debug")
 		.join("examples")
 		.join("transcript.wasm");
-	let script = "import { WASI } from 'node:wasi';\n\
-		import { readFileSync } from 'node:fs';\n\
-		const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: false });\n\
-		const module = await WebAssembly.compile(readFileSync(process.argv[1]));\n\
-		wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));\n";
 	let transcript = run(Command::new("node")
-		.args(["--no-warnings", "--input-type=module", "-e", script])
+		.args(["--no-warnings", "--input-type=module", "-e", WASI_MAIN])
 		.arg(wasm));
 	String::from_utf8_lossy(&transcript.stdout).into_owned()
 }
@@ -3360,16 +3411,21 @@ fn relative_target() {
 		errors.iter().all(|error| error.ends_with(", which exports")),
 		"the census failed otherwise:\n{stderr}"
 	);
-	assert!(
-		errors.contains(
-			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
-		),
-		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
-	);
-	assert!(
-		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
-		"the census fails on `Retry::jitter`:\n{stderr}"
-	);
+	// Nor on a method Swift alone refuses, though not its field, which Swift keeps.
+	for exclude in ["jitter", "spread"] {
+		assert!(
+			errors.contains(&format!(
+				"error: rust2-ffi: exclude `field@Retry::{exclude}` in the config leaves out `field@Retry::{exclude}`, which exports"
+			).as_str()),
+			"the census does not fail on `field@Retry::{exclude}`:\n{stderr}"
+		);
+		assert!(
+			!errors
+				.iter()
+				.any(|error| error.contains(&format!("exclude `Retry::{exclude}`"))),
+			"the census fails on `Retry::{exclude}`:\n{stderr}"
+		);
+	}
 	assert!(
 		!errors.iter().any(|error| error.contains("exclude `among`")),
 		"the census fails on `among`, which Swift refuses:\n{stderr}"
@@ -3391,6 +3447,7 @@ fn relative_target() {
 		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
 		"- `Slot<u32>::value`: `Slot<u32>::value`",
 		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `field@Retry::spread`: `field@Retry::spread`",
 		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
@@ -3407,6 +3464,7 @@ fn relative_target() {
 		"- `Queued`",
 		"- `Layer`",
 		"- `Retry::jitter`",
+		"- `Retry::spread`",
 	] {
 		assert!(
 			!exporting.contains(refused),
@@ -3743,6 +3801,58 @@ fn lock() {
 		added.status.success(),
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
+	);
+	// A baseline from before an exception was known by its native type too, whose key alone
+	// names one class of those an addition gives it.
+	let original: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	let mut legacy = original.clone();
+	for names in legacy["names"].as_object_mut().unwrap().values_mut() {
+		names.as_object_mut().unwrap().retain(|key, _| !key.contains(" / as "));
+	}
+	assert_ne!(legacy, original, "the baseline holds no native exception key to drop");
+	let path = dir.join("legacy.json");
+	std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let output = exporter("lock", &dir.join("legacy"), &targets, &args, &["--features", "added"])
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"an addition broke a baseline without native exception keys:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	// A generator that respells a native type, such as an alias it renames, renames no class.
+	let mut respelled = original.clone();
+	for names in respelled["names"].as_object_mut().unwrap().values_mut() {
+		let names = names.as_object_mut().unwrap();
+		*names = std::mem::take(names)
+			.into_iter()
+			.map(|(key, name)| match key.contains(" / as ") {
+				true => (format!("{key}_respelled"), name),
+				false => (key, name),
+			})
+			.collect();
+	}
+	assert_ne!(
+		respelled, original,
+		"the baseline holds no native exception key to respell"
+	);
+	let path = dir.join("respelled.json");
+	std::fs::write(&path, serde_json::to_vec(&respelled).unwrap()).unwrap();
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("respelled"),
+		&targets,
+		&args,
+		&["--features", "added"],
+	)
+	.output()
+	.unwrap();
+	assert!(
+		output.status.success(),
+		"respelling a native exception type broke the baseline:\n{}",
+		String::from_utf8_lossy(&output.stderr)
 	);
 	let names = locked("names");
 	assert!(!names.status.success(), "binding renames passed the lock");

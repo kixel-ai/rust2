@@ -263,7 +263,10 @@ item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant
 an item's docs may change. The check runs once, on the API every language is generated from;
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
 public names. A clash that renames a kept class, function, or member reports its language
-and old and new names at the item's span. Staged `--api` files have no binding names; a
+and old and new names at the item's span. An error type's exception class is known by its
+error type and the type the language holds it as, since Kotlin's `UShortArray` and
+`List<UShort>` may share one error type: one added beside another adds a class, and a
+native type respelled or gone breaks nothing while a class still bears its old name. Staged `--api` files have no binding names; a
 baseline must be a complete export. An older baseline without name tables still has its
 structure checked, reporting each break before the error that it lacks names, so its
 re-export with this version accepts no break that check would have caught. A binding
@@ -640,7 +643,10 @@ the rest cross encoded.
   `IllegalStateException` naming the function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
-  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
+  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
+  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
+  `default()`, whose name Java reserves; one whose JVM name a field's getter has, as
+  `getX()` beside `x`, takes a trailing `_` on the JVM alone. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -651,11 +657,18 @@ the rest cross encoded.
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,
   `val (y, n) = x.take()`.
 - **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
-  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
-  at a call's top level or in a record; those Rust lends a closure or trait method are
-  copied. A `Bytes` is read only through `size`,
-  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
-  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  which `Bytes(ByteArray)` and `Bytes(ByteBuffer)` hold without a copy, are copied once
+  into a buffer Rust takes, at a call's top level or in a record; those Rust lends a
+  closure or trait method are copied. A direct `ByteBuffer`'s, as a `MediaCodec` output
+  is, are copied straight from its memory, from its position until its limit when made;
+  a heap one's array is shared, or copied when made if it is read-only. Writing a direct
+  buffer's bytes while a call copies them, or reading them while one copies into it, is a
+  race whose bytes are undefined; a buffer Android made inaccessible, as `MediaCodec` does
+  on releasing it, throws `IllegalStateException` before Rust reads it. A `Bytes` is
+  read only through `size`, `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of
+  Rust's memory escapes and no read meets it freed; `copyInto(ByteBuffer)` copies into a
+  buffer at its position once, as `put` does, straight into a direct one's memory, such as
+  a `MediaCodec` input's. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
@@ -672,7 +685,7 @@ the rest cross encoded.
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
   compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
-  holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  holding it, whose message is its `Display`, a checked `Exception` each function that throws it declares with `@Throws`, so Java can catch it. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
 - **Std values** no Kotlin or Java type holds exactly are the runtime's own, each holding
@@ -1352,7 +1365,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, then the `exclude` list that exports the rest, and
+lists each refused item at its span, a binding's own refusals such as Swift's included,
+then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
 That list is checked by collecting again with it: it holds what Swift alone refuses, and
 not an instance only refused items named, which nothing names once they are left out.
@@ -1570,15 +1584,20 @@ binding, which builds for each, and staged with `--api` and `--with`; a build fo
 not exported fails, and items that differ between the two are refused, naming both.
 The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each
 leaf alone and in each wrapper, then nested to depth 3 from a fixed seed, and emit a crate
-of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a closure's
-parameter and return and in a future besides. Its census decides what exports, so a shape
-refused by design is left out rather than failed. Each language's driver is a generated
-flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
-own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
-the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
-fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
-on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
-until the sampler covers it.
+of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in each
+position a binding maps apart: a closure's parameter and return, a future, a `Result`'s
+value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
+object's methods, and a trait a caller implements. A digest hashes floats by their bits,
+so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
+decides what exports, so a shape refused by design is left out rather than failed. Each
+language's driver, the web's on Node included, is a generated list of these calls whose
+printed digests must match the crate's own, run natively, or as wasm under Node's WASI
+for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
+every sampled shape and, as the nightly does, more drawn from the day's seed, which it
+prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
+each with the quest that fixes it; the driver skips those calls, so the fix deletes its
+entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
+`Type` variant fails `ir_covered` until the sampler covers it.
 The corpus (`tests/fixtures/corpus.rs`) exports stock crates as a consumer would: each
 crate of `corpus/crates.txt`, the top crates on crates.io by downloads that are libraries
 building as they are, pinned by `corpus/Cargo.lock`, through a facade of its own, `pub use
