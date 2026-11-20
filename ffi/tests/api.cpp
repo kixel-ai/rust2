@@ -507,6 +507,11 @@ int checks() {
 		check(one == one && !(one == two) && unit != two_b && handle == api::c::new_(1) && !(handle == api::c::new_(2)),
 			"types named a, b, and c compare");
 	}
+	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
+	{
+		api::clash_Escaped escaped{3};
+		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+	}
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{
 		api::Name name = api::Name::owned("a");
