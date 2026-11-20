@@ -1451,6 +1451,84 @@ export function failed<T>(error: unknown): Call<T> {
 	return promise;
 }
 
+/**
+ * A stream's items, as an async iterator calling `next` once for each: it ends where
+ * `next` gives `none`, or with `fallible` at an `Ok` of `none`, and yields an `Err` last.
+ * It reads nothing ahead, and `return` cancels a pending `next` in Rust.
+ */
+export function values<T>(next: () => Call<unknown>, none: unknown, fallible: boolean): AsyncIterableIterator<T> {
+	return new Values<T>(next, none, fallible);
+}
+
+const end: IteratorReturnResult<undefined> = { done: true, value: undefined };
+
+class Values<T> implements AsyncIterableIterator<T> {
+	readonly #next: () => Call<unknown>;
+	readonly #none: unknown;
+	readonly #fallible: boolean;
+	#done = false;
+	/** The `next` pending in Rust, which `return` cancels. */
+	#call: Call<unknown> | undefined;
+	/** The last `next` asked for, after which the next one runs, so they never overlap. */
+	#queue: Promise<unknown> = Promise.resolve();
+
+	constructor(next: () => Call<unknown>, none: unknown, fallible: boolean) {
+		this.#next = next;
+		this.#none = none;
+		this.#fallible = fallible;
+	}
+
+	next(): Promise<IteratorResult<T, undefined>> {
+		const result = this.#queue.then(() => this.#pull());
+		this.#queue = result.catch(() => {});
+		return result;
+	}
+
+	async #pull(): Promise<IteratorResult<T, undefined>> {
+		if (this.#done) return end;
+		let out: unknown;
+		try {
+			const call = this.#next();
+			this.#call = call;
+			out = await call;
+		} catch (e) {
+			this.#done = true;
+			if (e instanceof Cancelled) return end;
+			throw e;
+		} finally {
+			this.#call = undefined;
+		}
+		// A `next` that finished as `return` cancelled it still gives its item, which would
+		// otherwise be lost.
+		if (this.#fallible) {
+			const result = out as Result<unknown, unknown>;
+			if (!result.ok) {
+				this.#done = true;
+				return { done: false, value: result as T };
+			}
+			if (result.value === this.#none) return this.#finish();
+		} else if (out === this.#none) {
+			return this.#finish();
+		}
+		return { done: false, value: out as T };
+	}
+
+	#finish(): IteratorReturnResult<undefined> {
+		this.#done = true;
+		return end;
+	}
+
+	async return(): Promise<IteratorReturnResult<undefined>> {
+		this.#done = true;
+		this.#call?.cancel();
+		return end;
+	}
+
+	[Symbol.asyncIterator](): AsyncIterableIterator<T> {
+		return this;
+	}
+}
+
 // The module, and the web APIs its std imports.
 
 let prefix = "";

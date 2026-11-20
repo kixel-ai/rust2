@@ -1525,6 +1525,12 @@ packs the api fixture's with npm, installs it into a project of its own, type-ch
   made, and each wake polls again on a microtask, never inside the wake. Cancelling frees
   the future in Rust, losing nothing, and rejects with `rt.Cancelled`. A future JavaScript
   implements is any promise, a waker a function, and a reader an `rt.Reader`.
+- **Streams** are an `AsyncIterableIterator` from the type's `values(self)`, as a
+  `ReadableStream`'s `values()` is, which `for await` takes: of `T` for `Option<T>`, and for
+  `Result<Option<T>, E>` of `rt.Result<T, E>`, whose `Err` comes last, since an error is a
+  value, never thrown. Calls of `next` never overlap, and `return`, as a loop's `break`
+  calls, cancels a pending one in Rust and resolves it as done; one that finished first
+  still gives its item.
 - **Failure**: a run-time check that fails throws an `Error` naming the C function and the
   check, as each binding raises. Rust's panic aborts the module, as do a throw out of a
   closure, trait, or reader, since Rust has nowhere to unwind to: the message goes to
