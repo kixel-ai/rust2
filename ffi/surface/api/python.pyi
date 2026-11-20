@@ -64,6 +64,8 @@ class Point:
     @_staticmethod
     def default() -> Point: ...
     def offset(self, dx: _int, dy: _int) -> Point: ...
+    @_staticmethod
+    def get_x() -> _int: ...
 @_dataclass(slots=True, repr=False)
 class Label:
     name: _str
@@ -468,6 +470,8 @@ class Shape(_enum.Enum):
     CIRCLE = 1
     SQUARE = 4
     def __repr__(self) -> _str: ...
+    @_staticmethod
+    def value_of(name: _str) -> Shape | None: ...
     ALL = _enum.nonmember(_n.Shape_ALL())
     BOTH = _enum.nonmember(_n.Shape_BOTH())
     ALL = _Const(_n.Shape_ALL)

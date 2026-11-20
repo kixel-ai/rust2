@@ -825,6 +825,10 @@ fun owned() {
 	}
 	collected(lentAround() + 1u, "the GC frees lent bytes nothing reaches")
 	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
+	reads(Bytes(window(java.nio.ByteBuffer.allocateDirect(1031).also { b -> repeat(1031) { b.put(it, 9) } }, 3, 1025)), 9, "a direct buffer's bytes")
+	buffers()
+	check(Point.getX() == 0 && Point(3, 4).x == 3, "a companion's getX keeps its Kotlin name beside x's getter")
+	check(Shape.Companion.valueOf("square") == Shape.SQUARE && Shape.valueOf("SQUARE") == Shape.SQUARE, "a companion's valueOf keeps its Kotlin name beside the enum's own")
 
 	// A call after close throws, and close frees at once, once.
 	val before = dropped()
@@ -995,6 +999,59 @@ fun reads(bytes: Bytes, value: Byte, what: String) {
 	for (read in outOfRange) {
 		check(runCatching(read).exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a read out of range")
 	}
+	for (direct in listOf(true, false)) {
+		val kind = if (direct) "a direct buffer" else "a heap buffer"
+		val into = window(if (direct) java.nio.ByteBuffer.allocateDirect(n + 3) else java.nio.ByteBuffer.allocate(n + 3), 2, n)
+		check(bytes.copyInto(into, 1) === into && into.position() == n + 1, "$what copied into $kind move its position")
+		check(into.get(1) == 0.toByte() && (2 until n + 1).all { into.get(it) == value } && into.get(n + 1) == 0.toByte(), "$what copied into $kind at its position")
+		val full = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 1, n - 1)
+		check(runCatching { bytes.copyInto(full) }.exceptionOrNull() is java.nio.BufferOverflowException && full.position() == 1 && full.get(1) == 0.toByte(), "$what refuse $kind too short, writing nothing")
+		val readOnly = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 0, n).asReadOnlyBuffer()
+		check(runCatching { bytes.copyInto(readOnly) }.exceptionOrNull() is java.nio.ReadOnlyBufferException, "$what refuse $kind read-only")
+		check(runCatching { bytes.copyInto(into, 2, 1) }.exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a range out of order for $kind")
+	}
+}
+
+// [buffer] from [position] for [n] bytes, set through `Buffer`, whose `position` and
+// `limit` every JVM and Android level has.
+fun window(buffer: java.nio.ByteBuffer, position: Int, n: Int): java.nio.ByteBuffer {
+	val moved: java.nio.Buffer = buffer
+	moved.limit(position + n).position(position)
+	return buffer
+}
+
+// A ByteBuffer's bytes, from its position until its limit, cross direct or heap, read-only
+// or not, at a call's top level and in a record, short or long; they hold the buffer
+// without a copy, so a later write shows, apart from its position and limit.
+fun buffers() {
+	for (n in listOf(0, 5, 1025, 4000)) {
+		val payload = ByteArray(n) { (it * 7 + 1).toByte() }
+		val direct = window(java.nio.ByteBuffer.allocateDirect(n + 5), 3, n)
+		for (i in 0 until n) direct.put(3 + i, payload[i])
+		val heap = java.nio.ByteBuffer.wrap(ByteArray(n + 4).also { payload.copyInto(it, 2) }, 2, n).slice()
+		for ((kind, buffer) in listOf("direct", direct, "heap", heap, "read-only direct", direct.asReadOnlyBuffer(), "read-only heap", heap.asReadOnlyBuffer()).chunked(2)) {
+			val bytes = Bytes(buffer as java.nio.ByteBuffer)
+			val what = "$n bytes of a $kind buffer"
+			check(bytes.size == n && bytes == Bytes(payload) && bytes.hashCode() == Bytes(payload).hashCode(), "$what equal Kotlin's")
+			check(prefixed(bytes, null).toByteArray().contentEquals(payload), "$what cross a call")
+			check(prefixed(Bytes(payload), bytes).toByteArray().contentEquals(payload + payload), "$what cross a call as an Option")
+			check(nextPacket(Packet(1u, bytes)).payload.toByteArray().contentEquals(payload), "$what cross in a record")
+			if (n > 2) {
+				check(prefixed(bytes.slice(1, n - 1), null).toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of $what crosses as its range")
+				check(nextPacket(Packet(1u, bytes.slice(1, n - 1))).payload.toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of $what crosses in a record as its range")
+			}
+		}
+		if (n > 0) {
+			val bytes = Bytes(direct)
+			window(direct, 0, n + 5)
+			direct.put(3, 42)
+			window(direct, 0, 0)
+			check(bytes[0] == 42.toByte() && bytes[n - 1] == payload[n - 1] && bytes.size == n && prefixed(bytes, null)[0] == 42.toByte(), "a direct buffer is held without a copy, apart from its position and limit")
+			check(bytes.copyInto(ByteArray(n))[0] == 42.toByte() && bytes == Bytes(byteArrayOf(42) + payload.copyOfRange(1, n)), "a direct buffer reads apart from its limit")
+		}
+	}
+	// Rust's bytes, short ones copied and long ones lent, copy into a buffer once.
+	for (n in listOf(5, 1025, 4000)) reads(prefixed(Bytes(ByteArray(n) { 8 }), null), 8, "$n bytes Rust returned")
 }
 
 // Never closed, and long enough to be lent.

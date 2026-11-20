@@ -188,6 +188,7 @@ final class Point {
 	@override int get hashCode;
 	factory Point.default_();
 	Point offset(int dx, int dy);
+	static int getX();
 }
 final class Label {
 	final String name;
@@ -739,6 +740,7 @@ enum Shape {
 	square(4),
 	const Shape(this._c);
 	String debug();
+	static Shape? valueOf(String name);
 	static List<Shape> get ALL;
 	static List<Shape> get BOTH;
 }

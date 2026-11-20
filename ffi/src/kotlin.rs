@@ -164,7 +164,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy_direct(lent: __Lent, owner: Long, start: Int, len: Int, destination: java.nio.ByteBuffer, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -214,6 +214,10 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1copy(env: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, start: jint, len: jint, destination: jbyteArray, at: jint) {{\n\
 		\tunsafe {{ rt::copy(env, owner, start, len, destination, at) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1copy_1direct(env: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, start: jint, len: jint, destination: jobject, at: jint) {{\n\
+		\tunsafe {{ rt::copy_direct(env, owner, start, len, destination, at) }}\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
@@ -336,31 +340,50 @@ const BYTES: &str = "/**
  * freed once the GC finds no `Bytes` reaching it, its slices included.
  */
 class Bytes private constructor(
-\t// Kotlin's bytes, or null for Rust's.
+\t// Kotlin's bytes, or null for a direct buffer's or Rust's.
 \tprivate val array: ByteArray?,
+\t// A direct buffer's bytes, or null for Kotlin's array or Rust's.
+\tprivate val direct: java.nio.ByteBuffer?,
 \t// Rust's buffer, which every slice of it holds.
 \tprivate val lent: _Native.__Lent?,
-\t// Where these start in [array] or [lent].
+\t// Where these start in [array], [direct], or [lent].
 \tprivate val offset: Int,
 \t/** How many bytes these hold. */
 \tval size: Int,
 ) {
 \t/** [bytes] held without a copy, as a record passed in takes them. */
-\tconstructor(bytes: ByteArray) : this(bytes, null, 0, bytes.size)
+\tconstructor(bytes: ByteArray) : this(bytes, null, null, 0, bytes.size)
 
-\tinternal constructor(lent: _Native.__Lent, size: Int) : this(null, lent, 0, size)
+\t/**
+\t * The bytes of [buffer] from its position until its limit, held without a copy, so a
+\t * later write to them shows here; its position and limit may change freely. A direct
+\t * buffer's cross to Rust in one copy straight from its memory, as a `MediaCodec`
+\t * output's do; a heap buffer's array is shared, or copied if read-only. Write none of a
+\t * direct buffer's bytes while a call reads them, a race whose copy is undefined.
+\t */
+\tconstructor(buffer: java.nio.ByteBuffer) : this(
+\t\tif (buffer.isDirect) null else _Native.__heap(buffer),
+\t\t// A duplicate, whose position and limit the caller's changes leave alone.
+\t\tif (buffer.isDirect) buffer.duplicate() else null,
+\t\tnull,
+\t\tif (buffer.isDirect) buffer.position() else if (buffer.hasArray()) buffer.arrayOffset() + buffer.position() else 0,
+\t\tbuffer.remaining(),
+\t)
+
+\tinternal constructor(lent: _Native.__Lent, size: Int) : this(null, null, lent, 0, size)
 
 \t/** The byte at [index], throwing `IndexOutOfBoundsException` out of range. */
 \toperator fun get(index: Int): Byte {
 \t\tif (index < 0 || index >= size) throw kotlin.IndexOutOfBoundsException(\"index $index of $size bytes\")
-\t\tval array = array ?: return lent!!.let { _Native.__bytes_get(it, it.owner, offset + index) }
-\t\treturn array[offset + index]
+\t\tarray?.let { return it[offset + index] }
+\t\tdirect?.let { return it.get(offset + index) }
+\t\treturn lent!!.let { _Native.__bytes_get(it, it.owner, offset + index) }
 \t}
 
 \t/** The bytes from [startIndex] until [endIndex], sharing these without a copy. */
 \tfun slice(startIndex: Int, endIndex: Int = size): Bytes {
 \t\trange(startIndex, endIndex)
-\t\treturn Bytes(array, lent, offset + startIndex, endIndex - startIndex)
+\t\treturn Bytes(array, direct, lent, offset + startIndex, endIndex - startIndex)
 \t}
 
 \t/**
@@ -375,15 +398,54 @@ class Bytes private constructor(
 \t\t}
 \t\tval array = array
 \t\tif (array != null) return array.copyInto(destination, destinationOffset, offset + startIndex, offset + endIndex)
+\t\tval direct = direct
+\t\tif (direct != null) {
+\t\t\tview(direct, startIndex, endIndex).get(destination, destinationOffset, n)
+\t\t\treturn destination
+\t\t}
 \t\tif (n > 0) lent!!.let { _Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination, destinationOffset) }
 \t\treturn destination
 \t}
 
-\t/** What holds the bytes, kept alive across a call passing them: Kotlin's array or Rust's buffer. */
-\tinternal val held: Any? get() = array ?: lent
+\t/**
+\t * Copy the bytes from [startIndex] until [endIndex] into [destination] at its position,
+\t * which moves past them, returning it, as `ByteBuffer.put` does: one copy, straight
+\t * into a direct buffer's memory, such as a `MediaCodec` input's. Throws
+\t * `BufferOverflowException` past its limit and `ReadOnlyBufferException` for a
+\t * read-only one, writing nothing. Touch none of a direct one's bytes meanwhile.
+\t */
+\tfun copyInto(destination: java.nio.ByteBuffer, startIndex: Int = 0, endIndex: Int = size): java.nio.ByteBuffer {
+\t\trange(startIndex, endIndex)
+\t\tval n = endIndex - startIndex
+\t\tif (destination.isReadOnly) throw java.nio.ReadOnlyBufferException()
+\t\tif (destination.remaining() < n) throw java.nio.BufferOverflowException()
+\t\tval array = array
+\t\tif (array != null) return destination.put(array, offset + startIndex, n)
+\t\tval direct = direct
+\t\tif (direct != null) return destination.put(view(direct, startIndex, endIndex))
+\t\tval at = destination.position()
+\t\tif (n > 0) lent!!.let {
+\t\t\twhen (destination.isDirect) {
+\t\t\t\t// Read once first, as [held] reads a direct buffer passed in.
+\t\t\t\ttrue -> _Native.__bytes_copy_direct(it, it.owner, offset + startIndex, n, destination.also { d -> d.get(at) }, at)
+\t\t\t\tfalse -> _Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination.array(), destination.arrayOffset() + at)
+\t\t\t}
+\t\t}
+\t\tval moved: java.nio.Buffer = destination
+\t\tmoved.position(at + n)
+\t\treturn destination
+\t}
 
-\t/** Rust's owner of the bytes, which a call passing them shares without a copy, or 0 for Kotlin's. */
-\tinternal val owner: Long get() = lent?.owner ?: 0L
+\t/**
+\t * What holds the bytes, kept alive across a call passing them: Kotlin's array, a direct
+\t * buffer, or Rust's buffer. A direct buffer's is read once here first, so one Android has
+\t * made inaccessible, as `MediaCodec` does on releasing it, throws `IllegalStateException`
+\t * before Rust reads its memory, which JNI does unchecked.
+\t */
+\tinternal val held: Any? get() = array ?: direct?.also { if (size > 0) it.get(offset) } ?: lent
+
+\t/** Rust's owner of the bytes, which a call passing them shares without a copy; [_Native.__DIRECT] for a direct buffer's, which it copies from its memory, or 0 for Kotlin's array. */
+\tinternal val owner: Long get() = lent?.owner ?: if (direct != null) _Native.__DIRECT else 0L
 
 \t/** Where the bytes start in what holds them. */
 \tinternal val start: Int get() = offset
@@ -398,9 +460,21 @@ class Bytes private constructor(
 \t/** A hash of the bytes, as [equals] compares them. */
 \toverride fun hashCode(): Int = contents().hashCode()
 
-\t// The bytes in Kotlin's memory, Rust's copied across in one call.
-\tprivate fun contents(): java.nio.ByteBuffer =
-\t\tjava.nio.ByteBuffer.wrap(array ?: toByteArray(), if (array == null) 0 else offset, size)
+\t// The bytes as a buffer: Kotlin's or a direct buffer's in place, Rust's copied across in one call.
+\tprivate fun contents(): java.nio.ByteBuffer = when {
+\t\tarray != null -> java.nio.ByteBuffer.wrap(array, offset, size)
+\t\tdirect != null -> view(direct, 0, size)
+\t\telse -> java.nio.ByteBuffer.wrap(toByteArray())
+\t}
+
+\t// The bytes from [startIndex] until [endIndex] of [direct], apart from its own position
+\t// and limit. Set through `Buffer`, whose `position` and `limit` every JVM and Android has.
+\tprivate fun view(direct: java.nio.ByteBuffer, startIndex: Int, endIndex: Int): java.nio.ByteBuffer {
+\t\tval view = direct.duplicate()
+\t\tval moved: java.nio.Buffer = view
+\t\tmoved.limit(offset + endIndex).position(offset + startIndex)
+\t\treturn view
+\t}
 
 \tprivate fun range(startIndex: Int, endIndex: Int) {
 \t\tif (startIndex < 0 || startIndex > endIndex || endIndex > size) {
@@ -1596,7 +1670,7 @@ impl<'a> Gen<'a> {
 			};
 			self.native(&format!("{bare}_default"), &[], (jni, native), &rust);
 			statics.push(format!(
-				"\t\t/** Rust's `Default`. */\n\t\tfun default(): {class} = {lift}\n"
+				"\t\t/** Rust's `Default`. */\n\t\t@kotlin.jvm.JvmStatic\n\t\tfun default(): {class} = {lift}\n"
 			));
 		}
 	}
@@ -1628,12 +1702,17 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => (members.iter().cloned())
-					.chain(body.iter().filter_map(|b| member_name(b)))
-					.collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			let own = match place {
+				Place::Member => (members.iter().cloned()).chain(names(&body)).collect(),
+				Place::Static => names(&statics),
 			};
+			// A data class's `componentN`, which Kotlin declares for each field.
+			let components = (1..=fields.len()).map(|n| format!("component{n}"));
+			let jvm = (members.iter().map(|m| jvm_name(m)))
+				.chain(components)
+				.chain(jvm_names(&body))
+				.chain(jvm_names(&statics));
+			let taken = kept_apart(own, jvm);
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -1801,10 +1880,27 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			let own = match place {
+				Place::Member => names(&body),
+				Place::Static => names(&statics),
 			};
+			// What a Kotlin enum declares on the JVM: its own statics, and `Enum`'s final methods.
+			let synthesized = match e.plain() {
+				true => &[
+					"values",
+					"valueOf",
+					"getEntries",
+					"name",
+					"ordinal",
+					"compareTo",
+					"getDeclaringClass",
+				][..],
+				false => &[],
+			};
+			let jvm = (synthesized.iter().map(|s| s.to_string()))
+				.chain(jvm_names(&body))
+				.chain(jvm_names(&statics));
+			let taken = kept_apart(own, jvm);
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -1996,10 +2092,11 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			let own = match place {
+				Place::Member => names(&body),
+				Place::Static => names(&statics),
 			};
+			let taken = kept_apart(own, jvm_names(&body).chain(jvm_names(&statics)));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -3183,8 +3280,32 @@ impl<'a> Gen<'a> {
 			_ if getter => format!("{head} = {}", code.replace('\n', "\n\t")),
 			_ => format!("{head} = {code}"),
 		};
+		// What plain Java needs to call it: a companion's member as the type's own static, and
+		// the checked exception it throws declared, so javac accepts its `catch`.
+		let mut annotations = String::new();
+		if place == Place::Static && !top {
+			annotations.push_str("@kotlin.jvm.JvmStatic\n");
+		}
+		// A JVM method its class declares already, in either place, since a companion's
+		// `@JvmStatic` member shares the class's names, as a field's getter `getX` does,
+		// leaves the Kotlin name alone and takes a trailing `_` on the JVM.
+		let target = if getter { "get:" } else { "" };
+		let declared = jvm_name(&format!("{kind} {member}"));
+		let mut jvm = declared.clone();
+		while taken.contains(&format!("jvm {jvm}")) {
+			jvm.push('_');
+		}
+		if jvm != declared {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		}
+		if let Some(exception) = &exception {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
+		}
 		let text = self.function_docs(function, text);
-		let code = format!("{}{code}\n", docs(&text, function.deprecated.as_deref(), ""));
+		let code = format!(
+			"{}{annotations}{code}\n",
+			docs(&text, function.deprecated.as_deref(), "")
+		);
 		Some(indent_by(&code, indent_level))
 	}
 
@@ -4008,6 +4129,47 @@ fn mangle(name: &str) -> String {
 	out
 }
 
+/// The JVM method a declaration as [`member_name`] gives it compiles to: a `val`'s getter,
+/// `getX`, or `isX` as it is, and a `fun` its own name.
+fn jvm_name(declared: &str) -> String {
+	let (kind, name) = declared.split_once(' ').unwrap_or(("fun", declared));
+	let name = name.trim_matches('`');
+	if kind != "val" || name.starts_with("is") && name[2..].starts_with(|c: char| !c.is_ascii_lowercase()) {
+		return name.to_string();
+	}
+	// ASCII alone, as Kotlin's `capitalizeAsciiOnly` does.
+	let mut chars = name.chars();
+	let first: String = chars.next().map(|c| c.to_ascii_uppercase()).into_iter().collect();
+	format!("get{first}{}", chars.as_str())
+}
+
+/// What a member keeps apart from: the Kotlin declarations of its own place, as
+/// [`member_name`] gives them, and as `jvm <name>` each JVM method of its class, in either
+/// place, since a companion's `@JvmStatic` member shares the class's.
+fn kept_apart(own: Vec<String>, jvm: impl Iterator<Item = String>) -> Vec<String> {
+	own.into_iter().chain(jvm.map(|j| format!("jvm {j}"))).collect()
+}
+
+/// The JVM method each of `code`'s members compiles to: the one its `@JvmName` names, or
+/// else its declaration's, as [`jvm_name`] gives it.
+fn jvm_names(code: &[String]) -> impl Iterator<Item = String> + '_ {
+	code.iter().filter_map(|c| {
+		let renamed = c.lines().find_map(|l| {
+			let l = l.trim_start();
+			let l = l.strip_prefix("@get:").or_else(|| l.strip_prefix('@'))?;
+			l.strip_prefix("kotlin.jvm.JvmName(\"")?
+				.strip_suffix("\")")
+				.map(str::to_string)
+		});
+		renamed.or_else(|| member_name(c).map(|m| jvm_name(&m)))
+	})
+}
+
+/// The kind and name each of `code`'s members declares.
+fn names(code: &[String]) -> Vec<String> {
+	code.iter().filter_map(|c| member_name(c)).collect()
+}
+
 /// The kind and name a member's code declares, for [`Gen::distinct`].
 fn member_name(code: &str) -> Option<String> {
 	let line = code.lines().find(|l| {
@@ -4099,6 +4261,22 @@ pub(crate) fn indent_by(code: &str, n: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+	/// A getter's JVM name, and the name an earlier `@JvmName` gave, both count as taken.
+	#[test]
+	fn jvm_names_read_getters_and_renames() {
+		assert_eq!(super::jvm_name("val x"), "getX");
+		assert_eq!(super::jvm_name("val isOpen"), "isOpen");
+		assert_eq!(super::jvm_name("val island"), "getIsland");
+		assert_eq!(super::jvm_name("fun foo"), "foo");
+		assert_eq!(super::jvm_name("val éclair"), "getéclair");
+		let code = [
+			"\tfun foo(n: Int) = 1\n".to_string(),
+			"\t\t@kotlin.jvm.JvmStatic\n\t\t@kotlin.jvm.JvmName(\"foo_\")\n\t\tfun foo_(): Int = 1\n".to_string(),
+			"\t\t/** Doc. */\n\t\t@get:kotlin.jvm.JvmName(\"getZ_\")\n\t\tval z: Int\n".to_string(),
+		];
+		assert_eq!(super::jvm_names(&code).collect::<Vec<_>>(), ["foo", "foo_", "getZ_"]);
+	}
+
 	/// The writeback array is a parameter of its own, which an out pointer's zero slots
 	/// leave out.
 	#[test]
