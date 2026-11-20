@@ -10,6 +10,8 @@ same bytes, and `reproduce` in `bindings-test.yml` builds the second copy elsewh
 
 ## Plan
 
+Decided with the maintainer on 2026-11-19, in the pick of [#874](https://github.com/kixel-ai/rust2/pull/874): ✅ kept (rejected: dropping it).
+
 Found by [the reproducible-releases quest](https://github.com/kixel-ai/rust2/pull/874):
 `glue.rs`'s `generate` writes `path = {facade.dir}`. Measured there: two exports of the api
 fixture from copies at different paths differ in the version's hash and in every symbol
