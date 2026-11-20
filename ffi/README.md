@@ -1020,6 +1020,12 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `CancellationError`. Each call is its own future, so it has one poller. The call makes
   and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
   on only if that poll pends; the signal latches a wake that lands before it parks.
+- A **stream** is `stream()`, which consumes the object into a generated `<T>Stream`
+  owning it, a final class that is both an `AsyncSequence` and its own iterator: `for try
+  await x in feed.stream()`, and after a loop left early, `next()` on it takes the next
+  item. Its `next` runs on the caller's isolation, through `next(isolation:)` and
+  `nonisolated(nonsending)`. `AsyncSequence` takes only a copyable element, so a stream of
+  a noncopyable object keeps `next` alone.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
