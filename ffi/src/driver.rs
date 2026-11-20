@@ -191,22 +191,18 @@ impl Callbacks for Export {
 				Output::Dir(_) | Output::Api(_) => &[],
 			},
 		};
-		let collected = collect::collect(tcx, &facade);
-		let report = &collected.report;
+		let mut collected = collect::collect(tcx, &facade);
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
-			// Swift exports the API without what takes a JNI value, as the export does.
-			let rest = collected.api.without_jni();
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
-				.into_iter()
-				.map(|(f, _)| f.shown.clone())
-				.collect();
-			let exporting = exporting(&collected.api, &report.audited, &swift);
-			let config = census_config(tcx, &facade, &self.facade.lib, report, &swift);
-			let text = census::render(&collected.api, report, &config, &exporting, &abi.clashes, &|span| {
-				at(tcx, span)
-			});
+			// What Swift refuses needs its exclude, as the export says, so it is a refusal and
+			// not exporting.
+			let (api, swift) = swift_refused(&collected.api, &self.facade.lib);
+			let refused: FxHashSet<_> = swift.iter().map(|r| r.path.clone()).collect();
+			let report = &mut collected.report;
+			report.refusals.extend(swift.into_iter().map(|r| r.refusal));
+			let exporting = exporting(&collected.api, &report.audited, &refused);
+			let config = census_config(tcx, &facade, &self.facade.lib, report);
+			let text = census::render(&api, report, &config, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -225,6 +221,7 @@ impl Callbacks for Export {
 			}
 			return stop_on_errors(tcx);
 		}
+		let report = &collected.report;
 		for refusal in &report.refusals {
 			refuse(tcx, refusal, "exclude it in the config to leave it out");
 		}
@@ -261,23 +258,76 @@ impl Callbacks for Export {
 	}
 }
 
-/// The `exclude` that exports what maps: each item collection or Swift refuses, checked by
-/// collecting again with it. One naming only an instance a refused item alone named names
-/// nothing once that item is left out, and the export would fail on it, so it is dropped;
-/// what that collection refuses besides is added, until the config holds.
-fn census_config(
-	tcx: TyCtxt<'_>,
-	facade: &collect::Facade,
-	lib: &str,
-	report: &collect::Report,
-	swift: &FxHashSet<ir::Path>,
-) -> Vec<String> {
-	let refused = |report: &collect::Report, swift: &FxHashSet<ir::Path>| -> Vec<String> {
-		(report.refusals.iter().map(|r| r.path.clone()))
-			.chain(swift.iter().map(|path| path[1..].join("::")))
-			.collect()
-	};
-	let mut config = refused(report, swift);
+/// A function or method Swift refuses, by the path the config names it by, as a census
+/// refusal.
+struct SwiftRefused {
+	path: ir::Path,
+	refusal: collect::Refusal,
+}
+
+/// `api` without what Swift refuses, and each it refuses, which the census adds to its
+/// config: to a fixed point, since leaving out a function that throws an object bare can
+/// make that object noncopyable, refusing another that throws it inside a value. Swift
+/// exports the API without what takes a JNI value, as the export does.
+fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<SwiftRefused>) {
+	let mut api = api.clone();
+	let mut refused = Vec::new();
+	loop {
+		let abi = Abi::new(&api, lib);
+		let rest = api.without_jni();
+		// A function refused for each of several reasons is one refusal of them all, its
+		// reasons in a row.
+		let mut found: Vec<SwiftRefused> = Vec::new();
+		for r in crate::swift::refusals(&abi.without_jni(&rest)) {
+			let why = collect::Why {
+				construct: r.construct,
+				detail: String::new(),
+				note: None,
+			};
+			let path = configured(r.function);
+			match found.last_mut() {
+				Some(last) if last.path == path => last.refusal.why.push(why),
+				_ => found.push(SwiftRefused {
+					refusal: collect::Refusal {
+						path: path[1..].join("::"),
+						kind: r.kind,
+						span: r.function.span,
+						why: vec![why],
+					},
+					path,
+				}),
+			}
+		}
+		if found.is_empty() {
+			return (api, refused);
+		}
+		let gone: FxHashSet<&ir::Path> = found.iter().map(|r| &r.path).collect();
+		let keep = |methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(&configured(f)));
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		refused.extend(found);
+	}
+}
+
+/// The path the config names `f` by: a field's getter and setter alike, by `field@` where
+/// a method or constant of its type shares its path, so refusing that one keeps the other.
+fn configured(f: &ir::Function) -> ir::Path {
+	let mut path = f.shown.clone();
+	if let ir::Access::Field { shared: true, .. } = f.access {
+		path[1].insert_str(0, "field@");
+	}
+	path
+}
+
+/// The `exclude` that exports what maps: each item `report` refuses, Swift's included,
+/// checked by collecting again with it. One naming only an instance a refused item alone
+/// named names nothing once that item is left out, and the export would fail on it, so it
+/// is dropped; what that collection or Swift refuses besides is added, until the config
+/// holds.
+fn census_config(tcx: TyCtxt<'_>, facade: &collect::Facade, lib: &str, report: &collect::Report) -> Vec<String> {
+	let mut config: Vec<String> = report.refusals.iter().map(|r| r.path.clone()).collect();
 	let mut seen = Vec::new();
 	loop {
 		config.sort();
@@ -310,13 +360,10 @@ fn census_config(
 				audit: &[],
 			},
 		);
-		let abi = Abi::new(&checked.api, lib);
-		let rest = checked.api.without_jni();
-		let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
-			.into_iter()
-			.map(|(f, _)| f.shown.clone())
-			.collect();
-		let more = refused(&checked.report, &swift);
+		let (_, swift) = swift_refused(&checked.api, lib);
+		let more = (checked.report.refusals.iter().map(|r| r.path.clone()))
+			.chain(swift.into_iter().map(|r| r.refusal.path))
+			.collect::<Vec<_>>();
 		let dead: Vec<&String> = (checked.report.excluded.iter())
 			.filter(|(path, count)| *count == 0 && !configured_out(tcx, path))
 			.map(|(path, _)| path)
@@ -328,7 +375,7 @@ fn census_config(
 
 /// Each exclude whose item would export without it, and that item's paths: what an
 /// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path, except a function `refused` names by its shown path, since a generic's
+/// same path, except a function `refused` names by its configured path, since a generic's
 /// instances share a span but Swift may refuse only some.
 fn exporting(
 	api: &Api,
@@ -341,7 +388,7 @@ fn exporting(
 		paths.insert(path[1..].join("::"));
 	};
 	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
+		for f in methods.iter().filter(|f| !refused.contains(&configured(f))) {
 			match f.access {
 				// A field is checked by `field@` and, unless a method or constant takes its
 				// name, by its path, which then names that method or constant instead.
@@ -552,10 +599,15 @@ impl Export {
 		}
 		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
 		let rest = api.without_jni();
-		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
+		for refusal in crate::swift::refusals(&abi.without_jni(&rest)) {
 			tcx.dcx().span_err(
-				function.span,
-				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
+				refusal.function.span,
+				format!(
+					"rust2-ffi: cannot export {} `{}`: {}; exclude it in the config to leave it out",
+					refusal.kind,
+					refusal.function.shown[1..].join("::"),
+					refusal.why
+				),
 			);
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
