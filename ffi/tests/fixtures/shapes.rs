@@ -2,9 +2,10 @@
 //! value types from what the exporter's IR holds, nested to a bounded depth, and emits a
 //! crate of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a
 //! closure's parameter and return and a future's output besides. The census of that crate
-//! says which items export, so a shape the exporter refuses by design fails the export,
-//! not the test; each language's driver is a generated flat list of calls whose printed
-//! digests must match the crate's own, run natively.
+//! says which items export, so a shape the exporter refuses by design, a construct
+//! `BY_DESIGN` names, is left out rather than failed, and any other refusal fails the test;
+//! each language's driver is a generated flat list of calls whose printed digests must
+//! match the crate's own, run natively.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -996,6 +997,14 @@ fn emit(name: &str, shapes: &[Shape], drawn: Option<u64>) -> Crate {
 	let mut kept = lib;
 	for path in &refused.refused {
 		kept = cfg_out(&kept, path);
+		// sink_N names no shape, so the census leaves it out with its trait rather than
+		// refusing it, yet it calls make_N.
+		if let Some(n) = path.strip_prefix("make_")
+			&& let sink = format!("sink_{n}")
+			&& !refused.refused.contains(&sink)
+		{
+			kept = cfg_out(&kept, &sink);
+		}
 	}
 	super::write_all(&dir, &[("src/lib.rs", &kept)]);
 
@@ -1101,23 +1110,89 @@ fn refused(dir: &Path) -> Refused {
 		.env("CARGO_TARGET_DIR", dir.join("build")));
 	let name = dir.file_name().unwrap().to_string_lossy();
 	let report = std::fs::read_to_string(census.join(format!("{name}.md"))).unwrap();
-	let section = |heading: &str| -> Vec<String> {
+	let mut unexpected = Vec::new();
+	// `checked` sections fail on a construct BY_DESIGN does not name; what C can never hold
+	// follows from what else is left out.
+	let mut section = |heading: &str, checked: bool| -> Vec<String> {
 		let Some((_, list)) = report.split_once(heading) else {
 			return Vec::new();
 		};
-		(list.lines().skip(1))
-			.take_while(|line| !line.starts_with("## "))
-			.filter_map(|line| Some(line.split_once('`')?.1.split_once('`')?.0.to_string()))
-			.collect()
+		let mut paths = Vec::new();
+		for line in (list.lines().skip(1)).take_while(|line| !line.starts_with("## ")) {
+			let Some((_, rest)) = line.split_once('`') else {
+				continue;
+			};
+			let (path, rest) = rest.split_once('`').unwrap();
+			let (_, reasons) = rest.split_once(": ").unwrap();
+			if checked
+				&& constructs(reasons)
+					.iter()
+					.any(|construct| !BY_DESIGN.contains(construct))
+			{
+				unexpected.push(line.to_string());
+			}
+			paths.push(path.to_string());
+		}
+		paths
 	};
-	let mut refused = section("## Refused items");
+	let mut refused = section("## Refused items", true);
 	refused.sort();
 	refused.dedup();
 	// The traits C cannot implement, and what C can never hold, leave themselves out.
 	let mut absent = refused.clone();
-	absent.extend(section("## Traits left out, since C cannot implement them"));
-	absent.extend(section("## What C can never hold, left out"));
+	absent.extend(section("## Traits left out, since C cannot implement them", true));
+	absent.extend(section("## What C can never hold, left out", false));
+	assert!(
+		unexpected.is_empty(),
+		"the census refuses a shape's items for a construct BY_DESIGN does not name:\n{}",
+		unexpected.join("\n")
+	);
 	Refused { refused, absent }
+}
+
+/// The constructs the census refuses a shape's items for by design: positions a binding
+/// cannot spell for some values. Any other refusal fails the test, so a value type the
+/// exporter stops taking fails here rather than leaving out every shape that holds it.
+const BY_DESIGN: &[&str] = &[
+	// A closure crosses only primitives, strings, and objects; lent_N and made_N.
+	"closure signature",
+	// A foreign trait's methods likewise; SinkN.
+	"callback signature",
+	// A borrow of an object inside an Option, Box, or collection, which would move it
+	// out of the caller's handle; digest_N and its kin of such shapes.
+	"reference to a handle inside a value",
+	// C has one None per option; maybe_N of an Option shape.
+	"nested Option",
+	// A borrowed return crosses as a clone; a record field holding a record not Clone.
+	"borrowed return that is not Clone",
+	// Swift.Error must be copyable; try_N of an object shape.
+	"error holding an object Swift cannot copy",
+];
+
+/// The constructs of a census line's reasons, `construct` or ``construct `detail` ``,
+/// joined by `; `, where a detail such as `[u8; 16]` may hold `; ` itself.
+fn constructs(reasons: &str) -> Vec<&str> {
+	let mut constructs = Vec::new();
+	let mut rest = reasons;
+	while !rest.is_empty() {
+		let end = rest.find(['`', ';']).unwrap_or(rest.len());
+		constructs.push(rest[..end].trim());
+		rest = &rest[end..];
+		if let Some(detail) = rest.strip_prefix('`') {
+			rest = detail.split_once('`').unwrap().1;
+		}
+		rest = rest.strip_prefix(';').unwrap_or(rest).trim_start();
+	}
+	constructs
+}
+
+#[test]
+fn census_constructs() {
+	assert_eq!(constructs("nested Option"), ["nested Option"]);
+	assert_eq!(
+		constructs("closure signature `[u8; 16]`; error holding an object Swift cannot copy"),
+		["closure signature", "error holding an object Swift cannot copy"]
+	);
 }
 
 /// What the census of the shapes' crate says does not export.
