@@ -18,6 +18,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -217,6 +220,36 @@ fun readers() {
 		println("sought ${seekTo(Far(), ULong.MAX_VALUE)}")
 	} catch (e: StringException) {
 		println("sought error ${e.error}")
+	}
+}
+
+// Streams, each collected as a flow: to its end, left early, and to an error, past which
+// the stream goes on.
+fun streams() = runBlocking {
+	Countdown.new(3u).use { c -> println("countdown " + c.asFlow().toList().joinToString(" ")) }
+	Countdown.new(5u).use { c ->
+		c.asFlow().takeWhile { it != 4u }.collect {}
+		println("countdown after break ${c.next()}")
+	}
+	val channel = Channel.new()
+	channel.feed().use { feed ->
+		for (first in listOf("a", "c")) {
+			channel.send(Bytes(first.encodeToByteArray()))
+			try {
+				feed.asFlow().collect { payload ->
+					println("feed ${payload.text()}")
+					val reply = when (payload.text()) {
+						"a" -> "b"
+						"b" -> "!"
+						else -> ""
+					}
+					channel.send(Bytes(reply.encodeToByteArray()))
+				}
+				println("feed end")
+			} catch (e: ErrorException) {
+				println("feed error ${e.message}")
+			}
+		}
 	}
 }
 
@@ -674,6 +707,24 @@ fun futures() {
 		job.cancel()
 		q.drain()
 		released(weak, "a closure a cancelled future kept is released")
+	}
+	// Cancelling a flow's collection cancels its pending `next`, which loses nothing: the
+	// payload sent after is the next call's. A collector leaving early reads nothing ahead.
+	val fed = Channel.new()
+	fed.feed().use { feed ->
+		var got: String? = null
+		val job = scope.launch { feed.asFlow().collect { got = it.text() } }
+		q.drain()
+		job.cancel()
+		q.drain()
+		check(job.isCancelled && got == null, "a flow's collection cancels while next pends")
+		fed.send(Bytes("kept".encodeToByteArray()))
+		val next = runBlocking { feed.next() }
+		check(next?.text() == "kept", "cancelling a flow's collection loses no payload")
+		Countdown.new(3u).use { c ->
+			val first = runBlocking { c.asFlow().first() }
+			check(first == 3u && runBlocking { c.next() } == 2u, "a flow left early reads nothing ahead")
+		}
 	}
 	println("futures ok")
 }
