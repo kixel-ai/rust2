@@ -442,7 +442,14 @@ def sdist(info, manifest, export, out):
     for root in roots:
         at = place(root.parent)
         files[f"{at}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(at)).encode(), False)
-    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
+    # The exporter writes each path relative to the export where one reads right, and else absolute.
+    spelled = moves("binding")
+    for directory, there in placed.items():
+        try:
+            spelled[Path(os.path.relpath(directory, export)).as_posix()] = posixpath.relpath(there, "binding")
+        except ValueError:
+            pass  # On another Windows drive, which no relative path reaches.
+    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), spelled, strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
                  *sorted(p for p in (export / "src").rglob("*") if p.is_file())]:
