@@ -2014,9 +2014,9 @@ def consume_dart(package, libs, lib, check, native):
             run_dart([exe], work, check, native, "dart build cli")
 
 
-def run_dart(command, cwd, check, native, what, env=None):
+def run_dart(command, cwd, check, native, what):
     """Run a Dart consumer, and compare what it prints with native Rust."""
-    result = subprocess.run([str(c) for c in command], cwd=cwd, capture_output=True, env={**os.environ, **(env or {})})
+    result = subprocess.run([str(c) for c in command], cwd=cwd, capture_output=True)
     sys.stderr.buffer.write(result.stderr)
     if result.returncode:
         raise SystemExit(f"{what} failed on the Dart package with status {result.returncode}")
@@ -2027,18 +2027,15 @@ def run_dart(command, cwd, check, native, what, env=None):
     print(f"{what}: ok")
 
 
-def consume_source(manifest, export, check, native):
+def consume_source(export, check, native):
     """A new Dart app depending on the export's own package, whose hook builds the exported
-    crate with Cargo, as in a checkout, on the crate's own toolchain."""
+    crate with Cargo, as in a checkout."""
     package = Path(export).resolve() / "dart"
     lib = pub_name(package)
-    toolchain = output("rustup", "show", "active-toolchain", cwd=Path(manifest).resolve().parent).split()[0]
     with tempfile.TemporaryDirectory() as raw:
         app = dart_app(raw, "consumer", package, lib)
         (app / "bin" / "main.dart").write_text(dart_main(lib, check), encoding="utf-8")
-        # The hook's environment keeps RUSTUP_ variables.
-        run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run from source",
-                 env={"RUSTUP_TOOLCHAIN": toolchain})
+        run_dart(["dart", "run", "bin/main.dart"], app, check, native, "dart run from source")
 
 
 # The Flutter consumer's entry, which runs the check, collecting what it prints, then reports
@@ -2515,7 +2512,6 @@ def main():
             p.add_argument("--platform", required=True, help="the platform `flutter create` makes the app for")
             p.add_argument("--device", required=True, help="the device `flutter run` runs it on")
     p = sub.add_parser("consume-source", help="run a check program, or a load, in a new Dart app on the export's own package")
-    p.add_argument("--manifest-path", required=True)
     p.add_argument("--export", required=True)
     p.add_argument("--check")
     p.add_argument("--native")
@@ -2584,7 +2580,7 @@ def main():
     elif args.command == "consume-dart":
         consume_dart(args.package, args.libs, pub_name(args.package), args.check, args.native)
     elif args.command == "consume-source":
-        consume_source(args.manifest_path, args.export, args.check, args.native)
+        consume_source(args.export, args.check, args.native)
     elif args.command == "consume-flutter":
         consume_flutter(args.package, args.libs, pub_name(args.package), args.check, args.native, args.platform,
                         args.device)

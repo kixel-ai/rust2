@@ -398,7 +398,7 @@ jobs:
           args=()
           if [[ -f dist/checks/main.dart ]]; then args+=(--check dist/checks/main.dart); fi
           if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
-          python3 -I rust2/ffi/release/package.py consume-source --manifest-path "source/$MANIFEST" --export export "${args[@]}"
+          python3 -I rust2/ffi/release/package.py consume-source --export export "${args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}

@@ -159,18 +159,27 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
       final version = code.macOS.deploymentVersion;
       environment['MACOSX_DEPLOYMENT_TARGET'] = '${version.major}.${version.minor}';
   }
-  final args = [
+  // The crate the export depends on as `<package>_export`, from whose directory rustup picks
+  // its toolchain, as its own build would, and each path package's manifest and the lock,
+  // which change the build as its sources do.
+  final metadata = await _cargo(['metadata', '--format-version', '1', '--manifest-path', manifest.path, //
+    '--filter-platform', target], manifest.parent.path, environment);
+  final resolved = jsonDecode(metadata) as Map<String, Object?>;
+  final packages = (resolved['packages']! as List<Object?>).cast<Map<String, Object?>>();
+  final root = (resolved['resolve']! as Map<String, Object?>)['root'];
+  final facade = [
+    for (final package in packages)
+      if (package['id'] == root)
+        for (final dependency in (package['dependencies']! as List<Object?>).cast<Map<String, Object?>>())
+          if (dependency['rename'] == '${input.packageName}_export') dependency['path']! as String,
+  ].single;
+  final output = await _cargo([
     'build', '--release', '--lib', '--features', 'dart', '--target', target, //
     '--manifest-path', manifest.path, '--message-format=json-render-diagnostics',
-  ];
-  // From the crate's directory, whose toolchain rustup picks.
-  final result = await Process.run('cargo', args, workingDirectory: manifest.parent.path, environment: environment);
-  if (result.exitCode != 0) {
-    throw ProcessException('cargo', args, '${result.stderr}', result.exitCode);
-  }
+  ], facade, environment);
   final name = code.targetOS.dylibFileName(input.packageName);
   final built = <String>{
-    for (final line in LineSplitter.split(result.stdout as String))
+    for (final line in LineSplitter.split(output))
       if (jsonDecode(line) case {'reason': 'compiler-artifact', 'filenames': final List<Object?> files})
         for (final file in files.cast<String>())
           if (File(file).uri.pathSegments.last == name) file,
@@ -179,8 +188,21 @@ Future<(File, List<Uri>)> _build(BuildInput input, CodeConfig code, String targe
   final library = File(built.single);
   // Cargo's dep-info beside it lists the sources of every path package the build read.
   final info = File('${library.path.substring(0, library.path.length - name.length)}${name.split('.').first}.d');
-  final inputs = [manifest.uri, for (final path in _depInfo(await info.readAsString())) File(path).uri];
+  final lock = File('${resolved['workspace_root']}${Platform.pathSeparator}Cargo.lock');
+  final inputs = [
+    lock.uri,
+    for (final package in packages)
+      if (package['source'] == null) File(package['manifest_path']! as String).uri,
+    for (final path in _depInfo(await info.readAsString())) File(path).uri,
+  ];
   return (library, inputs);
+}
+
+/// What Cargo prints, run from `directory`, failing with what it says on stderr.
+Future<String> _cargo(List<String> args, String directory, Map<String, String> environment) async {
+  final result = await Process.run('cargo', args, workingDirectory: directory, environment: environment);
+  if (result.exitCode != 0) throw ProcessException('cargo', args, '${result.stderr}', result.exitCode);
+  return result.stdout as String;
 }
 
 /// The files a Cargo dep-info file names its artifact reading: after each line's
