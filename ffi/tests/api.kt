@@ -994,7 +994,11 @@ fun lossless() {
 	check(stray.toByteArray().contentEquals(byteArrayOf(-1)) && stray == PathBuf(byteArrayOf(-1)), "a path keeps bytes no String holds")
 	check(rejects { stray.toText() } && rejects { stray.toPath() } && stray.toString() == "\ufffd", "a path that is not UTF-8 has no text")
 	check(rejects { PathBuf("\ud800") }, "a lone surrogate has no path")
-	check(PathBuf("a/é").toText() == "a/é" && PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts")
+	check(PathBuf("a/é").toText() == "a/é", "a UTF-8 path converts")
+	// `java.nio.file` is on Android from API 26.
+	if (runCatching { Class.forName("java.nio.file.Paths") }.isSuccess) {
+		check(PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts to a Path")
+	}
 	check(_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())) && !_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte(), 0xed.toByte(), 0xb0.toByte(), 0x80.toByte())), "a lone surrogate is WTF-8, a pair encoded apart is not")
 	check(!_wtf8(byteArrayOf(-1)) && !_wtf8(byteArrayOf(0xc0.toByte(), 0x80.toByte())) && _wtf8("a/é😀".encodeToByteArray()), "WTF-8 is UTF-8 otherwise")
 
@@ -1297,6 +1301,8 @@ fun broken(which: String) {
 			Node.new(2u, tail)
 			tail.sum()
 		}
+		// A Rust panic cannot unwind into the JVM, so it aborts.
+		"panicked" -> Clash.Unit.reading(0u)
 		"outlived" -> Meters.new().let { meters ->
 			val first = meters.first()
 			meters.clear()

@@ -5,6 +5,7 @@
 // left only where a call dispatches on its receiver: an iterator's `next`, a writer's
 // `writeStr` and `writeChar`, a future's `poll`, a waker's, and `[Symbol.dispose]`.
 
+import "./rs/dispose.ts";
 import type { Shared } from "./rs/bytes.ts";
 import type { Ordering } from "./rs/collections.ts";
 import type { ParseFloatError } from "./rs/float.ts";

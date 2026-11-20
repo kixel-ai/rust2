@@ -523,6 +523,19 @@ fn pointers_apart() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// Where the engine lacks `Symbol.dispose`, as stable Safari does, the runtime defines it as
+/// the registry's symbol before its classes key a method on it, which `dispose.ts` checks.
+#[test]
+fn dispose_absent() {
+	let tests = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+	let output = Command::new("node")
+		.arg(tests.join("dispose.ts"))
+		.arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("runtime").join("rs.ts"))
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// The runtime's UTF-8 codec, which codes a short string or byte run with a loop of its own
 /// and a long one with the engine's, reads and writes every byte run `utf8.ts` gets as std does:
 /// `from_utf8`'s text or error, `from_utf8_lossy`'s text, and the bytes back from

@@ -1431,6 +1431,16 @@ async function closedObjects(): Promise<void> {
 	const c = Counter.new("c", 1);
 	close(c);
 	closed(() => Counter.get(c), "Counter", "a method of a disposed object");
+	// `using` disposes at the end of its scope, as stable Safari, which lacks `Symbol.dispose`,
+	// needs the runtime's own symbol for, however the bundler lowers it. No garbage collector
+	// is involved, so every browser runs it.
+	let scoped: ReturnType<typeof Counter.new> | undefined;
+	{
+		using inner = Counter.new("u", 3);
+		scoped = inner;
+		check(Counter.get(inner) === 3, "a `using` object is open in its scope");
+	}
+	closed(() => Counter.get(scoped!), "Counter", "a `using` object after its scope");
 	closed(() => Counter.clone(c), "Counter", "clone of a disposed object");
 	closed(() => Counter.debug(c), "Counter", "debug of a disposed object");
 	const url = unwrap(Url.parse("https://example.com"));

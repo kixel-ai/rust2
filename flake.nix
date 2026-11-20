@@ -57,6 +57,21 @@
             overlays = [ (import rust-overlay) ];
           };
           toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          # Playwright's WPE build of WebKit, headless over Mesa's software EGL, so a host
+          # with no GPU or display runs it: `webkit-headless <url>`. Its tip-of-tree engine
+          # stands in for Safari, which has no Linux build.
+          webkit-headless =
+            let
+              browsers = pkgs.playwright-driver.browsers;
+              webkit = pkgs.lib.findFirst (
+                name: pkgs.lib.hasPrefix "webkit-" name
+              ) (throw "playwright-driver ships no WebKit") (builtins.attrNames browsers.passthru.entries);
+            in
+            pkgs.writeShellScriptBin "webkit-headless" ''
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export __EGL_VENDOR_LIBRARY_DIRS=${pkgs.mesa}/share/glvnd/egl_vendor.d
+              exec ${browsers.passthru.entries.${webkit}}/minibrowser-wpe/MiniBrowser --headless "$@"
+            '';
           # The benchmark's nightly levers (--jobs-frontend, cranelift, self-profile).
           # Bumping the date is a benchmark corpus change: numbers before and
           # after it do not compare.
@@ -279,6 +294,9 @@
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";
+            # The free-threaded CPython the generated Python must refuse. By path, since its
+            # python3 would shadow the GIL build's on PATH.
+            PYTHON_FREE_THREADED = "${pkgs.python314FreeThreading}/bin/python3.14t";
             # The pinned toolchain goes on PATH ahead of everything the host had, which
             # shadows the Cargo shim `mbx setup` installs. Put it back in front, as moq's dev
             # shell does, so cargo builds through mbx's cache wherever the host set one up,
@@ -299,14 +317,18 @@
             '';
           };
           # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the
-          # web binding's test in them. Apart for their size. Binaryen's wasm2js lowers the
-          # bench's wasm32 build to JavaScript for its wasm2js route.
+          # web binding's test in them, and in WebKit on Linux, which stands in for Safari. Apart for
+          # their size. Binaryen's wasm2js lowers the bench's wasm32 build to JavaScript for its
+          # wasm2js route.
           devShells.bench = self.devShells.${system}.default.overrideAttrs (old: {
-            nativeBuildInputs = old.nativeBuildInputs ++ [
-              pkgs.chromium
-              pkgs.firefox
-              pkgs.binaryen
-            ];
+            nativeBuildInputs =
+              old.nativeBuildInputs
+              ++ [
+                pkgs.chromium
+                pkgs.firefox
+                pkgs.binaryen
+              ]
+              ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux webkit-headless;
             # `just ffi bench` builds moq's rs/libmoq, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
             # ... and its programs over instrument-hooks, for CodSpeed.
