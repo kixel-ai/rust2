@@ -3827,9 +3827,9 @@ fn foreign_role_names() {
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
 /// module or another crate's that the facade re-exports through a glob, or a chain of them,
 /// or a field or variant of the facade's or another crate's type, under a `cfg` or one a
-/// `cfg_attr` adds, an inline module's type and a const-generic one's included, but not
-/// what no build has, nor what a module only some of whose items the facade re-exports
-/// leaves out.
+/// `cfg_attr` adds, an inline module's type and a const-generic one's included, and by the
+/// defining crate's path as well as the facade's, but not what no build has, nor what a
+/// module only some of whose items the facade re-exports leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out", &[]);
@@ -3845,7 +3845,7 @@ fn configured_out() {
 			("Cargo.toml", &manifest),
 			(
 				"src/lib.rs",
-				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
+				"pub use ::dep::Size;\n\npub mod glob {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
 				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
 				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n\n\
 				pub struct Shape<const N: usize = { 1 }> {\n\tpub n: u32,\n\t#[cfg(any())]\n\tpub gone: u32,\n\t#[cfg_attr(all(), cfg_attr(all(), cfg(any())))]\n\tpub gated: u32,\n}\n\n\
@@ -3854,7 +3854,7 @@ fn configured_out() {
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"Kind::Gone\", \"dep::Area::scaled\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+				"exclude = [\"Gone\", \"Kind::Gone\", \"dep::Size::depth\", \"dep::Size::missing\", \"glob::Area::scaled\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"glob::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);
@@ -3872,6 +3872,7 @@ fn configured_out() {
 		errors,
 		[
 			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
+			"error: rust2-ffi: exclude `dep::Size::missing` in the config names nothing exported",
 			"error: rust2-ffi: exclude `Shape::missing` in the config names nothing exported",
 			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
 		],

@@ -58,7 +58,8 @@ manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-# Paths from the facade's root left out: a module, an item, or one method or field. Each
+# Paths from the facade's root left out: a module, an item, or one method or field. A type
+# no facade module re-exports goes by its crate's name and its public path there. Each
 # must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
 # `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
@@ -481,7 +482,9 @@ packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
-  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+  `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
+  (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
+  underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
