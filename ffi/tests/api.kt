@@ -865,6 +865,16 @@ fun owned() {
 	journal.close()
 	check(closes == 1, "a close from inside its own drop closes nothing more")
 	check(during == "Journal is closed", "an object is closed in Kotlin while Rust drops it: $during")
+	// Closed again from another thread its drop waits on, which returns rather than wait.
+	lateinit var handed: Journal
+	val joined = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() = thread { handed.close() }.join()
+	}
+	handed = Journal.new(joined)
+	handed.close()
+	check(runCatching { handed.write("x") }.exceptionOrNull()?.message == "Journal is closed", "a close its drop hands to another thread returns")
 
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(pointerBits(platform()) == 64u && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
