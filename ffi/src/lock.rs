@@ -935,6 +935,45 @@ mod tests {
 		);
 	}
 
+	#[test]
+	fn python_variant_rename_breaks() {
+		let variant = |name: &str| crate::ir::Variant {
+			name: name.into(),
+			discriminant: 0,
+			fields: vec![],
+			tuple: false,
+			on: On::ALL,
+		};
+		let mut base = api();
+		base.objects.push(object("Fault"));
+		base.objects[0].variants = vec![variant("FooBar")];
+		base.functions[0].err = Some(Type::Object(0));
+		let old = crate::python::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
+		assert_eq!(old.names["error Fault / variant FooBar"], "FaultException.FooBar");
+		// `Foo_Bar` added first takes `FooBar`, which the kept variant had.
+		let mut now = base.clone();
+		now.objects[0].variants.insert(0, variant("Foo_Bar"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added variant passes structurally"
+		);
+		let abi = Abi::new(&now, "lock");
+		let new = crate::python::generate(&abi, "lock", 0).unwrap();
+		let changes = name_breaks(
+			&BTreeMap::from([("Python".into(), old.names)]),
+			&BTreeMap::from([("Python".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert!(
+			changes.iter().any(|c| c
+				.what
+				.contains("`FaultException.FooBar` is now `FaultException.FooBar_`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
 	fn object(name: &str) -> crate::ir::Object {
 		crate::ir::Object {
 			path: vec!["lock".into(), name.into()],

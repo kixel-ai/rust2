@@ -846,6 +846,7 @@ impl<'a> Gen<'a> {
 	fn exception_class(&mut self, name: &str, ty: &Type) {
 		let py = self.py_ty(ty);
 		let abi = self.abi;
+		let key = crate::lock::error_key(abi, ty);
 		let ty = strip_box(&strip_refs(ty));
 		// The Rust type, its variants' names, how `__new__` picks the subclass of `error`, and
 		// what the class declares for type checkers besides each subclass.
@@ -878,6 +879,12 @@ impl<'a> Gen<'a> {
 			}
 		};
 		let vnames = variant_classes(variants.iter().copied());
+		// Kept apart by order, a subclass's name is locked, so a variant added before one
+		// whose name it takes breaks the baseline.
+		for (variant, vname) in variants.iter().zip(&vnames) {
+			self.locked
+				.insert(format!("{key} / variant {variant}"), format!("{name}.{vname}"));
+		}
 		let aliases: String = (vnames.iter())
 			.map(|v| format!("\t\t{v}: _typing.TypeAlias = \"_{name}_{v}\"\n"))
 			.collect();
@@ -1371,6 +1378,10 @@ impl<'a> Gen<'a> {
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
 		let vnames = variant_classes(e.variants.iter().map(|v| v.name.as_str()));
+		for (variant, vname) in e.variants.iter().zip(&vnames) {
+			let key = format!("{} / variant {}", crate::lock::type_key(&e.shown), variant.name);
+			self.locked.insert(key, format!("{name}.{vname}"));
+		}
 		let mut data = vnames.clone();
 		let fields: BTreeSet<String> = e
 			.variants
