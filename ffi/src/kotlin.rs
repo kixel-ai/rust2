@@ -3401,6 +3401,9 @@ impl<'a> Gen<'a> {
 		}
 		if jvm != declared {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+			// Java calls it by this name, which the lock keeps beside the Kotlin one.
+			let key = format!("{} / jvm", crate::lock::function_key(function));
+			self.locked.insert(key, jvm.clone());
 		}
 		if let Some(exception) = &exception {
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");

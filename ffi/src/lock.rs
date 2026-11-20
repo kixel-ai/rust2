@@ -1097,6 +1097,50 @@ mod tests {
 		}
 	}
 
+	/// A method whose JVM name moves past `Object`'s `wait(long)` moves again once a method
+	/// added before it takes that name, which only the JVM name the lock records reports.
+	#[test]
+	fn a_jvm_rename_breaks() {
+		let method = |name: &str| Function {
+			path: vec!["lock".into(), "Store".into(), name.into()],
+			shown: vec!["lock".into(), "Store".into(), name.into()],
+			receiver: Some(crate::ir::Receiver::Ref),
+			params: vec![crate::ir::Param {
+				name: "ms".into(),
+				ty: Type::Int(Int::I64),
+				interned: false,
+			}],
+			..api().functions[0].clone()
+		};
+		let mut base = api();
+		base.objects.push(object("Store"));
+		base.objects[0].methods = vec![method("wait")];
+		let mut now = base.clone();
+		now.objects[0].methods.insert(0, method("wait_"));
+		assert!(
+			breaks(&base, &now, "lock").is_empty(),
+			"an added method passes structurally"
+		);
+		let names = |api: &Api| {
+			crate::kotlin::generate(&Abi::new(api, "lock"), "lock", 0)
+				.unwrap()
+				.names
+		};
+		let changes = name_breaks(
+			&BTreeMap::from([("Kotlin".into(), names(&base))]),
+			&BTreeMap::from([("Kotlin".into(), names(&now))]),
+			&base,
+			&Abi::new(&now, "lock"),
+		);
+		assert!(
+			changes
+				.iter()
+				.any(|c| c.what.contains("/ jvm: its Kotlin name `wait_` is now `wait__`")),
+			"{:?}",
+			changes.iter().map(|c| &c.what).collect::<Vec<_>>()
+		);
+	}
+
 	fn object(name: &str) -> crate::ir::Object {
 		crate::ir::Object {
 			path: vec!["lock".into(), name.into()],
