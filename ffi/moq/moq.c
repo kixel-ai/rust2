@@ -435,7 +435,7 @@ int main(void) {
 	CHECK(guarded != NULL && moq_hang_catalog_Stats_eq(guarded, want, NULL));
 	moq_hang_catalog_Stats_free(guarded);
 	moq_status held = 0;
-	moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, &held);
+	CHECK(!moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, &held));
 	CHECK(held == MOQ_STATUS_BORROWED);
 	moq_mux_catalog_Guard_Extra_stats_set(guard, NULL, NULL);
 	CHECK(moq_mux_catalog_Guard_Extra_commit(guard, &mux_err, NULL));
