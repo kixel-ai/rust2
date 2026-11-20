@@ -564,24 +564,23 @@ struct Paths {
 
 impl Paths {
 	fn of(out: &Path) -> Result<Self, String> {
-		let physical = resolve(out)?;
-		let spelled = lexical(&std::path::absolute(out).map_err(|err| format!("reading {}: {err}", out.display()))?);
-		// Windows resolves a path to its verbatim form, `\\?\C:\...`.
-		let plain = physical.to_str().and_then(|p| p.strip_prefix(r"\\?\"));
-		let plain = plain.filter(|p| p.as_bytes().get(1) == Some(&b':')).map(PathBuf::from);
-		let same = *plain.as_ref().unwrap_or(&physical) == spelled;
+		let physical = plain(&resolve(out)?);
+		let spelled = lexical(&plain(
+			&std::path::absolute(out).map_err(|err| format!("reading {}: {err}", out.display()))?,
+		));
 		Ok(Self {
-			out: same.then_some(physical),
+			out: (physical == spelled).then_some(physical),
 		})
 	}
 
-	/// The manifest's spelling of the directory `dir`.
+	/// The manifest's spelling of the directory `dir`. It keeps `dir`'s own spelling, which
+	/// is part of the identity cargo gives its package: the facade depends on it the same way.
 	fn to(&self, dir: &Path) -> Result<String, String> {
 		let Some(out) = &self.out else {
 			return Ok(dir.display().to_string());
 		};
-		let dir = std::fs::canonicalize(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
-		Ok(relative(out, &dir).unwrap_or_else(|| dir.display().to_string()))
+		let spelled = std::path::absolute(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
+		Ok(relative(out, &lexical(&plain(&spelled))).unwrap_or_else(|| dir.display().to_string()))
 	}
 
 	/// The inline table of the dependency whose keys are `keys`, without default features.
@@ -612,6 +611,16 @@ impl Paths {
 			}
 		}
 		Ok(())
+	}
+}
+
+/// `path` without Windows' verbatim prefix, `\\?\C:\...`, which `canonicalize` adds and
+/// a path spelled otherwise lacks.
+fn plain(path: &Path) -> PathBuf {
+	let text = path.to_str().and_then(|p| p.strip_prefix(r"\\?\"));
+	match text.filter(|p| p.as_bytes().get(1) == Some(&b':')) {
+		Some(text) => PathBuf::from(text),
+		None => path.to_path_buf(),
 	}
 }
 
@@ -3447,6 +3456,16 @@ fn relative_paths_climb_to_the_shared_directory() {
 	assert_eq!(lexical(Path::new("/w/./a/../export")), Path::new("/w/export"));
 }
 
+#[test]
+fn plain_paths_drop_the_verbatim_prefix() {
+	assert_eq!(plain(Path::new(r"\\?\C:\w\export")), Path::new(r"C:\w\export"));
+	assert_eq!(
+		plain(Path::new(r"\\?\UNC\host\share")),
+		Path::new(r"\\?\UNC\host\share")
+	);
+	assert_eq!(plain(Path::new("/w/export")), Path::new("/w/export"));
+}
+
 #[cfg(windows)]
 #[test]
 fn relative_paths_stay_absolute_across_drives() {
@@ -3509,6 +3528,9 @@ fn manifest_paths_are_relative_to_the_export() {
 		std::os::unix::fs::symlink(root.join("source"), &linked).unwrap();
 		let paths = Paths::of(&linked.join("export")).unwrap();
 		assert_eq!(paths.to(&api).unwrap(), api.display().to_string());
+		// A directory keeps the spelling cargo names its package by.
+		let paths = Paths::of(&root.join("export")).unwrap();
+		assert_eq!(paths.to(&linked.join("api")).unwrap(), "../linked/api");
 		let dotted = Paths::of(&root.join("source/../export")).unwrap();
 		assert_eq!(dotted.to(&api).unwrap(), "../source/api");
 	}
