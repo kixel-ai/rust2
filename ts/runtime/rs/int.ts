@@ -916,10 +916,6 @@ function high(h: number, signed: boolean): number {
 	return signed ? h | 0 : h >>> 0;
 }
 
-function wide4(hi: number, w2: number, w1: number, lo: number): Limbs {
-	return { hi, w2, w1, lo } as Limbs;
-}
-
 function halves(hi: number, lo: number): Limbs {
 	return { hi, lo } as Limbs;
 }
@@ -1250,7 +1246,7 @@ function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remaind
 		if (remainder) return r;
 		if (wide) {
 			const n = ((q0 * 4294967296 + q1) * 4294967296 + q2) * 4294967296 + q3;
-			return safe(n) ? n : wide4(high(q0, signed), q1, q2, q3);
+			return safe(n) ? n : ({ hi: high(q0, signed), w2: q1, w1: q2, lo: q3 } as Limbs);
 		}
 		return join(high(q2, signed), q3);
 	}
