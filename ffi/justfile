@@ -53,6 +53,9 @@ corpus-update:
 protocol:
     cargo test --locked --test fixtures protocol_nightly -- --ignored
 
+# Write the api fixture's Python, C++, and web checks, each beside the script tests/fixtures/transcript generates, into <dir>/python, <dir>/cpp, and <dir>/web, the directories the release builder's check inputs take.
+transcripts dir:
+    RUST2_TRANSCRIPTS="$(cd {{ quote(invocation_directory()) }} && mkdir -p {{ quote(dir) }} && cd {{ quote(dir) }} && pwd)" cargo test --locked --test fixtures -- --ignored --exact transcripts
 # Run the api fixture's web test in headless Chromium, Firefox, and on Linux WebKit, in the bench shell, which carries them: nix develop .#bench.
 browsers:
     cargo test --locked --test fixtures -- --ignored --exact api_browsers

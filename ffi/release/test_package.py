@@ -1007,6 +1007,39 @@ class Web(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
 
+    def test_check_directory_names_its_program(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "transcript.ts").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.ts",))
+            (Path(tmp) / "check.ts").write_text("")
+            self.assertEqual(package.check_program_in(tmp, ("check.ts",)), Path(tmp) / "check.ts")
+            (Path(tmp) / "check.c").write_text("")
+            (Path(tmp) / "check.cpp").write_text("")
+            with self.assertRaises(SystemExit):
+                package.check_program_in(tmp, ("check.c", "check.cpp"))
+
+    def test_python_check_imports_its_modules_alone(self):
+        # The check's directory is on the path, and only it: not the working directory, and
+        # not PYTHONPATH. The generated script reaches the check's functions as `__main__`.
+        with tempfile.TemporaryDirectory() as tmp:
+            check, elsewhere = Path(tmp) / "check", Path(tmp) / "elsewhere"
+            check.mkdir()
+            elsewhere.mkdir()
+            (elsewhere / "stray.py").write_text("")
+            (check / "check.py").write_text(
+                "import importlib.util\n"
+                "def hook():\n    return 'hooked'\n"
+                "assert importlib.util.find_spec('stray') is None\n"
+                "import transcript\ntranscript.script()\n")
+            (check / "transcript.py").write_text("import __main__ as local\ndef script():\n    print(local.hook())\n")
+            (Path(tmp) / "native.txt").write_text("hooked\n")
+            with mock.patch.dict(os.environ, {"PYTHONPATH": str(elsewhere)}):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
+            (Path(tmp) / "native.txt").write_text("other\n")
+            with self.assertRaises(SystemExit):
+                package.consume_python(check, Path(tmp) / "native.txt", None)
+
 
 if __name__ == "__main__":
     unittest.main()
