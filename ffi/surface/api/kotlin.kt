@@ -1694,6 +1694,8 @@ suspend fun unescapedLater(text: kotlin.String): kotlin.String
 suspend fun unescapedMaybe(text: kotlin.String?): kotlin.String?
 fun unzeroed(bytes: api.Bytes): api.Bytes
 fun deprecated(note: kotlin.UByte): kotlin.UByte
+fun deprecated_(note: kotlin.UByte): kotlin.UByte
+fun all(note: kotlin.UByte): kotlin.UByte
 @kotlin.Deprecated("") fun knob(dial: api.Dial): api.Knob
 @kotlin.Deprecated("read its `level`") suspend fun levelLater(dial: api.Dial): kotlin.ULong
 @kotlin.jvm.Throws(ErrorException::class) fun turned(dial: api.Dial, turner: api.Turner): api.Dial

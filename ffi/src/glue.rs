@@ -128,8 +128,9 @@ const NO_MANGLE: &str = "#[unsafe(no_mangle)]\n";
 const EXPORT: &str = "/// A C function, which under `kotlin` calls its body as `C-unwind` by the first name, as the\n/// JNI glue calls it, so a Kotlin closure's failed check unwinds through it to the native\n/// method below: through this one, as C and every other binding call it, any unwinding\n/// aborts, as a panic does.\nmacro_rules! export {\n\t($unwind:ident $(#[$m:meta])* fn $name:ident($($p:ident: $t:ty),* $(,)?) $(-> $r:ty)? $body:block) => {\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\t#[unsafe(no_mangle)]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? $body\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t#[unsafe(no_mangle)]\n\t\tpub unsafe extern \"C\" fn $name($($p: $t),*) $(-> $r)? {\n\t\t\tunsafe { $unwind($($p),*) }\n\t\t}\n\n\t\t#[cfg(feature = \"kotlin\")]\n\t\t$(#[$m])*\n\t\tpub unsafe extern \"C-unwind\" fn $unwind($($p: $t),*) $(-> $r)? $body\n\t};\n}\n\n";
 
 /// `lib`, the crate's code, with each `unsafe` C function written through [`EXPORT`]'s
-/// macro, defined before the first.
-fn unwinding(lib: &str) -> String {
+/// macro, defined before the first, its body named in `space`, which no C name is or starts
+/// with and a `_`.
+fn unwinding(lib: &str, space: &str) -> String {
 	const FN: &str = "pub unsafe extern \"C\" fn ";
 	let mut out = String::with_capacity(lib.len() + EXPORT.len());
 	let mut defined = false;
@@ -154,8 +155,7 @@ fn unwinding(lib: &str) -> String {
 		}
 		let head = &head[FN.len()..];
 		let name = &head[..head.find('(').expect("a C function's parameters")];
-		// Apart from every C name, which starts with the prefix.
-		out.push_str(&format!("export! {{\nunwind_{name}\n"));
+		out.push_str(&format!("export! {{\n{space}_{name}\n"));
 		attrs.iter().for_each(|attr| out.push_str(attr));
 		out.push_str("fn ");
 		out.push_str(head);
@@ -510,10 +510,11 @@ impl Crate<'_> {
 			reserved: Cell::new(false),
 			web: web.is_some(),
 			variants: String::new(),
+			unwind: self.abi.space("unwind"),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
-		output.file(&out.join("src/lib.rs"), &unwinding(&generator.out));
+		output.file(&out.join("src/lib.rs"), &unwinding(&generator.out, &generator.unwind));
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("src/rt/android.rs"), ANDROID);
@@ -834,6 +835,9 @@ struct Gen<'a> {
 	web: bool,
 	/// The Python glue's functions telling which variant an object that is an enum holds.
 	variants: String,
+	/// Where each C function's `C-unwind` body is named under `kotlin`: no C name is it or
+	/// starts with it and a `_`.
+	unwind: String,
 }
 
 impl Gen<'_> {
@@ -1823,7 +1827,7 @@ impl Gen<'_> {
 				self.new_object(i, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 			if !send {
-				self.export(homed(&format!("{name}_default"), &[], handle, &[]));
+				self.export(homed(&format!("{name}_default"), &[], handle, &[], &self.unwind));
 			}
 		}
 	}
@@ -3132,7 +3136,7 @@ impl Gen<'_> {
 				wrap(status, "*mut rt::Future", &make)
 			));
 			if export.homed {
-				self.export(homed(&name, &make_params, "*mut rt::Future", &unsent));
+				self.export(homed(&name, &make_params, "*mut rt::Future", &unsent, &self.unwind));
 			}
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -3177,7 +3181,7 @@ impl Gen<'_> {
 				wrap(status, "i32", &started)
 			));
 			if export.homed {
-				self.export(homed(&start.name, &start_params, "i32", &unsent));
+				self.export(homed(&start.name, &start_params, "i32", &unsent, &self.unwind));
 			}
 			return;
 		}
@@ -3208,8 +3212,11 @@ impl Gen<'_> {
 		// A Java exception the call left pending is what Kotlin gets, as from any native
 		// method: nothing is written for Kotlin's glue to read, and the result drops with
 		// the exception taken, since a destructor may call into Kotlin, then throws it again.
+		// It returns past the writes, which take every pinned value back: the collector refuses
+		// a `&mut` value, `self` included, beside a JNI value, so there is none.
 		let pending = match function.jni() {
 			true => {
+				assert!(pins.is_empty(), "a JNI function writes nothing back");
 				let zero = match status {
 					Some(_) => "Ok(unsafe { ::std::mem::zeroed() })",
 					None => "unsafe { ::std::mem::zeroed() }",
@@ -3228,7 +3235,7 @@ impl Gen<'_> {
 			wrap(status, &ret, &format!("{body}{pins}\n\t{}{ended}{pending}{writes}\n\t{finish}", unwound(&call, &format!("{ended}{writes}"))))
 		));
 		if export.homed {
-			self.export(homed(&name, &params, &ret, &unsent));
+			self.export(homed(&name, &params, &ret, &unsent, &self.unwind));
 		}
 	}
 
@@ -3326,12 +3333,13 @@ fn away(name: &str, params: &[String], handles: &[(String, String)]) -> String {
 /// The twin of the C function `name` taking `params` and returning `ret`, which runs it on
 /// a home, a thread Rust owns, which the value that is not `Send` it makes stays on. When
 /// one of `handles`, each optional, is present, it runs where that value stays instead, as
-/// the function itself does.
-fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)]) -> String {
+/// the function itself does, through its body named in `unwind` under `kotlin`, as the JNI
+/// glue calls this one's, so a Kotlin closure's failed check unwinds on to the native method.
+fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)], unwind: &str) -> String {
 	let present = match handles.is_empty() {
 		true => String::new(),
 		false => format!(
-			"if {}.is_some() {{\n\t\treturn unsafe {{ {name}({}) }};\n\t}}\n\t",
+			"if {}.is_some() {{\n\t\t#[cfg(feature = \"kotlin\")]\n\t\tlet f = {unwind}_{name};\n\t\t#[cfg(not(feature = \"kotlin\"))]\n\t\tlet f = {name};\n\t\treturn unsafe {{ f({}) }};\n\t}}\n\t",
 			owner(handles),
 			names(params)
 		),

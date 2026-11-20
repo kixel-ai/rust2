@@ -1341,6 +1341,19 @@ def idioms():
 	check(type(e) is RuntimeError and "asyncio" in str(e) and "trio" in str(e), str(e))
 	e = raised(lambda: api.Waker(lambda: None))
 	check(type(e) is RuntimeError and "asyncio" in str(e), str(e))
+
+	# `import *` reaches every export: a `pub fn _deprecated` too, which takes a trailing `_`
+	# beside the module's own `_deprecated`, as `pub fn __all__` does beside the name Python
+	# reserves, and each constant `__getattr__` makes; and no import: what the module binds
+	# without a leading `_` but its `__future__` import.
+	star = {}
+	exec("from api import *", star)
+	del star["__builtins__"]
+	check(star["_deprecated_"](1) == 2, "a pub fn named with a leading underscore")
+	check(star["__all___"](1) == 3, "a pub fn named as a name Python reserves")
+	public = {name for name in vars(api) if not name.startswith("_")} - {"annotations"}
+	expected = public | {"_deprecated_", "__all___"} | set(api._consts)
+	check(set(star) == expected, f"import * reaches the exports: {sorted(set(star) ^ expected)}")
 	print("idioms ok")
 
 

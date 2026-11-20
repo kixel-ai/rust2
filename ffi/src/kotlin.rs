@@ -73,6 +73,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		on: On::ALL,
 		slots: 0,
 		room: 0,
+		unwind: abi.space("unwind"),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -637,20 +638,41 @@ struct Gen<'a> {
 	/// The JVM parameter slots the function being written may still spend on a record's
 	/// scalars.
 	room: usize,
+	/// Where the glue names each C function's `C-unwind` body, which the native methods
+	/// call, so a closure's failed check unwinds to them.
+	unwind: String,
 }
 
 impl<'a> Gen<'a> {
-	/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
-	/// unless a failed check refused it, or an argument held a value its Rust type cannot,
-	/// which throws `_Native.__Invalid` first: either moved nothing. It binds no name a parameter
-	/// `after` closes may take: its exception's is fresh, and its result is `_`.
-	fn moving(&mut self, raw: &str, after: &[String]) -> String {
+	/// The Kotlin call `call` makes of the native arguments `args`, then `after`, which closes
+	/// what it moved out, however it ended unless a failed check refused it, or an argument
+	/// held a value its Rust type cannot, which throws `_Native.__Invalid` first: either moved
+	/// nothing. Each argument is evaluated before, so one that throws, as an enum's variant
+	/// not on the library's target does, closes nothing either. It binds no name a parameter
+	/// `after` closes may take: each is fresh, and its result is `_`.
+	fn moving(&mut self, args: &[String], call: impl FnOnce(&str) -> String, after: &[String]) -> String {
 		let after = after.join("; ");
+		let mut vals = String::new();
+		let names: Vec<String> = args
+			.iter()
+			.map(|arg| match arg.chars().all(|c| c.is_alphanumeric() || c == '_') {
+				true => arg.clone(),
+				false => {
+					let x = self.fresh("x");
+					let _ = writeln!(vals, "\tval {x} = {arg}");
+					x
+				}
+			})
+			.collect();
 		let thrown = self.fresh("e");
-		format!(
+		let moving = format!(
 			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.__Refused && {thrown} !is _Native.__Invalid) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
-			indent_by(raw, 1)
-		)
+			indent_by(&call(&names.join(", ")), 1)
+		);
+		match vals.is_empty() {
+			true => moving,
+			false => format!("run {{\n{vals}{}\n}}", indent_by(&moving, 1)),
+		}
 	}
 
 	fn fresh(&mut self, base: &str) -> String {
@@ -1509,6 +1531,7 @@ impl<'a> Gen<'a> {
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, statics: &mut Vec<String>) {
 		let class = self.qualified(c);
 		let bare = self.bare(c).to_string();
+		let u = format!("{}_{c}", self.unwind);
 		let object = matches!(ty, Type::Object(_));
 		let opaque = match ty {
 			Type::Record(i) => self.abi.api.records[*i].opaque,
@@ -1562,7 +1585,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray?"),
 				&checked(
-					&format!("crate::unwind_{c}_{suffix}({rust_self})"),
+					&format!("crate::{u}_{suffix}({rust_self})"),
 					&format!("{c}_{suffix}"),
 					"rt::owned(env, ret)",
 				),
@@ -1575,7 +1598,7 @@ impl<'a> Gen<'a> {
 			if !t.hash {
 				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
 			}
-			let call = format!("crate::unwind_{c}_hash({rust_self})");
+			let call = format!("crate::{u}_hash({rust_self})");
 			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
 			g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body);
 			format!(
@@ -1615,7 +1638,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
-					&format!("crate::unwind_{c}_clone(p0 as usize as _)"),
+					&format!("crate::{u}_clone(p0 as usize as _)"),
 					&format!("{c}_clone"),
 					"ret as usize as jlong",
 				),
@@ -1636,7 +1659,7 @@ impl<'a> Gen<'a> {
 					(
 						vec![("jlong", "Long"); words.len()],
 						format!(
-							"crate::unwind_{c}_eq(&{}, &{})",
+							"crate::{u}_eq(&{}, &{})",
 							from_kotlin(&opaque, a),
 							from_kotlin(&opaque, b)
 						),
@@ -1647,7 +1670,7 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::unwind_{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{u}_eq(&r.get(), &r.get()) }".replace("{u}", &u),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
@@ -1664,7 +1687,7 @@ impl<'a> Gen<'a> {
 				&[("jlong", "Long"), ("jlong", "Long")],
 				("jboolean", "Boolean"),
 				&checked(
-					&format!("crate::unwind_{c}_eq(p0 as usize as _, p1 as usize as _)"),
+					&format!("crate::{u}_eq(p0 as usize as _, p1 as usize as _)"),
 					&format!("{c}_eq"),
 					"ret",
 				),
@@ -1686,14 +1709,14 @@ impl<'a> Gen<'a> {
 			let (params, call, kt): (Vec<(&str, &str)>, _, _) = match object {
 				true => (
 					vec![("jlong", "Long"); 2],
-					(String::new(), format!("crate::unwind_{c}_{suffix}(p0 as usize as _, p1 as usize as _)")),
+					(String::new(), format!("crate::{u}_{suffix}(p0 as usize as _, p1 as usize as _)")),
 					format!("handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_{suffix}(a, b) }} }}"),
 				),
 				false => (
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					(
 						"let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\tlet (x, y) = (r.get(), r.get());\n\t\t".to_string(),
-						format!("crate::unwind_{c}_{suffix}(&x, &y)"),
+						format!("crate::{u}_{suffix}(&x, &y)"),
 					),
 					format!(
 						"_Native.__Writer().use {{ w -> {}; {}; _Native.{bare}_{suffix}(w.finish(), w.refs()) }}",
@@ -1725,21 +1748,19 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => (
 					"jlong",
 					"Long",
-					format!("crate::unwind_{c}_default() as usize as jlong"),
+					format!("crate::{u}_default() as usize as jlong"),
 					format!("{class}(_Native.{bare}_default())"),
 				),
 				Type::Enum(i) if self.abi.api.enums[*i].plain() => (
 					"jint",
 					"Int",
-					format!("crate::unwind_{c}_default()"),
+					format!("crate::{u}_default()"),
 					format!("{class}.of(_Native.{bare}_default())"),
 				),
 				_ => (
 					"jbyteArray",
 					"ByteArray",
-					format!(
-						"let mut w = rt::Writer::default();\n\t\tw.put(crate::unwind_{c}_default());\n\t\tw.array(env)"
-					),
+					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{u}_default());\n\t\tw.array(env)"),
 					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
@@ -2139,6 +2160,7 @@ impl<'a> Gen<'a> {
 		let object = &abi.api.objects[i];
 		self.on = object.on;
 		let c = abi.object(i);
+		let u = format!("{}_{c}", self.unwind);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -2147,7 +2169,7 @@ impl<'a> Gen<'a> {
 			&format!("{bare}_free"),
 			&[("jlong", "Long")],
 			("()", "Unit"),
-			&format!("crate::unwind_{c}_free(p0 as usize as _)"),
+			&format!("crate::{u}_free(p0 as usize as _)"),
 		);
 		let mut body = vec![match abi.checked[i] {
 			true => {
@@ -2156,7 +2178,7 @@ impl<'a> Gen<'a> {
 					&[("jlong", "Long")],
 					("()", "Unit"),
 					&format!(
-						"let mut status = 0;\n\t\tcrate::unwind_{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
+						"let mut status = 0;\n\t\tcrate::{u}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{c}_drop\");\n\t\t}}"
 					),
 				);
 				format!(
@@ -2838,11 +2860,10 @@ impl<'a> Gen<'a> {
 		});
 		// The native call, closing what it moves out however it ends, as a closure's failed
 		// check unwinding out of it ends it after Rust took them.
-		let call = format!("_Native.{bare}({})", exprs.join(", "));
 		let call = match after.is_empty() {
-			true => call,
+			true => format!("_Native.{bare}({})", exprs.join(", ")),
 			false => {
-				let moving = self.moving(&call, &after);
+				let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 				self.refused_first(&bare, moving)
 			}
 		};
@@ -2856,15 +2877,17 @@ impl<'a> Gen<'a> {
 			(Some(_), Some(homed)) => homed.name,
 			_ => c_name.clone(),
 		};
+		let unwind = self.unwind.clone();
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
 				// Through the body a closure's failed check unwinds out of.
-				Some(h) => {
-					h.call(&args)
-						.replacen(&format!("crate::{}(", h.name), &format!("crate::unwind_{}(", h.name), 1)
-				}
-				None => format!("crate::unwind_{made}({})", args.join(", ")),
+				Some(h) => h.call(&args).replacen(
+					&format!("crate::{}(", h.name),
+					&format!("crate::{unwind}_{}(", h.name),
+					1,
+				),
+				None => format!("crate::{unwind}_{made}({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result
 			// for, is thrown once the native method returns with nothing else done.
@@ -2895,7 +2918,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.glue,
-				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::unwind_{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::unwind_{}(f as _) }}\n}}\n\n",
+				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{unwind}_{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{unwind}_{}(f as _) }}\n}}\n\n",
 				poll.name,
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
@@ -2937,12 +2960,11 @@ impl<'a> Gen<'a> {
 				("()", "Unit"),
 				&format!("jni_{}(p0 as usize as _)", free.name),
 			);
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let call = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3031,12 +3053,11 @@ impl<'a> Gen<'a> {
 			};
 			let params = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect::<Vec<_>>();
 			self.native(&bare, &params, ("jobject", "Any"), &format!("{}\n\t\t{decl}\n\t\tlet success = {success};{check}\n\t\t{error}\n\t\tlet args = [{}];\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tlet id = rt::method(env, &FACTORY, c\"{factory}\", c\"{sig}\");\n\t\t((**env).v1_2.CallStaticObjectMethodA)(env, rt::class(), id, args.as_ptr())", rust_pre.join("\n\t\t"), values.join(", ")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3095,14 +3116,15 @@ impl<'a> Gen<'a> {
 			let r = self.fresh("r");
 			let e = self.read_value(err.as_ref().expect("a result's error"), &r);
 			let exception = exception.as_deref().expect("a result's exception");
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
-			let caught = format!(
-				"try {{\n\t{raw}\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
-			);
+			let caught = |args: &str| {
+				format!(
+					"try {{\n\t_Native.{bare}({args})\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"
+				)
+			};
 			let caught = match after.is_empty() {
-				true => caught,
+				true => caught(&exprs.join(", ")),
 				false => {
-					let moving = self.moving(&caught, &after);
+					let moving = self.moving(&exprs, caught, &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3211,12 +3233,11 @@ impl<'a> Gen<'a> {
 						.join(", ")
 				));
 			}
-			let raw = format!("_Native.{bare}({})", call_args.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", call_args.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&call_args, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};
@@ -3292,12 +3313,11 @@ impl<'a> Gen<'a> {
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
 				"{}\n\t\tlet ret = {};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{};\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{factory}\", std::ptr::null_mut())",
 				rust_pre.join("\n\t\t"), rust_call(&[]), put(&function.ok, "ret")));
-			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let raw = if after.is_empty() {
-				raw
+				format!("_Native.{bare}({})", exprs.join(", "))
 			} else {
 				{
-					let moving = self.moving(&raw, &after);
+					let moving = self.moving(&exprs, |args| format!("_Native.{bare}({args})"), &after);
 					self.refused_first(&bare, moving)
 				}
 			};

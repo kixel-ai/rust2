@@ -1803,6 +1803,8 @@ namespace api {
 	inline ::api::unescaped_maybe_future unescaped_maybe(::std::optional<::api::input> text);
 	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint8_t deprecated(::std::uint8_t note);
+	inline ::std::uint8_t _deprecated(::std::uint8_t note);
+	inline ::std::uint8_t __all___(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
