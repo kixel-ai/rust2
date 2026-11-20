@@ -2244,6 +2244,18 @@ impl<'a> Gen<'a> {
 		owner: &Ty,
 	) -> (Vec<Method>, Vec<Method>) {
 		let (mut methods, default) = self.traits(ty, c, traits);
+		for method in &methods {
+			let t = match method.name.as_str() {
+				"String" => "Display",
+				"GoString" => "Debug",
+				"Clone" => "Clone",
+				"Equal" => "PartialEq",
+				"PartialCompare" => "PartialOrd",
+				"Compare" => "Ord",
+				name => unreachable!("no trait exports {name}"),
+			};
+			crate::lock::trait_member(&mut self.locked, self.abi.api.shown(ty), t, &method.name);
+		}
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
@@ -2478,6 +2490,7 @@ impl<'a> Gen<'a> {
 			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
 			docs(text.trim(), object.deprecated.as_deref(), "")
 		);
+		crate::lock::trait_member(&mut self.locked, &object.shown, "Drop", "Close");
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
 			name: c.clone(),
