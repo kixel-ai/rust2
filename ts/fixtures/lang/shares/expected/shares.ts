@@ -227,7 +227,9 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return o & 0xff;
 		}));
 		rs.byteVecPush(out, rs.byteSliceEq(a.value, data2) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(hash$Rc_slice_u8(a), hash$slice_u8(data2)) ? 1 : 0);
+		const _227: rs.u64 = hash$Rc_slice_u8(a);
+		const _229: rs.u64 = hash$slice_u8(data2);
+		rs.byteVecPush(out, (typeof _227 === "number" && typeof _229 === "number" ? _227 === _229 : rs.u64Eq(_227, _229)) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(hash$Rc_slice_u8(b2)).reverse()), undefined, true);
 		rs.byteVecPush(out, a.value.length & 0xff);
 		rs.byteVecPush(out, a.value.length === 0 ? 1 : 0);
@@ -243,7 +245,9 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceGet(a.value, 1), 187));
 		const arc: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(rs.byteSliceToArray(data2)));
 		rs.byteVecPush(out, rs.byteSliceEq(arc.value, a.value) ? 1 : 0);
-		rs.byteVecPush(out, rs.u64Eq(hash$sync_Arc_slice_u8(arc), hash$Rc_slice_u8(a)) ? 1 : 0);
+		const _273: rs.u64 = hash$sync_Arc_slice_u8(arc);
+		const _275: rs.u64 = hash$Rc_slice_u8(a);
+		rs.byteVecPush(out, (typeof _273 === "number" && typeof _275 === "number" ? _273 === _275 : rs.u64Eq(_273, _275)) ? 1 : 0);
 		const _285: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(new Uint8Array(0)));
 		const args3 = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b2.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arc.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_285.value), f, rs.u8Debug)];
 		const _281: rs.String = rs.fmtFormat([args3[0], "|", args3[1], "|", args3[2], "|", args3[3]]);
@@ -377,7 +381,9 @@ export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putWides(empty.value, out);
 	rs.byteVecPush(out, rs.eqArc(rs.eqSlice(rs.same), true)(fromRef, fromBox) ? 1 : 0);
 	rs.byteVecPush(out, rs.cmpArc(rs.cmpSlice(rs.cmp))(collected, fromRef) & 0xff);
-	rs.byteVecPush(out, rs.u64Eq(hash$Rc_slice_u16(collected), hash$slice_u16(collected.value)) ? 1 : 0);
+	const _69: rs.u64 = hash$Rc_slice_u16(collected);
+	const _71: rs.u64 = hash$slice_u16(collected.value);
+	rs.byteVecPush(out, (typeof _69 === "number" && typeof _71 === "number" ? _69 === _71 : rs.u64Eq(_69, _71)) ? 1 : 0);
 	const args3 = [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected.value), f, rs.u16Debug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(fromVec.value), f, rs.u16Debug)];
 	put(out, rs.fmtFormat([args3[0], "|", args3[1]]).v);
 	let shared: rs.Arc<rs.Slice<rs.u16>> = rs.arcClone(fromRef);
@@ -609,7 +615,9 @@ export function strs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, arcEmpty.value);
 	rs.byteVecPush(out, rs.eqArc(rs.same, true)(fromRef, into) ? 1 : 0);
 	rs.byteVecPush(out, rs.cmpArc(rs.cmpStr)(fromRef, empty) & 0xff);
-	rs.byteVecPush(out, rs.u64Eq(hash$Rc_str(fromRef), hash$str(s.v)) ? 1 : 0);
+	const _80: rs.u64 = hash$Rc_str(fromRef);
+	const _82: rs.u64 = hash$str(s.v);
+	rs.byteVecPush(out, (typeof _80 === "number" && typeof _82 === "number" ? _80 === _82 : rs.u64Eq(_80, _82)) ? 1 : 0);
 	rs.byteVecPush(out, rs.stringLen(fromRef.value) & 0xff);
 	rs.byteVecPush(out, rs.iterCount(rs.strChars(fromRef.value)) & 0xff);
 	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, fromRef.value), (f: rs.Formatter) => rs.fmtStr(fromString.value, f), (f: rs.Formatter) => rs.fmtStr(empty.value, f)];

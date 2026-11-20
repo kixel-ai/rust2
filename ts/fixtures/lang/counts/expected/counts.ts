@@ -1758,8 +1758,9 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _33: rs.u8 = rs.u8Rem(op, 8);
 		if (_33 === 6) {
 			const _36: rs.Place<rs.u8> | undefined = rs.sliceGetMut(rs.byteVecSlice(bytes), pick);
+			const byte: rs.u8 | undefined = _36 === undefined ? undefined : _36.v;
 			const _43: rs.Place<rs.u8> | undefined = rs.sliceGetMut(rs.byteVecSlice(bytes), rs.usizeAdd(i, pick));
-			rs.byteVecPush(out, option_unwrapOr$1fr498u(option_or$0ar58vy(_43 === undefined ? undefined : _43.v, _36 === undefined ? undefined : _36.v), 253));
+			rs.byteVecPush(out, option_unwrapOr$1fr498u(option_or$0ar58vy(_43 === undefined ? undefined : _43.v, byte), 253));
 			const _48: rs.Place<rs.u8> | undefined = rs.sliceGetMut(rs.byteVecSlice(bytes), i);
 			if (_48 !== undefined) {
 				_48.v = _48.v ^ op;
