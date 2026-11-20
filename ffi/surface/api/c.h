@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xb153f06e4ef7848aULL)
+#define API_CONTRACT ((uint64_t)0xb7495904adb636b6ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1510,6 +1510,7 @@ void api_Feed_next_future_free(api_Feed_next_future *future);
 void api_Countdown_free(api_Countdown *self);
 void api_Countdown_drop(api_Countdown *self, api_status *status);
 api_Countdown *api_Countdown_new(uint32_t from);
+api_Countdown *api_Countdown_told(uint32_t from, api_Log log);
 typedef struct api_Countdown_next_future api_Countdown_next_future;
 api_Countdown_next_future *api_Countdown_next(api_Countdown *self, api_status *status);
 api_poll api_Countdown_next_start(api_Countdown *self, api_option_u32 *out, api_Countdown_next_future **future, api_status *status);

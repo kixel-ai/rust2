@@ -561,13 +561,16 @@ final class _Pull<T extends Object> implements _Sink<T?> {
 
   @override
   void _settle(_Call<T?> call) {
-    // A call dropped while Rust polled it, as by a cancel from a closure Rust called.
-    if (!identical(call, _pending)) return;
+    // A call a pause or cancel dropped while Rust polled it, as from a closure Rust called,
+    // that finished in that poll: a pause keeps its outcome for the resume, and a cancel
+    // leaves no listener to take it.
+    final dropped = !identical(call, _pending);
+    if (dropped && !_out.hasListener) return;
     _pending = null;
     _state = call._settled;
     _value = call._value;
     _stack = call._stack;
-    if (!_pulling && _add()) _pull();
+    if (!_pulling && !dropped && _add()) _pull();
   }
 
   void _pull() {
@@ -575,6 +578,12 @@ final class _Pull<T extends Object> implements _Sink<T?> {
     _pulling = true;
     try {
       while (_pending == null && _out.hasListener && !_out.isPaused && !_out.isClosed) {
+        // An outcome left, by a start that finished or a call that finished as a pause
+        // dropped it, which is added before the next call.
+        if (_state != 0) {
+          if (!_add()) return;
+          continue;
+        }
         final _Call<T?>? call;
         try {
           call = _start(this);
@@ -596,7 +605,6 @@ final class _Pull<T extends Object> implements _Sink<T?> {
           // Still pending: its wake settles it.
           if (identical(call, _pending)) return;
         }
-        if (!_add()) return;
       }
     } finally {
       _pulling = false;

@@ -665,6 +665,7 @@ class Countdown internal constructor(raw: Long, lent: Boolean = false) : AutoClo
 	fun asFlow(): kotlinx.coroutines.flow.Flow<kotlin.UInt>
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(from: kotlin.UInt): api.Countdown
+		@kotlin.jvm.JvmStatic fun told(from: kotlin.UInt, log: api.Log): api.Countdown
 	}
 }
 class Retired internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {

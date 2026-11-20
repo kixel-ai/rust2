@@ -1045,6 +1045,7 @@ final class Feed extends _Object {
 }
 final class Countdown extends _Object {
 	factory Countdown(int from);
+	factory Countdown.told(int from, Log log);
 	Cancelable<int?> next();
 	dasync.Stream<int> asStream();
 }

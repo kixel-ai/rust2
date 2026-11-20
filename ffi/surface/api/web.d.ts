@@ -344,8 +344,10 @@ export { default$ as default, new$ as new };
 
 // Countdown.ts
 import * as rt from "./rt.ts";
+import type { Log } from "./Log.ts";
 export type Countdown = rt.Handle<"Countdown">;
 export declare function new$(from: number): Countdown;
+export declare function told(from: number, log: Log): Countdown;
 export declare function next(self: Countdown): rt.Call<number | undefined>;
 export declare function values(self: Countdown): rt.Stream<number>;
 export { new$ as new };

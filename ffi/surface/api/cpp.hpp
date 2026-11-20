@@ -132,6 +132,7 @@ namespace api {
 		RUST2_FFI_UNCONSUMED Countdown(Countdown &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Countdown &operator=(Countdown &&other) noexcept = default;
 		static ::api::Countdown new_(::std::uint32_t from);
+		static ::api::Countdown told(::std::uint32_t from, ::std::unique_ptr<::api::Log> log);
 		RUST2_FFI_CALLABLE ::api::Countdown_next_future next();
 	};
 	class RUST2_FFI_CONSUMABLE Retired {

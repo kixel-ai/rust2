@@ -2327,7 +2327,11 @@ impl Gen<'_> {
 		);
 		let self_t = self.tt(ty);
 		let item = strip_refs(item);
-		let item_t = self.returned_t(&item);
+		// Typed as inside `next`'s return, which lends only bytes it returns directly.
+		let item_t = match lends(&item) {
+			true => "rt.Bytes".to_string(),
+			false => self.tt(&item),
+		};
 		let none = match undefinable(&item) {
 			true => "rt.None",
 			false => "undefined",

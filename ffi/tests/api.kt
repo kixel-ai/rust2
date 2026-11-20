@@ -18,6 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -727,6 +729,26 @@ fun futures() {
 		fed.send(Bytes("kept".encodeToByteArray()))
 		val next = runBlocking { feed.next() }
 		check(next?.text() == "kept", "cancelling a flow's collection loses no payload")
+		// A collector cancelling its job in its handler calls no `next` after, though the next
+		// payload is ready at once.
+		fed.send(Bytes("first".encodeToByteArray()))
+		got = null
+		val stopped = scope.launch {
+			feed.asFlow().collect {
+				got = it.text()
+				fed.send(Bytes("second".encodeToByteArray()))
+				currentCoroutineContext().cancel()
+			}
+		}
+		q.drain()
+		check(stopped.isCancelled && got == "first", "a flow's collection cancels in its handler")
+		// Awaited on the queue, so a lost payload fails the check rather than waiting forever.
+		var after: String? = null
+		val direct = scope.launch { after = feed.next()?.text() }
+		q.drain()
+		direct.cancel()
+		q.drain()
+		check(after == "second", "a flow cancelled in its handler reads nothing ahead")
 		Countdown.new(3u).use { c ->
 			val first = runBlocking { c.asFlow().first() }
 			check(first == 3u && runBlocking { c.next() } == 2u, "a flow left early reads nothing ahead")

@@ -1704,11 +1704,21 @@ impl Feed {
 /// protocol, whose every count pends once first.
 pub struct Countdown {
 	left: u32,
+	told: Option<Box<dyn Log>>,
 }
 
 impl Countdown {
 	pub fn new(from: u32) -> Self {
-		Self { left: from }
+		Self { left: from, told: None }
+	}
+
+	/// A countdown telling `log` each count in the poll that returns it, so a binding's
+	/// adapter sees a callback in the poll that finishes its call.
+	pub fn told(from: u32, log: Box<dyn Log>) -> Self {
+		Self {
+			left: from,
+			told: Some(log),
+		}
 	}
 
 	/// The next count, or `None` past 1: each pends once and wakes itself first, so the
@@ -1725,6 +1735,9 @@ impl Countdown {
 		.await;
 		let count = self.left;
 		self.left = count.saturating_sub(1);
+		if let Some(log) = &self.told {
+			log.log(0, &format!("count {count}"));
+		}
 		(count > 0).then_some(count)
 	}
 }

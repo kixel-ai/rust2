@@ -329,6 +329,7 @@ const IMPORTS: &[&str] = &[
 	"kotlin.also as _also",
 	"kotlin.coroutines.resume",
 	"kotlin.time.toDuration",
+	"kotlinx.coroutines.ensureActive as _ensureActive",
 	"kotlinx.coroutines.launch",
 ];
 
@@ -4104,10 +4105,10 @@ fn flow(
 	}
 	locked.insert(format!("{key} / stream"), name.clone());
 	let doc = format!(
-		"Each item [{next}] yields, as a cold flow calling it once per item until it returns null, ending with what it throws. It reads nothing ahead, so a collector leaving early leaves the next item to the next call, and cancelling the collection cancels the pending [{next}], which loses an item only where its Rust future does when dropped."
+		"Each item [{next}] yields, as a cold flow calling it once per item until it returns null, ending with what it throws. It checks for cancellation before each call, since a call ready at once never suspends, and reads nothing ahead, so a collector leaving early leaves the next item to the next call, and cancelling the collection cancels the pending [{next}], which loses an item only where its Rust future does when dropped."
 	);
 	format!(
-		"{}\tfun {name}(): kotlinx.coroutines.flow.Flow<{item}> = kotlinx.coroutines.flow.flow {{\n\t\twhile (true) emit({next}() ?: break)\n\t}}\n",
+		"{}\tfun {name}(): kotlinx.coroutines.flow.Flow<{item}> = kotlinx.coroutines.flow.flow {{\n\t\twhile (true) {{\n\t\t\tkotlinx.coroutines.currentCoroutineContext()._ensureActive()\n\t\t\temit({next}() ?: break)\n\t\t}}\n\t}}\n",
 		docs(&doc, deprecated, "\t")
 	)
 }

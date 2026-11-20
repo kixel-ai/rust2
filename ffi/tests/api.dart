@@ -367,6 +367,28 @@ Future<void> streamChecks() async {
     got.clear();
   }
 
+  // A pause from a callback Rust runs in the poll that finishes the call keeps its item
+  // for the resume.
+  final counts = <int>[];
+  var told = false;
+  late final StreamSubscription<int> tellingSub;
+  final telling = api.Countdown.told(
+    3,
+    CountLog(() {
+      if (!told) tellingSub.pause();
+      told = true;
+    }),
+  );
+  tellingSub = telling.asStream().listen(counts.add);
+  await until(() => told, 'a told countdown tells its count');
+  await step();
+  check(tellingSub.isPaused && counts.isEmpty, 'a stream paused in its poll adds nothing');
+  tellingSub.resume();
+  await until(() => counts.length == 3, 'a stream paused in its poll resumes');
+  check(counts.join(' ') == '3 2 1', 'a stream paused in its poll keeps its item: $counts');
+  await tellingSub.cancel();
+  telling.close();
+
   // An error is the last event; a check refusing the call is one too.
   channel.send(utf8.encode('!'));
   final events = <Object>[];

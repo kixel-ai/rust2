@@ -1502,6 +1502,7 @@ impl<'a> Gen<'a> {
 			if home.krate == pkg {
 				continue;
 			}
+			let mut streams = Vec::new();
 			for function in methods.iter().filter(|f| f.home.krate == pkg) {
 				let mut method = self.function(function, Some(&owner), Some(&ty));
 				if let Some(receiver) = method.receiver.take() {
@@ -1516,14 +1517,18 @@ impl<'a> Gen<'a> {
 				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
 				if let (Some(item), Type::Object(_), Some((_, go))) = (function.stream(), &ty, method.params.first()) {
-					let mut adapter = self.stream(function, item, &method.name, &format!("{}(self, ", method.name));
-					adapter.params.insert(0, ("self".to_string(), go.clone()));
-					adapter.name = format!("{}{}", self.named(&ty).1, adapter.name);
-					adapter.name = self.claim(&adapter.name, format!("`{}`'s stream", function.path.join("::")));
-					let key = format!("{} / stream", crate::lock::function_key(function));
-					self.locked.insert(key, adapter.name.clone());
-					self.top.push_str(&adapter.write());
+					streams.push((function, item, method.name.clone(), go.clone()));
 				}
+			}
+			// A stream's adapter, named after every method of Rust's, so a clash renames the adapter.
+			for (function, item, next, go) in streams {
+				let mut adapter = self.stream(function, item, &next, &format!("{next}(self, "));
+				adapter.params.insert(0, ("self".to_string(), go));
+				adapter.name = format!("{}{}", self.named(&ty).1, adapter.name);
+				adapter.name = self.claim(&adapter.name, format!("`{}`'s stream", function.path.join("::")));
+				let key = format!("{} / stream", crate::lock::function_key(function));
+				self.locked.insert(key, adapter.name.clone());
+				self.top.push_str(&adapter.write());
 			}
 		}
 	}

@@ -765,6 +765,23 @@ func futures() {
 		check(payload.map(text) == "kept", "a cancelled stream's loop loses nothing")
 	}
 
+	// A loop's iterator ends for good at nil or an error, calling `next` no more, while the
+	// stream's own `next()` goes on as Rust's does.
+	do {
+		let streamed = Channel.new()
+		let feed = Cell(try! streamed.feed().stream())
+		for (end, after) in [("", "past the end"), ("!", "past an error")] {
+			let loop = Cell(feed.value.makeAsyncIterator())
+			try! streamed.send(Bytes(end.utf8))
+			let ended = block { (try? await loop.value.next()) == nil }
+			try! streamed.send(Bytes(after.utf8))
+			let again = block { try await loop.value.next() }
+			check(ended && again == nil, "a stream's iterator ends for good \(after)")
+			let payload = block { try await feed.value.next() }
+			check(payload.map(text) == after, "a stream goes on \(after)")
+		}
+	}
+
 	// A task cancelled before its call takes nothing, even a payload ready at the first poll.
 	do {
 		let threw = Cell(false)
