@@ -34,6 +34,12 @@ impl Point {
 			y: self.y + dy,
 		}
 	}
+
+	/// The origin's `x`: a static whose Kotlin name, `getX`, is also the JVM name of `x`'s
+	/// getter, which a companion's `@JvmStatic` function would clash with.
+	pub fn get_x() -> i32 {
+		0
+	}
 }
 
 /// A record that owns memory: its `free` releases the name.

@@ -1394,6 +1394,7 @@ fun owned() {
 	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
 	reads(Bytes(window(java.nio.ByteBuffer.allocateDirect(1031).also { b -> repeat(1031) { b.put(it, 9) } }, 3, 1025)), 9, "a direct buffer's bytes")
 	buffers()
+	check(Point.getX() == 0 && Point(3, 4).x == 3, "a companion's getX keeps its Kotlin name beside x's getter")
 
 	// A call after close throws, and close frees at once, once.
 	val before = dropped()
@@ -1569,10 +1570,10 @@ fun reads(bytes: Bytes, value: Byte, what: String) {
 		val into = window(if (direct) java.nio.ByteBuffer.allocateDirect(n + 3) else java.nio.ByteBuffer.allocate(n + 3), 2, n)
 		check(bytes.copyInto(into, 1) === into && into.position() == n + 1, "$what copied into $kind move its position")
 		check(into.get(1) == 0.toByte() && (2 until n + 1).all { into.get(it) == value } && into.get(n + 1) == 0.toByte(), "$what copied into $kind at its position")
-		val full = window(java.nio.ByteBuffer.allocateDirect(n), 1, n - 1)
+		val full = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 1, n - 1)
 		check(runCatching { bytes.copyInto(full) }.exceptionOrNull() is java.nio.BufferOverflowException && full.position() == 1 && full.get(1) == 0.toByte(), "$what refuse $kind too short, writing nothing")
-		val readOnly = window(java.nio.ByteBuffer.allocate(n), 0, n).asReadOnlyBuffer()
-		check(runCatching { bytes.copyInto(readOnly) }.exceptionOrNull() is java.nio.ReadOnlyBufferException, "$what refuse a read-only buffer")
+		val readOnly = window(if (direct) java.nio.ByteBuffer.allocateDirect(n) else java.nio.ByteBuffer.allocate(n), 0, n).asReadOnlyBuffer()
+		check(runCatching { bytes.copyInto(readOnly) }.exceptionOrNull() is java.nio.ReadOnlyBufferException, "$what refuse $kind read-only")
 		check(runCatching { bytes.copyInto(into, 2, 1) }.exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a range out of order for $kind")
 	}
 }

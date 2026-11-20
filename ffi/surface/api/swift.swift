@@ -199,6 +199,7 @@ public struct Point: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static func == (a: Point, b: Point) -> Swift.Bool
 	@inlinable public static func `default`() -> Point
 	@inlinable public func offset(_ dx: Swift.Int32, _ dy: Swift.Int32) -> Point
+	@inlinable public static func getX() -> Swift.Int32
 }
 public struct Label: Sendable, CustomDebugStringConvertible, Equatable {
 	public var name: Swift.String

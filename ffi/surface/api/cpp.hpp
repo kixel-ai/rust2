@@ -673,6 +673,7 @@ namespace api {
 		::api::buf debug() const;
 		static Point default_();
 		::api::Point offset(::std::int32_t dx, ::std::int32_t dy) const;
+		static ::std::int32_t get_x();
 	};
 	struct Label {
 		::api::buf name;

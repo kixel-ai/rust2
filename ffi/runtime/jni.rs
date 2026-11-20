@@ -408,8 +408,8 @@ fn direct(env: *mut JNIEnv, buffer: jobject, start: jint, len: jint) -> Vec<u8> 
 	let from = direct_range(env, buffer, start, len);
 	let n = len as usize;
 	let mut bytes = Vec::<u8>::with_capacity(n);
-	// SAFETY: `from` reaches `n` bytes, and `bytes` has room for them. Copied as raw memory,
-	// never read through a reference, since Java may write the buffer meanwhile.
+	// SAFETY: `from` reaches `n` bytes, and `bytes` has room for them. Nothing writes them
+	// meanwhile: `Bytes(ByteBuffer)` documents a write during the call as the caller's race.
 	unsafe {
 		std::ptr::copy_nonoverlapping(from, bytes.as_mut_ptr(), n);
 		bytes.set_len(n);
@@ -596,7 +596,8 @@ pub unsafe fn copy(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, array
 /// As [`range`], and `buffer` is a live direct `ByteBuffer`.
 pub unsafe fn copy_direct(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, buffer: jobject, at: jint) {
 	let to = direct_range(env, buffer, at, len);
-	// SAFETY: the caller's contract, and `to` reaches `len` bytes; Rust's never overlap Java's.
+	// SAFETY: the caller's contract, and `to` reaches `len` bytes; Rust's never overlap Java's,
+	// and nothing touches them meanwhile, as `Bytes.copyInto(ByteBuffer)` documents.
 	unsafe {
 		let bytes = range(owner, start, len);
 		std::ptr::copy_nonoverlapping(bytes.as_ptr(), to, bytes.len());

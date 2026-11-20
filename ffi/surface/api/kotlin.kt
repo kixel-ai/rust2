@@ -113,6 +113,7 @@ data class Point(val x: kotlin.Int, val y: kotlin.Int) {
 	fun offset(dx: kotlin.Int, dy: kotlin.Int): api.Point
 	companion object {
 		@kotlin.jvm.JvmStatic fun default(): api.Point
+		@kotlin.jvm.JvmStatic @kotlin.jvm.JvmName("getX_") fun getX(): kotlin.Int
 	}
 }
 data class Label(val name: kotlin.String, val at: api.Point?, val ttl: api.Duration?) {

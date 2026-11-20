@@ -1026,6 +1026,7 @@ export declare function debug(self: Point): string;
 export declare function eq(a: Point, b: Point): boolean;
 export declare function default$(): Point;
 export declare function offset(self: Point, dx: number, dy: number): Point;
+export declare function getX(): number;
 export { default$ as default };
 
 // PolarPoint.ts

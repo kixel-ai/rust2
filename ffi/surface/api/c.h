@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xdcf4774fd2b0babdULL)
+#define API_CONTRACT ((uint64_t)0x007e70a13a4d83dbULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1089,6 +1089,7 @@ bool api_Point_eq(const api_Point *a, const api_Point *b);
 api_buf api_Point_debug(const api_Point *self);
 api_Point api_Point_default(void);
 api_Point api_Point_offset(const api_Point *self, int32_t dx, int32_t dy);
+int32_t api_Point_get_x(void);
 void api_Label_free(api_Label *self);
 bool api_Label_eq(const api_Label *a, const api_Label *b);
 api_buf api_Label_debug(const api_Label *self);

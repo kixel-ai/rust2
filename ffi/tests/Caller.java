@@ -5,6 +5,7 @@
 import api.ApiKt;
 import api.Bytes;
 import api.IpAddr;
+import api.Point;
 import api.StringException;
 import api.Url;
 import java.net.InetAddress;
@@ -26,6 +27,7 @@ class Caller {
 		} catch (StringException e) {
 			throw new AssertionError("the same object fails", e);
 		}
+		check(Point.getX_() == 0 && new Point(3, 4).getX() == 3, "a static apart from a field's getter takes a trailing _");
 		check(IpAddr.of(InetAddress.getByName("127.0.0.1")).toString().equals("127.0.0.1"), "the runtime's companion functions are static");
 
 		ByteBuffer frame = ByteBuffer.allocateDirect(5);

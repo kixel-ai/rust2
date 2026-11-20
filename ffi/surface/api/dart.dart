@@ -188,6 +188,7 @@ final class Point {
 	@override int get hashCode;
 	factory Point.default_();
 	Point offset(int dx, int dy);
+	static int getX();
 }
 final class Label {
 	final String name;

@@ -633,7 +633,9 @@ the rest cross encoded.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. A companion's
-  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does. An **opaque
+  function is `@JvmStatic`, so Java calls it on the class, as Kotlin does, but for
+  `default()`, whose name Java reserves; one whose JVM name a field's getter has, as
+  `getX()` beside `x`, takes a trailing `_` on the JVM alone. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
@@ -648,7 +650,10 @@ the rest cross encoded.
   into a buffer Rust takes, at a call's top level or in a record; those Rust lends a
   closure or trait method are copied. A direct `ByteBuffer`'s, as a `MediaCodec` output
   is, are copied straight from its memory, from its position until its limit when made;
-  a heap one's array is shared, or copied when made if it is read-only. A `Bytes` is
+  a heap one's array is shared, or copied when made if it is read-only. Writing a direct
+  buffer's bytes while a call copies them, or reading them while one copies into it, is a
+  race whose bytes are undefined; a buffer Android made inaccessible, as `MediaCodec` does
+  on releasing it, throws `IllegalStateException` before Rust reads it. A `Bytes` is
   read only through `size`, `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of
   Rust's memory escapes and no read meets it freed; `copyInto(ByteBuffer)` copies into a
   buffer at its position once, as `put` does, straight into a direct one's memory, such as

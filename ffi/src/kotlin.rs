@@ -344,7 +344,8 @@ class Bytes private constructor(
 \t * The bytes of [buffer] from its position until its limit, held without a copy, so a
 \t * later write to them shows here; its position and limit may change freely. A direct
 \t * buffer's cross to Rust in one copy straight from its memory, as a `MediaCodec`
-\t * output's do; a heap buffer's array is shared, or copied if read-only.
+\t * output's do; a heap buffer's array is shared, or copied if read-only. Write none of a
+\t * direct buffer's bytes while a call reads them, a race whose copy is undefined.
 \t */
 \tconstructor(buffer: java.nio.ByteBuffer) : this(
 \t\tif (buffer.isDirect) null else _Native.__heap(buffer),
@@ -397,7 +398,7 @@ class Bytes private constructor(
 \t * which moves past them, returning it, as `ByteBuffer.put` does: one copy, straight
 \t * into a direct buffer's memory, such as a `MediaCodec` input's. Throws
 \t * `BufferOverflowException` past its limit and `ReadOnlyBufferException` for a
-\t * read-only one, writing nothing.
+\t * read-only one, writing nothing. Touch none of a direct one's bytes meanwhile.
 \t */
 \tfun copyInto(destination: java.nio.ByteBuffer, startIndex: Int = 0, endIndex: Int = size): java.nio.ByteBuffer {
 \t\trange(startIndex, endIndex)
@@ -411,7 +412,8 @@ class Bytes private constructor(
 \t\tval at = destination.position()
 \t\tif (n > 0) lent!!.let {
 \t\t\twhen (destination.isDirect) {
-\t\t\t\ttrue -> _Native.__bytes_copy_direct(it, it.owner, offset + startIndex, n, destination, at)
+\t\t\t\t// Read once first, as [held] reads a direct buffer passed in.
+\t\t\t\ttrue -> _Native.__bytes_copy_direct(it, it.owner, offset + startIndex, n, destination.also { d -> d.get(at) }, at)
 \t\t\t\tfalse -> _Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination.array(), destination.arrayOffset() + at)
 \t\t\t}
 \t\t}
@@ -420,8 +422,13 @@ class Bytes private constructor(
 \t\treturn destination
 \t}
 
-\t/** What holds the bytes, kept alive across a call passing them: Kotlin's array, a direct buffer, or Rust's buffer. */
-\tinternal val held: Any? get() = array ?: direct ?: lent
+\t/**
+\t * What holds the bytes, kept alive across a call passing them: Kotlin's array, a direct
+\t * buffer, or Rust's buffer. A direct buffer's is read once here first, so one Android has
+\t * made inaccessible, as `MediaCodec` does on releasing it, throws `IllegalStateException`
+\t * before Rust reads its memory, which JNI does unchecked.
+\t */
+\tinternal val held: Any? get() = array ?: direct?.also { if (size > 0) it.get(offset) } ?: lent
 
 \t/** Rust's owner of the bytes, which a call passing them shares without a copy; [_Native.__DIRECT] for a direct buffer's, which it copies from its memory, or 0 for Kotlin's array. */
 \tinternal val owner: Long get() = lent?.owner ?: if (direct != null) _Native.__DIRECT else 0L
@@ -1681,12 +1688,10 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => (members.iter().cloned())
-					.chain(body.iter().filter_map(|b| member_name(b)))
-					.collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
-			};
+			let declared: Vec<String> = (members.iter().cloned())
+				.chain(body.iter().filter_map(|b| member_name(b)))
+				.collect();
+			let taken = kept_apart(place, &declared, &names(&statics));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -1849,10 +1854,7 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
-			};
+			let taken = kept_apart(place, &names(&body), &names(&statics));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -2044,10 +2046,7 @@ impl<'a> Gen<'a> {
 				None => Place::Static,
 			};
 			// What the type declares before it, which its name keeps apart from.
-			let taken: Vec<String> = match place {
-				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
-				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
-			};
+			let taken = kept_apart(place, &names(&body), &names(&statics));
 			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
@@ -3174,8 +3173,19 @@ impl<'a> Gen<'a> {
 		if place == Place::Static && !top {
 			annotations.push_str("@kotlin.jvm.JvmStatic\n");
 		}
+		// A JVM method the class's other place declares, which a companion's `@JvmStatic`
+		// member shares names with, as a field's getter `getX` does, leaves the Kotlin name
+		// alone and takes a trailing `_` on the JVM.
+		let target = if getter { "get:" } else { "" };
+		let declared = jvm_name(&format!("{kind} {member}"));
+		let mut jvm = declared.clone();
+		while taken.contains(&format!("jvm {jvm}")) {
+			jvm.push('_');
+		}
+		if jvm != declared {
+			let _ = writeln!(annotations, "@{target}kotlin.jvm.JvmName(\"{jvm}\")");
+		}
 		if let Some(exception) = &exception {
-			let target = if getter { "get:" } else { "" };
 			let _ = writeln!(annotations, "@{target}kotlin.jvm.Throws({exception}::class)");
 		}
 		let code = format!("{}{annotations}{code}\n", docs(text.trim(), ""));
@@ -4000,6 +4010,40 @@ fn mangle(name: &str) -> String {
 		}
 	}
 	out
+}
+
+/// The JVM method a declaration as [`member_name`] gives it compiles to: a `val`'s getter,
+/// `getX`, or `isX` as it is, and a `fun` its own name.
+fn jvm_name(declared: &str) -> String {
+	let (kind, name) = declared.split_once(' ').unwrap_or(("fun", declared));
+	let name = name.trim_matches('`');
+	if kind != "val" || name.starts_with("is") && name[2..].starts_with(|c: char| !c.is_ascii_lowercase()) {
+		return name.to_string();
+	}
+	let mut chars = name.chars();
+	let first = chars
+		.next()
+		.map(|c| c.to_uppercase().collect::<String>())
+		.unwrap_or_default();
+	format!("get{first}{}", chars.as_str())
+}
+
+/// What a member in `place` keeps apart from: the Kotlin declarations of its own place by
+/// name, and as `jvm <name>` the JVM methods of the other, which a companion's
+/// `@JvmStatic` member shares the class's names with.
+fn kept_apart(place: Place, members: &[String], statics: &[String]) -> Vec<String> {
+	let (own, other) = match place {
+		Place::Member => (members, statics),
+		Place::Static => (statics, members),
+	};
+	(own.iter().cloned())
+		.chain(other.iter().map(|m| format!("jvm {}", jvm_name(m))))
+		.collect()
+}
+
+/// The kind and name each of `code`'s members declares.
+fn names(code: &[String]) -> Vec<String> {
+	code.iter().filter_map(|c| member_name(c)).collect()
 }
 
 /// The kind and name a member's code declares, for [`Gen::distinct`].
