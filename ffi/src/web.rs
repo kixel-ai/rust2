@@ -283,19 +283,47 @@ pub(crate) fn generate(abi: &Abi<'_>, facade: &Package, contract: u64) -> Result
 		files.push((format!("{name}.ts"), trim(out)));
 	}
 	// Each link once every name is final.
+	let mut namespaces = HashMap::new();
 	for (name, ts) in &mut files {
 		let module = name.strip_suffix(".ts").unwrap_or(name);
-		*ts = doc::links(ts, abi.api, |link| {
-			let (target, own) = g.link(link.target, module)?;
-			Some(match link.text.or(own.as_deref()) {
-				Some(text) => format!("{{@link {target} | {text}}}"),
-				None => format!("{{@link {target}}}"),
+		// A link names its own module's item as the module does, and another module's
+		// through a type-only import of that module as a namespace, `<module>$`, which reaches
+		// every export whether or not the module's code names it; either shows the name a
+		// caller writes.
+		let mut spaces = BTreeSet::new();
+		let linked = doc::links(ts, abi.api, |link| {
+			let (home, local, shown) = g.link(link.target)?;
+			let target = match home == module {
+				true => local,
+				false => {
+					let target = format!("{home}$.{local}");
+					spaces.insert(home);
+					target
+				}
+			};
+			Some(match link.text.unwrap_or(&shown) {
+				text if text == target => format!("{{@link {target}}}"),
+				text => format!("{{@link {target} | {text}}}"),
 			})
 		});
+		let imports: String = (spaces.iter())
+			.map(|space| format!("import type * as {space}$ from \"./{space}.ts\";\n"))
+			.collect();
+		// After the header's line.
+		let at = linked.find('\n').map_or(0, |at| at + 1);
+		*ts = format!("{}{imports}{}", &linked[..at], &linked[at..]);
+		if !imports.is_empty() {
+			namespaces.insert(name.clone(), imports.replace(".ts\";", ".js\";"));
+		}
 	}
 	let mut emitted = Vec::new();
 	for (name, ts) in &files {
-		let (js, dts) = crate::js::emit(name, ts)?;
+		let (js, mut dts) = crate::js::emit(name, ts)?;
+		// Declarations keep no import only a doc names, which the links need.
+		if let Some(imports) = namespaces.get(name) {
+			let at = dts.find('\n').map_or(0, |at| at + 1);
+			dts.insert_str(at, imports);
+		}
 		let stem = name.strip_suffix(".ts").expect("each module is a .ts file");
 		emitted.push((format!("{stem}.js"), js));
 		emitted.push((format!("{stem}.d.ts"), dts));
@@ -455,12 +483,10 @@ impl<'a> Gen<'a> {
 		text.trim().to_string()
 	}
 
-	/// What TSDoc links for `target`, if TypeScript has it, and the text it shows where the
-	/// target alone does not name it: a variant is a tag of its union, which no declaration
-	/// names.
-	/// A method is an export of its type's module, which a caller imports as the type's name:
-	/// its own module links it bare, and any other names it as a caller writes it.
-	fn link(&self, target: doc::Target<'_>, module: &str) -> Option<(String, Option<String>)> {
+	/// Where `target` is, if TypeScript has it: its module, the module's name for it, and
+	/// the name a caller writes, who imports a type's module as the type's name. A variant is
+	/// a tag of its union, which no declaration names.
+	fn link(&self, target: doc::Target<'_>) -> Option<(String, String, String)> {
 		let abi = self.abi;
 		let owner = |owner: doc::Owner| match owner {
 			doc::Owner::Record(i) => self.class(&abi.record(i)),
@@ -468,33 +494,37 @@ impl<'a> Gen<'a> {
 			doc::Owner::Object(i) => self.class(&abi.object(i)),
 			doc::Owner::Callback(i) => self.class(&abi.callback(i)),
 		};
-		Some((
-			match target {
-				doc::Target::Record(i) => owner(doc::Owner::Record(i)),
-				doc::Target::Enum(i) => owner(doc::Owner::Enum(i)),
-				doc::Target::Object(i) => owner(doc::Owner::Object(i)),
-				doc::Target::Callback(i) => owner(doc::Owner::Callback(i)),
-				doc::Target::Variant(i, v) => {
-					let class = owner(doc::Owner::Enum(i));
-					let tag = &abi.api.enums[i].variants[v].name;
-					return Some((class.clone(), Some(format!("{class} \"{tag}\""))));
+		let ty = |of: doc::Owner| {
+			let class = owner(of);
+			(class.clone(), class.clone(), class)
+		};
+		Some(match target {
+			doc::Target::Record(i) => ty(doc::Owner::Record(i)),
+			doc::Target::Enum(i) => ty(doc::Owner::Enum(i)),
+			doc::Target::Object(i) => ty(doc::Owner::Object(i)),
+			doc::Target::Callback(i) => ty(doc::Owner::Callback(i)),
+			doc::Target::Variant(i, v) => {
+				let class = owner(doc::Owner::Enum(i));
+				let tag = &abi.api.enums[i].variants[v].name;
+				(class.clone(), class.clone(), format!("{class} \"{tag}\""))
+			}
+			doc::Target::Field(i, n) => {
+				let class = owner(doc::Owner::Record(i));
+				let field = format!("{class}.{}", field_names(&abi.api.records[i].fields)[n]);
+				(class, field.clone(), field)
+			}
+			doc::Target::Constant(c) => {
+				let name = self.locked.get(&format!("const {}", c.path.join("::")))?;
+				("index".to_string(), name.clone(), name.clone())
+			}
+			doc::Target::Function(of, f) => {
+				let member = self.locked.get(&crate::lock::function_key(f))?;
+				match of.map(owner) {
+					Some(of) => (of.clone(), member.clone(), format!("{of}.{member}")),
+					None => ("index".to_string(), member.clone(), member.clone()),
 				}
-				doc::Target::Field(i, n) => format!(
-					"{}.{}",
-					owner(doc::Owner::Record(i)),
-					field_names(&abi.api.records[i].fields)[n]
-				),
-				doc::Target::Constant(c) => self.locked.get(&format!("const {}", c.path.join("::")))?.clone(),
-				doc::Target::Function(of, f) => {
-					let member = self.locked.get(&crate::lock::function_key(f))?;
-					match of.map(owner) {
-						Some(of) if of != module => format!("{of}.{member}"),
-						_ => member.clone(),
-					}
-				}
-			},
-			None,
-		))
+			}
+		})
 	}
 
 	fn class(&self, c: &str) -> String {
