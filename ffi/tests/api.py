@@ -426,6 +426,11 @@ def futures():
 		check(False, "a future's borrowing error raises")
 	except api.StringException as e:
 		check(e.error == "malformed: ", "a future's borrowing error is its message")
+	# A future returning a `Cow` that borrows its text owns it before the future ends.
+	check(loop.run_until_complete(api.unescaped_later("a\\b")) == "ab", "a future's owned Cow crosses")
+	check(loop.run_until_complete(api.unescaped_later("plain")) == "plain", "a future's borrowed Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe("c\\d")) == "cd", "a future's optional Cow crosses")
+	check(loop.run_until_complete(api.unescaped_maybe(None)) is None, "a future's absent Cow crosses")
 
 	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
 	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.

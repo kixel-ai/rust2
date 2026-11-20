@@ -5077,6 +5077,17 @@ pub fn unescaped(text: &str) -> Cow<'_, str> {
 	}
 }
 
+/// [`unescaped`], later: the future owns the text it borrows, so what it returns is
+/// owned before the future ends.
+pub async fn unescaped_later(text: &str) -> Cow<'_, str> {
+	unescaped(text)
+}
+
+/// [`unescaped`] of `text` if any, later.
+pub async fn unescaped_maybe(text: Option<&str>) -> Option<Cow<'_, str>> {
+	text.map(unescaped)
+}
+
 /// `bytes` without their zeros, borrowed where they have none.
 pub fn unzeroed(bytes: &[u8]) -> Cow<'_, [u8]> {
 	match bytes.contains(&0) {

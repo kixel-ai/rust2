@@ -3126,34 +3126,49 @@ fn ok_tail(body: &str) -> String {
 	format!("Ok({{\n\t{body}\n\t}})")
 }
 
-/// What a function returns, owned: each reference at its top or in a returned tuple as
-/// its clone's type, with the expression cloning `v` into it, if any is one.
+/// What a function returns, owned: each reference or `Cow` at its top, in a returned
+/// tuple, or a `Cow` in its `Option`, as what it owns, with the expression owning `v`, if
+/// any is one.
 fn owned(ok: &Type) -> (Type, Option<String>) {
-	let one = |ty: &Type| match ty {
-		Type::Ref(_, inner) => Some(match &**inner {
-			Type::Str => Type::String,
-			Type::Slice => Type::Vec,
-			Type::Path => Type::PathBuf,
-			Type::List(Collection::Slice, item) => Type::List(Collection::Vec, item.clone()),
-			inner => inner.clone(),
-		}),
-		_ => None,
-	};
+	// What `v` owns of `ty`, and how: a reference's copy, or the string or bytes a `Cow`
+	// crosses as, which may borrow too and is a move where it is already owned.
+	fn one(ty: &Type, v: &str) -> Option<(Type, String)> {
+		match ty {
+			Type::Ref(_, inner) => Some((
+				match &**inner {
+					Type::Str => Type::String,
+					Type::Slice => Type::Vec,
+					Type::Path => Type::PathBuf,
+					Type::List(Collection::Slice, item) => Type::List(Collection::Vec, item.clone()),
+					inner => inner.clone(),
+				},
+				format!("::std::borrow::ToOwned::to_owned({v})"),
+			)),
+			Type::String => Some((Type::String, format!("::std::string::String::from({v})"))),
+			Type::Vec => Some((Type::Vec, format!("::std::vec::Vec::<u8>::from({v})"))),
+			Type::Option(inner) if matches!(**inner, Type::String | Type::Vec) => {
+				let (ty, own) = one(inner, "v")?;
+				Some((Type::Option(Box::new(ty)), format!("{v}.map(|v| {own})")))
+			}
+			_ => None,
+		}
+	}
 	match ok {
-		Type::Tuple(elements) if elements.iter().any(|e| one(e).is_some()) => {
+		Type::Tuple(elements) if elements.iter().any(|e| one(e, "v").is_some()) => {
 			let names: Vec<String> = (0..elements.len()).map(|n| format!("v{n}")).collect();
-			let owned: Vec<String> = (elements.iter().zip(&names))
-				.map(|(e, n)| match one(e) {
-					Some(_) => format!("::std::borrow::ToOwned::to_owned({n})"),
-					None => n.clone(),
-				})
+			let owned: Vec<(Type, String)> = (elements.iter().zip(&names))
+				.map(|(e, n)| one(e, n).unwrap_or_else(|| (e.clone(), n.clone())))
 				.collect();
-			let ty = Type::Tuple(elements.iter().map(|e| one(e).unwrap_or_else(|| e.clone())).collect());
-			let own = format!("{{ let ({},) = v; ({},) }}", names.join(", "), owned.join(", "));
+			let ty = Type::Tuple(owned.iter().map(|(ty, _)| ty.clone()).collect());
+			let own = format!(
+				"{{ let ({},) = v; ({},) }}",
+				names.join(", "),
+				owned.iter().map(|(_, own)| own.as_str()).collect::<Vec<_>>().join(", ")
+			);
 			(ty, Some(own))
 		}
-		ok => match one(ok) {
-			Some(ty) => (ty, Some("::std::borrow::ToOwned::to_owned(v)".to_string())),
+		ok => match one(ok, "v") {
+			Some((ty, own)) => (ty, Some(own)),
 			None => (ok.clone(), None),
 		},
 	}

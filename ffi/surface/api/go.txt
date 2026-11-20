@@ -231,6 +231,8 @@ func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
 func Unescaped(text string) (string, error)
+func UnescapedLater(ctx context.Context, text string) (string, error)
+func UnescapedMaybe(ctx context.Context, text *string) (*string, error)
 func Unhook() error
 func Unzeroed(bytes p_rt.Bytes) p_rt.Bytes
 func Verify(cert *p_tls.Cert) (uint32, error)
