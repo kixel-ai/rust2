@@ -639,6 +639,15 @@ public struct Polar_Turn: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: Polar_Turn, b: Polar_Turn) -> Swift.Bool
 }
+public struct MacrosStreams: Sendable, CustomDebugStringConvertible, Equatable {
+	public var stdin: Swift.UInt8
+	public var stdout: Swift.UInt8
+	public var stderr: Swift.UInt8
+	public var errno: Swift.UInt8
+	@inlinable public init(stdin: Swift.UInt8, stdout: Swift.UInt8, stderr: Swift.UInt8, errno: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: MacrosStreams, b: MacrosStreams) -> Swift.Bool
+}
 public struct ClashTone: Sendable, CustomDebugStringConvertible, Equatable {
 	public var hz: Swift.UInt16
 	@inlinable public init(hz: Swift.UInt16)
@@ -1467,6 +1476,11 @@ public protocol Turner: Sendable {
 	func by() -> Swift.UInt64
 	func once() -> Swift.UInt64
 }
+public protocol Undo: Sendable {
+	func delete(_ n: Swift.UInt32) -> Swift.UInt32
+	func free() -> Swift.UInt32
+	func type() -> Swift.UInt8
+}
 public protocol Stretch: Sendable {
 	func stretch() -> Swift.UInt
 }
@@ -1733,6 +1747,9 @@ public let URL: Swift.UInt64
 @inlinable public func page() throws -> Page
 @inlinable public func beats(_ beat: any Beat) throws -> Swift.UInt32
 @inlinable public func same(_ a: Swift.Double, _ b: Swift.Double) -> Swift.Int32
+@inlinable public func errno() -> Swift.Int32
+@inlinable public func assert(_ holds: Swift.Bool) -> Swift.Bool
+@inlinable public func offsetof(_ field: Swift.UInt8) -> Swift.UInt8
 @inlinable public func returnValues(_ point: inout Point, _ fail: Swift.Bool) throws -> (Swift.String, (Swift.UInt8, Swift.Int16, Swift.UInt32, Swift.UInt64)?, [Bytes])
 @inlinable public func returnMoved(_ counter: consuming Counter, _ fail: Swift.Bool) throws -> Counter
 @inlinable public func nonZeros() -> NonZeros
@@ -1759,6 +1776,7 @@ public let URL: Swift.UInt64
 @available(*, deprecated) @inlinable public func knob(_ dial: Dial) -> Knob
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial
+@inlinable public func undone(_ undo: any Undo, _ n: Swift.UInt32) -> Swift.UInt32
 @inlinable public func unwound() -> Swift.UInt32
 @inlinable public func measured(_ f: @Sendable () -> Swift.UInt) -> Swift.UInt
 @inlinable public func negated(_ f: @Sendable () -> Swift.Int) -> Swift.Int
@@ -1769,6 +1787,7 @@ public let URL: Swift.UInt64
 @inlinable public func crammed(_ a: Moment, _ b: Moment, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64, _ n119: Swift.UInt64, _ n120: Swift.UInt64, _ n121: Swift.UInt64, _ n122: Swift.UInt64, _ n123: Swift.UInt64) -> Swift.UInt64
 @inlinable public func jniOne() -> Swift.UInt32
 @inlinable public func polarPoint(_ distance: Swift.UInt32) -> PolarPoint?
+@inlinable public func macrosStreamed(_ streams: MacrosStreams, _ errno: Swift.UInt8) -> Swift.UInt32
 @inlinable public func clashAny(_ typeUrl: Swift.String) -> ClashAny
 @inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
 @inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8

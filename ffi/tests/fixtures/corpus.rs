@@ -21,8 +21,6 @@ use super::{cargo, manifest_dir, run, scratch, step};
 /// fixes it, or else why none can. They are not run; the quest's PR deletes its entry.
 const KNOWN: &[(&str, &str)] = &[
 	("anyhow", "/quest/m1/ffi-apart.md"),
-	("axum", "/quest/m1/ffi-corpus-bugs.md"),
-	("bytes", "/quest/m1/ffi-corpus-bugs.md"),
 	(
 		"core-foundation",
 		"macOS's CoreFoundation: calls a platform library this host lacks, so no binding loads",
@@ -31,12 +29,9 @@ const KNOWN: &[(&str, &str)] = &[
 	("darling", "/quest/m1/ffi-apart.md"),
 	("der", "/quest/m1/ffi-apart.md"),
 	("env_logger", "/quest/m1/ffi-apart.md"),
-	("errno", "/quest/m1/ffi-corpus-bugs.md"),
 	("hermit-abi", "/quest/m1/ffi-apart.md"),
-	("hyper", "/quest/m1/ffi-corpus-bugs.md"),
 	("icu_locale_core", "/quest/m1/ffi-apart.md"),
 	("itertools", "/quest/m1/ffi-apart.md"),
-	("js-sys", "/quest/m1/ffi-inference.md"),
 	("libc", "/quest/m1/ffi-apart.md"),
 	("log", "/quest/m1/ffi-apart.md"),
 	("nu-ansi-term", "/quest/m1/ffi-apart.md"),
@@ -180,6 +175,82 @@ struct Failure {
 struct Passed {
 	krate: String,
 	refused: usize,
+}
+
+/// A crate whose items take the root names of what the runtimes of the bindings declare,
+/// `bytes`'s own `Bytes` among them, and the lowercase macros of the C library's headers,
+/// binds in every language: each corpus crate that failed in one did so as these do, though
+/// a refusal now keeps most of them from reaching a binding.
+#[test]
+fn runtime_names() {
+	let package = super::package(
+		"runtime_names",
+		&[(
+			"src/lib.rs",
+			"\
+pub struct Bytes {
+	data: Vec<u8>,
+}
+
+impl Bytes {
+	pub fn counting(len: u8) -> Self {
+		Self { data: (0..len).collect() }
+	}
+
+	pub fn split_off(&mut self, at: usize) -> Self {
+		Self { data: self.data.split_off(at) }
+	}
+}
+
+pub struct Waker {
+	pub woken: bool,
+}
+
+pub struct Mut {
+	pub by: u8,
+}
+
+pub struct Bound {
+	pub limit: u8,
+}
+
+pub fn errno() -> i32 {
+	7
+}
+
+pub fn assert(holds: bool) -> bool {
+	holds
+}
+
+pub fn offsetof(field: u8) -> u8 {
+	field
+}
+
+pub struct Streams {
+	pub stdin: u8,
+	pub stdout: u8,
+	pub stderr: u8,
+}
+",
+		)],
+	);
+	let out = package.join("out");
+	let output = super::output(
+		Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--manifest-path")
+			.arg(package.join("Cargo.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", package.join("build")),
+	);
+	assert!(
+		output.status.success(),
+		"the export failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let built = bind("runtime_names", &out).unwrap_or_else(|(stage, output)| panic!("{stage}: {}", trimmed(&output)));
+	languages("runtime_names", &out, &package, &built)
+		.unwrap_or_else(|(stage, output)| panic!("{stage}: {}", trimmed(&output)));
 }
 
 /// Census and export every crate of the corpus, or of `CORPUS_SHARD`'s `i/n`, the `i`th of

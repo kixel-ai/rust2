@@ -7,9 +7,12 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <assert.h>
+#include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -360,6 +363,22 @@ static void log_free(void *data) {
 	printf("freed\n");
 }
 
+/* The Undo callback, whose members C names apart from keywords and from its own free. */
+static uint32_t edits_delete(void *data, uint32_t n) {
+	(void)data;
+	return n - 1;
+}
+
+static uint32_t edits_free(void *data) {
+	(void)data;
+	return 2;
+}
+
+static uint8_t edits_type(void *data) {
+	(void)data;
+	return 3;
+}
+
 
 /* Breaks a lent handle's contract: frees it, or moves its value out. */
 static bool free_lent(void *data, api_Counter *counter) {
@@ -379,6 +398,7 @@ static bool move_lent(void *data, api_Counter *counter) {
 /* The transcript's own functions, which the generated script calls by the names
  * transcript.rs gives them, defined after it, beside the helpers it defines. */
 static api_Log Print(void);
+static api_Undo Edits(void);
 static void channel(void);
 static void drive(void);
 static void readers(void);
@@ -409,6 +429,12 @@ static api_buf copied(const char *text, size_t len) {
 static api_Log Print(void) {
 	static const api_Log_vtable vtable = {.free = log_free, .log = log_line};
 	return (api_Log){.vtable = &vtable};
+}
+
+/* Edits' Undo: each method returns its own digit. */
+static api_Undo Edits(void) {
+	static const api_Undo_vtable vtable = {.delete_ = edits_delete, .free_ = edits_free, .type_ = edits_type};
+	return (api_Undo){.vtable = &vtable};
 }
 
 /* A channel's futures, polled by hand. */
@@ -844,6 +870,13 @@ static api_buf unspelled(void) {
 
 /* What the transcript's output does not show: each check of the ABI's contract beyond it. */
 static void checks(void) {
+	/* A field and a parameter named as `errno`, a macro of <errno.h>, which take a trailing `_`
+	 * rather than expand. */
+	api_macros_Streams streams = {1, 2, 3, 4};
+	if (streams.errno_ != 4 || api_macros_streamed(streams, 5) != 15 || api_errno() != 7) {
+		tr_fail("names of C library macros");
+	}
+
 	/* A name takes a copy: the caller's buffer is its own again. */
 	api_Name *name = api_Name_owned(str("a"));
 	char text[] = "c";

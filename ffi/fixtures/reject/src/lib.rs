@@ -1602,3 +1602,36 @@ pub async fn cow_error_later(bytes: &[u8]) -> Result<u8, std::borrow::Cow<'_, [u
 pub fn cow_param(text: std::borrow::Cow<'_, str>) -> usize {
 	text.len()
 }
+
+/// Three generic types whose methods each wrap their own in the next: inferring from
+/// `Rope<u8>` names `Knot<Rope<u8>>`, as deep as `Rope::knot` spells, whose `tie` names
+/// `Tie<Knot<Rope<u8>>>`, deeper than any type the crate spells, which ends inference
+/// there though no type holds its own.
+pub struct Rope<T>(T);
+
+pub struct Knot<T>(T);
+
+pub struct Tie<T>(T);
+
+impl<T> Rope<T> {
+	pub fn knot(self) -> Knot<Rope<T>> {
+		Knot(self)
+	}
+}
+
+impl<T> Knot<T> {
+	pub fn tie(self) -> Tie<Knot<T>> {
+		Tie(self)
+	}
+}
+
+pub fn rope(value: u8) -> Rope<u8> {
+	Rope(value)
+}
+
+/// An impl with no public member spells nothing, so it raises no instance's depth past
+/// what the API spells: `Tie<Knot<Rope<u8>>>` stays refused.
+impl<T> Rope<Knot<Tie<T>>> {
+	#[allow(dead_code, reason = "private, so no part of the API")]
+	fn private(&self) {}
+}

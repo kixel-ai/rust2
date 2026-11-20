@@ -497,15 +497,16 @@ class Bytes private constructor(
 /// The names the generated code uses unqualified, which no exported type or function may
 /// take. The runtime's helper classes, which `_Native` nests, take a leading `__`, which
 /// neither an exported type's name nor its `_<Name>` import alias in the glue has, so they
-/// need no place here. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`,
-/// and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`,
-/// `<prefix>_mut`, and `<prefix>_bound`.
+/// need no place here. The runtime's own top-level classes do, as one in the package an
+/// export of the same name would redeclare: `Bytes`, `Waker`, `Mut`, and `Bound`.
 const TAKEN: &[&str] = &[
 	"Any",
 	"AutoCloseable",
 	"Boolean",
+	"Bound",
 	"Byte",
 	"ByteArray",
+	"Bytes",
 	"Double",
 	"DoubleArray",
 	"Duration",
@@ -519,6 +520,7 @@ const TAKEN: &[&str] = &[
 	"Ipv6Addr",
 	"Long",
 	"LongArray",
+	"Mut",
 	"PathBuf",
 	"Short",
 	"ShortArray",
@@ -535,6 +537,7 @@ const TAKEN: &[&str] = &[
 	"UShort",
 	"UShortArray",
 	"Unit",
+	"Waker",
 	"also",
 	"check",
 	"error",
@@ -2264,7 +2267,7 @@ impl<'a> Gen<'a> {
 				(&c_params, &c_ret),
 				(&name, Some(&member)),
 			);
-			table.push(format!("{}: Some({trampoline})", method.name()));
+			table.push(format!("{}: Some({trampoline})", abi::member(method)));
 		}
 		self.distinct(&rust, &members);
 		let text = format!(

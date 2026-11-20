@@ -66,9 +66,13 @@ fn dependency(krate: &str) -> String {
 }
 
 /// The name the crate depends on a crate the facade does not re-export by, apart from the
-/// facade's even when they share a name.
+/// facade's even when they share a name. `bytes` is the crate's own too, which cargo refuses
+/// to depend on twice under two names, so it keeps its own.
 fn reached(krate: &str) -> String {
-	format!("{krate}_reached")
+	match krate {
+		"bytes" => krate.to_string(),
+		_ => format!("{krate}_reached"),
+	}
 }
 
 /// The name the crate depends on a foreign type's crate by, apart from the facade's even
@@ -89,13 +93,7 @@ fn foreign_path(path: &[String]) -> String {
 
 /// A Rust name as the glue writes it: a keyword raw, as socket2's `Socket::type` needs.
 fn ident(name: &str) -> String {
-	const KEYWORDS: &[&str] = &[
-		"abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
-		"extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let", "loop", "macro", "match", "mod",
-		"move", "mut", "override", "priv", "pub", "ref", "return", "static", "struct", "trait", "true", "try", "type",
-		"typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
-	];
-	match KEYWORDS.contains(&name) {
+	match abi::RUST_KEYWORDS.contains(&name) {
 		true => format!("r#{name}"),
 		false => name.to_string(),
 	}
@@ -388,8 +386,15 @@ impl Crate<'_> {
 					r.krate
 				));
 			};
-			let line = format!("{} = {}\n", reached(&r.krate), paths.dependency(keys)?);
-			match r.targets == api.targets {
+			// The crate's own `bytes` keeps the default features the glue builds it with.
+			let line = format!(
+				"{} = {}\n",
+				reached(&r.krate),
+				paths.dependency(keys, r.krate != "bytes")?
+			);
+			// The glue's own `Bytes` is the facade's, on every target: cargo refuses one name
+			// from two sources, and a `path` or `git` source has one for all targets.
+			match r.targets == api.targets || r.krate == "bytes" {
 				true => every.push_str(&line),
 				false => (r.targets.iter()).for_each(|t| targeted.entry(t).or_default().push_str(&line)),
 			}
@@ -397,7 +402,12 @@ impl Crate<'_> {
 		let targeted: String = (targeted.into_iter())
 			.map(|(target, lines)| format!("[target.{target:?}.dependencies]\n{lines}\n"))
 			.collect();
-		let dependencies = format!("{dependencies}{foreign}{every}");
+		// The crate's own `bytes`, unless the facade's stands for it.
+		let own = match api.reached.iter().any(|r| r.krate == "bytes") {
+			true => "",
+			false => "bytes = \"1\"\n",
+		};
+		let dependencies = format!("{dependencies}{foreign}{every}{own}");
 		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
 		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
@@ -425,7 +435,6 @@ impl Crate<'_> {
 			\n\
 			[dependencies]\n\
 			{dependencies}\
-			bytes = \"1\"\n\
 			jni-sys = {{ version = \"0.4\", optional = true }}\n\
 			pyo3-ffi = {{ version = \"0.30\", optional = true, features = [\"abi3-py311\", \"extension-module\"] }}\n\
 			smallvec = {{ version = \"1.16\", optional = true }}\n\
@@ -652,14 +661,17 @@ impl Paths {
 		Ok(relative(out, &lexical(&plain(&spelled))).unwrap_or_else(|| dir.display().to_string()))
 	}
 
-	/// The inline table of the dependency whose keys are `keys`, without default features.
-	fn dependency(&self, keys: &str) -> Result<String, String> {
+	/// The inline table of the dependency whose keys are `keys`, without default features
+	/// when `bare`.
+	fn dependency(&self, keys: &str, bare: bool) -> Result<String, String> {
 		let mut table: toml::Table = toml::from_str(&format!("dependency = {{ {keys} }}"))
 			.map_err(|err| format!("reading the dependency `{keys}`: {err}"))?;
 		self.relocate(&mut table)?;
 		let dependency = table.get_mut("dependency").and_then(|d| d.as_table_mut());
 		let dependency = dependency.expect("the table written above");
-		dependency.insert("default-features".to_string(), false.into());
+		if bare {
+			dependency.insert("default-features".to_string(), false.into());
+		}
 		Ok(toml::Value::Table(dependency.clone()).to_string())
 	}
 
@@ -2327,13 +2339,14 @@ impl Gen<'_> {
 		let mut methods = String::new();
 		for method in &callback.methods {
 			let method_name = method.name();
+			let member = abi::member(method);
 			let c_params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(method.params.iter().map(|p| rs(&self.abi.ty(&p.ty))))
 				.collect();
 			let ret = rs(&self.abi.ty(&method.ok));
 			let _ = writeln!(
 				table,
-				"\tpub {method_name}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
+				"\tpub {member}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
 				c_params.join(", ")
 			);
 			let unwinding = format!("unsafe extern \"C-unwind\" fn({}) -> {ret}", c_params.join(", "));
@@ -2358,7 +2371,8 @@ impl Gen<'_> {
 				.collect();
 			let _ = write!(
 				methods,
-				"\tfn {method_name}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{method_name}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{method_name} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				"\tfn {}({receiver}{}) -> {} {{\n\t\tlet w = \"{name}_vtable.{member}\";\n\t\tlet f = unsafe {{ (*self.0.vtable).{member} }}.unwrap_or_else(|| rt::fail(w, \"the function is null\"));\n\t\t{UNWINDING}\n\t\tlet f = unsafe {{ ::std::mem::transmute::<_, {unwinding}>(f) }};\n\t\tlet result = unsafe {{ f({}) }};\n\t\t{}\n\t}}\n",
+				ident(method_name),
 				params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				self.rust(&method.ok),
 				args.join(", "),
@@ -3604,15 +3618,15 @@ fn manifest_paths_are_relative_to_the_export() {
 	);
 	assert_eq!(
 		paths
-			.dependency(&format!(
-				"package = \"other\", path = {:?}",
-				other.display().to_string()
-			))
+			.dependency(
+				&format!("package = \"other\", path = {:?}", other.display().to_string()),
+				true
+			)
 			.unwrap(),
 		"{ default-features = false, package = \"other\", path = \"../source/other\" }"
 	);
 	assert_eq!(
-		paths.dependency("package = \"x\", version = \"=1.0.0\"").unwrap(),
+		paths.dependency("package = \"x\", version = \"=1.0.0\"", true).unwrap(),
 		"{ default-features = false, package = \"x\", version = \"=1.0.0\" }"
 	);
 	#[cfg(unix)]
