@@ -52,7 +52,7 @@ pub(crate) fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn 
 		methods,
 		refused(&["method", "field"]),
 	);
-	row("Traits", callbacks, 0);
+	row("Traits", callbacks, refused(&["trait"]));
 	row("Constants", constants, refused(&["const"]));
 	row("Other items", 0, refused(&["use", "macro", "static", "item"]));
 	let _ = writeln!(

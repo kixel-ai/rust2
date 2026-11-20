@@ -233,8 +233,8 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<collect::Refusal>) {
 		let abi = Abi::new(&api, lib);
 		let rest = api.without_jni();
 		// A function refused for each of several reasons is one refusal of them all, its
-		// reasons in a row.
-		let mut found: Vec<collect::Refusal> = Vec::new();
+		// reasons in a row. A field's accessors are apart from a method of its name.
+		let mut found: Vec<(bool, collect::Refusal)> = Vec::new();
 		for r in crate::swift::refusals(&abi.without_jni(&rest)) {
 			let why = collect::Why {
 				construct: r.construct,
@@ -242,27 +242,35 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<collect::Refusal>) {
 				note: None,
 			};
 			let path = r.function.shown[1..].join("::");
+			let field = matches!(r.function.access, ir::Access::Field { .. });
 			match found.last_mut() {
-				Some(last) if last.path == path => last.why.push(why),
-				_ => found.push(collect::Refusal {
-					path,
-					kind: r.kind,
-					span: r.function.span,
-					why: vec![why],
-				}),
+				Some((was, last)) if *was == field && last.path == path => last.why.push(why),
+				_ => found.push((
+					field,
+					collect::Refusal {
+						path,
+						kind: r.kind,
+						span: r.function.span,
+						why: vec![why],
+					},
+				)),
 			}
 		}
 		if found.is_empty() {
 			return (api, refused);
 		}
-		let gone: FxHashSet<&str> = found.iter().map(|r| r.path.as_str()).collect();
-		let keep =
-			|methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(f.shown[1..].join("::").as_str()));
+		let gone: FxHashSet<(bool, &str)> = found.iter().map(|(field, r)| (*field, r.path.as_str())).collect();
+		let keep = |methods: &mut Vec<ir::Function>| {
+			methods.retain(|f| {
+				let field = matches!(f.access, ir::Access::Field { .. });
+				!gone.contains(&(field, f.shown[1..].join("::").as_str()))
+			})
+		};
 		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
 		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
 		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
 		keep(&mut api.functions);
-		refused.extend(found);
+		refused.extend(found.into_iter().map(|(_, r)| r));
 	}
 }
 

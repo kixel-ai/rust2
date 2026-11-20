@@ -53,7 +53,9 @@ pub(crate) fn of(construct: &str) -> Option<&'static str> {
 		"Cow a future returns inside a collection" => {
 			"return the `Cow` itself, in an `Option`, or in a tuple, or collect owned `String`s or `Vec<u8>`s instead"
 		}
-		"Cow a future returns in its error" => "make the future's error `Cow<str>`, which crosses as its message, or an owned value",
+		"Cow a future returns in its error" => {
+			"make the future's error `Cow<str>`, which crosses as its message, or an owned value"
+		}
 		"128-bit integer" => "use `u128`, which exports, or an integer of 64 bits or fewer",
 		"NonZero" => "use `NonZero` of an integer of 64 bits or fewer",
 		"Range" | "Bound" => "use `Range` or `Bound` of an integer of 64 bits or fewer",

@@ -1109,8 +1109,8 @@ impl<'tcx> Collector<'tcx> {
 		);
 		for site in sites {
 			let adt = tcx.adt_def(site.key.def_id);
-			// An object's private fields are no part of its API.
-			for field in adt.all_fields().filter(|field| field.vis.is_public()) {
+			// An object's private and hidden fields are no part of its API.
+			for field in adt.all_fields().filter(|field| in_api(tcx, field)) {
 				named.push(field.ty(tcx, site.args).skip_norm_wip());
 			}
 			for (item, parent, _, hidden) in self.members(&site) {
@@ -1366,6 +1366,15 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut path = path.clone();
 				path.push(child.ident.to_string());
+				// A `#[doc(hidden)]` re-export leaves out this path alone, not the item, which
+				// another path may still export.
+				if (child.reexport_chain.first().and_then(|reexport| reexport.id()))
+					.is_some_and(|id| tcx.is_doc_hidden(id))
+				{
+					let (report, rest) = self.report(&path);
+					report.hidden.push(rest);
+					continue;
+				}
 				// A crate re-exported whole makes its every release part of the facade's
 				// semver, so each such `pub use` is refused once, and the crate not walked.
 				// A glob of its root re-exports its items instead, which export. The span is
@@ -2121,7 +2130,7 @@ impl<'tcx> Collector<'tcx> {
 			DefKind::Struct => {
 				let variant = tcx.adt_def(def_id).non_enum_variant();
 				let record = !variant.fields.is_empty()
-					&& variant.fields.iter().all(|f| f.vis.is_public())
+					&& variant.fields.iter().all(|f| in_api(tcx, f))
 					&& !variant.is_field_list_non_exhaustive();
 				match record {
 					true => Decl::Record(0),
@@ -2479,7 +2488,7 @@ impl<'tcx> Collector<'tcx> {
 					Some(Decl::Value(index)) => {
 						let (mut methods, traits) = self.methods(&site);
 						if kind == DefKind::Struct {
-							methods.splice(0..0, self.accessors(&site));
+							methods.splice(0..0, self.accessors(&site, false));
 						}
 						let methods = self.written_back(methods);
 						let record = &mut self.api.records[index];
@@ -2490,7 +2499,7 @@ impl<'tcx> Collector<'tcx> {
 					Some(Decl::Object(index)) => {
 						let (mut methods, traits) = self.methods(&site);
 						if kind == DefKind::Struct {
-							methods.splice(0..0, self.accessors(&site));
+							methods.splice(0..0, self.accessors(&site, true));
 						}
 						let self_ty = self.site_ty(&site);
 						let chain = self.derefs(self_ty);
@@ -2626,7 +2635,7 @@ impl<'tcx> Collector<'tcx> {
 				// accessors of their own.
 				Some(Decl::Record(u)) => {
 					let mut members = match records.get(&u) {
-						Some(site) => self.accessors(site),
+						Some(site) => self.accessors(site, true),
 						None => Vec::new(),
 					};
 					members.extend(self.api.records[u].methods.iter().cloned());
@@ -2774,8 +2783,8 @@ impl<'tcx> Collector<'tcx> {
 
 	/// A getter and a setter for each `pub` field of a struct exported as an object or an
 	/// opaque value: the getter returns a copy, and the setter assigns in place, as
-	/// `x.field = value` does.
-	fn accessors(&mut self, site: &Site<'tcx>) -> Vec<Function> {
+	/// `x.field = value` does. A receiver with a `handle` also lends a field it cannot copy.
+	fn accessors(&mut self, site: &Site<'tcx>, handle: bool) -> Vec<Function> {
 		let tcx = self.tcx;
 		let mut accessors = Vec::new();
 		for field in &tcx.adt_def(site.key.def_id).non_enum_variant().fields {
@@ -2784,6 +2793,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 			let name = field.name.to_string();
 			let shown = [&site.shown[..], std::slice::from_ref(&name)].concat();
+			if tcx.is_doc_hidden(field.did) {
+				let (report, rest) = self.report(&shown);
+				report.hidden.push(rest);
+				continue;
+			}
 			let span = tcx.def_span(field.did);
 			let ty = field.ty(tcx, site.args).skip_norm_wip();
 			// An instance's field of `()`, such as a default extension, holds nothing to read.
@@ -2801,13 +2815,15 @@ impl<'tcx> Collector<'tcx> {
 			// written with a value C gives up, as an owned parameter is.
 			let read = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, held);
 			// A field that is an object but not `Clone` is lent from the receiver's handle,
-			// as a method's borrowed return of one is.
+			// as a method's borrowed return of one is, where the receiver has one: a value C
+			// copies has none.
 			// So is an `Option` of one, as `Some` of the borrow, through a `Box` too.
 			let object = match held.kind() {
 				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Option, adt.did()) => unboxed(args.type_at(0)),
 				_ => held,
 			};
-			let lends = !self.is_clone(held)
+			let lends = handle
+				&& !self.is_clone(held)
 				&& matches!(object.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
 			let mapped = {
 				self.lending.set(lends);
@@ -6558,6 +6574,11 @@ fn borrows(ty: &Type) -> bool {
 		Type::Tuple(elements) => elements.iter().any(borrows),
 		_ => false,
 	}
+}
+
+/// Whether `field` is part of its type's API: `pub`, and not `#[doc(hidden)]`.
+fn in_api(tcx: TyCtxt<'_>, field: &ty::FieldDef) -> bool {
+	field.vis.is_public() && !tcx.is_doc_hidden(field.did)
 }
 
 /// Whether `ty` holds a reference inside it, such as `Option<&T>`.

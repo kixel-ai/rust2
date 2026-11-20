@@ -992,6 +992,47 @@ pub use dep;
 /// The same crate whole, by another name.
 pub use ::dep as renamed;
 
+/// The same crate whole, and the standard library's item, each re-exported hidden, which
+/// leaves out the path rather than refuse it.
+#[doc(hidden)]
+pub use ::dep as hidden_dep;
+#[doc(hidden)]
+pub use std::collections::BTreeSet as HiddenSet;
+
+/// A hidden field is no part of the API, so its pointer is not refused, and the struct, which
+/// C cannot build without it, is an object.
+pub struct Peeked {
+	pub len: u32,
+	#[doc(hidden)]
+	pub raw: *const u8,
+}
+
+pub fn peeked() -> Peeked {
+	Peeked {
+		len: 0,
+		raw: std::ptr::null(),
+	}
+}
+
+/// An object that is not `Clone`, which a value's reference field holds.
+pub struct Lone(u32);
+
+pub fn lone() -> Lone {
+	Lone(1)
+}
+
+static LONE: Lone = Lone(7);
+
+/// A value C copies, so it has no handle to lend its field from, and the field is refused.
+#[derive(Clone, Copy)]
+pub struct Moored {
+	pub lone: &'static Lone,
+}
+
+pub fn moored() -> Moored {
+	Moored { lone: &LONE }
+}
+
 /// A value whose poll changes it, which C passes as a copy.
 pub struct Tally {
 	pub count: u8,

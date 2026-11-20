@@ -293,6 +293,9 @@ fn gate() -> Vec<Shape> {
 		]);
 	}
 	shapes.push(Shape::Map(Box::new(Shape::String), Box::new(Shape::Bytes)));
+	// An object record holding a record that is not Clone, a field the census refuses.
+	let object = || Shape::Object(Box::new(Shape::U128));
+	shapes.push(Shape::Record(vec![object(), Shape::Record(vec![Shape::Int("u8")])]));
 	shapes.push(Shape::Set(Box::new(Shape::Int("u64"))));
 	shapes
 }
@@ -1142,8 +1145,18 @@ struct Refused {
 }
 
 /// `lib` with the item at `path` configured out: a function or type, or a method by its
-/// type's path.
+/// type's path. A record's field loses its `pub` instead, which leaves its accessors out
+/// while the crate's own literals still name it.
 fn cfg_out(lib: &str, path: &str) -> String {
+	if let Some((ty, field)) = path.split_once("::")
+		&& let Some(start) = lib.find(&format!("pub struct {ty} {{"))
+	{
+		let end = start + lib[start..].find("\n}").expect("a record's body ends");
+		let at = (lib[start..end].find(&format!("\tpub {field}: ")))
+			.unwrap_or_else(|| panic!("the census refuses `{path}`, which is no field of the crate's"));
+		let at = start + at + 1;
+		return format!("{}{}", &lib[..at], &lib[at + "pub ".len()..]);
+	}
 	let (from, name) = match path.split_once("::") {
 		Some((ty, method)) => {
 			let from = lib

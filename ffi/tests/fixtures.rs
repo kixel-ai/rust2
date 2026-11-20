@@ -4144,8 +4144,6 @@ fn no_std_links() {
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--manifest-path")
 		.arg(package.join("Cargo.toml"))
-		.arg("--manifest-path")
-		.arg(package.join("Cargo.toml"))
 		.arg("--out")
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build"))
@@ -4196,6 +4194,62 @@ fn census(manifest: &Path, cargo: &[&str]) -> Command {
 		.args(cargo)
 		.env("CARGO_TARGET_DIR", dir.join("build"));
 	cmd
+}
+
+/// A flag given twice is an error, not the last one silently winning.
+#[test]
+fn flag_twice() {
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.args(["--census", "census", "--manifest-path", "a/Cargo.toml"])
+		.args(["--manifest-path", "b/Cargo.toml"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("--manifest-path is given twice"), "{stderr}");
+}
+
+/// A refused trait counts in the census's table, so a census whose rows sum to no refusal
+/// refuses nothing.
+#[test]
+fn census_counts_traits() {
+	let package = package(
+		"census_counts_traits",
+		&[("src/lib.rs", "pub unsafe trait Trusted {\n\tfn id(&self) -> u32;\n}\n")],
+	);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_counts_traits.md")).unwrap();
+	assert!(report.contains("| Traits | 0 | 1 | 0% |"), "{report}");
+}
+
+/// A method Swift refuses leaves out only itself, not the accessors of a field of its name.
+#[test]
+fn census_swift_field() {
+	let lib = "pub struct Token(u8);\n\n\
+		pub struct Gate {\n\tpub open: u8,\n\tshut: u8,\n}\n\n\
+		pub fn gate() -> Gate {\n\tGate { open: 0, shut: 0 }\n}\n\n\
+		impl Gate {\n\tpub fn open(&self, among: Option<&Token>, and: Option<&Token>, also: Option<&Token>) -> u8 {\n\t\t\
+		[among, and, also].into_iter().flatten().map(|t| t.0).sum::<u8>() + self.shut\n\t}\n}\n\n\
+		pub fn token() -> Token {\n\tToken(1)\n}\n";
+	let package = package("census_swift_field", &[("src/lib.rs", lib)]);
+	let output = census(&package.join("Cargo.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(package.join("census/census_swift_field.md")).unwrap();
+	// The field, by its getter, exports; the method alone is refused.
+	assert!(
+		report.contains("| Methods and fields of exported types | 1 | 1 |"),
+		"{report}"
+	);
+	assert!(report.contains("- method `Gate::open`"), "{report}");
 }
 
 /// Finding the exports keeps to the check's `--locked`: it neither writes a lockfile the
