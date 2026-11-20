@@ -4,8 +4,9 @@
 //! Each name is its C name without the prefix, in a namespace of the prefix: `moq_track`
 //! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
-//! named as its class or a field, takes a trailing `_`; so does a parameter named as a
-//! member or as anything in the namespace, which it would hide. An object is a class owning
+//! named as its class, a field, or a trait's member, takes a trailing `_`, and one a
+//! keyword's escape makes another's takes another (`delete` beside `delete_` is `delete__`);
+//! so does a parameter named as a member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
 //! share; a record a struct, and a `Copy` type with private fields a class over its C

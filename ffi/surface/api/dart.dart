@@ -711,6 +711,15 @@ final class ClashBreak {
 	static ClashBreak get sp;
 	static ClashBreak get sp_;
 }
+final class ClashEscaped {
+	final int new_;
+	const ClashEscaped({required this.new_});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	int delete();
+	int delete_(int new_, int new_2);
+}
 final class TlsPolicyLifetime {
 	final int seconds;
 	const TlsPolicyLifetime({required this.seconds});

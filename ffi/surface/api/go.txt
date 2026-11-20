@@ -503,6 +503,13 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
+type ClashEscaped struct {
+	New uint8
+}
+func (self ClashEscaped) Delete() uint8
+func (self ClashEscaped) Delete_(new_ uint8, new_2 uint8) uint8
+func (self ClashEscaped) Equal(other ClashEscaped) bool
+func (self ClashEscaped) GoString() string
 type ClashEvent struct {
 	V0 Event
 }

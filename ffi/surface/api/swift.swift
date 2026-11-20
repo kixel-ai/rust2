@@ -664,6 +664,14 @@ public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public static var SP: ClashBreak { get }
 	@inlinable public static var SP_: ClashBreak { get }
 }
+public struct ClashEscaped: Sendable, CustomDebugStringConvertible, Equatable {
+	public var new: Swift.UInt8
+	@inlinable public init(new: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashEscaped, b: ClashEscaped) -> Swift.Bool
+	@inlinable public func delete() -> Swift.UInt8
+	@inlinable public func delete(_ new: Swift.UInt8, _ new2: Swift.UInt8) -> Swift.UInt8
+}
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
 	@inlinable public init(seconds: Swift.UInt32)
