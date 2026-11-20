@@ -386,12 +386,23 @@ class Archive(unittest.TestCase):
 
 
 class ImportNames(unittest.TestCase):
-    def test_the_random_temporary_directory_is_fixed(self):
+    @staticmethod
+    def archive(*members):
+        out = b"!<arch>\n"
+        for name, body in members:
+            out += f"{name + '/':<16}{0:<12}{0:<6}{0:<6}{100644:<8}{len(body):<10}`\n".encode() + body + b"\n" * (len(body) % 2)
+        return out
+
+    def test_only_the_import_library_loses_its_random_directory(self):
+        imported = b"_head_D__a_x_out_rustc4TX99l_kernel32_dll_imports_lib\x00"
+        data = b"_out_rustcAbCdEf_kernel32_dll_imports_lib is a string the crate returns"
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "lib.a"
-            path.write_bytes(b"_head_D__a_x_out_rustc4TX99l_kernel32_dll_imports_lib\x00_rustcAbCdEf_other")
+            path.write_bytes(self.archive(("", imported), ("kernel32.dllh.o", imported), ("api.o", data)))
             package.fix_import_names(path)
-            self.assertEqual(path.read_bytes(), b"_head_D__a_x_out_rustc000000_kernel32_dll_imports_lib\x00_rustcAbCdEf_other")
+            members = package.ar_members(path)
+            self.assertEqual(members["kernel32.dllh.o"][0], imported.replace(b"4TX99l", b"000000"))
+            self.assertEqual(members["api.o"][0], data)
 
 
 class Purl(unittest.TestCase):

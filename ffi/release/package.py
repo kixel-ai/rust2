@@ -714,28 +714,36 @@ def zip_diff(one, two):
             for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
 
 
-def ar_members(path):
-    """An archive's members as `{name: (content, time, owner, group, mode)}`, with its symbol table and names table by their own."""
-    data = Path(path).read_bytes()
+def ar_entries(data, label="the archive"):
+    """An archive's `(name, header fields, start, end)` per member, its symbol table and names table by their own."""
     if data[:8] != b"!<arch>\n":
-        raise SystemExit(f"{path} is no archive")
-    members, long_names, offset = {}, b"", 8
+        raise SystemExit(f"{label} is no archive")
+    entries, long_names, offset = [], b"", 8
     while offset + 60 <= len(data):
         name, date, uid, gid, mode, size = (data[offset + a:offset + b].decode("ascii", "replace").strip()
                                             for a, b in ((0, 16), (16, 28), (28, 34), (34, 40), (40, 48), (48, 58)))
-        body = data[offset + 60:offset + 60 + int(size)]
-        offset += 60 + int(size) + int(size) % 2
+        start, end = offset + 60, offset + 60 + int(size)
+        offset = end + int(size) % 2
         if name == "//":
-            long_names, name = body, "//"
+            long_names = data[start:end]
         elif name.startswith("/") and name[1:].isdigit():
-            start = int(name[1:])
-            name = long_names[start:long_names.index(b"\n", start)].decode("utf-8", "replace").rstrip("/")
+            first = int(name[1:])
+            name = long_names[first:long_names.index(b"\n", first)].decode("utf-8", "replace").rstrip("/")
         else:
             name = name.rstrip("/") or "/"
+        entries.append((name, (date, uid, gid, mode), start, end))
+    return entries
+
+
+def ar_members(path):
+    """An archive's members as `{name: (content, time, owner, group, mode)}`."""
+    data = Path(path).read_bytes()
+    members = {}
+    for name, fields, start, end in ar_entries(data, path):
         # A name twice, as an archive may hold, is told apart by its place.
         while name in members:
             name += "'"
-        members[name] = (body, date, uid, gid, mode)
+        members[name] = (data[start:end], *fields)
     return members
 
 
@@ -827,13 +835,17 @@ def llvm_tool(manifest, name):
 
 # The random directory rustc imports a Windows GNU library's raw-dylib symbols through, which
 # dlltool names them after, as `<path>_out_rustc<6 random characters>_kernel32_dll_imports_lib`.
-RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_)")
+RUSTC_TEMP = re.compile(rb"(?<=_out_rustc)[0-9A-Za-z]{6}(?=_[0-9a-z_]+_dll_imports_lib)")
+IMPORT_MEMBER = re.compile(r".+\.dll(h|t|s[0-9]+)\.o")
 
 
 def fix_import_names(path):
-    """Replace the random part of those symbol names, in members and symbol table alike at the same length, so the archive is the same on every build."""
-    data = Path(path).read_bytes()
-    Path(path).write_bytes(RUSTC_TEMP.sub(b"000000", data))
+    """Replace that random part, at the same length, in the import library's members and the archive's symbol table alone, so the archive is the same on every build and no other byte changes."""
+    data = bytearray(Path(path).read_bytes())
+    for name, _, start, end in ar_entries(bytes(data)):
+        if name == "/" or IMPORT_MEMBER.fullmatch(name):
+            data[start:end] = RUSTC_TEMP.sub(b"000000", bytes(data[start:end]))
+    Path(path).write_bytes(bytes(data))
 
 
 def go_library(args, export_dir, lib, target, library, native, out):
