@@ -2729,7 +2729,7 @@ fn unreached_types() {
 	}
 	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
 	let (head, rest) = lib.split_once("pub fn pending").unwrap();
-	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	let rest = &rest[rest.find("#[cfg(feature = \"refused\")] pub fn seal").unwrap()..];
 	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--manifest-path")
@@ -2773,8 +2773,8 @@ fn unreached_types() {
 	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
 	// foreign; one no public path names is held by value instead.
 	for refused in [
-		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
-		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+		"fn `bare` at src/lib.rs:23:29: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:29: foreign type `net::Opaque`",
 	] {
 		assert!(report.contains(refused), "{report}");
 	}
@@ -2797,7 +2797,7 @@ fn unreached_types() {
 	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
 	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
 	assert!(
-		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		report.contains("fn `seal` at src/lib.rs:11:29: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
 	);
 	assert_eq!(report.matches("not reachable").count(), 3, "{report}");

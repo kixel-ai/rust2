@@ -622,9 +622,15 @@ func script() {
 	}
 	print("woken \(wakes.value)")
 
-	var list = try! Node.new(1, nil)
-	try! list.push(2)
+	var list = try! Node.new(2, nil)
+	try! list.push(1)
 	print("node \(try! list.sum())")
+	// An optional boxed field that is not Clone, lent as `Some` of a handle.
+	if let next = try! list.nextGet() {
+		print("node next \(try! next.valueGet)")
+	} else {
+		print("node next 0")
+	}
 
 	let tally = Tally.new()
 	_ = try! tally.bump()
@@ -712,7 +718,7 @@ func script() {
 	// The renamed field's setter, named as its getter.
 	try! retry.limitSet(nil)
 	print("retry \(try! retry.limit())")
-	print("slot \(SlotU8.new(200).value())")
+	print("slot \(try! SlotU8.new(200).value())")
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
 	let base = try! Url.parse("https://example.com/a/b")
@@ -922,6 +928,12 @@ func script() {
 		_ = consume second
 		print("dropped \(try! ledger.published())")
 		print("receipt \(try! ledger.receipt().count())")
+		// A field holding a borrow, read through.
+		do {
+			// The tab lends its field, so it outlives the read.
+			let tab = try! ledger.tab()
+			print("tab \(try! tab.ledgerGet().published())")
+		}
 		var marker = Marker.new("m", 3, 5)
 		try! marker.ySet(7)
 		print("forwarded \(PadU16.wide().title()) \(Layered.new().lines()) \(try! marker.xGet) \(try! marker.yGet) [\(PadU8.small().describe())] [\(PadU16.wide().describe())]")
@@ -972,6 +984,19 @@ func script() {
 	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Bytes("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
 	print("json \(try! encode(doc))")
+	// A returned Cow crosses as an owned string or bytes.
+	print("cow \(unescaped(#"a\b"#)) \(unescaped("plain")) \(unzeroed(Bytes([1, 0, 2])).count) \(unzeroed(Bytes([3])).count)")
+	// A type parameter bounded by Deserializer takes a JSON document, moved in.
+	let spot = try! Spot.deserialize(try! Json.parse("[1, 2]"))
+	print("spot \(spot.x) \(spot.y)")
+	do {
+		_ = try Spot.deserialize(try! Json.parse("\"x\""))
+		check(false, "a spot refuses a string")
+	} catch let e as StringError {
+		print("spot err \(e.error)")
+	} catch {
+		check(false, "deserialize throws its message")
+	}
 	let tagged = try! tagged(doc, "t")
 	print("tagged \(try! tagged.toText())")
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.

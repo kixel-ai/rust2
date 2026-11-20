@@ -407,9 +407,11 @@ fun script() {
 	}
 	println("woken $wakes")
 
-	val list = Node.new(1u, null)
-	list.push(2u)
+	val list = Node.new(2u, null)
+	list.push(1u)
 	println("node ${list.sum()}")
+	// An optional boxed field that is not Clone, lent as a handle or null.
+	println("node next ${list.nextGet?.use { it.valueGet } ?: 0u}")
 
 	val tally = Tally.new()
 	tally.bump()
@@ -642,6 +644,8 @@ fun script() {
 		ledger.edit().use { it.write("second") }
 		println("dropped ${ledger.published()}")
 		println("receipt ${ledger.receipt().use { it.count() }}")
+		// A field holding a borrow, read through.
+		println("tab ${ledger.tab().use { tab -> tab.ledgerGet.use { it.published() } }}")
 		Marker.new("m", 3, 5).use { marker ->
 			marker.ySet(7)
 			val title = PadU16.wide().use { it.title() }
@@ -708,6 +712,20 @@ fun script() {
 	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen(Bytes("hello".encodeToByteArray()))}")
 	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
 	println("json ${encode(doc)}")
+	// A returned Cow crosses as an owned string or bytes.
+	println(
+		"cow ${unescaped("a\\b")} ${unescaped("plain")} ${unzeroed(Bytes(byteArrayOf(1, 0, 2))).size} " +
+			"${unzeroed(Bytes(byteArrayOf(3))).size}",
+	)
+	// A type parameter bounded by Deserializer takes a JSON document, moved in.
+	val spot = Spot.deserialize(Json.parse("[1, 2]"))
+	println("spot ${spot.x} ${spot.y}")
+	try {
+		Spot.deserialize(Json.parse("\"x\""))
+		check(false, "a spot refuses a string")
+	} catch (e: StringException) {
+		println("spot err ${e.error}")
+	}
 	tagged(doc, "t").use { tagged -> println("tagged ${tagged.toText()}") }
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.
 	val jsonEntries = entries(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))), "t")

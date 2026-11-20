@@ -3032,7 +3032,9 @@ pub fn hex(payload: impl Payload) -> String {
 	payload.into_bytes().iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into.
+/// A value and when it was stamped, as moq's `Timed` is, which bytes convert into. Hidden,
+/// so a parameter that converts into one takes what converts instead.
+#[doc(hidden)]
 pub struct Timed<P> {
 	pub value: P,
 	pub at: Option<Stamp>,

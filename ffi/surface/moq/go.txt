@@ -4384,6 +4384,7 @@ type ContainerTsMpegts struct {
 	Handle_ *p_rt.Handle_
 }
 func ContainerTsMpegtsDefault() *ContainerTsMpegts
+func ContainerTsMpegtsDeserialize(deserializer *p_serdejson.Json) (*ContainerTsMpegts, error)
 func (self *ContainerTsMpegts) Clone() (*ContainerTsMpegts, error)
 func (self *ContainerTsMpegts) Close() error
 func (self *ContainerTsMpegts) Equal(other *ContainerTsMpegts) (bool, error)
@@ -7468,6 +7469,10 @@ CONSTANTS
 const PATTERN_MAX_INTERSECTIONS uint = 1024
 const PATTERN_MAX_SEGMENTS uint = 32
 
+FUNCTIONS
+func Escape(content string) (string, error)
+func Unescape(segment string) (string, error)
+
 TYPES
 type IntersectionError int32
 const (
@@ -7850,6 +7855,7 @@ func (self *ClientConfig) TimeProviderSet(value *TimeProvider) error
 type ClientDangerDangerousClientConfig struct {
 	Handle_ *p_rt.Handle_
 }
+func (self *ClientDangerDangerousClientConfig) CfgGet() (*ClientConfig, error)
 func (self *ClientDangerDangerousClientConfig) Close() error
 func (self *ClientDangerDangerousClientConfig) GoString() string
 type ClientResumption struct {

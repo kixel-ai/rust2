@@ -35,6 +35,11 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::vector<::std::tuple<::api::buf, ::api::Counter>> ranked() const;
 		RUST2_FFI_CALLABLE ::api::Counter best() const;
 	};
+	class RUST2_FFI_CONSUMABLE Tab {
+		RUST2_FFI_UNCONSUMED Tab(Tab &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Tab &operator=(Tab &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::api::Ledger ledger_get() const;
+	};
 	class RUST2_FFI_CONSUMABLE Receipt {
 		RUST2_FFI_UNCONSUMED Receipt(Receipt &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Receipt &operator=(Receipt &&other) noexcept = default;
@@ -64,6 +69,8 @@ namespace api {
 		static ::api::Pad_u16 wide();
 		RUST2_FFI_CALLABLE ::std::uint16_t tag() const;
 		RUST2_FFI_CALLABLE ::std::uint16_t title() const;
+		RUST2_FFI_CALLABLE ::api::buf title_get() const;
+		RUST2_FFI_CALLABLE ::std::uint32_t lines() const;
 		RUST2_FFI_CALLABLE ::api::buf describe() const;
 	};
 	class RUST2_FFI_CONSUMABLE Pad_u8 {
@@ -86,6 +93,8 @@ namespace api {
 		Marker &operator=(Marker &&other) noexcept = default;
 		static ::api::Marker new_(::api::input label, ::std::int32_t x, ::std::int32_t y);
 		RUST2_FFI_CALLABLE ::api::buf label() const;
+		RUST2_FFI_CALLABLE ::std::int32_t x() const;
+		static ::std::int32_t y();
 		RUST2_FFI_CALLABLE ::std::int32_t x_get() const;
 		RUST2_FFI_CALLABLE void x_set(::std::int32_t value);
 		RUST2_FFI_CALLABLE ::std::int32_t y_get() const;
@@ -155,6 +164,8 @@ namespace api {
 		Retry &operator=(Retry &&other) noexcept = default;
 		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> limit_get() const;
 		RUST2_FFI_CALLABLE void limit_set(const ::std::optional<::std::uint32_t> &value);
+		RUST2_FFI_CALLABLE ::std::optional<::std::uint32_t> delay_get() const;
+		RUST2_FFI_CALLABLE void delay_set(const ::std::optional<::std::uint32_t> &value);
 		static ::api::Retry new_(const ::std::optional<::std::uint32_t> &limit);
 		RUST2_FFI_CALLABLE ::std::uint32_t limit() const;
 		RUST2_FFI_CALLABLE ::std::uint32_t delay() const;
@@ -182,11 +193,15 @@ namespace api {
 	class RUST2_FFI_CONSUMABLE Slot_u32 {
 		RUST2_FFI_UNCONSUMED Slot_u32(Slot_u32 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u32 &operator=(Slot_u32 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint32_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint32_t value);
 		static ::api::Slot_u32 new_(::std::uint32_t value);
 	};
 	class RUST2_FFI_CONSUMABLE Slot_u8 {
 		RUST2_FFI_UNCONSUMED Slot_u8(Slot_u8 &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Slot_u8 &operator=(Slot_u8 &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint8_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint8_t value);
 		static ::api::Slot_u8 new_(::std::uint8_t value);
 		RUST2_FFI_CALLABLE ::std::uint16_t value() const;
 	};
@@ -323,6 +338,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::Receipt receipt();
 		RUST2_FFI_CALLABLE ::api::Receipt noted();
 		RUST2_FFI_CALLABLE ::api::Filed_Receipt file_Receipt(::api::Receipt item);
+		RUST2_FFI_CALLABLE ::api::Tab tab();
 		RUST2_FFI_CALLABLE ::api::Slip slip();
 	};
 	class RUST2_FFI_CONSUMABLE Slip {
@@ -431,6 +447,8 @@ namespace api {
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
 		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE ::std::optional<::api::Node> next_get() const;
+		RUST2_FFI_CALLABLE void next_set(::std::optional<::api::Node> value);
 		static ::api::Node new_(::std::uint64_t value, ::std::optional<::api::Node> next);
 		RUST2_FFI_CALLABLE void push(::std::uint64_t value);
 		RUST2_FFI_CALLABLE ::std::uint64_t sum() const;
@@ -517,6 +535,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Counter(const ::api::Counter &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Size(const ::api::Size &from) const;
 		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_Wrap_u32(const ::api::Wrap_u32 &from) const;
+		RUST2_FFI_CALLABLE ::std::uint64_t depth_past_polar_Point(const ::api::polar_Point &from) const;
 	};
 	class RUST2_FFI_CONSUMABLE Refusal {
 		RUST2_FFI_UNCONSUMED Refusal(Refusal &&other RUST2_FFI_MOVED_FROM) noexcept = default;
@@ -858,6 +877,7 @@ namespace api {
 		friend bool operator==(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		friend bool operator!=(const Pair_u8_Size &a__, const Pair_u8_Size &b_);
 		::api::buf debug() const;
+		::api::Pair_Size_u8 swap() const;
 	};
 	struct Right_u8 {
 		::std::uint8_t value;
@@ -1031,6 +1051,14 @@ namespace api {
 		double kotlin;
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
+	};
+	struct Spot {
+		::std::uint32_t x;
+		::std::uint32_t y;
+		friend bool operator==(const Spot &a__, const Spot &b_);
+		friend bool operator!=(const Spot &a__, const Spot &b_);
+		::api::buf debug() const;
+		static ::api::result<::api::Spot, ::api::buf> deserialize(::api::Json deserializer);
 	};
 	struct polar_Point {
 		::std::uint8_t turns;
@@ -1242,6 +1270,7 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Spot &a__, const Spot &b_);
 	inline bool operator==(const polar_Point &a__, const polar_Point &b_);
 	inline bool operator==(const polar_Turn &a__, const polar_Turn &b_);
 	inline bool operator==(const clash_Tone &a__, const clash_Tone &b_);
@@ -1398,7 +1427,6 @@ namespace api {
 	inline ::std::size_t len(::api::input payload);
 	inline ::api::buf hex(::api::input payload);
 	inline ::api::buf timed_hex(::api::input payload);
-	inline ::api::buf timed_text(const ::api::Json &value);
 	inline ::api::buf sample_hex(::api::input sample);
 	inline ::api::buf queued_hex(::api::input queued);
 	inline ::api::buf tick_name(const ::api::Label &tick);
@@ -1553,6 +1581,8 @@ namespace api {
 	inline ::api::socket_addr_v4 same_socket_addr_v4(::api::socket_addr_v4 v);
 	inline ::api::socket_addr_v6 same_socket_addr_v6(::api::socket_addr_v6 v);
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
+	inline ::api::buf unescaped(::api::input text);
+	inline ::api::buf unzeroed(::api::input bytes);
 	inline ::std::uint64_t crowded(const ::api::Reading &reading, const ::api::Stamp &a__, const ::api::Stamp &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118);
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
@@ -1874,6 +1904,7 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Spot;
 	struct polar_Point;
 	struct polar_Turn;
 	struct clash_Tone;
@@ -1884,6 +1915,7 @@ namespace api {
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
+	class Tab;
 	class Receipt;
 	class Draft;
 	class Filed_Receipt;

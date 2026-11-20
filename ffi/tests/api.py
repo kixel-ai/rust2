@@ -500,9 +500,12 @@ def script():
 	channel.clear()
 	loop.close()
 
-	nodes = api.Node.new(1, None)
-	nodes.push(2)
+	nodes = api.Node.new(2, None)
+	nodes.push(1)
 	print(f"node {nodes.sum()}")
+	# An optional boxed field that is not Clone, lent as a handle or None.
+	next_node = nodes.next_get
+	print(f"node next {next_node.value_get if next_node is not None else 0}")
 
 	tally = api.Tally.new()
 	tally.bump()
@@ -708,6 +711,11 @@ def script():
 	del draft
 	print(f"dropped {ledger.published()}")
 	print(f"receipt {ledger.receipt().count()}")
+	# A field holding a borrow, read through.
+	# The tab lends its field, so it outlives the read.
+	tab = ledger.tab()
+	print(f"tab {tab.ledger_get.published()}")
+	del tab
 	marker = api.Marker.new("m", 3, 5)
 	marker.y_set(7)
 	print(
@@ -763,6 +771,17 @@ def script():
 	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
+	# A returned Cow crosses as an owned string or bytes.
+	unescaped = api.unescaped("a\\b")
+	print(f"cow {unescaped} {api.unescaped('plain')} {len(api.unzeroed(bytes([1, 0, 2])))} {len(api.unzeroed(bytes([3])))}")
+	# A type parameter bounded by Deserializer takes a JSON document, moved in.
+	spot = api.Spot.deserialize(api.Json.parse("[1, 2]"))
+	print(f"spot {spot.x} {spot.y}")
+	try:
+		api.Spot.deserialize(api.Json.parse('"x"'))
+		raise AssertionError("a spot refuses a string")
+	except api.StringException as e:
+		print(f"spot err {e.error}")
 	tagged = api.tagged(doc, "t")
 	print(f"tagged {tagged.to_text()}")
 	# A JSON object's entries cross as pairs of a key and its document, each moved in.

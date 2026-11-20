@@ -396,6 +396,7 @@ public struct PairU8Size: Sendable, CustomDebugStringConvertible, Equatable {
 	@inlinable public init(left: Swift.UInt8, right: Size)
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public static func == (a: PairU8Size, b: PairU8Size) -> Swift.Bool
+	@inlinable public func swap() -> PairSizeU8
 }
 public struct LeftRightU8: Sendable, CustomDebugStringConvertible, Equatable {
 	public var value: RightU8
@@ -570,6 +571,14 @@ public struct Qualifiers: Sendable, Equatable {
 	public var kotlin: Swift.Double
 	@inlinable public init(api: Swift.Double, kotlin: Swift.Double)
 	@inlinable public static func == (a: Qualifiers, b: Qualifiers) -> Swift.Bool
+}
+public struct Spot: Sendable, CustomDebugStringConvertible, Equatable {
+	public var x: Swift.UInt32
+	public var y: Swift.UInt32
+	@inlinable public init(x: Swift.UInt32, y: Swift.UInt32)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Spot, b: Spot) -> Swift.Bool
+	@inlinable public static func deserialize(_ deserializer: consuming Json) throws -> Spot
 }
 public struct PolarPoint: Sendable, CustomDebugStringConvertible, Equatable {
 	public var turns: Swift.UInt8
@@ -764,6 +773,9 @@ public struct Board: ~Copyable, @unchecked Sendable {
 	@inlinable public func ranked() throws -> UniqueArray<TupleStringCounter>
 	@inlinable public func best() throws -> Counter
 }
+public struct Tab: ~Copyable, @unchecked Sendable {
+	@inlinable public func ledgerGet() throws -> Ledger
+}
 public struct Receipt: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Receipt
 	@inlinable public func count() throws -> Swift.UInt32
@@ -785,6 +797,8 @@ public struct PadU16: ~Copyable, @unchecked Sendable {
 	@inlinable public static func wide() -> PadU16
 	@inlinable public func tag() -> Swift.UInt16
 	@inlinable public func title() -> Swift.UInt16
+	@inlinable public var titleGet: Swift.String { get }
+	@inlinable public func lines() -> Swift.UInt32
 	@inlinable public func describe() -> Swift.String
 }
 public struct PadU8: ~Copyable, @unchecked Sendable {
@@ -801,6 +815,8 @@ public struct Layered: ~Copyable, @unchecked Sendable {
 public struct Marker: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ label: Swift.String, _ x: Swift.Int32, _ y: Swift.Int32) -> Marker
 	@inlinable public func label() throws -> Swift.String
+	@inlinable public func x() throws -> Swift.Int32
+	@inlinable public static func y() -> Swift.Int32
 	@inlinable public var xGet: Swift.Int32 { get }
 	@inlinable public mutating func xSet(_ value: Swift.Int32) throws
 	@inlinable public var yGet: Swift.Int32 { get }
@@ -853,6 +869,8 @@ public struct LocalWaiter: ~Copyable {
 public struct Retry: ~Copyable, @unchecked Sendable {
 	@inlinable public var limitGet: Swift.UInt32? { get }
 	@inlinable public mutating func limitSet(_ value: Swift.UInt32?) throws
+	@inlinable public var delayGet: Swift.UInt32? { get }
+	@inlinable public mutating func delaySet(_ value: Swift.UInt32?) throws
 	@inlinable public static func new(_ limit: Swift.UInt32?) -> Retry
 	@inlinable public func limit() throws -> Swift.UInt32
 	@inlinable public func delay() throws -> Swift.UInt32
@@ -872,11 +890,15 @@ public struct OuterInnerU8: ~Copyable, @unchecked Sendable {
 	@inlinable public func get() -> Swift.UInt8
 }
 public struct SlotU32: ~Copyable, @unchecked Sendable {
+	@inlinable public var valueGet: Swift.UInt32 { get }
+	@inlinable public mutating func valueSet(_ value: Swift.UInt32) throws
 	@inlinable public static func new(_ value: Swift.UInt32) -> SlotU32
 }
 public struct SlotU8: ~Copyable, @unchecked Sendable {
+	@inlinable public var valueGet: Swift.UInt8 { get }
+	@inlinable public mutating func valueSet(_ value: Swift.UInt8) throws
 	@inlinable public static func new(_ value: Swift.UInt8) -> SlotU8
-	@inlinable public func value() -> Swift.UInt16
+	@inlinable public func value() throws -> Swift.UInt16
 }
 public struct Resolving: ~Copyable, @unchecked Sendable {
 	@inlinable public func _0_get() throws -> TlsResolver
@@ -998,6 +1020,7 @@ public struct Ledger: ~Copyable, @unchecked Sendable {
 	@inlinable public mutating func receipt() throws -> Receipt
 	@inlinable public mutating func noted() throws -> Receipt
 	@inlinable public mutating func fileReceipt(_ item: consuming Receipt) throws -> FiledReceipt
+	@inlinable public mutating func tab() throws -> Tab
 	@inlinable public mutating func slip() throws -> Slip
 }
 public struct Slip: ~Copyable {
@@ -1083,6 +1106,8 @@ public struct Node: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
 	@inlinable public var valueGet: Swift.UInt64 { get }
 	@inlinable public mutating func valueSet(_ value: Swift.UInt64) throws
+	@inlinable public func nextGet() throws -> Node?
+	@inlinable public mutating func nextSet(_ value: consuming Node?) throws
 	@inlinable public static func new(_ value: Swift.UInt64, _ next: consuming Node?) throws -> Node
 	@inlinable public mutating func push(_ value: Swift.UInt64) throws
 	@inlinable public func sum() throws -> Swift.UInt64
@@ -1152,6 +1177,7 @@ public struct Stack: ~Copyable, @unchecked Sendable {
 	@inlinable public func depthPastCounter(_ from: borrowing Counter) throws -> Swift.UInt64
 	@inlinable public func depthPastSize(_ from: Size) throws -> Swift.UInt64
 	@inlinable public func depthPastWrapU32(_ from: WrapU32) throws -> Swift.UInt64
+	@inlinable public func depthPastPolarPoint(_ from: PolarPoint) throws -> Swift.UInt64
 }
 public final class Refusal: @unchecked Sendable {
 	@inlinable public var description: Swift.String { get }
@@ -1383,7 +1409,6 @@ public let FAR: Swift.Int64
 @inlinable public func len(_ payload: Bytes) -> Swift.UInt
 @inlinable public func hex(_ payload: Bytes) -> Swift.String
 @inlinable public func timedHex(_ payload: Bytes) -> Swift.String
-@inlinable public func timedText(_ value: borrowing Json) throws -> Swift.String
 @inlinable public func sampleHex(_ sample: Bytes) -> Swift.String
 @inlinable public func queuedHex(_ queued: Bytes) -> Swift.String
 @inlinable public func tickName(_ tick: Label) -> Swift.String
@@ -1538,6 +1563,8 @@ public let FAR: Swift.Int64
 @inlinable public func sameSocketAddrV4(_ v: SocketAddrV4) -> SocketAddrV4
 @inlinable public func sameSocketAddrV6(_ v: SocketAddrV6) -> SocketAddrV6
 @inlinable public func sameIpAddr(_ v: IpAddr) -> IpAddr
+@inlinable public func unescaped(_ text: Swift.String) -> Swift.String
+@inlinable public func unzeroed(_ bytes: Bytes) -> Bytes
 @inlinable public func crowded(_ reading: Reading, _ a: Stamp, _ b: Stamp, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64) -> Swift.UInt64
 @inlinable public func crammed(_ a: Moment, _ b: Moment, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64, _ n119: Swift.UInt64, _ n120: Swift.UInt64, _ n121: Swift.UInt64, _ n122: Swift.UInt64, _ n123: Swift.UInt64) -> Swift.UInt64
 @inlinable public func jniOne() -> Swift.UInt32

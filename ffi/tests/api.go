@@ -606,9 +606,16 @@ func script() {
 	waiter.Close()
 	fmt.Printf("woken %d\n", wakes)
 
-	list1 := must(api.NewNode(1, nil))
-	ok(list1.Push(2))
+	list1 := must(api.NewNode(2, nil))
+	ok(list1.Push(1))
 	fmt.Printf("node %d\n", must(list1.Sum()))
+	// An optional boxed field that is not Clone, lent as a handle or nil.
+	if next := must(list1.NextGet()); next != nil {
+		fmt.Printf("node next %d\n", must(next.ValueGet()))
+		next.Close()
+	} else {
+		fmt.Printf("node next 0\n")
+	}
 
 	tally := api.NewTally()
 	must(tally.Bump())
@@ -836,6 +843,12 @@ func script() {
 	receipt := must(ledger.Receipt())
 	fmt.Printf("receipt %d\n", must(receipt.Count()))
 	check(receipt.Close() == nil, "a receipt closes")
+	// A field holding a borrow, read through.
+	tab := must(ledger.Tab())
+	tabbed := must(tab.LedgerGet())
+	fmt.Printf("tab %d\n", must(tabbed.Published()))
+	tabbed.Close()
+	tab.Close()
 	padSmall, padWide, layered := api.PadU8Small(), api.PadU16Wide(), api.NewLayered()
 	marker := must(api.NewMarker("m", 3, 5))
 	check(marker.YSet(7) == nil, "a marker's point sets")
@@ -912,6 +925,15 @@ func script() {
 	fmt.Printf("joined %s %d read %d\n", api.Joined(parts).Copy(), len(api.Joined(nil).Copy()), api.ReadLen(rt.NewBytes([]byte("hello"))))
 	doc := must(serdejson.JsonParse(`{"b": [1, 2.5, null], "a": "é"}`))
 	fmt.Printf("json %s\n", must(api.Encode(doc)))
+	// A returned Cow crosses as an owned string or bytes.
+	fmt.Printf("cow %s %s %d %d\n", must(api.Unescaped(`a\b`)), must(api.Unescaped("plain")),
+		len(api.Unzeroed(rt.NewBytes([]byte{1, 0, 2})).Copy()), len(api.Unzeroed(rt.NewBytes([]byte{3})).Copy()))
+	// A type parameter bounded by Deserializer takes a JSON document, moved in.
+	spot := must(api.SpotDeserialize(must(serdejson.JsonParse(`[1, 2]`))))
+	fmt.Printf("spot %d %d\n", spot.X, spot.Y)
+	_, err = api.SpotDeserialize(must(serdejson.JsonParse(`"x"`)))
+	check(err != nil, "a spot refuses a string")
+	fmt.Printf("spot err %s\n", err)
 	tagged2 := must(api.Tagged(doc, "t"))
 	fmt.Printf("tagged %s\n", must(tagged2.ToText()))
 	tagged2.Close()

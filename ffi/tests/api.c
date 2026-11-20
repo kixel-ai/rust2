@@ -1340,9 +1340,13 @@ static int script(void) {
 	api_Channel_free(channel);
 
 	/* A value that holds itself is an object. */
-	api_Node *list = api_Node_new(1, NULL, NULL);
-	api_Node_push(list, 2, NULL);
+	api_Node *list = api_Node_new(2, NULL, NULL);
+	api_Node_push(list, 1, NULL);
 	printf("node %llu\n", (unsigned long long)api_Node_sum(list, NULL));
+	/* An optional boxed field that is not Clone, lent as a handle or NULL. */
+	api_Node *tail = api_Node_next_get(list, NULL);
+	printf("node next %llu\n", (unsigned long long)(tail != NULL ? api_Node_value_get(tail, NULL) : 0));
+	api_Node_free(tail);
 	api_Node_free(list);
 
 	api_Tally *tally = api_Tally_new();
@@ -1471,7 +1475,7 @@ static int script(void) {
 	printf("retry %u\n", api_Retry_limit(retry, NULL));
 	api_Retry_free(retry);
 	api_Slot_u8 *slot = api_Slot_u8_new(200);
-	printf("slot %u\n", api_Slot_u8_value(slot));
+	printf("slot %u\n", api_Slot_u8_value(slot, NULL));
 	api_Slot_u8_free(slot);
 	/* Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s. */
 	api_Url *base;
@@ -1745,6 +1749,12 @@ static int script(void) {
 		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
 		printf("receipt %u\n", api_Receipt_count(receipt, NULL));
 		api_Receipt_free(receipt);
+		/* A field holding a borrow, read through. */
+		api_Tab *tab = api_Ledger_tab(ledger, NULL);
+		api_Ledger *tabbed = api_Tab_ledger_get(tab, NULL);
+		printf("tab %u\n", api_Ledger_published(tabbed, NULL));
+		api_Ledger_free(tabbed);
+		api_Tab_free(tab);
 		{
 			api_Pad_u8 *small = api_Pad_u8_small();
 			api_Pad_u16 *wide = api_Pad_u16_wide();
@@ -1900,6 +1910,36 @@ static int script(void) {
 		return 1;
 	}
 	print("json ", api_encode(doc, NULL), "\n");
+	/* A returned Cow crosses as an owned string or bytes. */
+	print("cow ", api_unescaped(str("a\\b")), " ");
+	print("", api_unescaped(str("plain")), " ");
+	uint8_t zeroed[] = {1, 0, 2};
+	uint8_t unzeroed[] = {3};
+	api_buf zeros = api_unzeroed((api_buf){.ptr = zeroed, .len = 3});
+	api_buf no_zeros = api_unzeroed((api_buf){.ptr = unzeroed, .len = 1});
+	printf("%zu %zu\n", zeros.len, no_zeros.len);
+	api_buf_free(zeros);
+	api_buf_free(no_zeros);
+	/* A type parameter bounded by Deserializer takes a JSON document, moved in. */
+	api_Json *spot_doc;
+	if (!api_Json_parse(str("[1, 2]"), &spot_doc, &parse_err)) {
+		return 1;
+	}
+	api_Spot spot;
+	api_buf spot_err;
+	if (!api_Spot_deserialize(spot_doc, &spot, &spot_err, NULL)) {
+		return 1;
+	}
+	api_Json_free(spot_doc);
+	printf("spot %u %u\n", spot.x, spot.y);
+	if (!api_Json_parse(str("\"x\""), &spot_doc, &parse_err)) {
+		return 1;
+	}
+	if (api_Spot_deserialize(spot_doc, &spot, &spot_err, NULL)) {
+		return 1;
+	}
+	api_Json_free(spot_doc);
+	print("spot err ", spot_err, "\n");
 	api_Json *tagged = api_tagged(doc, str("t"), NULL);
 	api_Json_free(doc);
 	print("tagged ", api_Json_to_text(tagged, NULL), "\n");

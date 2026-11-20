@@ -774,9 +774,12 @@ int script() {
 
 	// A value that holds itself is an object.
 	{
-		api::Node list = api::Node::new_(1, std::nullopt);
-		list.push(2);
+		api::Node list = api::Node::new_(2, std::nullopt);
+		list.push(1);
 		std::printf("node %llu\n", ull(list.sum()));
+		// An optional boxed field that is not Clone, lent as `Some` of a handle.
+		std::optional<api::Node> next = list.next_get();
+		std::printf("node next %llu\n", ull(next ? next->value_get() : 0));
 	}
 
 	{
@@ -1068,6 +1071,8 @@ int script() {
 		}
 		std::printf("dropped %u\n", ledger.published());
 		std::printf("receipt %u\n", ledger.receipt().count());
+		// A field holding a borrow, read through.
+		std::printf("tab %u\n", ledger.tab().ledger_get().published());
 		{
 			auto marker = api::Marker::new_(api::input("m"), 3, 5);
 			marker.y_set(7);
@@ -1186,6 +1191,24 @@ int script() {
 
 	api::Json doc = api::Json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
 	print("json ", api::encode(doc), "\n");
+	// A returned Cow crosses as an owned string or bytes.
+	print("cow ", api::unescaped("a\\b"), " ");
+	print("", api::unescaped("plain"), " ");
+	{
+		std::uint8_t zeroed[] = {1, 0, 2};
+		std::uint8_t unzeroed[] = {3};
+		std::printf("%zu %zu\n", api::unzeroed(api::view(zeroed, 3)).size(), api::unzeroed(api::view(unzeroed, 1)).size());
+	}
+	// A type parameter bounded by Deserializer takes a JSON document, moved in.
+	{
+		api::Spot spot = api::Spot::deserialize(api::Json::parse("[1, 2]").value()).value();
+		std::printf("spot %u %u\n", spot.x, spot.y);
+		auto bad = api::Spot::deserialize(api::Json::parse("\"x\"").value());
+		if (bad) {
+			return 1;
+		}
+		print("spot err ", bad.error(), "\n");
+	}
 	api::Json tagged = api::tagged(std::move(doc), "t");
 	print("tagged ", tagged.to_text(), "\n");
 	{

@@ -72,8 +72,10 @@ import * as Shape from "./web/Shape.ts";
 import * as Site from "./web/Site.ts";
 import * as SlotU8 from "./web/SlotU8.ts";
 import * as Span from "./web/Span.ts";
+import * as Spot from "./web/Spot.ts";
 import * as Stack from "./web/Stack.ts";
 import * as Stamp from "./web/Stamp.ts";
+import * as Tab from "./web/Tab.ts";
 import * as Tallies from "./web/Tallies.ts";
 import * as Tally from "./web/Tally.ts";
 import * as Ticket from "./web/Ticket.ts";
@@ -711,9 +713,13 @@ async function script(): Promise<void> {
 	await until(() => wakes === 5, "a returned waker wakes the waiter");
 	print(`woken ${wakes}`);
 
-	const nodes = Node.new(1, undefined);
-	Node.push(nodes, 2);
+	const nodes = Node.new(2, undefined);
+	Node.push(nodes, 1);
 	print(`node ${dec(Node.sum(nodes))}`);
+	// An optional boxed field that is not Clone, lent as a handle or undefined.
+	const nextNode = Node.nextGet(nodes);
+	print(`node next ${nextNode === undefined ? 0 : dec(Node.valueGet(nextNode))}`);
+	if (nextNode !== undefined) close(nextNode);
 
 	const tally = Tally.new();
 	Tally.bump(tally);
@@ -930,6 +936,12 @@ async function script(): Promise<void> {
 	const receipt = Ledger.receipt(ledger);
 	print(`receipt ${Receipt.count(receipt)}`);
 	close(receipt);
+	// A field holding a borrow, read through.
+	const tab = Ledger.tab(ledger);
+	const tabbed = Tab.ledgerGet(tab);
+	print(`tab ${Ledger.published(tabbed)}`);
+	close(tabbed);
+	close(tab);
 	{
 		const small = PadU8.small();
 		const wide = PadU16.wide();
@@ -989,6 +1001,15 @@ async function script(): Promise<void> {
 	print(`joined ${parts} ${api.joined([]).length} read ${dec(api.readLen(enc("hello")))}`);
 	const doc = unwrap(Json.parse('{"b": [1, 2.5, null], "a": "é"}'));
 	print(`json ${api.encode(doc)}`);
+	// A returned Cow crosses as an owned string or bytes.
+	const unzeroed = api.unzeroed(new Uint8Array([1, 0, 2])).length;
+	print(`cow ${api.unescaped("a\\b")} ${api.unescaped("plain")} ${unzeroed} ${api.unzeroed(new Uint8Array([3])).length}`);
+	// A type parameter bounded by Deserializer takes a JSON document, moved in.
+	const spot = unwrap(Spot.deserialize(unwrap(Json.parse("[1, 2]"))));
+	print(`spot ${spot.x} ${spot.y}`);
+	const badSpot = Spot.deserialize(unwrap(Json.parse('"x"')));
+	if (badSpot.ok) throw new Error("a spot refuses a string");
+	print(`spot err ${badSpot.error}`);
 	const tagged = api.tagged(doc, "t");
 	print(`tagged ${Json.toText(tagged)}`);
 	close(tagged);

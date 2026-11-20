@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define MOQ_CONTRACT ((uint64_t)0x4e64edc3aadb27fcULL)
+#define MOQ_CONTRACT ((uint64_t)0x61c9a9924ab0827cULL)
 uint64_t moq_contract(void);
 uint32_t moq_target(void);
 typedef int32_t moq_status;
@@ -8400,6 +8400,7 @@ moq_option_u64 moq_mux_container_ts_Mpegts_mux_rate_get(const moq_mux_container_
 void moq_mux_container_ts_Mpegts_mux_rate_set(moq_mux_container_ts_Mpegts *self, moq_option_u64 value, moq_status *status);
 moq_mux_container_ts_PassthroughTrack *moq_mux_container_ts_Mpegts_passthrough_get(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_Mpegts_passthrough_set(moq_mux_container_ts_Mpegts *self, moq_mux_container_ts_PassthroughTrack *value, moq_status *status);
+bool moq_mux_container_ts_Mpegts_deserialize(moq_Json *__deserializer, moq_mux_container_ts_Mpegts **out, moq_buf *err, moq_status *status);
 bool moq_mux_container_ts_Mpegts_is_empty(const moq_mux_container_ts_Mpegts *self, moq_status *status);
 void moq_mux_container_ts_PassthroughTrack_free(moq_mux_container_ts_PassthroughTrack *self);
 void moq_mux_container_ts_PassthroughTrack_drop(moq_mux_container_ts_PassthroughTrack *self, moq_status *status);
@@ -9162,6 +9163,7 @@ void moq_moq_tokio_listen_Forward_peers_set(moq_moq_tokio_listen_Forward *self, 
 void moq_rustls_client_danger_DangerousClientConfig_free(moq_rustls_client_danger_DangerousClientConfig *self);
 void moq_rustls_client_danger_DangerousClientConfig_drop(moq_rustls_client_danger_DangerousClientConfig *self, moq_status *status);
 moq_buf moq_rustls_client_danger_DangerousClientConfig_debug(const moq_rustls_client_danger_DangerousClientConfig *self, moq_status *status);
+moq_rustls_ClientConfig *moq_rustls_client_danger_DangerousClientConfig_cfg_get(const moq_rustls_client_danger_DangerousClientConfig *self, moq_status *status);
 void moq_rustls_client_Resumption_free(moq_rustls_client_Resumption *self);
 void moq_rustls_client_Resumption_drop(moq_rustls_client_Resumption *self, moq_status *status);
 bool moq_rustls_client_Resumption_borrowed(const moq_rustls_client_Resumption *self);
@@ -9290,6 +9292,8 @@ bool moq_rustls_CryptoProvider_borrowed(const moq_rustls_CryptoProvider *self);
 moq_rustls_CryptoProvider *moq_rustls_CryptoProvider_clone(const moq_rustls_CryptoProvider *self);
 moq_buf moq_IMPLEMENTATION(void);
 moq_vec_string moq_ALPNS(void);
+moq_buf moq_escape(moq_buf content);
+moq_buf moq_unescape(moq_buf segment);
 moq_clock_Instant moq_clock_now(void);
 moq_clock_Wall moq_clock_wall(void);
 void moq_clock_origin(moq_clock_Instant *out0, moq_clock_Wall *out1);

@@ -503,9 +503,13 @@ Future<void> script() async {
   await until(() => wakes == 5, 'a returned waker wakes the waiter');
   print('woken $wakes');
 
-  final nodes = api.Node(api.U64(1), null);
-  nodes.push(api.U64(2));
+  final nodes = api.Node(api.U64(2), null);
+  nodes.push(api.U64(1));
   print('node ${nodes.sum()}');
+  // An optional boxed field that is not Clone, lent as a handle or null.
+  final next = nodes.nextGet;
+  print('node next ${next?.valueGet ?? 0}');
+  next?.close();
 
   final tally = api.Tally();
   tally.bump();
@@ -732,6 +736,12 @@ Future<void> script() async {
   final receipt = ledger.receipt();
   print('receipt ${receipt.count()}');
   receipt.close();
+  // A field holding a borrow, read through.
+  final tab = ledger.tab();
+  final tabbed = tab.ledgerGet;
+  print('tab ${tabbed.published()}');
+  tabbed.close();
+  tab.close();
   final padSmall = api.PadU8.small(), padWide = api.PadU16.wide(), layered = api.Layered();
   final marker = api.Marker('m', 3, 5);
   marker.ySet(7);
@@ -797,6 +807,17 @@ Future<void> script() async {
   print('joined $parts ${api.joined([]).length} read ${api.readLen(utf8.encode('hello'))}');
   final doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}');
   print('json ${api.encode(doc)}');
+  // A returned Cow crosses as an owned string or bytes.
+  print('cow ${api.unescaped(r'a\b')} ${api.unescaped('plain')} ${api.unzeroed(bytes([1, 0, 2])).length} ${api.unzeroed(bytes([3])).length}');
+  // A type parameter bounded by Deserializer takes a JSON document, moved in.
+  final spot = api.Spot.deserialize(api.Json.parse('[1, 2]'));
+  print('spot ${spot.x} ${spot.y}');
+  try {
+    api.Spot.deserialize(api.Json.parse('"x"'));
+    check(false, 'a spot refuses a string');
+  } on api.StringException catch (e) {
+    print('spot err ${e.error}');
+  }
   final tagged = api.tagged(doc, 't');
   print('tagged ${tagged.toText()}');
   tagged.close();
