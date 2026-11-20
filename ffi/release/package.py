@@ -423,7 +423,11 @@ def sdist(info, manifest, export, out):
     for root in roots:
         at = place(root.parent)
         files[f"{at}/Cargo.toml"] = (relocate(workspace_manifest(root), moves(at)).encode(), False)
-    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), moves("binding"), strict=True)
+    # The generated manifest names each package relative to the export, where a relative path
+    # reads right, and absolute elsewhere.
+    binding = moves("binding")
+    binding |= {Path(os.path.relpath(d, export)).as_posix(): binding[str(d)] for d in placed}
+    generated = relocate((export / "Cargo.toml").read_text(encoding="utf-8"), binding, strict=True)
     files["binding/Cargo.toml"] = (generated.encode(), False)
     for path in [export / "Cargo.lock", export / "build.rs", export / "python" / f"{info['lib']}.py",
                  *sorted(p for p in (export / "src").rglob("*") if p.is_file())]:
