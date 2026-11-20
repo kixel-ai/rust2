@@ -883,7 +883,7 @@ impl<'a> Gen<'a> {
 			.collect();
 		let _ = write!(
 			self.py,
-			"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's. Each\n\tvariant raises its own subclass, such as `{name}.{}`, which `{name}(error)` makes.\"\"\"\n\n\tdef __new__(cls, error: {py}) -> {name}:\n\t\tvariant = {pick} if cls is {name} else cls\n\t\treturn _Exception.__new__(variant, error)\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\tif _typing.TYPE_CHECKING:\n{declared}{aliases}\n\n",
+			"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\n\n\tEach variant raises its own subclass, such as `{name}.{}`, which `{name}(error)`\n\tmakes too.\"\"\"\n\n\tdef __new__(cls, error: {py}) -> {name}:\n\t\tvariant = {pick} if cls is {name} else cls\n\t\treturn _Exception.__new__(variant, error)\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\tif _typing.TYPE_CHECKING:\n{declared}{aliases}\n\n",
 			vnames[0]
 		);
 		for (vname, variant) in vnames.iter().zip(&variants) {
