@@ -903,7 +903,7 @@ def c_archive(info, manifest, export_dir, target, out):
     elif apple:
         # The last -install_name rustc's linker sees wins over its own unversioned one.
         link_args = ["-C", f"link-arg=-Wl,-install_name,@rpath/{soname}"]
-    env = {**reproducible(info, export_dir, target), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
+    env = {**reproducible(info, export_dir, target, soname), **({"MACOSX_DEPLOYMENT_TARGET": MACOS_WHEEL} if apple else {})}
     # The C library alone, as the Swift package's: the glue's language features add symbols
     # a C program cannot resolve. Its own target directory, since its link arguments differ.
     # cargo-zigbuild's own `rustc`, as Cargo knows only its `zigbuild`, from the package's
@@ -1315,11 +1315,12 @@ def rustflags_config(directory, target):
             yield key
 
 
-def reproducible(info, export_dir, target):
+def reproducible(info, export_dir, target, install=None):
     """The environment that makes a build's bytes the same on any host, at any path.
 
     Release time is the commit's, and each directory the build reads from, which rustc and
-    C compilers write into panic messages and debug info, is spelled the same.
+    C compilers write into panic messages and debug info, is spelled the same. A dylib is
+    named `install`, else by its library's own name.
     """
     pairs = {
         info["workspace"]: "/source",
@@ -1353,7 +1354,7 @@ def reproducible(info, export_dir, target):
         # Apple's ar and libtool stamp archive members with the time unless told not to, and
         # the linker names a dylib after the path it wrote it to, in the export's build directory.
         env["ZERO_AR_DATE"] = "1"
-        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{library_name(info['lib'], target)}"]
+        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{install or library_name(info['lib'], target)}"]
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
 

@@ -344,6 +344,9 @@ class Reproducible(unittest.TestCase):
             apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
             self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
+            named = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin", "libmoq.0.4.12.dylib")
+            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.0.4.12.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
+            self.assertNotIn("@rpath/libmoq.dylib", named["CARGO_ENCODED_RUSTFLAGS"])
 
     def test_an_empty_encoded_rustflags_is_no_flags(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
