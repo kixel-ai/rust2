@@ -6540,6 +6540,13 @@ impl<'tcx> Collector<'tcx> {
 /// Each type a visited value names, at any depth.
 struct Types<'tcx>(Vec<Ty<'tcx>>);
 
+impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for Types<'tcx> {
+	fn visit_ty(&mut self, ty: Ty<'tcx>) {
+		self.0.push(ty);
+		ty.super_visit_with(self);
+	}
+}
+
 /// How deeply the types visited nest generic types, each inside another's arguments one
 /// level deeper.
 struct Depth<'a> {
@@ -6561,13 +6568,6 @@ impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for Depth<'_> {
 		self.max = self.max.max(self.at);
 		ty.super_visit_with(self);
 		self.at -= own;
-	}
-}
-
-impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for Types<'tcx> {
-	fn visit_ty(&mut self, ty: Ty<'tcx>) {
-		self.0.push(ty);
-		ty.super_visit_with(self);
 	}
 }
 
