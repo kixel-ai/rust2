@@ -1194,13 +1194,11 @@ public struct Plain: ~Copyable, @unchecked Sendable {
 }
 public struct Labeled: ~Copyable, @unchecked Sendable {
 	@inlinable public var debugDescription: Swift.String { get }
-	@inlinable public static func == (a: borrowing Labeled, b: borrowing Labeled) -> Swift.Bool
-	@inlinable public func hash(into hasher: inout Swift.Hasher)
+	@inlinable public static func == (a: borrowing Labeled, b: borrowing Labeled) throws -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
 	@inlinable public static func new(_ label: Swift.String) -> Labeled
+	@inlinable public mutating func blank() throws
 }
-#if compiler(>=6.4)
-extension Labeled: Hashable {}
-#endif
 public struct Gauge: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Gauge
 	@inlinable public static func new(_ level: Swift.UInt64) -> Gauge

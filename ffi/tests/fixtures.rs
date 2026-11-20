@@ -2649,6 +2649,7 @@ fn api_dart() {
 			"api_Labeled_eq",
 			"api_Labeled_hash",
 			"api_Plain_steps",
+			"api_Labeled_blank",
 			"api_Plain_locals",
 			"api_Hooked_count",
 			"api_Guarded_n_get",

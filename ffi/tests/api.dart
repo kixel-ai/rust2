@@ -1088,6 +1088,8 @@ Future<void> leaf() async {
   final labeled = api.Labeled('a' * 100);
   check(labeled == api.Labeled('a' * 100) && labeled != api.Labeled('b'), 'a served equality over a string');
   check(labeled.hashCode == api.Labeled('a' * 100).hashCode, 'a served hash over a string');
+  labeled.blank();
+  check(labeled != api.Labeled('a' * 100), 'a fill the caller sized');
   labeled.close();
   plain.close();
   throws<StateError>(() => plain.nGet, 'a leaf getter of a closed object throws');

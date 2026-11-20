@@ -1101,6 +1101,7 @@ class Labeled internal constructor(raw: Long, lent: Boolean = false) : AutoClose
 	fun debug(): kotlin.String
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
+	fun blank()
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(label: kotlin.String): api.Labeled
 	}

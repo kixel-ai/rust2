@@ -634,6 +634,7 @@ export declare function debug(self: Labeled): string;
 export declare function eq(a: Labeled, b: Labeled): boolean;
 export declare function hash(self: Labeled): rt.u64;
 export declare function new$(label: string): Labeled;
+export declare function blank(self: Labeled): void;
 export { new$ as new };
 
 // Labelled.ts

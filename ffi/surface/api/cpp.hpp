@@ -526,6 +526,7 @@ namespace api {
 		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
 		RUST2_FFI_CALLABLE ::api::buf debug() const;
 		static ::api::Labeled new_(::api::input label);
+		RUST2_FFI_CALLABLE void blank();
 	};
 	class RUST2_FFI_CONSUMABLE Gauge {
 		RUST2_FFI_UNCONSUMED Gauge(Gauge &&other RUST2_FFI_MOVED_FROM) noexcept = default;

@@ -1007,6 +1007,7 @@ type Labeled struct {
 	Handle_ *p_rt.Handle_
 }
 func NewLabeled(label string) (*Labeled, error)
+func (self *Labeled) Blank() error
 func (self *Labeled) Close() error
 func (self *Labeled) Equal(other *Labeled) (bool, error)
 func (self *Labeled) GoString() string

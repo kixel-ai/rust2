@@ -1377,6 +1377,7 @@ final class Labeled extends _Object {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 	factory Labeled(String label);
+	void blank();
 }
 final class Gauge extends _Object {
 	Gauge clone();

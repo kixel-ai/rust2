@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x16bb8402bd12e81eULL)
+#define API_CONTRACT ((uint64_t)0xd077a7000af2ace2ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -1888,10 +1888,12 @@ void api_Plain_recount(api_Plain *self, uint64_t n, api_status *status);
 uint64_t api_Plain_steps(const api_Plain *self, api_status *status);
 uint32_t api_Plain_locals(const api_Plain *self, api_status *status);
 void api_Labeled_free(api_Labeled *self);
-bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b);
-uint64_t api_Labeled_hash(const api_Labeled *self);
-api_buf api_Labeled_debug(const api_Labeled *self);
+void api_Labeled_drop(api_Labeled *self, api_status *status);
+bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b, api_status *status);
+uint64_t api_Labeled_hash(const api_Labeled *self, api_status *status);
+api_buf api_Labeled_debug(const api_Labeled *self, api_status *status);
 api_Labeled *api_Labeled_new(api_buf label);
+void api_Labeled_blank(api_Labeled *self, api_status *status);
 void api_Gauge_free(api_Gauge *self);
 void api_Gauge_drop(api_Gauge *self, api_status *status);
 bool api_Gauge_borrowed(const api_Gauge *self);

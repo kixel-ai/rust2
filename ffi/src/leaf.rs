@@ -9,7 +9,7 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_middle::mir::visit::Visitor;
-use rustc_middle::mir::{self, BasicBlock, Location, Rvalue, TerminatorKind};
+use rustc_middle::mir::{self, BasicBlock, Location, NonDivergingIntrinsic, Rvalue, StatementKind, TerminatorKind};
 use rustc_middle::ty::{self, Instance, InstanceKind, ShimKind, Ty, TyCtxt, TypeVisitableExt, TypingEnv};
 use rustc_span::DUMMY_SP;
 
@@ -150,9 +150,20 @@ impl<'tcx> Leaves<'tcx> {
 				| TerminatorKind::Unreachable
 				| TerminatorKind::FalseEdge { .. }
 				| TerminatorKind::FalseUnwind { .. } => true,
-				TerminatorKind::Call { func, .. } | TerminatorKind::TailCall { func, .. } => {
+				TerminatorKind::Call { func, args, .. } | TerminatorKind::TailCall { func, args, .. } => {
 					match mono(func.ty(body, tcx)).map(|ty| *ty.kind()) {
-						Ok(ty::FnDef(def_id, args)) => args.no_bound_vars().is_some_and(|args| self.call(def_id, args)),
+						Ok(ty::FnDef(def_id, generics)) => {
+							// A copy or fill of as many values as the caller picks is a loop of
+							// its own.
+							let sized = tcx.intrinsic(def_id).is_some_and(|i| {
+								matches!(i.name.as_str(), "copy" | "copy_nonoverlapping" | "write_bytes")
+							});
+							let counted = !sized || args.get(2).is_some_and(|count| count.node.constant().is_some());
+							counted
+								&& generics
+									.no_bound_vars()
+									.is_some_and(|generics| self.call(def_id, generics))
+						}
 						// A function pointer's callee is unknown.
 						_ => false,
 					}
@@ -169,7 +180,15 @@ impl<'tcx> Leaves<'tcx> {
 				| TerminatorKind::UnwindResume
 				| TerminatorKind::UnwindTerminate(_) => false,
 			};
-			if !ok {
+			// The same copy, lowered to a statement.
+			let copies = data.statements.iter().any(|statement| {
+				matches!(
+					&statement.kind,
+					StatementKind::Intrinsic(intrinsic)
+						if matches!(&**intrinsic, NonDivergingIntrinsic::CopyNonOverlapping(copy) if copy.count.constant().is_none())
+				)
+			});
+			if !ok || copies {
 				return false;
 			}
 		}
@@ -195,7 +214,8 @@ impl<'tcx> Leaves<'tcx> {
 }
 
 /// Whether core's intrinsic `name` only computes: it runs no other code, waits on nothing,
-/// and cannot panic. Any other, such as `catch_unwind`, is no leaf.
+/// and cannot panic. Any other, such as `catch_unwind`, is no leaf. A copy or fill is one
+/// only of a count fixed at its call.
 fn computes(name: &str) -> bool {
 	name.starts_with("atomic_")
 		|| matches!(

@@ -2757,11 +2757,19 @@ impl std::ops::Deref for Guarded {
 #[derive(Debug, PartialEq, Hash)]
 pub struct Labeled {
 	label: String,
+	bytes: Vec<u8>,
 }
 
 impl Labeled {
 	pub fn new(label: String) -> Self {
-		Self { label }
+		let bytes = label.clone().into_bytes();
+		Self { label, bytes }
+	}
+
+	/// Zero its bytes: a fill as long as the caller makes it, with no loop in its MIR, so no
+	/// leaf call.
+	pub fn blank(&mut self) {
+		self.bytes.fill(0);
 	}
 }
 
