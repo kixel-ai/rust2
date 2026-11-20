@@ -23,6 +23,8 @@ use crate::ir::{Api, Constant, Function};
 const AUTO: &str = "rust2:";
 /// A resolved link's scheme, which keeps its own text.
 const TEXT: &str = "rust2-text:";
+/// What opens a resolved link's destination, of either scheme.
+pub(crate) const LINK: &str = "](rust2";
 
 /// The options rustdoc parses a doc comment with.
 fn options() -> Options {
@@ -429,7 +431,7 @@ pub(crate) fn links(out: &str, api: &Api, mut render: impl FnMut(&Link<'_>) -> O
 	let index = index(api);
 	let mut result = String::with_capacity(out.len());
 	let mut rest = out;
-	while let Some(at) = rest.find("](rust2") {
+	while let Some(at) = rest.find(LINK) {
 		let (before, after) = rest.split_at(at);
 		let scheme = match () {
 			_ if after[2..].starts_with(AUTO) => AUTO,

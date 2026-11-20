@@ -486,8 +486,28 @@ impl<'a> Gen<'a> {
 	/// Where `target` is, if TypeScript has it: its module, the module's name for it, and
 	/// the name a caller writes, who imports a type's module as the type's name. A variant is
 	/// a tag of its union, which no declaration names.
+	/// None where the binding lacks it, as for an item off the web's target.
 	fn link(&self, target: doc::Target<'_>) -> Option<(String, String, String)> {
 		let abi = self.abi;
+		let api = abi.api;
+		let on = |owner: doc::Owner| match owner {
+			doc::Owner::Record(i) => api.records[i].on,
+			doc::Owner::Enum(i) => api.enums[i].on,
+			doc::Owner::Object(i) => api.objects[i].on,
+			doc::Owner::Callback(i) => api.callbacks[i].on,
+		};
+		let here = match target {
+			doc::Target::Record(i) | doc::Target::Field(i, _) => self.here(on(doc::Owner::Record(i))),
+			doc::Target::Enum(i) => self.here(on(doc::Owner::Enum(i))),
+			doc::Target::Variant(i, v) => self.here(on(doc::Owner::Enum(i))) && self.here(api.enums[i].variants[v].on),
+			doc::Target::Object(i) => self.here(on(doc::Owner::Object(i))),
+			doc::Target::Callback(i) => self.here(on(doc::Owner::Callback(i))),
+			doc::Target::Constant(c) => self.here(c.on),
+			doc::Target::Function(of, f) => self.here(f.on) && of.is_none_or(|of| self.here(on(of))),
+		};
+		if !here {
+			return None;
+		}
 		let owner = |owner: doc::Owner| match owner {
 			doc::Owner::Record(i) => self.class(&abi.record(i)),
 			doc::Owner::Enum(i) => self.class(&abi.enumeration(i)),
@@ -519,8 +539,17 @@ impl<'a> Gen<'a> {
 			}
 			doc::Target::Function(of, f) => {
 				let member = self.locked.get(&crate::lock::function_key(f))?;
-				match of.map(owner) {
-					Some(of) => (of.clone(), member.clone(), format!("{of}.{member}")),
+				match of {
+					// A callback's method is its interface's member, not an export.
+					Some(of @ doc::Owner::Callback(_)) => {
+						let class = owner(of);
+						let member = format!("{class}.{member}");
+						(class, member.clone(), member)
+					}
+					Some(of) => {
+						let class = owner(of);
+						(class.clone(), member.clone(), format!("{class}.{member}"))
+					}
 					None => ("index".to_string(), member.clone(), member.clone()),
 				}
 			}

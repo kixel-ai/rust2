@@ -181,6 +181,15 @@ impl Maps {
 	}
 }
 
+/// `ours` as the docs of the target whose links resolve more: a link to an item one target
+/// lacks resolves only where it has it, and each binding drops the links it cannot follow.
+fn linked(ours: &mut String, theirs: String) {
+	let links = |docs: &str| docs.matches(crate::doc::LINK).count();
+	if links(&theirs) > links(ours) {
+		*ours = theirs;
+	}
+}
+
 /// `item` with what may differ between targets alike cleared: its span, docs, deprecation, targets,
 /// and `clear`'s, which clears its members, compared on their own.
 fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
@@ -455,6 +464,11 @@ impl Merged {
 				let what = format!("struct `{}`", record.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
+			let ours = &mut self.api.records[at];
+			linked(&mut ours.docs, record.docs);
+			for (field, theirs) in ours.fields.iter_mut().zip(record.fields) {
+				linked(&mut field.docs, theirs.docs);
+			}
 			self.api.records[at].on.0 |= record.on.0;
 			leaves(&mut self.api.records[at].traits, record.traits);
 			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
@@ -476,6 +490,7 @@ impl Merged {
 				self.differ(what.clone(), (ours.on, ours.span), (e.on, e.span));
 			}
 			self.variants(at, &e, what);
+			linked(&mut self.api.enums[at].docs, e.docs);
 			self.api.enums[at].on.0 |= e.on.0;
 			leaves(&mut self.api.enums[at].traits, e.traits);
 			let methods = std::mem::take(&mut self.api.enums[at].methods);
@@ -490,6 +505,7 @@ impl Merged {
 				let what = format!("type `{}`", object.shown.join("::"));
 				self.differ(what, (ours.on, ours.span), (object.on, object.span));
 			}
+			linked(&mut self.api.objects[at].docs, object.docs);
 			self.api.objects[at].on.0 |= object.on.0;
 			leaves(&mut self.api.objects[at].traits, object.traits);
 			let methods = std::mem::take(&mut self.api.objects[at].methods);
@@ -505,6 +521,10 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (callback.on, callback.span));
 			}
 			let ours = &mut self.api.callbacks[at];
+			linked(&mut ours.docs, callback.docs);
+			for (method, theirs) in ours.methods.iter_mut().zip(callback.methods) {
+				linked(&mut method.docs, theirs.docs);
+			}
 			ours.on.0 |= callback.on.0;
 			ours.methods.iter_mut().for_each(|m| m.on.0 |= callback.on.0);
 		}
@@ -520,6 +540,7 @@ impl Merged {
 				let what = format!("const `{}`", constant.path.join("::"));
 				self.differ(what, (ours.on, ours.span), (constant.on, constant.span));
 			}
+			linked(&mut self.api.constants[at].docs, constant.docs);
 			self.api.constants[at].on.0 |= constant.on.0;
 		}
 	}
@@ -541,6 +562,7 @@ impl Merged {
 				self.differ(what, (ours[at].on, ours[at].span), (function.on, function.span));
 			}
 			ours[at].on.0 |= function.on.0;
+			linked(&mut ours[at].docs, function.docs);
 		}
 		ours
 	}
@@ -798,8 +820,18 @@ mod tests {
 
 	use rustc_span::DUMMY_SP;
 
-	use super::{On, cycle, order_crates};
+	use super::{On, cycle, linked, order_crates};
 	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
+
+	/// Docs keep the target's whose links resolve more, as one lacking an item does not.
+	#[test]
+	fn docs_keep_the_most_links() {
+		let mut docs = "Joins a `Spawned`.".to_string();
+		linked(&mut docs, "Joins a [`Spawned`](rust2:api::Spawned).".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+		linked(&mut docs, "Joins a `Spawned`.".to_string());
+		assert_eq!(docs, "Joins a [`Spawned`](rust2:api::Spawned).");
+	}
 
 	#[test]
 	fn names_a_cycle_across_targets() {

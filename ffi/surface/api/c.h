@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x6df49501b645ac16ULL)
+#define API_CONTRACT ((uint64_t)0x81c497ba984e751bULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;

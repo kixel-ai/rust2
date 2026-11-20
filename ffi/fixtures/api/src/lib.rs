@@ -5029,8 +5029,9 @@ impl Key {
 
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
 /// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
-/// function [`advance`], a constant [`LIMIT`], an object [`Counter`], and [`Vec`], which no
-/// binding has, and [a link with its own text](Self::turn).
+/// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method
+/// [`Log::log`], [`Spawned`], which the web lacks, and [`Vec`], which no binding has, and
+/// [a link with its own text](Self::turn).
 ///
 /// # Examples
 ///
