@@ -2683,7 +2683,7 @@ impl Gen<'_> {
 			let mut lines = vec![this(self, "a", "a$"), this(self, "b", "b$")];
 			let args = vec!["a$".to_string(), "b$".to_string()];
 			let i8 = Ty::Int(Int::I8);
-			let ret = self.invoke(&format!("{c}_{suffix}"), args, &i8, status, &mut lines);
+			let ret = self.invoke(&sig(suffix, &[&recv, &recv], i8, status), args, &mut lines);
 			let value = self.result(&Type::Int(Int::I8), &ret);
 			let (member, doc, ret_t) = match suffix {
 				"cmp" => {
