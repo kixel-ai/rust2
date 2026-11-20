@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0xebcaf00fd9ec3862ULL)
+#define API_CONTRACT ((uint64_t)0xbd97cffe1d1f4ba4ULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -810,6 +810,9 @@ typedef struct api_Qualifiers {
 	double api;
 	double kotlin;
 } api_Qualifiers;
+typedef struct api_Deprecated {
+	bool on;
+} api_Deprecated;
 typedef struct api_Dial {
 	uint64_t level;
 	uint64_t before;
@@ -1302,6 +1305,10 @@ bool api_a_eq(const api_a *a, const api_a *b);
 api_buf api_a_debug(const api_a *self);
 void api_Qualifiers_free(api_Qualifiers *self);
 bool api_Qualifiers_eq(const api_Qualifiers *a, const api_Qualifiers *b);
+void api_Deprecated_free(api_Deprecated *self);
+bool api_Deprecated_eq(const api_Deprecated *a, const api_Deprecated *b);
+api_buf api_Deprecated_debug(const api_Deprecated *self);
+api_Deprecated api_Deprecated_default(void);
 void api_Dial_free(api_Dial *self);
 bool api_Dial_eq(const api_Dial *a, const api_Dial *b);
 api_buf api_Dial_debug(const api_Dial *self);
@@ -2293,6 +2300,7 @@ api_socket_addr api_same_socket_addr(api_socket_addr v);
 api_socket_addr_v4 api_same_socket_addr_v4(api_socket_addr_v4 v);
 api_socket_addr_v6 api_same_socket_addr_v6(api_socket_addr_v6 v);
 api_ip_addr api_same_ip_addr(api_ip_addr v);
+uint8_t api_deprecated(uint8_t note);
 api_Knob api_knob(api_Dial dial);
 typedef struct api_level_later_future api_level_later_future;
 api_level_later_future *api_level_later(api_Dial dial);

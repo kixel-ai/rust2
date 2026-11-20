@@ -572,6 +572,13 @@ public struct Qualifiers: Sendable, Equatable {
 	@inlinable public init(api: Swift.Double, kotlin: Swift.Double)
 	@inlinable public static func == (a: Qualifiers, b: Qualifiers) -> Swift.Bool
 }
+public struct Deprecated: Sendable, CustomDebugStringConvertible, Equatable {
+	public var on: Swift.Bool
+	@inlinable public init(on: Swift.Bool)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: Deprecated, b: Deprecated) -> Swift.Bool
+	@inlinable public static func `default`() -> Deprecated
+}
 public struct Dial: Sendable, CustomDebugStringConvertible, Equatable {
 	public var level: Swift.UInt64
 	@available(*, deprecated, message: "keep the `Dial` from before the turn") @inlinable public var before: Swift.UInt64 { get set }
@@ -1569,6 +1576,7 @@ public let URL: Swift.UInt64
 @inlinable public func sameSocketAddrV4(_ v: SocketAddrV4) -> SocketAddrV4
 @inlinable public func sameSocketAddrV6(_ v: SocketAddrV6) -> SocketAddrV6
 @inlinable public func sameIpAddr(_ v: IpAddr) -> IpAddr
+@inlinable public func deprecated(_ note: Swift.UInt8) -> Swift.UInt8
 @available(*, deprecated) @inlinable public func knob(_ dial: Dial) -> Knob
 @available(*, deprecated, message: "read its `level`") @inlinable nonisolated(nonsending) public func levelLater(_ dial: Dial) async throws -> Swift.UInt64
 @inlinable public func turned(_ dial: Dial, _ turner: any Turner) throws -> Dial

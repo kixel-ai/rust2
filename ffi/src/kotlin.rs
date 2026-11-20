@@ -4193,11 +4193,12 @@ fn member_name(code: &str) -> Option<String> {
 }
 
 /// Kotlin's KDoc holding `docs`, each line indented by `indent`, or nothing for none, and
-/// `@Deprecated` with its note where `deprecated` has one.
+/// `@kotlin.Deprecated` with its note where `deprecated` has one, qualified since an
+/// exported `Deprecated` would shadow it.
 /// A Kotlin block comment nests, so a `/*` or `*/` in the docs is escaped.
 fn docs(docs: &str, deprecated: Option<&str>, indent: &str) -> String {
 	let deprecated = match deprecated {
-		Some(note) => format!("{indent}@Deprecated({})\n", kt_string(note)),
+		Some(note) => format!("{indent}@kotlin.Deprecated({})\n", kt_string(note)),
 		None => String::new(),
 	};
 	if docs.trim().is_empty() {

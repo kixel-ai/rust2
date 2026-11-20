@@ -5043,6 +5043,19 @@ impl Key {
 	}
 }
 
+/// A type named as Kotlin's and Dart's deprecation annotation, which the bindings' own
+/// annotations must not resolve to.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Deprecated {
+	pub on: bool,
+}
+
+/// A function named as Dart's deprecation annotation, which the deprecated items after it
+/// must not resolve to.
+pub fn deprecated(note: u8) -> u8 {
+	note
+}
+
 /// A dial, whose docs carry each rustdoc form a binding renders as its own: links to a
 /// method [`Self::turn`], a field [`Dial::level`], a variant [`Error::Overflow`], a
 /// function [`advance`], a constant [`LIMIT`], an object [`Counter`], a callback's method

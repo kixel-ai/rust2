@@ -1054,6 +1054,13 @@ namespace api {
 		friend bool operator==(const Qualifiers &a__, const Qualifiers &b_);
 		friend bool operator!=(const Qualifiers &a__, const Qualifiers &b_);
 	};
+	struct Deprecated {
+		bool on;
+		friend bool operator==(const Deprecated &a__, const Deprecated &b_);
+		friend bool operator!=(const Deprecated &a__, const Deprecated &b_);
+		::api::buf debug() const;
+		static Deprecated default_();
+	};
 	struct Dial {
 		::std::uint64_t level;
 		[[deprecated("keep the `Dial` from before the turn")]] ::std::uint64_t before;
@@ -1282,6 +1289,7 @@ namespace api {
 	inline bool operator==(const DoubleArray &a__, const DoubleArray &b_);
 	inline bool operator==(const a &a__, const a &b_);
 	inline bool operator==(const Qualifiers &a__, const Qualifiers &b_);
+	inline bool operator==(const Deprecated &a__, const Deprecated &b_);
 	inline bool operator==(const Dial &a__, const Dial &b_);
 	inline bool operator==(const Knob &a__, const Knob &b_);
 	inline bool operator==(const polar_Point &a__, const polar_Point &b_);
@@ -1596,6 +1604,7 @@ namespace api {
 	inline ::api::socket_addr_v4 same_socket_addr_v4(::api::socket_addr_v4 v);
 	inline ::api::socket_addr_v6 same_socket_addr_v6(::api::socket_addr_v6 v);
 	inline ::api::ip_addr same_ip_addr(::api::ip_addr v);
+	inline ::std::uint8_t deprecated(::std::uint8_t note);
 	[[deprecated]] inline ::api::Knob knob(const ::api::Dial &dial);
 	[[deprecated("read its `level`")]] inline ::api::level_later_future level_later(const ::api::Dial &dial);
 	inline ::api::result<::api::Dial, ::api::Error> turned(const ::api::Dial &dial, ::std::unique_ptr<::api::Turner> turner);
@@ -1956,6 +1965,7 @@ namespace api {
 	struct NonZeros;
 	struct a;
 	struct Qualifiers;
+	struct Deprecated;
 	struct Dial;
 	struct Knob;
 	struct polar_Point;

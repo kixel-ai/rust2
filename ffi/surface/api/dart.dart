@@ -607,6 +607,14 @@ final class Qualifiers {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Deprecated_ {
+	final bool on;
+	const Deprecated_({required this.on});
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Deprecated_.default_();
+}
 final class Dial {
 	final U64 level;
 	@Deprecated('keep the `Dial` from before the turn') final U64 before;
@@ -1742,6 +1750,7 @@ SocketAddr sameSocketAddr(SocketAddr v);
 SocketAddrV4 sameSocketAddrV4(SocketAddrV4 v);
 SocketAddrV6 sameSocketAddrV6(SocketAddrV6 v);
 IpAddr sameIpAddr(IpAddr v);
+int deprecated_(int note);
 @deprecated Knob knob(Dial dial);
 @Deprecated('read its `level`') Cancelable<U64> levelLater(Dial dial);
 Dial turned(Dial dial, Turner turner);

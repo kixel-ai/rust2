@@ -380,6 +380,15 @@ import * as rt from "./rt.ts";
 export type Cursor = rt.Handle<"Cursor">;
 export declare function at(self: Cursor): rt.u64;
 
+// Deprecated.ts
+export type Deprecated = {
+    on: boolean;
+};
+export declare function debug(self: Deprecated): string;
+export declare function eq(a: Deprecated, b: Deprecated): boolean;
+export declare function default$(): Deprecated;
+export { default$ as default };
+
 // Der.ts
 import * as rt from "./rt.ts";
 export type Der = rt.Handle<"Der">;
@@ -1542,6 +1551,7 @@ import type { ClashTone_ } from "./ClashTone_.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
 import type { Cursor } from "./Cursor.ts";
+import type { Deprecated } from "./Deprecated.ts";
 import type { Dial } from "./Dial.ts";
 import type { DoubleArray } from "./DoubleArray.ts";
 import type { Error_ } from "./Error_.ts";
@@ -1749,6 +1759,7 @@ export declare function r_Boxed_u16(p: number, o: boolean): BoxedU16;
 export declare function r_Boxed_u8(p: number, o: boolean): BoxedU8;
 export declare function r_Clash(p: number, o: boolean): Clash;
 export declare function r_Clocked(p: number, o: boolean): Clocked;
+export declare function r_Deprecated(p: number, o: boolean): Deprecated;
 export declare function r_Dial(p: number, o: boolean): Dial;
 export declare function r_Error(p: number, o: boolean): Error_;
 export declare function r_Event(p: number, o: boolean): Event;
@@ -1923,6 +1934,7 @@ export declare function w_Cancelled(p: number, v: Cancelled): void;
 export declare function w_Choice(p: number, v: Choice): void;
 export declare function w_Clash(p: number, v: Clash): void;
 export declare function w_Clocked(p: number, v: Clocked): void;
+export declare function w_Deprecated(p: number, v: Deprecated): void;
 export declare function w_Dial(p: number, v: Dial): void;
 export declare function w_DoubleArray(p: number, v: DoubleArray): void;
 export declare function w_Error(p: number, v: Error_): void;
@@ -2521,6 +2533,7 @@ export declare function sameSocketAddr(v: rt.SocketAddr): rt.SocketAddr;
 export declare function sameSocketAddrV4(v: rt.SocketAddrV4): rt.SocketAddrV4;
 export declare function sameSocketAddrV6(v: rt.SocketAddrV6): rt.SocketAddrV6;
 export declare function sameIpAddr(v: rt.IpAddr): rt.IpAddr;
+export declare function deprecated(note: number): number;
 export declare function knob(dial: Dial): Knob;
 export declare function levelLater(dial: Dial): rt.Call<rt.u64>;
 export declare function turned(dial: Dial, turner: Turner): rt.Result<Dial, Error_>;

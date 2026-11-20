@@ -100,9 +100,14 @@ const TAKEN: &[&str] = &[
 	"_bytearray",
 	"_object",
 	"_range",
+	"_deprecated",
+	"_T",
 	"ForeignReader",
 	"Duration",
 ];
+
+/// The module's `@_deprecated`, which `TAKEN` keeps an export from shadowing.
+const DEPRECATOR: &str = "_T = _typing.TypeVar(\"_T\")\n\nif _typing.TYPE_CHECKING:\n\tfrom typing_extensions import deprecated as _deprecated\nelse:\n\n\tdef _deprecated(message: _str, /) -> _typing.Callable[[_T], _T]:\n\t\t\"\"\"Marks a deprecated item for type checkers.\"\"\"\n\t\treturn lambda item: item\n";
 
 /// Any buffer, as Python before 3.12's `collections.abc.Buffer` spells it.
 const BUFFER: &str = "_bytes | _bytearray | _memoryview";
@@ -299,7 +304,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		);
 		body = body.replacen(
 			"_T = _typing.TypeVar(\"_T\")\n",
-			"_T = _typing.TypeVar(\"_T\")\n\nif _typing.TYPE_CHECKING:\n\tfrom typing_extensions import deprecated as _deprecated\nelse:\n\n\tdef _deprecated(message: _str, /) -> _typing.Callable[[_T], _T]:\n\t\t\"\"\"Marks a deprecated item for type checkers.\"\"\"\n\t\treturn lambda item: item\n",
+			DEPRECATOR,
 			1,
 		);
 	}
@@ -2400,8 +2405,22 @@ fn ieee_eq(class: &str, fields: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{member, param_name, param_names};
+	use super::{DEPRECATOR, TAKEN, member, param_name, param_names};
 	use crate::ir::{Param, Type};
+
+	/// Every name the deprecation helper binds is taken, so no export shadows it.
+	#[test]
+	fn deprecator_names_taken() {
+		for line in DEPRECATOR.lines() {
+			let line = line.trim_start();
+			let name = (line.strip_prefix("def ").map(|rest| rest.split('(').next().unwrap()))
+				.or_else(|| line.split_once(" as ").map(|(_, name)| name))
+				.or_else(|| line.split_once(" = ").map(|(name, _)| name));
+			if let Some(name) = name {
+				assert!(TAKEN.contains(&name), "the helper's `{name}` is not in TAKEN");
+			}
+		}
+	}
 
 	#[test]
 	fn params_keep_apart() {
