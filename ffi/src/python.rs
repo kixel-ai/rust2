@@ -1183,15 +1183,19 @@ impl<'a> Gen<'a> {
 				),
 			);
 		};
+		let shown = self.abi.api.shown(ty);
 		if t.display {
+			crate::lock::trait_member(&mut self.locked, shown, "Display", "__str__");
 			unary(self, "to_string", "__str__", "", "rt::str_out(ret)".to_string());
 			body.native.push("\tdef __str__(self) -> _str: ...\n".to_string());
 		}
 		if t.debug {
+			crate::lock::trait_member(&mut self.locked, shown, "Debug", "__repr__");
 			unary(self, "debug", "__repr__", "", "rt::str_out(ret)".to_string());
 			body.native.push("\tdef __repr__(self) -> _str: ...\n".to_string());
 		}
 		if object && t.clone {
+			crate::lock::trait_member(&mut self.locked, shown, "Clone", "clone");
 			let lower = self.lower(ty, "ret");
 			let docs = "A new handle to a clone.";
 			unary(self, "clone", "clone", docs, lower);
@@ -1202,6 +1206,7 @@ impl<'a> Gen<'a> {
 		// An opaque value compares through Rust, as an object does; a record compares its
 		// fields, as `record_class` writes.
 		if (object || opaque) && t.eq {
+			crate::lock::trait_member(&mut self.locked, shown, "PartialEq", "__eq__");
 			let other = match object {
 				true => self.lift(
 					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
@@ -1271,10 +1276,12 @@ impl<'a> Gen<'a> {
 		}
 		// Rust's `Hash` makes it hashable again, agreeing with its `__eq__`.
 		if (object || opaque) && t.hash {
+			crate::lock::trait_member(&mut self.locked, shown, "Hash", "__hash__");
 			unary(self, "hash", "__hash__", "", "rt::uint_out(ret)".to_string());
 			body.native.push("\tdef __hash__(self) -> _int: ...\n".to_string());
 		}
 		if t.default {
+			crate::lock::trait_member(&mut self.locked, shown, "Default", "default");
 			let lower = self.lower(ty, "ret");
 			let docs = "Rust's `Default`.";
 			let d = Direct {
@@ -1410,7 +1417,11 @@ impl<'a> Gen<'a> {
 		}
 		let fields: Vec<Slot> = (record.fields.iter())
 			.map(|f| Slot {
-				name: field_name(&f.name),
+				name: {
+					let name = field_name(&f.name);
+					crate::lock::field(&mut self.locked, &record.shown, &f.name, &name);
+					name
+				},
 				ty: self.py_field(&f.ty),
 				docs: deprecation(&f.docs, f.deprecated.as_deref()),
 				same: own_eq(abi, &f.ty),
@@ -1481,10 +1492,11 @@ impl<'a> Gen<'a> {
 			let data: Vec<String> = e.variants.iter().map(|v| abi::snake(&v.name).to_uppercase()).collect();
 			// An `Enum`'s members have these.
 			self.methods(&e.methods, (&ty, &owner, &rust), &data, &["name", "value"], &mut body);
-			let entries: String = e
-				.variants
-				.iter()
-				.map(|v| format!("\t{} = {}\n", abi::snake(&v.name).to_uppercase(), v.discriminant))
+			for (v, member) in e.variants.iter().zip(&data) {
+				crate::lock::variant(&mut self.locked, &e.shown, &v.name, &format!("{name}.{member}"));
+			}
+			let entries: String = (e.variants.iter().zip(&data))
+				.map(|(v, member)| format!("\t{member} = {}\n", v.discriminant))
 				.collect();
 			let _ = write!(
 				self.py,
@@ -1501,8 +1513,7 @@ impl<'a> Gen<'a> {
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
 		let vnames = variant_classes(e.variants.iter().map(|v| v.name.as_str()));
 		for (variant, vname) in e.variants.iter().zip(&vnames) {
-			let key = format!("{} / variant {}", crate::lock::type_key(&e.shown), variant.name);
-			self.locked.insert(key, format!("{name}.{vname}"));
+			crate::lock::variant(&mut self.locked, &e.shown, &variant.name, &format!("{name}.{vname}"));
 		}
 		let mut data = vnames.clone();
 		let fields: BTreeSet<String> = e
@@ -1536,7 +1547,11 @@ impl<'a> Gen<'a> {
 			let tv = self.register(&key, class.clone());
 			let fields: Vec<Slot> = (variant.fields.iter())
 				.map(|f| Slot {
-					name: field_name(&f.name),
+					name: {
+						let name = field_name(&f.name);
+						crate::lock::variant_field(&mut self.locked, &e.shown, &variant.name, &f.name, &name);
+						name
+					},
 					ty: self.py_field(&f.ty),
 					docs: f.docs.clone(),
 					same: own_eq(abi, &f.ty),
