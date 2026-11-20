@@ -15,6 +15,9 @@ use super::body::Body;
 use super::float;
 use crate::ts::{Expr, Key, Type};
 
+/// The largest integer a JS number holds exactly, 2^53 - 1.
+const MAX_SAFE: u64 = (1 << 53) - 1;
+
 /// An integer type, by width and signedness. `usize` and `isize` are 32 bits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Int {
@@ -130,9 +133,64 @@ impl Int {
 		Expr::As(Box::new(Expr::Object(fields)), self.ty())
 	}
 
-	/// A call of the type's runtime function `name`: `rs.u8Add` for `add`.
+	/// A call of the type's runtime function `name`: `rs.u8Add` for `add`. A `u64`'s sum or
+	/// difference of names and literals writes its number path at the call, with the
+	/// runtime's function for the rest: `typeof a === "number" && a + 1 <= 9007199254740991
+	/// ? a + 1 : rs.u64Add(a, 1)`.
+	///
+	/// A call in a large function stayed a call in SpiderMonkey (Firefox), up to 4x slower
+	/// than the same path written out in `parts/prefix-writes`' loop, which V8 and
+	/// JavaScriptCore ran up to 2x faster written out too. Narrower types written out grew
+	/// the bundle with no gain beyond that, so they keep their calls.
 	pub(crate) fn method(self, name: &str, args: Vec<Expr>) -> Expr {
-		self.func(name).call(args)
+		match self.number_path(name, &args) {
+			Some(expr) => expr,
+			None => self.func(name).call(args),
+		}
+	}
+
+	/// `name`'s call with its number path written out, if `name` is a `u64`'s sum or
+	/// difference of operands that read as many times as written.
+	fn number_path(self, name: &str, args: &[Expr]) -> Option<Expr> {
+		let [a, b] = args else { return None };
+		if self.signed || self.bits != 64 {
+			return None;
+		}
+		let (op, fits) = match name {
+			// Two safe integers sum to one exactly while the sum is safe.
+			"add" | "wrappingAdd" => ("+", "<="),
+			"sub" | "wrappingSub" => ("-", ">="),
+			_ => return None,
+		};
+		let guard = self.number_guard(&[a, b])?;
+		let value = a.clone().binary(op, b.clone());
+		let bound = Expr::lit(if op == "+" { MAX_SAFE.to_string() } else { "0".into() });
+		let test = guard.binary("&&", value.clone().binary(fits, bound));
+		let call = self.func(name).call(args.to_vec());
+		Some(Expr::As(
+			Box::new(Expr::Cond(Box::new(test), Box::new(value), Box::new(call))),
+			self.ty(),
+		))
+	}
+
+	/// The test that each operand that is a name is a number, or `None` if an operand is
+	/// neither a name nor a literal, which writing the path would evaluate twice, or if
+	/// none is a name.
+	fn number_guard(self, operands: &[&Expr]) -> Option<Expr> {
+		let mut guard: Option<Expr> = None;
+		for operand in operands {
+			let name = match operand.unlocated() {
+				Expr::Lit(_) => continue,
+				e if e.is_path() && !e.is_constant() => e,
+				_ => return None,
+			};
+			let test = Expr::Unary("typeof ", Box::new(name.clone())).binary("===", Expr::Str("number".into()));
+			guard = Some(match guard {
+				Some(g) => g.binary("&&", test),
+				None => test,
+			});
+		}
+		guard
 	}
 
 	/// The type's runtime function `name`, uncalled.
@@ -169,6 +227,12 @@ impl Int {
 			">" => "gt",
 			_ => "ge",
 		};
+		// Two numbers compare as they are, whatever the sign; only a wide value past 2^53 is
+		// limbs, which the runtime orders. Written out as `method`'s sum is.
+		if let Some(guard) = self.number_guard(&[&l, &r]) {
+			let call = self.func(name).call(vec![l.clone(), r.clone()]);
+			return Expr::Cond(Box::new(guard), Box::new(l.binary(js, r)), Box::new(call));
+		}
 		self.method(name, vec![l, r])
 	}
 }

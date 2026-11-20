@@ -193,6 +193,30 @@ final class Timescale {
 	factory Timescale(U64 unitsPerSecond);
 	U64 asU64();
 }
+final class Timestamp {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	static Timestamp get zero;
+	factory Timestamp(U64 value, Timescale scale);
+	factory Timestamp.unscaled(U64 key);
+	factory Timestamp.fromScale(U64 value, U64 unitsPerSecond);
+	factory Timestamp.fromSecs(U64 seconds);
+	factory Timestamp.fromMillis(U64 millis);
+	factory Timestamp.fromMicros(U64 micros);
+	factory Timestamp.fromNanos(U64 nanos);
+	U64 value();
+	Timescale? scale();
+	bool isZero();
+	Timestamp convert(Timescale newScale);
+	BigInt asScale(Timescale target);
+	U64 asSecs();
+	BigInt asMillis();
+	BigInt asMicros();
+	BigInt asNanos();
+	Timestamp checkedAdd(Timestamp rhs);
+	Timestamp checkedSub(Timestamp rhs);
+}
 final class ClockInstant {
 	String debug();
 	@override bool operator ==(Object other);
@@ -465,6 +489,24 @@ final class StatsWithdrawals {
 	StatsWithdrawals add(StatsWithdrawals other);
 	bool regressed(StatsWithdrawals previous);
 }
+final class TransportReceiveWindow {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	U64? get connectionGet;
+	TransportReceiveWindow connectionSet(U64? value);
+	U64 get streamGet;
+	TransportReceiveWindow streamSet(U64 value);
+	factory TransportReceiveWindow(U64? connection, U64 stream);
+}
+final class TransportLimits {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory TransportLimits.default_();
+	U64? get receiveWindowGet;
+	TransportLimits receiveWindowSet(U64? value);
+}
 final class BandwidthRate {
 	String debug();
 	@override bool operator ==(Object other);
@@ -556,6 +598,15 @@ final class HangCatalogAac {
 	String debug();
 	@override bool operator ==(Object other);
 	@override int get hashCode;
+}
+final class HangCatalogClock {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	Timestamp get wallGet;
+	HangCatalogClock wallSet(Timestamp value);
+	factory HangCatalogClock(Timestamp wall);
+	ClockWall wallClock(Timestamp pts);
 }
 final class HangCatalogPriorities {
 	String debug();
@@ -2172,31 +2223,6 @@ final class Error extends _Object implements Exception {
 	factory Error.fromTransportMemoryError(TransportMemoryError err);
 	Retry retry();
 }
-final class Timestamp extends _Object {
-	String debug();
-	Timestamp clone();
-	@override bool operator ==(Object other);
-	@override int get hashCode;
-	static Timestamp get zero;
-	factory Timestamp(U64 value, Timescale scale);
-	factory Timestamp.unscaled(U64 key);
-	factory Timestamp.fromScale(U64 value, U64 unitsPerSecond);
-	factory Timestamp.fromSecs(U64 seconds);
-	factory Timestamp.fromMillis(U64 millis);
-	factory Timestamp.fromMicros(U64 micros);
-	factory Timestamp.fromNanos(U64 nanos);
-	U64 value();
-	Timescale? scale();
-	bool isZero();
-	Timestamp convert(Timescale newScale);
-	BigInt asScale(Timescale target);
-	U64 asSecs();
-	BigInt asMillis();
-	BigInt asMicros();
-	BigInt asNanos();
-	Timestamp checkedAdd(Timestamp rhs);
-	Timestamp checkedSub(Timestamp rhs);
-}
 final class Version extends _Object {
 	@override String toString();
 	String debug();
@@ -2888,26 +2914,6 @@ final class TransportProbe extends _Object {
 	factory TransportProbe();
 	BandwidthRate target();
 	void setTarget(BandwidthRate rate);
-}
-final class TransportReceiveWindow extends _Object {
-	String debug();
-	TransportReceiveWindow clone();
-	@override bool operator ==(Object other);
-	@override int get hashCode;
-	U64? get connectionGet;
-	void connectionSet(U64? value);
-	U64 get streamGet;
-	void streamSet(U64 value);
-	factory TransportReceiveWindow(U64? connection, U64 stream);
-}
-final class TransportLimits extends _Object {
-	String debug();
-	TransportLimits clone();
-	@override bool operator ==(Object other);
-	@override int get hashCode;
-	factory TransportLimits.default_();
-	U64? get receiveWindowGet;
-	void receiveWindowSet(U64? value);
 }
 final class BandwidthLimit extends _Object {
 	String debug();
@@ -3730,16 +3736,6 @@ final class HangCatalogBinaryConfig extends _Object {
 	List<(String, Json)> get extraGet;
 	void extraSet(List<(String, Json)> value);
 	factory HangCatalogBinaryConfig(HangCatalogMode mode);
-}
-final class HangCatalogClock extends _Object {
-	String debug();
-	HangCatalogClock clone();
-	@override bool operator ==(Object other);
-	@override int get hashCode;
-	Timestamp get wallGet;
-	void wallSet(Timestamp value);
-	factory HangCatalogClock(Timestamp wall);
-	ClockWall wallClock(Timestamp pts);
 }
 final class HangCatalogContainer extends _Object {
 	String debug();

@@ -351,7 +351,8 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_60 === 12) {
 			const _98: rs.Result<rs.i64, rs.i64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.i64): rs.i64 | undefined => {
 				rs.byteVecPush(out, 192);
-				if (rs.i64Ne(x6, v)) {
+				const _59: rs.i64 = v;
+				if (typeof x6 === "number" && typeof _59 === "number" ? x6 !== _59 : rs.i64Ne(x6, _59)) {
 					if ((b2 & 2) === 0) {
 						rs.atomicStore(atomic, v, 0);
 					}
@@ -366,7 +367,8 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.i64): rs.i64 => {
 				rs.byteVecPush(out, 193);
-				if (rs.i64Ne(x5, v)) {
+				const _55: rs.i64 = v;
+				if (typeof x5 === "number" && typeof _55 === "number" ? x5 !== _55 : rs.i64Ne(x5, _55)) {
 					if ((b2 & 2) === 0) {
 						rs.atomicStore(atomic, v, 0);
 					}
@@ -375,7 +377,8 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}, rs.i64Eq);
 		} else if (_60 === 14) {
 			old = result_unwrapOr$1vlkfwl(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.i64): rs.i64 | undefined => {
-				return thenSome$179x8nl(rs.i64Ne(x4, v), v);
+				const _4: rs.i64 = v;
+				return thenSome$179x8nl(typeof x4 === "number" && typeof _4 === "number" ? x4 !== _4 : rs.i64Ne(x4, _4), v);
 			}, rs.i64Eq), v);
 		} else {
 			const _116: rs.Place<rs.i64> = atomic;
@@ -977,7 +980,7 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			old = rs.atomicFetch(atomic, rs.u64Min, v, any);
 		} else if (_60 === 10 || _60 === 11) {
 			if (!((b2 & 1) === 0)) {
-				current = rs.u64WrappingAdd(v, 1);
+				current = (typeof v === "number" && v + 1 <= 9007199254740991 ? v + 1 : rs.u64WrappingAdd(v, 1)) as rs.u64;
 			} else {
 				current = rs.atomicLoad(atomic, 0);
 			}
@@ -996,7 +999,8 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_60 === 12) {
 			const _98: rs.Result<rs.u64, rs.u64> = rs.atomicTryUpdate(atomic, any, failure, (x6: rs.u64): rs.u64 | undefined => {
 				rs.byteVecPush(out, 192);
-				if (rs.u64Ne(x6, v)) {
+				const _59: rs.u64 = v;
+				if (typeof x6 === "number" && typeof _59 === "number" ? x6 !== _59 : rs.u64Ne(x6, _59)) {
 					if ((b2 & 2) === 0) {
 						rs.atomicStore(atomic, v, 0);
 					}
@@ -1006,21 +1010,25 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_98.ok) {
 				old = _98.value;
 			} else {
-				old = rs.u64WrappingAdd(_98.error, 1);
+				const x3: rs.u64 = _98.error;
+				old = (typeof x3 === "number" && x3 + 1 <= 9007199254740991 ? x3 + 1 : rs.u64WrappingAdd(x3, 1)) as rs.u64;
 			}
 		} else if (_60 === 13) {
 			old = rs.atomicUpdate(atomic, any, failure, (x5: rs.u64): rs.u64 => {
 				rs.byteVecPush(out, 193);
-				if (rs.u64Ne(x5, v)) {
+				const _55: rs.u64 = v;
+				if (typeof x5 === "number" && typeof _55 === "number" ? x5 !== _55 : rs.u64Ne(x5, _55)) {
 					if ((b2 & 2) === 0) {
 						rs.atomicStore(atomic, v, 0);
 					}
 				}
-				return rs.u64Xor(rs.u64WrappingSub(x5, v), 1);
+				const _132: rs.u64 = v;
+				return rs.u64Xor((typeof x5 === "number" && typeof _132 === "number" && x5 - _132 >= 0 ? x5 - _132 : rs.u64WrappingSub(x5, _132)) as rs.u64, 1);
 			}, rs.u64Eq);
 		} else if (_60 === 14) {
 			old = result_unwrapOr$0ca9158(rs.atomicTryUpdate(atomic, any, failure, (x4: rs.u64): rs.u64 | undefined => {
-				return thenSome$0be218t(rs.u64Ne(x4, v), v);
+				const _4: rs.u64 = v;
+				return thenSome$0be218t(typeof x4 === "number" && typeof _4 === "number" ? x4 !== _4 : rs.u64Ne(x4, _4), v);
 			}, rs.u64Eq), v);
 		} else {
 			const _116: rs.Place<rs.u64> = atomic;

@@ -340,6 +340,13 @@ final class Clocked {
 	@override bool operator ==(Object other);
 	@override int get hashCode;
 }
+final class Rated {
+	String debug();
+	@override bool operator ==(Object other);
+	@override int get hashCode;
+	factory Rated(U64 count, U64 scale);
+	U64 scale();
+}
 final class Score {
 	String debug();
 	factory Score.of(U64 count);

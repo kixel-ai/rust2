@@ -3055,9 +3055,8 @@ export function lent(n: rs.u8): rs.ByteVec {
 	const _319: rs.u8 = rs.slicePartitionPoint(rs.arraySliceAsSlice(_312[0]), (held2) => _321(rs.sliceFrom(held2))) & 0xff;
 	rs.byteVecPush(o, _319);
 	const bytes: Uint8Array = rs.bytes(6).fill(n);
-	const _326: rs.ByteSlice = rs.byteSliceFrom(bytes);
+	const _324: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(rs.byteSliceFrom(bytes), 1), 2);
 	const _333: rs.ByteSlice = rs.byteSliceFrom(bytes);
-	const _324: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(_326, 1), 2);
 	const _332: (a0: rs.ByteSlice) => boolean = (run2: rs.ByteSlice): boolean => {
 		return !rs.byteSliceSame(run2, rs.optionUnwrap(rs.byteSliceGetRange(rs.byteSliceRange(_333, 3), 0, 2)));
 	};
@@ -3069,8 +3068,8 @@ export function lent(n: rs.u8): rs.ByteVec {
 	const pairs2: rs.u32[][] = Array.from({ length: 4 }, (): rs.u32[] => {
 		return copy$array_u32(_335);
 	});
-	const _345: rs.ArraySlice<rs.Slice<rs.u32>> = rs.arraySliceFrom(pairs2, rs.sliceFrom);
 	const _337: [rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.u32>>>, rs.ArraySlice<rs.Slice<rs.u32>>] = rs.sliceAsChunks(rs.arraySliceFrom(pairs2, rs.sliceFrom), 2);
+	const _345: rs.ArraySlice<rs.Slice<rs.u32>> = rs.arraySliceFrom(pairs2, rs.sliceFrom);
 	const _344: (a0: rs.ArraySlice<rs.Slice<rs.u32>>) => boolean = (run3: rs.ArraySlice<rs.Slice<rs.u32>>): boolean => {
 		return !rs.arraySliceSame(run3, rs.optionUnwrap(rs.arraySliceLastChunk(_345, 2)));
 	};

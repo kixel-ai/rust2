@@ -5528,21 +5528,24 @@ export function searched$array0_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const x: Uint8Array = make$conversions_Value_array0_u8(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
 			const _56: rs.ByteSlice = rs.byteSliceFrom(x);
+			const _55: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes);
 			const _59: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _58: (a0: rs.ByteSlice) => rs.Ordering = (e: rs.ByteSlice): rs.Ordering => {
 				put$conversions_Value_array0_u8(e, out);
 				return rs.cmpBytes(e, _59);
 			};
+			const _57: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held)));
+			const _60: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
+				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
+				rs.byteVecPush(out, _2[1]);
+				return rs.byteSliceToArray(e2);
+			}, rs.cmpBytes);
 			const _66: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _65: (a0: rs.ByteSlice) => boolean = (e3: rs.ByteSlice): boolean => {
 				put$conversions_Value_array0_u8(e3, out);
 				return rs.cmpBytes(e3, _66) === -1;
 			};
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes), rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held))), rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
-				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
-				rs.byteVecPush(out, _2[1]);
-				return rs.byteSliceToArray(e2);
-			}, rs.cmpBytes), rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([_55, _57, _60, rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -5596,21 +5599,24 @@ export function searched$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const x: Uint8Array = make$conversions_Value_array1_u8(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
 			const _56: rs.ByteSlice = rs.byteSliceFrom(x);
+			const _55: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes);
 			const _59: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _58: (a0: rs.ByteSlice) => rs.Ordering = (e: rs.ByteSlice): rs.Ordering => {
 				put$conversions_Value_array1_u8(e, out);
 				return rs.cmpBytes(e, _59);
 			};
+			const _57: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held)));
+			const _60: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
+				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
+				rs.byteVecPush(out, _2[1]);
+				return rs.byteSliceToArray(e2);
+			}, rs.cmpBytes);
 			const _66: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _65: (a0: rs.ByteSlice) => boolean = (e3: rs.ByteSlice): boolean => {
 				put$conversions_Value_array1_u8(e3, out);
 				return rs.cmpBytes(e3, _66) === -1;
 			};
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes), rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held))), rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
-				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
-				rs.byteVecPush(out, _2[1]);
-				return rs.byteSliceToArray(e2);
-			}, rs.cmpBytes), rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([_55, _57, _60, rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -5664,21 +5670,24 @@ export function searched$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const x: rs.u32[] = make$conversions_Value_array2_u32(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
 			const _56: rs.Slice<rs.u32> = rs.sliceFrom(x);
+			const _55: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.sliceItems(_56), rs.cmpSlice(rs.cmp));
 			const _59: rs.Slice<rs.u32> = rs.sliceFrom(x);
 			const _58: (a0: rs.Slice<rs.u32>) => rs.Ordering = (e: rs.Slice<rs.u32>): rs.Ordering => {
 				put$conversions_Value_array2_u32(e, out);
 				return rs.cmpSlice(rs.cmp)(e, _59);
 			};
+			const _57: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.sliceFrom(held)));
+			const _60: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchByKey(t, x, (_2: [rs.u32[], rs.u8]): rs.u32[] => {
+				const e2: rs.Slice<rs.u32> = rs.sliceFrom(_2[0]);
+				rs.byteVecPush(out, _2[1]);
+				return rs.sliceToArray(e2);
+			}, rs.cmpSlice(rs.cmp));
 			const _66: rs.Slice<rs.u32> = rs.sliceFrom(x);
 			const _65: (a0: rs.Slice<rs.u32>) => boolean = (e3: rs.Slice<rs.u32>): boolean => {
 				put$conversions_Value_array2_u32(e3, out);
 				return rs.cmpSlice(rs.cmp)(e3, _66) === -1;
 			};
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.sliceItems(_56), rs.cmpSlice(rs.cmp)), rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.sliceFrom(held))), rs.sliceBinarySearchByKey(t, x, (_2: [rs.u32[], rs.u8]): rs.u32[] => {
-				const e2: rs.Slice<rs.u32> = rs.sliceFrom(_2[0]);
-				rs.byteVecPush(out, _2[1]);
-				return rs.sliceToArray(e2);
-			}, rs.cmpSlice(rs.cmp)), rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.sliceFrom(held2))))]);
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([_55, _57, _60, rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.sliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -5732,21 +5741,24 @@ export function searched$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const x: Uint8Array = make$conversions_Value_array3_u8(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
 			const _56: rs.ByteSlice = rs.byteSliceFrom(x);
+			const _55: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes);
 			const _59: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _58: (a0: rs.ByteSlice) => rs.Ordering = (e: rs.ByteSlice): rs.Ordering => {
 				put$conversions_Value_array3_u8(e, out);
 				return rs.cmpBytes(e, _59);
 			};
+			const _57: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held)));
+			const _60: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
+				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
+				rs.byteVecPush(out, _2[1]);
+				return rs.byteSliceToArray(e2);
+			}, rs.cmpBytes);
 			const _66: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _65: (a0: rs.ByteSlice) => boolean = (e3: rs.ByteSlice): boolean => {
 				put$conversions_Value_array3_u8(e3, out);
 				return rs.cmpBytes(e3, _66) === -1;
 			};
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes), rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held))), rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
-				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
-				rs.byteVecPush(out, _2[1]);
-				return rs.byteSliceToArray(e2);
-			}, rs.cmpBytes), rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([_55, _57, _60, rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -5800,21 +5812,24 @@ export function searched$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const x: Uint8Array = make$conversions_Value_array40_u8(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
 			const _56: rs.ByteSlice = rs.byteSliceFrom(x);
+			const _55: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes);
 			const _59: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _58: (a0: rs.ByteSlice) => rs.Ordering = (e: rs.ByteSlice): rs.Ordering => {
 				put$conversions_Value_array40_u8(e, out);
 				return rs.cmpBytes(e, _59);
 			};
+			const _57: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held)));
+			const _60: rs.Result<rs.usize, rs.usize> = rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
+				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
+				rs.byteVecPush(out, _2[1]);
+				return rs.byteSliceToArray(e2);
+			}, rs.cmpBytes);
 			const _66: rs.ByteSlice = rs.byteSliceFrom(x);
 			const _65: (a0: rs.ByteSlice) => boolean = (e3: rs.ByteSlice): boolean => {
 				put$conversions_Value_array40_u8(e3, out);
 				return rs.cmpBytes(e3, _66) === -1;
 			};
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(rs.arraySliceAsSlice(s), rs.byteSliceView(_56), rs.cmpBytes), rs.sliceBinarySearchBy(rs.arraySliceAsSlice(s), (held) => _58(rs.byteSliceFrom(held))), rs.sliceBinarySearchByKey(t, rs.byteSliceView(rs.byteSliceFrom(x)), (_2: [Uint8Array, rs.u8]): Uint8Array => {
-				const e2: rs.ByteSlice = rs.byteSliceFrom(_2[0]);
-				rs.byteVecPush(out, _2[1]);
-				return rs.byteSliceToArray(e2);
-			}, rs.cmpBytes), rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([_55, _57, _60, rs.Ok(rs.slicePartitionPoint(rs.arraySliceAsSlice(s), (held2) => _65(rs.byteSliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -6064,7 +6079,7 @@ export function searched$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return _2[0];
 			}, rs.cmp), rs.Ok(rs.slicePartitionPoint(s, (e2: rs.u64): boolean => {
 				put$conversions_Value_u64(e2, out);
-				return rs.u64Lt(e2, x);
+				return typeof e2 === "number" && typeof x === "number" ? e2 < x : rs.u64Lt(e2, x);
 			}))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
@@ -7978,7 +7993,7 @@ export function compared$mut_u32(a: rs.Place<rs.u32>, b: rs.Place<rs.u32>, out: 
 
 /** Each comparison of `a` with `b`, and the greater. */
 export function compared$mut_u64(a: rs.Place<rs.u64>, b: rs.Place<rs.u64>, out: rs.ByteVec): rs.Place<rs.u64> {
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a.v, b.v), rs.u64Ne(a.v, b.v), rs.u64Lt(a.v, b.v), rs.u64Le(a.v, b.v), rs.u64Gt(a.v, b.v), rs.u64Ge(a.v, b.v)], (a0: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof a.v === "number" && typeof b.v === "number" ? a.v === b.v : rs.u64Eq(a.v, b.v), typeof a.v === "number" && typeof b.v === "number" ? a.v !== b.v : rs.u64Ne(a.v, b.v), typeof a.v === "number" && typeof b.v === "number" ? a.v < b.v : rs.u64Lt(a.v, b.v), typeof a.v === "number" && typeof b.v === "number" ? a.v <= b.v : rs.u64Le(a.v, b.v), typeof a.v === "number" && typeof b.v === "number" ? a.v > b.v : rs.u64Gt(a.v, b.v), typeof a.v === "number" && typeof b.v === "number" ? a.v >= b.v : rs.u64Ge(a.v, b.v)], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rs.byteVecPush(out, rs.cmp(a.v, b.v) & 0xff);
@@ -8242,7 +8257,7 @@ export function compared$ref_ref_u32(a: rs.u32, b: rs.u32, out: rs.ByteVec): rs.
 
 /** Each comparison of `a` with `b`, and the greater. */
 export function compared$ref_ref_u64(a: rs.u64, b: rs.u64, out: rs.ByteVec): rs.u64 {
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a, b), rs.u64Ne(a, b), rs.u64Lt(a, b), rs.u64Le(a, b), rs.u64Gt(a, b), rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof a === "number" && typeof b === "number" ? a === b : rs.u64Eq(a, b), typeof a === "number" && typeof b === "number" ? a !== b : rs.u64Ne(a, b), typeof a === "number" && typeof b === "number" ? a < b : rs.u64Lt(a, b), typeof a === "number" && typeof b === "number" ? a <= b : rs.u64Le(a, b), typeof a === "number" && typeof b === "number" ? a > b : rs.u64Gt(a, b), typeof a === "number" && typeof b === "number" ? a >= b : rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
@@ -8449,7 +8464,7 @@ export function compared$ref_u32(a: rs.u32, b: rs.u32, out: rs.ByteVec): rs.u32 
 
 /** Each comparison of `a` with `b`, and the greater. */
 export function compared$ref_u64(a: rs.u64, b: rs.u64, out: rs.ByteVec): rs.u64 {
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a, b), rs.u64Ne(a, b), rs.u64Lt(a, b), rs.u64Le(a, b), rs.u64Gt(a, b), rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([typeof a === "number" && typeof b === "number" ? a === b : rs.u64Eq(a, b), typeof a === "number" && typeof b === "number" ? a !== b : rs.u64Ne(a, b), typeof a === "number" && typeof b === "number" ? a < b : rs.u64Lt(a, b), typeof a === "number" && typeof b === "number" ? a <= b : rs.u64Le(a, b), typeof a === "number" && typeof b === "number" ? a > b : rs.u64Gt(a, b), typeof a === "number" && typeof b === "number" ? a >= b : rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);

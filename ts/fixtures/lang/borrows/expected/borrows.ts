@@ -106,7 +106,9 @@ export function borrows(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, count.v & 0xff);
 	rs.byteVecPush(out, option_mapOr$1idpb1d(copy$Option_tuple2_u64_u64(polling.current.v), 253, (_22: [rs.u64, rs.u64]): rs.u8 => {
-		return rs.u64Low(rs.u64Add(_22[0], _22[1])) & 0xff;
+		const a3: rs.u64 = _22[0];
+		const b2: rs.u64 = _22[1];
+		return rs.u64Low((typeof a3 === "number" && typeof b2 === "number" && a3 + b2 <= 9007199254740991 ? a3 + b2 : rs.u64Add(a3, b2)) as rs.u64) & 0xff;
 	}));
 	noisy[Symbol.dispose]();
 	owned[Symbol.dispose]();

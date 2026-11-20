@@ -5,7 +5,8 @@ import type * as Timescale from "../../moq_net/model/time.Timescale.ts";
 import * as Timestamp from "../../moq_net/model/time.Timestamp.ts";
 
 export function bounded(value: rs.u128, max: rs.u64): rs.u64 | undefined {
-	if (!rs.u128Le(value, rs.u128Cast(max))) {
+	const _4: rs.u128 = rs.u128Cast(max);
+	if (!(typeof value === "number" && typeof _4 === "number" ? value <= _4 : rs.u128Le(value, _4))) {
 		return undefined;
 	}
 	return rs.u64Cast(value);

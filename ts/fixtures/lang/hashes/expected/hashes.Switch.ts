@@ -43,7 +43,9 @@ export function write$hash_Hasher(self: rs.Place<Switch>, bytes: rs.ByteSlice): 
 		record(self.v._0, 119, bytes);
 	} else {
 		for (const b of rs.byteSliceView(bytes)) {
-			const _12: rs.u64 = rs.u64WrappingAdd(rs.u64WrappingMul(self.v._1, 31), b as rs.u64);
+			const _13: rs.u64 = rs.u64WrappingMul(self.v._1, 31);
+			const _15: rs.u64 = b as rs.u64;
+			const _12: rs.u64 = (typeof _13 === "number" && typeof _15 === "number" && _13 + _15 <= 9007199254740991 ? _13 + _15 : rs.u64WrappingAdd(_13, _15)) as rs.u64;
 			self.v._1 = _12;
 		}
 	}

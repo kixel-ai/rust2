@@ -714,7 +714,9 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const iterEnd2: rs.i32 = 64;
 		while (iterStart2++ < iterEnd2) {
 			const r2: rs.u64 = step(rs.place(() => state, (value2) => state = value2));
-			const x2: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11)) / rs.u64ToF64(rs.u64Shl(1, rs.u64Add(rs.u64Rem(r2, 24), 1)));
+			const _129: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11));
+			const _136: rs.u64 = rs.u64Rem(r2, 24);
+			const x2: rs.f64 = _129 / rs.u64ToF64(rs.u64Shl(1, (typeof _136 === "number" && _136 + 1 <= 9007199254740991 ? _136 + 1 : rs.u64Add(_136, 1)) as rs.u64));
 			const args14 = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
 			put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
 		}
@@ -748,7 +750,8 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const iterEnd: rs.i32 = 16;
 		while (iterStart++ < iterEnd) {
 			const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
-			const len: rs.usize = rs.u64Low(rs.u64Add(rs.u64Rem(r, 40), 1));
+			const _45: rs.u64 = rs.u64Rem(r, 40);
+			const len: rs.usize = rs.u64Low((typeof _45 === "number" && _45 + 1 <= 9007199254740991 ? _45 + 1 : rs.u64Add(_45, 1)) as rs.u64);
 			const point: rs.usize = rs.usizeRem(rs.u64Low(rs.u64Shr(r, 8)), rs.usizeAdd(len, 1));
 			const s2: rs.String = rs.stringNew();
 			let iterStart2: rs.usize = 0;

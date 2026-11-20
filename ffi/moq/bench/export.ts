@@ -103,7 +103,7 @@ function finish(group: GroupProducer.GroupProducer): void {
  */
 let micros = 0;
 
-/** The next group's start, which its frames are stamped with too; the caller disposes it. */
+/** The next group's start, which its frames are stamped with too. */
 function next(): Timestamp.Timestamp {
 	return ok(Timestamp.fromMicros(micros++), "fromMicros");
 }
@@ -160,7 +160,6 @@ async function throughput(
 		}
 		reader[Symbol.dispose]();
 		finish(group);
-		at[Symbol.dispose]();
 	}
 	const ns = end(start, `throughput[${size}]`, count * frames * size);
 	return { wall: 1e3 / ns.wall, cpu: 1e3 / ns.cpu };
@@ -178,7 +177,6 @@ async function payload(
 	const group = append(track, at);
 	const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
 	ok(GroupProducer.writeFrame(group, at, new Uint8Array(size)), "writeFrame");
-	at[Symbol.dispose]();
 	const read = some(ok(await GroupConsumer.readFrame(reader), "readFrame"), "readFrame");
 	reader[Symbol.dispose]();
 	finish(group);
@@ -207,9 +205,7 @@ async function round(): Promise<Map<string, Span>> {
 	}
 	out.set("call", end(start, "call"));
 
-	const demandedAt = next();
-	const demanded = append(track, demandedAt);
-	demandedAt[Symbol.dispose]();
+	const demanded = append(track, next());
 	const demand = GroupProducer.demand(demanded);
 	start = begin();
 	for (let i = 0; i < n; i++) {
@@ -234,13 +230,9 @@ async function round(): Promise<Map<string, Span>> {
 	// Each frame stamped through a fresh timestamp, as a caller holding a number must.
 	start = begin();
 	for (let g = 0; g < groups; g++) {
-		const first = ok(Timestamp.fromMicros(micros), "fromMicros");
-		const group = append(track, first);
-		first[Symbol.dispose]();
+		const group = append(track, ok(Timestamp.fromMicros(micros), "fromMicros"));
 		for (let f = 0; f < frames; f++) {
-			const at = next();
-			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
-			at[Symbol.dispose]();
+			ok(GroupProducer.writeFrame(group, next(), frame), "writeFrame");
 		}
 		finish(group);
 	}
@@ -255,7 +247,6 @@ async function round(): Promise<Map<string, Span>> {
 			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
 		}
 		finish(group);
-		at[Symbol.dispose]();
 	}
 	out.set("write", end(start, "write"));
 
@@ -278,7 +269,6 @@ async function round(): Promise<Map<string, Span>> {
 		}
 		reader[Symbol.dispose]();
 		finish(group);
-		at[Symbol.dispose]();
 	}
 	out.set("ready", end(start, "ready"));
 
@@ -296,7 +286,6 @@ async function round(): Promise<Map<string, Span>> {
 		}
 		reader[Symbol.dispose]();
 		finish(group);
-		at[Symbol.dispose]();
 	}
 	out.set("woken", end(start, "woken"));
 
@@ -314,7 +303,6 @@ async function round(): Promise<Map<string, Span>> {
 			// The reader's acknowledgement of the group, before the next.
 			await permits.take();
 			finish(group);
-			at[Symbol.dispose]();
 		}
 	})();
 	for (let g = 0; g < groups; g++) {
