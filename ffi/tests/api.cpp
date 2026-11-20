@@ -549,6 +549,11 @@ int checks() {
 	// Names a system header defines as macros, escaped.
 	check(api::EOF_ == -1 && api::WEXITSTATUS_(0x300) == 3, "names of system macros escape");
 	check(api::clash_Errno::NULL_().errno_ == 0 && api::clash_Errno{5}.errno_ == 5, "members named as system macros escape");
+	// Methods C++ escapes alike: Rust's `delete_` keeps its name and `delete` moves past it.
+	{
+		api::clash_Escaped escaped{3};
+		check(escaped.delete__() == 3 && escaped.delete_(1, 2) == 213, "methods C++ escapes alike stay apart");
+	}
 	// A name takes a copy of the caller's buffer, which is its own again after.
 	{
 		api::Name name = api::Name::owned("a");

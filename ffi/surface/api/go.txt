@@ -1,7 +1,6 @@
 package api // import "api/api"
 
 CONSTANTS
-const EOF int32 = -1
 const FAR int64 = 9223372036854775807
 const LIMIT uint64 = 1000
 const STEP uint64 = 1
@@ -43,8 +42,6 @@ func ClashAudioEncoderFinish_() uint8
 func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
-func ClashSourceVtable_() unsafe.Pointer
-func ClashWaited(source ClashSource) uint8
 func Coordinates(point *Point) int32
 func Corner(unit bool) (p_rt.Tuple2[uint32, uint32], error)
 func CornerLater(ctx context.Context) (p_rt.Tuple2[uint32, uint32], error)
@@ -256,7 +253,6 @@ func WasmTake(counter *Counter) (uint64, error)
 func Watch(gauge *Gauge, watch func(*Gauge) uint64) (uint64, error)
 func WeighAllCounter(items []*Counter) (uint64, error)
 func WeighPoint(from Point) uint32
-func Wexitstatus(status int32) int32
 func Widen(range_ p_rt.RangeU64, by uint64) p_rt.RangeU64
 func Widths(n uint64) (uint8, int16, uint32, uint64)
 func Wind(whole PolarTurn, part Polar_Turn) uint32
@@ -508,12 +504,13 @@ type ClashEmptyString struct {
 func ClashEmpty() *ClashEmptyString
 func (self *ClashEmptyString) Close() error
 func (self *ClashEmptyString) IsEmpty() (bool, error)
-type ClashErrno struct {
-	Errno int32
+type ClashEscaped struct {
+	New uint8
 }
-func ClashErrnoNULL() ClashErrno
-func (self ClashErrno) Equal(other ClashErrno) bool
-func (self ClashErrno) GoString() string
+func (self ClashEscaped) Delete() uint8
+func (self ClashEscaped) Delete_(new_ uint8, new_2 uint8) uint8
+func (self ClashEscaped) Equal(other ClashEscaped) bool
+func (self ClashEscaped) GoString() string
 type ClashEvent struct {
 	V0 Event
 }
@@ -553,23 +550,6 @@ func (self ClashInt) Point() (*Point, error)
 func (self ClashInt) Reading(kotlin uint32) (Reading, error)
 func (self ClashInt) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashInt) Tagged(ctx context.Context, tag string) (string, error)
-type ClashLevel int32
-const (
-	ClashLevelDefault ClashLevel = 0
-	ClashLevelDebug   ClashLevel = 1
-)
-func ClashLevelDefault_() ClashLevel
-func (self ClashLevel) Equal(other ClashLevel) bool
-func (self ClashLevel) GoString() string
-func (self ClashLevel) Index() uint8
-type ClashMalformed struct {
-	At uint8
-}
-func (self ClashMalformed) Equal(other ClashMalformed) bool
-func (self ClashMalformed) Error() string
-func (self ClashMalformed) GoString() string
-func (self ClashMalformed) Is_(at uint8) bool
-func (self ClashMalformed) String() string
 type ClashMoment struct {
 	V0 Moment
 }
@@ -635,13 +615,6 @@ func (self ClashPoint) Point() (*Point, error)
 func (self ClashPoint) Reading(kotlin uint32) (Reading, error)
 func (self ClashPoint) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashPoint) Tagged(ctx context.Context, tag string) (string, error)
-type ClashReader struct {
-	Handle_ *p_rt.Handle_
-}
-func NewClashReader(bytes p_rt.Bytes) *ClashReader
-func (self *ClashReader) Close() error
-func (self *ClashReader) ReadByte_() (uint8, error)
-func (self *ClashReader) UnreadByte() error
 type ClashSeed struct {
 	Handle_ *p_rt.Handle_
 }
@@ -663,10 +636,6 @@ func (self ClashShape) Point() (*Point, error)
 func (self ClashShape) Reading(kotlin uint32) (Reading, error)
 func (self ClashShape) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashShape) Tagged(ctx context.Context, tag string) (string, error)
-type ClashSource interface {
-	Wait()
-	ReadByte_() uint8
-}
 type ClashSpan struct {
 	Width uint32
 }
@@ -694,9 +663,7 @@ type ClashStore struct {
 func NewClashStore(count uint32) *ClashStore
 func (self *ClashStore) Close() error
 func (self *ClashStore) Close_() (uint32, error)
-func (self *ClashStore) Finalize() error
 func (self *ClashStore) Free() (uint32, error)
-func (self *ClashStore) Wait() error
 type ClashString struct {
 	V0 string
 }
@@ -710,23 +677,6 @@ func (self ClashString) Point() (*Point, error)
 func (self ClashString) Reading(kotlin uint32) (Reading, error)
 func (self ClashString) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashString) Tagged(ctx context.Context, tag string) (string, error)
-type ClashTag interface {
-	GoString() string
-	Equal(other ClashTag) bool
-	Number_() uint32
-}
-type ClashTagApplication struct {
-	Number uint32
-}
-func (self ClashTagApplication) Equal(other ClashTag) bool
-func (self ClashTagApplication) GoString() string
-func (self ClashTagApplication) Number_() uint32
-type ClashTagPrivate struct {
-	Number uint32
-}
-func (self ClashTagPrivate) Equal(other ClashTag) bool
-func (self ClashTagPrivate) GoString() string
-func (self ClashTagPrivate) Number_() uint32
 type ClashTone struct {
 	Hz uint16
 }

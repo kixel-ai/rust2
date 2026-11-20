@@ -514,8 +514,10 @@ packages place it in.
   `moq::track_Producer::append_group`. A keyword, or a macro GNU dialects predefine
   (`unix`, `linux`, `i386`, as in moq-tokio's `tokio::unix_`, and each of them followed by
   underscores, so `unix_` becomes `unix__`), takes a trailing `_` (`counter::new_`),
-  as does a member named as its class or one of its fields, and a parameter named as a
-  member or as anything in the namespace, which it would hide.
+  as does a member named as its class, one of its fields, or a member a trait gives it,
+  and a parameter named as a member or as anything in the namespace, which it would hide.
+  A name the escape leaves alone keeps it, and one escaped onto another's takes more `_`s
+  until free: the values `Delete` and `Delete_` are `delete__` and `delete_`, in any order.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
   Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which

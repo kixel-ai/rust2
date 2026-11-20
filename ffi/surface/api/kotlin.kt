@@ -429,16 +429,10 @@ data class ClashBreak(val _0: kotlin.UByte) {
 		@kotlin.jvm.JvmStatic val SP_: api.ClashBreak
 	}
 }
-data class ClashMalformed(val at: kotlin.UByte) {
-	final override fun toString(): kotlin.String
+data class ClashEscaped(val new: kotlin.UByte) {
 	fun debug(): kotlin.String
-	fun `is`(at: kotlin.UByte): kotlin.Boolean
-}
-data class ClashErrno(val errno: kotlin.Int) {
-	fun debug(): kotlin.String
-	companion object {
-		@kotlin.jvm.JvmStatic val `NULL`: api.ClashErrno
-	}
+	fun delete(): kotlin.UByte
+	fun delete_(new: kotlin.UByte, new2: kotlin.UByte): kotlin.UByte
 }
 data class TlsPolicyLifetime(val seconds: kotlin.UInt) {
 	fun debug(): kotlin.String
@@ -591,21 +585,6 @@ sealed class ClashCandidate {
 	data object None : ClashCandidate()
 	data class Match(val _0: kotlin.UByte) : ClashCandidate()
 	fun debug(): kotlin.String
-}
-enum class ClashLevel(internal val value: Int) {
-	DEFAULT(0),
-	DEBUG(1);
-	fun debug(): kotlin.String
-	fun index(): kotlin.UByte
-	companion object {
-		@kotlin.jvm.JvmStatic fun default(): api.ClashLevel
-	}
-}
-sealed class ClashTag {
-	data class Application(val number: kotlin.UInt) : ClashTag()
-	data class Private(val number: kotlin.UInt) : ClashTag()
-	fun debug(): kotlin.String
-	fun number(): kotlin.UInt
 }
 enum class Level(internal val value: Int) {
 	ERROR(0),
@@ -1274,18 +1253,8 @@ class ClashStore internal constructor(raw: Long, lent: Boolean = false) : AutoCl
 	override fun close()
 	fun free(): kotlin.UInt
 	fun close_(): kotlin.UInt
-	@kotlin.jvm.JvmName("wait_") fun wait()
-	@kotlin.jvm.JvmName("finalize_") fun finalize()
 	companion object {
 		@kotlin.jvm.JvmStatic fun new(count: kotlin.UInt): api.ClashStore
-	}
-}
-class ClashReader internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
-	override fun close()
-	@kotlin.jvm.Throws(ClashMalformedException::class) fun readByte(): kotlin.UByte
-	@kotlin.jvm.Throws(ClashMalformedException::class) fun unreadByte()
-	companion object {
-		@kotlin.jvm.JvmStatic fun new(bytes: api.Bytes): api.ClashReader
 	}
 }
 class TlsSession internal constructor(raw: Long, lent: Boolean = false) : AutoCloseable {
@@ -1405,10 +1374,6 @@ interface Turner {
 	fun by(): kotlin.ULong
 	@kotlin.Deprecated("turn `Turner::by` instead") fun once(): kotlin.ULong
 }
-interface ClashSource {
-	fun wait_()
-	fun readByte(): kotlin.UByte
-}
 data class Tuple1<T1>(val first: T1) {
 	override fun equals(other: kotlin.Any?): kotlin.Boolean
 	override fun hashCode(): kotlin.Int
@@ -1422,9 +1387,6 @@ data class Tuple2<T1, T2>(val first: T1, val second: T2) {
 	override fun hashCode(): kotlin.Int
 }
 class BoundsU64Exception(val error: api.BoundsU64) : Exception() {
-	override val message: String
-}
-class ClashMalformedException(val error: api.ClashMalformed) : Exception() {
 	override val message: String
 }
 class ErrorException(val error: api.Error) : Exception() {
@@ -1444,7 +1406,6 @@ class kotlincollectionsListClashToneException(val error: kotlin.collections.List
 }
 const val LIMIT: ULong
 const val FAR: Long
-const val EOF: Int
 const val URL: ULong
 @kotlin.Deprecated("pass a step to `Dial::turn`, whose `}` or `{` alone stays in the note") const val STEP: ULong
 fun hasText(note: api.Note): kotlin.Boolean
@@ -1694,7 +1655,6 @@ fun nonZeros(): api.NonZeros
 fun describeNonZeros(nonZeros: api.NonZeros): kotlin.String
 fun nextHop(hop: kotlin.ULong?): kotlin.ULong?
 fun fartherHop(hops: api.PairNonZeroU16): kotlin.UShort
-fun wexitstatus(status: kotlin.Int): kotlin.Int
 fun sameDuration(v: api.Duration): api.Duration
 fun sameU64(v: kotlin.ULong): kotlin.ULong
 fun sameUsize(v: kotlin.ULong): kotlin.ULong
@@ -1723,7 +1683,6 @@ fun clashAny(typeUrl: kotlin.String): api.ClashAny
 fun clashCandidate(at: kotlin.UByte): api.ClashCandidate
 fun clashIgnore(arg0: kotlin.UByte, arg1: kotlin.UByte, arg2: kotlin.UByte): kotlin.UByte
 fun clashEmpty(): api.ClashEmptyString
-fun clashWaited(source: api.ClashSource): kotlin.UByte
 @kotlin.jvm.Throws(kotlincollectionsListClashToneException::class) fun clashAudible(tone: api.ClashTone): api.ClashTone
 fun clashNested(a: kotlin.Pair<kotlin.Pair<kotlin.UByte, kotlin.UShort>, kotlin.UInt>?, b: api.Tuple1<kotlin.Triple<kotlin.UByte, kotlin.UShort, kotlin.UInt>>?): kotlin.UInt
 fun clashAudioEncoderFinish(): kotlin.UByte

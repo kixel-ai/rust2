@@ -2213,8 +2213,8 @@ mod tests {
 		let macros = include_str!("macros.txt").lines().filter(|line| !line.starts_with('#'));
 		for stem in macros.map(|m| m.trim_end_matches('_')) {
 			let family: Vec<String> = (0..4).map(|n| format!("{stem}{}", "_".repeat(n))).collect();
-			// A C++ keyword's escape merges a name with its own, which `cpp-name-collisions` keeps
-			// apart.
+			// A C++ keyword's escape merges a name with its own, which each scope's names keep
+			// apart, as `cpp::named` does.
 			let keyword = crate::cpp::escape(stem) != super::unmacroed(stem, 0, |name| name == "i386");
 			let escapes: &[fn(&str) -> String] = match keyword {
 				true => &[escape],
